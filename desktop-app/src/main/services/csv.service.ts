@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import ExcelJS from "exceljs";
-import type { DealershipInput } from "@shared/types";
+import type { DealershipInput, ImportResult, ImportReport } from "@shared/types";
 
 /**
  * Import parser (no heavy external dependency for CSV/TSV; XLSX via the
@@ -10,21 +10,31 @@ import type { DealershipInput } from "@shared/types";
  * CSV/TSV: splits on comma, semicolon, or tab (auto-detected); simple quotes.
  */
 export function parseCsv(content: string): DealershipInput[] {
+  return parseCsvWithReport(content).rows;
+}
+
+/** CSV/TSV import with row-level diagnostics and a reproducible mapping report. */
+export function parseCsvWithReport(content: string): ImportResult {
   const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length === 0) return [];
+  if (lines.length === 0) return emptyResult("csv");
 
   const delimiter = detectDelimiter(lines[0]);
   const matrix = lines.map((l) => splitLine(l, delimiter));
-  return rowsFromMatrix(matrix);
+  return rowsFromMatrix(matrix, delimiter === "\t" ? "tsv" : "csv");
 }
 
 /** XLSX import: first worksheet, same column heuristic as CSV. */
 export async function parseXlsx(base64: string): Promise<DealershipInput[]> {
+  return (await parseXlsxWithReport(base64)).rows;
+}
+
+/** XLSX import with the same diagnostics as CSV/TSV. */
+export async function parseXlsxWithReport(base64: string): Promise<ImportResult> {
   const wb = new ExcelJS.Workbook();
   // exceljs typings expect an older Buffer type → cast at the boundary.
   await wb.xlsx.load(Buffer.from(base64, "base64") as unknown as ArrayBuffer);
   const ws = wb.worksheets[0];
-  if (!ws) return [];
+  if (!ws) return emptyResult("xlsx");
 
   const matrix: string[][] = [];
   ws.eachRow((row) => {
@@ -36,7 +46,7 @@ export async function parseXlsx(base64: string): Promise<DealershipInput[]> {
     }
     matrix.push(cells);
   });
-  return rowsFromMatrix(matrix);
+  return rowsFromMatrix(matrix, "xlsx");
 }
 
 /** Selects the most frequent delimiter in the header row from tab/semicolon/comma. */
@@ -57,8 +67,11 @@ function occurrences(s: string, ch: string): number {
 }
 
 /** Shared row/column mapping for CSV, TSV, and XLSX. */
-function rowsFromMatrix(matrix: string[][]): DealershipInput[] {
-  if (matrix.length === 0) return [];
+function rowsFromMatrix(
+  matrix: string[][],
+  format: ImportReport["format"],
+): ImportResult {
+  if (matrix.length === 0) return emptyResult(format);
   const header = matrix[0].map((h) => h.trim().toLowerCase());
   const idx = (names: string[]): number =>
     header.findIndex((h) => names.includes(h));
@@ -89,26 +102,51 @@ function rowsFromMatrix(matrix: string[][]): DealershipInput[] {
   const limitIdx = idx(["limit", "productlimit", "cap", "versicherungssumme"]);
 
   const rows: DealershipInput[] = [];
+  const issues: ImportReport["issues"] = [];
+  const seen = new Set<string>();
+  let duplicateRows = 0;
   for (let i = 1; i < matrix.length; i++) {
     const cols = matrix[i];
     const name = (nameIdx >= 0 ? cols[nameIdx] : cols[0])?.trim();
-    if (!name) continue;
+    const rowNumber = i + 1;
+    if (!name) {
+      issues.push({ row: rowNumber, field: "name", severity: "error", message: "Missing dealership name" });
+      continue;
+    }
 
-    const lat = latIdx >= 0 ? parseNum(cols[latIdx]) : undefined;
-    const lon = lonIdx >= 0 ? parseNum(cols[lonIdx]) : undefined;
-    const assetValue = valIdx >= 0 ? parseNum(cols[valIdx]) : undefined;
-    const productLimitEur = limitIdx >= 0 ? parseNum(cols[limitIdx]) : undefined;
+    const latCell = readNumber(cols[latIdx], "lat", rowNumber, issues);
+    const lonCell = readNumber(cols[lonIdx], "lon", rowNumber, issues);
+    const valueCell = readNumber(cols[valIdx], "assetValue", rowNumber, issues);
+    const limitCell = readNumber(cols[limitIdx], "productLimitEur", rowNumber, issues);
+    const lat = latCell.value;
+    const lon = lonCell.value;
+    const assetValue = valueCell.value;
+    const productLimitEur = limitCell.value;
+
+    if (lat != null && (lat < -90 || lat > 90)) {
+      issues.push({ row: rowNumber, field: "lat", severity: "error", message: "Latitude must be between -90 and 90" });
+    }
+    if (lon != null && (lon < -180 || lon > 180)) {
+      issues.push({ row: rowNumber, field: "lon", severity: "error", message: "Longitude must be between -180 and 180" });
+    }
+    const validLat = lat != null && lat >= -90 && lat <= 90 ? lat : undefined;
+    const validLon = lon != null && lon >= -180 && lon <= 180 ? lon : undefined;
+
+    const key = `${normalise(name)}|${normalise(cols[addrIdx] ?? "")}`;
+    if (seen.has(key)) {
+      duplicateRows++;
+      issues.push({ row: rowNumber, severity: "warning", message: "Duplicate dealership row skipped" });
+      continue;
+    }
+    seen.add(key);
 
     rows.push({
       id: randomUUID(),
       name,
       address: addrIdx >= 0 ? cols[addrIdx]?.trim() || undefined : undefined,
-      lat: lat != null && !Number.isNaN(lat) ? lat : undefined,
-      lon: lon != null && !Number.isNaN(lon) ? lon : undefined,
-      assetValue:
-        assetValue != null && !Number.isNaN(assetValue)
-          ? assetValue
-          : undefined,
+      lat: validLat,
+      lon: validLon,
+      assetValue: assetValue != null ? assetValue : undefined,
       insured: insuredIdx >= 0 ? parseBool(cols[insuredIdx]) : undefined,
       salesPartner:
         partnerIdx >= 0 ? cols[partnerIdx]?.trim() || undefined : undefined,
@@ -117,13 +155,39 @@ function rowsFromMatrix(matrix: string[][]): DealershipInput[] {
           ? cols[subPortfolioIdx]?.trim() || undefined
           : undefined,
       group: groupIdx >= 0 ? cols[groupIdx]?.trim() || undefined : undefined,
-      productLimitEur:
-        productLimitEur != null && !Number.isNaN(productLimitEur)
-          ? productLimitEur
-          : undefined,
+      productLimitEur: productLimitEur != null ? productLimitEur : undefined,
     });
   }
-  return rows;
+
+  const missingCoordinates = rows.filter((r) => r.lat == null || r.lon == null).length;
+  const warnings = missingCoordinates > 0
+    ? [`${missingCoordinates} row(s) require address geocoding because coordinates are incomplete.`]
+    : [];
+  return {
+    rows,
+    report: {
+      format,
+      totalRows: Math.max(0, matrix.length - 1),
+      importedRows: rows.length,
+      skippedRows: Math.max(0, matrix.length - 1 - rows.length),
+      duplicateRows,
+      columnMapping: {
+        name: header[nameIdx] ?? null,
+        address: header[addrIdx] ?? null,
+        lat: header[latIdx] ?? null,
+        lon: header[lonIdx] ?? null,
+        assetValue: header[valIdx] ?? null,
+        insured: header[insuredIdx] ?? null,
+        salesPartner: header[partnerIdx] ?? null,
+        subPortfolio: header[subPortfolioIdx] ?? null,
+        group: header[groupIdx] ?? null,
+        productLimitEur: header[limitIdx] ?? null,
+      },
+      issues,
+      warnings,
+      createdAt: new Date().toISOString(),
+    },
+  };
 }
 
 function cellToString(v: unknown): string {
@@ -154,10 +218,40 @@ function splitLine(line: string, delimiter: string): string[] {
   return out.map((c) => c.replace(/^"|"$/g, ""));
 }
 
-function parseNum(s: string | undefined): number | undefined {
-  if (!s) return undefined;
+function readNumber(
+  s: string | undefined,
+  field: string,
+  row: number,
+  issues: ImportReport["issues"],
+): { value: number | undefined } {
+  if (!s?.trim()) return { value: undefined };
   const n = Number(s.trim().replace(",", "."));
-  return Number.isNaN(n) ? undefined : n;
+  if (Number.isNaN(n)) {
+    issues.push({ row, field, severity: "warning", message: `Invalid number '${s.trim()}' ignored` });
+    return { value: undefined };
+  }
+  return { value: n };
+}
+
+function normalise(value: string): string {
+  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+}
+
+function emptyResult(format: ImportReport["format"]): ImportResult {
+  return {
+    rows: [],
+    report: {
+      format,
+      totalRows: 0,
+      importedRows: 0,
+      skippedRows: 0,
+      duplicateRows: 0,
+      columnMapping: {},
+      issues: [],
+      warnings: [],
+      createdAt: new Date().toISOString(),
+    },
+  };
 }
 
 /**

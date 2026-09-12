@@ -123,6 +123,39 @@ export function ScenarioBuilder({
             </Select>
           </div>
 
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="scenario-return-period">Return period</Label>
+              <Select
+                value={String(scenario.returnPeriodYears ?? 100)}
+                onValueChange={(v) =>
+                  patch({ returnPeriodYears: Number(v) as 10 | 50 | 100 })
+                }
+              >
+                <SelectTrigger id="scenario-return-period"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[10, 50, 100].map((years) => (
+                    <SelectItem key={years} value={String(years)}>{years} years</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="scenario-exposure-multiplier">Exposure ×</Label>
+              <Input
+                id="scenario-exposure-multiplier"
+                type="number"
+                min={0.1}
+                max={5}
+                step={0.1}
+                value={scenario.exposureMultiplier ?? 1}
+                onChange={(e) =>
+                  patch({ exposureMultiplier: Math.max(0.1, Number(e.target.value) || 1) })
+                }
+              />
+            </div>
+          </div>
+
           {impact && (
             <div className="space-y-1 border-t pt-3 text-sm">
               <div className="flex justify-between">
@@ -144,6 +177,9 @@ export function ScenarioBuilder({
                 <span className="font-semibold text-destructive">
                   {eur(impact.estimatedLossEur)}
                 </span>
+              </div>
+              <div className="pt-1 text-xs text-muted-foreground">
+                Model {impact.modelVersion} · {impact.scenario.returnPeriodYears ?? "—"} year return period
               </div>
             </div>
           )}

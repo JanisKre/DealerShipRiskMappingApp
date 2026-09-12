@@ -3,6 +3,7 @@ import type {
   AnalyzedDealership,
   DealershipInput,
   HailstormScenario,
+  ImportReport,
   NlQueryDealership,
   Session,
 } from "@shared/types";
@@ -29,6 +30,8 @@ interface AppState {
   lastAddedIds: string[];
   /** Timestamp of the last successful save (manual or autosave). */
   lastSavedAt: string | null;
+  /** Quality report from the most recent CSV/XLSX import. */
+  lastImportReport: ImportReport | null;
 
   // Map: active hailstorm scenario (corridor) + comparison session
   scenario: HailstormScenario | null;
@@ -42,6 +45,7 @@ interface AppState {
 
   setSession: (id: string | null, name: string) => void;
   setSessionName: (name: string) => void;
+  setImportReport: (report: ImportReport | null) => void;
   setDealerships: (d: AnalyzedDealership[]) => void;
   upsertDealership: (d: AnalyzedDealership) => void;
   updateBoundary: (
@@ -120,6 +124,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   analyzingIds: [],
   lastAddedIds: [],
   lastSavedAt: null,
+  lastImportReport: null,
   scenario: null,
   comparison: null,
   nlQueryMatchedIds: null,
@@ -127,6 +132,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setSession: (id, name) => set({ sessionId: id, sessionName: name }),
   setSessionName: (name) => set({ sessionName: name }),
+  setImportReport: (lastImportReport) => set({ lastImportReport }),
   setDealerships: (dealerships) => set({ dealerships }),
   upsertDealership: (d) =>
     set((s) => {

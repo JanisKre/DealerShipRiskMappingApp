@@ -4,7 +4,10 @@ import { z } from "zod";
 import { IPC } from "@shared/ipc-channels";
 import {
   ipcRequest,
+  LlmStreamEnvelopeSchema,
   LlmStreamRequestSchema,
+  ModelDownloadEnvelopeSchema,
+  StreamCancelSchema,
   type LlmStreamChunk,
   type ModelDownloadChunk,
 } from "@shared/ipc-schema";
@@ -32,7 +35,7 @@ import {
 import { geocode } from "../services/geocoding.service";
 import { getOsmDetails } from "../services/osmDetails.service";
 import { placesAutocomplete } from "../services/places.service";
-import { parseCsv, parseXlsx } from "../services/csv.service";
+import { parseCsvWithReport, parseXlsxWithReport } from "../services/csv.service";
 import {
   executiveSummaryStream,
   generateDashboardSpec,
@@ -89,8 +92,8 @@ function handle<K extends keyof typeof ipcRequest>(
 }
 
 export function registerIpcHandlers(): void {
-  handle(IPC.parseCsv, ({ content }) => parseCsv(content));
-  handle(IPC.parseXlsx, ({ base64 }) => parseXlsx(base64));
+  handle(IPC.parseCsv, ({ content }) => parseCsvWithReport(content));
+  handle(IPC.parseXlsx, ({ base64 }) => parseXlsxWithReport(base64));
   handle(IPC.geocode, ({ query }) => geocode(query));
   handle(IPC.placesAutocomplete, ({ query }) => placesAutocomplete(query));
   handle(IPC.detectBoundary, ({ lat, lon }) => detectBoundary(lat, lon));
@@ -189,8 +192,9 @@ function registerLlmStreaming(): void {
   const active = new Map<string, AbortController>();
 
   ipcMain.on(IPC.llmStream, (event, raw: unknown) => {
-    const { streamId, req } = raw as { streamId: string; req: unknown };
-    const parsed = LlmStreamRequestSchema.parse(req);
+    const parsedEnvelope = LlmStreamEnvelopeSchema.safeParse(raw);
+    if (!parsedEnvelope.success) return;
+    const { streamId, req: parsed } = parsedEnvelope.data;
     const channel = `${IPC.llmStream}:${streamId}`;
     const controller = new AbortController();
     active.set(streamId, controller);
@@ -212,7 +216,9 @@ function registerLlmStreaming(): void {
   });
 
   ipcMain.on(`${IPC.llmStream}:cancel`, (_event, raw: unknown) => {
-    const { streamId } = raw as { streamId: string };
+    const parsed = StreamCancelSchema.safeParse(raw);
+    if (!parsed.success) return;
+    const { streamId } = parsed.data;
     active.get(streamId)?.abort();
     active.delete(streamId);
   });
@@ -267,7 +273,9 @@ function registerModelDownload(): void {
   const active = new Map<string, AbortController>();
 
   ipcMain.on(IPC.modelDownload, (event, raw: unknown) => {
-    const { streamId } = raw as { streamId: string };
+    const parsed = ModelDownloadEnvelopeSchema.safeParse(raw);
+    if (!parsed.success) return;
+    const { streamId } = parsed.data;
     const channel = `${IPC.modelDownload}:${streamId}`;
     const controller = new AbortController();
     active.set(streamId, controller);
@@ -297,7 +305,9 @@ function registerModelDownload(): void {
   });
 
   ipcMain.on(`${IPC.modelDownload}:cancel`, (_event, raw: unknown) => {
-    const { streamId } = raw as { streamId: string };
+    const parsed = StreamCancelSchema.safeParse(raw);
+    if (!parsed.success) return;
+    const { streamId } = parsed.data;
     active.get(streamId)?.abort();
     active.delete(streamId);
   });

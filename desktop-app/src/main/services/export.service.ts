@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, dialog } from "electron";
+import { BrowserWindow, ClipboardItem, clipboard, dialog } from "electron";
 import { readFile, writeFile } from "fs/promises";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -553,7 +553,11 @@ export async function captureMap(
   );
 
   if (mode === "clipboard") {
-    clipboard.writeImage(image);
+    await clipboard.write([
+      new ClipboardItem({
+        "image/png": new Blob([image.toPNG()], { type: "image/png" }),
+      }),
+    ]);
     return { path: null, ok: true };
   }
 

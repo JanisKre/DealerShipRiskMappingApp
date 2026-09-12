@@ -175,6 +175,30 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
         </div>
       </div>
 
+      {d.risk && (
+        <div className="space-y-2 rounded-md border bg-muted/20 p-3 text-sm">
+          <div className="flex justify-between gap-3">
+            <span className="font-semibold">Model confidence</span>
+            <span>{pct(d.risk.confidence, 0)} · {d.risk.modelVersion ?? "unknown"}</span>
+          </div>
+          {d.risk.limitations && d.risk.limitations.length > 0 && (
+            <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+              {d.risk.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
+            </ul>
+          )}
+          {d.risk.evidence && d.risk.evidence.length > 0 && (
+            <div className="space-y-1 border-t pt-2 text-xs text-muted-foreground">
+              {d.risk.evidence.map((item) => (
+                <div key={`${item.source}-${item.method}`}>
+                  {item.source} · {item.method} · {pct(item.confidence, 0)}
+                  {item.fallbackUsed ? " · fallback" : ""}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <Separator />
 
       <TemporalSection d={d} />
