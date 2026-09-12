@@ -32,11 +32,12 @@ export function ScenarioBuilder({
   const { t } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
   const scenario = useAppStore((s) => s.scenario);
+  const parameters = useAppStore((s) => s.parameters);
   const setScenario = useAppStore((s) => s.setScenario);
 
   const impact = useMemo(
-    () => (scenario ? computeScenarioImpact(scenario, dealerships) : null),
-    [scenario, dealerships],
+    () => (scenario ? computeScenarioImpact(scenario, dealerships, parameters) : null),
+    [scenario, dealerships, parameters],
   );
 
   function patch(partial: Partial<HailstormScenario>): void {

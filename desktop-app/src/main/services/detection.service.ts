@@ -10,11 +10,12 @@ import type {
   VehicleClass,
 } from "@shared/types";
 import {
-  DETECTION_CONFIDENCE,
   DETECTION_STRIDE,
   DETECTION_WINDOW_SIZE,
 } from "@shared/constants";
 import type { AerialCapture } from "./tiles.service";
+import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
+import type { RiskParameters } from "@shared/types";
 
 /**
  * Swappable detector interface. Allows the current YOLOv8-ONNX to be
@@ -25,6 +26,7 @@ export interface VehicleDetector {
   detect(
     image: AerialImage,
     boundary?: BoundaryResult,
+    parameters?: RiskParameters,
   ): Promise<DetectionResult>;
 }
 
@@ -211,6 +213,7 @@ export class OnnxYoloDetector implements VehicleDetector {
     pixels: Uint8ClampedArray,
     width: number,
     height: number,
+    confidenceThreshold: number,
   ): Promise<WorkerResult> {
     const id = `${this.seq++}`;
     return new Promise<WorkerResult>((resolve, reject) => {
@@ -221,7 +224,7 @@ export class OnnxYoloDetector implements VehicleDetector {
         pixels,
         width,
         height,
-        confidenceThreshold: DETECTION_CONFIDENCE,
+        confidenceThreshold,
       });
     });
   }
@@ -229,6 +232,7 @@ export class OnnxYoloDetector implements VehicleDetector {
   async detect(
     image: AerialImage,
     boundary?: BoundaryResult,
+    parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
   ): Promise<DetectionResult> {
     if (!image.rgba || image.width === 0 || image.height === 0) {
       return {
@@ -258,7 +262,12 @@ export class OnnxYoloDetector implements VehicleDetector {
     // bottleneck, not the JS slicing.
     for (const c of crops) {
       const cropBuf = this.extractCrop(rgba, width, c.cropX, c.cropY, c.w, c.h);
-      const res = await this.runWindow(cropBuf, c.w, c.h);
+      const res = await this.runWindow(
+        cropBuf,
+        c.w,
+        c.h,
+        parameters.detectionConfidence,
+      );
       if (res.error || !res.detections) continue;
       totalInferenceMs += res.inferenceMs ?? 0;
 
@@ -432,6 +441,7 @@ export class StubVehicleDetector implements VehicleDetector {
   async detect(
     _image: AerialImage,
     boundary?: BoundaryResult,
+    _parameters?: RiskParameters,
   ): Promise<DetectionResult> {
     const area = boundary?.areaSqm ?? 0;
     const vehicleCount = Math.round(area / 25);
@@ -488,6 +498,7 @@ export function isModelAvailable(): boolean {
 export async function detectVehicles(
   image: AerialImage,
   boundary?: BoundaryResult,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): Promise<DetectionResult> {
-  return getDetector().detect(image, boundary);
+  return getDetector().detect(image, boundary, parameters);
 }

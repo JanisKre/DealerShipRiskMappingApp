@@ -1,34 +1,36 @@
 import type { HailZone, PerilScore } from "@shared/types";
 import { hailZoneToScore } from "@shared/risk-math";
-import { HEAT_HOTDAYS_SCORE_MAX } from "@shared/constants";
+import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
+import type { RiskParameters } from "@shared/types";
 import type { WeatherMetrics } from "../weather.service";
 
 export function scorePerils(
   w: WeatherMetrics,
   hailZone?: HailZone,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): PerilScore[] {
   return [
     {
       peril: "wind",
-      score: clamp((w.maxWindKmh / 120) * 100),
+      score: clamp((w.maxWindKmh / parameters.windScoreMaxKmh) * 100),
       hazardValue: round(w.maxWindKmh),
       unit: "km/h",
     },
     {
       peril: "lightning",
-      score: clamp((w.lightningDensity / 5) * 100),
+      score: clamp((w.lightningDensity / parameters.lightningScoreMaxDensity) * 100),
       hazardValue: round(w.lightningDensity),
       unit: "strikes/km²/yr",
     },
     {
       peril: "snow",
-      score: clamp((w.maxSnowDepthCm / 50) * 100),
+      score: clamp((w.maxSnowDepthCm / parameters.snowScoreMaxCm) * 100),
       hazardValue: round(w.maxSnowDepthCm),
       unit: "cm",
     },
     {
       peril: "flood",
-      score: clamp((w.annualPrecipMm / 1200) * 100),
+      score: clamp((w.annualPrecipMm / parameters.floodScoreMaxAnnualPrecipMm) * 100),
       hazardValue: round(w.annualPrecipMm),
       unit: "mm/a",
     },
@@ -47,7 +49,7 @@ export function scorePerils(
         },
     {
       peril: "heat",
-      score: clamp((w.hotDays / HEAT_HOTDAYS_SCORE_MAX) * 100),
+      score: clamp((w.hotDays / parameters.heatHotdaysScoreMax) * 100),
       hazardValue: round(w.hotDays),
       unit: "hot days/yr",
     },

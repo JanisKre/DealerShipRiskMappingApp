@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import type { DealershipInput } from "@shared/types";
 import { useAppStore } from "@renderer/store/appStore";
 import { useConversationStore } from "@renderer/store/conversationStore";
-import { useDashboardStore } from "@renderer/store/dashboardStore";
 import { ExecutiveSummary } from "@renderer/components/ai/ExecutiveSummary";
 import { ConversationSidebar } from "@renderer/components/chat/ConversationSidebar";
 import { MessageBubble } from "@renderer/components/chat/MessageBubble";
@@ -30,8 +29,6 @@ export function StartPage(): React.JSX.Element {
   const lastImportReport = useAppStore((s) => s.lastImportReport);
   const setImportReport = useAppStore((s) => s.setImportReport);
   const loadList = useConversationStore((s) => s.loadList);
-  const generateDashboard = useDashboardStore((s) => s.generate);
-  const dashboardGenerating = useDashboardStore((s) => s.generating);
   const { messages, activeId, streamingText, streaming, error, send } =
     useChat();
 
@@ -66,12 +63,6 @@ export function StartPage(): React.JSX.Element {
         lon: p.lon,
       },
     ]);
-  }
-
-  /** Dashboard prompt: jump to the AI dashboard page and generate there. */
-  function onGenerateDashboard(prompt: string): void {
-    navigate("/ai-dashboard");
-    void generateDashboard(prompt, useAppStore.getState().dealerships);
   }
 
   /** Read a CSV/TSV/Excel file and import it as location rows. */
@@ -146,9 +137,8 @@ export function StartPage(): React.JSX.Element {
             <Omnibox
               onPickAddress={onPickAddress}
               onAskQuestion={send}
-              onGenerateDashboard={onGenerateDashboard}
               onUploadFile={handleUploadFile}
-              disabled={analyzing || streaming || dashboardGenerating}
+              disabled={analyzing || streaming}
             />
             <p className="px-1 text-xs text-muted-foreground">
               {t("start.inputHint")}

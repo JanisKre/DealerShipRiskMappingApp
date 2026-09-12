@@ -252,6 +252,20 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
               })}
             </span>
           )}
+          {d.boundary?.role && (
+            <span>
+              {t("dashboard.detailDialog.boundaryRoleLabel", {
+                role: d.boundary.role,
+              })}
+            </span>
+          )}
+          {d.boundary?.quality && (
+            <span>
+              {t("dashboard.detailDialog.boundaryAgreementLabel", {
+                agreement: pct(d.boundary.quality.sourceAgreement, 0),
+              })}
+            </span>
+          )}
           {d.boundary?.reviewRequired && (
             <Badge
               variant="outline"
@@ -279,6 +293,7 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
                   </span>
                   <span className="shrink-0">
                     {num(candidate.areaSqm)} m² · {pct(candidate.confidence, 0)}
+                    {candidate.role ? ` · ${candidate.role}` : ""}
                   </span>
                 </div>
               ))}

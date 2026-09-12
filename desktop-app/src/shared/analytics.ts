@@ -105,7 +105,14 @@ export interface Alert {
 }
 
 /** Thresholds for the alert rules (deliberately centralized, easy to tune). */
-export const ALERT_THRESHOLDS = {
+export interface AlertThresholds {
+  extremeScore: number;
+  overcapacity: number;
+  lowBoundaryConfidence: number;
+  ealPortfolioShare: number;
+}
+
+export const ALERT_THRESHOLDS: AlertThresholds = {
   extremeScore: 75,
   overcapacity: 1.0,
   lowBoundaryConfidence: 0.3,
@@ -113,7 +120,10 @@ export const ALERT_THRESHOLDS = {
   ealPortfolioShare: 0.2,
 } as const;
 
-export function generateAlerts(dealerships: AnalyzedDealership[]): Alert[] {
+export function generateAlerts(
+  dealerships: AnalyzedDealership[],
+  thresholds: AlertThresholds = ALERT_THRESHOLDS,
+): Alert[] {
   const totalEal = dealerships.reduce((a, d) => a + (d.risk?.eal ?? 0), 0);
   const out: Alert[] = [];
 
@@ -121,7 +131,7 @@ export function generateAlerts(dealerships: AnalyzedDealership[]): Alert[] {
     const r = d.risk;
     if (!r) continue;
 
-    if (r.overallScore >= ALERT_THRESHOLDS.extremeScore) {
+    if (r.overallScore >= thresholds.extremeScore) {
       out.push({
         dealershipId: d.id,
         name: d.name,
@@ -133,7 +143,7 @@ export function generateAlerts(dealerships: AnalyzedDealership[]): Alert[] {
 
     if (
       totalEal > 0 &&
-      r.eal / totalEal >= ALERT_THRESHOLDS.ealPortfolioShare
+      r.eal / totalEal >= thresholds.ealPortfolioShare
     ) {
       out.push({
         dealershipId: d.id,
@@ -146,7 +156,7 @@ export function generateAlerts(dealerships: AnalyzedDealership[]): Alert[] {
 
     if (
       r.utilisation != null &&
-      r.utilisation > ALERT_THRESHOLDS.overcapacity
+      r.utilisation > thresholds.overcapacity
     ) {
       out.push({
         dealershipId: d.id,
@@ -159,7 +169,7 @@ export function generateAlerts(dealerships: AnalyzedDealership[]): Alert[] {
 
     if (
       d.boundary &&
-      d.boundary.confidence <= ALERT_THRESHOLDS.lowBoundaryConfidence
+      d.boundary.confidence <= thresholds.lowBoundaryConfidence
     ) {
       out.push({
         dealershipId: d.id,

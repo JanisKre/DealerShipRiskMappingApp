@@ -5,6 +5,7 @@ import { point as turfPoint, polygon as turfPolygon } from "@turf/helpers";
 import type { BoundaryResult, Polygon } from "@shared/types";
 import { cached, TTL } from "./cache.service";
 import { polygonAreaSqm } from "./geo-math";
+import { checkRing, distanceToRingM } from "./boundary-geometry";
 
 /**
  * ALKIS cadastral parcels (official lot boundaries) via the open
@@ -87,19 +88,56 @@ interface StateBbox {
 }
 
 const STATE_BBOXES: StateBbox[] = [
-  { state: "Berlin", minLat: 52.33, maxLat: 52.68, minLon: 13.09, maxLon: 13.76 },
-  { state: "Brandenburg", minLat: 51.36, maxLat: 53.56, minLon: 11.27, maxLon: 14.77 },
-  { state: "Sachsen-Anhalt", minLat: 50.94, maxLat: 53.06, minLon: 10.56, maxLon: 13.19 },
-  { state: "Sachsen", minLat: 50.17, maxLat: 51.68, minLon: 11.87, maxLon: 15.04 },
-  { state: "Schleswig-Holstein", minLat: 53.36, maxLat: 55.06, minLon: 7.86, maxLon: 11.32 },
-  { state: "Niedersachsen", minLat: 51.29, maxLat: 53.89, minLon: 6.65, maxLon: 11.6 },
+  {
+    state: "Berlin",
+    minLat: 52.33,
+    maxLat: 52.68,
+    minLon: 13.09,
+    maxLon: 13.76,
+  },
+  {
+    state: "Brandenburg",
+    minLat: 51.36,
+    maxLat: 53.56,
+    minLon: 11.27,
+    maxLon: 14.77,
+  },
+  {
+    state: "Sachsen-Anhalt",
+    minLat: 50.94,
+    maxLat: 53.06,
+    minLon: 10.56,
+    maxLon: 13.19,
+  },
+  {
+    state: "Sachsen",
+    minLat: 50.17,
+    maxLat: 51.68,
+    minLon: 11.87,
+    maxLon: 15.04,
+  },
+  {
+    state: "Schleswig-Holstein",
+    minLat: 53.36,
+    maxLat: 55.06,
+    minLon: 7.86,
+    maxLon: 11.32,
+  },
+  {
+    state: "Niedersachsen",
+    minLat: 51.29,
+    maxLat: 53.89,
+    minLon: 6.65,
+    maxLon: 11.6,
+  },
   { state: "NRW", minLat: 50.32, maxLat: 52.53, minLon: 5.87, maxLon: 9.46 },
 ];
 
 /** Candidate states for a coordinate, smallest (enclaves) first — bboxes deliberately overlap. */
 function statesForPoint(lat: number, lon: number): string[] {
   return STATE_BBOXES.filter(
-    (b) => lat >= b.minLat && lat <= b.maxLat && lon >= b.minLon && lon <= b.maxLon,
+    (b) =>
+      lat >= b.minLat && lat <= b.maxLat && lon >= b.minLon && lon <= b.maxLon,
   ).map((b) => b.state);
 }
 
@@ -132,7 +170,8 @@ function isCircuitOpen(state: string): boolean {
 function recordFailure(state: string): void {
   const c = circuits.get(state) ?? { failCount: 0, openUntil: 0 };
   c.failCount += 1;
-  if (c.failCount >= FAIL_THRESHOLD) c.openUntil = Date.now() + OPEN_DURATION_MS;
+  if (c.failCount >= FAIL_THRESHOLD)
+    c.openUntil = Date.now() + OPEN_DURATION_MS;
   circuits.set(state, c);
 }
 
@@ -161,16 +200,31 @@ export async function fromAlkis(
       recordSuccess(state);
       if (!fetched) return null;
 
-      const rings = parseExteriorRings(fetched);
+      const rings = parseExteriorRings(fetched).filter(
+        (ring) =>
+          checkRing(ring, { minAreaSqm: 25, maxAreaSqm: 2_000_000 }).valid,
+      );
       const chosen = pickRingForPoint(rings, lat, lon);
       if (!chosen) return null;
 
       const polygon: Polygon = { type: "Polygon", coordinates: [chosen] };
       return {
         source: "alkis",
+        role: "parcel",
+        provider: `alkis:${state}`,
         polygon,
         areaSqm: polygonAreaSqm(chosen),
-        confidence: 0.9, // official cadastral boundary → highest confidence in the chain
+        confidence: 0.9,
+        evidence: {
+          source: "German cadastral service / ALKIS",
+          retrievedAt: new Date().toISOString(),
+          method: "INSPIRE/ALKIS cadastral parcel lookup",
+          confidence: 0.9,
+          fallbackUsed: false,
+          limitations: [
+            "A cadastral parcel is not necessarily the dealership's operational lot",
+          ],
+        },
       } satisfies BoundaryResult;
     });
 
@@ -198,7 +252,7 @@ async function fetchAlkisXml(
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
     if (!res.ok) return "error";
     const text = await res.text();
-    if (text.includes("ExceptionReport")) return null;
+    if (text.includes("ExceptionReport")) return "error";
     return text;
   } catch {
     return "error";
@@ -215,10 +269,10 @@ async function fetchAlkisXml(
  */
 export function parseExteriorRings(xml: string): [number, number][][] {
   const rings: [number, number][][] = [];
-  const polygonRe = /<gml:Polygon\b[\s\S]*?<\/gml:Polygon>/g;
+  const polygonRe = /<(?:[\w.-]+:)?Polygon\b[\s\S]*?<\/(?:[\w.-]+:)?Polygon>/g;
   for (const match of xml.matchAll(polygonRe)) {
     const exterior = match[0].match(
-      /<gml:exterior>[\s\S]*?<gml:posList[^>]*>([\s\S]*?)<\/gml:posList>/,
+      /<(?:[\w.-]+:)?exterior>[\s\S]*?<(?:[\w.-]+:)?posList[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?posList>/,
     );
     if (!exterior) continue;
     const nums = exterior[1].trim().split(/\s+/).map(Number);
@@ -237,7 +291,7 @@ export function parseExteriorRings(xml: string): [number, number][][] {
   return rings;
 }
 
-/** Picks the ring that contains the point; otherwise the one with the nearest centroid. */
+/** Picks a containing ring; nearest rings are accepted only within 35 m. */
 function pickRingForPoint(
   rings: [number, number][][],
   lat: number,
@@ -254,7 +308,7 @@ function pickRingForPoint(
   let bestDist = Infinity;
   for (const r of rings) {
     const d = distance(pt, centroid(turfPolygon([r])));
-    if (d < bestDist) {
+    if (d < bestDist && distanceToRingM([lon, lat], r) <= 35) {
       bestDist = d;
       best = r;
     }

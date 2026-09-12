@@ -9,20 +9,22 @@ import {
   computeAccumulationClusters,
   effectiveVehicleCount,
 } from "@shared/risk-math";
-import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
+import { normalizeRiskParameters } from "@shared/parameters";
 
 /**
  * Assigns each location its accumulation cluster ID (only clusters with ≥ 2
  * locations). Locations without coordinates or in single-member clusters remain empty.
  */
 function clusterAssignment(session: Session): Map<string, string> {
+  const parameters = normalizeRiskParameters(session.parameters);
   const withCoords = session.dealerships.filter(
     (d) => d.lat != null && d.lon != null,
   );
   const map = new Map<string, string>();
   for (const c of computeAccumulationClusters(
     withCoords,
-    ACCUMULATION_RADIUS_KM,
+    parameters.accumulationRadiusKm,
+    parameters,
   )) {
     if (c.count < 2) continue;
     for (const id of c.memberIds) map.set(id, c.clusterId);
@@ -425,6 +427,7 @@ export async function exportReadonlyView(
 }
 
 function buildReadonlyHtml(session: Session, snapshotDataUri: string): string {
+  const parameters = normalizeRiskParameters(session.parameters);
   const t = portfolioTotals(session);
   const clusterMap = clusterAssignment(session);
   const withCoords = session.dealerships.filter(
@@ -432,7 +435,8 @@ function buildReadonlyHtml(session: Session, snapshotDataUri: string): string {
   );
   const clusters = computeAccumulationClusters(
     withCoords,
-    ACCUMULATION_RADIUS_KM,
+    parameters.accumulationRadiusKm,
+    parameters,
   ).filter((c) => c.count > 1);
 
   const peril = (d: AnalyzedDealership, name: string): number =>

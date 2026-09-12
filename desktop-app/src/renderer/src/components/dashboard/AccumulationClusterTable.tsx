@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { AnalyzedDealership } from "@shared/types";
 import { computeAccumulationClusters } from "@shared/risk-math";
-import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
 import {
   Card,
   CardContent,
@@ -37,6 +36,7 @@ export function AccumulationClusterTable({
 }>): React.JSX.Element | null {
   const { t } = useTranslation();
   const activeClusterId = useAppStore((s) => s.filters.clusterId);
+  const parameters = useAppStore((s) => s.parameters);
   const setFilters = useAppStore((s) => s.setFilters);
 
   const clusters = useMemo(() => {
@@ -45,9 +45,10 @@ export function AccumulationClusterTable({
     );
     return computeAccumulationClusters(
       withCoords,
-      ACCUMULATION_RADIUS_KM,
+      parameters.accumulationRadiusKm,
+      parameters,
     ).filter((c) => c.count > 1);
-  }, [dealerships]);
+  }, [dealerships, parameters]);
 
   if (clusters.length === 0) return null;
 
@@ -58,7 +59,7 @@ export function AccumulationClusterTable({
         <CardDescription>
           {t("ui.clusterDescription", {
             count: clusters.length,
-            radius: ACCUMULATION_RADIUS_KM,
+            radius: parameters.accumulationRadiusKm,
           })}
         </CardDescription>
       </CardHeader>

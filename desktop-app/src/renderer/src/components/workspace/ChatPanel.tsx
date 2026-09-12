@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 import { ChevronDown, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { useAppStore } from "@renderer/store/appStore";
 import { ExecutiveSummary } from "@renderer/components/ai/ExecutiveSummary";
@@ -23,11 +22,10 @@ import { useConversationStore } from "@renderer/store/conversationStore";
  * Layout (similar to the Claude Code extension):
  *   - Header: active thread name + "+ New" + thread dropdown
  *   - Transcript: ExecutiveSummary (if data present), then messages
- *   - Composer at the bottom: Omnibox in "chat" + "dashboard" modes
+ *   - Composer at the bottom: Omnibox in chat mode
  */
 export function ChatPanel(): React.JSX.Element {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const hasData = useAppStore((s) => s.dealerships.length > 0);
   const loadList = useConversationStore((s) => s.loadList);
   const list = useConversationStore((s) => s.list);
@@ -49,10 +47,6 @@ export function ChatPanel(): React.JSX.Element {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, streamingText]);
-
-  function onGenerateDashboard(_prompt: string): void {
-    navigate("/dashboard");
-  }
 
   const chatEmpty = messages.length === 0 && !streaming;
 
@@ -90,7 +84,9 @@ export function ChatPanel(): React.JSX.Element {
                     conversation.id === activeId && "font-medium",
                   )}
                 >
-                  <span className="min-w-0 flex-1 truncate">{conversation.name}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {conversation.name}
+                  </span>
                   <button
                     type="button"
                     aria-label={t("ui.deleteThread")}
@@ -168,7 +164,6 @@ export function ChatPanel(): React.JSX.Element {
             /* not active — address mode hidden */
           }}
           onAskQuestion={send}
-          onGenerateDashboard={onGenerateDashboard}
           disabled={streaming}
           compact
         />

@@ -114,19 +114,19 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.osmDetails, ({ lat, lon, name, address }) =>
     getOsmDetails(lat, lon, name, address),
   );
-  handle(IPC.detectVehicles, async ({ lat, lon, boundary }) => {
+  handle(IPC.detectVehicles, async ({ lat, lon, boundary, parameters }) => {
     const image = await aerialImageForBoundary(lat, lon, boundary);
-    return detectVehicles(image, boundary);
+    return detectVehicles(image, boundary, parameters);
   });
   handle(IPC.compareTemporal, ({ lat, lon, fromDate, toDate, boundary }) =>
     compareTemporal(lat, lon, fromDate, toDate, boundary),
   );
   handle(IPC.fetchWeather, ({ lat, lon }) => fetchWeather(lat, lon));
-  handle(IPC.scoreRisk, ({ lat, lon, assetValue, detection, boundary }) =>
-    scoreRisk(lat, lon, assetValue, detection, boundary),
+  handle(IPC.scoreRisk, ({ lat, lon, assetValue, detection, boundary, parameters }) =>
+    scoreRisk(lat, lon, assetValue, detection, boundary, undefined, parameters),
   );
-  handle(IPC.analyzeDealership, ({ dealership }) =>
-    analyzeDealership(dealership),
+  handle(IPC.analyzeDealership, ({ dealership, parameters }) =>
+    analyzeDealership(dealership, parameters),
   );
 
   handle(IPC.listSessions, () => listSessions());

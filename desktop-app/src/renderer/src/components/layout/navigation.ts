@@ -2,6 +2,7 @@ import {
   BarChart3,
   Map,
   Settings,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
     titleKey: "nav.map",
   },
   { to: "/dashboard", labelKey: "nav.dashboard", icon: BarChart3 },
+  { to: "/parameters", labelKey: "nav.parameters", icon: SlidersHorizontal },
 ];
 
 /**

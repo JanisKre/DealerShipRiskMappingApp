@@ -1,5 +1,4 @@
 import type { AnalyzedDealership } from "@shared/types";
-import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
 import {
   accumulationVerdict,
   groupSummary,
@@ -11,6 +10,7 @@ import { eur, num } from "@renderer/lib/format";
 import { AlertTriangle, Info, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import type { RiskParameters } from "@shared/types";
 
 type Severity = "info" | "ok" | "warning" | "danger";
 
@@ -101,21 +101,24 @@ function accumulationMessage(
   t: TFunction,
   subject: AnalyzedDealership,
   all: AnalyzedDealership[],
+  parameters: RiskParameters,
 ): UwMessage {
-  const neighbors = nearbyInsured(subject, all, ACCUMULATION_RADIUS_KM);
+  const radius = parameters.accumulationRadiusKm;
+  const neighbors = nearbyInsured(subject, all, radius);
   if (neighbors.length === 0) {
     return {
       severity: "ok",
       title: t("underwriting.accumulation.noneTitle"),
       detail: t("underwriting.accumulation.noneDetail", {
-        radius: ACCUMULATION_RADIUS_KM,
+        radius,
       }),
     };
   }
   const verdict = accumulationVerdict(
     subject,
     neighbors,
-    ACCUMULATION_RADIUS_KM,
+    radius,
+    parameters.accumulationReinsureThresholdEur,
   );
   return {
     severity: verdict.reinsure ? "danger" : "warning",
@@ -124,7 +127,7 @@ function accumulationMessage(
       : t("underwriting.accumulation.nearbyTitle"),
     detail: t("underwriting.accumulation.detail", {
       count: neighbors.length,
-      radius: ACCUMULATION_RADIUS_KM,
+      radius,
       exposure: eur(verdict.accumulatedExposureEur),
       reinsureText: verdict.reinsure
         ? t("underwriting.reinsure.yes")
@@ -179,11 +182,12 @@ export function buildUnderwritingMessages(
   t: TFunction,
   subject: AnalyzedDealership,
   all: AnalyzedDealership[],
+  parameters: RiskParameters,
 ): UwMessage[] {
   return [
     hailMessage(t, subject),
     limitMessage(t, subject),
-    accumulationMessage(t, subject, all),
+    accumulationMessage(t, subject, all, parameters),
     groupMessage(t, subject, all),
   ].filter((m): m is UwMessage => m !== null);
 }
@@ -199,7 +203,8 @@ export function UnderwritingMessages({
 }): React.JSX.Element | null {
   const { t } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
-  const messages = buildUnderwritingMessages(t, d, dealerships);
+  const parameters = useAppStore((s) => s.parameters);
+  const messages = buildUnderwritingMessages(t, d, dealerships, parameters);
   if (messages.length === 0) return null;
 
   return (

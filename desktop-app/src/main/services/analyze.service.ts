@@ -6,6 +6,8 @@ import { detectVehicles } from "./detection.service";
 import { geocode } from "./geocoding.service";
 import { scoreRisk } from "./risk.service";
 import { aerialImageForBoundary } from "./tiles.service";
+import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
+import type { RiskParameters } from "@shared/types";
 
 /** Extracts a 5-digit postal code from a German address string. */
 function extractPostalCode(address: string | undefined): string | null {
@@ -20,6 +22,7 @@ function extractPostalCode(address: string | undefined): string | null {
  */
 export async function analyzeDealership(
   input: DealershipInput,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): Promise<AnalyzedDealership> {
   let { lat, lon } = input;
 
@@ -40,9 +43,9 @@ export async function analyzeDealership(
   const postalCode = extractPostalCode(input.address);
   const hailZone = postalCode ? lookupHailZone(postalCode) : null;
 
-  const boundary = await detectBoundary(lat, lon, input.name, input.address);
+  const boundary = await detectBoundary(lat, lon, input.name, input.address, parameters);
   const image = await aerialImageForBoundary(lat, lon, boundary);
-  const detection = await detectVehicles(image, boundary);
+  const detection = await detectVehicles(image, boundary, parameters);
   const risk = await scoreRisk(
     lat,
     lon,
@@ -50,6 +53,7 @@ export async function analyzeDealership(
     detection,
     boundary,
     hailZone ?? undefined,
+    parameters,
   );
 
   const hailRiskTier = hailZone ? hailZoneToRiskTier(hailZone) : undefined;

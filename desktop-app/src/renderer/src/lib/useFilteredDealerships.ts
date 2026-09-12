@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import type { AnalyzedDealership } from "@shared/types";
 import { computeAccumulationClusters } from "@shared/risk-math";
-import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
 import { useAppStore } from "@renderer/store/appStore";
 import { applyMetaFilters } from "@renderer/components/dashboard/PortfolioFilterBar";
 
@@ -14,6 +13,7 @@ export function useFilteredDealerships(
   dealerships: AnalyzedDealership[],
 ): AnalyzedDealership[] {
   const filters = useAppStore((s) => s.filters);
+  const parameters = useAppStore((s) => s.parameters);
 
   return useMemo(() => {
     let out = applyMetaFilters(dealerships, filters);
@@ -23,11 +23,12 @@ export function useFilteredDealerships(
       );
       const cluster = computeAccumulationClusters(
         withCoords,
-        ACCUMULATION_RADIUS_KM,
+        parameters.accumulationRadiusKm,
+        parameters,
       ).find((c) => c.clusterId === filters.clusterId);
       const ids = new Set(cluster?.memberIds ?? []);
       out = out.filter((d) => ids.has(d.id));
     }
     return out;
-  }, [dealerships, filters]);
+  }, [dealerships, filters, parameters]);
 }

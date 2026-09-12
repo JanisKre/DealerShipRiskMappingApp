@@ -11,6 +11,8 @@ import { riskEvidence, riskLimitations } from "./risk/evidence";
 import { computeEalBreakdown, RISK_MODEL_VERSION } from "./risk/financial-loss";
 import { primaryHailScore, scorePerils } from "./risk/hazard-models";
 import { effectiveVehicleCount } from "@shared/risk-math";
+import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
+import type { RiskParameters } from "@shared/types";
 
 /**
  * Orchestrator for the risk pipeline:
@@ -25,21 +27,22 @@ export async function scoreRisk(
   detection?: DetectionResult,
   boundary?: BoundaryResult,
   hailZone?: HailZone,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): Promise<RiskAssessment> {
   const [weather, exposureRatio] = await Promise.all([
     fetchWeather(lat, lon),
     boundary ? exposureRatioForBoundary(boundary) : Promise.resolve(1),
   ]);
 
-  const perils = scorePerils(weather, hailZone);
+  const perils = scorePerils(weather, hailZone, parameters);
   // The dealership's primary score is intentionally hail-only for now.
   // Keep the other peril scores available for optional detail views and
   // future score configuration without mixing them into the main score.
   const overallScore = primaryHailScore(perils);
 
-  const exposureEur = estimatedExposureEur(detection, assetValue);
+  const exposureEur = estimatedExposureEur(detection, assetValue, parameters);
   const exposureAreaSqm = boundary?.areaSqm ?? 0;
-  const capacityEstimate = capacityForArea(exposureAreaSqm);
+  const capacityEstimate = capacityForArea(exposureAreaSqm, parameters);
   const carCount = effectiveVehicleCount(detection);
   const utilisation = capacityEstimate > 0 ? carCount / capacityEstimate : 0;
   const ealBreakdown = computeEalBreakdown(
@@ -47,6 +50,7 @@ export async function scoreRisk(
     exposureEur,
     exposureRatio,
     hailZone,
+    parameters,
   );
 
   const evidence = riskEvidence(

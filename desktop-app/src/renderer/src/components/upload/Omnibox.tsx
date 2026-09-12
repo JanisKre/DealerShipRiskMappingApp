@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import {
-  LayoutDashboard,
-  Loader2,
-  MapPin,
-  Paperclip,
-  Send,
-  Sparkles,
-} from "lucide-react";
+import { Loader2, MapPin, Paperclip, Send, Sparkles } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
 import {
   ToggleGroup,
@@ -23,21 +16,19 @@ export interface PlacePick {
   lon: number;
 }
 
-/** The three explicit input modes of the omnibox. */
-export type OmniMode = "address" | "chat" | "dashboard";
+/** The two explicit input modes of the omnibox. */
+export type OmniMode = "address" | "chat";
 
 interface Props {
   /** Selecting (or sending) an address incl. coordinates. */
   onPickAddress: (pick: PlacePick) => void;
   /** Sending a question → to the AI (portfolio chat). */
   onAskQuestion: (question: string) => void;
-  /** Sending a prompt → AI generates a dynamic dashboard. */
-  onGenerateDashboard: (prompt: string) => void;
   /** Optional file upload (CSV/TSV/Excel) directly from the composer. */
   onUploadFile?: (file: File) => void | Promise<void>;
   /**
-   * Restricted mode list, e.g. `["chat", "dashboard"]` for the
-   * chat panel without address input. Default: all three modes.
+   * Restricted mode list, e.g. `["chat"]` for the chat panel without
+   * address input. Default: both modes.
    */
   modes?: OmniMode[];
   disabled?: boolean;
@@ -57,7 +48,10 @@ const MIN_CHARS = 3;
 /** Mode-dependent UI text/icon bundle. */
 function modeMeta(
   t: TFunction,
-): Record<OmniMode, { icon: typeof MapPin; placeholder: string; helper: string }> {
+): Record<
+  OmniMode,
+  { icon: typeof MapPin; placeholder: string; helper: string }
+> {
   return {
     address: {
       icon: MapPin,
@@ -69,11 +63,6 @@ function modeMeta(
       placeholder: t("upload.omnibox.chat.placeholder"),
       helper: t("upload.omnibox.chat.helper"),
     },
-    dashboard: {
-      icon: LayoutDashboard,
-      placeholder: t("upload.omnibox.dashboard.placeholder"),
-      helper: t("upload.omnibox.dashboard.helper"),
-    },
   };
 }
 
@@ -83,7 +72,6 @@ function modeMeta(
  * - **Address:** OpenStreetMap autocomplete via Photon (keyless). Send/Enter
  *   adopts the top suggestion as the location.
  * - **Chat:** Send/Enter passes the question on to the portfolio chat.
- * - **Dashboard:** Send/Enter generates a dynamic dashboard via AI.
  *
  * The starting mode is determined once via {@link classifyInput} over the (empty)
  * initial value; after that the user switches manually.
@@ -91,18 +79,19 @@ function modeMeta(
 export function Omnibox({
   onPickAddress,
   onAskQuestion,
-  onGenerateDashboard,
   onUploadFile,
   modes,
   disabled,
   compact,
 }: Readonly<Props>): React.JSX.Element {
   const { t } = useTranslation();
-  const enabledModes: OmniMode[] = modes ?? ["address", "chat", "dashboard"];
+  const enabledModes: OmniMode[] = modes ?? ["address", "chat"];
   const [value, setValue] = useState("");
   const [mode, setMode] = useState<OmniMode>(() => {
     const initial = classifyInput("") === "address" ? "address" : "chat";
-    return enabledModes.includes(initial) ? initial : enabledModes[0] ?? "chat";
+    return enabledModes.includes(initial)
+      ? initial
+      : (enabledModes[0] ?? "chat");
   });
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -171,15 +160,14 @@ export function Omnibox({
     setOpen(false);
   }
 
-  /** Primary action per mode: adopt address, send question, or generate dashboard. */
+  /** Primary action per mode: adopt an address or send a chat question. */
   function submit(): void {
     if (isAddress) {
       if (suggestions.length > 0) pick(suggestions[0]);
       return;
     }
     if (!trimmed) return;
-    if (mode === "chat") onAskQuestion(trimmed);
-    else onGenerateDashboard(trimmed);
+    onAskQuestion(trimmed);
     setValue("");
   }
 
@@ -272,16 +260,6 @@ export function Omnibox({
                 {t("upload.omnibox.chatToggleLabel")}
               </ToggleGroupItem>
             )}
-            {enabledModes.includes("dashboard") && (
-              <ToggleGroupItem
-                value="dashboard"
-                aria-label={t("upload.omnibox.dashboardToggleAriaLabel")}
-                className="flex-none gap-1.5"
-              >
-                <LayoutDashboard className="size-4" />
-                {t("nav.dashboard")}
-              </ToggleGroupItem>
-            )}
           </ToggleGroup>
           <p className="min-w-0 flex-1 text-xs text-muted-foreground">
             {meta.helper}
@@ -358,7 +336,10 @@ export function Omnibox({
           )}
           <Button
             size="icon"
-            className={cn("shrink-0 rounded-full", compact ? "size-7" : "size-9")}
+            className={cn(
+              "shrink-0 rounded-full",
+              compact ? "size-7" : "size-9",
+            )}
             onClick={submit}
             disabled={!canSend}
             title={t("upload.omnibox.send")}

@@ -3,8 +3,8 @@
     "import": "Start",
     "map": "Karte",
     "dashboard": "Dashboard",
-    "aiDashboard": "KI-Dashboard",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "parameters": "Parameter"
   },
   "shell": {
     "editProjectName": "Projektnamen bearbeiten",
@@ -15,7 +15,7 @@
     "subtitle": "Adresse hinzufügen oder die KI fragen – das Eingabefeld ist unten.",
     "emptyTitle": "Wie kann ich helfen?",
     "emptyDescription": "Adresse hinzufügen, CSV/Excel importieren oder zum Portfolio fragen – z. B. „Welche Standorte treiben die EAL?“",
-    "inputHint": "Adresse, Frage oder Dashboard-Anfrage eingeben · über 📎 CSV, TSV oder Excel (.xlsx) importieren · Spalten: name, address, lat, lon, value",
+    "inputHint": "Adresse oder Frage eingeben · über 📎 CSV, TSV oder Excel (.xlsx) importieren · Spalten: name, address, lat, lon, value",
     "duplicatesSkipped": "{{count}} doppelte Standorte erkannt und übersprungen.",
     "importQuality": "Importqualität",
     "imported": "importiert",
@@ -45,6 +45,21 @@
     "vehicles": "Fahrzeuge",
     "score": "Score",
     "actions": "Aktionen"
+  },
+  "parameters": {
+    "title": "Modellparameter",
+    "description": "Passe Risiko-, Expositions-, Portfolio- und Datenqualitätsparameter für diese Session an. Änderungen werden nach dem Verlassen eines Feldes sofort auf bestehende Scores angewendet und automatisch gespeichert.",
+    "fields": "Felder",
+    "cardDescription": "Änderungen werden auf die nächste Berechnung angewendet.",
+    "reset": "Auf Defaults zurücksetzen",
+    "resetDone": "Parameter auf sinnvolle Defaults zurückgesetzt.",
+    "recalculating": "Scores werden neu berechnet…",
+    "autosaved": "Session gespeichert",
+    "startHereTitle": "Hier beginnen",
+    "startHereDescription": "Für die meisten Portfolios reichen die markierten Einstellungen. Sie beeinflussen direkt Exposure, EAL oder Warnungen; alles Weitere bleibt unter „Erweiterte Parameter“ verfügbar.",
+    "fractionHint": "Orientierung: Ein Anteil wird als Dezimalzahl eingegeben — 0,15 entspricht 15 %. Änderungen werden beim Verlassen eines Feldes übernommen.",
+    "recommended": "wichtig",
+    "advancedParameters": "Erweiterte Parameter"
   },
   "settings": {
     "title": "Einstellungen",
@@ -95,6 +110,7 @@
     "pml": "Wahrscheinlicher Höchstschaden (PML)",
     "riskDistribution": "Risikoverteilung",
     "topRisks": "Top-Risiko-Standorte",
+    "noAnomalies": "Keine Anomalien oder Ausreißer erkannt.",
     "seasonalTitle": "Saisonales Risikoprofil",
     "seasonalDescription": "Typische jährliche Verteilung des Portfoliorisikos nach Gefahrenart",
     "coverageTitle": "Gefahrenabdeckung und Konzentration",
@@ -109,6 +125,35 @@
     "area": "Fläche",
     "boundarySource": "Grenzquelle",
     "ealBreakdown": "EAL-Aufschlüsselung",
+    "manageTiles": "Dashboard anpassen",
+    "visibleTiles": "Sichtbare Kacheln",
+    "resetTiles": "Layout zurücksetzen",
+    "removeTile": "Kachel entfernen",
+    "dragTile": "Zum Sortieren ziehen",
+    "noTilesTitle": "Keine Dashboard-Kacheln ausgewählt",
+    "noTilesDescription": "Füge über „Dashboard anpassen“ Kacheln hinzu.",
+    "openAssistant": "KI-Assistent",
+    "closeAssistant": "Assistent schließen",
+    "assistantTitle": "Dashboard-Assistent",
+    "assistantDescription": "Fragen stellen oder Dashboard ändern",
+    "assistantEmpty": "Frage etwas zum Portfolio oder sage „Standorttabelle anzeigen“.",
+    "assistantHint": "Versuche: „Saisonprofil hinzufügen“ oder „PML entfernen“.",
+    "examplePromptTable": "Standorttabelle anzeigen",
+    "examplePromptSeasonal": "Saisonprofil hinzufügen",
+    "examplePromptRisk": "Risikoverteilung anzeigen",
+    "commandAdded": "Hinzugefügt: {{tiles}}",
+    "commandRemoved": "Entfernt: {{tiles}}",
+    "commandReset": "Dashboard-Layout zurückgesetzt.",
+    "tiles": {
+      "summary": "Portfolio-KPIs",
+      "risk": "Risikoverteilung",
+      "pml": "Wahrscheinlicher Höchstschaden",
+      "insights": "Anomalien und Warnungen",
+      "coverage": "Gefahrenabdeckung",
+      "seasonal": "Saisonales Risikoprofil",
+      "clusters": "Akkumulations-Cluster",
+      "table": "Standorttabelle"
+    },
     "detailDialog": {
       "machineVehicleCount": "Maschinell erkannte Fahrzeuge",
       "manualVehicleCount": "Manuell angepasste Fahrzeugzahl",
@@ -139,6 +184,8 @@
       "boundaryTitle": "Grundstücksgrenze",
       "boundarySourceLabel": "Quelle: {{source}}",
       "boundaryConfidenceLabel": "· Konfidenz: {{confidence}}",
+      "boundaryRoleLabel": "· Rolle: {{role}}",
+      "boundaryAgreementLabel": "Quellenübereinstimmung: {{agreement}}",
       "boundaryReviewLabel": "Prüfung erforderlich",
       "boundaryCandidatesTitle": "{{count}} Grenzkandidaten",
       "osmLoading": "OSM-Infos werden geladen…",
@@ -331,10 +378,6 @@
         "placeholder": "Frage an die KI stellen…",
         "helper": "Frage senden, um sie an den Portfolio-Chat zu stellen."
       },
-      "dashboard": {
-        "placeholder": "Dashboard beschreiben, z. B. „Top-Risiken und EAL-Verteilung“…",
-        "helper": "Beschreiben, was das Dashboard zeigen soll – die KI stellt es zusammen."
-      },
       "searching": "Suche…",
       "noResults": "Keine Treffer",
       "searchFailed": "Suche fehlgeschlagen",
@@ -342,7 +385,6 @@
       "addressToggleLabel": "Adresse",
       "chatToggleAriaLabel": "Chat",
       "chatToggleLabel": "Chat",
-      "dashboardToggleAriaLabel": "Dashboard erstellen",
       "importFile": "CSV / Excel importieren",
       "send": "Senden"
     }

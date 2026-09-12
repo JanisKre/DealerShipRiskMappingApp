@@ -3,8 +3,8 @@
     "import": "Start",
     "map": "Map",
     "dashboard": "Dashboard",
-    "aiDashboard": "AI Dashboard",
-    "settings": "Settings"
+    "settings": "Settings",
+    "parameters": "Parameters"
   },
   "shell": {
     "editProjectName": "Edit project name",
@@ -15,7 +15,7 @@
     "subtitle": "Add an address or ask the AI — the input field is at the bottom.",
     "emptyTitle": "How can I help?",
     "emptyDescription": "Add an address, import a CSV/Excel file, or ask about the portfolio — e.g. \"Which locations drive the EAL?\"",
-    "inputHint": "Enter an address, question, or dashboard request · import via 📎 CSV, TSV, or Excel (.xlsx) · columns: name, address, lat, lon, value",
+    "inputHint": "Enter an address or question · import via 📎 CSV, TSV, or Excel (.xlsx) · columns: name, address, lat, lon, value",
     "duplicatesSkipped": "{{count}} duplicate locations detected and skipped.",
     "importQuality": "Import quality",
     "imported": "imported",
@@ -45,6 +45,21 @@
     "vehicles": "Vehicles",
     "score": "Score",
     "actions": "Actions"
+  },
+  "parameters": {
+    "title": "Model parameters",
+    "description": "Adjust risk, exposure, portfolio and data-quality parameters for this session. Changes are applied to existing scores after leaving a field and saved automatically.",
+    "fields": "fields",
+    "cardDescription": "Changes apply to the next calculation.",
+    "reset": "Reset to defaults",
+    "resetDone": "Parameters reset to sensible defaults.",
+    "recalculating": "Recalculating scores…",
+    "autosaved": "Session saved",
+    "startHereTitle": "Start here",
+    "startHereDescription": "For most portfolios, the marked settings are enough. They directly affect exposure, EAL, or alerts; everything else remains available under “Advanced parameters”.",
+    "fractionHint": "Guidance: enter fractions as decimals — 0.15 means 15%. Changes are applied when you leave a field.",
+    "recommended": "important",
+    "advancedParameters": "Advanced parameters"
   },
   "settings": {
     "title": "Settings",
@@ -95,6 +110,7 @@
     "pml": "Probable Maximum Loss (PML)",
     "riskDistribution": "Risk Distribution",
     "topRisks": "Top Risk Locations",
+    "noAnomalies": "No anomalies or outliers detected.",
     "seasonalTitle": "Seasonal Risk Profile",
     "seasonalDescription": "Typical annual distribution of portfolio risk by peril",
     "coverageTitle": "Peril Coverage & Concentration",
@@ -109,6 +125,35 @@
     "area": "Area",
     "boundarySource": "Boundary Source",
     "ealBreakdown": "EAL Breakdown",
+    "manageTiles": "Customize dashboard",
+    "visibleTiles": "Visible tiles",
+    "resetTiles": "Reset layout",
+    "removeTile": "Remove tile",
+    "dragTile": "Drag to reorder",
+    "noTilesTitle": "No dashboard tiles selected",
+    "noTilesDescription": "Add tiles from Customize dashboard to build your view.",
+    "openAssistant": "AI assistant",
+    "closeAssistant": "Close assistant",
+    "assistantTitle": "Dashboard assistant",
+    "assistantDescription": "Ask questions or change your dashboard",
+    "assistantEmpty": "Ask about this portfolio or say “show the location table”.",
+    "assistantHint": "Try: “add seasonal profile” or “remove PML”.",
+    "examplePromptTable": "Show location table",
+    "examplePromptSeasonal": "Add seasonal profile",
+    "examplePromptRisk": "Show risk distribution",
+    "commandAdded": "Added: {{tiles}}",
+    "commandRemoved": "Removed: {{tiles}}",
+    "commandReset": "Dashboard layout reset.",
+    "tiles": {
+      "summary": "Portfolio KPIs",
+      "risk": "Risk distribution",
+      "pml": "Probable maximum loss",
+      "insights": "Anomalies and alerts",
+      "coverage": "Peril coverage",
+      "seasonal": "Seasonal risk profile",
+      "clusters": "Accumulation clusters",
+      "table": "Location table"
+    },
     "detailDialog": {
       "machineVehicleCount": "Machine-detected vehicles",
       "manualVehicleCount": "Human-adjusted vehicle count",
@@ -139,6 +184,8 @@
       "boundaryTitle": "Parcel Boundary",
       "boundarySourceLabel": "Source: {{source}}",
       "boundaryConfidenceLabel": "· Confidence: {{confidence}}",
+      "boundaryRoleLabel": "· Role: {{role}}",
+      "boundaryAgreementLabel": "Source agreement: {{agreement}}",
       "boundaryReviewLabel": "Review required",
       "boundaryCandidatesTitle": "{{count}} boundary candidates",
       "osmLoading": "Loading OSM info…",
@@ -331,10 +378,6 @@
         "placeholder": "Ask the AI a question…",
         "helper": "Send to ask the portfolio chat."
       },
-      "dashboard": {
-        "placeholder": "Describe a dashboard, e.g. “Top risks and EAL distribution”…",
-        "helper": "Describe what the dashboard should show – the AI puts it together."
-      },
       "searching": "Searching…",
       "noResults": "No matches",
       "searchFailed": "Search failed",
@@ -342,7 +385,6 @@
       "addressToggleLabel": "Address",
       "chatToggleAriaLabel": "Chat",
       "chatToggleLabel": "Chat",
-      "dashboardToggleAriaLabel": "Create dashboard",
       "importFile": "Import CSV / Excel",
       "send": "Send"
     }

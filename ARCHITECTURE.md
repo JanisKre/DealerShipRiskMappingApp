@@ -50,7 +50,7 @@ typed and Zod-validated over IPC.
 │  MAIN (Node — "backend", replaces the Express server)     │
 │  ├─ ipc/        (*.handlers.ts per domain)                │
 │  ├─ services/   business logic:                           │
-│  │   ├─ boundary.service   (ALKIS→OSM→Overture→MSFT→…)     │
+│  │   ├─ boundary.service   (ALKIS/OSM/Overture→fusion→QA)  │
 │  │   ├─ detection.service  (YOLOv26 ONNX inference)         │
 │  │   ├─ risk.service       (5 perils + EAL)                │
 │  │   ├─ weather.service    (Open-Meteo/DWD + cache)        │
@@ -79,8 +79,10 @@ Risk calculations follow an explicit `hazard → exposure → vulnerability →
 loss` pipeline. The orchestration entry point is `main/services/risk.service.ts`;
 the individual layers live under `main/services/risk/`. Hazard and boundary
 sources are adapter-shaped so additional providers can be added without
-changing the renderer contract. Results carry a model version, confidence,
-source evidence, fallback flags, and limitations. See
+changing the renderer contract. Boundary results additionally carry a geometry
+role, validation diagnostics, source agreement, ranking margin and review
+status. Results carry a model version, confidence, source evidence, fallback
+flags, and limitations. See
 [docs/risk-model.md](./docs/risk-model.md).
 
 ## Improvements over the web stack (deliberately carried over)
