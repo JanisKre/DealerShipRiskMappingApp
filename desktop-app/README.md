@@ -5,7 +5,7 @@ portfolios. A rebuild of the web platform as a single-user desktop app.
 
 ## Stack
 
-Electron 36 · electron-vite · React 19 · TypeScript · shadcn/ui + Tailwind CSS 4
+Electron 44 · electron-vite · React 19 · TypeScript · shadcn/ui + Tailwind CSS 4
 · Zustand · better-sqlite3 · onnxruntime-node · sharp · Leaflet · recharts ·
 @tanstack/react-table · Zod (IPC validation)
 
@@ -36,13 +36,16 @@ npm run dev       # starts Main + Preload + Renderer with HMR
 
 ## Scripts
 
-| Script              | Purpose                                  |
-| ------------------- | ----------------------------------------- |
-| `npm run dev`       | Development mode with HMR                 |
-| `npm run build`     | Production build (out/)                   |
-| `npm run typecheck` | TypeScript check (node + web)             |
-| `npm run pack`      | Build unpacked app (release/)             |
-| `npm run dist`      | Build installer (dmg/nsis/AppImage)       |
+| Script                  | Purpose                             |
+| ----------------------- | ----------------------------------- |
+| `npm run dev`           | Development mode with HMR           |
+| `npm run build`         | Production build (out/)             |
+| `npm run typecheck`     | TypeScript check (node + web)       |
+| `npm run test`          | Unit tests (Vitest)                 |
+| `npm run test:coverage` | Unit tests with V8 coverage report  |
+| `npm run smoke`         | Smoke-test the built Electron app   |
+| `npm run pack`          | Build unpacked app (release/)       |
+| `npm run dist`          | Build installer (dmg/nsis/AppImage) |
 
 ## Architecture (short form)
 

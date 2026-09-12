@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import type { AnalyzedDealership } from "@shared/types";
 import { computeAccumulationClusters } from "@shared/risk-math";
 import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
@@ -19,7 +20,7 @@ import {
 } from "@renderer/components/ui/table";
 import { Badge } from "@renderer/components/ui/badge";
 import { eur, num } from "@renderer/lib/format";
-import { riskColor, riskLevel, riskLevelLabel } from "@renderer/lib/riskColor";
+import { riskColor, riskLevel } from "@renderer/lib/riskColor";
 import { useAppStore } from "@renderer/store/appStore";
 
 /**
@@ -34,6 +35,7 @@ export function AccumulationClusterTable({
 }: Readonly<{
   dealerships: AnalyzedDealership[];
 }>): React.JSX.Element | null {
+  const { t } = useTranslation();
   const activeClusterId = useAppStore((s) => s.filters.clusterId);
   const setFilters = useAppStore((s) => s.setFilters);
 
@@ -41,9 +43,10 @@ export function AccumulationClusterTable({
     const withCoords = dealerships.filter(
       (d) => d.lat != null && d.lon != null,
     );
-    return computeAccumulationClusters(withCoords, ACCUMULATION_RADIUS_KM).filter(
-      (c) => c.count > 1,
-    );
+    return computeAccumulationClusters(
+      withCoords,
+      ACCUMULATION_RADIUS_KM,
+    ).filter((c) => c.count > 1);
   }, [dealerships]);
 
   if (clusters.length === 0) return null;
@@ -51,24 +54,29 @@ export function AccumulationClusterTable({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Accumulation Clusters</CardTitle>
+        <CardTitle>{t("ui.accumulationClusters")}</CardTitle>
         <CardDescription>
-          {clusters.length} clusters with ≥ 2 locations within a radius of{" "}
-          {ACCUMULATION_RADIUS_KM} km, sorted by Nat Cat KPI (exposure ×
-          modeled event loss).
+          {t("ui.clusterDescription", {
+            count: clusters.length,
+            radius: ACCUMULATION_RADIUS_KM,
+          })}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Cluster ID</TableHead>
-              <TableHead className="text-right">Locations</TableHead>
-              <TableHead className="text-right">Vehicles</TableHead>
-              <TableHead className="text-right">Value</TableHead>
-              <TableHead>Hail Level</TableHead>
-              <TableHead className="text-right">Nat Cat KPI</TableHead>
-              <TableHead>Sales Partner</TableHead>
+              <TableHead>{t("ui.clusterId")}</TableHead>
+              <TableHead className="text-right">
+                {t("dashboard.locations")}
+              </TableHead>
+              <TableHead className="text-right">
+                {t("common.vehicles")}
+              </TableHead>
+              <TableHead className="text-right">{t("ui.value")}</TableHead>
+              <TableHead>{t("ui.hailLevel")}</TableHead>
+              <TableHead className="text-right">{t("ui.natCatKpi")}</TableHead>
+              <TableHead>{t("ui.salesPartner")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -101,7 +109,7 @@ export function AccumulationClusterTable({
                         color: "white",
                       }}
                     >
-                      {riskLevelLabel(level)} · {c.maxHailScore.toFixed(0)}
+                      {t(`risk.${level}`)} · {c.maxHailScore.toFixed(0)}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-medium">

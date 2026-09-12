@@ -39,29 +39,39 @@ export function evaluateDetectionBenchmark(
     };
   }
 
-  const absoluteErrors = samples.map((s) => Math.abs(s.predictedCount - s.expectedCount));
+  const absoluteErrors = samples.map((s) =>
+    Math.abs(s.predictedCount - s.expectedCount),
+  );
   const relativeMatches = samples.filter((s) => {
     if (s.expectedCount === 0) return s.predictedCount === 0;
-    return Math.abs(s.predictedCount - s.expectedCount) / s.expectedCount <= 0.1;
+    return (
+      Math.abs(s.predictedCount - s.expectedCount) / s.expectedCount <= 0.1
+    );
   });
-  const classes = ["car", "van", "truck", "bus"] as const;
-  const classMae = Object.fromEntries(classes.flatMap((vehicleClass) => {
-    const values = samples
-      .filter((s) => s.expectedClassCounts && s.predictedClassCounts)
-      .map((s) => Math.abs(
-        (s.predictedClassCounts?.[vehicleClass] ?? 0) -
-        (s.expectedClassCounts?.[vehicleClass] ?? 0),
-      ));
-    return values.length > 0
-      ? [[vehicleClass, round(mean(values))]]
-      : [];
-  })) as Partial<ClassCounts>;
+  // The product counts all supported detector classes as cars. Keep the
+  // legacy shape readable, but benchmark only the user-facing category.
+  const classes = ["car"] as const;
+  const classMae = Object.fromEntries(
+    classes.flatMap((vehicleClass) => {
+      const values = samples
+        .filter((s) => s.expectedClassCounts && s.predictedClassCounts)
+        .map((s) =>
+          Math.abs(
+            (s.predictedClassCounts?.[vehicleClass] ?? 0) -
+              (s.expectedClassCounts?.[vehicleClass] ?? 0),
+          ),
+        );
+      return values.length > 0 ? [[vehicleClass, round(mean(values))]] : [];
+    }),
+  ) as Partial<ClassCounts>;
 
   return {
     dataset,
     evaluatedSamples: samples.length,
     countMae: round(mean(absoluteErrors)),
-    countBias: round(mean(samples.map((s) => s.predictedCount - s.expectedCount))),
+    countBias: round(
+      mean(samples.map((s) => s.predictedCount - s.expectedCount)),
+    ),
     within10PctRate: round(relativeMatches.length / samples.length),
     evaluatedAt: new Date().toISOString(),
     samples: samples.length,

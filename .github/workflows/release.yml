@@ -29,8 +29,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -39,11 +39,17 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test
+      - run: npm run test:coverage
+      - run: npm run build
+      - run: xvfb-run --auto-servernum npm run smoke
+      - run: npm audit --audit-level=high
 
   release:
     needs: verify
     permissions:
       contents: write
+      attestations: write
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -53,8 +59,8 @@ jobs:
         os: [macos-latest, windows-2022]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -72,3 +78,27 @@ jobs:
       - name: Build without publishing
         if: github.event_name == 'workflow_dispatch' && !inputs.publish
         run: npx electron-builder --publish never
+
+      - name: Generate release checksums
+        env:
+          RELEASE_PLATFORM: ${{ matrix.os }}
+        run: npm run release:metadata
+
+      - name: Generate SBOM
+        shell: bash
+        env:
+          RELEASE_PLATFORM: ${{ matrix.os }}
+        run: npm sbom --sbom-format cyclonedx --sbom-type application > "release/SBOM-${RELEASE_PLATFORM}.cdx.json"
+
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: "desktop-app/release/*"
+
+      - name: Upload checksums and SBOM
+        if: github.event_name == 'push' || inputs.publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_PLATFORM: ${{ matrix.os }}
+        run: gh release upload "$GITHUB_REF_NAME" "desktop-app/release/SHA256SUMS-${RELEASE_PLATFORM}.txt" "desktop-app/release/SBOM-${RELEASE_PLATFORM}.cdx.json" --clobber

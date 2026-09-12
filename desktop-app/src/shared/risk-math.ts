@@ -2,6 +2,7 @@ import type {
   AccumulationCluster,
   AnalyzedDealership,
   ClusterRiskEntry,
+  DetectionResult,
   HailstormScenario,
   HailZone,
   HailRiskTier,
@@ -14,6 +15,13 @@ import {
   PML_DAMAGE_FRACTION,
   SCENARIO_INTENSITY_DAMAGE,
 } from "./constants";
+
+/** Returns the count used for underwriting, preferring a human adjustment. */
+export function effectiveVehicleCount(
+  detection: DetectionResult | undefined,
+): number {
+  return detection?.manualVehicleCount ?? detection?.vehicleCount ?? 0;
+}
 
 /**
  * Portfolio aggregate math (PML, cluster heatmap, scenario impact).
@@ -195,7 +203,8 @@ export function computeScenarioImpact(
   );
 
   const exposureMultiplier = scenario.exposureMultiplier ?? 1;
-  const totalExposureEur = affected.reduce((sum, d) => sum + exposureOf(d), 0) * exposureMultiplier;
+  const totalExposureEur =
+    affected.reduce((sum, d) => sum + exposureOf(d), 0) * exposureMultiplier;
   const damageFraction =
     SCENARIO_INTENSITY_DAMAGE[scenario.intensityLevel] ?? 0.15;
 
@@ -209,14 +218,18 @@ export function computeScenarioImpact(
       "All affected locations experience the selected corridor intensity",
       `Exposure multiplier: ${exposureMultiplier.toFixed(2)}`,
     ],
-    evidence: [{
-      source: "Portfolio geometry",
-      retrievedAt: new Date().toISOString(),
-      method: "distance-to-path corridor screening",
-      confidence: 0.8,
-      fallbackUsed: false,
-      limitations: ["Scenario loss is a deterministic stress estimate, not a catastrophe simulation"],
-    }],
+    evidence: [
+      {
+        source: "Portfolio geometry",
+        retrievedAt: new Date().toISOString(),
+        method: "distance-to-path corridor screening",
+        confidence: 0.8,
+        fallbackUsed: false,
+        limitations: [
+          "Scenario loss is a deterministic stress estimate, not a catastrophe simulation",
+        ],
+      },
+    ],
   };
 }
 
@@ -372,10 +385,12 @@ export function groupSummary(
     insuredCount: members.filter((m) => m.insured === true).length,
     totalExposureEur: Math.round(totalExposureEur),
     totalVehicles: members.reduce(
-      (s, m) => s + (m.detection?.vehicleCount ?? 0),
+      (s, m) => s + effectiveVehicleCount(m.detection),
       0,
     ),
-    totalEalEur: Math.round(members.reduce((s, m) => s + (m.risk?.eal ?? 0), 0)),
+    totalEalEur: Math.round(
+      members.reduce((s, m) => s + (m.risk?.eal ?? 0), 0),
+    ),
     maxHailScore: Math.max(0, ...hailScores),
     meanHailScore: Math.round(hailScores.reduce((s, x) => s + x, 0) / count),
     productLimitBreaches: members.filter(
@@ -440,15 +455,14 @@ export function computeAccumulationClusters(
     const count = members.length;
     const memberIds = members.map((m) => m.id).sort();
     const totalVehicles = members.reduce(
-      (s, m) => s + (m.detection?.vehicleCount ?? 0),
+      (s, m) => s + effectiveVehicleCount(m.detection),
       0,
     );
     const totalExposureEur = members.reduce((s, m) => s + exposureOf(m), 0);
     const totalEalEur = members.reduce((s, m) => s + (m.risk?.eal ?? 0), 0);
     const hailScores = members.map(hailScoreOf);
     const maxHailScore = Math.max(0, ...hailScores);
-    const meanHailScore =
-      hailScores.reduce((s, x) => s + x, 0) / (count || 1);
+    const meanHailScore = hailScores.reduce((s, x) => s + x, 0) / (count || 1);
     const natCatKpiEur = Math.round(
       totalExposureEur * SCENARIO_INTENSITY_DAMAGE.MEDIUM,
     );
@@ -472,7 +486,9 @@ export function computeAccumulationClusters(
     }
 
     clusters.push({
-      clusterId: memberIds.length ? `AC-${shortHash(memberIds.join("|"))}` : "empty",
+      clusterId: memberIds.length
+        ? `AC-${shortHash(memberIds.join("|"))}`
+        : "empty",
       memberIds,
       count,
       centerLat: members.reduce((s, m) => s + m.lat, 0) / count,
@@ -527,9 +543,9 @@ const CORRIDOR_THRESHOLDS: Record<
   "tight" | "standard" | "stress",
   { alongKm: number; crossKm: number }
 > = {
-  tight:    { alongKm: 80,  crossKm: 15  },
-  standard: { alongKm: 160, crossKm: 30  },
-  stress:   { alongKm: 300, crossKm: 60  },
+  tight: { alongKm: 80, crossKm: 15 },
+  standard: { alongKm: 160, crossKm: 30 },
+  stress: { alongKm: 300, crossKm: 60 },
 };
 
 /** Storm track bearing in degrees (WSW->ENE). */

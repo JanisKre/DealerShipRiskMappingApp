@@ -6,8 +6,10 @@ import {
   Gauge,
   ShieldAlert,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
+import { effectiveVehicleCount } from "@shared/risk-math";
 import { Card, CardContent } from "@renderer/components/ui/card";
 import { eur, num } from "@renderer/lib/format";
 import { cn } from "@renderer/lib/utils";
@@ -42,6 +44,7 @@ export function SummaryCards({
 }: {
   dealerships: AnalyzedDealership[];
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const count = dealerships.length;
   const scored = dealerships.filter((d) => d.risk);
   const avgScore =
@@ -50,7 +53,7 @@ export function SummaryCards({
         scored.length
       : 0;
   const totalVehicles = dealerships.reduce(
-    (a, d) => a + (d.detection?.vehicleCount ?? 0),
+    (a, d) => a + effectiveVehicleCount(d.detection),
     0,
   );
   const totalExposure = dealerships.reduce(
@@ -63,19 +66,23 @@ export function SummaryCards({
   ).length;
 
   const stats: Stat[] = [
-    { label: "Locations", value: num(count), icon: Building2 },
+    { label: t("dashboard.locations"), value: num(count), icon: Building2 },
     {
-      label: "Avg. Risk Score",
+      label: t("dashboard.avgScore"),
       value: avgScore.toFixed(0),
       suffix: "/100",
       icon: Gauge,
       tone: avgScore >= 75 ? "danger" : avgScore >= 50 ? "warn" : "default",
     },
-    { label: "Total Vehicles", value: num(totalVehicles), icon: Car },
-    { label: "Total Exposure", value: eur(totalExposure), icon: Coins },
-    { label: "Total EAL", value: eur(totalEal), icon: ShieldAlert },
+    { label: t("common.vehicles"), value: num(totalVehicles), icon: Car },
     {
-      label: "Extreme Risks",
+      label: t("dashboard.totalExposure"),
+      value: eur(totalExposure),
+      icon: Coins,
+    },
+    { label: t("dashboard.totalEal"), value: eur(totalEal), icon: ShieldAlert },
+    {
+      label: t("dashboard.extreme"),
       value: num(extreme),
       icon: AlertTriangle,
       tone: extreme > 0 ? "danger" : "default",

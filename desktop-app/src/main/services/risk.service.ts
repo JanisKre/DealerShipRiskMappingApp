@@ -10,6 +10,7 @@ import { capacityForArea, estimatedExposureEur } from "./risk/exposure";
 import { riskEvidence, riskLimitations } from "./risk/evidence";
 import { computeEalBreakdown, RISK_MODEL_VERSION } from "./risk/financial-loss";
 import { scorePerils } from "./risk/hazard-models";
+import { effectiveVehicleCount } from "@shared/risk-math";
 
 /**
  * Orchestrator for the risk pipeline:
@@ -47,7 +48,7 @@ export async function scoreRisk(
   const exposureEur = estimatedExposureEur(detection, assetValue);
   const exposureAreaSqm = boundary?.areaSqm ?? 0;
   const capacityEstimate = capacityForArea(exposureAreaSqm);
-  const carCount = detection?.vehicleCount ?? 0;
+  const carCount = effectiveVehicleCount(detection);
   const utilisation = capacityEstimate > 0 ? carCount / capacityEstimate : 0;
   const ealBreakdown = computeEalBreakdown(
     weather,
@@ -56,7 +57,11 @@ export async function scoreRisk(
     hailZone,
   );
 
-  const evidence = riskEvidence(boundary, detection, openMeteoProvider.evidence());
+  const evidence = riskEvidence(
+    boundary,
+    detection,
+    openMeteoProvider.evidence(),
+  );
   const confidence = round(
     evidence.reduce((sum, item) => sum + item.confidence, 0) / evidence.length,
   );

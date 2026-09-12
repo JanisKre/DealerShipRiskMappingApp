@@ -23,7 +23,7 @@ const BOUNDARY_PROVIDERS: BoundaryProvider[] = [
  *      no reverse-geocoding call needed anymore)
  *   2. OSM landuse/amenity via Overpass           — implemented (parcel)
  *   3. OSM building footprint via Overpass        — implemented (building)
- *   4. synthetic circle (always succeeds)
+ *   4. synthetic octagonal fallback boundary (always succeeds)
  *
  * On the "Overture" role (building footprint as fallback): instead of a heavy
  * DuckDB/Parquet dependency, the footprint is obtained from OSM buildings via Overpass
@@ -45,16 +45,22 @@ export async function detectBoundary(
     .filter((c): c is BoundaryResult => c !== null)
     .sort((a, b) => b.confidence - a.confidence)[0];
 
-  const result = best ?? syntheticCircle(lat, lon);
+  const result = best ?? syntheticFallbackBoundary(lat, lon);
   return {
     ...result,
     evidence: result.evidence ?? {
       source: result.source.toUpperCase(),
       retrievedAt: new Date().toISOString(),
-      method: result.source === "synthetic" ? "synthetic radius fallback" : "geospatial boundary lookup",
+      method:
+        result.source === "synthetic"
+          ? "synthetic radius fallback"
+          : "geospatial boundary lookup",
       confidence: result.confidence,
       fallbackUsed: result.source === "synthetic",
-      limitations: result.source === "synthetic" ? ["Manual boundary review recommended"] : [],
+      limitations:
+        result.source === "synthetic"
+          ? ["Manual boundary review recommended"]
+          : [],
     },
   };
 }
@@ -65,7 +71,7 @@ export async function detectBoundary(
 // --- Overpass call with mirror fallback ---------------------------------
 // The public main instance is regularly overloaded (504) — on failure
 // the load-balanced mirror is tried before the source is considered
-// "nothing found" (instead of falling straight through to the synthetic circle).
+// "nothing found" (instead of falling straight through to the synthetic octagon).
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://lz4.overpass-api.de/api/interpreter",
@@ -172,13 +178,16 @@ async function fromOsmBuildings(
   });
 }
 
-// --- 4. Synthetic circle ----------------------------------------------
-function syntheticCircle(
+// --- 4. Synthetic fallback boundary -----------------------------------
+/** Calibrated fallback radius for typical dealership lots (90th-percentile coverage target). */
+export const SYNTHETIC_BOUNDARY_RADIUS_M = 100;
+
+export function syntheticFallbackBoundary(
   lat: number,
   lon: number,
-  radiusM = 50,
+  radiusM = SYNTHETIC_BOUNDARY_RADIUS_M,
 ): BoundaryResult {
-  const steps = 24;
+  const steps = 8;
   const ring: [number, number][] = [];
   const dLat = radiusM / 111_320;
   const dLon = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
@@ -189,7 +198,7 @@ function syntheticCircle(
   return {
     source: "synthetic",
     polygon: { type: "Polygon", coordinates: [ring] },
-    areaSqm: Math.PI * radiusM * radiusM,
+    areaSqm: polygonAreaSqm(ring),
     confidence: 0.1,
   };
 }

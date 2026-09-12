@@ -37,7 +37,10 @@ export function ViewPersistence({
 
     if (selectedId) {
       const d = dealerships.find((x) => x.id === selectedId);
-      if (d) { map.setView([d.lat, d.lon], Math.max(map.getZoom(), 15)); return; }
+      if (d) {
+        map.setView([d.lat, d.lon], Math.max(map.getZoom(), 15));
+        return;
+      }
     }
     if (lastAddedIds.length > 0) return; // lastAddedIds effect takes over
     if (storedView) {
@@ -45,7 +48,7 @@ export function ViewPersistence({
     } else {
       fitAll(map, dealerships);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fly to the selected location.
@@ -54,7 +57,7 @@ export function ViewPersistence({
     const d = dealerships.find((x) => x.id === selectedId);
     if (!d) return;
     map.setView([d.lat, d.lon], Math.max(map.getZoom(), 15));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
   // Fit newly added locations into view.
@@ -65,7 +68,7 @@ export function ViewPersistence({
       .map((d) => [d.lat, d.lon] as [number, number]);
     if (pts.length === 1) map.setView(pts[0], 15);
     else if (pts.length > 1) map.fitBounds(pts, { padding: [50, 50] });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastAddedIds]);
 
   // Save the view on map interaction.
@@ -75,8 +78,10 @@ export function ViewPersistence({
       saveView([c.lat, c.lng], map.getZoom());
     };
     map.on("moveend", onMoveEnd);
-    return () => { map.off("moveend", onMoveEnd); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      map.off("moveend", onMoveEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
   // Arrow-key navigation through the (filtered) locations.
@@ -88,15 +93,16 @@ export function ViewPersistence({
       const idx = selectedId
         ? dealerships.findIndex((d) => d.id === selectedId)
         : -1;
-      const next = e.key === "ArrowDown"
-        ? (idx + 1) % dealerships.length
-        : (idx - 1 + dealerships.length) % dealerships.length;
+      const next =
+        e.key === "ArrowDown"
+          ? (idx + 1) % dealerships.length
+          : (idx - 1 + dealerships.length) % dealerships.length;
       onSelect(dealerships[next].id);
       e.preventDefault();
     };
     container.addEventListener("keydown", handleKey);
     return () => container.removeEventListener("keydown", handleKey);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, dealerships, selectedId]);
 
   return null;

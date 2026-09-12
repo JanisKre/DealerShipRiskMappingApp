@@ -24,7 +24,7 @@ describe("detection benchmark", () => {
     expect(result.countBias).toBe(-1);
     expect(result.within10PctRate).toBe(0.5);
     expect(result.classMae.car).toBe(2);
-    expect(result.classMae.van).toBe(0);
+    expect(result.classMae.van).toBeUndefined();
   });
 
   it("handles an empty benchmark explicitly", () => {

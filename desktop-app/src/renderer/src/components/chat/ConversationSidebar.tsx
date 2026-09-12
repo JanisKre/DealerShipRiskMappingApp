@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { MessageSquarePlus, Search, Trash2 } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
 import { cn } from "@renderer/lib/utils";
@@ -10,6 +11,7 @@ import { useConversationStore } from "@renderer/store/conversationStore";
  * permanently deleted via the trash icon.
  */
 export function ConversationSidebar(): React.JSX.Element {
+  const { t } = useTranslation();
   const list = useConversationStore((s) => s.list);
   const activeId = useConversationStore((s) => s.activeId);
   const selectConversation = useConversationStore((s) => s.selectConversation);
@@ -24,14 +26,14 @@ export function ConversationSidebar(): React.JSX.Element {
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r bg-card">
       <div className="flex items-center justify-between gap-2 px-4 py-3">
-        <h2 className="text-sm font-semibold">Conversations</h2>
+        <h2 className="text-sm font-semibold">{t("ui.conversations")}</h2>
         <Button
           variant="ghost"
           size="icon"
           className="size-8"
           onClick={newConversation}
-          title="New conversation"
-          aria-label="New conversation"
+          title={t("ui.newConversation")}
+          aria-label={t("ui.newConversation")}
         >
           <MessageSquarePlus className="size-4" />
         </Button>
@@ -43,7 +45,7 @@ export function ConversationSidebar(): React.JSX.Element {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search…"
+            placeholder={t("ui.search")}
             className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -52,9 +54,7 @@ export function ConversationSidebar(): React.JSX.Element {
       <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-3">
         {filtered.length === 0 && (
           <p className="px-2 py-4 text-center text-xs text-muted-foreground">
-            {list.length === 0
-              ? "No conversations yet."
-              : "No matches."}
+            {list.length === 0 ? t("ui.noConversations") : t("ui.noMatches")}
           </p>
         )}
         {filtered.map((c) => (
@@ -77,8 +77,8 @@ export function ConversationSidebar(): React.JSX.Element {
             </button>
             <button
               type="button"
-              aria-label="Delete conversation"
-              title="Delete"
+              aria-label={t("ui.delete")}
+              title={t("ui.delete")}
               className={cn(
                 "shrink-0 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100",
                 c.id === activeId

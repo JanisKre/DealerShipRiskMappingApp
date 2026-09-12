@@ -1,32 +1,27 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Info } from "lucide-react";
-import {
-  riskLevelColor,
-  riskLevelLabel,
-  type RiskLevel,
-} from "@renderer/lib/riskColor";
+import { riskLevelColor, type RiskLevel } from "@renderer/lib/riskColor";
 import { sourceColor } from "./BoundaryLayer";
 import type { BoundarySource } from "@shared/types";
 
 const RISK_LEVELS: RiskLevel[] = ["LOW", "MEDIUM", "HIGH", "EXTREME"];
 
-const SOURCES: Array<{ source: BoundarySource; label: string }> = [
+const SOURCES: Array<{
+  source: BoundarySource;
+  labelKey?: string;
+  label?: string;
+}> = [
   { source: "alkis", label: "ALKIS" },
   { source: "osm", label: "OSM" },
   { source: "overture", label: "Overture" },
-  { source: "synthetic", label: "Puffer" },
-  { source: "manual", label: "Manuell" },
-];
-
-const VEHICLE_CLASSES: Array<{ color: string; label: string }> = [
-  { color: "#2563eb", label: "PKW" },
-  { color: "#16a34a", label: "Transporter" },
-  { color: "#f59e0b", label: "LKW" },
-  { color: "#dc2626", label: "Bus" },
+  { source: "synthetic", labelKey: "map.legend.estimated" },
+  { source: "manual", labelKey: "map.legend.manual" },
 ];
 
 /** Karten-Legende: Risiko-Skala, Grenzquellen und Fahrzeugklassen — einklappbar. */
 export function MapLegend(): React.JSX.Element {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
@@ -38,7 +33,7 @@ export function MapLegend(): React.JSX.Element {
         aria-expanded={open}
       >
         <Info className="size-4" />
-        Legende
+        {t("map.legend.title")}
         {open ? (
           <ChevronDown className="size-3.5 text-muted-foreground" />
         ) : (
@@ -47,29 +42,31 @@ export function MapLegend(): React.JSX.Element {
       </button>
       {open && (
         <div className="space-y-2 border-t px-3 py-2.5 text-xs">
-          <LegendGroup title="Risiko">
+          <LegendGroup title={t("map.legend.risk")}>
             {RISK_LEVELS.map((lvl) => (
               <LegendRow
                 key={lvl}
                 color={riskLevelColor(lvl)}
-                label={riskLevelLabel(lvl)}
+                label={t(`risk.${lvl}`)}
               />
             ))}
           </LegendGroup>
-          <LegendGroup title="Grenzquelle">
+          <LegendGroup title={t("map.legend.boundarySource")}>
             {SOURCES.map((s) => (
               <LegendRow
                 key={s.source}
                 color={sourceColor(s.source)}
-                label={s.label}
+                label={s.labelKey ? t(s.labelKey) : s.label!}
                 outline
               />
             ))}
           </LegendGroup>
-          <LegendGroup title="Fahrzeuge">
-            {VEHICLE_CLASSES.map((v) => (
-              <LegendRow key={v.label} color={v.color} label={v.label} dot />
-            ))}
+          <LegendGroup title={t("map.legend.vehicles")}>
+            <LegendRow
+              color="#2563eb"
+              label={t("map.legend.carCategory")}
+              dot
+            />
           </LegendGroup>
         </div>
       )}

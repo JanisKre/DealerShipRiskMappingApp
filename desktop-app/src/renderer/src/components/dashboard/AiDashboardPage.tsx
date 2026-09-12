@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { LayoutDashboard, Loader2 } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
@@ -19,6 +20,7 @@ import { DealershipDetailDialog } from "@renderer/components/dashboard/Dealershi
  * there is no active spec.
  */
 export function AiDashboardPage(): React.JSX.Element {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const dealerships = useAppStore((s) => s.dealerships);
   const loadList = useDashboardStore((s) => s.loadList);
@@ -36,9 +38,7 @@ export function AiDashboardPage(): React.JSX.Element {
   return (
     <div className="flex h-full">
       <DashboardSidebar />
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {renderMain()}
-      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">{renderMain()}</div>
 
       <DealershipDetailDialog
         dealership={detail}
@@ -56,7 +56,7 @@ export function AiDashboardPage(): React.JSX.Element {
         <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
           <Loader2 className="size-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">
-            Generating dashboard…
+            {t("ui.generatingDashboard")}
           </p>
         </div>
       );
@@ -66,9 +66,13 @@ export function AiDashboardPage(): React.JSX.Element {
       return (
         <div className="space-y-6 p-8">
           <div>
-            <h2 className="text-2xl font-semibold">{activeSpec.title || activeName}</h2>
+            <h2 className="text-2xl font-semibold">
+              {activeSpec.title || activeName}
+            </h2>
             {error && (
-              <p className="mt-1 text-sm text-destructive">Error: {error}</p>
+              <p className="mt-1 text-sm text-destructive">
+                {t("ui.error", { error })}
+              </p>
             )}
           </div>
           <DashboardRenderer
@@ -84,9 +88,11 @@ export function AiDashboardPage(): React.JSX.Element {
       <div className="flex h-full items-center justify-center p-6">
         <EmptyState
           icon={LayoutDashboard}
-          title="No AI dashboard yet"
-          description={`Describe what you want to see at the bottom of the home page in "Dashboard" mode — the AI will assemble a matching dashboard from it.`}
-          action={<Button onClick={() => navigate("/")}>Go to Home Page</Button>}
+          title={t("ui.noAiDashboard")}
+          description={t("ui.dashboardEmptyDescription")}
+          action={
+            <Button onClick={() => navigate("/")}>{t("ui.goHome")}</Button>
+          }
         />
       </div>
     );

@@ -344,7 +344,13 @@ export class OnnxYoloDetector implements VehicleDetector {
     return out;
   }
 
-  /** Clip to polygon + geo-reference + class count → DetectionResult. */
+  /**
+   * Clip to polygon + geo-reference + count → DetectionResult.
+   *
+   * The model still uses its source classes internally for confidence
+   * thresholds, but the product deliberately exposes one underwriting category:
+   * every detected road vehicle is a `car`.
+   */
   private finalize(
     boxes: Box[],
     image: AerialCapture,
@@ -379,7 +385,7 @@ export class OnnxYoloDetector implements VehicleDetector {
           if (!inside) continue;
         }
       }
-      counts[b.classLabel] += 1;
+      counts.car += 1;
       confSum += b.confidence;
       outBoxes.push({
         x: b.x,
@@ -387,7 +393,7 @@ export class OnnxYoloDetector implements VehicleDetector {
         w: b.w,
         h: b.h,
         score: b.confidence,
-        classLabel: b.classLabel,
+        classLabel: "car",
         lon,
         lat,
       });
@@ -408,7 +414,9 @@ export class OnnxYoloDetector implements VehicleDetector {
         method: "sliding-window aerial object detection with soft-NMS",
         confidence: vehicleCount > 0 ? confSum / vehicleCount : 0,
         fallbackUsed: false,
-        limitations: ["Accuracy depends on imagery resolution and capture date"],
+        limitations: [
+          "Accuracy depends on imagery resolution and capture date",
+        ],
       },
     };
   }

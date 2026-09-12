@@ -18,6 +18,7 @@ import {
   StructuredMemoSchema,
 } from "@shared/types";
 import { buildDefaultDashboardSpec } from "@shared/dashboard-aggregates";
+import { effectiveVehicleCount } from "@shared/risk-math";
 import { getLlmApiKey, getSettings } from "./settings.service";
 
 /**
@@ -350,7 +351,9 @@ function compactForMemo(d: AnalyzedDealership): Record<string, unknown> {
     name: d.name,
     lat: d.lat,
     lon: d.lon,
-    vehicleCount: d.detection?.vehicleCount,
+    machineVehicleCount: d.detection?.vehicleCount,
+    manualVehicleCount: d.detection?.manualVehicleCount,
+    vehicleCount: d.detection ? effectiveVehicleCount(d.detection) : undefined,
     classCounts: d.detection?.classCounts,
     overallScore: d.risk?.overallScore,
     perils: d.risk?.perils.map((p) => ({ peril: p.peril, score: p.score })),
@@ -431,7 +434,9 @@ Respond EXCLUSIVELY with JSON: {"recommendedAction":"...","expandMeters":null,"r
         boundarySource: dealership.boundary?.source,
         boundaryConfidence: dealership.boundary?.confidence,
         areaSqm: dealership.boundary?.areaSqm,
-        vehicleCount: dealership.detection?.vehicleCount,
+        vehicleCount: dealership.detection
+          ? effectiveVehicleCount(dealership.detection)
+          : undefined,
       }),
     },
   ]);

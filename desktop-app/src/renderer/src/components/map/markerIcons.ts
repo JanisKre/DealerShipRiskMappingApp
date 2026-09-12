@@ -12,7 +12,9 @@ export function riskMarkerIcon(
 ): L.DivIcon {
   const color = score != null ? riskColor(score) : "#6b7280";
   const label =
-    score != null ? `<span class="marker-label">${Math.round(score)}</span>` : "";
+    score != null
+      ? `<span class="marker-label">${Math.round(score)}</span>`
+      : "";
   const selectedClass = selected ? " marker-selected" : "";
 
   return L.divIcon({

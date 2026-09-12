@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Bar, BarChart, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import type { AnalyzedDealership } from "@shared/types";
 import {
@@ -16,7 +17,6 @@ import {
   riskColor,
   riskLevel,
   riskLevelColor,
-  riskLevelLabel,
   type RiskLevel,
 } from "@renderer/lib/riskColor";
 
@@ -29,6 +29,7 @@ export function RiskChart({
 }: {
   dealerships: AnalyzedDealership[];
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const distribution = useMemo(() => {
     const buckets: Record<RiskLevel, number> = {
       LOW: 0,
@@ -41,11 +42,11 @@ export function RiskChart({
     return (Object.keys(buckets) as RiskLevel[])
       .map((level) => ({
         level,
-        label: riskLevelLabel(level),
+        label: t(`risk.${level}`),
         value: buckets[level],
       }))
       .filter((e) => e.value > 0);
-  }, [dealerships]);
+  }, [dealerships, t]);
 
   const top10 = useMemo(
     () =>
@@ -65,11 +66,13 @@ export function RiskChart({
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Risikoverteilung</CardTitle>
+          <CardTitle className="text-base">
+            {t("dashboard.riskDistribution")}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <ChartContainer
-            config={{ value: { label: "Standorte" } }}
+            config={{ value: { label: t("dashboard.locations") } }}
             className="aspect-square max-h-64"
           >
             <PieChart>
@@ -103,11 +106,11 @@ export function RiskChart({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Top-Risiko-Standorte</CardTitle>
+          <CardTitle className="text-base">{t("dashboard.topRisks")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ChartContainer
-            config={{ score: { label: "Score" } }}
+            config={{ score: { label: t("common.score") } }}
             className="aspect-square max-h-64"
           >
             <BarChart

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { Button } from "@renderer/components/ui/button";
@@ -36,29 +37,46 @@ export function PortfolioFilterBar({
 }: Readonly<{
   dealerships: AnalyzedDealership[];
 }>): React.JSX.Element | null {
+  const { t } = useTranslation();
   const filters = useAppStore((s) => s.filters);
   const setFilters = useAppStore((s) => s.setFilters);
   const resetFilters = useAppStore((s) => s.resetFilters);
 
-  const partners = useMemo(() => distinct(dealerships, "salesPartner"), [dealerships]);
-  const subs = useMemo(() => distinct(dealerships, "subPortfolio"), [dealerships]);
+  const partners = useMemo(
+    () => distinct(dealerships, "salesPartner"),
+    [dealerships],
+  );
+  const subs = useMemo(
+    () => distinct(dealerships, "subPortfolio"),
+    [dealerships],
+  );
   const groups = useMemo(() => distinct(dealerships, "group"), [dealerships]);
+  const fallbackCount = useMemo(
+    () => dealerships.filter((d) => d.boundary?.source === "synthetic").length,
+    [dealerships],
+  );
 
   // Nothing to show if no metadata is present.
-  if (partners.length === 0 && subs.length === 0 && groups.length === 0)
+  if (
+    partners.length === 0 &&
+    subs.length === 0 &&
+    groups.length === 0 &&
+    fallbackCount === 0
+  )
     return null;
 
   const active =
     filters.subPortfolio ||
     filters.salesPartner ||
     filters.group ||
-    filters.clusterId;
+    filters.clusterId ||
+    filters.boundarySource;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       {subs.length > 0 && (
         <FilterSelect
-          label="Sub-portfolio"
+          label={t("ui.subPortfolio")}
           value={filters.subPortfolio}
           options={subs}
           onChange={(v) => setFilters({ subPortfolio: v })}
@@ -66,7 +84,7 @@ export function PortfolioFilterBar({
       )}
       {partners.length > 0 && (
         <FilterSelect
-          label="Sales Partner"
+          label={t("ui.salesPartner")}
           value={filters.salesPartner}
           options={partners}
           onChange={(v) => setFilters({ salesPartner: v })}
@@ -74,20 +92,42 @@ export function PortfolioFilterBar({
       )}
       {groups.length > 0 && (
         <FilterSelect
-          label="Group"
+          label={t("ui.group")}
           value={filters.group}
           options={groups}
           onChange={(v) => setFilters({ group: v })}
         />
       )}
+      {fallbackCount > 0 && (
+        <Select
+          value={filters.boundarySource ?? ALL}
+          onValueChange={(v) =>
+            setFilters({
+              boundarySource: v === ALL ? null : (v as "fallback"),
+            })
+          }
+        >
+          <SelectTrigger className="h-9 w-52 text-sm">
+            <SelectValue placeholder={t("ui.boundarySource")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>
+              {t("ui.allBoundaries")} · {t("ui.boundarySource")}
+            </SelectItem>
+            <SelectItem value="fallback">
+              {t("ui.fallbackBoundary")} ({fallbackCount})
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      )}
       {filters.clusterId && (
         <span className="rounded-md border bg-muted px-2 py-1 font-mono text-xs">
-          Cluster {filters.clusterId}
+          {t("ui.clusterLabel", { id: filters.clusterId })}
         </span>
       )}
       {active && (
         <Button variant="ghost" size="sm" onClick={resetFilters}>
-          <X className="size-4" /> Reset Filters
+          <X className="size-4" /> {t("ui.resetFilters")}
         </Button>
       )}
     </div>
@@ -105,6 +145,7 @@ function FilterSelect({
   options: string[];
   onChange: (v: string | null) => void;
 }>): React.JSX.Element {
+  const { t } = useTranslation();
   return (
     <Select
       value={value ?? ALL}
@@ -114,7 +155,9 @@ function FilterSelect({
         <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={ALL}>All · {label}</SelectItem>
+        <SelectItem value={ALL}>
+          {t("ui.all")} · {label}
+        </SelectItem>
         {options.map((o) => (
           <SelectItem key={o} value={o}>
             {o}
@@ -134,6 +177,9 @@ export function applyMetaFilters(
     (d) =>
       (!filters.subPortfolio || d.subPortfolio === filters.subPortfolio) &&
       (!filters.salesPartner || d.salesPartner === filters.salesPartner) &&
-      (!filters.group || d.group === filters.group),
+      (!filters.group || d.group === filters.group) &&
+      (!filters.boundarySource ||
+        (filters.boundarySource === "fallback" &&
+          d.boundary?.source === "synthetic")),
   );
 }

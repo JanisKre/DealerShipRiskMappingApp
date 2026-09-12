@@ -7,8 +7,8 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Initial public (private) repo structure: README with badges, CONTRIBUTING,
-  CHANGELOG.
+- Repository hardening: pinned GitHub Actions, dependency review, release
+  checksums/SBOM/provenance, community issue forms, and agent instructions.
 
 ## [0.1.0] – 2026-08-20
 
@@ -19,7 +19,7 @@ the project follows [Semantic Versioning](https://semver.org/).
 - Lot boundary detection with a fallback chain
   (ALKIS → OSM → Overture → MS Buildings → synthetic circle) and manual
   polygon correction (Geoman).
-- AI vehicle detection via YOLOv8 ONNX (sliding window + soft-NMS) with a
+- AI vehicle detection via YOLOv26 ONNX (sliding window + soft-NMS) with a
   stub fallback.
 - Risk scoring across 5 perils (wind, lightning, snow, flood, hail),
   including EAL, PML, cluster risk, and scenario simulation.

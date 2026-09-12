@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/JanisKre/DealerShipRiskMappingApp/security/advisories/new
+    about: Report security vulnerabilities privately; do not disclose them in a public issue.
+  - name: Support and usage questions
+    url: https://github.com/JanisKre/DealerShipRiskMappingApp/discussions
+    about: Ask usage and design questions in GitHub Discussions.

@@ -44,6 +44,17 @@ const api = {
       lon,
     } satisfies IpcRequest["boundary:detect"]),
 
+  detectVehicles: (
+    lat: number,
+    lon: number,
+    boundary?: IpcRequest["detect:vehicles"]["boundary"],
+  ): Promise<IpcResponse["detect:vehicles"]> =>
+    ipcRenderer.invoke(IPC.detectVehicles, {
+      lat,
+      lon,
+      boundary,
+    } satisfies IpcRequest["detect:vehicles"]),
+
   getOsmDetails: (
     lat: number,
     lon: number,
@@ -268,7 +279,9 @@ const api = {
    * as `llmStream`: `onChunk` receives progress/result, the returned function
    * aborts the download.
    */
-  downloadModel: (onChunk: (chunk: ModelDownloadChunk) => void): (() => void) => {
+  downloadModel: (
+    onChunk: (chunk: ModelDownloadChunk) => void,
+  ): (() => void) => {
     const streamId = globalThis.crypto.randomUUID();
     const responseChannel = `${IPC.modelDownload}:${streamId}`;
     const listener = (_e: unknown, chunk: ModelDownloadChunk): void =>

@@ -1,13 +1,16 @@
 import { create } from "zustand";
 import type {
   AnalyzedDealership,
+  BoundaryResult,
   DealershipInput,
   HailstormScenario,
   ImportReport,
   NlQueryDealership,
+  ManualVehiclePoint,
   Session,
 } from "@shared/types";
 import { dedupeDealerships } from "@shared/dedupe";
+import { effectiveVehicleCount } from "@shared/risk-math";
 import { riskLevel } from "@renderer/lib/riskColor";
 
 /**
@@ -26,6 +29,16 @@ interface AppState {
   progress: { done: number; total: number } | null;
   /** IDs whose background analysis is currently running (pin feedback). */
   analyzingIds: string[];
+  /** Locations whose manually edited boundary has not been re-detected yet. */
+  pendingBoundaryDetectionIds: string[];
+  /** Locations currently running vehicle detection after a boundary edit. */
+  detectionUpdateIds: string[];
+  /** Last boundary-detection error per location, shown next to its CTA. */
+  detectionUpdateErrors: Record<string, string>;
+  /** Locations with unsaved manual boundary edits. */
+  boundaryEditIds: string[];
+  /** Previous manual boundary states, newest state last. */
+  boundaryHistory: Record<string, BoundaryResult[]>;
   /** Most recently added location IDs — drives map focus. */
   lastAddedIds: string[];
   /** Timestamp of the last successful save (manual or autosave). */
@@ -61,6 +74,14 @@ interface AppState {
     id: string,
     boundary: NonNullable<AnalyzedDealership["boundary"]>,
   ) => Promise<void>;
+  /** Re-runs vehicle detection and risk scoring using the current boundary. */
+  updateDetectionForBoundary: (id: string) => Promise<void>;
+  /** Persists a manual boundary edit and clears its unsaved marker. */
+  saveBoundaryEdit: (id: string) => Promise<void>;
+  /** Restores the previous manual boundary state and rescored risk. */
+  undoBoundaryEdit: (id: string) => Promise<void>;
+  /** Restores the original boundary from before manual editing started. */
+  revertBoundaryToDefault: (id: string) => Promise<void>;
   /** Updates portfolio metadata (insured, partner, group, limit, …). */
   updateDealershipMeta: (
     id: string,
@@ -75,6 +96,14 @@ interface AppState {
       >
     >,
   ) => void;
+  /** Saves an optional human-reviewed vehicle count and recalculates risk. */
+  updateManualVehicleCount: (id: string, count: number | null) => Promise<void>;
+  /** Adds/removes a point during map-based manual vehicle review. */
+  adjustVehicleDetectionPoint: (
+    id: string,
+    point: ManualVehiclePoint,
+    mode: "add" | "remove-machine" | "remove-manual" | "restore-machine",
+  ) => Promise<void>;
   select: (id: string | null) => void;
   /** Permanently removes a location from the portfolio. */
   removeDealership: (id: string) => void;
@@ -105,6 +134,7 @@ export interface PortfolioFilters {
   salesPartner: string | null;
   group: string | null;
   clusterId: string | null;
+  boundarySource: "fallback" | null;
 }
 
 const EMPTY_FILTERS: PortfolioFilters = {
@@ -112,6 +142,7 @@ const EMPTY_FILTERS: PortfolioFilters = {
   salesPartner: null,
   group: null,
   clusterId: null,
+  boundarySource: null,
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -122,6 +153,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   analyzing: false,
   progress: null,
   analyzingIds: [],
+  pendingBoundaryDetectionIds: [],
+  detectionUpdateIds: [],
+  detectionUpdateErrors: {},
+  boundaryEditIds: [],
+  boundaryHistory: {},
   lastAddedIds: [],
   lastSavedAt: null,
   lastImportReport: null,
@@ -133,7 +169,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSession: (id, name) => set({ sessionId: id, sessionName: name }),
   setSessionName: (name) => set({ sessionName: name }),
   setImportReport: (lastImportReport) => set({ lastImportReport }),
-  setDealerships: (dealerships) => set({ dealerships }),
+  setDealerships: (dealerships) =>
+    set({
+      dealerships,
+      boundaryEditIds: [],
+      boundaryHistory: {},
+      pendingBoundaryDetectionIds: [],
+      detectionUpdateIds: [],
+      detectionUpdateErrors: {},
+    }),
   upsertDealership: (d) =>
     set((s) => {
       const idx = s.dealerships.findIndex((x) => x.id === d.id);
@@ -150,10 +194,41 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { dealerships: copy };
     }),
   updateBoundaryAndRescore: async (id, boundary) => {
-    // 1) Write the boundary + area back immediately so it's visible.
-    get().updateBoundary(id, boundary);
+    const before = get().dealerships.find((x) => x.id === id);
+    if (!before?.boundary) return;
+    const baseBoundary =
+      before.boundary.source === "manual"
+        ? (before.boundaryBeforeManualEdit ?? before.boundary)
+        : before.boundary;
+
+    // 1) Write the boundary + area back immediately so it's visible and keep
+    // the first non-manual boundary as the durable revert target.
+    set((s) => ({
+      dealerships: s.dealerships.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              boundary,
+              boundaryBeforeManualEdit: baseBoundary,
+            }
+          : d,
+      ),
+      boundaryEditIds: s.boundaryEditIds.includes(id)
+        ? s.boundaryEditIds
+        : [...s.boundaryEditIds, id],
+      boundaryHistory: {
+        ...s.boundaryHistory,
+        [id]: [...(s.boundaryHistory[id] ?? []), before.boundary!],
+      },
+    }));
     const d = get().dealerships.find((x) => x.id === id);
     if (!d) return;
+    set((s) => ({
+      pendingBoundaryDetectionIds: s.pendingBoundaryDetectionIds.includes(id)
+        ? s.pendingBoundaryDetectionIds
+        : [...s.pendingBoundaryDetectionIds, id],
+      detectionUpdateErrors: withoutKey(s.detectionUpdateErrors, id),
+    }));
     // 2) Recompute risk with the new area (capacity/utilisation/EAL).
     try {
       const risk = await window.api.scoreRisk(
@@ -163,10 +238,155 @@ export const useAppStore = create<AppState>((set, get) => ({
         d.detection,
         boundary,
       );
-      get().upsertDealership({ ...get().dealerships.find((x) => x.id === id)!, risk });
+      get().upsertDealership({
+        ...get().dealerships.find((x) => x.id === id)!,
+        risk,
+      });
     } catch (err) {
       console.error(`Rescoring after boundary edit failed (${id}):`, err);
     }
+  },
+  updateDetectionForBoundary: async (id) => {
+    const d = get().dealerships.find((x) => x.id === id);
+    if (!d?.boundary) return;
+    if (get().detectionUpdateIds.includes(id)) return;
+
+    set((s) => ({
+      detectionUpdateIds: [...s.detectionUpdateIds, id],
+      detectionUpdateErrors: withoutKey(s.detectionUpdateErrors, id),
+    }));
+    try {
+      const detected = await window.api.detectVehicles(
+        d.lat,
+        d.lon,
+        d.boundary,
+      );
+      const detection =
+        d.detection?.manualVehicleCount == null
+          ? detected
+          : {
+              ...detected,
+              manualVehicleCount: d.detection.manualVehicleCount,
+              manualVehiclePoints: d.detection.manualVehiclePoints,
+              manualVehicleRemovedPoints:
+                d.detection.manualVehicleRemovedPoints,
+            };
+      const risk = await window.api.scoreRisk(
+        d.lat,
+        d.lon,
+        d.assetValue,
+        detection,
+        d.boundary,
+      );
+      const current = get().dealerships.find((x) => x.id === id);
+      if (current) get().upsertDealership({ ...current, detection, risk });
+      set((s) => ({
+        pendingBoundaryDetectionIds: s.pendingBoundaryDetectionIds.filter(
+          (pendingId) => pendingId !== id,
+        ),
+        detectionUpdateErrors: withoutKey(s.detectionUpdateErrors, id),
+      }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(
+        `Vehicle detection after boundary edit failed (${id}):`,
+        err,
+      );
+      set((s) => ({
+        detectionUpdateErrors: { ...s.detectionUpdateErrors, [id]: message },
+      }));
+    } finally {
+      set((s) => ({
+        detectionUpdateIds: s.detectionUpdateIds.filter(
+          (runningId) => runningId !== id,
+        ),
+      }));
+    }
+  },
+  saveBoundaryEdit: async (id) => {
+    if (!get().boundaryEditIds.includes(id)) return;
+    await get().saveSession();
+    set((s) => ({
+      boundaryEditIds: s.boundaryEditIds.filter((editId) => editId !== id),
+    }));
+  },
+  undoBoundaryEdit: async (id) => {
+    const current = get().dealerships.find((d) => d.id === id);
+    const history = get().boundaryHistory[id] ?? [];
+    const previous = history.at(-1);
+    if (!current || !previous) return;
+
+    const remaining = history.slice(0, -1);
+    const baseBoundary =
+      previous.source === "manual"
+        ? current.boundaryBeforeManualEdit
+        : undefined;
+    set((s) => ({
+      dealerships: s.dealerships.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              boundary: previous,
+              boundaryBeforeManualEdit: baseBoundary,
+            }
+          : d,
+      ),
+      boundaryHistory: { ...s.boundaryHistory, [id]: remaining },
+      boundaryEditIds: s.boundaryEditIds.includes(id)
+        ? s.boundaryEditIds
+        : [...s.boundaryEditIds, id],
+      pendingBoundaryDetectionIds: s.pendingBoundaryDetectionIds.includes(id)
+        ? s.pendingBoundaryDetectionIds
+        : [...s.pendingBoundaryDetectionIds, id],
+      detectionUpdateErrors: withoutKey(s.detectionUpdateErrors, id),
+    }));
+    const risk = await window.api.scoreRisk(
+      current.lat,
+      current.lon,
+      current.assetValue,
+      current.detection,
+      previous,
+    );
+    const latest = get().dealerships.find((d) => d.id === id);
+    if (latest) get().upsertDealership({ ...latest, risk });
+  },
+  revertBoundaryToDefault: async (id) => {
+    const current = get().dealerships.find((d) => d.id === id);
+    const baseBoundary = current?.boundaryBeforeManualEdit;
+    if (!current || !baseBoundary) return;
+
+    set((s) => ({
+      dealerships: s.dealerships.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              boundary: baseBoundary,
+              boundaryBeforeManualEdit: undefined,
+            }
+          : d,
+      ),
+      boundaryHistory: { ...s.boundaryHistory, [id]: [] },
+      boundaryEditIds: s.boundaryEditIds.includes(id)
+        ? s.boundaryEditIds
+        : [...s.boundaryEditIds, id],
+      pendingBoundaryDetectionIds: s.pendingBoundaryDetectionIds.includes(id)
+        ? s.pendingBoundaryDetectionIds
+        : [...s.pendingBoundaryDetectionIds, id],
+      detectionUpdateErrors: withoutKey(s.detectionUpdateErrors, id),
+    }));
+    const risk = await window.api.scoreRisk(
+      current.lat,
+      current.lon,
+      current.assetValue,
+      current.detection,
+      baseBoundary,
+    );
+    const latest = get().dealerships.find((d) => d.id === id);
+    if (latest) get().upsertDealership({ ...latest, risk });
+    await get().saveSession();
+    set((s) => ({
+      boundaryEditIds: s.boundaryEditIds.filter((editId) => editId !== id),
+    }));
   },
   updateDealershipMeta: (id, patch) =>
     set((s) => {
@@ -175,6 +395,80 @@ export const useAppStore = create<AppState>((set, get) => ({
       );
       return { dealerships: copy };
     }),
+  updateManualVehicleCount: async (id, count) => {
+    if (count != null && (!Number.isInteger(count) || count < 0)) return;
+    const current = get().dealerships.find((d) => d.id === id);
+    if (!current?.detection) return;
+    const detection = {
+      ...current.detection,
+      ...(count == null
+        ? {
+            manualVehicleCount: undefined,
+            manualVehiclePoints: undefined,
+            manualVehicleRemovedPoints: undefined,
+          }
+        : { manualVehicleCount: count }),
+    };
+    const risk = await window.api.scoreRisk(
+      current.lat,
+      current.lon,
+      current.assetValue,
+      detection,
+      current.boundary,
+    );
+    const latest = get().dealerships.find((d) => d.id === id);
+    if (latest) get().upsertDealership({ ...latest, detection, risk });
+    await get().saveSession();
+  },
+  adjustVehicleDetectionPoint: async (id, point, mode) => {
+    const current = get().dealerships.find((d) => d.id === id);
+    if (!current?.detection) return;
+    const detection = { ...current.detection };
+    const points = [...(detection.manualVehiclePoints ?? [])];
+    const removedPoints = [...(detection.manualVehicleRemovedPoints ?? [])];
+    const samePoint = (a: ManualVehiclePoint, b: ManualVehiclePoint): boolean =>
+      Math.abs(a.lat - b.lat) < 0.000001 && Math.abs(a.lon - b.lon) < 0.000001;
+
+    if (mode === "add") {
+      points.push(point);
+    } else if (mode === "remove-manual") {
+      const index = points.findIndex((candidate) =>
+        samePoint(candidate, point),
+      );
+      if (index < 0) return;
+      points.splice(index, 1);
+    } else if (mode === "remove-machine") {
+      if (removedPoints.some((candidate) => samePoint(candidate, point)))
+        return;
+      removedPoints.push(point);
+    } else {
+      const index = removedPoints.findIndex((candidate) =>
+        samePoint(candidate, point),
+      );
+      if (index < 0) return;
+      removedPoints.splice(index, 1);
+    }
+
+    const currentCount = effectiveVehicleCount(current.detection);
+    const nextCount =
+      mode === "add" || mode === "restore-machine"
+        ? currentCount + 1
+        : currentCount - 1;
+    if (nextCount < 0) return;
+    detection.manualVehicleCount = nextCount;
+    detection.manualVehiclePoints = points;
+    detection.manualVehicleRemovedPoints = removedPoints;
+    const risk = await window.api.scoreRisk(
+      current.lat,
+      current.lon,
+      current.assetValue,
+      detection,
+      current.boundary,
+    );
+    const latest = get().dealerships.find((d) => d.id === id);
+    if (latest) get().upsertDealership({ ...latest, detection, risk });
+    await get().saveSession();
+  },
   select: (id) => set({ selectedId: id }),
 
   removeDealership: (id) =>
@@ -189,6 +483,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({ analyzingIds: [...s.analyzingIds, id] }));
     try {
       const result = await window.api.analyzeDealership(d);
+      if (d.detection && result.detection) {
+        result.detection = {
+          ...result.detection,
+          manualVehicleCount: d.detection.manualVehicleCount,
+          manualVehiclePoints: d.detection.manualVehiclePoints,
+          manualVehicleRemovedPoints: d.detection.manualVehicleRemovedPoints,
+        };
+      }
       get().upsertDealership(result);
     } catch (err) {
       console.error(`Re-analysis failed for ${d.name}:`, err);
@@ -287,6 +589,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 }));
 
+function withoutKey(
+  values: Record<string, string>,
+  key: string,
+): Record<string, string> {
+  if (!(key in values)) return values;
+  const copy = { ...values };
+  delete copy[key];
+  return copy;
+}
+
 /** Flat NL query projection of a dealership (for the filter evaluator in main). */
 export function toNlQueryDealership(d: AnalyzedDealership): NlQueryDealership {
   const peril = (name: string): number | undefined =>
@@ -297,7 +609,7 @@ export function toNlQueryDealership(d: AnalyzedDealership): NlQueryDealership {
     name: d.name,
     riskLevel: score == null ? undefined : riskLevel(score),
     overallScore: score,
-    vehicleCount: d.detection?.vehicleCount,
+    vehicleCount: d.detection ? effectiveVehicleCount(d.detection) : undefined,
     utilisation: d.risk?.utilisation,
     eal: d.risk?.eal,
     exposureEur: d.risk?.exposureEur,

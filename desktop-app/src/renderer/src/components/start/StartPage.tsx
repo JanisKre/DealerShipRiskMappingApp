@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -21,6 +22,7 @@ import { Omnibox, type PlacePick } from "@renderer/components/upload/Omnibox";
  * thread.
  */
 export function StartPage(): React.JSX.Element {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const addAndAnalyze = useAppStore((s) => s.addAndAnalyze);
   const analyzing = useAppStore((s) => s.analyzing);
@@ -50,9 +52,7 @@ export function StartPage(): React.JSX.Element {
     navigate("/map");
     const skipped = await addAndAnalyze(incoming);
     if (skipped > 0) {
-      toast.info(
-        `${skipped} duplicate${skipped > 1 ? "s" : ""} detected and skipped.`,
-      );
+      toast.info(t("start.duplicatesSkipped", { count: skipped }));
     }
   }
 
@@ -99,17 +99,20 @@ export function StartPage(): React.JSX.Element {
               <div className="flex size-14 items-center justify-center rounded-full bg-muted">
                 <Sparkles className="size-7 text-primary" />
               </div>
-              <h2 className="text-2xl font-semibold">How can I help?</h2>
+              <h2 className="text-2xl font-semibold">
+                {t("start.emptyTitle")}
+              </h2>
               <p className="max-w-md text-sm text-muted-foreground">
-                Add an address, import a CSV/Excel file, or ask about the
-                portfolio — e.g. "Which locations drive the EAL?"
+                {t("start.emptyDescription")}
               </p>
             </div>
           ) : (
             <div className="mx-auto max-w-4xl space-y-6 p-8">
               {hasData && <ExecutiveSummary />}
 
-              {lastImportReport && <ImportQualityNotice report={lastImportReport} />}
+              {lastImportReport && (
+                <ImportQualityNotice report={lastImportReport} />
+              )}
 
               {(messages.length > 0 || streaming) && (
                 <div className="space-y-4 border-t pt-6">
@@ -128,7 +131,9 @@ export function StartPage(): React.JSX.Element {
                     />
                   )}
                   {error && (
-                    <p className="text-sm text-destructive">Error: {error}</p>
+                    <p className="text-sm text-destructive">
+                      {t("ui.error", { error })}
+                    </p>
                   )}
                 </div>
               )}
@@ -146,9 +151,7 @@ export function StartPage(): React.JSX.Element {
               disabled={analyzing || streaming || dashboardGenerating}
             />
             <p className="px-1 text-xs text-muted-foreground">
-              Enter an address, question, or dashboard request · import via 📎
-              CSV, TSV, or Excel (.xlsx) · columns: name, address, lat, lon,
-              value
+              {t("start.inputHint")}
             </p>
           </div>
         </div>
@@ -160,19 +163,37 @@ export function StartPage(): React.JSX.Element {
 function ImportQualityNotice({
   report,
 }: {
-  report: NonNullable<ReturnType<typeof useAppStore.getState>["lastImportReport"]>;
+  report: NonNullable<
+    ReturnType<typeof useAppStore.getState>["lastImportReport"]
+  >;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   return (
     <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-      <div className="font-medium">Import quality · {report.format.toUpperCase()}</div>
+      <div className="font-medium">
+        {t("start.importQuality")} · {report.format.toUpperCase()}
+      </div>
       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
-        <span>{report.importedRows} imported</span>
-        <span>{report.skippedRows} skipped</span>
-        <span>{report.duplicateRows} duplicates</span>
-        {report.issues.length > 0 && <span>{report.issues.length} issues</span>}
+        <span>
+          {report.importedRows} {t("start.imported")}
+        </span>
+        <span>
+          {report.skippedRows} {t("start.skipped")}
+        </span>
+        <span>
+          {report.duplicateRows} {t("start.duplicates")}
+        </span>
+        {report.issues.length > 0 && (
+          <span>
+            {report.issues.length} {t("start.issues")}
+          </span>
+        )}
       </div>
       {report.warnings.map((warning) => (
-        <div key={warning} className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+        <div
+          key={warning}
+          className="mt-2 text-xs text-amber-700 dark:text-amber-300"
+        >
           {warning}
         </div>
       ))}

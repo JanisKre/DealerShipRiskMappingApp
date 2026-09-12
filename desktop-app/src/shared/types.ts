@@ -109,6 +109,10 @@ export type OsmDetails = z.infer<typeof OsmDetailsSchema>;
 
 // --- Vehicle detection ------------------------------------------------------
 
+/**
+ * Legacy model classes accepted when loading older sessions. New detection
+ * results normalize every supported class to `car` for underwriting.
+ */
 export const VEHICLE_CLASSES = ["car", "van", "truck", "bus"] as const;
 export const VehicleClassSchema = z.enum(VEHICLE_CLASSES);
 export type VehicleClass = z.infer<typeof VehicleClassSchema>;
@@ -127,8 +131,17 @@ export const DetectionBoxSchema = z.object({
 });
 export type DetectionBox = z.infer<typeof DetectionBoxSchema>;
 
+/** A manually added or removed vehicle location on the map. */
+export const ManualVehiclePointSchema = z.object({
+  lat: z.number(),
+  lon: z.number(),
+});
+export type ManualVehiclePoint = z.infer<typeof ManualVehiclePointSchema>;
+
 export const ClassCountsSchema = z.object({
   car: z.number().int().nonnegative(),
+  // Kept for backwards compatibility with sessions created before the
+  // product switched to one generic vehicle category.
   van: z.number().int().nonnegative(),
   truck: z.number().int().nonnegative(),
   bus: z.number().int().nonnegative(),
@@ -147,11 +160,17 @@ export type DetectionEvaluation = z.infer<typeof DetectionEvaluationSchema>;
 
 export const DetectionResultSchema = z.object({
   vehicleCount: z.number().int().nonnegative(),
+  /** Optional human-reviewed count used for underwriting calculations. */
+  manualVehicleCount: z.number().int().nonnegative().optional(),
   confidence: z.number().min(0).max(1),
   model: z.string(),
   classCounts: ClassCountsSchema.optional(),
   inferenceMs: z.number().optional(),
   boxes: z.array(DetectionBoxSchema).optional(),
+  /** Points added by an underwriter during map-based detection review. */
+  manualVehiclePoints: z.array(ManualVehiclePointSchema).optional(),
+  /** Machine points hidden by an underwriter during map-based review. */
+  manualVehicleRemovedPoints: z.array(ManualVehiclePointSchema).optional(),
   evidence: RiskEvidenceSchema.optional(),
   evaluation: DetectionEvaluationSchema.optional(),
 });
@@ -217,18 +236,30 @@ export type RiskAssessment = z.infer<typeof RiskAssessmentSchema>;
 // --- Complete analyzed dataset ---------------------------------------------
 
 export const HailZoneSchema = z.union([
-  z.literal(1), z.literal(2), z.literal(3),
-  z.literal(4), z.literal(5), z.literal(6),
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6),
 ]);
 export type HailZone = z.infer<typeof HailZoneSchema>;
 
-export const HAIL_RISK_TIERS = ["Very Low", "Low", "Moderate", "High", "Very High"] as const;
+export const HAIL_RISK_TIERS = [
+  "Very Low",
+  "Low",
+  "Moderate",
+  "High",
+  "Very High",
+] as const;
 export type HailRiskTier = (typeof HAIL_RISK_TIERS)[number];
 
 export const AnalyzedDealershipSchema = DealershipInputSchema.extend({
   lat: z.number(),
   lon: z.number(),
   boundary: BoundaryResultSchema.optional(),
+  /** Original boundary kept so a manual edit can be reverted after restart. */
+  boundaryBeforeManualEdit: BoundaryResultSchema.optional(),
   detection: DetectionResultSchema.optional(),
   risk: RiskAssessmentSchema.optional(),
   /** Hail zone (comprehensive/K-Kasko cover, 1-6) from the postal-code zoning table. */
@@ -330,7 +361,9 @@ export const HailstormScenarioSchema = z.object({
   intensityLevel: z.enum(["LOW", "MEDIUM", "HIGH", "EXTREME"]),
   /** Optional generic scenario metadata; old hailstorm files remain valid. */
   peril: PerilSchema.optional(),
-  returnPeriodYears: z.union([z.literal(10), z.literal(50), z.literal(100)]).optional(),
+  returnPeriodYears: z
+    .union([z.literal(10), z.literal(50), z.literal(100)])
+    .optional(),
   exposureMultiplier: z.number().positive().optional(),
   modelVersion: z.string().optional(),
   assumptions: z.array(z.string()).optional(),

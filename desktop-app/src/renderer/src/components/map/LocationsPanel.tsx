@@ -18,11 +18,7 @@ import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
 import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
 import { cn } from "@renderer/lib/utils";
-import {
-  riskLevel,
-  riskLevelColor,
-  riskLevelLabel,
-} from "@renderer/lib/riskColor";
+import { riskLevel, riskLevelColor } from "@renderer/lib/riskColor";
 import { useAppStore } from "@renderer/store/appStore";
 
 interface Props {
@@ -265,7 +261,7 @@ function LocationRow({
           style={{ backgroundColor: dotColor }}
           title={
             score != null
-              ? riskLevelLabel(riskLevel(score))
+              ? t(`risk.${riskLevel(score)}`)
               : t("map.locationsPanel.analyzing")
           }
         />
@@ -289,6 +285,9 @@ function LocationRow({
                 <ShieldCheck className="size-3" />
                 {t("map.locationsPanel.insuredChip")}
               </Chip>
+            )}
+            {d.boundary?.source === "synthetic" && (
+              <Chip warning>{t("ui.fallbackBoundary")}</Chip>
             )}
             {distanceKm != null && <Chip>{distanceKm.toFixed(1)}&nbsp;km</Chip>}
             {sameGroup && (
@@ -318,7 +317,10 @@ function LocationRow({
 function ScoreLabel({
   pending,
   score,
-}: Readonly<{ pending: boolean; score: number | undefined }>): React.JSX.Element {
+}: Readonly<{
+  pending: boolean;
+  score: number | undefined;
+}>): React.JSX.Element {
   if (pending) return <Loader2 className="size-3.5 animate-spin" />;
   return <>{score != null ? Math.round(score) : "…"}</>;
 }
@@ -327,9 +329,11 @@ function ScoreLabel({
 function Chip({
   children,
   accent,
+  warning,
 }: Readonly<{
   children: React.ReactNode;
   accent?: boolean;
+  warning?: boolean;
 }>): React.JSX.Element {
   return (
     <span
@@ -337,7 +341,9 @@ function Chip({
         "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium",
         accent
           ? "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200"
-          : "bg-muted text-muted-foreground",
+          : warning
+            ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+            : "bg-muted text-muted-foreground",
       )}
     >
       {children}

@@ -9,6 +9,7 @@ import {
   Layers,
   Loader2,
   Map,
+  MousePointerClick,
   Pencil,
   Zap,
 } from "lucide-react";
@@ -21,11 +22,16 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@renderer/components/ui/toggle-group";
-import { PERIL_LABELS } from "@renderer/lib/perilLabel";
 import { useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { ScenarioBuilder } from "./ScenarioBuilder";
 
-const BASEMAP_ORDER: Basemap[] = ["satellite", "streets", "light", "dark", "terrain"];
+const BASEMAP_ORDER: Basemap[] = [
+  "satellite",
+  "streets",
+  "light",
+  "dark",
+  "terrain",
+];
 
 /** Basemap display labels, translated. */
 function basemapLabels(t: TFunction): Record<Basemap, string> {
@@ -101,6 +107,7 @@ export interface LayerPanelProps {
   onToggleDraw: () => void;
   capturing: boolean;
   onExport: (mode: "save" | "clipboard") => void;
+  selectedId: string | null;
 }
 
 export function LayerPanel({
@@ -108,6 +115,7 @@ export function LayerPanel({
   onToggleDraw,
   capturing,
   onExport,
+  selectedId,
 }: LayerPanelProps): React.JSX.Element {
   const { t } = useTranslation();
   const layers = useMapStore((s) => s.layers);
@@ -120,6 +128,8 @@ export function LayerPanel({
   const setPerilOverlay = useMapStore((s) => s.setPerilOverlay);
   const editing = useMapStore((s) => s.editing);
   const setEditing = useMapStore((s) => s.setEditing);
+  const detectionEditing = useMapStore((s) => s.detectionEditing);
+  const setDetectionEditing = useMapStore((s) => s.setDetectionEditing);
 
   const activeLayerCount = Object.values(layers).filter(Boolean).length;
   const [open, setOpen] = useState(false);
@@ -227,7 +237,11 @@ export function LayerPanel({
             {/* Peril overlays — collapsed, badge when active */}
             <Section
               title={t("map.layerPanel.overlaysSectionTitle")}
-              badge={perilOverlay ? PERIL_LABELS[perilOverlay] : undefined}
+              badge={
+                perilOverlay
+                  ? t(`dashboard.detailDialog.ealPeril.${perilOverlay}`)
+                  : undefined
+              }
               defaultOpen={!!perilOverlay}
             >
               <ToggleGroup
@@ -242,10 +256,10 @@ export function LayerPanel({
                   <ToggleGroupItem
                     key={p}
                     value={p}
-                    aria-label={PERIL_LABELS[p]}
+                    aria-label={t(`dashboard.detailDialog.ealPeril.${p}`)}
                     className="flex-none rounded-md! border-l! text-xs"
                   >
-                    {PERIL_LABELS[p]}
+                    {t(`dashboard.detailDialog.ealPeril.${p}`)}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
@@ -255,13 +269,18 @@ export function LayerPanel({
             <Section
               icon={<Pencil className="size-3" />}
               title={t("map.boundaries")}
-              badge={editing ? t("map.layerPanel.editingActiveBadge") : undefined}
+              badge={
+                editing ? t("map.layerPanel.editingActiveBadge") : undefined
+              }
             >
               <Button
                 variant={editing ? "default" : "outline"}
                 size="sm"
                 className="w-full"
-                onClick={() => setEditing(!editing)}
+                onClick={() => {
+                  setEditing(!editing);
+                  if (!editing) setDetectionEditing(false);
+                }}
                 disabled={!layers.boundaries}
               >
                 <Pencil className="size-3" />
@@ -269,6 +288,38 @@ export function LayerPanel({
                   ? t("map.layerPanel.stopEditingButton")
                   : t("map.layerPanel.editBoundariesButton")}
               </Button>
+            </Section>
+
+            {/* Manual vehicle review — explicit mode so ordinary map clicks stay safe. */}
+            <Section
+              icon={<MousePointerClick className="size-3" />}
+              title={t("map.layerPanel.detectionEditingTitle")}
+              badge={
+                detectionEditing
+                  ? t("map.layerPanel.detectionEditingActiveBadge")
+                  : undefined
+              }
+            >
+              <Button
+                variant={detectionEditing ? "default" : "outline"}
+                size="sm"
+                className="w-full"
+                disabled={!layers.detections || !selectedId}
+                onClick={() => {
+                  setDetectionEditing(!detectionEditing);
+                  if (!detectionEditing) setEditing(false);
+                }}
+              >
+                <MousePointerClick className="size-3" />
+                {detectionEditing
+                  ? t("map.layerPanel.saveDetectionEditsButton")
+                  : t("map.layerPanel.editDetectionsButton")}
+              </Button>
+              {detectionEditing && (
+                <p className="mt-1.5 text-[10px] text-muted-foreground">
+                  {t("map.layerPanel.detectionEditingHint")}
+                </p>
+              )}
             </Section>
 
             {/* Hailstorm scenario — collapsed */}

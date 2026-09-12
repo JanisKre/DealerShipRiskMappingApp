@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { GitCompare, Loader2 } from "lucide-react";
 import type { AnalyzedDealership, Session } from "@shared/types";
+import { effectiveVehicleCount } from "@shared/risk-math";
 import { Button } from "@renderer/components/ui/button";
 import {
   Dialog,
@@ -33,6 +35,7 @@ import { useAppStore } from "@renderer/store/appStore";
  * score, vehicles, and EAL per location (matched by id, otherwise by name).
  */
 export function ComparisonView(): React.JSX.Element {
+  const { t, i18n } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<
@@ -59,25 +62,24 @@ export function ComparisonView(): React.JSX.Element {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" onClick={openDialog}>
-          <GitCompare /> Compare
+          <GitCompare /> {t("ui.compare")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] max-w-3xl overflow-auto">
         <DialogHeader>
-          <DialogTitle>Portfolio Comparison</DialogTitle>
-          <DialogDescription>
-            Compare the active portfolio against a saved session.
-          </DialogDescription>
+          <DialogTitle>{t("ui.portfolioComparison")}</DialogTitle>
+          <DialogDescription>{t("ui.compareDescription")}</DialogDescription>
         </DialogHeader>
 
         <Select onValueChange={pick}>
           <SelectTrigger className="max-w-sm">
-            <SelectValue placeholder="Select baseline session…" />
+            <SelectValue placeholder={t("ui.selectBaseline")} />
           </SelectTrigger>
           <SelectContent>
             {sessions.map((s) => (
               <SelectItem key={s.id} value={s.id}>
-                {s.name} · {new Date(s.updatedAt).toLocaleDateString("de-DE")}
+                {s.name} ·{" "}
+                {new Date(s.updatedAt).toLocaleDateString(i18n.language)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -99,15 +101,16 @@ function DiffTable({
   current: AnalyzedDealership[];
   baseline: AnalyzedDealership[];
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const baseMap = new Map(baseline.map((d) => [d.id || d.name, d]));
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Location</TableHead>
-          <TableHead>Δ Score</TableHead>
-          <TableHead>Δ Vehicles</TableHead>
+          <TableHead>{t("dashboard.locations")}</TableHead>
+          <TableHead>Δ {t("common.score")}</TableHead>
+          <TableHead>Δ {t("common.vehicles")}</TableHead>
           <TableHead>Δ EAL</TableHead>
         </TableRow>
       </TableHeader>
@@ -117,8 +120,8 @@ function DiffTable({
           const dScore =
             (d.risk?.overallScore ?? 0) - (base?.risk?.overallScore ?? 0);
           const dVeh =
-            (d.detection?.vehicleCount ?? 0) -
-            (base?.detection?.vehicleCount ?? 0);
+            effectiveVehicleCount(d.detection) -
+            effectiveVehicleCount(base?.detection);
           const dEal = (d.risk?.eal ?? 0) - (base?.risk?.eal ?? 0);
           return (
             <TableRow key={d.id}>

@@ -62,6 +62,35 @@ function AutosaveController(): null {
   return null;
 }
 
+/** Restores the most recently saved portfolio when the app starts. */
+function SessionLoader(): null {
+  const setSession = useAppStore((s) => s.setSession);
+  const setDealerships = useAppStore((s) => s.setDealerships);
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.api
+      .listSessions()
+      .then(async (sessions) => {
+        const latest = sessions[0];
+        if (!latest) return;
+        const session = await window.api.loadSession(latest.id);
+        if (!cancelled && session) {
+          setSession(session.id, session.name);
+          setDealerships(session.dealerships);
+        }
+      })
+      .catch((err: unknown) => {
+        console.error("Loading the last saved portfolio failed:", err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [setDealerships, setSession]);
+
+  return null;
+}
+
 export function AppShell(): React.JSX.Element {
   const { t } = useTranslation();
   const { pathname } = useLocation();
@@ -107,6 +136,8 @@ export function AppShell(): React.JSX.Element {
 
   return (
     <SidebarProvider className="h-svh">
+      <SessionLoader />
+      <AutosaveController />
       <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center gap-2 px-1 py-1.5">
@@ -149,7 +180,11 @@ export function AppShell(): React.JSX.Element {
           <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
             <SidebarMenuButton
               asChild
-              isActive={isItemActive(pathname, SETTINGS_ITEM.to, SETTINGS_ITEM.end)}
+              isActive={isItemActive(
+                pathname,
+                SETTINGS_ITEM.to,
+                SETTINGS_ITEM.end,
+              )}
               tooltip={t(SETTINGS_ITEM.labelKey)}
               className="flex-1"
             >

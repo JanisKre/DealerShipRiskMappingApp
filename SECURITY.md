@@ -34,6 +34,11 @@ Relevant security properties already in place:
 - The renderer reaches Node **only** through channels explicitly exposed by
   the preload script (`window.api`)
 - All IPC payloads are validated at the boundary with Zod
+- IPC requests are accepted only from the app's trusted `BrowserWindow`
+- Renderer navigation and external links are restricted to approved origins
+- Session permission requests are denied by default
+- A restrictive Content Security Policy blocks object embeds, framing, and
+  non-self scripts
 - LLM provider API keys are stored via Electron's `safeStorage` (OS-keychain
   encrypted) — never written to disk in plaintext, never exposed to the
   renderer

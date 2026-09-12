@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   createColumnHelper,
   flexRender,
@@ -10,6 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUpDown, AlertTriangle, MapPin } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
+import { effectiveVehicleCount } from "@shared/risk-math";
 import { alertIdSet, generateAlerts } from "@shared/analytics";
 import { Badge } from "@renderer/components/ui/badge";
 import { Input } from "@renderer/components/ui/input";
@@ -56,6 +58,7 @@ export function DealershipTable({
   onShowOnMap?: (d: AnalyzedDealership) => void;
   highlightIds?: string[] | null;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const [sorting, setSorting] = useState<SortingState>([
     { id: "score", desc: true },
   ]);
@@ -69,7 +72,7 @@ export function DealershipTable({
   const columns = useMemo(
     () => [
       columnHelper.accessor("name", {
-        header: "Name",
+        header: t("ui.name"),
         cell: (info) => (
           <span className="flex items-center gap-1.5 font-medium">
             {alertIds.has(info.row.original.id) && (
@@ -81,7 +84,7 @@ export function DealershipTable({
       }),
       columnHelper.accessor((d) => d.risk?.overallScore ?? 0, {
         id: "score",
-        header: "Risk",
+        header: t("ui.risk"),
         cell: (info) => (
           <Badge
             style={{
@@ -95,32 +98,32 @@ export function DealershipTable({
       }),
       columnHelper.accessor((d) => perilScore(d, "wind"), {
         id: "wind",
-        header: "Wind",
+        header: t("dashboard.detailDialog.ealPeril.wind"),
         cell: (info) => info.getValue().toFixed(0),
       }),
       columnHelper.accessor((d) => perilScore(d, "hail"), {
         id: "hail",
-        header: "Hail",
+        header: t("dashboard.detailDialog.ealPeril.hail"),
         cell: (info) => info.getValue().toFixed(0),
       }),
       columnHelper.accessor((d) => perilScore(d, "flood"), {
         id: "flood",
-        header: "Flood",
+        header: t("dashboard.detailDialog.ealPeril.flood"),
         cell: (info) => info.getValue().toFixed(0),
       }),
-      columnHelper.accessor((d) => d.detection?.vehicleCount ?? 0, {
+      columnHelper.accessor((d) => effectiveVehicleCount(d.detection), {
         id: "vehicles",
-        header: "Vehicles",
+        header: t("common.vehicles"),
         cell: (info) => num(info.getValue()),
       }),
       columnHelper.accessor((d) => d.risk?.exposureEur ?? 0, {
         id: "exposure",
-        header: "Exposure",
+        header: t("dashboard.totalExposure"),
         cell: (info) => eur(info.getValue()),
       }),
       columnHelper.accessor((d) => d.risk?.eal ?? 0, {
         id: "eal",
-        header: "EAL",
+        header: t("dashboard.totalEal"),
         cell: (info) => eur(info.getValue()),
       }),
       columnHelper.display({
@@ -130,8 +133,8 @@ export function DealershipTable({
           onShowOnMap ? (
             <button
               type="button"
-              title="Show on map"
-              aria-label="Show on map"
+              title={t("ui.showOnMap")}
+              aria-label={t("ui.showOnMap")}
               className="text-muted-foreground hover:text-primary"
               onClick={(e) => {
                 e.stopPropagation();
@@ -143,7 +146,7 @@ export function DealershipTable({
           ) : null,
       }),
     ],
-    [alertIds, onShowOnMap],
+    [alertIds, onShowOnMap, t],
   );
 
   const table = useReactTable({
@@ -164,7 +167,7 @@ export function DealershipTable({
       <Input
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
-        placeholder="Filter locations…"
+        placeholder={t("ui.filterLocations")}
         className="max-w-xs"
       />
       <div className="rounded-lg border">
@@ -233,7 +236,7 @@ export function DealershipTable({
                   colSpan={columns.length}
                   className="text-center text-muted-foreground"
                 >
-                  No matches.
+                  {t("ui.noMatches")}
                 </TableCell>
               </TableRow>
             )}

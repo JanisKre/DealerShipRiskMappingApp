@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Download, Loader2 } from "lucide-react";
 import type { ModelDownloadChunk } from "@shared/ipc-schema";
 import { Button } from "@renderer/components/ui/button";
@@ -25,6 +26,7 @@ function mb(bytes: number): string {
  * target path. Can be permanently dismissed once in settings.
  */
 export function ModelInstallWizard(): React.JSX.Element | null {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [installDir, setInstallDir] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -87,19 +89,12 @@ export function ModelInstallWizard(): React.JSX.Element | null {
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Install vehicle-detection model</DialogTitle>
-          <DialogDescription>
-            Without this model, the app only roughly estimates vehicle
-            counts from the lot area instead of detecting them with AI on
-            the aerial imagery.
-          </DialogDescription>
+          <DialogTitle>{t("model.title")}</DialogTitle>
+          <DialogDescription>{t("model.description")}</DialogDescription>
         </DialogHeader>
 
         {phase === "idle" && (
-          <p className="text-sm text-muted-foreground">
-            The model (YOLOv26s, approx. 36&nbsp;MB) will be downloaded once
-            and stored locally.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("model.idle")}</p>
         )}
 
         {phase === "downloading" && (
@@ -113,23 +108,18 @@ export function ModelInstallWizard(): React.JSX.Element | null {
         )}
 
         {phase === "done" && (
-          <p className="text-sm text-emerald-600">
-            Model installed — real AI vehicle detection is now active.
-          </p>
+          <p className="text-sm text-emerald-600">{t("model.done")}</p>
         )}
 
         {phase === "error" && (
           <p className="text-sm text-destructive">
-            Download failed: {error}
+            {t("model.downloadFailed", { error })}
           </p>
         )}
 
         {phase === "unavailable" && (
           <div className="space-y-2 text-sm">
-            <p className="text-muted-foreground">
-              Automatic download is not yet set up. Please place the model
-              file here manually:
-            </p>
+            <p className="text-muted-foreground">{t("model.unavailable")}</p>
             <code className="block break-all rounded bg-muted px-2 py-1.5 text-xs">
               {installDir}
             </code>
@@ -137,24 +127,28 @@ export function ModelInstallWizard(): React.JSX.Element | null {
         )}
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="ghost" size="sm" onClick={() => void dismissForever()}>
-            Don't show again
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void dismissForever()}
+          >
+            {t("model.dismiss")}
           </Button>
           {(phase === "idle" || phase === "error") && (
             <Button size="sm" onClick={startDownload}>
               <Download className="size-4" />
-              Download now
+              {t("model.downloadNow")}
             </Button>
           )}
           {(phase === "done" || phase === "unavailable") && (
             <Button size="sm" onClick={() => setOpen(false)}>
-              Close
+              {t("common.close")}
             </Button>
           )}
           {phase === "downloading" && (
             <Button size="sm" disabled>
               <Loader2 className="size-4 animate-spin" />
-              Downloading…
+              {t("model.downloading")}
             </Button>
           )}
         </DialogFooter>
