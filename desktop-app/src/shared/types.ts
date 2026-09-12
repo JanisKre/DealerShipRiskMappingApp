@@ -217,6 +217,7 @@ export const EalBreakdownSchema = z.object({
 export type EalBreakdown = z.infer<typeof EalBreakdownSchema>;
 
 export const RiskAssessmentSchema = z.object({
+  /** Primary dealership score; currently the hail score. */
   overallScore: z.number().min(0).max(100),
   perils: z.array(PerilScoreSchema),
   eal: z.number().nonnegative(), // Expected Annual Loss (total, EUR/year)

@@ -17,7 +17,6 @@ import type { Peril } from "@shared/types";
 import { PERILS } from "@shared/types";
 import { Button } from "@renderer/components/ui/button";
 import { Checkbox } from "@renderer/components/ui/checkbox";
-import { Slider } from "@renderer/components/ui/slider";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -108,6 +107,10 @@ export interface LayerPanelProps {
   capturing: boolean;
   onExport: (mode: "save" | "clipboard") => void;
   selectedId: string | null;
+  detectionEditing: boolean;
+  onStartDetectionEditing: () => void;
+  onSaveDetectionEdits: () => void;
+  onCancelDetectionEdits: () => void;
 }
 
 export function LayerPanel({
@@ -116,19 +119,20 @@ export function LayerPanel({
   capturing,
   onExport,
   selectedId,
+  detectionEditing,
+  onStartDetectionEditing,
+  onSaveDetectionEdits,
+  onCancelDetectionEdits,
 }: LayerPanelProps): React.JSX.Element {
   const { t } = useTranslation();
   const layers = useMapStore((s) => s.layers);
   const toggleLayer = useMapStore((s) => s.toggleLayer);
   const basemap = useMapStore((s) => s.basemap);
   const setBasemap = useMapStore((s) => s.setBasemap);
-  const satelliteOpacity = useMapStore((s) => s.satelliteOpacity);
-  const setSatelliteOpacity = useMapStore((s) => s.setSatelliteOpacity);
   const perilOverlay = useMapStore((s) => s.perilOverlay);
   const setPerilOverlay = useMapStore((s) => s.setPerilOverlay);
   const editing = useMapStore((s) => s.editing);
   const setEditing = useMapStore((s) => s.setEditing);
-  const detectionEditing = useMapStore((s) => s.detectionEditing);
   const setDetectionEditing = useMapStore((s) => s.setDetectionEditing);
 
   const activeLayerCount = Object.values(layers).filter(Boolean).length;
@@ -180,22 +184,6 @@ export function LayerPanel({
                     </option>
                   ))}
                 </select>
-                {basemap === "satellite" && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{t("map.layerPanel.opacityLabel")}</span>
-                      <span>{Math.round(satelliteOpacity * 100)} %</span>
-                    </div>
-                    <Slider
-                      min={0.1}
-                      max={1}
-                      step={0.05}
-                      value={satelliteOpacity}
-                      onValueChange={setSatelliteOpacity}
-                      aria-label={t("map.layerPanel.satelliteOpacityAriaLabel")}
-                    />
-                  </div>
-                )}
               </div>
             </Section>
 
@@ -278,6 +266,7 @@ export function LayerPanel({
                 size="sm"
                 className="w-full"
                 onClick={() => {
+                  if (!editing && detectionEditing) onCancelDetectionEdits();
                   setEditing(!editing);
                   if (!editing) setDetectionEditing(false);
                 }}
@@ -306,8 +295,11 @@ export function LayerPanel({
                 className="w-full"
                 disabled={!layers.detections || !selectedId}
                 onClick={() => {
-                  setDetectionEditing(!detectionEditing);
-                  if (!detectionEditing) setEditing(false);
+                  if (detectionEditing) {
+                    onSaveDetectionEdits();
+                  } else {
+                    onStartDetectionEditing();
+                  }
                 }}
               >
                 <MousePointerClick className="size-3" />
@@ -316,9 +308,19 @@ export function LayerPanel({
                   : t("map.layerPanel.editDetectionsButton")}
               </Button>
               {detectionEditing && (
-                <p className="mt-1.5 text-[10px] text-muted-foreground">
-                  {t("map.layerPanel.detectionEditingHint")}
-                </p>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-1.5 w-full text-xs"
+                    onClick={onCancelDetectionEdits}
+                  >
+                    {t("map.layerPanel.cancelDetectionEditsButton")}
+                  </Button>
+                  <p className="mt-1.5 text-[10px] text-muted-foreground">
+                    {t("map.layerPanel.detectionEditingHint")}
+                  </p>
+                </>
               )}
             </Section>
 

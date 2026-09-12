@@ -20,7 +20,10 @@ import {
 } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
-import { computeAccumulationClusters } from "@shared/risk-math";
+import {
+  computeAccumulationClusters,
+  effectiveVehicleCount,
+} from "@shared/risk-math";
 import { EmptyState } from "@renderer/components/common/EmptyState";
 import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
 import { Button } from "@renderer/components/ui/button";
@@ -30,7 +33,7 @@ import { useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { AccumulationClusterLayer } from "./AccumulationClusterLayer";
 import { BoundaryLayer } from "./BoundaryLayer";
 import { ClusteredMarkers } from "./ClusteredMarkers";
-import { DetectionOverlay } from "./DetectionOverlay";
+import { DetectionOverlay, type DetectionEditDraft } from "./DetectionOverlay";
 import { HailstormScenarioLayer } from "./HailstormScenarioLayer";
 import { LayerPanel } from "./LayerPanel";
 import { MapLegend } from "./MapLegend";
@@ -201,14 +204,18 @@ export function MapPage(): React.JSX.Element {
   const revertBoundaryToDefault = useAppStore((s) => s.revertBoundaryToDefault);
   const removeDealership = useAppStore((s) => s.removeDealership);
   const reanalyzeDealership = useAppStore((s) => s.reanalyzeDealership);
+  const saveManualVehicleDetection = useAppStore(
+    (s) => s.saveManualVehicleDetection,
+  );
 
   // Map UI state (persisted) — only what MapPage itself still renders
   const layers = useMapStore((s) => s.layers);
   const basemap = useMapStore((s) => s.basemap);
-  const satelliteOpacity = useMapStore((s) => s.satelliteOpacity);
   const perilOverlay = useMapStore((s) => s.perilOverlay);
   const editing = useMapStore((s) => s.editing);
+  const setEditing = useMapStore((s) => s.setEditing);
   const detectionEditing = useMapStore((s) => s.detectionEditing);
+  const setDetectionEditing = useMapStore((s) => s.setDetectionEditing);
   const openDetailDialog = useMapStore((s) => s.openDetailDialog);
 
   const [drawingScenario, setDrawingScenario] = useState(false);
@@ -217,6 +224,9 @@ export function MapPage(): React.JSX.Element {
   const [boundaryWarningDismissed, setBoundaryWarningDismissed] =
     useState(false);
   const [modelWarningDismissed, setModelWarningDismissed] = useState(false);
+  const [detectionEditId, setDetectionEditId] = useState<string | null>(null);
+  const [detectionDraft, setDetectionDraft] =
+    useState<DetectionEditDraft | null>(null);
 
   // WMS URL from settings (only for the satellite basemap).
   const [wmsUrl, setWmsUrl] = useState<string | null>(null);
@@ -280,6 +290,58 @@ export function MapPage(): React.JSX.Element {
     () => withCoords.find((d) => d.id === selectedId) ?? null,
     [withCoords, selectedId],
   );
+  const detectionReviewDealership = useMemo(
+    () => withCoords.find((d) => d.id === detectionEditId) ?? null,
+    [withCoords, detectionEditId],
+  );
+
+  function startDetectionEditing(): void {
+    const dealership = withCoords.find((d) => d.id === selectedId);
+    if (!dealership?.detection) return;
+    setDetectionEditId(dealership.id);
+    setDetectionDraft({
+      manualVehicleCount: effectiveVehicleCount(dealership.detection),
+      manualVehiclePoints: [
+        ...(dealership.detection.manualVehiclePoints ?? []),
+      ],
+      manualVehicleRemovedPoints: [
+        ...(dealership.detection.manualVehicleRemovedPoints ?? []),
+      ],
+    });
+    setEditing(false);
+    setDetectionEditing(true);
+  }
+
+  function cancelDetectionEditing(): void {
+    setDetectionEditing(false);
+    setDetectionEditId(null);
+    setDetectionDraft(null);
+  }
+
+  async function saveDetectionEdits(): Promise<void> {
+    if (!detectionEditId || !detectionDraft) return;
+    try {
+      await saveManualVehicleDetection(
+        detectionEditId,
+        detectionDraft.manualVehicleCount,
+        detectionDraft.manualVehiclePoints,
+        detectionDraft.manualVehicleRemovedPoints,
+      );
+      setDetectionEditing(false);
+      setDetectionEditId(null);
+      setDetectionDraft(null);
+    } catch (error) {
+      console.error("Saving manual vehicle review failed:", error);
+    }
+  }
+
+  useEffect(() => {
+    if (detectionEditing && detectionEditId && selectedId !== detectionEditId) {
+      setDetectionEditing(false);
+      setDetectionEditId(null);
+      setDetectionDraft(null);
+    }
+  }, [detectionEditing, detectionEditId, selectedId, setDetectionEditing]);
 
   function onScenarioPath(path: [number, number][]): void {
     setScenario({
@@ -326,7 +388,7 @@ export function MapPage(): React.JSX.Element {
   const tileUrl =
     basemap === "satellite" && wmsUrl ? wmsUrl : TILE_URLS[basemap];
   const tileAttribution = tileAttributions(t)[basemap];
-  const tileOpacity = basemap === "satellite" ? satelliteOpacity : 1;
+  const tileOpacity = 1;
 
   if (withCoords.length === 0) {
     return (
@@ -382,7 +444,9 @@ export function MapPage(): React.JSX.Element {
           <DetectionOverlay
             dealerships={visibleDealerships}
             selectedId={selectedId}
-            editable={detectionEditing}
+            editable={detectionEditing && detectionEditId === selectedId}
+            draft={detectionEditId === selectedId ? detectionDraft : null}
+            onDraftChange={setDetectionDraft}
           />
         )}
 
@@ -418,6 +482,19 @@ export function MapPage(): React.JSX.Element {
 
       {/* Status banner top center: analysis progress + data quality hints (stacked) */}
       <div className="absolute left-1/2 top-3 z-[1000] flex -translate-x-1/2 flex-col items-center gap-2">
+        {detectionEditing && detectionDraft && detectionReviewDealership && (
+          <div className="glass flex max-w-[min(94vw,44rem)] flex-wrap items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg">
+            <ScanSearch className="size-4 shrink-0 text-primary" />
+            <span>
+              {t("map.page.detectionReviewSummary", {
+                machine: detectionReviewDealership.detection?.vehicleCount ?? 0,
+                added: detectionDraft.manualVehiclePoints.length,
+                removed: detectionDraft.manualVehicleRemovedPoints.length,
+                total: detectionDraft.manualVehicleCount,
+              })}
+            </span>
+          </div>
+        )}
         {boundaryEditIds.map((id) => {
           const dealership = dealerships.find((d) => d.id === id);
           if (!dealership) return null;
@@ -584,6 +661,10 @@ export function MapPage(): React.JSX.Element {
           capturing={capturing}
           onExport={exportMap}
           selectedId={selectedId}
+          detectionEditing={detectionEditing}
+          onStartDetectionEditing={startDetectionEditing}
+          onSaveDetectionEdits={() => void saveDetectionEdits()}
+          onCancelDetectionEdits={cancelDetectionEditing}
         />
       </div>
 

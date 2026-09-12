@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   ArrowRight,
   CalendarClock,
+  ChevronDown,
   Clock,
   ExternalLink,
   FileText,
@@ -37,7 +38,7 @@ import { Separator } from "@renderer/components/ui/separator";
 import { Switch } from "@renderer/components/ui/switch";
 import { useAppStore } from "@renderer/store/appStore";
 import { eur, num, pct } from "@renderer/lib/format";
-import { riskColor, riskLevel } from "@renderer/lib/riskColor";
+import { riskColor } from "@renderer/lib/riskColor";
 import { UnderwritingMessages } from "./UnderwritingMessages";
 
 /**
@@ -66,7 +67,9 @@ export function DealershipDetailDialog({
 function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   const { t } = useTranslation();
   const score = d.risk?.overallScore ?? 0;
-  const level = riskLevel(score);
+  const hailScore =
+    d.risk?.perils.find((peril) => peril.peril === "hail")?.score ?? score;
+  const [showAdditionalScores, setShowAdditionalScores] = useState(false);
   const eb = d.risk?.ealBreakdown;
   const { details: osmDetails, loading: osmLoading } = useOsmDetails(
     d.lat,
@@ -79,7 +82,8 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
         <DialogTitle className="flex items-center gap-2">
           {d.name}
           <Badge style={{ backgroundColor: riskColor(score), color: "white" }}>
-            {t(`risk.${level}`)} · {score.toFixed(0)}
+            {t("dashboard.detailDialog.hailScoreLabel")} ·{" "}
+            {hailScore.toFixed(0)}
           </Badge>
         </DialogTitle>
         <DialogDescription>
@@ -126,18 +130,45 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
       <Separator />
 
       <div className="space-y-2">
-        <h4 className="text-sm font-semibold">
-          {t("dashboard.detailDialog.perilScoresTitle")}
-        </h4>
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-sm font-semibold">
+            {t("dashboard.detailDialog.mainScoreTitle")}
+          </h4>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1 px-2 text-xs"
+            onClick={() => setShowAdditionalScores((visible) => !visible)}
+          >
+            {showAdditionalScores
+              ? t("dashboard.detailDialog.hideAdditionalScores")
+              : t("dashboard.detailDialog.showAdditionalScores")}
+            <ChevronDown
+              className={`size-3.5 transition-transform ${showAdditionalScores ? "rotate-180" : ""}`}
+            />
+          </Button>
+        </div>
         <div className="flex flex-wrap gap-2">
-          {d.risk?.perils.map((p) => (
-            <Badge key={p.peril} variant="outline" className="gap-1">
-              <span className="capitalize">{p.peril}</span>
-              <span className="font-mono" style={{ color: riskColor(p.score) }}>
-                {p.score.toFixed(0)}
-              </span>
-            </Badge>
-          ))}
+          <Badge variant="outline" className="gap-1">
+            <span>{t("dashboard.detailDialog.hailScoreLabel")}</span>
+            <span className="font-mono" style={{ color: riskColor(hailScore) }}>
+              {hailScore.toFixed(0)}
+            </span>
+          </Badge>
+          {showAdditionalScores &&
+            d.risk?.perils
+              .filter((peril) => peril.peril !== "hail")
+              .map((p) => (
+                <Badge key={p.peril} variant="outline" className="gap-1">
+                  <span className="capitalize">{p.peril}</span>
+                  <span
+                    className="font-mono"
+                    style={{ color: riskColor(p.score) }}
+                  >
+                    {p.score.toFixed(0)}
+                  </span>
+                </Badge>
+              ))}
         </div>
 
         {d.hailZone != null && (

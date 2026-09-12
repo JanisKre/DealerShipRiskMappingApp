@@ -98,11 +98,12 @@ interface AppState {
   ) => void;
   /** Saves an optional human-reviewed vehicle count and recalculates risk. */
   updateManualVehicleCount: (id: string, count: number | null) => Promise<void>;
-  /** Adds/removes a point during map-based manual vehicle review. */
-  adjustVehicleDetectionPoint: (
+  /** Persists a completed map-based vehicle review and recalculates risk. */
+  saveManualVehicleDetection: (
     id: string,
-    point: ManualVehiclePoint,
-    mode: "add" | "remove-machine" | "remove-manual" | "restore-machine",
+    count: number,
+    points: ManualVehiclePoint[],
+    removedPoints: ManualVehiclePoint[],
   ) => Promise<void>;
   select: (id: string | null) => void;
   /** Permanently removes a location from the portfolio. */
@@ -420,44 +421,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (latest) get().upsertDealership({ ...latest, detection, risk });
     await get().saveSession();
   },
-  adjustVehicleDetectionPoint: async (id, point, mode) => {
+  saveManualVehicleDetection: async (id, count, points, removedPoints) => {
+    if (!Number.isInteger(count) || count < 0) return;
     const current = get().dealerships.find((d) => d.id === id);
     if (!current?.detection) return;
-    const detection = { ...current.detection };
-    const points = [...(detection.manualVehiclePoints ?? [])];
-    const removedPoints = [...(detection.manualVehicleRemovedPoints ?? [])];
-    const samePoint = (a: ManualVehiclePoint, b: ManualVehiclePoint): boolean =>
-      Math.abs(a.lat - b.lat) < 0.000001 && Math.abs(a.lon - b.lon) < 0.000001;
-
-    if (mode === "add") {
-      points.push(point);
-    } else if (mode === "remove-manual") {
-      const index = points.findIndex((candidate) =>
-        samePoint(candidate, point),
-      );
-      if (index < 0) return;
-      points.splice(index, 1);
-    } else if (mode === "remove-machine") {
-      if (removedPoints.some((candidate) => samePoint(candidate, point)))
-        return;
-      removedPoints.push(point);
-    } else {
-      const index = removedPoints.findIndex((candidate) =>
-        samePoint(candidate, point),
-      );
-      if (index < 0) return;
-      removedPoints.splice(index, 1);
-    }
-
-    const currentCount = effectiveVehicleCount(current.detection);
-    const nextCount =
-      mode === "add" || mode === "restore-machine"
-        ? currentCount + 1
-        : currentCount - 1;
-    if (nextCount < 0) return;
-    detection.manualVehicleCount = nextCount;
-    detection.manualVehiclePoints = points;
-    detection.manualVehicleRemovedPoints = removedPoints;
+    const detection = {
+      ...current.detection,
+      manualVehicleCount: count,
+      manualVehiclePoints: points.length > 0 ? points : undefined,
+      manualVehicleRemovedPoints:
+        removedPoints.length > 0 ? removedPoints : undefined,
+    };
     const risk = await window.api.scoreRisk(
       current.lat,
       current.lon,

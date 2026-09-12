@@ -153,7 +153,7 @@ async function writePdf(session: Session, filePath: string): Promise<void> {
     `Locations: ${t.count}`,
     `Total Exposure: ${eur(t.totalExposure)}`,
     `Total EAL: ${eur(t.totalEal)}`,
-    `Avg. Risk Score: ${t.avgScore.toFixed(1)}`,
+    `Avg. Hail Score: ${t.avgScore.toFixed(1)}`,
     `Extreme (≥75): ${t.extremeCount}`,
   ];
   summary.forEach((line, i) => doc.text(line, 40, 112 + i * 18));
@@ -164,7 +164,7 @@ async function writePdf(session: Session, filePath: string): Promise<void> {
       "Machine Vehicles",
       "Manual Vehicles",
       "Vehicles Used",
-      "Score",
+      "Hail Score",
       "Wind",
       "Lightning",
       "Snow",
@@ -319,7 +319,7 @@ function toCsv(session: Session): string {
     "machineVehicleCount",
     "manualVehicleCount",
     "vehicleCount",
-    "overallRisk",
+    "hailScore",
     "wind",
     "lightning",
     "snow",
@@ -442,7 +442,7 @@ function buildReadonlyHtml(session: Session, snapshotDataUri: string): string {
     { label: "Locations", value: String(t.count) },
     { label: "Total Exposure", value: eur(t.totalExposure) },
     { label: "Total EAL", value: eur(t.totalEal) },
-    { label: "Avg. Risk Score", value: t.avgScore.toFixed(1) },
+    { label: "Avg. Hail Score", value: t.avgScore.toFixed(1) },
     { label: "Extreme (≥75)", value: String(t.extremeCount) },
     { label: "Accumulation Clusters", value: String(clusters.length) },
   ];

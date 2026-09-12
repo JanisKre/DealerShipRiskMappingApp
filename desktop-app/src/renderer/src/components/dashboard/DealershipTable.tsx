@@ -14,6 +14,7 @@ import type { AnalyzedDealership } from "@shared/types";
 import { effectiveVehicleCount } from "@shared/risk-math";
 import { alertIdSet, generateAlerts } from "@shared/analytics";
 import { Badge } from "@renderer/components/ui/badge";
+import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
 import {
   Table,
@@ -63,6 +64,7 @@ export function DealershipTable({
     { id: "score", desc: true },
   ]);
   const [filter, setFilter] = useState("");
+  const [showAdditionalScores, setShowAdditionalScores] = useState(false);
 
   const alertIds = useMemo(
     () => alertIdSet(generateAlerts(dealerships)),
@@ -84,7 +86,7 @@ export function DealershipTable({
       }),
       columnHelper.accessor((d) => d.risk?.overallScore ?? 0, {
         id: "score",
-        header: t("ui.risk"),
+        header: t("dashboard.detailDialog.hailScoreLabel"),
         cell: (info) => (
           <Badge
             style={{
@@ -96,21 +98,20 @@ export function DealershipTable({
           </Badge>
         ),
       }),
-      columnHelper.accessor((d) => perilScore(d, "wind"), {
-        id: "wind",
-        header: t("dashboard.detailDialog.ealPeril.wind"),
-        cell: (info) => info.getValue().toFixed(0),
-      }),
-      columnHelper.accessor((d) => perilScore(d, "hail"), {
-        id: "hail",
-        header: t("dashboard.detailDialog.ealPeril.hail"),
-        cell: (info) => info.getValue().toFixed(0),
-      }),
-      columnHelper.accessor((d) => perilScore(d, "flood"), {
-        id: "flood",
-        header: t("dashboard.detailDialog.ealPeril.flood"),
-        cell: (info) => info.getValue().toFixed(0),
-      }),
+      ...(showAdditionalScores
+        ? [
+            columnHelper.accessor((d) => perilScore(d, "wind"), {
+              id: "wind",
+              header: t("dashboard.detailDialog.ealPeril.wind"),
+              cell: (info) => info.getValue().toFixed(0),
+            }),
+            columnHelper.accessor((d) => perilScore(d, "flood"), {
+              id: "flood",
+              header: t("dashboard.detailDialog.ealPeril.flood"),
+              cell: (info) => info.getValue().toFixed(0),
+            }),
+          ]
+        : []),
       columnHelper.accessor((d) => effectiveVehicleCount(d.detection), {
         id: "vehicles",
         header: t("common.vehicles"),
@@ -146,7 +147,7 @@ export function DealershipTable({
           ) : null,
       }),
     ],
-    [alertIds, onShowOnMap, t],
+    [alertIds, onShowOnMap, showAdditionalScores, t],
   );
 
   const table = useReactTable({
@@ -170,6 +171,15 @@ export function DealershipTable({
         placeholder={t("ui.filterLocations")}
         className="max-w-xs"
       />
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowAdditionalScores((visible) => !visible)}
+      >
+        {showAdditionalScores
+          ? t("dashboard.detailDialog.hideAdditionalScores")
+          : t("dashboard.detailDialog.showAdditionalScores")}
+      </Button>
       <div className="rounded-lg border">
         <Table>
           <TableHeader>

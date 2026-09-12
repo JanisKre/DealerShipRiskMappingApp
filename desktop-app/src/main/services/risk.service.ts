@@ -9,7 +9,7 @@ import { fetchWeather, openMeteoProvider } from "./weather.service";
 import { capacityForArea, estimatedExposureEur } from "./risk/exposure";
 import { riskEvidence, riskLimitations } from "./risk/evidence";
 import { computeEalBreakdown, RISK_MODEL_VERSION } from "./risk/financial-loss";
-import { scorePerils } from "./risk/hazard-models";
+import { primaryHailScore, scorePerils } from "./risk/hazard-models";
 import { effectiveVehicleCount } from "@shared/risk-math";
 
 /**
@@ -32,18 +32,10 @@ export async function scoreRisk(
   ]);
 
   const perils = scorePerils(weather, hailZone);
-  const weights = {
-    wind: 0.24,
-    lightning: 0.1,
-    snow: 0.14,
-    flood: 0.28,
-    hail: 0.19,
-    heat: 0.05,
-  } as const;
-  const overallScore = perils.reduce(
-    (sum, peril) => sum + peril.score * weights[peril.peril],
-    0,
-  );
+  // The dealership's primary score is intentionally hail-only for now.
+  // Keep the other peril scores available for optional detail views and
+  // future score configuration without mixing them into the main score.
+  const overallScore = primaryHailScore(perils);
 
   const exposureEur = estimatedExposureEur(detection, assetValue);
   const exposureAreaSqm = boundary?.areaSqm ?? 0;
