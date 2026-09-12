@@ -16,7 +16,15 @@ if (process.platform === "darwin" && !process.env.DISPLAY) {
   process.exit(0);
 }
 
-const child = spawn(electronPath, ["out/main/index.cjs", "--disable-gpu"], {
+const electronArgs = ["out/main/index.cjs", "--disable-gpu"];
+// GitHub-hosted Linux runners do not provide the root-owned 4755
+// chrome-sandbox helper. Limit the workaround to this short-lived CI smoke
+// process; packaged application runs keep Electron's normal sandbox.
+if (process.platform === "linux" && process.env.CI) {
+  electronArgs.push("--no-sandbox");
+}
+
+const child = spawn(electronPath, electronArgs, {
   cwd: process.cwd(),
   env: { ...process.env, ELECTRON_ENABLE_SECURITY_WARNINGS: "1" },
   stdio: ["ignore", "pipe", "pipe"],
