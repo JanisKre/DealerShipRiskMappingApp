@@ -13,6 +13,12 @@ defaults:
   run:
     working-directory: desktop-app
 
+env:
+  # onnxruntime-node's postinstall otherwise tries to fetch optional
+  # GPU/CUDA execution-provider binaries, which errors on some platforms.
+  # This app only uses the bundled CPU execution provider, so skip it.
+  ONNXRUNTIME_NODE_INSTALL: skip
+
 jobs:
   verify:
     runs-on: ubuntu-latest

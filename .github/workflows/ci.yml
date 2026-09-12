@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+defaults:
+  run:
+    working-directory: desktop-app
+
+env:
+  # onnxruntime-node's postinstall otherwise tries to fetch optional
+  # GPU/CUDA execution-provider binaries, which errors on some platforms.
+  # This app only uses the bundled CPU execution provider, so skip it.
+  ONNXRUNTIME_NODE_INSTALL: skip
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop-app/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
