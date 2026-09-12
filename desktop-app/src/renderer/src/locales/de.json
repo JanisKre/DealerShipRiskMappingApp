@@ -1,0 +1,275 @@
+{
+  "nav": {
+    "import": "Start",
+    "map": "Karte",
+    "dashboard": "Dashboard",
+    "aiDashboard": "KI-Dashboard",
+    "settings": "Einstellungen"
+  },
+  "shell": {
+    "editProjectName": "Projektnamen bearbeiten",
+    "autosaved": "Automatisch gespeichert"
+  },
+  "start": {
+    "title": "Portfolio & Analyse",
+    "subtitle": "Adresse hinzufügen oder die KI fragen – das Eingabefeld ist unten."
+  },
+  "command": {
+    "title": "Befehlspalette",
+    "placeholder": "Suchen oder Befehl eingeben…",
+    "empty": "Keine Ergebnisse gefunden.",
+    "navigation": "Navigation",
+    "actions": "Aktionen",
+    "theme": "Design",
+    "toggleTheme": "Design wechseln"
+  },
+  "common": {
+    "loading": "Lädt…",
+    "save": "Speichern",
+    "saved": "Gespeichert",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "export": "Exportieren",
+    "analyze": "Analysieren",
+    "search": "Suchen",
+    "vehicles": "Fahrzeuge",
+    "score": "Score",
+    "actions": "Aktionen"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "language": "Sprache",
+    "llmProvider": "LLM-Provider",
+    "model": "Modell",
+    "apiKey": "API-Key",
+    "apiKeyHint": "Über safeStorage im OS-Keychain abgelegt — nie im Klartext.",
+    "baseUrl": "Endpunkt (Base-URL)",
+    "baseUrlHint": "Leer lassen für den offiziellen Endpunkt. Für einen Proxy z. B. http://localhost:6655/openai/v1 (OpenAI/Custom) oder http://localhost:6655/anthropic (Claude).",
+    "modelPlaceholder": "z. B. {{model}}",
+    "apiKeySetPlaceholder": "•••••••• (hinterlegt) — neuen Key eingeben zum Ersetzen",
+    "apiKeyUnsetPlaceholder": "Wird verschlüsselt gespeichert (OS-Keychain)",
+    "satelliteSource": {
+      "title": "Luftbild-Kachelquelle",
+      "customOption": "WMS/XYZ (eigen)",
+      "tileTemplateLabel": "Kachel-Template",
+      "tileTemplateHint": "XYZ/WMS-URL mit Platzhaltern {z}/{x}/{y}. Ohne gültiges Template wird auf Esri zurückgefallen."
+    },
+    "appearance": {
+      "title": "Darstellung",
+      "description": "Erscheinungsbild der Anwendung anpassen.",
+      "light": "Hell",
+      "dark": "Dunkel",
+      "system": "System"
+    }
+  },
+  "dashboard": {
+    "title": "Portfolio-Dashboard",
+    "locations": "Standorte",
+    "totalExposure": "Gesamt-Exposure",
+    "totalEal": "Gesamt-EAL",
+    "avgScore": "Ø Risiko-Score",
+    "extreme": "Extrem-Risiken",
+    "pml": "Wahrscheinlicher Höchstschaden (PML)",
+    "riskDistribution": "Risikoverteilung",
+    "topRisks": "Top-Risiko-Standorte",
+    "utilisation": "Auslastung",
+    "capacity": "Kapazität",
+    "area": "Fläche",
+    "boundarySource": "Grenzquelle",
+    "ealBreakdown": "EAL-Aufschlüsselung",
+    "detailDialog": {
+      "exposureLabel": "Exposure",
+      "totalEalLabel": "EAL gesamt",
+      "perilScoresTitle": "Gefahren-Scores",
+      "hailZoneLabel": "Hagelzone {{zone}}",
+      "hailZoneKasko": "K-Kasko · {{tier}}",
+      "hailZoneScore": "Score {{score}}/100",
+      "ealPeril": {
+        "hail": "Hagel",
+        "wind": "Wind",
+        "flood": "Flut",
+        "lightning": "Blitz",
+        "snow": "Schnee",
+        "heat": "Hitze",
+        "total": "Summe"
+      },
+      "boundaryTitle": "Grundstücksgrenze",
+      "boundarySourceLabel": "Quelle: {{source}}",
+      "boundaryConfidenceLabel": "· Konfidenz: {{confidence}}",
+      "osmLoading": "OSM-Infos werden geladen…",
+      "osmHeading": "Aus OpenStreetMap",
+      "insuredLabel": "Versichert / Teil des Bestands",
+      "insuredYesDesc": "Bestandskunde — fließt in Akkumulation ein",
+      "insuredNoDesc": "Neukunde / Prospect",
+      "salesPartnerLabel": "Vertriebspartner",
+      "subPortfolioLabel": "Teilportfolio",
+      "groupLabel": "Gruppe",
+      "productLimitLabel": "Produktlimit (EUR)",
+      "temporalTitle": "Zeitlicher Fahrzeug-Vergleich",
+      "fromLabel": "Von",
+      "toLabel": "Bis",
+      "compareButton": "Vergleichen",
+      "deltaVehicles": "{{delta}} Fahrzeuge",
+      "carLabel": "Pkw",
+      "vanLabel": "Transporter",
+      "truckLabel": "Lkw",
+      "busLabel": "Bus",
+      "sourceConfidence": "Quelle: {{provider}} · Konfidenz {{from}} → {{to}}",
+      "errorPrefix": "Fehler: {{error}}",
+      "recommendedDeductibleLabel": "Empf. Selbstbehalt",
+      "premiumLoadingLabel": "Prämienzuschlag"
+    }
+  },
+  "map": {
+    "satellite": "Satellit",
+    "street": "Straße",
+    "boundaries": "Grenzen",
+    "detections": "Fahrzeug-Erkennungen",
+    "clusters": "Cluster-Heatmap",
+    "scenario": "Hagelsturm-Szenario",
+    "editBoundary": "Grenze bearbeiten",
+    "locationsPanel": {
+      "toggleAriaLabel": "Standorte-Liste ein-/ausklappen",
+      "importPortfolio": "Portfolio importieren (CSV / Excel)",
+      "addAddress": "Adresse hinzufügen",
+      "addressPlaceholder": "Adresse hinzufügen…",
+      "searchFailed": "Suche fehlgeschlagen",
+      "empty": "Noch keine Standorte. Adresse oben hinzufügen.",
+      "neighborSummary": {
+        "none": "Keine versicherten Nachbarn im {{radius}} km-Radius",
+        "one": "1 versicherter Nachbar im {{radius}} km-Radius",
+        "other": "{{count}} versicherte Nachbarn im {{radius}} km-Radius"
+      },
+      "insuredChip": "versichert",
+      "sameGroupChip": "gleiche Gruppe",
+      "inRadiusChip": "im Radius",
+      "viewDetails": "Details ansehen",
+      "viewDetailsFor": "Details zu {{name}}",
+      "analyzing": "Analysiere…"
+    },
+    "layerPanel": {
+      "title": "Ebenen",
+      "activeCount": "{{count}} aktiv",
+      "basemapSectionTitle": "Basiskarte",
+      "basemapSelectAriaLabel": "Basiskarte wählen",
+      "basemapLight": "Hell",
+      "basemapDark": "Dunkel",
+      "basemapTerrain": "Gelände",
+      "opacityLabel": "Deckkraft",
+      "satelliteOpacityAriaLabel": "Satelliten-Deckkraft",
+      "boundariesLayerLabel": "Grundstücke",
+      "nearbyInsuredLayerLabel": "Versicherte Nachbarn",
+      "accumulationClustersLayerLabel": "Kumul-Cluster",
+      "overlaysSectionTitle": "Overlays",
+      "editingActiveBadge": "aktiv",
+      "editBoundariesButton": "Grenzen bearbeiten",
+      "stopEditingButton": "Bearbeiten beenden",
+      "drawingBadge": "zeichnet",
+      "saveMapTitle": "Karte als PNG speichern",
+      "copyButton": "Kopieren",
+      "copyTitle": "In Zwischenablage"
+    },
+    "multiPerilOverlay": {
+      "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"
+    },
+    "page": {
+      "attributionOsm": "OpenStreetMap-Mitwirkende",
+      "reanalyze": "Neu analysieren",
+      "delete": "Löschen",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "emptyTitle": "Noch keine Standorte",
+      "emptyDescription": "Adresse links im Standorte-Dock hinzufügen oder CSV/Excel importieren.",
+      "analyzingProgress": "Analysiere {{done}}/{{total}}…",
+      "boundaryWarning": "{{count}} von {{total}} Grundstücksgrenzen nicht erkannt — nur geschätzter Puffer",
+      "dismissHint": "Hinweis ausblenden",
+      "detectionWarning": "{{count}} von {{total}} Fahrzeugzahlen nur geschätzt — kein KI-Modell geladen",
+      "noClustersInfo": "Keine Kumul-Cluster — dafür braucht es mindestens 2 Standorte innerhalb von {{radius}} km zueinander",
+      "defaultScenarioName": "Hagelkorridor"
+    }
+  },
+  "ai": {
+    "memo": "Underwriting-Memo",
+    "chat": "Portfolio-Chat",
+    "summary": "Executive Summary",
+    "nlQuery": "Natürliche Abfrage",
+    "boundaryRefine": "Grenzen-Prüfung",
+    "askPlaceholder": "Frage zum Portfolio stellen…",
+    "queryPlaceholder": "z. B. „Zeige alle mit hohem Hagelrisiko“",
+    "showInDashboard": "Im Dashboard anzeigen",
+    "generate": "Generieren",
+    "streaming": "Antwortet…"
+  },
+  "risk": {
+    "LOW": "Niedrig",
+    "MEDIUM": "Mittel",
+    "HIGH": "Hoch",
+    "EXTREME": "Extrem"
+  },
+  "underwriting": {
+    "systemMessages": "Systemmeldungen",
+    "pricing": {
+      "high": "hoher Preis",
+      "normal": "normaler Preis",
+      "low": "günstiger Preis"
+    },
+    "hail": {
+      "highTitle": "Hohes Hagelrisiko",
+      "highDetail": "Hagel-Score {{score}}/100 — Gebiet mit hoher Hagelgefahr. Deckung nur mit Zuschlag/Selbstbehalt empfehlen.",
+      "lowTitle": "Geringes Hagelrisiko",
+      "lowDetail": "Hagel-Score {{score}}/100 — Gebiet mit geringer Hagelgefahr.",
+      "mediumTitle": "Mittleres Hagelrisiko",
+      "mediumDetail": "Hagel-Score {{score}}/100."
+    },
+    "limit": {
+      "breachTitle": "Produktlimit erreicht",
+      "breachDetail": "Exposure {{exposure}} erreicht/überschreitet das Produktlimit ({{limit}}). Bei einem mittelgroßen Nat-Cat-Ereignis droht ein Verlust von {{loss}}.",
+      "warningTitle": "Produktlimit knapp",
+      "warningDetail": "Exposure {{exposure}} nähert sich dem Produktlimit ({{limit}}). Ein mittelgroßes Nat-Cat-Ereignis würde einen Verlust von {{loss}} verursachen."
+    },
+    "accumulation": {
+      "noneTitle": "Kein Kumulrisiko in der Nähe",
+      "noneDetail": "Keine versicherten Standorte innerhalb von {{radius}} km. Rückversicherung nicht erforderlich — Pricing kann günstiger ausfallen.",
+      "highTitle": "Hohes Kumulrisiko — Rückversicherung empfohlen",
+      "nearbyTitle": "Kumulrisiko in der Nähe",
+      "detail": "{{count}} versicherte Standorte innerhalb von {{radius}} km, kumulierte Exposure {{exposure}}. {{reinsureText}} Pricing: {{pricing}}."
+    },
+    "reinsure": {
+      "yes": "Rückversichern: ja.",
+      "no": "Rückversichern: nein.",
+      "yesWord": "ja",
+      "noWord": "nein"
+    },
+    "group": {
+      "title": "Gruppe „{{group}}“ — {{count}} Standorte",
+      "breachNote": " {{count}} Standort(e) über Produktlimit.",
+      "detail": "{{insured}}/{{total}} versichert, kumulierte Exposure {{exposure}}, {{vehicles}} Fahrzeuge. Max. Hagel-Score {{maxHail}}/100.{{breachNote}} Rückversichern (Gruppe): {{reinsureWord}}. Pricing (Gruppe): {{pricing}}."
+    }
+  },
+  "upload": {
+    "omnibox": {
+      "address": {
+        "placeholder": "Adresse hinzufügen…",
+        "helper": "Adresse eingeben – Vorschlag wählen oder senden, um den Standort hinzuzufügen."
+      },
+      "chat": {
+        "placeholder": "Frage an die KI stellen…",
+        "helper": "Frage senden, um sie an den Portfolio-Chat zu stellen."
+      },
+      "dashboard": {
+        "placeholder": "Dashboard beschreiben, z. B. „Top-Risiken und EAL-Verteilung“…",
+        "helper": "Beschreiben, was das Dashboard zeigen soll – die KI stellt es zusammen."
+      },
+      "searching": "Suche…",
+      "noResults": "Keine Treffer",
+      "searchFailed": "Suche fehlgeschlagen",
+      "addressToggleAriaLabel": "Adresssuche",
+      "addressToggleLabel": "Adresse",
+      "chatToggleAriaLabel": "Chat",
+      "chatToggleLabel": "Chat",
+      "dashboardToggleAriaLabel": "Dashboard erstellen",
+      "importFile": "CSV / Excel importieren",
+      "send": "Senden"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+node_modules
+out
+release
+dist
+*.log
+.DS_Store
+data
+
+# ONNX-Modell (99 MB) – nicht versioniert, lokal ablegen (siehe README)
+resources/models/*.onnx
+*.tsbuildinfo
+
+# Lokales Build-/Venv-Verzeichnis für das ONNX-Modell
+.model-build/

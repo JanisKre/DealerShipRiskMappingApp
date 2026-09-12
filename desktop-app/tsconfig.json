@@ -1,0 +1,4 @@
+{
+  "files": ["electron.vite.config.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]
+}

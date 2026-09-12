@@ -1,0 +1,5 @@
+# macOS
+.DS_Store
+
+# Node (Sicherheitsnetz; desktop-app/.gitignore ist maßgeblich)
+node_modules/
