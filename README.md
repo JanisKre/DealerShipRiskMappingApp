@@ -23,12 +23,24 @@ Upload CSV → detect lot boundaries → count vehicles with AI → score 5 natu
 ![Type](https://img.shields.io/badge/mode-single--user_·_local-important)
 ![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)
 
+### ⬇️ Download
+
+[![Download for macOS (Apple Silicon)](https://img.shields.io/badge/macOS-Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-mac-arm64.dmg)
+[![Download for macOS (Intel)](https://img.shields.io/badge/macOS-Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-mac-x64.dmg)
+[![Download for Windows](https://img.shields.io/badge/Windows-x64-0078D6?style=for-the-badge&logo=windowsterminal&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-win-x64.exe)
+
+*Builds are not code-signed (no paid developer certificate). macOS will show
+"app is damaged" — right-click the app → **Open** once to bypass Gatekeeper.
+Windows SmartScreen may warn "Unknown publisher" — click **More info → Run
+anyway**. See [all releases](https://github.com/JanisKre/DealerShipRiskMappingApp/releases).*
+
 </div>
 
 ---
 
 ## Contents
 
+- [Download](#️-download)
 - [Overview](#overview)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
