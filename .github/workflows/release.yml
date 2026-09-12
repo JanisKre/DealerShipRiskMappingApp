@@ -5,6 +5,12 @@ on:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish the built artifacts to the GitHub release"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -55,8 +61,12 @@ jobs:
       - run: npm run rebuild
       - run: npm run build
       - name: Build and publish
+        if: github.event_name == 'push' || inputs.publish
         run: npx electron-builder --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # No signing certificates available — ship unsigned builds.
           CSC_IDENTITY_AUTO_DISCOVERY: false
+      - name: Build without publishing
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish
+        run: npx electron-builder --publish never
