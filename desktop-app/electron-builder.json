@@ -1,6 +1,7 @@
 {
   "appId": "io.github.janiskre.dealership-risk-mapping",
   "productName": "Dealership Risk Mapping",
+  "artifactName": "${name}-${os}-${arch}.${ext}",
   "directories": {
     "output": "release",
     "buildResources": "resources"
@@ -8,9 +9,14 @@
   "files": ["out/**/*", "package.json"],
   "extraResources": [{ "from": "resources/models", "to": "models" }],
   "asarUnpack": ["**/*.node"],
+  "publish": {
+    "provider": "github",
+    "owner": "JanisKre",
+    "repo": "DealerShipRiskMappingApp"
+  },
   "mac": {
     "icon": "resources/icon.icns",
-    "target": ["dmg"],
+    "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
     "category": "public.app-category.business"
   },
   "win": {

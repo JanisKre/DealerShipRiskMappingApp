@@ -55,3 +55,20 @@ Example: `Add pluvial flood peril to risk.service`.
 data (`data/`), and the ONNX model (`resources/models/*.onnx`) are excluded
 via `.gitignore`. **Never commit API keys or secrets** — the app manages
 these at runtime via `safeStorage`.
+
+## Releasing
+
+Pushing a tag matching `v*.*.*` triggers
+[`.github/workflows/release.yml`](../.github/workflows/release.yml), which
+runs typecheck/lint/test, then builds and publishes unsigned macOS (dmg,
+arm64 + x64) and Windows (nsis) installers to a GitHub Release.
+
+```bash
+# bump "version" in desktop-app/package.json first, then:
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The release download buttons in the root [README](../README.md) link to
+fixed filenames (`releases/latest/download/...`), so they always point to
+whatever the most recent release published — no manual link updates needed.
