@@ -67,7 +67,7 @@
     "react-resizable-panels": "^4.12.4",
     "react-router-dom": "7.7.1",
     "recharts": "^2.15.4",
-    "sharp": "^0.34.2",
+    "sharp": "^0.35.4",
     "sonner": "^2.0.6",
     "zod": "3.25.76",
     "zustand": "5.0.7"
