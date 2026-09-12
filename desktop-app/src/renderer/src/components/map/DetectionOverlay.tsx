@@ -2,53 +2,120 @@ import { CircleMarker, useMapEvents } from "react-leaflet";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { point as turfPoint } from "@turf/helpers";
 import type { AnalyzedDealership, ManualVehiclePoint } from "@shared/types";
-import { useAppStore } from "@renderer/store/appStore";
+
+/** In-memory changes made while the map review mode is active. */
+export interface DetectionEditDraft {
+  manualVehicleCount: number;
+  manualVehiclePoints: ManualVehiclePoint[];
+  manualVehicleRemovedPoints: ManualVehiclePoint[];
+}
+
+function samePoint(a: ManualVehiclePoint, b: ManualVehiclePoint): boolean {
+  return (
+    Math.abs(a.lat - b.lat) < 0.000001 && Math.abs(a.lon - b.lon) < 0.000001
+  );
+}
 
 /**
- * Draws detected vehicles as small dots at their georeferenced center
- * (box `lat`/`lon`). Boxes without a geo-reference are skipped.
+ * Draws detected vehicles as dots at their georeferenced center. In review
+ * mode, clicks inside the selected boundary add points and point clicks remove
+ * or restore them. Draft changes are intentionally kept separate until Save.
  */
 export function DetectionOverlay({
   dealerships,
   selectedId,
   editable,
+  draft,
+  onDraftChange,
 }: Readonly<{
   dealerships: AnalyzedDealership[];
   selectedId: string | null;
   editable: boolean;
+  draft: DetectionEditDraft | null;
+  onDraftChange: (draft: DetectionEditDraft) => void;
 }>): React.JSX.Element {
-  const adjustPoint = useAppStore((s) => s.adjustVehicleDetectionPoint);
   const selected = dealerships.find((d) => d.id === selectedId);
-  const manualPoints = selected?.detection?.manualVehiclePoints ?? [];
+  const activeDraft = editable && draft ? draft : null;
+  const manualPoints =
+    activeDraft?.manualVehiclePoints ??
+    selected?.detection?.manualVehiclePoints ??
+    [];
+  const removedPoints =
+    activeDraft?.manualVehicleRemovedPoints ??
+    selected?.detection?.manualVehicleRemovedPoints ??
+    [];
 
   useMapEvents({
     click: (event) => {
-      if (!editable || !selected?.boundary) return;
+      if (!activeDraft || !selected?.boundary) return;
       const candidate = turfPoint([event.latlng.lng, event.latlng.lat]);
       if (!booleanPointInPolygon(candidate, selected.boundary.polygon)) return;
-      const point: ManualVehiclePoint = {
-        lat: event.latlng.lat,
-        lon: event.latlng.lng,
-      };
-      void adjustPoint(selected.id, point, "add");
+      onDraftChange({
+        ...activeDraft,
+        manualVehicleCount: activeDraft.manualVehicleCount + 1,
+        manualVehiclePoints: [
+          ...activeDraft.manualVehiclePoints,
+          { lat: event.latlng.lat, lon: event.latlng.lng },
+        ],
+      });
     },
   });
 
-  const removePoint = (
+  function removePoint(
     point: ManualVehiclePoint,
     mode: "remove-machine" | "remove-manual" | "restore-machine",
-  ): void => {
-    if (editable && selected) void adjustPoint(selected.id, point, mode);
-  };
+  ): void {
+    if (!activeDraft) return;
+
+    if (mode === "remove-manual") {
+      const index = activeDraft.manualVehiclePoints.findIndex((candidate) =>
+        samePoint(candidate, point),
+      );
+      if (index < 0) return;
+      const points = [...activeDraft.manualVehiclePoints];
+      points.splice(index, 1);
+      onDraftChange({
+        ...activeDraft,
+        manualVehicleCount: Math.max(0, activeDraft.manualVehicleCount - 1),
+        manualVehiclePoints: points,
+      });
+      return;
+    }
+
+    const removed = [...activeDraft.manualVehicleRemovedPoints];
+    const index = removed.findIndex((candidate) => samePoint(candidate, point));
+    if (mode === "remove-machine") {
+      if (index >= 0) return;
+      removed.push(point);
+      onDraftChange({
+        ...activeDraft,
+        manualVehicleCount: Math.max(0, activeDraft.manualVehicleCount - 1),
+        manualVehicleRemovedPoints: removed,
+      });
+      return;
+    }
+
+    if (index < 0) return;
+    removed.splice(index, 1);
+    onDraftChange({
+      ...activeDraft,
+      manualVehicleCount: activeDraft.manualVehicleCount + 1,
+      manualVehicleRemovedPoints: removed,
+    });
+  }
 
   return (
     <>
-      {dealerships.flatMap((d) =>
-        (d.detection?.boxes ?? [])
+      {dealerships.flatMap((d) => {
+        const dRemoved =
+          d.id === selected?.id && activeDraft
+            ? removedPoints
+            : (d.detection?.manualVehicleRemovedPoints ?? []);
+        return (d.detection?.boxes ?? [])
           .filter((b) => b.lat != null && b.lon != null)
           .filter(
             (b) =>
-              !d.detection?.manualVehicleRemovedPoints?.some(
+              !dRemoved.some(
                 (removed) =>
                   Math.abs(removed.lat - (b.lat as number)) < 0.000001 &&
                   Math.abs(removed.lon - (b.lon as number)) < 0.000001,
@@ -65,7 +132,7 @@ export function DetectionOverlay({
                 fillOpacity: 0.8,
               }}
               eventHandlers={
-                d.id === selected?.id && editable
+                d.id === selected?.id && activeDraft
                   ? {
                       click: (event) => {
                         event.originalEvent.stopPropagation();
@@ -78,30 +145,36 @@ export function DetectionOverlay({
                   : undefined
               }
             />
-          )),
-      )}
+          ));
+      })}
+
       {selected &&
         manualPoints.map((p, i) => (
           <CircleMarker
             key={`${selected.id}-manual-${i}`}
             center={[p.lat, p.lon]}
-            radius={4}
+            radius={editable ? 4 : 2.5}
             pathOptions={{
-              color: "#16a34a",
+              color: editable ? "#16a34a" : "#2563eb",
               weight: 1,
               fillOpacity: 0.95,
             }}
-            eventHandlers={{
-              click: (event) => {
-                event.originalEvent.stopPropagation();
-                removePoint(p, "remove-manual");
-              },
-            }}
+            eventHandlers={
+              activeDraft
+                ? {
+                    click: (event) => {
+                      event.originalEvent.stopPropagation();
+                      removePoint(p, "remove-manual");
+                    },
+                  }
+                : undefined
+            }
           />
         ))}
-      {editable &&
+
+      {activeDraft &&
         selected &&
-        (selected.detection?.manualVehicleRemovedPoints ?? []).map((p, i) => (
+        removedPoints.map((p, i) => (
           <CircleMarker
             key={`${selected.id}-removed-${i}`}
             center={[p.lat, p.lon]}

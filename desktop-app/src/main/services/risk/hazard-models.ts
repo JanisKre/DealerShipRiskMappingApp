@@ -1,11 +1,12 @@
 import type { HailZone, PerilScore } from "@shared/types";
 import { hailZoneToScore } from "@shared/risk-math";
-import {
-  HEAT_HOTDAYS_SCORE_MAX,
-} from "@shared/constants";
+import { HEAT_HOTDAYS_SCORE_MAX } from "@shared/constants";
 import type { WeatherMetrics } from "../weather.service";
 
-export function scorePerils(w: WeatherMetrics, hailZone?: HailZone): PerilScore[] {
+export function scorePerils(
+  w: WeatherMetrics,
+  hailZone?: HailZone,
+): PerilScore[] {
   return [
     {
       peril: "wind",
@@ -51,6 +52,11 @@ export function scorePerils(w: WeatherMetrics, hailZone?: HailZone): PerilScore[
       unit: "hot days/yr",
     },
   ];
+}
+
+/** Returns the configured primary dealership score from the peril results. */
+export function primaryHailScore(perils: PerilScore[]): number {
+  return perils.find((peril) => peril.peril === "hail")?.score ?? 0;
 }
 
 function clamp(n: number): number {
