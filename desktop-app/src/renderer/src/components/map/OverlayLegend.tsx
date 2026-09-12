@@ -1,5 +1,5 @@
 import type { Peril } from "@shared/types";
-import { perilColor, perilLabel } from "@renderer/lib/perilLabel";
+import { perilColor } from "@renderer/lib/perilLabel";
 import { riskColor } from "@renderer/lib/riskColor";
 import { perilRingStyleForScore } from "./MultiPerilOverlay";
 
@@ -23,6 +23,7 @@ export function OverlayLegend({
   perilOverlay,
   showClusters,
 }: Props): React.JSX.Element | null {
+  const { t } = useTranslation();
   if (!perilOverlay && !showClusters) return null;
 
   if (perilOverlay) {
@@ -30,7 +31,8 @@ export function OverlayLegend({
     return (
       <div className="space-y-1.5 rounded-lg border bg-card/95 p-3 text-xs shadow-lg backdrop-blur">
         <div className="font-semibold text-muted-foreground">
-          {perilLabel(perilOverlay)} – Score
+          {t(`dashboard.detailDialog.ealPeril.${perilOverlay}`)} –{" "}
+          {t("common.score")}
         </div>
         {/* Samples instead of a gradient: a plain alpha ramp already looks "fully
             saturated" on a dark background past ~50% — these circles show exactly
@@ -61,16 +63,16 @@ export function OverlayLegend({
 
   // Accumulation clusters: risk color scale (hail score of the clusters)
   const STEPS = [
-    { label: "Low", color: riskColor(10) },
-    { label: "Medium", color: riskColor(35) },
-    { label: "High", color: riskColor(60) },
-    { label: "Extreme", color: riskColor(85) },
+    { label: t("risk.LOW"), color: riskColor(10) },
+    { label: t("risk.MEDIUM"), color: riskColor(35) },
+    { label: t("risk.HIGH"), color: riskColor(60) },
+    { label: t("risk.EXTREME"), color: riskColor(85) },
   ];
 
   return (
     <div className="space-y-1.5 rounded-lg border bg-card/95 p-3 text-xs shadow-lg backdrop-blur">
       <div className="font-semibold text-muted-foreground">
-        Accumulation clusters
+        {t("ui.accumulationClusters")}
       </div>
       {STEPS.map((s) => (
         <div key={s.label} className="flex items-center gap-1.5">
@@ -81,7 +83,10 @@ export function OverlayLegend({
           {s.label}
         </div>
       ))}
-      <div className="mt-1 text-muted-foreground">Opacity ∝ EAL share</div>
+      <div className="mt-1 text-muted-foreground">
+        {t("ui.opacityEalShare")}
+      </div>
     </div>
   );
 }
+import { useTranslation } from "react-i18next";

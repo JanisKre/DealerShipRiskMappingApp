@@ -10,14 +10,19 @@ import {
   Minus,
   Plus,
   RefreshCw,
+  RotateCcw,
+  ScanSearch,
+  Save,
   Trash2,
   TriangleAlert,
+  Undo2,
   X,
 } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
 import { computeAccumulationClusters } from "@shared/risk-math";
 import { EmptyState } from "@renderer/components/common/EmptyState";
+import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
 import { Button } from "@renderer/components/ui/button";
 import { useAppStore } from "@renderer/store/appStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
@@ -181,6 +186,19 @@ export function MapPage(): React.JSX.Element {
   const analyzingIds = useAppStore((s) => s.analyzingIds);
   const analyzing = useAppStore((s) => s.analyzing);
   const progress = useAppStore((s) => s.progress);
+  const pendingBoundaryDetectionIds = useAppStore(
+    (s) => s.pendingBoundaryDetectionIds,
+  );
+  const detectionUpdateIds = useAppStore((s) => s.detectionUpdateIds);
+  const detectionUpdateErrors = useAppStore((s) => s.detectionUpdateErrors);
+  const boundaryEditIds = useAppStore((s) => s.boundaryEditIds);
+  const boundaryHistory = useAppStore((s) => s.boundaryHistory);
+  const updateDetectionForBoundary = useAppStore(
+    (s) => s.updateDetectionForBoundary,
+  );
+  const saveBoundaryEdit = useAppStore((s) => s.saveBoundaryEdit);
+  const undoBoundaryEdit = useAppStore((s) => s.undoBoundaryEdit);
+  const revertBoundaryToDefault = useAppStore((s) => s.revertBoundaryToDefault);
   const removeDealership = useAppStore((s) => s.removeDealership);
   const reanalyzeDealership = useAppStore((s) => s.reanalyzeDealership);
 
@@ -190,6 +208,7 @@ export function MapPage(): React.JSX.Element {
   const satelliteOpacity = useMapStore((s) => s.satelliteOpacity);
   const perilOverlay = useMapStore((s) => s.perilOverlay);
   const editing = useMapStore((s) => s.editing);
+  const detectionEditing = useMapStore((s) => s.detectionEditing);
   const openDetailDialog = useMapStore((s) => s.openDetailDialog);
 
   const [drawingScenario, setDrawingScenario] = useState(false);
@@ -244,8 +263,10 @@ export function MapPage(): React.JSX.Element {
   // so that it doesn't look like a rendering bug.
   const accumulationClusterCount = useMemo(
     () =>
-      computeAccumulationClusters(visibleDealerships, ACCUMULATION_RADIUS_KM)
-        .filter((c) => c.count > 1).length,
+      computeAccumulationClusters(
+        visibleDealerships,
+        ACCUMULATION_RADIUS_KM,
+      ).filter((c) => c.count > 1).length,
     [visibleDealerships],
   );
 
@@ -358,7 +379,11 @@ export function MapPage(): React.JSX.Element {
           <BoundaryLayer dealerships={visibleDealerships} editable={editing} />
         )}
         {layers.detections && (
-          <DetectionOverlay dealerships={visibleDealerships} />
+          <DetectionOverlay
+            dealerships={visibleDealerships}
+            selectedId={selectedId}
+            editable={detectionEditing}
+          />
         )}
 
         <HailstormScenarioLayer
@@ -393,6 +418,96 @@ export function MapPage(): React.JSX.Element {
 
       {/* Status banner top center: analysis progress + data quality hints (stacked) */}
       <div className="absolute left-1/2 top-3 z-[1000] flex -translate-x-1/2 flex-col items-center gap-2">
+        {boundaryEditIds.map((id) => {
+          const dealership = dealerships.find((d) => d.id === id);
+          if (!dealership) return null;
+          const hasHistory = (boundaryHistory[id]?.length ?? 0) > 0;
+          const hasDefault = dealership.boundaryBeforeManualEdit != null;
+          const busy = detectionUpdateIds.includes(id);
+          return (
+            <div
+              key={`edit-${id}`}
+              className="glass flex max-w-[min(94vw,44rem)] flex-wrap items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg"
+            >
+              <Save className="size-4 shrink-0 text-primary" />
+              <span>
+                {t("map.page.boundaryEditedPrompt", { name: dealership.name })}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void saveBoundaryEdit(id)}
+                disabled={busy}
+                title={t("map.page.saveBoundaryEdit")}
+              >
+                <Save />
+                {t("map.page.saveBoundaryEdit")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void undoBoundaryEdit(id)}
+                disabled={!hasHistory || busy}
+                title={t("map.page.undoBoundaryEdit")}
+              >
+                <Undo2 />
+                {t("map.page.undoBoundaryEdit")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void revertBoundaryToDefault(id)}
+                disabled={!hasDefault || busy}
+                title={t("map.page.revertBoundaryDefault")}
+              >
+                <RotateCcw />
+                {t("map.page.revertBoundaryDefault")}
+              </Button>
+            </div>
+          );
+        })}
+
+        {pendingBoundaryDetectionIds.map((id) => {
+          const dealership = dealerships.find((d) => d.id === id);
+          if (!dealership) return null;
+          const updating = detectionUpdateIds.includes(id);
+          const error = detectionUpdateErrors[id];
+          return (
+            <div
+              key={id}
+              className="glass flex max-w-[min(90vw,34rem)] flex-wrap items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg"
+            >
+              <ScanSearch className="size-4 shrink-0 text-primary" />
+              <span>
+                {t("map.page.boundaryDetectionPrompt", {
+                  name: dealership.name,
+                })}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={updating}
+                onClick={() => void updateDetectionForBoundary(id)}
+              >
+                {updating ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <RefreshCw />
+                )}
+                {t("map.page.updateCarDetection")}
+              </Button>
+              {error && (
+                <span className="basis-full text-center text-xs text-destructive">
+                  {error}
+                </span>
+              )}
+            </div>
+          );
+        })}
+
         {analyzing && progress && progress.total > 0 && (
           <div className="glass flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm shadow-lg">
             <Loader2 className="size-4 animate-spin text-primary" />
@@ -468,11 +583,13 @@ export function MapPage(): React.JSX.Element {
           onToggleDraw={() => setDrawingScenario((d) => !d)}
           capturing={capturing}
           onExport={exportMap}
+          selectedId={selectedId}
         />
       </div>
 
       {/* Legend + overlay scale bottom left */}
       <div className="absolute bottom-6 left-3 z-[1000] flex flex-col gap-2">
+        <PortfolioFilterBar dealerships={withCoords} />
         <OverlayLegend
           perilOverlay={perilOverlay}
           showClusters={layers.accumulationClusters}

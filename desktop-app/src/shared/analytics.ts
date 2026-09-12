@@ -1,6 +1,6 @@
 import type { AnalyzedDealership, Peril } from "./types";
 import { PERILS } from "./types";
-import { computeClusterRisk } from "./risk-math";
+import { computeClusterRisk, effectiveVehicleCount } from "./risk-math";
 
 /**
  * Portfolio analytics: pure functions without I/O (called from the renderer).
@@ -170,7 +170,7 @@ export function generateAlerts(dealerships: AnalyzedDealership[]): Alert[] {
       });
     }
 
-    if (d.detection && d.detection.vehicleCount === 0) {
+    if (d.detection && effectiveVehicleCount(d.detection) === 0) {
       out.push({
         dealershipId: d.id,
         name: d.name,

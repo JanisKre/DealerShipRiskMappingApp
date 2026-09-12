@@ -8,7 +8,7 @@ Upload CSV → detect lot boundaries → count vehicles with AI → score 5 natu
 
 <br />
 
-![Electron](https://img.shields.io/badge/Electron-36-47848F?logo=electron&logoColor=white)
+![Electron](https://img.shields.io/badge/Electron-44-47848F?logo=electron&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)
 ![electron-vite](https://img.shields.io/badge/electron--vite-5-646CFF?logo=vite&logoColor=white)
@@ -29,10 +29,10 @@ Upload CSV → detect lot boundaries → count vehicles with AI → score 5 natu
 [![Download for macOS (Intel)](https://img.shields.io/badge/macOS-Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-mac-x64.dmg)
 [![Download for Windows](https://img.shields.io/badge/Windows-x64-0078D6?style=for-the-badge&logo=windowsterminal&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-win-x64.exe)
 
-*Builds are not code-signed (no paid developer certificate). macOS will show
+_Builds are not code-signed (no paid developer certificate). macOS will show
 "app is damaged" — right-click the app → **Open** once to bypass Gatekeeper.
 Windows SmartScreen may warn "Unknown publisher" — click **More info → Run
-anyway**. See [all releases](https://github.com/JanisKre/DealerShipRiskMappingApp/releases).*
+anyway**. See [all releases](https://github.com/JanisKre/DealerShipRiskMappingApp/releases)._
 
 </div>
 
@@ -73,10 +73,14 @@ The core workflow in one sentence:
 - 📥 **Data import** — CSV portfolio upload + manual single-entry input with
   address geocoding (Nominatim)
 - 🗺️ **Lot boundary detection** — fallback chain
-  ALKIS → OSM/Overpass → Overture → MS Building Footprints → synthetic circle,
+  ALKIS → OSM/Overpass → MS Building Footprints → synthetic circle,
   with confidence scoring and manual polygon correction (Geoman)
 - 🤖 **AI vehicle detection** — YOLOv26 ONNX inference on aerial imagery tiles
-  (sliding window + soft-NMS), with a stub fallback when no model is present
+  (sliding window + soft-NMS); all supported vehicle classes are normalized to
+  one `car` count, with a stub fallback when no model is present
+- ✏️ **Boundary review** — manually edited parking boundaries are rescored
+  immediately and offer an explicit “Update car detection” action for the new
+  area
 - 🌪️ **Risk scoring across 5 perils** — wind, lightning, snow, flood (pluvial),
   hail; EAL (Expected Annual Loss), PML, cluster risk, scenario simulation
 - 📊 **Dashboard & analysis** — KPIs, charts (recharts), sortable/filterable
@@ -91,21 +95,21 @@ The core workflow in one sentence:
 
 ## Tech Stack
 
-| Area              | Choice                                                   |
-| ----------------- | --------------------------------------------------------- |
-| Runtime/Shell     | Electron 36                                               |
-| Build/Bundler     | electron-vite 5 + Vite 7                                  |
-| Language          | TypeScript 5.8 (strict), separate tsconfigs (node/web)    |
-| UI framework      | React 19                                                  |
-| UI components     | shadcn/ui + Tailwind CSS 4 (Radix primitives)             |
-| State             | Zustand 5                                                 |
-| DB (local)        | better-sqlite3 + Drizzle ORM                              |
-| Maps              | Leaflet + react-leaflet + Geoman                          |
-| ML inference      | onnxruntime-node (YOLOv26) in a `utilityProcess`          |
-| LLM               | provider-agnostic (Ollama / OpenAI / Claude / Gemini)     |
-| IPC validation    | Zod at the IPC boundary                                   |
-| i18n              | i18next + react-i18next (de/en/fr)                        |
-| Packaging         | electron-builder (mac/win/linux)                          |
+| Area           | Choice                                                 |
+| -------------- | ------------------------------------------------------ |
+| Runtime/Shell  | Electron 44                                            |
+| Build/Bundler  | electron-vite 5 + Vite 7                               |
+| Language       | TypeScript 5.8 (strict), separate tsconfigs (node/web) |
+| UI framework   | React 19                                               |
+| UI components  | shadcn/ui + Tailwind CSS 4 (Radix primitives)          |
+| State          | Zustand 5                                              |
+| DB (local)     | better-sqlite3 + Drizzle ORM                           |
+| Maps           | Leaflet + react-leaflet + Geoman                       |
+| ML inference   | onnxruntime-node (YOLOv26) in a `utilityProcess`       |
+| LLM            | provider-agnostic (Ollama / OpenAI / Claude / Gemini)  |
+| IPC validation | Zod at the IPC boundary                                |
+| i18n           | i18next + react-i18next (de/en/fr)                     |
+| Packaging      | electron-builder (mac/win/linux)                       |
 
 ## Architecture
 
@@ -166,15 +170,17 @@ desktop-app/resources/models/yolov26s_aerial_vehicles.onnx
 
 Run from `desktop-app/`:
 
-| Script              | Purpose                                  |
-| ------------------- | ----------------------------------------- |
-| `npm run dev`       | Development mode with HMR                 |
-| `npm run build`     | Production build (`out/`)                 |
-| `npm run typecheck` | TypeScript check (node + web)             |
-| `npm run lint`      | ESLint (0 warnings allowed)                |
-| `npm run test`      | Unit tests (Vitest)                        |
-| `npm run pack`      | Build unpacked app (`release/`)            |
-| `npm run dist`      | Build installer (dmg / nsis / AppImage)    |
+| Script                  | Purpose                                 |
+| ----------------------- | --------------------------------------- |
+| `npm run dev`           | Development mode with HMR               |
+| `npm run build`         | Production build (`out/`)               |
+| `npm run typecheck`     | TypeScript check (node + web)           |
+| `npm run lint`          | ESLint (0 warnings allowed)             |
+| `npm run test`          | Unit tests (Vitest)                     |
+| `npm run test:coverage` | Unit tests with V8 coverage report      |
+| `npm run smoke`         | Smoke-test the built Electron app       |
+| `npm run pack`          | Build unpacked app (`release/`)         |
+| `npm run dist`          | Build installer (dmg / nsis / AppImage) |
 
 ## Project Structure
 
@@ -207,15 +213,16 @@ DealerShipRiskMapping/
 
 ## Documentation
 
-| Document                                             | Content                                 |
-| ----------------------------------------------------- | ---------------------------------------- |
-| [ARCHITECTURE.md](./ARCHITECTURE.md)                 | Target architecture, 3-process model     |
-| [CONTRIBUTING.md](./CONTRIBUTING.md)                 | Development workflow, conventions        |
-| [CHANGELOG.md](./CHANGELOG.md)                       | Version history                          |
-| [desktop-app/README.md](./desktop-app/README.md)     | App-specific details                     |
-| [SECURITY.md](./SECURITY.md)                         | Reporting a vulnerability                |
-| [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)           | Community guidelines                     |
-| [LICENSE](./LICENSE)                                 | GPL-3.0-or-later License                              |
+| Document                                         | Content                              |
+| ------------------------------------------------ | ------------------------------------ |
+| [ARCHITECTURE.md](./ARCHITECTURE.md)             | Target architecture, 3-process model |
+| [CONTRIBUTING.md](./CONTRIBUTING.md)             | Development workflow, conventions    |
+| [CHANGELOG.md](./CHANGELOG.md)                   | Version history                      |
+| [desktop-app/README.md](./desktop-app/README.md) | App-specific details                 |
+| [.github/SUPPORT.md](./.github/SUPPORT.md)       | Support and data-sharing guidance    |
+| [SECURITY.md](./SECURITY.md)                     | Reporting a vulnerability            |
+| [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)       | Community guidelines                 |
+| [LICENSE](./LICENSE)                             | GPL-3.0-or-later License             |
 
 ## License
 

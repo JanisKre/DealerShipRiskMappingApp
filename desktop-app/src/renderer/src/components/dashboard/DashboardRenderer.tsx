@@ -1,4 +1,5 @@
 import { Component, useMemo, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
@@ -11,7 +12,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { AnalyzedDealership, DashboardSpec, DashboardWidget } from "@shared/types";
+import type {
+  AnalyzedDealership,
+  DashboardSpec,
+  DashboardWidget,
+} from "@shared/types";
 import {
   computeDashboardData,
   type DashboardData,
@@ -120,13 +125,18 @@ function BarWidget({
   title,
   series,
 }: Readonly<{ title: string; series: SeriesPoint[] }>): React.JSX.Element {
+  const { t } = useTranslation();
   return (
     <ChartCard title={title}>
       <ChartContainer
-        config={{ value: { label: "Value", color: PALETTE[0] } }}
+        config={{ value: { label: t("ui.value"), color: PALETTE[0] } }}
         className="aspect-video max-h-72 w-full"
       >
-        <BarChart data={series} layout="vertical" margin={{ left: 8, right: 16 }}>
+        <BarChart
+          data={series}
+          layout="vertical"
+          margin={{ left: 8, right: 16 }}
+        >
           <XAxis type="number" hide />
           <YAxis
             type="category"
@@ -148,10 +158,11 @@ function LineWidget({
   title,
   series,
 }: Readonly<{ title: string; series: SeriesPoint[] }>): React.JSX.Element {
+  const { t } = useTranslation();
   return (
     <ChartCard title={title}>
       <ChartContainer
-        config={{ value: { label: "Value", color: PALETTE[0] } }}
+        config={{ value: { label: t("ui.value"), color: PALETTE[0] } }}
         className="aspect-video max-h-72 w-full"
       >
         <LineChart data={series} margin={{ left: 8, right: 16, top: 8 }}>
@@ -180,10 +191,11 @@ function PieWidget({
   title,
   series,
 }: Readonly<{ title: string; series: SeriesPoint[] }>): React.JSX.Element {
+  const { t } = useTranslation();
   return (
     <ChartCard title={title}>
       <ChartContainer
-        config={{ value: { label: "Value" } }}
+        config={{ value: { label: t("ui.value") } }}
         className="aspect-square max-h-64"
       >
         <PieChart>
@@ -218,10 +230,10 @@ function PieWidget({
 
 /** Catches render errors of a single widget without killing the whole dashboard. */
 class WidgetErrorBoundary extends Component<
-  { children: ReactNode },
+  { children: ReactNode; errorLabel: string },
   { hasError: boolean }
 > {
-  constructor(props: { children: ReactNode }) {
+  constructor(props: { children: ReactNode; errorLabel: string }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -233,7 +245,7 @@ class WidgetErrorBoundary extends Component<
       return (
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
-            Widget could not be rendered.
+            {this.props.errorLabel}
           </CardContent>
         </Card>
       );
@@ -259,10 +271,8 @@ export function DashboardRenderer({
   dealerships,
   onSelect,
 }: Readonly<Props>): React.JSX.Element {
-  const data = useMemo(
-    () => computeDashboardData(dealerships),
-    [dealerships],
-  );
+  const { t } = useTranslation();
+  const data = useMemo(() => computeDashboardData(dealerships), [dealerships]);
 
   return (
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
@@ -273,9 +283,13 @@ export function DashboardRenderer({
         return (
           <div
             key={w.id}
-            className={cn(isKpi ? "col-span-1 lg:col-span-2" : "col-span-2 lg:col-span-6")}
+            className={cn(
+              isKpi ? "col-span-1 lg:col-span-2" : "col-span-2 lg:col-span-6",
+            )}
           >
-            <WidgetErrorBoundary>{node}</WidgetErrorBoundary>
+            <WidgetErrorBoundary errorLabel={t("ui.widgetError")}>
+              {node}
+            </WidgetErrorBoundary>
           </div>
         );
       })}
@@ -304,7 +318,9 @@ function renderWidget(
     case "lineChart": {
       const series = w.source ? seriesFor(w.source, data) : null;
       if (!series) return null;
-      return <LineWidget title={w.title} series={applyLimit(series, w.limit)} />;
+      return (
+        <LineWidget title={w.title} series={applyLimit(series, w.limit)} />
+      );
     }
     case "pieChart": {
       const series = w.source ? seriesFor(w.source, data) : null;
@@ -312,9 +328,7 @@ function renderWidget(
       return <PieWidget title={w.title} series={applyLimit(series, w.limit)} />;
     }
     case "table":
-      return (
-        <DealershipTable dealerships={dealerships} onSelect={onSelect} />
-      );
+      return <DealershipTable dealerships={dealerships} onSelect={onSelect} />;
     case "insights":
       return <InsightsPanel dealerships={dealerships} onSelect={onSelect} />;
     case "coverage":

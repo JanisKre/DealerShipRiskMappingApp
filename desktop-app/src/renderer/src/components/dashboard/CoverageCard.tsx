@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import type { AnalyzedDealership } from "@shared/types";
 import { computeCoverage } from "@shared/analytics";
 import {
@@ -8,7 +9,7 @@ import {
   CardTitle,
 } from "@renderer/components/ui/card";
 import { pct } from "@renderer/lib/format";
-import { perilLabel, perilColor } from "@renderer/lib/perilLabel";
+import { perilColor } from "@renderer/lib/perilLabel";
 
 /**
  * Coverage/concentration tile: avg. score + share of highly exposed
@@ -18,6 +19,7 @@ import { perilLabel, perilColor } from "@renderer/lib/perilLabel";
 export function CoverageCard({
   dealerships,
 }: Readonly<{ dealerships: AnalyzedDealership[] }>): React.JSX.Element {
+  const { t } = useTranslation();
   const report = useMemo(() => computeCoverage(dealerships), [dealerships]);
   const perils = [...report.perils].sort((a, b) => b.avgScore - a.avgScore);
 
@@ -25,7 +27,7 @@ export function CoverageCard({
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          Peril Coverage & Concentration
+          {t("dashboard.coverageTitle")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -38,10 +40,11 @@ export function CoverageCard({
                     className="size-2.5 rounded-full"
                     style={{ backgroundColor: perilColor(p.peril) }}
                   />
-                  {perilLabel(p.peril)}
+                  {t(`dashboard.detailDialog.ealPeril.${p.peril}`)}
                 </span>
                 <span className="text-muted-foreground">
-                  Avg {p.avgScore.toFixed(0)} · {pct(p.highShare)} high
+                  {t("dashboard.averageLabel")} {p.avgScore.toFixed(0)} ·{" "}
+                  {pct(p.highShare)} {t("dashboard.highLabel")}
                 </span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -59,14 +62,16 @@ export function CoverageCard({
 
         <div className="grid grid-cols-2 gap-3 border-t pt-3 text-sm">
           <Stat
-            label="Diversification (HHI)"
+            label={t("dashboard.diversificationLabel")}
             value={report.concentration.herfindahl.toFixed(3)}
-            hint={`≈ ${report.concentration.effectiveLocations.toFixed(1)} eff. locations`}
+            hint={t("dashboard.effectiveLocations", {
+              count: Number(report.concentration.effectiveLocations.toFixed(1)),
+            })}
           />
           <Stat
-            label="Largest Cluster Cell"
+            label={t("dashboard.largestClusterCell")}
             value={pct(report.concentration.topCellShare)}
-            hint="Share of EAL"
+            hint={t("dashboard.ealShare")}
           />
         </div>
       </CardContent>

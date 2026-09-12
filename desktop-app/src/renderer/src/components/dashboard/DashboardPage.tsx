@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { BarChart3, Download, Loader2, Save } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@renderer/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@renderer/components/ui/tabs";
 import { AiDashboardPage } from "@renderer/components/dashboard/AiDashboardPage";
 import { toast } from "sonner";
 import type { AnalyzedDealership } from "@shared/types";
@@ -28,6 +34,7 @@ import { useAppStore } from "@renderer/store/appStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 
 export function DashboardPage(): React.JSX.Element {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const dealerships = useAppStore((s) => s.dealerships);
   const sessionName = useAppStore((s) => s.sessionName);
@@ -56,10 +63,12 @@ export function DashboardPage(): React.JSX.Element {
       <div className="flex h-full items-center justify-center p-6">
         <EmptyState
           icon={BarChart3}
-          title="No Analysis Yet"
-          description="Import a portfolio first to see metrics, charts, and the location table."
+          title={t("ui.noAnalysis")}
+          description={t("ui.importDescription")}
           action={
-            <Button onClick={() => navigate("/")}>Import Portfolio</Button>
+            <Button onClick={() => navigate("/")}>
+              {t("ui.importPortfolio")}
+            </Button>
           }
         />
       </div>
@@ -74,14 +83,17 @@ export function DashboardPage(): React.JSX.Element {
             <h2 className="text-2xl font-semibold">{sessionName}</h2>
             <p className="text-sm text-muted-foreground">
               {filtered.length === dealerships.length
-                ? `${dealerships.length} locations analyzed`
-                : `${filtered.length} of ${dealerships.length} locations (filtered)`}
+                ? t("ui.locationsAnalyzed", { count: dealerships.length })
+                : t("ui.locationsFiltered", {
+                    filtered: filtered.length,
+                    total: dealerships.length,
+                  })}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <TabsList>
-              <TabsTrigger value="analyse">Analysis</TabsTrigger>
-              <TabsTrigger value="ki">AI Dashboard</TabsTrigger>
+              <TabsTrigger value="analyse">{t("ui.analysis")}</TabsTrigger>
+              <TabsTrigger value="ki">{t("nav.aiDashboard")}</TabsTrigger>
             </TabsList>
             <Actions />
           </div>
@@ -138,15 +150,16 @@ export function DashboardPage(): React.JSX.Element {
 }
 
 function Actions(): React.JSX.Element {
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
 
   async function save(): Promise<void> {
     setSaving(true);
     try {
       await useAppStore.getState().saveSession();
-      toast.success("Portfolio saved");
+      toast.success(t("ui.portfolioSaved"));
     } catch (err) {
-      toast.error(`Save failed: ${(err as Error).message}`);
+      toast.error(t("ui.saveFailed", { error: (err as Error).message }));
     } finally {
       setSaving(false);
     }
@@ -158,9 +171,9 @@ function Actions(): React.JSX.Element {
         useAppStore.getState().currentSession(),
         format,
       );
-      if (path) toast.success(`Report exported: ${path}`);
+      if (path) toast.success(t("ui.reportExported", { path }));
     } catch (err) {
-      toast.error(`Export failed: ${(err as Error).message}`);
+      toast.error(t("ui.exportFailed", { error: (err as Error).message }));
     }
   }
 
@@ -169,9 +182,9 @@ function Actions(): React.JSX.Element {
       const { path } = await window.api.exportPortfolioFile(
         useAppStore.getState().currentSession(),
       );
-      if (path) toast.success(`Portfolio exported: ${path}`);
+      if (path) toast.success(t("ui.portfolioExported", { path }));
     } catch (err) {
-      toast.error(`Export failed: ${(err as Error).message}`);
+      toast.error(t("ui.exportFailed", { error: (err as Error).message }));
     }
   }
 
@@ -180,9 +193,9 @@ function Actions(): React.JSX.Element {
       const { path } = await window.api.exportReadonlyView(
         useAppStore.getState().currentSession(),
       );
-      if (path) toast.success(`View exported: ${path}`);
+      if (path) toast.success(t("ui.viewExported", { path }));
     } catch (err) {
-      toast.error(`Export failed: ${(err as Error).message}`);
+      toast.error(t("ui.exportFailed", { error: (err as Error).message }));
     }
   }
 
@@ -190,26 +203,27 @@ function Actions(): React.JSX.Element {
     <div className="flex gap-2">
       <ComparisonView />
       <Button variant="outline" size="sm" onClick={save} disabled={saving}>
-        {saving ? <Loader2 className="animate-spin" /> : <Save />} Save
+        {saving ? <Loader2 className="animate-spin" /> : <Save />}{" "}
+        {t("common.save")}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm">
-            <Download /> Export
+            <Download /> {t("common.export")}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => exportReport("pdf")}>
-            PDF Report
+            {t("ui.pdfReport")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => exportReport("excel")}>
-            Excel Report
+            {t("ui.excelReport")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => exportReport("csv")}>
-            CSV Report
+            {t("ui.csvReport")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={exportReadonly}>
-            Read-Only HTML View
+            {t("ui.readonlyView")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={exportFile}>.drm File</DropdownMenuItem>
         </DropdownMenuContent>

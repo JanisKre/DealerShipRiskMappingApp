@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles, X } from "lucide-react";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
@@ -23,6 +24,7 @@ const MIN_ANALYZED_FOR_SUMMARY = 2;
  * concentration" is trivial and misleading) and can be dismissed via X.
  */
 export function ExecutiveSummary(): React.JSX.Element | null {
+  const { t, i18n } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
   const { text, streaming, error, start } = useLlmStream();
   const [started, setStarted] = useState(false);
@@ -31,7 +33,7 @@ export function ExecutiveSummary(): React.JSX.Element | null {
   const analyzedCount = dealerships.filter((d) => d.risk).length;
   if (dismissed || analyzedCount < MIN_ANALYZED_FOR_SUMMARY) return null;
 
-  const concentration = concentrationBadge(dealerships);
+  const concentration = concentrationBadge(dealerships, i18n.language);
 
   function generate(): void {
     setStarted(true);
@@ -45,14 +47,14 @@ export function ExecutiveSummary(): React.JSX.Element | null {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base">Executive Summary</CardTitle>
+          <CardTitle className="text-base">{t("ai.summary")}</CardTitle>
           <Button
             size="icon"
             variant="ghost"
             className="size-7 shrink-0"
             onClick={() => setDismissed(true)}
-            title="Dismiss"
-            aria-label="Dismiss executive summary"
+            title={t("ui.dismiss")}
+            aria-label={t("ui.dismissSummary")}
           >
             <X className="size-4" />
           </Button>
@@ -60,7 +62,7 @@ export function ExecutiveSummary(): React.JSX.Element | null {
         <div className="flex flex-wrap items-center gap-2">
           {concentration && (
             <Badge variant={concentration.severe ? "destructive" : "secondary"}>
-              Concentration: {concentration.label}
+              {t("ui.concentration", { value: concentration.label })}
             </Badge>
           )}
           <Button
@@ -70,21 +72,24 @@ export function ExecutiveSummary(): React.JSX.Element | null {
             disabled={streaming || dealerships.length === 0}
           >
             {streaming ? <Loader2 className="animate-spin" /> : <Sparkles />}{" "}
-            Generate
+            {t("ui.generate")}
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        {error && <p className="text-sm text-destructive">Error: {error}</p>}
+        {error && (
+          <p className="text-sm text-destructive">{t("ui.error", { error })}</p>
+        )}
         {!started && !error && (
           <p className="text-sm text-muted-foreground">
-            Generates a board-ready summary: top risks, concentrations,
-            reinsurance recommendation.
+            {t("ui.summaryDescription")}
           </p>
         )}
         {started && <Markdown text={text} />}
         {streaming && (
-          <span className="text-xs text-muted-foreground">Answering…</span>
+          <span className="text-xs text-muted-foreground">
+            {t("ui.answering")}
+          </span>
         )}
       </CardContent>
     </Card>
@@ -93,6 +98,7 @@ export function ExecutiveSummary(): React.JSX.Element | null {
 
 function concentrationBadge(
   dealerships: Parameters<typeof computeClusterRisk>[0],
+  locale: string,
 ): { label: string; severe: boolean } | null {
   const totalEal = dealerships.reduce((a, d) => a + (d.risk?.eal ?? 0), 0);
   if (totalEal <= 0) return null;
@@ -103,7 +109,7 @@ function concentrationBadge(
   );
   const share = maxCluster / totalEal;
   return {
-    label: new Intl.NumberFormat("de-DE", {
+    label: new Intl.NumberFormat(locale, {
       style: "percent",
       maximumFractionDigits: 0,
     }).format(share),

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, nativeImage } from "electron";
+import { app, BrowserWindow, shell, nativeImage, session } from "electron";
 import { join } from "path";
 import { pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc";
@@ -19,8 +19,11 @@ function isRendererUrl(
   rendererFilePath: string,
 ): boolean {
   try {
-    if (rendererUrl) return new URL(rawUrl).origin === new URL(rendererUrl).origin;
-    return new URL(rawUrl).toString() === pathToFileURL(rendererFilePath).toString();
+    if (rendererUrl)
+      return new URL(rawUrl).origin === new URL(rendererUrl).origin;
+    return (
+      new URL(rawUrl).toString() === pathToFileURL(rendererFilePath).toString()
+    );
   } catch {
     return false;
   }
@@ -31,7 +34,7 @@ function isRendererUrl(
  * contextIsolation on, sandbox on, nodeIntegration off. The renderer reaches
  * Node exclusively via the IPC channels exposed in the preload.
  */
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   const iconPath = join(__dirname, "../../resources/icon.png");
   const rendererFilePath = join(__dirname, "../renderer/index.html");
   const mainWindow = new BrowserWindow({
@@ -72,9 +75,19 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(rendererFilePath);
   }
+
+  return mainWindow;
 }
 
+let mainWindow: BrowserWindow | null = null;
+
 app.whenReady().then(() => {
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, _permission, callback) => {
+      callback(false);
+    },
+  );
+
   if (process.platform === "win32") {
     app.setAppUserModelId("io.github.janiskre.dealership-risk-mapping");
   }
@@ -89,11 +102,11 @@ app.whenReady().then(() => {
   });
 
   getDb(); // DB + Tabellen initialisieren
-  registerIpcHandlers();
-  createWindow();
+  mainWindow = createWindow();
+  registerIpcHandlers(() => mainWindow);
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
   });
 });
 

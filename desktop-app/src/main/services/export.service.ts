@@ -5,7 +5,10 @@ import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import type { AnalyzedDealership, Session } from "@shared/types";
 import { SessionSchema } from "@shared/types";
-import { computeAccumulationClusters } from "@shared/risk-math";
+import {
+  computeAccumulationClusters,
+  effectiveVehicleCount,
+} from "@shared/risk-math";
 import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
 
 /**
@@ -17,7 +20,10 @@ function clusterAssignment(session: Session): Map<string, string> {
     (d) => d.lat != null && d.lon != null,
   );
   const map = new Map<string, string>();
-  for (const c of computeAccumulationClusters(withCoords, ACCUMULATION_RADIUS_KM)) {
+  for (const c of computeAccumulationClusters(
+    withCoords,
+    ACCUMULATION_RADIUS_KM,
+  )) {
     if (c.count < 2) continue;
     for (const id of c.memberIds) map.set(id, c.clusterId);
   }
@@ -155,7 +161,9 @@ async function writePdf(session: Session, filePath: string): Promise<void> {
   const head = [
     [
       "Name",
-      "Vehicles",
+      "Machine Vehicles",
+      "Manual Vehicles",
+      "Vehicles Used",
       "Score",
       "Wind",
       "Lightning",
@@ -171,6 +179,8 @@ async function writePdf(session: Session, filePath: string): Promise<void> {
   const body = session.dealerships.map((d) => [
     d.name,
     String(d.detection?.vehicleCount ?? "—"),
+    String(d.detection?.manualVehicleCount ?? "—"),
+    String(d.detection ? effectiveVehicleCount(d.detection) : "—"),
     (d.risk?.overallScore ?? 0).toFixed(0),
     peril(d, "wind").toFixed(0),
     peril(d, "lightning").toFixed(0),
@@ -216,7 +226,9 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
     { header: "Address", key: "address", width: 30 },
     { header: "Lat", key: "lat", width: 12 },
     { header: "Lon", key: "lon", width: 12 },
-    { header: "Vehicles", key: "vehicles", width: 12 },
+    { header: "Machine Vehicles", key: "machineVehicles", width: 16 },
+    { header: "Manual Vehicles", key: "manualVehicles", width: 16 },
+    { header: "Vehicles Used", key: "vehicles", width: 14 },
     { header: "Score", key: "score", width: 10 },
     { header: "Wind", key: "wind", width: 8 },
     { header: "Lightning", key: "lightning", width: 8 },
@@ -244,7 +256,9 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
       address: d.address ?? "",
       lat: d.lat,
       lon: d.lon,
-      vehicles: d.detection?.vehicleCount ?? null,
+      machineVehicles: d.detection?.vehicleCount ?? null,
+      manualVehicles: d.detection?.manualVehicleCount ?? null,
+      vehicles: d.detection ? effectiveVehicleCount(d.detection) : null,
       score: d.risk?.overallScore ?? null,
       wind: peril(d, "wind"),
       lightning: peril(d, "lightning"),
@@ -280,7 +294,7 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
     fgColor: { argb: "FF1E293B" },
   };
   ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-  ws.autoFilter = { from: "A1", to: `S${session.dealerships.length + 1}` };
+  ws.autoFilter = { from: "A1", to: `U${session.dealerships.length + 1}` };
 
   const currencyCols = ["exposure", "eal", "productLimit"];
   for (const key of currencyCols) {
@@ -302,6 +316,8 @@ function toCsv(session: Session): string {
     "lat",
     "lon",
     "assetValue",
+    "machineVehicleCount",
+    "manualVehicleCount",
     "vehicleCount",
     "overallRisk",
     "wind",
@@ -329,6 +345,8 @@ function toCsv(session: Session): string {
         d.lon,
         d.assetValue ?? "",
         d.detection?.vehicleCount ?? "",
+        d.detection?.manualVehicleCount ?? "",
+        d.detection ? effectiveVehicleCount(d.detection) : "",
         d.risk?.overallScore ?? "",
         p("wind"),
         p("lightning"),
@@ -391,17 +409,18 @@ export async function exportReadonlyView(
     }
   }
 
-  const { canceled, filePath } = await dialog.showSaveDialog(
-    win ?? undefined,
-    {
-      title: "Export Read-Only View",
-      defaultPath: `${session.name || "portfolio"}-view.html`,
-      filters: [{ name: "HTML File", extensions: ["html"] }],
-    },
-  );
+  const { canceled, filePath } = await dialog.showSaveDialog(win ?? undefined, {
+    title: "Export Read-Only View",
+    defaultPath: `${session.name || "portfolio"}-view.html`,
+    filters: [{ name: "HTML File", extensions: ["html"] }],
+  });
   if (canceled || !filePath) return null;
 
-  await writeFile(filePath, buildReadonlyHtml(session, snapshotDataUri), "utf-8");
+  await writeFile(
+    filePath,
+    buildReadonlyHtml(session, snapshotDataUri),
+    "utf-8",
+  );
   return filePath;
 }
 
@@ -456,6 +475,8 @@ function buildReadonlyHtml(session: Session, snapshotDataUri: string): string {
       <td>${esc(d.name)}</td>
       <td>${esc(d.address ?? "")}</td>
       <td class="num">${d.detection?.vehicleCount ?? "–"}</td>
+      <td class="num">${d.detection?.manualVehicleCount ?? "–"}</td>
+      <td class="num">${d.detection ? effectiveVehicleCount(d.detection) : "–"}</td>
       <td><span class="badge" style="background:${scoreHex(score)}">${score.toFixed(0)}</span></td>
       <td class="num">${peril(d, "hail").toFixed(0)}</td>
       <td class="num">${eur(d.risk?.exposureEur ?? 0)}</td>
@@ -523,7 +544,7 @@ function buildReadonlyHtml(session: Session, snapshotDataUri: string): string {
 
     <h2>Locations (${session.dealerships.length})</h2>
     <table>
-      <thead><tr><th>Name</th><th>Address</th><th class="num">Vehicles</th><th>Score</th><th class="num">Hail</th><th class="num">Exposure</th><th class="num">EAL</th><th>Insured</th><th>Partner</th><th>Subportfolio</th><th>Cluster</th></tr></thead>
+      <thead><tr><th>Name</th><th>Address</th><th class="num">Machine Vehicles</th><th class="num">Manual Vehicles</th><th class="num">Vehicles Used</th><th>Score</th><th class="num">Hail</th><th class="num">Exposure</th><th class="num">EAL</th><th>Insured</th><th>Partner</th><th>Subportfolio</th><th>Cluster</th></tr></thead>
       <tbody>${dealerRows}</tbody>
     </table>
 
@@ -548,7 +569,12 @@ export async function captureMap(
 
   const image = await win.webContents.capturePage(
     rect
-      ? { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) }
+      ? {
+          x: Math.round(rect.x),
+          y: Math.round(rect.y),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        }
       : undefined,
   );
 

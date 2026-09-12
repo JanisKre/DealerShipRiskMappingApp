@@ -11,6 +11,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  Save,
   ShieldCheck,
   Tag,
 } from "lucide-react";
@@ -36,7 +37,7 @@ import { Separator } from "@renderer/components/ui/separator";
 import { Switch } from "@renderer/components/ui/switch";
 import { useAppStore } from "@renderer/store/appStore";
 import { eur, num, pct } from "@renderer/lib/format";
-import { riskColor, riskLevel, riskLevelLabel } from "@renderer/lib/riskColor";
+import { riskColor, riskLevel } from "@renderer/lib/riskColor";
 import { UnderwritingMessages } from "./UnderwritingMessages";
 
 /**
@@ -78,7 +79,7 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
         <DialogTitle className="flex items-center gap-2">
           {d.name}
           <Badge style={{ backgroundColor: riskColor(score), color: "white" }}>
-            {riskLevelLabel(level)} · {score.toFixed(0)}
+            {t(`risk.${level}`)} · {score.toFixed(0)}
           </Badge>
         </DialogTitle>
         <DialogDescription>
@@ -95,12 +96,31 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
       <UnderwritingMessages d={d} />
 
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-        <Metric label={t("common.vehicles")} value={num(d.detection?.vehicleCount)} />
-        <Metric label={t("dashboard.capacity")} value={num(d.risk?.capacityEstimate)} />
-        <Metric label={t("dashboard.utilisation")} value={pct(d.risk?.utilisation, 0)} />
-        <Metric label={t("dashboard.area")} value={`${num(d.boundary?.areaSqm)} m²`} />
-        <Metric label={t("dashboard.detailDialog.exposureLabel")} value={eur(d.risk?.exposureEur)} />
-        <Metric label={t("dashboard.detailDialog.totalEalLabel")} value={eur(d.risk?.eal)} />
+        <Metric
+          label={t("dashboard.detailDialog.machineVehicleCount")}
+          value={num(d.detection?.vehicleCount)}
+        />
+        <ManualVehicleCountEditor d={d} />
+        <Metric
+          label={t("dashboard.capacity")}
+          value={num(d.risk?.capacityEstimate)}
+        />
+        <Metric
+          label={t("dashboard.utilisation")}
+          value={pct(d.risk?.utilisation, 0)}
+        />
+        <Metric
+          label={t("dashboard.area")}
+          value={`${num(d.boundary?.areaSqm)} m²`}
+        />
+        <Metric
+          label={t("dashboard.detailDialog.exposureLabel")}
+          value={eur(d.risk?.exposureEur)}
+        />
+        <Metric
+          label={t("dashboard.detailDialog.totalEalLabel")}
+          value={eur(d.risk?.eal)}
+        />
       </div>
 
       <Separator />
@@ -125,7 +145,9 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
             <span className="text-lg">🌨</span>
             <div>
               <span className="font-semibold">
-                {t("dashboard.detailDialog.hailZoneLabel", { zone: d.hailZone })}
+                {t("dashboard.detailDialog.hailZoneLabel", {
+                  zone: d.hailZone,
+                })}
               </span>
               <span className="ml-2 text-muted-foreground">
                 {t("dashboard.detailDialog.hailZoneKasko", {
@@ -144,21 +166,46 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
 
       {eb && (
         <div className="space-y-2">
-          <h4 className="text-sm font-semibold">{t("dashboard.ealBreakdown")}</h4>
+          <h4 className="text-sm font-semibold">
+            {t("dashboard.ealBreakdown")}
+          </h4>
           <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-            <Metric label={t("dashboard.detailDialog.ealPeril.hail")} value={eur(eb.hail)} />
-            <Metric label={t("dashboard.detailDialog.ealPeril.wind")} value={eur(eb.wind)} />
-            <Metric label={t("dashboard.detailDialog.ealPeril.flood")} value={eur(eb.flood)} />
-            <Metric label={t("dashboard.detailDialog.ealPeril.lightning")} value={eur(eb.lightning)} />
-            <Metric label={t("dashboard.detailDialog.ealPeril.snow")} value={eur(eb.snow)} />
-            <Metric label={t("dashboard.detailDialog.ealPeril.heat")} value={eur(eb.heat)} />
-            <Metric label={t("dashboard.detailDialog.ealPeril.total")} value={eur(eb.total)} />
+            <Metric
+              label={t("dashboard.detailDialog.ealPeril.hail")}
+              value={eur(eb.hail)}
+            />
+            <Metric
+              label={t("dashboard.detailDialog.ealPeril.wind")}
+              value={eur(eb.wind)}
+            />
+            <Metric
+              label={t("dashboard.detailDialog.ealPeril.flood")}
+              value={eur(eb.flood)}
+            />
+            <Metric
+              label={t("dashboard.detailDialog.ealPeril.lightning")}
+              value={eur(eb.lightning)}
+            />
+            <Metric
+              label={t("dashboard.detailDialog.ealPeril.snow")}
+              value={eur(eb.snow)}
+            />
+            <Metric
+              label={t("dashboard.detailDialog.ealPeril.heat")}
+              value={eur(eb.heat)}
+            />
+            <Metric
+              label={t("dashboard.detailDialog.ealPeril.total")}
+              value={eur(eb.total)}
+            />
           </div>
         </div>
       )}
 
       <div className="space-y-1 text-sm">
-        <h4 className="font-semibold">{t("dashboard.detailDialog.boundaryTitle")}</h4>
+        <h4 className="font-semibold">
+          {t("dashboard.detailDialog.boundaryTitle")}
+        </h4>
         <div className="flex items-center gap-2 text-muted-foreground">
           <span>
             {t("dashboard.detailDialog.boundarySourceLabel", {
@@ -178,12 +225,16 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
       {d.risk && (
         <div className="space-y-2 rounded-md border bg-muted/20 p-3 text-sm">
           <div className="flex justify-between gap-3">
-            <span className="font-semibold">Model confidence</span>
-            <span>{pct(d.risk.confidence, 0)} · {d.risk.modelVersion ?? "unknown"}</span>
+            <span className="font-semibold">{t("ui.modelConfidence")}</span>
+            <span>
+              {pct(d.risk.confidence, 0)} · {d.risk.modelVersion ?? "unknown"}
+            </span>
           </div>
           {d.risk.limitations && d.risk.limitations.length > 0 && (
             <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-              {d.risk.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
+              {d.risk.limitations.map((limitation) => (
+                <li key={limitation}>{limitation}</li>
+              ))}
             </ul>
           )}
           {d.risk.evidence && d.risk.evidence.length > 0 && (
@@ -221,6 +272,84 @@ function Metric({
     <div className="rounded-lg border p-2.5">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-0.5 font-medium">{value}</div>
+    </div>
+  );
+}
+
+function ManualVehicleCountEditor({
+  d,
+}: {
+  d: AnalyzedDealership;
+}): React.JSX.Element {
+  const { t } = useTranslation();
+  const updateManualVehicleCount = useAppStore(
+    (state) => state.updateManualVehicleCount,
+  );
+  const [draft, setDraft] = useState(
+    () => d.detection?.manualVehicleCount?.toString() ?? "",
+  );
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(d.detection?.manualVehicleCount?.toString() ?? "");
+  }, [d.id, d.detection?.manualVehicleCount]);
+
+  const parsed = draft.trim() === "" ? null : Number(draft);
+  const valid = parsed === null || (Number.isInteger(parsed) && parsed >= 0);
+
+  async function save(): Promise<void> {
+    if (!valid) return;
+    setSaving(true);
+    try {
+      await updateManualVehicleCount(d.id, parsed);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border p-2.5">
+      <div className="text-xs text-muted-foreground">
+        {t("dashboard.detailDialog.manualVehicleCount")}
+      </div>
+      <div className="mt-1 flex items-center gap-2">
+        <Input
+          type="number"
+          min={0}
+          step={1}
+          value={draft}
+          placeholder={t(
+            "dashboard.detailDialog.manualVehicleCountPlaceholder",
+          )}
+          aria-label={t("dashboard.detailDialog.manualVehicleCount")}
+          aria-invalid={!valid}
+          onChange={(event) => setDraft(event.target.value)}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={saving || !valid}
+          onClick={() => void save()}
+          title={t("dashboard.detailDialog.saveManualVehicleCount")}
+        >
+          <Save className="size-3.5" />
+          <span className="sr-only">
+            {t("dashboard.detailDialog.saveManualVehicleCount")}
+          </span>
+        </Button>
+      </div>
+      <div className="mt-1 text-[10px] text-muted-foreground">
+        {parsed === null
+          ? t("dashboard.detailDialog.manualVehicleCountNotSet")
+          : t("dashboard.detailDialog.manualVehicleCountSaved", {
+              count: parsed,
+            })}
+      </div>
+      {!valid && (
+        <div className="mt-1 text-[10px] text-destructive">
+          {t("dashboard.detailDialog.manualCountInvalid")}
+        </div>
+      )}
     </div>
   );
 }
@@ -340,10 +469,7 @@ function OsmDetailsSection({
   }
 
   const hasInfo =
-    details?.phone ||
-    details?.email ||
-    details?.openingHours ||
-    details?.brand;
+    details?.phone || details?.email || details?.openingHours || details?.brand;
   if (!hasInfo || !details) return null;
 
   return (
@@ -434,8 +560,14 @@ function PortfolioMetaSection({
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {textField(t("dashboard.detailDialog.salesPartnerLabel"), "salesPartner")}
-        {textField(t("dashboard.detailDialog.subPortfolioLabel"), "subPortfolio")}
+        {textField(
+          t("dashboard.detailDialog.salesPartnerLabel"),
+          "salesPartner",
+        )}
+        {textField(
+          t("dashboard.detailDialog.subPortfolioLabel"),
+          "subPortfolio",
+        )}
         {textField(t("dashboard.detailDialog.groupLabel"), "group")}
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           {t("dashboard.detailDialog.productLimitLabel")}
@@ -564,22 +696,10 @@ function TemporalSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
                 ` (${(result.deltaPct * 100).toFixed(0)} %)`}
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
             <Metric
               label={t("dashboard.detailDialog.carLabel")}
               value={fmtDelta(result.classDeltas.car)}
-            />
-            <Metric
-              label={t("dashboard.detailDialog.vanLabel")}
-              value={fmtDelta(result.classDeltas.van)}
-            />
-            <Metric
-              label={t("dashboard.detailDialog.truckLabel")}
-              value={fmtDelta(result.classDeltas.truck)}
-            />
-            <Metric
-              label={t("dashboard.detailDialog.busLabel")}
-              value={fmtDelta(result.classDeltas.bus)}
             />
           </div>
           <p className="text-xs text-muted-foreground">

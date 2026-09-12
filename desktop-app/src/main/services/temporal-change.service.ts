@@ -68,17 +68,19 @@ export async function compareTemporal(
   };
 }
 
-/** Difference per vehicle class (to − from), 0 if one side has no count. */
+/**
+ * Difference in the single user-facing vehicle category (to − from).
+ * Legacy per-class fields remain zero for response compatibility.
+ */
 function classDeltas(
   from: DetectionResult,
   to: DetectionResult,
 ): TemporalChangeResult["classDeltas"] {
-  const f = from.classCounts ?? { car: 0, van: 0, truck: 0, bus: 0 };
-  const t = to.classCounts ?? { car: 0, van: 0, truck: 0, bus: 0 };
+  const delta = to.vehicleCount - from.vehicleCount;
   return {
-    car: t.car - f.car,
-    van: t.van - f.van,
-    truck: t.truck - f.truck,
-    bus: t.bus - f.bus,
+    car: delta,
+    van: 0,
+    truck: 0,
+    bus: 0,
   };
 }

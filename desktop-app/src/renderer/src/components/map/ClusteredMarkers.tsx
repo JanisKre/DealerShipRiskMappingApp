@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import L from "leaflet";
 import "leaflet.markercluster";
 import type { AnalyzedDealership } from "@shared/types";
+import { effectiveVehicleCount } from "@shared/risk-math";
 import { eur } from "@renderer/lib/format";
-import { perilLabel, perilColor } from "@renderer/lib/perilLabel";
-import { riskColor, riskLevelLabel, riskLevel } from "@renderer/lib/riskColor";
+import { perilColor } from "@renderer/lib/perilLabel";
+import { riskColor, riskLevel } from "@renderer/lib/riskColor";
 import { useMap } from "react-leaflet";
 import { riskMarkerIcon } from "./markerIcons";
 
@@ -15,7 +17,10 @@ interface Props {
   onSelect: (id: string) => void;
   onOpenDetails: (id: string) => void;
   /** Right-click on a marker — opens a context menu at the cursor position. */
-  onContextMenu: (dealership: AnalyzedDealership, point: { x: number; y: number }) => void;
+  onContextMenu: (
+    dealership: AnalyzedDealership,
+    point: { x: number; y: number },
+  ) => void;
 }
 
 /** Top peril of a dealership (highest score). Returns null if there are no perils. */
@@ -29,13 +34,13 @@ function topPeril(
 }
 
 /** Builds the HTML content for an imperative Leaflet popup. */
-function popupHtml(d: AnalyzedDealership): string {
+function popupHtml(d: AnalyzedDealership, t: (key: string) => string): string {
   const score = d.risk?.overallScore;
   const color = score != null ? riskColor(score) : "#6b7280";
-  const levelLabel = score != null ? riskLevelLabel(riskLevel(score)) : "—";
+  const levelLabel = score != null ? t(`risk.${riskLevel(score)}`) : "—";
   const tp = topPeril(d);
   const eal = d.risk?.eal != null ? eur(d.risk.eal) : "—";
-  const vehicles = d.detection?.vehicleCount ?? "—";
+  const vehicles = d.detection ? effectiveVehicleCount(d.detection) : "—";
 
   const scoreBar =
     score != null
@@ -46,9 +51,9 @@ function popupHtml(d: AnalyzedDealership): string {
 
   const topPerilHtml = tp
     ? `<div class="popup-row">
-         <span>Top peril</span>
+         <span>${t("ui.topPeril")}</span>
          <span style="color:${perilColor(tp.peril as never)};font-weight:600">
-           ${perilLabel(tp.peril as never)} ${Math.round(tp.score)}/100
+           ${t(`dashboard.detailDialog.ealPeril.${tp.peril}`)} ${Math.round(tp.score)}/100
          </span>
        </div>`
     : "";
@@ -56,14 +61,14 @@ function popupHtml(d: AnalyzedDealership): string {
   const boundaryWarningHtml =
     d.boundary?.source === "synthetic"
       ? `<div class="popup-row" style="color:#b45309">
-           <span>⚠ Property boundary not detected</span>
+           <span>${t("ui.propertyBoundaryMissing")}</span>
          </div>`
       : "";
 
   const modelWarningHtml =
     d.detection?.model === "stub-area-heuristic"
       ? `<div class="popup-row" style="color:#b45309">
-           <span>⚠ Vehicle count estimated (no AI model)</span>
+           <span>${t("ui.vehicleCountEstimated")}</span>
          </div>`
       : "";
 
@@ -71,22 +76,22 @@ function popupHtml(d: AnalyzedDealership): string {
     <div class="drm-popup">
       <div class="popup-title">${d.name}</div>
       <div class="popup-row">
-        <span>Risk</span>
+        <span>${t("ui.risk")}</span>
         <span style="color:${color};font-weight:600">
-          ${score != null ? `${Math.round(score)}/100` : "Analyzing…"} ${score != null ? `(${levelLabel})` : ""}
+          ${score != null ? `${Math.round(score)}/100` : t("ui.analyzing")} ${score != null ? `(${levelLabel})` : ""}
         </span>
       </div>
       ${scoreBar}
       ${topPerilHtml}
       <div class="popup-row">
-        <span>EAL / year</span><span>${eal}</span>
+        <span>${t("ui.ealYear")}</span><span>${eal}</span>
       </div>
       <div class="popup-row">
-        <span>Vehicles</span><span>${vehicles}</span>
+        <span>${t("common.vehicles")}</span><span>${vehicles}</span>
       </div>
       ${boundaryWarningHtml}
       ${modelWarningHtml}
-      <button class="popup-details-btn" data-id="${d.id}">View details →</button>
+      <button class="popup-details-btn" data-id="${d.id}">${t("ui.viewDetails")}</button>
     </div>`;
 }
 
@@ -103,6 +108,7 @@ export function ClusteredMarkers({
   onOpenDetails,
   onContextMenu,
 }: Props): null {
+  const { t } = useTranslation();
   const map = useMap();
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
 
@@ -115,8 +121,13 @@ export function ClusteredMarkers({
       iconCreateFunction(cluster) {
         const count = cluster.getChildCount();
         // Cluster icon: colored by risk, using the max score among its markers.
-        const markers = cluster.getAllChildMarkers() as Array<L.Marker & { _riskScore?: number }>;
-        const maxScore = markers.reduce((mx, m) => Math.max(mx, m._riskScore ?? 0), 0);
+        const markers = cluster.getAllChildMarkers() as Array<
+          L.Marker & { _riskScore?: number }
+        >;
+        const maxScore = markers.reduce(
+          (mx, m) => Math.max(mx, m._riskScore ?? 0),
+          0,
+        );
         const color = riskColor(maxScore);
         const size = count < 10 ? 36 : count < 50 ? 44 : 52;
         return L.divIcon({
@@ -148,7 +159,7 @@ export function ClusteredMarkers({
       const marker = L.marker([d.lat, d.lon], {
         icon: riskMarkerIcon(d.risk?.overallScore ?? null, isSelected),
         opacity: pending ? 0.6 : 1,
-        alt: `${d.name}${d.risk ? ` – Risk ${Math.round(d.risk.overallScore)}/100` : ""}`,
+        alt: `${d.name}${d.risk ? ` – ${t("ui.risk")} ${Math.round(d.risk.overallScore)}/100` : ""}`,
         keyboard: true,
         title: d.name,
         riseOnHover: true,
@@ -162,8 +173,12 @@ export function ClusteredMarkers({
       const tp = topPeril(d);
       const tooltipText = [
         `<strong>${d.name}</strong>`,
-        d.risk ? `Risk: ${Math.round(d.risk.overallScore)}/100` : "Analyzing…",
-        tp ? `${perilLabel(tp.peril as never)}: ${Math.round(tp.score)}/100` : null,
+        d.risk
+          ? `${t("ui.risk")}: ${Math.round(d.risk.overallScore)}/100`
+          : t("ui.analyzing"),
+        tp
+          ? `${t(`dashboard.detailDialog.ealPeril.${tp.peril}`)}: ${Math.round(tp.score)}/100`
+          : null,
       ]
         .filter(Boolean)
         .join("<br>");
@@ -174,7 +189,7 @@ export function ClusteredMarkers({
       });
 
       // Rich popup.
-      marker.bindPopup(popupHtml(d), {
+      marker.bindPopup(popupHtml(d, t), {
         maxWidth: 240,
         className: "drm-popup-wrapper",
       });
@@ -201,8 +216,8 @@ export function ClusteredMarkers({
 
       group.addLayer(marker);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dealerships, selectedId, analyzingIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealerships, selectedId, analyzingIds, t]);
 
   return null;
 }

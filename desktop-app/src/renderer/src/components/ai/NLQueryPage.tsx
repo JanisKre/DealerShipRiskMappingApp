@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Loader2, Search } from "lucide-react";
 import { Badge } from "@renderer/components/ui/badge";
@@ -15,11 +16,11 @@ import { useLlmStream } from "@renderer/lib/useLlmStream";
 import { toNlQueryDealership, useAppStore } from "@renderer/store/appStore";
 import { Markdown } from "./ExecutiveSummary";
 
-const EXAMPLES = [
-  "Show all locations with high hail risk",
-  "Which locations have utilisation above 80%?",
-  "Locations with EAL over €100,000",
-];
+const EXAMPLE_KEYS = [
+  "ai.exampleHighHail",
+  "ai.exampleUtilisation",
+  "ai.exampleEal",
+] as const;
 
 /**
  * Natural-language query (2-phase): phase 1 extracts a filter JSON and
@@ -27,6 +28,7 @@ const EXAMPLES = [
  * phase 2 streams a summary. Matches can be carried over into the dashboard.
  */
 export function NLQueryPage(): React.JSX.Element {
+  const { t } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
   const setNlQueryMatchedIds = useAppStore((s) => s.setNlQueryMatchedIds);
   const navigate = useNavigate();
@@ -62,7 +64,7 @@ export function NLQueryPage(): React.JSX.Element {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            Natural-language query
+            {t("ai.naturalLanguageQuery")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -71,7 +73,7 @@ export function NLQueryPage(): React.JSX.Element {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && ask()}
-              placeholder="Ask a question in natural language…"
+              placeholder={t("ai.queryInputPlaceholder")}
               disabled={dealerships.length === 0}
             />
             <Button
@@ -79,21 +81,24 @@ export function NLQueryPage(): React.JSX.Element {
               disabled={streaming || !question.trim()}
             >
               {streaming ? <Loader2 className="animate-spin" /> : <Search />}{" "}
-              Ask
+              {t("ai.ask")}
             </Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {EXAMPLES.map((ex) => (
-              <button
-                key={ex}
-                type="button"
-                onClick={() => ask(ex)}
-                disabled={streaming || dealerships.length === 0}
-                className="rounded-full border px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-              >
-                {ex}
-              </button>
-            ))}
+            {EXAMPLE_KEYS.map((key) => {
+              const example = t(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => ask(example)}
+                  disabled={streaming || dealerships.length === 0}
+                  className="rounded-full border px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+                >
+                  {example}
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -102,22 +107,24 @@ export function NLQueryPage(): React.JSX.Element {
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">
-              Result
+              {t("ai.result")}
               {matchedIds && (
                 <Badge variant="secondary" className="ml-2">
-                  {matchedIds.length} matches
+                  {t("ai.matches", { count: matchedIds.length })}
                 </Badge>
               )}
             </CardTitle>
             {matchedIds && matchedIds.length > 0 && (
               <Button variant="outline" size="sm" onClick={showInDashboard}>
-                Show in dashboard <ArrowRight />
+                {t("ai.showInDashboard")} <ArrowRight />
               </Button>
             )}
           </CardHeader>
           <CardContent className="space-y-3">
             {error && (
-              <p className="text-sm text-destructive">Error: {error}</p>
+              <p className="text-sm text-destructive">
+                {t("ui.error", { error })}
+              </p>
             )}
             {matchedNames.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -130,7 +137,9 @@ export function NLQueryPage(): React.JSX.Element {
             )}
             <Markdown text={text} />
             {streaming && (
-              <span className="text-xs text-muted-foreground">Answering…</span>
+              <span className="text-xs text-muted-foreground">
+                {t("ui.answering")}
+              </span>
             )}
           </CardContent>
         </Card>

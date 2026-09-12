@@ -2,7 +2,7 @@ import L from "leaflet";
 import { CircleMarker, Marker, Tooltip } from "react-leaflet";
 import { useTranslation } from "react-i18next";
 import type { AnalyzedDealership, Peril } from "@shared/types";
-import { perilLabel, perilColor } from "@renderer/lib/perilLabel";
+import { perilColor } from "@renderer/lib/perilLabel";
 
 /** Fixed radius for the peril ring — deliberately not score-scaled: a tiny
  * circle at a low score was practically invisible on the aerial image. */
@@ -80,7 +80,8 @@ export function MultiPerilOverlay({
               <div className="space-y-0.5">
                 <strong>{d.name}</strong>
                 <div>
-                  {perilLabel(peril)}: {score.toFixed(0)}/100
+                  {t(`dashboard.detailDialog.ealPeril.${peril}`)}:{" "}
+                  {score.toFixed(0)}/100
                 </div>
                 {peril === "hail" && d.hailZone != null && (
                   <div className="text-xs text-muted-foreground">

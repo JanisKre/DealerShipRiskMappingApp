@@ -4,12 +4,7 @@ import type { Peril } from "@shared/types";
 import type { RiskLevel } from "@renderer/lib/riskColor";
 
 /** Basemap variants. WMS override (from settings) only applies to "satellite". */
-export type Basemap =
-  | "satellite"
-  | "streets"
-  | "light"
-  | "dark"
-  | "terrain";
+export type Basemap = "satellite" | "streets" | "light" | "dark" | "terrain";
 
 /** Layer visibilities. */
 export interface MapLayers {
@@ -44,6 +39,7 @@ interface MapState {
   satelliteOpacity: number;
   perilOverlay: Peril | null;
   editing: boolean;
+  detectionEditing: boolean;
   filter: MapFilter;
   /** `null` if no view has been saved yet — then fit-all. */
   view: MapView | null;
@@ -60,6 +56,7 @@ interface MapState {
   setSatelliteOpacity: (v: number) => void;
   setPerilOverlay: (p: Peril | null) => void;
   setEditing: (v: boolean) => void;
+  setDetectionEditing: (v: boolean) => void;
   setFilter: (f: Partial<MapFilter>) => void;
   resetFilter: () => void;
   saveView: (center: [number, number], zoom: number) => void;
@@ -89,6 +86,7 @@ export const useMapStore = create<MapState>()(
       satelliteOpacity: 1,
       perilOverlay: null,
       editing: false,
+      detectionEditing: false,
       filter: DEFAULT_FILTER,
       view: null,
       locationsPanelOpen: true,
@@ -103,14 +101,14 @@ export const useMapStore = create<MapState>()(
       setSatelliteOpacity: (satelliteOpacity) => set({ satelliteOpacity }),
       setPerilOverlay: (perilOverlay) => set({ perilOverlay }),
       setEditing: (editing) => set({ editing }),
+      setDetectionEditing: (detectionEditing) => set({ detectionEditing }),
       setFilter: (partial) =>
         set((s) => ({ filter: { ...s.filter, ...partial } })),
       resetFilter: () => set({ filter: DEFAULT_FILTER }),
       saveView: (center, zoom) => set({ view: { center, zoom } }),
       toggleLocationsPanel: () =>
         set((s) => ({ locationsPanelOpen: !s.locationsPanelOpen })),
-      toggleChatPanel: () =>
-        set((s) => ({ chatPanelOpen: !s.chatPanelOpen })),
+      toggleChatPanel: () => set((s) => ({ chatPanelOpen: !s.chatPanelOpen })),
       openDetailDialog: (id) => set({ detailDialogId: id }),
       closeDetailDialog: () => set({ detailDialogId: null }),
     }),

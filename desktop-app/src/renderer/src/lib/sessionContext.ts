@@ -1,5 +1,5 @@
 import type { AnalyzedDealership } from "@shared/types";
-import { computePML } from "@shared/risk-math";
+import { computePML, effectiveVehicleCount } from "@shared/risk-math";
 
 /**
  * Compact portfolio context as a string for the LLM streams (summary/chat).
@@ -24,9 +24,9 @@ export function buildSessionContext(dealerships: AnalyzedDealership[]): string {
     .map((d) => {
       const peril = (n: string): number =>
         d.risk?.perils.find((p) => p.peril === n)?.score ?? 0;
-      return `- ${d.name}: Score ${Math.round(d.risk?.overallScore ?? 0)}, Vehicles ${
-        d.detection?.vehicleCount ?? 0
-      }, EAL ${Math.round(d.risk?.eal ?? 0)}€, Hail ${peril("hail")}, Wind ${peril("wind")}, Flood ${peril("flood")}`;
+      return `- ${d.name}: Score ${Math.round(d.risk?.overallScore ?? 0)}, Vehicles ${effectiveVehicleCount(
+        d.detection,
+      )}, EAL ${Math.round(d.risk?.eal ?? 0)}€, Hail ${peril("hail")}, Wind ${peril("wind")}, Flood ${peril("flood")}`;
     })
     .join("\n");
 

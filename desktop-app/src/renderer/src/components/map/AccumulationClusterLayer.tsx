@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Circle, Tooltip } from "react-leaflet";
 import type { AnalyzedDealership } from "@shared/types";
 import { computeAccumulationClusters } from "@shared/risk-math";
@@ -25,6 +26,7 @@ export function AccumulationClusterLayer({
 }: Readonly<{
   dealerships: AnalyzedDealership[];
 }>): React.JSX.Element | null {
+  const { t } = useTranslation();
   const activeClusterId = useAppStore((s) => s.filters.clusterId);
   const setFilters = useAppStore((s) => s.setFilters);
 
@@ -73,11 +75,18 @@ export function AccumulationClusterLayer({
               <div className="space-y-0.5">
                 <strong className="font-mono">{c.clusterId}</strong>
                 <div>
-                  {c.count} locations · Hail {c.maxHailScore.toFixed(0)}
+                  {c.count} {t("dashboard.locations")} · {t("ui.hailLevel")}{" "}
+                  {c.maxHailScore.toFixed(0)}
                 </div>
-                <div>Value: {eur(c.totalExposureEur)}</div>
-                <div>EAL: {eur(c.totalEalEur)}</div>
-                <div>Nat cat KPI: {eur(c.natCatKpiEur)}</div>
+                <div>
+                  {t("ui.value")}: {eur(c.totalExposureEur)}
+                </div>
+                <div>
+                  {t("dashboard.totalEal")}: {eur(c.totalEalEur)}
+                </div>
+                <div>
+                  {t("ui.natCatKpi")}: {eur(c.natCatKpiEur)}
+                </div>
               </div>
             </Tooltip>
           </Circle>

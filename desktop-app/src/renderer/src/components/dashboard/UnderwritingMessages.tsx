@@ -38,7 +38,10 @@ function pricingLabel(t: TFunction, hint: "low" | "normal" | "high"): string {
 }
 
 /** Hail risk message from the subject's hail score. */
-function hailMessage(t: TFunction, subject: AnalyzedDealership): UwMessage | null {
+function hailMessage(
+  t: TFunction,
+  subject: AnalyzedDealership,
+): UwMessage | null {
   const hail = subject.risk?.perils.find((p) => p.peril === "hail")?.score;
   if (hail == null) return null;
   if (hail >= 60) {
@@ -63,7 +66,10 @@ function hailMessage(t: TFunction, subject: AnalyzedDealership): UwMessage | nul
 }
 
 /** Product limit/coverage cap message; null when uncritical or without a limit. */
-function limitMessage(t: TFunction, subject: AnalyzedDealership): UwMessage | null {
+function limitMessage(
+  t: TFunction,
+  subject: AnalyzedDealership,
+): UwMessage | null {
   const limit = productLimitBreach(subject);
   if (limit.severity === "breach") {
     return {
@@ -106,7 +112,11 @@ function accumulationMessage(
       }),
     };
   }
-  const verdict = accumulationVerdict(subject, neighbors, ACCUMULATION_RADIUS_KM);
+  const verdict = accumulationVerdict(
+    subject,
+    neighbors,
+    ACCUMULATION_RADIUS_KM,
+  );
   return {
     severity: verdict.reinsure ? "danger" : "warning",
     title: verdict.reinsure
@@ -134,7 +144,9 @@ function groupMessage(
   if (!group || group.memberCount < 2) return null;
   const breachNote =
     group.productLimitBreaches > 0
-      ? t("underwriting.group.breachNote", { count: group.productLimitBreaches })
+      ? t("underwriting.group.breachNote", {
+          count: group.productLimitBreaches,
+        })
       : "";
   return {
     severity: group.reinsure ? "danger" : "info",

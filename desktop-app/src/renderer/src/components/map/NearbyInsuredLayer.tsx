@@ -1,4 +1,5 @@
 import { Circle, CircleMarker, Tooltip } from "react-leaflet";
+import { useTranslation } from "react-i18next";
 import type { AnalyzedDealership } from "@shared/types";
 import { nearbyInsured } from "@shared/risk-math";
 import { eur } from "@renderer/lib/format";
@@ -18,6 +19,7 @@ export function NearbyInsuredLayer({
   dealerships: AnalyzedDealership[];
   radiusKm: number;
 }>): React.JSX.Element | null {
+  const { t } = useTranslation();
   if (!subject) return null;
 
   const neighbors = nearbyInsured(subject, dealerships, radiusKm);
@@ -53,8 +55,14 @@ export function NearbyInsuredLayer({
           <Tooltip>
             <div className="space-y-0.5">
               <strong>{d.name}</strong>
-              <div>Insured · {distanceKm.toFixed(1)} km</div>
-              <div>Exposure: {eur(d.risk?.exposureEur)}</div>
+              <div>
+                {t("dashboard.detailDialog.insuredLabel")} ·{" "}
+                {distanceKm.toFixed(1)} km
+              </div>
+              <div>
+                {t("dashboard.detailDialog.exposureLabel")}:{" "}
+                {eur(d.risk?.exposureEur)}
+              </div>
             </div>
           </Tooltip>
         </CircleMarker>

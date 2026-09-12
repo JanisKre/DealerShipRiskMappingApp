@@ -31,7 +31,8 @@ function toLatLng(ring: [number, number][]): [number, number][] {
 /**
  * Renders all boundary polygons (color by source). When `editable`, the
  * polygons are editable via Geoman; an edit writes the new polygon back to
- * the store with source='manual' and a newly computed area.
+ * the store with source='manual' and a newly computed area. A separate CTA
+ * then re-runs vehicle detection against the new boundary.
  */
 export function BoundaryLayer({
   dealerships,

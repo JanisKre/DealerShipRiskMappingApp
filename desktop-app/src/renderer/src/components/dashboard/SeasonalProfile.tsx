@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import type { AnalyzedDealership, Peril } from "@shared/types";
 import { PERILS } from "@shared/types";
@@ -14,7 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@renderer/components/ui/chart";
-import { PERIL_LABELS, perilColor } from "@renderer/lib/perilLabel";
+import { perilColor } from "@renderer/lib/perilLabel";
 
 /**
  * Seasonal risk profile: stacked areas per peril across 12 months. Based on
@@ -26,6 +27,7 @@ import { PERIL_LABELS, perilColor } from "@renderer/lib/perilLabel";
 export function SeasonalProfile({
   dealerships,
 }: Readonly<{ dealerships: AnalyzedDealership[] }>): React.JSX.Element {
+  const { t } = useTranslation();
   const data = useMemo(
     () => computeSeasonalProfile(dealerships),
     [dealerships],
@@ -36,18 +38,23 @@ export function SeasonalProfile({
       Object.fromEntries(
         PERILS.map((p) => [
           p,
-          { label: PERIL_LABELS[p], color: perilColor(p) },
+          {
+            label: t(`dashboard.detailDialog.ealPeril.${p}`),
+            color: perilColor(p),
+          },
         ]),
       ),
-    [],
+    [t],
   );
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Seasonal Risk Profile</CardTitle>
+        <CardTitle className="text-base">
+          {t("dashboard.seasonalTitle")}
+        </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Typical annual distribution of portfolio risk by peril
+          {t("dashboard.seasonalDescription")}
         </p>
       </CardHeader>
       <CardContent>
@@ -87,7 +94,7 @@ export function SeasonalProfile({
                 className="size-2.5 rounded-full"
                 style={{ backgroundColor: perilColor(p) }}
               />
-              {PERIL_LABELS[p]}
+              {t(`dashboard.detailDialog.ealPeril.${p}`)}
             </div>
           ))}
         </div>

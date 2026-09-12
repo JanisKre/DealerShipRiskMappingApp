@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { BrowserWindow, ipcMain } from "electron";
 import { join } from "path";
 import { z } from "zod";
 import { IPC } from "@shared/ipc-channels";
@@ -35,7 +35,10 @@ import {
 import { geocode } from "../services/geocoding.service";
 import { getOsmDetails } from "../services/osmDetails.service";
 import { placesAutocomplete } from "../services/places.service";
-import { parseCsvWithReport, parseXlsxWithReport } from "../services/csv.service";
+import {
+  parseCsvWithReport,
+  parseXlsxWithReport,
+} from "../services/csv.service";
 import {
   executiveSummaryStream,
   generateDashboardSpec,
@@ -81,17 +84,26 @@ type Handler<K extends keyof typeof ipcRequest> = (
   input: z.infer<(typeof ipcRequest)[K]>,
 ) => unknown | Promise<unknown>;
 
+type MainWindowProvider = () => BrowserWindow | null;
+let mainWindowProvider: MainWindowProvider = () => null;
+
+function isTrustedSender(event: { sender: Electron.WebContents }): boolean {
+  return BrowserWindow.fromWebContents(event.sender) === mainWindowProvider();
+}
+
 function handle<K extends keyof typeof ipcRequest>(
   channel: K,
   fn: Handler<K>,
 ): void {
-  ipcMain.handle(channel, async (_event, rawInput) => {
+  ipcMain.handle(channel, async (event, rawInput) => {
+    if (!isTrustedSender(event)) throw new Error("Rejected IPC sender");
     const parsed = ipcRequest[channel].parse(rawInput);
     return fn(parsed as z.infer<(typeof ipcRequest)[K]>);
   });
 }
 
-export function registerIpcHandlers(): void {
+export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
+  mainWindowProvider = getMainWindow;
   handle(IPC.parseCsv, ({ content }) => parseCsvWithReport(content));
   handle(IPC.parseXlsx, ({ base64 }) => parseXlsxWithReport(base64));
   handle(IPC.geocode, ({ query }) => geocode(query));
@@ -192,6 +204,7 @@ function registerLlmStreaming(): void {
   const active = new Map<string, AbortController>();
 
   ipcMain.on(IPC.llmStream, (event, raw: unknown) => {
+    if (!isTrustedSender(event)) return;
     const parsedEnvelope = LlmStreamEnvelopeSchema.safeParse(raw);
     if (!parsedEnvelope.success) return;
     const { streamId, req: parsed } = parsedEnvelope.data;
@@ -215,7 +228,8 @@ function registerLlmStreaming(): void {
       });
   });
 
-  ipcMain.on(`${IPC.llmStream}:cancel`, (_event, raw: unknown) => {
+  ipcMain.on(`${IPC.llmStream}:cancel`, (event, raw: unknown) => {
+    if (!isTrustedSender(event)) return;
     const parsed = StreamCancelSchema.safeParse(raw);
     if (!parsed.success) return;
     const { streamId } = parsed.data;
@@ -273,6 +287,7 @@ function registerModelDownload(): void {
   const active = new Map<string, AbortController>();
 
   ipcMain.on(IPC.modelDownload, (event, raw: unknown) => {
+    if (!isTrustedSender(event)) return;
     const parsed = ModelDownloadEnvelopeSchema.safeParse(raw);
     if (!parsed.success) return;
     const { streamId } = parsed.data;
@@ -285,7 +300,8 @@ function registerModelDownload(): void {
     };
 
     downloadModel(
-      (receivedBytes, totalBytes) => send({ type: "progress", receivedBytes, totalBytes }),
+      (receivedBytes, totalBytes) =>
+        send({ type: "progress", receivedBytes, totalBytes }),
       controller.signal,
     )
       .then(() => send({ type: "done" }))
@@ -304,7 +320,8 @@ function registerModelDownload(): void {
       });
   });
 
-  ipcMain.on(`${IPC.modelDownload}:cancel`, (_event, raw: unknown) => {
+  ipcMain.on(`${IPC.modelDownload}:cancel`, (event, raw: unknown) => {
+    if (!isTrustedSender(event)) return;
     const parsed = StreamCancelSchema.safeParse(raw);
     if (!parsed.success) return;
     const { streamId } = parsed.data;

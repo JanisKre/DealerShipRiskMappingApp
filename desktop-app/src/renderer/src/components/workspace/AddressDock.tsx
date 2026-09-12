@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import type { DealershipInput } from "@shared/types";
 import { useAppStore } from "@renderer/store/appStore";
 import { useMapStore } from "@renderer/store/mapStore";
@@ -16,6 +17,7 @@ interface Props {
  * in the appStore.
  */
 export function AddressDock({ onAddRows }: Readonly<Props>): React.JSX.Element {
+  const { t } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
   const analyzingIds = useAppStore((s) => s.analyzingIds);
   const selectedId = useAppStore((s) => s.selectedId);
@@ -27,16 +29,20 @@ export function AddressDock({ onAddRows }: Readonly<Props>): React.JSX.Element {
   async function handleUploadFile(file: File): Promise<void> {
     const isXlsx = /\.xlsx$/i.test(file.name);
     const result = isXlsx
-      ? await window.api.parseXlsx(arrayBufferToBase64(await file.arrayBuffer()))
+      ? await window.api.parseXlsx(
+          arrayBufferToBase64(await file.arrayBuffer()),
+        )
       : await window.api.parseCsv(await file.text());
     setImportReport(result.report);
     if (result.rows.length === 0) {
-      toast.warning("No rows found — columns: name, address, lat, lon, value.");
+      toast.warning(t("ui.noRowsFound"));
       return;
     }
     await onAddRows(result.rows);
     if (result.report.issues.length > 0) {
-      toast.info(`${result.report.issues.length} import issue(s) recorded in the import report.`);
+      toast.info(
+        t("ui.importIssuesRecorded", { count: result.report.issues.length }),
+      );
     }
   }
 

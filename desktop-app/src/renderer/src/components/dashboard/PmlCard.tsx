@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import type { AnalyzedDealership } from "@shared/types";
 import { computePML } from "@shared/risk-math";
 import {
@@ -18,6 +19,7 @@ export function PmlCard({
 }: {
   dealerships: AnalyzedDealership[];
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const results = useMemo(
     () => ([10, 50, 100] as const).map((rp) => computePML(dealerships, rp)),
     [dealerships],
@@ -27,16 +29,14 @@ export function PmlCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">
-          Probable Maximum Loss (PML)
-        </CardTitle>
+        <CardTitle className="text-base">{t("dashboard.pml")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-3 gap-3">
           {results.map((r) => (
             <div key={r.returnPeriod} className="rounded-lg border p-3">
               <div className="text-xs text-muted-foreground">
-                {r.returnPeriod}-year event
+                {t("ui.returnPeriodEvent", { years: r.returnPeriod })}
               </div>
               <div className="mt-1 text-lg font-semibold">
                 {eur(r.estimatedLossEur)}
@@ -45,9 +45,9 @@ export function PmlCard({
           ))}
         </div>
         <p className="text-xs text-muted-foreground">
-          Worst {worst.clusterRadiusKm} km cluster:{" "}
-          {num(worst.dealershipsInScenario)} locations. Loss fraction
-          increases with the return period.
+          {t("ui.worstCluster", { radius: worst.clusterRadiusKm })}:{" "}
+          {num(worst.dealershipsInScenario)} {t("dashboard.locations")}.{" "}
+          {t("ui.lossFractionIncreases")}
         </p>
       </CardContent>
     </Card>

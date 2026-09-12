@@ -27,6 +27,9 @@ npm run dev
 npm run typecheck   # node + web
 npm run lint        # 0 warnings allowed
 npm run test        # Vitest
+npm run test:coverage
+npm run build
+npm run smoke       # starts the built app briefly where a display is available
 ```
 
 ## Conventions
@@ -60,8 +63,9 @@ these at runtime via `safeStorage`.
 
 Pushing a tag matching `v*.*.*` triggers
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which
-runs typecheck/lint/test, then builds and publishes unsigned macOS (dmg,
-arm64 + x64) and Windows (nsis) installers to a GitHub Release.
+runs typecheck/lint/test/coverage/build/smoke/audit, then builds and publishes
+unsigned macOS (dmg, arm64 + x64) and Windows (nsis) installers. Each release
+also includes SHA-256 checksums, a CycloneDX SBOM, and GitHub build provenance.
 
 ```bash
 # bump "version" in desktop-app/package.json first, then:

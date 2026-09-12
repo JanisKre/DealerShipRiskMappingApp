@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { useAppStore } from "@renderer/store/appStore";
@@ -25,6 +26,7 @@ import { useConversationStore } from "@renderer/store/conversationStore";
  *   - Composer at the bottom: Omnibox in "chat" + "dashboard" modes
  */
 export function ChatPanel(): React.JSX.Element {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const hasData = useAppStore((s) => s.dealerships.length > 0);
   const loadList = useConversationStore((s) => s.loadList);
@@ -67,7 +69,7 @@ export function ChatPanel(): React.JSX.Element {
             <button
               type="button"
               className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-medium hover:text-foreground"
-              title="Switch thread"
+              title={t("ui.switchThread")}
             >
               <span className="truncate">{activeName}</span>
               <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
@@ -76,27 +78,27 @@ export function ChatPanel(): React.JSX.Element {
           <DropdownMenuContent align="start" className="w-56">
             {recentThreads.length === 0 ? (
               <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                No threads yet.
+                {t("ui.noThreads")}
               </p>
             ) : (
-              recentThreads.map((t) => (
+              recentThreads.map((conversation) => (
                 <DropdownMenuItem
-                  key={t.id}
-                  onSelect={() => void selectConversation(t.id)}
+                  key={conversation.id}
+                  onSelect={() => void selectConversation(conversation.id)}
                   className={cn(
                     "group justify-between gap-2",
-                    t.id === activeId && "font-medium",
+                    conversation.id === activeId && "font-medium",
                   )}
                 >
-                  <span className="min-w-0 flex-1 truncate">{t.name}</span>
+                  <span className="min-w-0 flex-1 truncate">{conversation.name}</span>
                   <button
                     type="button"
-                    aria-label="Delete thread"
-                    title="Delete"
+                    aria-label={t("ui.deleteThread")}
+                    title={t("ui.delete")}
                     className="shrink-0 rounded p-0.5 opacity-0 hover:text-destructive group-hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
-                      void deleteConversation(t.id);
+                      void deleteConversation(conversation.id);
                     }}
                   >
                     <Trash2 className="size-3.5" />
@@ -113,8 +115,8 @@ export function ChatPanel(): React.JSX.Element {
           size="icon"
           className="size-7 shrink-0"
           onClick={newConversation}
-          title="New chat thread"
-          aria-label="New chat thread"
+          title={t("ui.newChatThread")}
+          aria-label={t("ui.newChatThread")}
         >
           <Plus className="size-4" />
         </Button>
@@ -125,10 +127,7 @@ export function ChatPanel(): React.JSX.Element {
         {chatEmpty && !hasData ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
             <MessageSquare className="size-8 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground">
-              Ask about the portfolio or have an AI dashboard generated for
-              you.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("ui.emptyChat")}</p>
           </div>
         ) : (
           <div className="space-y-4 px-4 py-4">
@@ -151,7 +150,9 @@ export function ChatPanel(): React.JSX.Element {
                   />
                 )}
                 {error && (
-                  <p className="text-xs text-destructive">Error: {error}</p>
+                  <p className="text-xs text-destructive">
+                    {t("ui.error", { error })}
+                  </p>
                 )}
               </div>
             )}

@@ -1,5 +1,10 @@
 import type { AnalyzedDealership, DashboardSpec, Peril } from "./types";
-import { computeCoverage, computeSeasonalProfile, type SeasonalPoint } from "./analytics";
+import {
+  computeCoverage,
+  computeSeasonalProfile,
+  type SeasonalPoint,
+} from "./analytics";
+import { effectiveVehicleCount } from "./risk-math";
 
 /**
  * Deterministic aggregate computation for AI dashboards. Pure function
@@ -74,7 +79,7 @@ export function computeDashboardData(
         scored.length
       : 0;
   const totalVehicles = dealerships.reduce(
-    (a, d) => a + (d.detection?.vehicleCount ?? 0),
+    (a, d) => a + effectiveVehicleCount(d.detection),
     0,
   );
   const extremeCount = dealerships.filter(
@@ -83,7 +88,8 @@ export function computeDashboardData(
 
   // Risk distribution: buckets in fixed order, empty ones dropped.
   const bucketCounts = new Map<string, number>();
-  for (const label of RISK_BUCKETS.map((b) => b.label)) bucketCounts.set(label, 0);
+  for (const label of RISK_BUCKETS.map((b) => b.label))
+    bucketCounts.set(label, 0);
   for (const d of dealerships) {
     const label = riskBucketLabel(d.risk?.overallScore ?? 0);
     bucketCounts.set(label, (bucketCounts.get(label) ?? 0) + 1);
@@ -101,9 +107,7 @@ export function computeDashboardData(
     .map((d) => ({ label: d.name, value: Math.round(d.risk?.eal ?? 0) }));
 
   const topScore: SeriesPoint[] = [...dealerships]
-    .sort(
-      (a, b) => (b.risk?.overallScore ?? 0) - (a.risk?.overallScore ?? 0),
-    )
+    .sort((a, b) => (b.risk?.overallScore ?? 0) - (a.risk?.overallScore ?? 0))
     .slice(0, 10)
     .map((d) => ({
       label: d.name,
@@ -120,7 +124,14 @@ export function computeDashboardData(
   const seasonalProfile = computeSeasonalProfile(dealerships);
 
   return {
-    kpi: { count, totalEal, totalExposure, avgScore, totalVehicles, extremeCount },
+    kpi: {
+      count,
+      totalEal,
+      totalExposure,
+      avgScore,
+      totalVehicles,
+      extremeCount,
+    },
     riskDistribution,
     topEal,
     topScore,
@@ -138,7 +149,12 @@ export function buildDefaultDashboardSpec(): DashboardSpec {
     title: "Portfolio overview",
     widgets: [
       { id: "kpi-count", type: "kpi", title: "Locations", source: "kpi.count" },
-      { id: "kpi-eal", type: "kpi", title: "Total EAL", source: "kpi.totalEal" },
+      {
+        id: "kpi-eal",
+        type: "kpi",
+        title: "Total EAL",
+        source: "kpi.totalEal",
+      },
       {
         id: "kpi-exposure",
         type: "kpi",
