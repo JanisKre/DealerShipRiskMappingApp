@@ -75,13 +75,29 @@ export const PolygonSchema = z.object({
 });
 export type Polygon = z.infer<typeof PolygonSchema>;
 
+/** A geometry considered during automatic boundary resolution. */
+export const BoundaryCandidateSchema = z.object({
+  source: BoundarySourceSchema,
+  polygon: PolygonSchema,
+  areaSqm: z.number().nonnegative(),
+  confidence: z.number().min(0).max(1),
+  label: z.string().optional(),
+  evidence: RiskEvidenceSchema.optional(),
+});
+export type BoundaryCandidate = z.infer<typeof BoundaryCandidateSchema>;
+
 export const BoundaryResultSchema = z.object({
   source: BoundarySourceSchema,
   gersId: z.string().optional(),
+  label: z.string().optional(),
   polygon: PolygonSchema,
   areaSqm: z.number().nonnegative(),
   confidence: z.number().min(0).max(1),
   evidence: RiskEvidenceSchema.optional(),
+  /** Alternative geometries retained for human review and future fusion. */
+  candidates: z.array(BoundaryCandidateSchema).max(10).optional(),
+  /** True when the result should be checked before it is used for underwriting. */
+  reviewRequired: z.boolean().optional(),
 });
 export type BoundaryResult = z.infer<typeof BoundaryResultSchema>;
 
@@ -305,6 +321,8 @@ export const SettingsSchema = z.object({
   wmsTileUrl: z.string().optional(),
   /** Install wizard for the vehicle detection model permanently dismissed. */
   modelWizardDismissed: z.boolean().optional(),
+  /** First-run installation wizard completed by the user. */
+  setupWizardCompleted: z.boolean().optional(),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 

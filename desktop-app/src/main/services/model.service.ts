@@ -7,12 +7,11 @@ import { MODEL_FILENAME, modelsDir, resetDetector } from "./detection.service";
 
 /**
  * Download source of the vehicle detection model for the installation wizard.
- * `null` = no public hosting location decided yet — the wizard then
- * shows the manual installation instructions instead of a download button.
- * Once a location is fixed (e.g. a public release/Hugging Face repo),
- * enter the direct HTTPS URL to the `.onnx` file here.
+ * The model is published as a release asset so it is downloaded outside the
+ * application bundle and survives app updates.
  */
-export const MODEL_DOWNLOAD_URL: string | null = null;
+export const MODEL_DOWNLOAD_URL =
+  "https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/yolov26s_aerial_vehicles.onnx";
 
 /** Thrown when no download is configured (→ IPC reports `unavailable`). */
 export class ModelDownloadUnavailableError extends Error {

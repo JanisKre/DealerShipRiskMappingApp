@@ -108,8 +108,12 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.parseXlsx, ({ base64 }) => parseXlsxWithReport(base64));
   handle(IPC.geocode, ({ query }) => geocode(query));
   handle(IPC.placesAutocomplete, ({ query }) => placesAutocomplete(query));
-  handle(IPC.detectBoundary, ({ lat, lon }) => detectBoundary(lat, lon));
-  handle(IPC.osmDetails, ({ lat, lon }) => getOsmDetails(lat, lon));
+  handle(IPC.detectBoundary, ({ lat, lon, name, address }) =>
+    detectBoundary(lat, lon, name, address),
+  );
+  handle(IPC.osmDetails, ({ lat, lon, name, address }) =>
+    getOsmDetails(lat, lon, name, address),
+  );
   handle(IPC.detectVehicles, async ({ lat, lon, boundary }) => {
     const image = await aerialImageForBoundary(lat, lon, boundary);
     return detectVehicles(image, boundary);

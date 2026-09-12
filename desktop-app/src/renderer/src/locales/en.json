@@ -75,13 +75,15 @@
   "model": {
     "title": "Install vehicle-detection model",
     "description": "Without this model, the app only estimates vehicle counts from the lot area instead of detecting vehicles with AI in the aerial imagery.",
+    "ready": "The local AI model is already installed. You can start using the app.",
     "idle": "The model (YOLOv26s, approx. 36 MB) will be downloaded once and stored locally.",
     "done": "Model installed — real AI vehicle detection is now active.",
     "downloadFailed": "Download failed: {{error}}",
     "unavailable": "Automatic download is not yet set up. Please place the model file here manually:",
     "dismiss": "Don't show again",
     "downloadNow": "Download now",
-    "downloading": "Downloading…"
+    "downloading": "Downloading…",
+    "continue": "Continue"
   },
   "dashboard": {
     "title": "Portfolio Dashboard",
@@ -137,6 +139,8 @@
       "boundaryTitle": "Parcel Boundary",
       "boundarySourceLabel": "Source: {{source}}",
       "boundaryConfidenceLabel": "· Confidence: {{confidence}}",
+      "boundaryReviewLabel": "Review required",
+      "boundaryCandidatesTitle": "{{count}} boundary candidates",
       "osmLoading": "Loading OSM info…",
       "osmHeading": "From OpenStreetMap",
       "insuredLabel": "Insured / Part of the Book",
@@ -243,7 +247,7 @@
       "undoBoundaryEdit": "Undo",
       "revertBoundaryDefault": "Revert to default",
       "updateCarDetection": "Update car detection",
-      "boundaryWarning": "{{count}} of {{total}} boundaries use fallback logic — review or edit them for accurate detection",
+      "boundaryWarning": "{{count}} of {{total}} boundaries need review — verify coverage or edit them before using the result",
       "dismissHint": "Dismiss hint",
       "detectionWarning": "{{count}} of {{total}} vehicle counts are estimated only — no AI model loaded",
       "detectionReviewSummary": "Machine: {{machine}} · Added: +{{added}} · Removed: −{{removed}} · Reviewed total: {{total}}",

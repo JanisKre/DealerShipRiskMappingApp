@@ -75,13 +75,15 @@
   "model": {
     "title": "Installer le modèle de détection des véhicules",
     "description": "Sans ce modèle, l'application estime seulement le nombre de véhicules selon la surface au lieu de les détecter par IA dans l'image aérienne.",
+    "ready": "Le modèle d'IA local est déjà installé. Vous pouvez commencer à utiliser l'application.",
     "idle": "Le modèle (YOLOv26s, environ 36 Mo) sera téléchargé une fois et stocké localement.",
     "done": "Modèle installé — la détection réelle par IA est maintenant active.",
     "downloadFailed": "Échec du téléchargement : {{error}}",
     "unavailable": "Le téléchargement automatique n'est pas encore configuré. Placez manuellement le fichier du modèle ici :",
     "dismiss": "Ne plus afficher",
     "downloadNow": "Télécharger maintenant",
-    "downloading": "Téléchargement…"
+    "downloading": "Téléchargement…",
+    "continue": "Continuer"
   },
   "dashboard": {
     "title": "Tableau de bord du portefeuille",
@@ -137,6 +139,8 @@
       "boundaryTitle": "Limite de parcelle",
       "boundarySourceLabel": "Source : {{source}}",
       "boundaryConfidenceLabel": "· Confiance : {{confidence}}",
+      "boundaryReviewLabel": "Vérification requise",
+      "boundaryCandidatesTitle": "{{count}} limites candidates",
       "osmLoading": "Chargement des infos OSM…",
       "osmHeading": "Depuis OpenStreetMap",
       "insuredLabel": "Assuré / Fait partie du portefeuille",
@@ -243,7 +247,7 @@
       "undoBoundaryEdit": "Annuler",
       "revertBoundaryDefault": "Rétablir la limite par défaut",
       "updateCarDetection": "Actualiser la détection des voitures",
-      "boundaryWarning": "{{count}} limites sur {{total}} utilisent la logique de secours — vérifiez-les ou modifiez-les pour une détection précise",
+      "boundaryWarning": "{{count}} limites sur {{total}} doivent être vérifiées — confirmez la couverture ou modifiez-les avant utilisation",
       "dismissHint": "Masquer l'indication",
       "detectionWarning": "{{count}} nombres de véhicules sur {{total}} sont uniquement estimés — aucun modèle IA chargé",
       "detectionReviewSummary": "Machine : {{machine}} · Ajoutés : +{{added}} · Supprimés : −{{removed}} · Total vérifié : {{total}}",
