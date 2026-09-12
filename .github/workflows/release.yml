@@ -39,7 +39,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        # windows-latest currently ships a Visual Studio version node-gyp
+        # doesn't recognize yet, which breaks the better-sqlite3 native
+        # build; windows-2022 has a known-good, node-gyp-compatible toolchain.
+        os: [macos-latest, windows-2022]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

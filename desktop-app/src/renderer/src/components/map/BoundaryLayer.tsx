@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Polygon, useMap } from "react-leaflet";
-import type { Layer, LeafletEvent, LeafletEventHandlerFnMap } from "leaflet";
+import type { Layer, LeafletEventHandlerFnMap } from "leaflet";
 import area from "@turf/area";
 import { polygon as turfPolygon } from "@turf/helpers";
 import type {
@@ -73,8 +73,10 @@ export function BoundaryLayer({
             }}
             eventHandlers={
               {
-                "pm:edit": (e: LeafletEvent) => {
-                  const updated = readPolygon(e.target as EditableLayer);
+                "pm:edit": (e: BoundaryEditEvent) => {
+                  const layer = e.layer ?? e.target;
+                  if (!layer) return;
+                  const updated = readPolygon(layer as EditableLayer);
                   if (updated)
                     void updateBoundaryAndRescore(
                       d.id,
@@ -98,6 +100,15 @@ interface PmMap {
 
 interface EditableLayer extends Layer {
   getLatLngs: () => Array<Array<{ lat: number; lng: number }>>;
+}
+
+/**
+ * Geoman 2.20 exposes `layer` on its edit event, while older versions and
+ * React Leaflet's generic event map expose the edited layer as `target`.
+ */
+interface BoundaryEditEvent {
+  layer?: Layer;
+  target?: Layer;
 }
 
 /** Reads the (possibly nested) polygon of a Leaflet layer as a [lon,lat] ring. */
