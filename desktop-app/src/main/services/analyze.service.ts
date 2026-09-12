@@ -40,10 +40,17 @@ export async function analyzeDealership(
   const postalCode = extractPostalCode(input.address);
   const hailZone = postalCode ? lookupHailZone(postalCode) : null;
 
-  const boundary = await detectBoundary(lat, lon);
+  const boundary = await detectBoundary(lat, lon, input.name, input.address);
   const image = await aerialImageForBoundary(lat, lon, boundary);
   const detection = await detectVehicles(image, boundary);
-  const risk = await scoreRisk(lat, lon, input.assetValue, detection, boundary, hailZone ?? undefined);
+  const risk = await scoreRisk(
+    lat,
+    lon,
+    input.assetValue,
+    detection,
+    boundary,
+    hailZone ?? undefined,
+  );
 
   const hailRiskTier = hailZone ? hailZoneToRiskTier(hailZone) : undefined;
 

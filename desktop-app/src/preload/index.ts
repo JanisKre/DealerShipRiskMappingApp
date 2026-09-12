@@ -38,10 +38,14 @@ const api = {
   detectBoundary: (
     lat: number,
     lon: number,
+    name?: string,
+    address?: string,
   ): Promise<IpcResponse["boundary:detect"]> =>
     ipcRenderer.invoke(IPC.detectBoundary, {
       lat,
       lon,
+      name,
+      address,
     } satisfies IpcRequest["boundary:detect"]),
 
   detectVehicles: (
@@ -58,10 +62,14 @@ const api = {
   getOsmDetails: (
     lat: number,
     lon: number,
+    name?: string,
+    address?: string,
   ): Promise<IpcResponse["osm:details"]> =>
     ipcRenderer.invoke(IPC.osmDetails, {
       lat,
       lon,
+      name,
+      address,
     } satisfies IpcRequest["osm:details"]),
 
   fetchWeather: (

@@ -75,13 +75,15 @@
   "model": {
     "title": "Fahrzeugerkennungsmodell installieren",
     "description": "Ohne dieses Modell schätzt die App die Fahrzeugzahl nur anhand der Grundstücksfläche, statt Fahrzeuge per KI im Luftbild zu erkennen.",
+    "ready": "Das lokale KI-Modell ist bereits installiert. Du kannst die App direkt verwenden.",
     "idle": "Das Modell (YOLOv26s, ca. 36 MB) wird einmalig heruntergeladen und lokal gespeichert.",
     "done": "Modell installiert — die echte KI-Fahrzeugerkennung ist jetzt aktiv.",
     "downloadFailed": "Download fehlgeschlagen: {{error}}",
     "unavailable": "Der automatische Download ist noch nicht eingerichtet. Bitte lege die Modelldatei manuell hier ab:",
     "dismiss": "Nicht mehr anzeigen",
     "downloadNow": "Jetzt herunterladen",
-    "downloading": "Wird heruntergeladen…"
+    "downloading": "Wird heruntergeladen…",
+    "continue": "Weiter"
   },
   "dashboard": {
     "title": "Portfolio-Dashboard",
@@ -137,6 +139,8 @@
       "boundaryTitle": "Grundstücksgrenze",
       "boundarySourceLabel": "Quelle: {{source}}",
       "boundaryConfidenceLabel": "· Konfidenz: {{confidence}}",
+      "boundaryReviewLabel": "Prüfung erforderlich",
+      "boundaryCandidatesTitle": "{{count}} Grenzkandidaten",
       "osmLoading": "OSM-Infos werden geladen…",
       "osmHeading": "Aus OpenStreetMap",
       "insuredLabel": "Versichert / Teil des Bestands",
@@ -243,7 +247,7 @@
       "undoBoundaryEdit": "Rückgängig",
       "revertBoundaryDefault": "Auf Standard zurücksetzen",
       "updateCarDetection": "Fahrzeugerkennung aktualisieren",
-      "boundaryWarning": "{{count}} von {{total}} Grenzen verwenden die Fallback-Logik — bitte zur genauen Erkennung prüfen oder bearbeiten",
+      "boundaryWarning": "{{count}} von {{total}} Grenzen müssen geprüft werden — bitte die Abdeckung verifizieren oder vor der Nutzung bearbeiten",
       "dismissHint": "Hinweis ausblenden",
       "detectionWarning": "{{count}} von {{total}} Fahrzeugzahlen nur geschätzt — kein KI-Modell geladen",
       "detectionReviewSummary": "Maschine: {{machine}} · Hinzugefügt: +{{added}} · Entfernt: −{{removed}} · Geprüfte Summe: {{total}}",

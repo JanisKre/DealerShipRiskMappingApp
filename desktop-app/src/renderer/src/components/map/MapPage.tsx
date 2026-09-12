@@ -252,10 +252,10 @@ export function MapPage(): React.JSX.Element {
 
   const visibleDealerships = portfolioFiltered;
 
-  // Locations whose boundary could not be detected (estimated buffer only) —
-  // makes silent quality loss visible instead of only showing it via the legend color.
-  const syntheticBoundaryCount = useMemo(
-    () => withCoords.filter((d) => d.boundary?.source === "synthetic").length,
+  // Surface every low-confidence/estimated boundary, not only synthetic buffers.
+  // This makes regional source gaps and weak OSM matches visible to the underwriter.
+  const boundaryReviewCount = useMemo(
+    () => withCoords.filter((d) => d.boundary?.reviewRequired).length,
     [withCoords],
   );
 
@@ -597,12 +597,12 @@ export function MapPage(): React.JSX.Element {
 
         {!analyzing &&
           !boundaryWarningDismissed &&
-          syntheticBoundaryCount > 0 && (
+          boundaryReviewCount > 0 && (
             <div className="glass flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm shadow-lg">
               <TriangleAlert className="size-4 shrink-0 text-amber-500" />
               <span>
                 {t("map.page.boundaryWarning", {
-                  count: syntheticBoundaryCount,
+                  count: boundaryReviewCount,
                   total: withCoords.length,
                 })}
               </span>

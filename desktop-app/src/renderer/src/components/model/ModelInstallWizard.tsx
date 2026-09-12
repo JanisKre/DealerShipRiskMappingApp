@@ -13,17 +13,22 @@ import {
 } from "@renderer/components/ui/dialog";
 import { Progress } from "@renderer/components/ui/progress";
 
-type Phase = "idle" | "downloading" | "done" | "error" | "unavailable";
+type Phase =
+  | "ready"
+  | "idle"
+  | "downloading"
+  | "done"
+  | "error"
+  | "unavailable";
 
 function mb(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 /**
- * Install wizard for the vehicle-detection model: checks on startup whether
- * an ONNX file is present, and otherwise offers a download (or — if no
- * download source is (yet) configured — manual instructions with the exact
- * target path. Can be permanently dismissed once in settings.
+ * First-run installation wizard for local AI prerequisites. It is shown once
+ * for every new installation, even when the model is already bundled, and
+ * offers the model download when it is missing.
  */
 export function ModelInstallWizard(): React.JSX.Element | null {
   const { t } = useTranslation();
@@ -40,11 +45,18 @@ export function ModelInstallWizard(): React.JSX.Element | null {
     let cancelled = false;
     async function check(): Promise<void> {
       const settings = await window.api.getSettings();
-      if (settings.modelWizardDismissed) return;
+      if (settings.setupWizardCompleted || settings.modelWizardDismissed)
+        return;
       const status = await window.api.modelStatus();
-      if (cancelled || status.available) return;
+      if (cancelled) return;
       setInstallDir(status.installDir);
-      setPhase(status.downloadConfigured ? "idle" : "unavailable");
+      setPhase(
+        status.available
+          ? "ready"
+          : status.downloadConfigured
+            ? "idle"
+            : "unavailable",
+      );
       setOpen(true);
     }
     void check();
@@ -71,7 +83,15 @@ export function ModelInstallWizard(): React.JSX.Element | null {
   }
 
   async function dismissForever(): Promise<void> {
-    await window.api.setSettings({ modelWizardDismissed: true });
+    await window.api.setSettings({
+      modelWizardDismissed: true,
+      setupWizardCompleted: true,
+    });
+    setOpen(false);
+  }
+
+  async function finish(): Promise<void> {
+    await window.api.setSettings({ setupWizardCompleted: true });
     setOpen(false);
   }
 
@@ -93,8 +113,24 @@ export function ModelInstallWizard(): React.JSX.Element | null {
           <DialogDescription>{t("model.description")}</DialogDescription>
         </DialogHeader>
 
-        {phase === "idle" && (
-          <p className="text-sm text-muted-foreground">{t("model.idle")}</p>
+        {phase === "ready" && (
+          <p className="text-sm text-emerald-600">{t("model.ready")}</p>
+        )}
+
+        {(phase === "idle" || phase === "unavailable") && (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">{t("model.idle")}</p>
+            {phase === "unavailable" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {t("model.unavailable")}
+                </p>
+                <code className="block break-all rounded bg-muted px-2 py-1.5 text-xs">
+                  {installDir}
+                </code>
+              </>
+            )}
+          </div>
         )}
 
         {phase === "downloading" && (
@@ -117,15 +153,6 @@ export function ModelInstallWizard(): React.JSX.Element | null {
           </p>
         )}
 
-        {phase === "unavailable" && (
-          <div className="space-y-2 text-sm">
-            <p className="text-muted-foreground">{t("model.unavailable")}</p>
-            <code className="block break-all rounded bg-muted px-2 py-1.5 text-xs">
-              {installDir}
-            </code>
-          </div>
-        )}
-
         <DialogFooter className="gap-2 sm:gap-0">
           <Button
             variant="ghost"
@@ -140,9 +167,13 @@ export function ModelInstallWizard(): React.JSX.Element | null {
               {t("model.downloadNow")}
             </Button>
           )}
-          {(phase === "done" || phase === "unavailable") && (
-            <Button size="sm" onClick={() => setOpen(false)}>
-              {t("common.close")}
+          {(phase === "ready" ||
+            phase === "done" ||
+            phase === "unavailable") && (
+            <Button size="sm" onClick={() => void finish()}>
+              {phase === "unavailable"
+                ? t("common.close")
+                : t("model.continue")}
             </Button>
           )}
           {phase === "downloading" && (

@@ -74,6 +74,8 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   const { details: osmDetails, loading: osmLoading } = useOsmDetails(
     d.lat,
     d.lon,
+    d.name,
+    d.address,
   );
 
   return (
@@ -250,7 +252,39 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
               })}
             </span>
           )}
+          {d.boundary?.reviewRequired && (
+            <Badge
+              variant="outline"
+              className="border-amber-500 text-amber-600"
+            >
+              {t("dashboard.detailDialog.boundaryReviewLabel")}
+            </Badge>
+          )}
         </div>
+        {d.boundary?.candidates && d.boundary.candidates.length > 1 && (
+          <details className="mt-2 rounded-md border bg-muted/20 p-2 text-xs">
+            <summary className="cursor-pointer font-medium">
+              {t("dashboard.detailDialog.boundaryCandidatesTitle", {
+                count: d.boundary.candidates.length,
+              })}
+            </summary>
+            <div className="mt-2 space-y-1.5 text-muted-foreground">
+              {d.boundary.candidates.slice(0, 5).map((candidate, index) => (
+                <div
+                  key={`${candidate.source}-${candidate.label ?? "candidate"}-${index}`}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <span className="truncate">
+                    {candidate.label ?? candidate.source}
+                  </span>
+                  <span className="shrink-0">
+                    {num(candidate.areaSqm)} m² · {pct(candidate.confidence, 0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
       </div>
 
       {d.risk && (
@@ -393,6 +427,8 @@ function ManualVehicleCountEditor({
 function useOsmDetails(
   lat: number,
   lon: number,
+  name?: string,
+  address?: string,
 ): { details: OsmDetails | null; loading: boolean } {
   const [details, setDetails] = useState<OsmDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -402,7 +438,7 @@ function useOsmDetails(
     setLoading(true);
     setDetails(null);
     window.api
-      .getOsmDetails(lat, lon)
+      .getOsmDetails(lat, lon, name, address)
       .then((res) => {
         if (!cancelled) setDetails(res);
       })
@@ -415,14 +451,15 @@ function useOsmDetails(
     return () => {
       cancelled = true;
     };
-  }, [lat, lon]);
+  }, [lat, lon, name, address]);
 
   return { details, loading };
 }
 
-/** Google Maps link for the coordinate (always works, independent of OSM tags). */
-function googleMapsUrl(lat: number, lon: number): string {
-  return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+/** Google Maps search for the actual dealership, with coordinates as context. */
+function googleMapsUrl(d: AnalyzedDealership): string {
+  const query = [d.name, d.address].filter(Boolean).join(", ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
 /** OpenStreetMap link for the coordinate. */
@@ -431,9 +468,9 @@ function openStreetMapUrl(lat: number, lon: number): string {
 }
 
 /**
- * Always-visible link row: Google Maps + OpenStreetMap (both constructed directly
- * from the coordinates, no external query needed) plus the
- * website, as soon as the OSM fetch has delivered it.
+ * Always-visible link row: a dealership-specific Google Maps search, the
+ * coordinate-based OpenStreetMap view, and the official website when OSM has
+ * provided one.
  */
 function QuickLinksRow({
   d,
@@ -445,7 +482,7 @@ function QuickLinksRow({
   return (
     <div className="flex flex-wrap items-center gap-3 text-sm">
       <a
-        href={googleMapsUrl(d.lat, d.lon)}
+        href={googleMapsUrl(d)}
         target="_blank"
         rel="noreferrer"
         className="flex items-center gap-1.5 text-primary hover:underline"
@@ -470,7 +507,7 @@ function QuickLinksRow({
           className="flex min-w-0 items-center gap-1.5 text-primary hover:underline"
         >
           <Globe className="size-3.5 shrink-0" />
-          <span className="truncate">{website}</span>
+          <span className="truncate">Website</span>
         </a>
       )}
     </div>

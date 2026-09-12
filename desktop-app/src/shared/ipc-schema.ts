@@ -35,8 +35,18 @@ export const ipcRequest = {
   "places:autocomplete": z.object({
     query: z.string().min(1),
   }),
-  "boundary:detect": z.object({ lat: z.number(), lon: z.number() }),
-  "osm:details": z.object({ lat: z.number(), lon: z.number() }),
+  "boundary:detect": z.object({
+    lat: z.number(),
+    lon: z.number(),
+    name: z.string().optional(),
+    address: z.string().optional(),
+  }),
+  "osm:details": z.object({
+    lat: z.number(),
+    lon: z.number(),
+    name: z.string().optional(),
+    address: z.string().optional(),
+  }),
   "detect:vehicles": z.object({
     lat: z.number(),
     lon: z.number(),
@@ -92,7 +102,12 @@ export const ipcRequest = {
   "map:capture": z.object({
     /** Optional crop rect in CSS pixels (renderer coordinates). */
     rect: z
-      .object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })
+      .object({
+        x: z.number(),
+        y: z.number(),
+        width: z.number(),
+        height: z.number(),
+      })
       .optional(),
     /** "save" -> save dialog; "clipboard" -> copy to clipboard. */
     mode: z.enum(["save", "clipboard"]),
