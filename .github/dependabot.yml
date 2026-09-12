@@ -7,6 +7,12 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: "development"
+        exclude-patterns:
+          - "vite"
+    ignore:
+      # electron-vite@5 does not support Vite 8 yet.
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
