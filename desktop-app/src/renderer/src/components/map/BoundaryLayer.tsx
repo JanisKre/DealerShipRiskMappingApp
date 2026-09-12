@@ -15,6 +15,7 @@ const SOURCE_COLOR: Record<BoundarySource, string> = {
   alkis: "#2563eb",
   osm: "#0891b2",
   overture: "#7c3aed",
+  aerial: "#ea580c",
   synthetic: "#f59e0b",
   manual: "#16a34a",
 };
@@ -141,9 +142,19 @@ function rebuildBoundary(
   return {
     ...prev,
     source: "manual",
+    role: "operationalLot",
+    provider: "manual",
     polygon: { type: "Polygon", coordinates: [ring] },
     areaSqm,
     confidence: 1,
+    quality: {
+      geometryValid: true,
+      pointRelation: "unknown",
+      sourceAgreement: 1,
+      areaPlausibility: 1,
+      boundaryFit: 1,
+      reasons: [],
+    },
   };
 }
 

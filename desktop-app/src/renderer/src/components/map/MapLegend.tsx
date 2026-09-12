@@ -15,6 +15,7 @@ const SOURCES: Array<{
   { source: "alkis", label: "ALKIS" },
   { source: "osm", label: "OSM" },
   { source: "overture", label: "Overture" },
+  { source: "aerial", label: "Aerial surface" },
   { source: "synthetic", labelKey: "map.legend.estimated" },
   { source: "manual", labelKey: "map.legend.manual" },
 ];

@@ -11,10 +11,10 @@ import type {
 } from "./types";
 import {
   ACCUMULATION_REINSURE_THRESHOLD_EUR,
-  PML_CLUSTER_RADIUS_KM,
-  PML_DAMAGE_FRACTION,
   SCENARIO_INTENSITY_DAMAGE,
 } from "./constants";
+import { DEFAULT_RISK_PARAMETERS } from "./parameters";
+import type { RiskParameters } from "./types";
 
 /** Returns the count used for underwriting, preferring a human adjustment. */
 export function effectiveVehicleCount(
@@ -73,6 +73,7 @@ function shortHash(s: string): string {
 export function computePML(
   dealerships: AnalyzedDealership[],
   returnPeriod: 10 | 50 | 100,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): PmlResult {
   const withExposure = dealerships.filter((d) => exposureOf(d) > 0);
 
@@ -83,7 +84,7 @@ export function computePML(
     const inCluster = withExposure.filter(
       (d) =>
         haversineKm(anchor.lat, anchor.lon, d.lat, d.lon) <=
-        PML_CLUSTER_RADIUS_KM,
+        parameters.pmlClusterRadiusKm,
     );
     const clusterExposure = inCluster.reduce(
       (sum, d) => sum + exposureOf(d),
@@ -98,10 +99,14 @@ export function computePML(
   return {
     returnPeriod,
     estimatedLossEur: Math.round(
-      bestClusterExposure * PML_DAMAGE_FRACTION[returnPeriod],
+      bestClusterExposure * ({
+        10: parameters.pmlDamageFraction10,
+        50: parameters.pmlDamageFraction50,
+        100: parameters.pmlDamageFraction100,
+      }[returnPeriod]),
     ),
     dealershipsInScenario: bestClusterCount,
-    clusterRadiusKm: PML_CLUSTER_RADIUS_KM,
+    clusterRadiusKm: parameters.pmlClusterRadiusKm,
   };
 }
 
@@ -196,6 +201,7 @@ function isInCorridor(
 export function computeScenarioImpact(
   scenario: HailstormScenario,
   dealerships: AnalyzedDealership[],
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): ScenarioImpact {
   const halfWidth = scenario.widthKm / 2;
   const affected = dealerships.filter((d) =>
@@ -206,7 +212,12 @@ export function computeScenarioImpact(
   const totalExposureEur =
     affected.reduce((sum, d) => sum + exposureOf(d), 0) * exposureMultiplier;
   const damageFraction =
-    SCENARIO_INTENSITY_DAMAGE[scenario.intensityLevel] ?? 0.15;
+    {
+      LOW: parameters.scenarioDamageLow,
+      MEDIUM: parameters.scenarioDamageMedium,
+      HIGH: parameters.scenarioDamageHigh,
+      EXTREME: parameters.scenarioDamageExtreme,
+    }[scenario.intensityLevel] ?? parameters.scenarioDamageMedium;
 
   return {
     affectedDealershipIds: affected.map((d) => d.id),
@@ -414,6 +425,7 @@ export function groupSummary(
 export function computeAccumulationClusters(
   dealerships: AnalyzedDealership[],
   radiusKm: number,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): AccumulationCluster[] {
   const n = dealerships.length;
   const parent = Array.from({ length: n }, (_, i) => i);
@@ -464,7 +476,7 @@ export function computeAccumulationClusters(
     const maxHailScore = Math.max(0, ...hailScores);
     const meanHailScore = hailScores.reduce((s, x) => s + x, 0) / (count || 1);
     const natCatKpiEur = Math.round(
-      totalExposureEur * SCENARIO_INTENSITY_DAMAGE.MEDIUM,
+      totalExposureEur * parameters.scenarioDamageMedium,
     );
 
     // Dominant sales partner (most frequent) in the cluster.

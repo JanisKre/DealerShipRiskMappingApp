@@ -7,8 +7,13 @@ import type {
   ImportReport,
   NlQueryDealership,
   ManualVehiclePoint,
+  RiskParameters,
   Session,
 } from "@shared/types";
+import {
+  DEFAULT_RISK_PARAMETERS,
+  normalizeRiskParameters,
+} from "@shared/parameters";
 import { dedupeDealerships } from "@shared/dedupe";
 import { effectiveVehicleCount } from "@shared/risk-math";
 import { riskLevel } from "@renderer/lib/riskColor";
@@ -24,6 +29,8 @@ interface AppState {
   sessionId: string | null;
   sessionName: string;
   dealerships: AnalyzedDealership[];
+  parameters: RiskParameters;
+  parametersUpdating: boolean;
   selectedId: string | null;
   analyzing: boolean;
   progress: { done: number; total: number } | null;
@@ -60,6 +67,9 @@ interface AppState {
   setSessionName: (name: string) => void;
   setImportReport: (report: ImportReport | null) => void;
   setDealerships: (d: AnalyzedDealership[]) => void;
+  setParameters: (parameters?: Partial<RiskParameters> | null) => void;
+  updateParameters: (patch: Partial<RiskParameters>) => Promise<void>;
+  resetParameters: () => Promise<void>;
   upsertDealership: (d: AnalyzedDealership) => void;
   updateBoundary: (
     id: string,
@@ -150,6 +160,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   sessionId: null,
   sessionName: "New Portfolio",
   dealerships: [],
+  parameters: DEFAULT_RISK_PARAMETERS,
+  parametersUpdating: false,
   selectedId: null,
   analyzing: false,
   progress: null,
@@ -169,6 +181,52 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setSession: (id, name) => set({ sessionId: id, sessionName: name }),
   setSessionName: (name) => set({ sessionName: name }),
+  setParameters: (parameters) =>
+    set({ parameters: normalizeRiskParameters(parameters) }),
+  updateParameters: async (patch) => {
+    const parameters = normalizeRiskParameters({ ...get().parameters, ...patch });
+    set({ parameters, parametersUpdating: true });
+    try {
+      const current = get().dealerships;
+      const updates = await Promise.all(
+        current
+          .filter((d) => d.lat != null && d.lon != null)
+          .map(async (d) => {
+            const risk = await window.api.scoreRisk(
+              d.lat,
+              d.lon,
+              d.assetValue,
+              d.detection,
+              d.boundary,
+              parameters,
+            );
+            return { id: d.id, risk };
+          }),
+      );
+      set((s) => ({
+        dealerships: s.dealerships.map((d) => {
+          const update = updates.find((x) => x.id === d.id);
+          const boundary = d.boundary
+            ? {
+                ...d.boundary,
+                reviewRequired: boundaryNeedsReview(d.boundary, parameters),
+              }
+            : d.boundary;
+          return update ? { ...d, boundary, risk: update.risk } : { ...d, boundary };
+        }),
+      }));
+    } catch (err) {
+      console.error("Parameter recalculation failed:", err);
+    } finally {
+      await get().saveSession().catch((err: unknown) => {
+        console.error("Saving parameters failed:", err);
+      });
+      set({ parametersUpdating: false });
+    }
+  },
+  resetParameters: async () => {
+    await get().updateParameters(DEFAULT_RISK_PARAMETERS);
+  },
   setImportReport: (lastImportReport) => set({ lastImportReport }),
   setDealerships: (dealerships) =>
     set({
@@ -238,6 +296,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         d.assetValue,
         d.detection,
         boundary,
+        get().parameters,
       );
       get().upsertDealership({
         ...get().dealerships.find((x) => x.id === id)!,
@@ -261,6 +320,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         d.lat,
         d.lon,
         d.boundary,
+        get().parameters,
       );
       const detection =
         d.detection?.manualVehicleCount == null
@@ -278,6 +338,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         d.assetValue,
         detection,
         d.boundary,
+        get().parameters,
       );
       const current = get().dealerships.find((x) => x.id === id);
       if (current) get().upsertDealership({ ...current, detection, risk });
@@ -347,6 +408,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       current.assetValue,
       current.detection,
       previous,
+      get().parameters,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, risk });
@@ -381,6 +443,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       current.assetValue,
       current.detection,
       baseBoundary,
+      get().parameters,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, risk });
@@ -416,6 +479,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       current.assetValue,
       detection,
       current.boundary,
+      get().parameters,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, detection, risk });
@@ -438,6 +502,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       current.assetValue,
       detection,
       current.boundary,
+      get().parameters,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, detection, risk });
@@ -456,7 +521,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!d) return;
     set((s) => ({ analyzingIds: [...s.analyzingIds, id] }));
     try {
-      const result = await window.api.analyzeDealership(d);
+      const result = await window.api.analyzeDealership(d, get().parameters);
       if (d.detection && result.detection) {
         result.detection = {
           ...result.detection,
@@ -481,7 +546,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     for (let i = 0; i < inputs.length; i++) {
       try {
-        const result = await window.api.analyzeDealership(inputs[i]);
+        const result = await window.api.analyzeDealership(
+          inputs[i],
+          get().parameters,
+        );
         get().upsertDealership(result);
       } catch (err) {
         console.error(`Analysis failed for ${inputs[i].name}:`, err);
@@ -520,7 +588,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       const input = fresh[i];
       set((s) => ({ analyzingIds: [...s.analyzingIds, input.id] }));
       try {
-        const result = await window.api.analyzeDealership(input);
+        const result = await window.api.analyzeDealership(
+          input,
+          get().parameters,
+        );
         get().upsertDealership(result);
       } catch (err) {
         console.error(`Analysis failed for ${input.name}:`, err);
@@ -549,6 +620,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       createdAt: now,
       updatedAt: now,
       dealerships: s.dealerships,
+      parameters: s.parameters,
     };
   },
 
@@ -571,6 +643,21 @@ function withoutKey(
   const copy = { ...values };
   delete copy[key];
   return copy;
+}
+
+function boundaryNeedsReview(
+  boundary: NonNullable<AnalyzedDealership["boundary"]>,
+  parameters: RiskParameters,
+): boolean {
+  return (
+    boundary.source === "synthetic" ||
+    boundary.role !== "operationalLot" ||
+    boundary.confidence < parameters.boundaryReviewConfidence ||
+    (boundary.quality?.top2Margin ?? 1) < parameters.boundaryReviewTop2Margin ||
+    boundary.quality?.pointRelation === "outside" ||
+    (boundary.quality?.sourceAgreement ?? 0) < parameters.boundaryReviewSourceAgreement ||
+    (boundary.quality?.areaPlausibility ?? 0) < 0.5
+  );
 }
 
 /** Flat NL query projection of a dealership (for the filter evaluator in main). */

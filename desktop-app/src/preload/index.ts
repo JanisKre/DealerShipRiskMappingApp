@@ -52,11 +52,13 @@ const api = {
     lat: number,
     lon: number,
     boundary?: IpcRequest["detect:vehicles"]["boundary"],
+    parameters?: IpcRequest["detect:vehicles"]["parameters"],
   ): Promise<IpcResponse["detect:vehicles"]> =>
     ipcRenderer.invoke(IPC.detectVehicles, {
       lat,
       lon,
       boundary,
+      parameters,
     } satisfies IpcRequest["detect:vehicles"]),
 
   getOsmDetails: (
@@ -102,6 +104,7 @@ const api = {
     assetValue?: number,
     detection?: IpcRequest["risk:score"]["detection"],
     boundary?: IpcRequest["risk:score"]["boundary"],
+    parameters?: IpcRequest["risk:score"]["parameters"],
   ): Promise<IpcResponse["risk:score"]> =>
     ipcRenderer.invoke(IPC.scoreRisk, {
       lat,
@@ -109,13 +112,16 @@ const api = {
       assetValue,
       detection,
       boundary,
+      parameters,
     } satisfies IpcRequest["risk:score"]),
 
   analyzeDealership: (
     dealership: IpcRequest["analyze:dealership"]["dealership"],
+    parameters?: IpcRequest["analyze:dealership"]["parameters"],
   ): Promise<IpcResponse["analyze:dealership"]> =>
     ipcRenderer.invoke(IPC.analyzeDealership, {
       dealership,
+      parameters,
     } satisfies IpcRequest["analyze:dealership"]),
 
   listSessions: (): Promise<IpcResponse["sessions:list"]> =>

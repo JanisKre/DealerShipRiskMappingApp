@@ -5,6 +5,7 @@ import { AppShell } from "@renderer/components/layout/AppShell";
 import { DashboardPage } from "@renderer/components/dashboard/DashboardPage";
 import { SettingsPage } from "@renderer/components/settings/SettingsPage";
 import { WorkspacePage } from "@renderer/components/workspace/WorkspacePage";
+import { ParametersPage } from "@renderer/components/parameters/ParametersPage";
 import { Toaster } from "@renderer/components/ui/sonner";
 
 export function App(): React.JSX.Element {
@@ -31,7 +32,7 @@ export function App(): React.JSX.Element {
           <Route path="map" element={<Navigate to="/" replace />} />
           <Route path="chat" element={<Navigate to="/" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="ai-dashboard" element={<Navigate to="/dashboard" replace />} />
+          <Route path="parameters" element={<ParametersPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

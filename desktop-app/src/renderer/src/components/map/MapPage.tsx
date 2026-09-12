@@ -19,7 +19,6 @@ import {
   X,
 } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
-import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
 import {
   computeAccumulationClusters,
   effectiveVehicleCount,
@@ -181,6 +180,7 @@ export function MapPage(): React.JSX.Element {
   const { t } = useTranslation();
   // Portfolio state
   const dealerships = useAppStore((s) => s.dealerships);
+  const parameters = useAppStore((s) => s.parameters);
   const scenario = useAppStore((s) => s.scenario);
   const setScenario = useAppStore((s) => s.setScenario);
   const selectedId = useAppStore((s) => s.selectedId);
@@ -275,9 +275,10 @@ export function MapPage(): React.JSX.Element {
     () =>
       computeAccumulationClusters(
         visibleDealerships,
-        ACCUMULATION_RADIUS_KM,
+        parameters.accumulationRadiusKm,
+        parameters,
       ).filter((c) => c.count > 1).length,
-    [visibleDealerships],
+    [visibleDealerships, parameters],
   );
 
   const center: [number, number] =
@@ -428,7 +429,7 @@ export function MapPage(): React.JSX.Element {
           <NearbyInsuredLayer
             subject={selectedDealership}
             dealerships={withCoords}
-            radiusKm={ACCUMULATION_RADIUS_KM}
+            radiusKm={parameters.accumulationRadiusKm}
           />
         )}
         {perilOverlay && (
@@ -646,7 +647,7 @@ export function MapPage(): React.JSX.Element {
               <Info className="size-4 shrink-0 text-muted-foreground" />
               <span>
                 {t("map.page.noClustersInfo", {
-                  radius: ACCUMULATION_RADIUS_KM,
+                  radius: parameters.accumulationRadiusKm,
                 })}
               </span>
             </div>

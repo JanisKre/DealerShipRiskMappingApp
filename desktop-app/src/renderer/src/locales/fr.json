@@ -3,8 +3,8 @@
     "import": "Accueil",
     "map": "Carte",
     "dashboard": "Tableau de bord",
-    "aiDashboard": "Tableau de bord IA",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "parameters": "Paramètres du modèle"
   },
   "shell": {
     "editProjectName": "Modifier le nom du projet",
@@ -15,7 +15,7 @@
     "subtitle": "Ajoutez une adresse ou interrogez l'IA — le champ de saisie est en bas.",
     "emptyTitle": "Comment puis-je vous aider ?",
     "emptyDescription": "Ajoutez une adresse, importez un fichier CSV/Excel ou interrogez le portefeuille — p. ex. « Quels sites déterminent l'EAL ? »",
-    "inputHint": "Saisissez une adresse, une question ou une demande de tableau de bord · importez via 📎 CSV, TSV ou Excel (.xlsx) · colonnes : name, address, lat, lon, value",
+    "inputHint": "Saisissez une adresse ou une question · importez via 📎 CSV, TSV ou Excel (.xlsx) · colonnes : name, address, lat, lon, value",
     "duplicatesSkipped": "{{count}} sites en double détectés et ignorés.",
     "importQuality": "Qualité de l'import",
     "imported": "importés",
@@ -45,6 +45,21 @@
     "vehicles": "Véhicules",
     "score": "Score",
     "actions": "Actions"
+  },
+  "parameters": {
+    "title": "Paramètres du modèle",
+    "description": "Ajustez les paramètres de risque, d’exposition, de portefeuille et de qualité des données pour cette session. Les scores existants sont recalculés après la sortie d’un champ et les changements sont enregistrés automatiquement.",
+    "fields": "champs",
+    "cardDescription": "Les changements s’appliquent au prochain calcul.",
+    "reset": "Réinitialiser les valeurs",
+    "resetDone": "Paramètres réinitialisés.",
+    "recalculating": "Recalcul des scores…",
+    "autosaved": "Session enregistrée",
+    "startHereTitle": "Commencer ici",
+    "startHereDescription": "Pour la plupart des portefeuilles, les réglages marqués suffisent. Ils influencent directement l’exposition, l’EAL ou les alertes ; le reste est disponible dans « Paramètres avancés ».",
+    "fractionHint": "Repère : saisissez les proportions sous forme décimale — 0,15 correspond à 15 %. Les changements sont appliqués en quittant le champ.",
+    "recommended": "important",
+    "advancedParameters": "Paramètres avancés"
   },
   "settings": {
     "title": "Paramètres",
@@ -95,6 +110,7 @@
     "pml": "Perte maximale probable (PML)",
     "riskDistribution": "Répartition des risques",
     "topRisks": "Sites à risque élevé",
+    "noAnomalies": "Aucune anomalie ni valeur aberrante détectée.",
     "seasonalTitle": "Profil de risque saisonnier",
     "seasonalDescription": "Répartition annuelle typique du risque du portefeuille par péril",
     "coverageTitle": "Couverture des périls et concentration",
@@ -109,6 +125,35 @@
     "area": "Surface",
     "boundarySource": "Source de délimitation",
     "ealBreakdown": "Détail EAL",
+    "manageTiles": "Personnaliser le tableau de bord",
+    "visibleTiles": "Tuiles visibles",
+    "resetTiles": "Réinitialiser la disposition",
+    "removeTile": "Supprimer la tuile",
+    "dragTile": "Faire glisser pour réordonner",
+    "noTilesTitle": "Aucune tuile sélectionnée",
+    "noTilesDescription": "Ajoutez des tuiles via « Personnaliser le tableau de bord ».",
+    "openAssistant": "Assistant IA",
+    "closeAssistant": "Fermer l’assistant",
+    "assistantTitle": "Assistant du tableau de bord",
+    "assistantDescription": "Posez des questions ou modifiez le tableau de bord",
+    "assistantEmpty": "Interrogez ce portefeuille ou dites « afficher le tableau des sites ».",
+    "assistantHint": "Essayez : « ajouter le profil saisonnier » ou « supprimer la PML ».",
+    "examplePromptTable": "Afficher le tableau des sites",
+    "examplePromptSeasonal": "Ajouter le profil saisonnier",
+    "examplePromptRisk": "Afficher la répartition des risques",
+    "commandAdded": "Ajouté : {{tiles}}",
+    "commandRemoved": "Supprimé : {{tiles}}",
+    "commandReset": "Disposition du tableau de bord réinitialisée.",
+    "tiles": {
+      "summary": "Indicateurs du portefeuille",
+      "risk": "Répartition des risques",
+      "pml": "Perte maximale probable",
+      "insights": "Anomalies et alertes",
+      "coverage": "Couverture des périls",
+      "seasonal": "Profil de risque saisonnier",
+      "clusters": "Clusters de cumul",
+      "table": "Tableau des sites"
+    },
     "detailDialog": {
       "machineVehicleCount": "Véhicules détectés par la machine",
       "manualVehicleCount": "Nombre de véhicules ajusté manuellement",
@@ -139,6 +184,8 @@
       "boundaryTitle": "Limite de parcelle",
       "boundarySourceLabel": "Source : {{source}}",
       "boundaryConfidenceLabel": "· Confiance : {{confidence}}",
+      "boundaryRoleLabel": "· Rôle : {{role}}",
+      "boundaryAgreementLabel": "Accord des sources : {{agreement}}",
       "boundaryReviewLabel": "Vérification requise",
       "boundaryCandidatesTitle": "{{count}} limites candidates",
       "osmLoading": "Chargement des infos OSM…",
@@ -331,10 +378,6 @@
         "placeholder": "Posez une question à l'IA…",
         "helper": "Envoyez pour interroger le chat du portefeuille."
       },
-      "dashboard": {
-        "placeholder": "Décrivez un tableau de bord, p. ex. « Principaux risques et répartition EAL »…",
-        "helper": "Décrivez ce que le tableau de bord doit montrer – l'IA le compose pour vous."
-      },
       "searching": "Recherche…",
       "noResults": "Aucun résultat",
       "searchFailed": "Échec de la recherche",
@@ -342,7 +385,6 @@
       "addressToggleLabel": "Adresse",
       "chatToggleAriaLabel": "Chat",
       "chatToggleLabel": "Chat",
-      "dashboardToggleAriaLabel": "Créer un tableau de bord",
       "importFile": "Importer CSV / Excel",
       "send": "Envoyer"
     }

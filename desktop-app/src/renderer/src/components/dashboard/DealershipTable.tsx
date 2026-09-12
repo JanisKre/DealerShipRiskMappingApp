@@ -26,6 +26,7 @@ import {
 } from "@renderer/components/ui/table";
 import { eur, num } from "@renderer/lib/format";
 import { riskColor } from "@renderer/lib/riskColor";
+import { useAppStore } from "@renderer/store/appStore";
 
 const columnHelper = createColumnHelper<AnalyzedDealership>();
 
@@ -65,10 +66,16 @@ export function DealershipTable({
   ]);
   const [filter, setFilter] = useState("");
   const [showAdditionalScores, setShowAdditionalScores] = useState(false);
+  const parameters = useAppStore((s) => s.parameters);
 
   const alertIds = useMemo(
-    () => alertIdSet(generateAlerts(dealerships)),
-    [dealerships],
+    () => alertIdSet(generateAlerts(dealerships, {
+      extremeScore: parameters.alertExtremeScore,
+      overcapacity: parameters.alertOvercapacity,
+      lowBoundaryConfidence: parameters.alertLowBoundaryConfidence,
+      ealPortfolioShare: parameters.alertEalPortfolioShare,
+    })),
+    [dealerships, parameters],
   );
 
   const columns = useMemo(

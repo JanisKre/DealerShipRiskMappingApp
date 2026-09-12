@@ -65,17 +65,37 @@ API.
 
 ## Boundary quality and Germany-wide coverage
 
-Boundary detection is source-aware rather than silently treating every polygon
-as equally reliable:
+Boundary detection is source-aware and geometry-aware rather than silently
+treating every polygon as equally reliable:
 
 - ALKIS is preferred where a verified state WFS adapter is available.
 - OSM/Overpass contributes parking, retail and car-dealer geometries. The
   resolver ranks them using tags, dealership name/address and point
-  containment, then retains the other candidates for review.
-- A building footprint is only a low-confidence fallback; it is not presented
-  as a parking-lot boundary.
+  containment, validates geometry, and retains the other candidates for review.
+- Candidates carry an explicit role (`parcel`, `building`, `parkingSurface`,
+  `operationalLot`, or `synthetic`). A cadastral parcel or building footprint
+  is not silently promoted to an operational lot.
+- Overture Buildings can be queried through the official `overturemaps` CLI
+  when installed. Microsoft/Overture-style source confidence, GERS IDs and
+  source metadata are retained.
+- If vector evidence is weak, a low-confidence aerial paved-surface candidate
+  is generated from the configured imagery and must be reviewed.
+- Results are ranked using point relation, area plausibility, geometry validity,
+  source agreement, role fit and the top-2 margin. Provider failures are
+  isolated so one unavailable service does not discard the other candidates.
 - Every automatic result includes `confidence`, `reviewRequired` and up to ten
-  ranked `candidates`. Low-confidence results are surfaced in the map UI.
+  ranked `candidates`, plus explainable quality diagnostics. Low-confidence or
+  semantically incomplete results are surfaced in the map UI.
+
+Optional Overture integration:
+
+```bash
+pip install overturemaps
+```
+
+The adapter uses the official bbox-pruned CLI download and otherwise degrades
+gracefully to the other providers. `OVERTURE_COMMAND` can point to a custom
+CLI executable and `OVERTURE_PYTHON` can select the Python runtime.
 
 For a Germany-wide rollout, the next production data layer should be a
 licensed nationwide cadastral feed (for example [BKG FS-DE](https://www.bkg.bund.de/SharedDocs/Produktinformationen/BKG/DE/P-2026/260305_FS-DE.html)
@@ -85,10 +105,13 @@ and ATKIS/Basis-DLM are useful priors for land-use filtering; they do not
 replace a dealership-lot polygon. OSM and Overture Places are useful for POI
 conflation, but neither should be used alone as proof of the lot boundary.
 
-The acceptance benchmark should use manually verified dealership polygons: the
-predicted boundary must cover at least 90% of the reference lot area in at
-least 90% of the benchmark cases. Cases below that threshold remain reviewable
-and should feed back into source-specific ranking and calibration.
+The acceptance benchmark should use manually verified dealership polygons. The
+new `boundary-benchmark.ts` reports approximate IoU, Boundary-F1 at a 2 m
+tolerance, reference-area coverage, coverage-90% rate, area bias and confidence
+calibration. The existing acceptance target remains: the predicted boundary
+must cover at least 90% of the reference lot area in at least 90% of benchmark
+cases. Cases below that threshold remain reviewable and should feed back into
+source-specific ranking and calibration.
 
 ## Feature Scope
 

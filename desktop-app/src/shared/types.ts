@@ -63,36 +63,76 @@ export const BoundarySourceSchema = z.enum([
   "alkis",
   "osm",
   "overture",
+  "aerial",
   "synthetic",
   "manual",
 ]);
 export type BoundarySource = z.infer<typeof BoundarySourceSchema>;
 
+/** What the polygon represents; a parcel/building is not automatically a lot. */
+export const BoundaryGeometryRoleSchema = z.enum([
+  "parcel",
+  "building",
+  "parkingSurface",
+  "operationalLot",
+  "synthetic",
+]);
+export type BoundaryGeometryRole = z.infer<typeof BoundaryGeometryRoleSchema>;
+
+export const BoundaryPointRelationSchema = z.enum([
+  "inside",
+  "near",
+  "outside",
+  "unknown",
+]);
+export type BoundaryPointRelation = z.infer<typeof BoundaryPointRelationSchema>;
+
+/** Explainable quality signals used for ranking and underwriting review. */
+export const BoundaryQualitySchema = z.object({
+  geometryValid: z.boolean(),
+  pointRelation: BoundaryPointRelationSchema,
+  pointDistanceM: z.number().nonnegative().optional(),
+  sourceAgreement: z.number().min(0).max(1),
+  areaPlausibility: z.number().min(0).max(1),
+  boundaryFit: z.number().min(0).max(1),
+  top2Margin: z.number().min(0).max(1).optional(),
+  reasons: z.array(z.string()).default([]),
+});
+export type BoundaryQuality = z.infer<typeof BoundaryQualitySchema>;
+
 // GeoJSON polygon (ring of [lon, lat] pairs)
 export const PolygonSchema = z.object({
   type: z.literal("Polygon"),
-  coordinates: z.array(z.array(z.tuple([z.number(), z.number()]))),
+  coordinates: z
+    .array(z.array(z.tuple([z.number(), z.number()])).min(4))
+    .min(1),
 });
 export type Polygon = z.infer<typeof PolygonSchema>;
 
 /** A geometry considered during automatic boundary resolution. */
 export const BoundaryCandidateSchema = z.object({
   source: BoundarySourceSchema,
+  role: BoundaryGeometryRoleSchema.optional(),
+  provider: z.string().optional(),
   polygon: PolygonSchema,
   areaSqm: z.number().nonnegative(),
   confidence: z.number().min(0).max(1),
   label: z.string().optional(),
+  quality: BoundaryQualitySchema.optional(),
   evidence: RiskEvidenceSchema.optional(),
 });
 export type BoundaryCandidate = z.infer<typeof BoundaryCandidateSchema>;
 
 export const BoundaryResultSchema = z.object({
   source: BoundarySourceSchema,
+  role: BoundaryGeometryRoleSchema.optional(),
+  provider: z.string().optional(),
   gersId: z.string().optional(),
   label: z.string().optional(),
   polygon: PolygonSchema,
   areaSqm: z.number().nonnegative(),
   confidence: z.number().min(0).max(1),
+  quality: BoundaryQualitySchema.optional(),
   evidence: RiskEvidenceSchema.optional(),
   /** Alternative geometries retained for human review and future fusion. */
   candidates: z.array(BoundaryCandidateSchema).max(10).optional(),
@@ -288,12 +328,67 @@ export type AnalyzedDealership = z.infer<typeof AnalyzedDealershipSchema>;
 
 // --- Session / Portfolio ---------------------------------------------------
 
+/**
+ * User-tunable model parameters. Keeping the schema in the shared domain
+ * layer makes the values safe at the IPC boundary and backwards compatible
+ * with sessions created before the parameter tab existed.
+ */
+export const RiskParametersSchema = z.object({
+  vehicleValueCarEur: z.number().nonnegative(),
+  vehicleValueVanEur: z.number().nonnegative(),
+  vehicleValueTruckEur: z.number().nonnegative(),
+  vehicleValueBusEur: z.number().nonnegative(),
+  vehicleValueDefaultEur: z.number().nonnegative(),
+  capacitySqmPerVehicle: z.number().positive(),
+  hailDamageFraction: z.number().min(0).max(1),
+  hailSiteHitProbability: z.number().min(0).max(1),
+  climateLoadingFactor: z.number().min(0),
+  windStormThresholdKmh: z.number().nonnegative(),
+  windDamageFraction: z.number().min(0).max(1),
+  windSiteHitProbability: z.number().min(0).max(1),
+  lightningDamageFraction: z.number().min(0).max(1),
+  lightningDensityScale: z.number().nonnegative(),
+  snowLoadDamageFractionPer30cm: z.number().min(0).max(1),
+  floodDamageHq10: z.number().min(0).max(1),
+  floodDamageHq100: z.number().min(0).max(1),
+  floodDamageHqExtrem: z.number().min(0).max(1),
+  heatHotdaysScoreMax: z.number().positive(),
+  heatDamageFractionPerHotday: z.number().min(0).max(1),
+  windScoreMaxKmh: z.number().positive(),
+  lightningScoreMaxDensity: z.number().positive(),
+  snowScoreMaxCm: z.number().positive(),
+  floodScoreMaxAnnualPrecipMm: z.number().positive(),
+  pmlDamageFraction10: z.number().min(0).max(1),
+  pmlDamageFraction50: z.number().min(0).max(1),
+  pmlDamageFraction100: z.number().min(0).max(1),
+  pmlClusterRadiusKm: z.number().positive(),
+  accumulationRadiusKm: z.number().positive(),
+  accumulationReinsureThresholdEur: z.number().nonnegative(),
+  scenarioDamageLow: z.number().min(0).max(1),
+  scenarioDamageMedium: z.number().min(0).max(1),
+  scenarioDamageHigh: z.number().min(0).max(1),
+  scenarioDamageExtreme: z.number().min(0).max(1),
+  alertExtremeScore: z.number().min(0).max(100),
+  alertOvercapacity: z.number().nonnegative(),
+  alertLowBoundaryConfidence: z.number().min(0).max(1),
+  alertEalPortfolioShare: z.number().min(0).max(1),
+  boundaryReviewConfidence: z.number().min(0).max(1),
+  boundaryReviewTop2Margin: z.number().min(0).max(1),
+  boundaryReviewSourceAgreement: z.number().min(0).max(1),
+  boundaryNearPointDistanceM: z.number().nonnegative(),
+  syntheticBoundaryRadiusM: z.number().positive(),
+  detectionConfidence: z.number().min(0).max(1),
+});
+export type RiskParameters = z.infer<typeof RiskParametersSchema>;
+
 export const SessionSchema = z.object({
   id: z.string(),
   name: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
   dealerships: z.array(AnalyzedDealershipSchema),
+  /** Optional for backwards compatibility with older saved sessions. */
+  parameters: RiskParametersSchema.optional(),
 });
 export type Session = z.infer<typeof SessionSchema>;
 

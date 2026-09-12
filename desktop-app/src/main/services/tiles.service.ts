@@ -101,6 +101,9 @@ export interface AerialCapture extends AerialImage {
   /** Total latitude span of the mosaic (degrees) */
   latSpan: number;
   zoom: number;
+  /** Number of tiles with valid imagery versus requested tiles. */
+  validTileCount: number;
+  tileCount: number;
 }
 
 function boundingBox(b: BoundaryResult): [number, number, number, number] {
@@ -145,6 +148,22 @@ export async function aerialImageForBoundary(
   );
 }
 
+/** Public bbox capture used by boundary surface segmentation and diagnostics. */
+export async function aerialImageForBbox(
+  bbox: [number, number, number, number],
+  zoom = DETECTION_ZOOM,
+  time?: string,
+): Promise<AerialCapture> {
+  const settings = getSettings();
+  return captureMosaic(
+    bbox,
+    zoom,
+    settings.satelliteProvider ?? "esri",
+    settings.wmsTileUrl,
+    time,
+  );
+}
+
 async function captureMosaic(
   bbox: [number, number, number, number],
   zoom: number,
@@ -171,13 +190,15 @@ async function captureMosaic(
   for (let i = 3; i < rgba.length; i += 4) rgba[i] = 255;
 
   const jobs: Promise<void>[] = [];
+  let validTileCount = 0;
   for (let ty = yMin; ty <= yMax; ty++) {
     for (let tx = xMin; tx <= xMax; tx++) {
       const destCol = tx - xMin;
       const destRow = ty - yMin;
       jobs.push(
         loadTileRgb(zoom, ty, tx, provider, wmsTemplate, time).then(
-          ({ data }) => {
+          ({ data, ok }) => {
+            if (ok) validTileCount += 1;
             const px0 = destCol * TILE_SIZE;
             const py0 = destRow * TILE_SIZE;
             for (let row = 0; row < TILE_SIZE; row++) {
@@ -212,5 +233,7 @@ async function captureMosaic(
     lonSpan,
     latSpan,
     zoom,
+    validTileCount,
+    tileCount: jobs.length,
   };
 }

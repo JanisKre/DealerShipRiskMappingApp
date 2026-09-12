@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, Info, TrendingUp } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import {
@@ -15,6 +16,7 @@ import {
   CardTitle,
 } from "@renderer/components/ui/card";
 import { eur } from "@renderer/lib/format";
+import { useAppStore } from "@renderer/store/appStore";
 
 /**
  * Insights tile: rule-based alerts (extreme risk, EAL concentration,
@@ -28,14 +30,22 @@ export function InsightsPanel({
   dealerships: AnalyzedDealership[];
   onSelect: (d: AnalyzedDealership) => void;
 }>): React.JSX.Element | null {
-  const alerts = useMemo(() => generateAlerts(dealerships), [dealerships]);
+  const { t } = useTranslation();
+  const parameters = useAppStore((s) => s.parameters);
+  const alerts = useMemo(
+    () => generateAlerts(dealerships, {
+      extremeScore: parameters.alertExtremeScore,
+      overcapacity: parameters.alertOvercapacity,
+      lowBoundaryConfidence: parameters.alertLowBoundaryConfidence,
+      ealPortfolioShare: parameters.alertEalPortfolioShare,
+    }),
+    [dealerships, parameters],
+  );
   const anomalies = useMemo(() => detectAnomalies(dealerships), [dealerships]);
   const byId = useMemo(
     () => new Map(dealerships.map((d) => [d.id, d])),
     [dealerships],
   );
-
-  if (alerts.length === 0 && anomalies.length === 0) return null;
 
   function open(id: string): void {
     const d = byId.get(id);
@@ -53,6 +63,11 @@ export function InsightsPanel({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {alerts.length === 0 && anomalies.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            {t("dashboard.noAnomalies")}
+          </p>
+        )}
         {alerts.length > 0 && (
           <ul className="space-y-1.5">
             {alerts.slice(0, 8).map((a, i) => (

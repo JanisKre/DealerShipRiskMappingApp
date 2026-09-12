@@ -118,7 +118,7 @@ export function WorkspacePage(): React.JSX.Element {
 
         <ResizableHandle withHandle />
 
-        {/* Right dock: chat + dashboard composer */}
+        {/* Right dock: portfolio chat composer */}
         <ResizablePanel
           id={RIGHT_ID}
           panelRef={rightRef}

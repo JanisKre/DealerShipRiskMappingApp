@@ -46,6 +46,7 @@ const AUTOSAVE_DEBOUNCE_MS = 8_000;
  */
 function AutosaveController(): null {
   const dealerships = useAppStore((s) => s.dealerships);
+  const parameters = useAppStore((s) => s.parameters);
   const analyzing = useAppStore((s) => s.analyzing);
   const saveSession = useAppStore((s) => s.saveSession);
 
@@ -57,7 +58,7 @@ function AutosaveController(): null {
       });
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dealerships, analyzing, saveSession]);
+  }, [dealerships, parameters, analyzing, saveSession]);
 
   return null;
 }
@@ -66,6 +67,7 @@ function AutosaveController(): null {
 function SessionLoader(): null {
   const setSession = useAppStore((s) => s.setSession);
   const setDealerships = useAppStore((s) => s.setDealerships);
+  const setParameters = useAppStore((s) => s.setParameters);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +79,7 @@ function SessionLoader(): null {
         const session = await window.api.loadSession(latest.id);
         if (!cancelled && session) {
           setSession(session.id, session.name);
+          setParameters(session.parameters);
           setDealerships(session.dealerships);
         }
       })
@@ -86,7 +89,7 @@ function SessionLoader(): null {
     return () => {
       cancelled = true;
     };
-  }, [setDealerships, setSession]);
+  }, [setDealerships, setParameters, setSession]);
 
   return null;
 }

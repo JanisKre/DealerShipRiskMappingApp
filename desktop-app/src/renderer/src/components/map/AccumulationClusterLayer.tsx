@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { Circle, Tooltip } from "react-leaflet";
 import type { AnalyzedDealership } from "@shared/types";
 import { computeAccumulationClusters } from "@shared/risk-math";
-import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
 import { riskColor } from "@renderer/lib/riskColor";
 import { eur } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
@@ -29,13 +28,14 @@ export function AccumulationClusterLayer({
   const { t } = useTranslation();
   const activeClusterId = useAppStore((s) => s.filters.clusterId);
   const setFilters = useAppStore((s) => s.setFilters);
+  const parameters = useAppStore((s) => s.parameters);
 
   const clusters = useMemo(
     () =>
-      computeAccumulationClusters(dealerships, ACCUMULATION_RADIUS_KM).filter(
+      computeAccumulationClusters(dealerships, parameters.accumulationRadiusKm, parameters).filter(
         (c) => c.count > 1,
       ),
-    [dealerships],
+    [dealerships, parameters],
   );
 
   const maxEal = useMemo(
@@ -59,7 +59,7 @@ export function AccumulationClusterLayer({
           <Circle
             key={c.clusterId}
             center={[c.centerLat, c.centerLon]}
-            radius={ACCUMULATION_RADIUS_KM * 1000}
+            radius={parameters.accumulationRadiusKm * 1000}
             pathOptions={{
               color,
               weight: active ? 3 : 1.5,
