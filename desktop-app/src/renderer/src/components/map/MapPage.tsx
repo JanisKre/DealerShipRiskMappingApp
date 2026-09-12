@@ -267,6 +267,10 @@ export function MapPage(): React.JSX.Element {
       pathCoordinates: path,
       widthKm: scenario?.widthKm ?? 20,
       intensityLevel: scenario?.intensityLevel ?? "HIGH",
+      peril: scenario?.peril ?? "hail",
+      returnPeriodYears: scenario?.returnPeriodYears ?? 100,
+      exposureMultiplier: scenario?.exposureMultiplier ?? 1,
+      modelVersion: scenario?.modelVersion ?? "scenario-screening-0.2.0",
     });
     setDrawingScenario(false);
   }

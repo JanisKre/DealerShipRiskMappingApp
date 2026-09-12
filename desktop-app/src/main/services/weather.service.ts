@@ -1,4 +1,6 @@
 import { cached, TTL } from "./cache.service";
+import type { HazardProvider } from "./hazard-provider";
+import type { RiskEvidence } from "@shared/types";
 
 /**
  * Weather/climate data via Open-Meteo (no API key needed), fetched directly
@@ -25,7 +27,7 @@ const CAPE_THUNDER = 1000;
 const CAPE_HAIL = 1500;
 const HOT_DAY_C = 30;
 
-export async function fetchWeather(
+async function fetchOpenMeteoWeather(
   lat: number,
   lon: number,
 ): Promise<WeatherMetrics> {
@@ -72,6 +74,26 @@ export async function fetchWeather(
       hotDays: countAtLeast(tmax, HOT_DAY_C) * (365 / windowDays),
     };
   });
+}
+
+/** Default hazard adapter. Other providers can implement the same contract. */
+export const openMeteoProvider: HazardProvider = {
+  id: "open-meteo",
+  getWeather: fetchOpenMeteoWeather,
+  evidence: (): RiskEvidence => ({
+    source: "Open-Meteo",
+    retrievedAt: new Date().toISOString(),
+    dataVersion: "forecast-api",
+    spatialResolution: "model grid",
+    method: "92-day weather window with screening proxies",
+    confidence: 0.55,
+    fallbackUsed: false,
+    limitations: ["Not a catastrophe-model or engineering assessment"],
+  }),
+};
+
+export function fetchWeather(lat: number, lon: number): Promise<WeatherMetrics> {
+  return openMeteoProvider.getWeather(lat, lon);
 }
 
 /** Reduces hourly CAPE values to a daily maximum per calendar day. */

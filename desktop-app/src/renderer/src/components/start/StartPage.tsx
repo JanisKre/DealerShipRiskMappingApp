@@ -25,6 +25,8 @@ export function StartPage(): React.JSX.Element {
   const addAndAnalyze = useAppStore((s) => s.addAndAnalyze);
   const analyzing = useAppStore((s) => s.analyzing);
   const hasData = useAppStore((s) => s.dealerships.length > 0);
+  const lastImportReport = useAppStore((s) => s.lastImportReport);
+  const setImportReport = useAppStore((s) => s.setImportReport);
   const loadList = useConversationStore((s) => s.loadList);
   const generateDashboard = useDashboardStore((s) => s.generate);
   const dashboardGenerating = useDashboardStore((s) => s.generating);
@@ -75,12 +77,13 @@ export function StartPage(): React.JSX.Element {
   /** Read a CSV/TSV/Excel file and import it as location rows. */
   async function handleUploadFile(file: File): Promise<void> {
     const isXlsx = /\.xlsx$/i.test(file.name);
-    const parsed = isXlsx
+    const result = isXlsx
       ? await window.api.parseXlsx(
           arrayBufferToBase64(await file.arrayBuffer()),
         )
       : await window.api.parseCsv(await file.text());
-    await addRows(parsed);
+    setImportReport(result.report);
+    await addRows(result.rows);
   }
 
   const chatEmpty = messages.length === 0 && !streaming;
@@ -105,6 +108,8 @@ export function StartPage(): React.JSX.Element {
           ) : (
             <div className="mx-auto max-w-4xl space-y-6 p-8">
               {hasData && <ExecutiveSummary />}
+
+              {lastImportReport && <ImportQualityNotice report={lastImportReport} />}
 
               {(messages.length > 0 || streaming) && (
                 <div className="space-y-4 border-t pt-6">
@@ -148,6 +153,29 @@ export function StartPage(): React.JSX.Element {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ImportQualityNotice({
+  report,
+}: {
+  report: NonNullable<ReturnType<typeof useAppStore.getState>["lastImportReport"]>;
+}): React.JSX.Element {
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+      <div className="font-medium">Import quality · {report.format.toUpperCase()}</div>
+      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+        <span>{report.importedRows} imported</span>
+        <span>{report.skippedRows} skipped</span>
+        <span>{report.duplicateRows} duplicates</span>
+        {report.issues.length > 0 && <span>{report.issues.length} issues</span>}
+      </div>
+      {report.warnings.map((warning) => (
+        <div key={warning} className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+          {warning}
+        </div>
+      ))}
     </div>
   );
 }

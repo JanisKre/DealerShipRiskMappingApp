@@ -194,7 +194,8 @@ export function computeScenarioImpact(
     isInCorridor(d.lat, d.lon, scenario.pathCoordinates, halfWidth),
   );
 
-  const totalExposureEur = affected.reduce((sum, d) => sum + exposureOf(d), 0);
+  const exposureMultiplier = scenario.exposureMultiplier ?? 1;
+  const totalExposureEur = affected.reduce((sum, d) => sum + exposureOf(d), 0) * exposureMultiplier;
   const damageFraction =
     SCENARIO_INTENSITY_DAMAGE[scenario.intensityLevel] ?? 0.15;
 
@@ -203,6 +204,19 @@ export function computeScenarioImpact(
     totalExposureEur,
     estimatedLossEur: Math.round(totalExposureEur * damageFraction),
     scenario,
+    modelVersion: scenario.modelVersion ?? "scenario-screening-0.2.0",
+    assumptions: scenario.assumptions ?? [
+      "All affected locations experience the selected corridor intensity",
+      `Exposure multiplier: ${exposureMultiplier.toFixed(2)}`,
+    ],
+    evidence: [{
+      source: "Portfolio geometry",
+      retrievedAt: new Date().toISOString(),
+      method: "distance-to-path corridor screening",
+      confidence: 0.8,
+      fallbackUsed: false,
+      limitations: ["Scenario loss is a deterministic stress estimate, not a catastrophe simulation"],
+    }],
   };
 }
 

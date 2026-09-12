@@ -21,18 +21,23 @@ export function AddressDock({ onAddRows }: Readonly<Props>): React.JSX.Element {
   const selectedId = useAppStore((s) => s.selectedId);
   const select = useAppStore((s) => s.select);
   const openDetailDialog = useMapStore((s) => s.openDetailDialog);
+  const setImportReport = useAppStore((s) => s.setImportReport);
 
   /** Read CSV/TSV/Excel and import as location rows (identical to StartPage). */
   async function handleUploadFile(file: File): Promise<void> {
     const isXlsx = /\.xlsx$/i.test(file.name);
-    const parsed = isXlsx
+    const result = isXlsx
       ? await window.api.parseXlsx(arrayBufferToBase64(await file.arrayBuffer()))
       : await window.api.parseCsv(await file.text());
-    if (parsed.length === 0) {
+    setImportReport(result.report);
+    if (result.rows.length === 0) {
       toast.warning("No rows found — columns: name, address, lat, lon, value.");
       return;
     }
-    await onAddRows(parsed);
+    await onAddRows(result.rows);
+    if (result.report.issues.length > 0) {
+      toast.info(`${result.report.issues.length} import issue(s) recorded in the import report.`);
+    }
   }
 
   return (

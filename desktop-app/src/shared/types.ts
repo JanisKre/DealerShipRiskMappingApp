@@ -19,6 +19,21 @@ export const PERILS = [
 export const PerilSchema = z.enum(PERILS);
 export type Peril = z.infer<typeof PerilSchema>;
 
+// --- Evidence / provenance -------------------------------------------------
+
+/** Machine-readable provenance attached to calculated or imported data. */
+export const RiskEvidenceSchema = z.object({
+  source: z.string().min(1),
+  retrievedAt: z.string(),
+  dataVersion: z.string().optional(),
+  spatialResolution: z.string().optional(),
+  method: z.string().min(1),
+  confidence: z.number().min(0).max(1),
+  fallbackUsed: z.boolean().default(false),
+  limitations: z.array(z.string()).default([]),
+});
+export type RiskEvidence = z.infer<typeof RiskEvidenceSchema>;
+
 // --- Dealership (input data) ------------------------------------------
 
 export const DealershipInputSchema = z.object({
@@ -66,6 +81,7 @@ export const BoundaryResultSchema = z.object({
   polygon: PolygonSchema,
   areaSqm: z.number().nonnegative(),
   confidence: z.number().min(0).max(1),
+  evidence: RiskEvidenceSchema.optional(),
 });
 export type BoundaryResult = z.infer<typeof BoundaryResultSchema>;
 
@@ -119,6 +135,16 @@ export const ClassCountsSchema = z.object({
 });
 export type ClassCounts = z.infer<typeof ClassCountsSchema>;
 
+export const DetectionEvaluationSchema = z.object({
+  dataset: z.string(),
+  evaluatedSamples: z.number().int().nonnegative(),
+  countMae: z.number().nonnegative(),
+  countBias: z.number(),
+  within10PctRate: z.number().min(0).max(1),
+  evaluatedAt: z.string(),
+});
+export type DetectionEvaluation = z.infer<typeof DetectionEvaluationSchema>;
+
 export const DetectionResultSchema = z.object({
   vehicleCount: z.number().int().nonnegative(),
   confidence: z.number().min(0).max(1),
@@ -126,6 +152,8 @@ export const DetectionResultSchema = z.object({
   classCounts: ClassCountsSchema.optional(),
   inferenceMs: z.number().optional(),
   boxes: z.array(DetectionBoxSchema).optional(),
+  evidence: RiskEvidenceSchema.optional(),
+  evaluation: DetectionEvaluationSchema.optional(),
 });
 export type DetectionResult = z.infer<typeof DetectionResultSchema>;
 
@@ -177,6 +205,11 @@ export const RiskAssessmentSchema = z.object({
   exposureEur: z.number().nonnegative().optional(), // estimated vehicle value on-site
   utilisation: z.number().min(0).optional(), // utilisation 0..1+ (vehicles / capacity)
   capacityEstimate: z.number().nonnegative().optional(), // estimated parking capacity
+  /** Overall reliability of the result, separate from hazard severity. */
+  confidence: z.number().min(0).max(1).optional(),
+  modelVersion: z.string().optional(),
+  evidence: z.array(RiskEvidenceSchema).optional(),
+  limitations: z.array(z.string()).optional(),
   computedAt: z.string(),
 });
 export type RiskAssessment = z.infer<typeof RiskAssessmentSchema>;
@@ -295,6 +328,12 @@ export const HailstormScenarioSchema = z.object({
   pathCoordinates: z.array(z.tuple([z.number(), z.number()])).min(2),
   widthKm: z.number().positive(),
   intensityLevel: z.enum(["LOW", "MEDIUM", "HIGH", "EXTREME"]),
+  /** Optional generic scenario metadata; old hailstorm files remain valid. */
+  peril: PerilSchema.optional(),
+  returnPeriodYears: z.union([z.literal(10), z.literal(50), z.literal(100)]).optional(),
+  exposureMultiplier: z.number().positive().optional(),
+  modelVersion: z.string().optional(),
+  assumptions: z.array(z.string()).optional(),
 });
 export type HailstormScenario = z.infer<typeof HailstormScenarioSchema>;
 
@@ -303,8 +342,40 @@ export const ScenarioImpactSchema = z.object({
   totalExposureEur: z.number().nonnegative(),
   estimatedLossEur: z.number().nonnegative(),
   scenario: HailstormScenarioSchema,
+  modelVersion: z.string().optional(),
+  assumptions: z.array(z.string()).optional(),
+  evidence: z.array(RiskEvidenceSchema).optional(),
 });
 export type ScenarioImpact = z.infer<typeof ScenarioImpactSchema>;
+
+// --- Import quality --------------------------------------------------------
+
+export const ImportIssueSchema = z.object({
+  row: z.number().int().positive(),
+  message: z.string().min(1),
+  field: z.string().optional(),
+  severity: z.enum(["error", "warning"]),
+});
+export type ImportIssue = z.infer<typeof ImportIssueSchema>;
+
+export const ImportReportSchema = z.object({
+  format: z.enum(["csv", "tsv", "xlsx"]),
+  totalRows: z.number().int().nonnegative(),
+  importedRows: z.number().int().nonnegative(),
+  skippedRows: z.number().int().nonnegative(),
+  duplicateRows: z.number().int().nonnegative(),
+  columnMapping: z.record(z.string(), z.string().nullable()),
+  issues: z.array(ImportIssueSchema),
+  warnings: z.array(z.string()),
+  createdAt: z.string(),
+});
+export type ImportReport = z.infer<typeof ImportReportSchema>;
+
+export const ImportResultSchema = z.object({
+  rows: z.array(DealershipInputSchema),
+  report: ImportReportSchema,
+});
+export type ImportResult = z.infer<typeof ImportResultSchema>;
 
 // --- LLM agents: structured results -----------------------------------------
 

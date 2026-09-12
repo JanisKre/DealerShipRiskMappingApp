@@ -9,6 +9,7 @@ import {
   DashboardSpecSchema,
   DealershipInputSchema,
   DetectionResultSchema,
+  ImportResultSchema,
   LlmProviderSchema,
   NlQueryDealershipSchema,
   NlQueryFilterSchema,
@@ -100,8 +101,8 @@ export const ipcRequest = {
 } as const;
 
 export const ipcResponse = {
-  "csv:parse": z.array(DealershipInputSchema),
-  "xlsx:parse": z.array(DealershipInputSchema),
+  "csv:parse": ImportResultSchema,
+  "xlsx:parse": ImportResultSchema,
   "geocode:search": z.array(
     z.object({ label: z.string(), lat: z.number(), lon: z.number() }),
   ),
@@ -191,6 +192,17 @@ export const LlmStreamRequestSchema = z.discriminatedUnion("kind", [
   llmStreamRequest.nlquery,
 ]);
 export type LlmStreamRequest = z.infer<typeof LlmStreamRequestSchema>;
+
+/** Validated envelopes for the send/receive streaming IPC channels. */
+const StreamIdSchema = z.string().uuid();
+export const LlmStreamEnvelopeSchema = z.object({
+  streamId: StreamIdSchema,
+  req: LlmStreamRequestSchema,
+});
+export const StreamCancelSchema = z.object({ streamId: StreamIdSchema });
+export const ModelDownloadEnvelopeSchema = z.object({
+  streamId: StreamIdSchema,
+});
 
 /** A single chunk that the main process sends over the stream response channel. */
 export const LlmStreamChunkSchema = z.discriminatedUnion("type", [

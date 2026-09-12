@@ -236,6 +236,14 @@ export class OnnxYoloDetector implements VehicleDetector {
         confidence: 0,
         model: this.modelName,
         classCounts: emptyCounts(),
+        evidence: {
+          source: "aerial imagery",
+          retrievedAt: new Date().toISOString(),
+          method: "no image available",
+          confidence: 0,
+          fallbackUsed: true,
+          limitations: ["No aerial image was available for inference"],
+        },
       };
     }
     await this.ensureStarted();
@@ -393,6 +401,15 @@ export class OnnxYoloDetector implements VehicleDetector {
       classCounts: counts,
       inferenceMs,
       boxes: outBoxes,
+      evidence: {
+        source: "YOLOv26 ONNX",
+        retrievedAt: new Date().toISOString(),
+        dataVersion: this.modelName,
+        method: "sliding-window aerial object detection with soft-NMS",
+        confidence: vehicleCount > 0 ? confSum / vehicleCount : 0,
+        fallbackUsed: false,
+        limitations: ["Accuracy depends on imagery resolution and capture date"],
+      },
     };
   }
 }
@@ -415,6 +432,14 @@ export class StubVehicleDetector implements VehicleDetector {
       confidence: boundary ? 0.3 : 0.1,
       model: this.modelName,
       classCounts: { car: vehicleCount, van: 0, truck: 0, bus: 0 },
+      evidence: {
+        source: "synthetic estimate",
+        retrievedAt: new Date().toISOString(),
+        method: "area-based vehicle estimate",
+        confidence: boundary ? 0.3 : 0.1,
+        fallbackUsed: true,
+        limitations: ["No ML model installed; count is not a detection"],
+      },
     };
   }
 }

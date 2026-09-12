@@ -16,6 +16,9 @@ env:
   # This app only uses the bundled CPU execution provider, so skip it.
   ONNXRUNTIME_NODE_INSTALL: skip
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest

@@ -1,7 +1,30 @@
 import { app, BrowserWindow, shell, nativeImage } from "electron";
 import { join } from "path";
+import { pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc";
 import { getDb } from "./db/database";
+
+function isSafeExternalUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    return ["http:", "https:", "mailto:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function isRendererUrl(
+  rawUrl: string,
+  rendererUrl: string | undefined,
+  rendererFilePath: string,
+): boolean {
+  try {
+    if (rendererUrl) return new URL(rawUrl).origin === new URL(rendererUrl).origin;
+    return new URL(rawUrl).toString() === pathToFileURL(rendererFilePath).toString();
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Main process: app lifecycle + window. Security baseline:
@@ -10,6 +33,7 @@ import { getDb } from "./db/database";
  */
 function createWindow(): void {
   const iconPath = join(__dirname, "../../resources/icon.png");
+  const rendererFilePath = join(__dirname, "../renderer/index.html");
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -30,14 +54,23 @@ function createWindow(): void {
   mainWindow.on("ready-to-show", () => mainWindow.show());
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isSafeExternalUrl(url)) void shell.openExternal(url);
     return { action: "deny" };
+  });
+
+  const rendererUrl = !app.isPackaged
+    ? process.env["ELECTRON_RENDERER_URL"]
+    : undefined;
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (isRendererUrl(url, rendererUrl, rendererFilePath)) return;
+    event.preventDefault();
+    if (isSafeExternalUrl(url)) void shell.openExternal(url);
   });
 
   if (!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    mainWindow.loadFile(rendererFilePath);
   }
 }
 

@@ -4,6 +4,18 @@ import { cached, TTL } from "./cache.service";
 import { fromAlkis } from "./alkis.service";
 import { polygonAreaSqm } from "./geo-math";
 
+/** Adapter contract for a parcel/building boundary source. */
+export interface BoundaryProvider {
+  readonly id: string;
+  resolve(lat: number, lon: number): Promise<BoundaryResult | null>;
+}
+
+const BOUNDARY_PROVIDERS: BoundaryProvider[] = [
+  { id: "alkis", resolve: fromAlkis },
+  { id: "osm-landuse", resolve: fromOsm },
+  { id: "osm-building", resolve: fromOsmBuildings },
+];
+
 /**
  * Lot boundary detection with a streamlined fallback chain:
  *   1. ALKIS (official German cadastral parcels)   — implemented, 7 of 16
@@ -26,16 +38,25 @@ export async function detectBoundary(
   // Parallel instead of sequential: the three sources are independent of each other
   // (no result is needed to query the next source) — sequential
   // awaits would here have only needlessly waited on three network round trips one after another.
-  const candidates = await Promise.all([
-    fromAlkis(lat, lon),
-    fromOsm(lat, lon),
-    fromOsmBuildings(lat, lon),
-  ]);
+  const candidates = await Promise.all(
+    BOUNDARY_PROVIDERS.map((provider) => provider.resolve(lat, lon)),
+  );
   const best = candidates
     .filter((c): c is BoundaryResult => c !== null)
     .sort((a, b) => b.confidence - a.confidence)[0];
 
-  return best ?? syntheticCircle(lat, lon);
+  const result = best ?? syntheticCircle(lat, lon);
+  return {
+    ...result,
+    evidence: result.evidence ?? {
+      source: result.source.toUpperCase(),
+      retrievedAt: new Date().toISOString(),
+      method: result.source === "synthetic" ? "synthetic radius fallback" : "geospatial boundary lookup",
+      confidence: result.confidence,
+      fallbackUsed: result.source === "synthetic",
+      limitations: result.source === "synthetic" ? ["Manual boundary review recommended"] : [],
+    },
+  };
 }
 
 // --- 1. ALKIS (implemented in alkis.service.ts) ------------------------

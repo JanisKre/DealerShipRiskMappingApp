@@ -21,8 +21,7 @@ import { buildDefaultDashboardSpec } from "@shared/dashboard-aggregates";
 import { getLlmApiKey, getSettings } from "./settings.service";
 
 /**
- * Provider-agnostic LLM client with streaming. No token quota, no SSRF
- * guard needed (single-user, local). API keys come from safeStorage.
+ * Provider-agnostic LLM client with streaming. API keys come from safeStorage.
  *
  * Two call modes:
  *   - `chatComplete`  → full response (for structured JSON agents)
@@ -53,13 +52,30 @@ interface ResolvedProvider {
   apiKey?: string;
 }
 
+function normalizeBaseUrl(rawUrl: string, label: string): string {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new Error(`${label} must be a valid HTTP(S) URL`);
+  }
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error(`${label} must use HTTP or HTTPS`);
+  }
+  if (url.username || url.password) {
+    throw new Error(`${label} must not contain embedded credentials`);
+  }
+  url.hash = "";
+  return url.toString().replace(/\/+$/, "");
+}
+
 function resolveProvider(): ResolvedProvider {
   const settings = getSettings();
   const llm = settings.llm;
   const provider: LlmProvider = llm?.provider ?? "openai";
   const model = llm?.model ?? "";
   // Strip trailing slash so `${baseUrl}/v1/messages` composes cleanly.
-  const baseUrlSetting = llm?.baseUrl?.trim().replace(/\/+$/, "");
+  const baseUrlSetting = llm?.baseUrl?.trim();
   // API key is optional: local proxies/endpoints may not require auth;
   // if a required key is missing, the endpoint itself reports 401.
   const apiKey = getLlmApiKey(provider) ?? undefined;
@@ -68,20 +84,31 @@ function resolveProvider(): ResolvedProvider {
     return {
       provider,
       model,
-      baseUrl: baseUrlSetting || "https://api.anthropic.com",
+      baseUrl: normalizeBaseUrl(
+        baseUrlSetting || "https://api.anthropic.com",
+        "Claude base URL",
+      ),
       apiKey,
     };
   }
   if (provider === "custom") {
     if (!baseUrlSetting)
       throw new Error("No base URL configured for the custom provider");
-    return { provider, model, baseUrl: baseUrlSetting, apiKey };
+    return {
+      provider,
+      model,
+      baseUrl: normalizeBaseUrl(baseUrlSetting, "Custom provider base URL"),
+      apiKey,
+    };
   }
   // openai (and all OpenAI-compatible defaults)
   return {
     provider,
     model,
-    baseUrl: baseUrlSetting || "https://api.openai.com/v1",
+    baseUrl: normalizeBaseUrl(
+      baseUrlSetting || "https://api.openai.com/v1",
+      "OpenAI base URL",
+    ),
     apiKey,
   };
 }

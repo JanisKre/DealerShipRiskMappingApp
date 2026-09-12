@@ -73,6 +73,16 @@ IPC boundary:
 - `ipc-schema.ts` — Zod schemas per IPC payload → type-safe + runtime validation
 - `types.ts` — shared domain types (Dealership, BoundaryResult, RiskScore, …)
 
+## Risk pipeline and provenance
+
+Risk calculations follow an explicit `hazard → exposure → vulnerability →
+loss` pipeline. The orchestration entry point is `main/services/risk.service.ts`;
+the individual layers live under `main/services/risk/`. Hazard and boundary
+sources are adapter-shaped so additional providers can be added without
+changing the renderer contract. Results carry a model version, confidence,
+source evidence, fallback flags, and limitations. See
+[docs/risk-model.md](./docs/risk-model.md).
+
 ## Improvements over the web stack (deliberately carried over)
 
 The move from web to desktop enables four concrete simplifications:

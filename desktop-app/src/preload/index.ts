@@ -220,7 +220,7 @@ const api = {
     req: LlmStreamRequest,
     onChunk: (chunk: LlmStreamChunk) => void,
   ): (() => void) => {
-    const streamId = `${req.kind}-${globalThis.crypto.randomUUID()}`;
+    const streamId = globalThis.crypto.randomUUID();
     const responseChannel = `${IPC.llmStream}:${streamId}`;
     const listener = (_e: unknown, chunk: LlmStreamChunk): void =>
       onChunk(chunk);
