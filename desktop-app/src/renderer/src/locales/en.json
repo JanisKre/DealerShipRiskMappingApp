@@ -1,0 +1,275 @@
+{
+  "nav": {
+    "import": "Start",
+    "map": "Map",
+    "dashboard": "Dashboard",
+    "aiDashboard": "AI Dashboard",
+    "settings": "Settings"
+  },
+  "shell": {
+    "editProjectName": "Edit project name",
+    "autosaved": "Autosaved"
+  },
+  "start": {
+    "title": "Portfolio & Analysis",
+    "subtitle": "Add an address or ask the AI — the input field is at the bottom."
+  },
+  "command": {
+    "title": "Command Palette",
+    "placeholder": "Search or type a command…",
+    "empty": "No results found.",
+    "navigation": "Navigation",
+    "actions": "Actions",
+    "theme": "Theme",
+    "toggleTheme": "Toggle theme"
+  },
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "close": "Close",
+    "export": "Export",
+    "analyze": "Analyze",
+    "search": "Search",
+    "vehicles": "Vehicles",
+    "score": "Score",
+    "actions": "Actions"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "llmProvider": "LLM Provider",
+    "model": "Model",
+    "apiKey": "API Key",
+    "apiKeyHint": "Stored via safeStorage in the OS keychain — never in plaintext.",
+    "baseUrl": "Endpoint (base URL)",
+    "baseUrlHint": "Leave empty for the official endpoint. For a proxy use e.g. http://localhost:6655/openai/v1 (OpenAI/Custom) or http://localhost:6655/anthropic (Claude).",
+    "modelPlaceholder": "e.g. {{model}}",
+    "apiKeySetPlaceholder": "•••••••• (stored) — enter a new key to replace",
+    "apiKeyUnsetPlaceholder": "Stored encrypted (OS keychain)",
+    "satelliteSource": {
+      "title": "Aerial Imagery Source",
+      "customOption": "WMS/XYZ (custom)",
+      "tileTemplateLabel": "Tile Template",
+      "tileTemplateHint": "XYZ/WMS URL with {z}/{x}/{y} placeholders. Falls back to Esri without a valid template."
+    },
+    "appearance": {
+      "title": "Appearance",
+      "description": "Customize how the application looks.",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "dashboard": {
+    "title": "Portfolio Dashboard",
+    "locations": "Locations",
+    "totalExposure": "Total Exposure",
+    "totalEal": "Total EAL",
+    "avgScore": "Avg. Risk Score",
+    "extreme": "Extreme Risks",
+    "pml": "Probable Maximum Loss (PML)",
+    "riskDistribution": "Risk Distribution",
+    "topRisks": "Top Risk Locations",
+    "utilisation": "Utilisation",
+    "capacity": "Capacity",
+    "area": "Area",
+    "boundarySource": "Boundary Source",
+    "ealBreakdown": "EAL Breakdown",
+    "detailDialog": {
+      "exposureLabel": "Exposure",
+      "totalEalLabel": "Total EAL",
+      "perilScoresTitle": "Peril Scores",
+      "hailZoneLabel": "Hail Zone {{zone}}",
+      "hailZoneKasko": "K-Kasko · {{tier}}",
+      "hailZoneScore": "Score {{score}}/100",
+      "ealPeril": {
+        "hail": "Hail",
+        "wind": "Wind",
+        "flood": "Flood",
+        "lightning": "Lightning",
+        "snow": "Snow",
+        "heat": "Heat",
+        "total": "Total"
+      },
+      "boundaryTitle": "Parcel Boundary",
+      "boundarySourceLabel": "Source: {{source}}",
+      "boundaryConfidenceLabel": "· Confidence: {{confidence}}",
+      "osmLoading": "Loading OSM info…",
+      "osmHeading": "From OpenStreetMap",
+      "insuredLabel": "Insured / Part of the Book",
+      "insuredYesDesc": "Existing customer — included in accumulation",
+      "insuredNoDesc": "New customer / Prospect",
+      "salesPartnerLabel": "Sales Partner",
+      "subPortfolioLabel": "Sub-portfolio",
+      "groupLabel": "Group",
+      "productLimitLabel": "Product Limit (EUR)",
+      "temporalTitle": "Temporal Vehicle Comparison",
+      "fromLabel": "From",
+      "toLabel": "To",
+      "compareButton": "Compare",
+      "deltaVehicles": "{{delta}} vehicles",
+      "carLabel": "Car",
+      "vanLabel": "Van",
+      "truckLabel": "Truck",
+      "busLabel": "Bus",
+      "sourceConfidence": "Source: {{provider}} · Confidence {{from}} → {{to}}",
+      "errorPrefix": "Error: {{error}}",
+      "recommendedDeductibleLabel": "Rec. Deductible",
+      "premiumLoadingLabel": "Premium Loading"
+    }
+  },
+  "map": {
+    "satellite": "Satellite",
+    "street": "Street",
+    "boundaries": "Boundaries",
+    "detections": "Vehicle Detections",
+    "clusters": "Cluster Heatmap",
+    "scenario": "Hailstorm Scenario",
+    "editBoundary": "Edit Boundary",
+    "locationsPanel": {
+      "toggleAriaLabel": "Toggle locations list",
+      "importPortfolio": "Import portfolio (CSV / Excel)",
+      "addAddress": "Add address",
+      "addressPlaceholder": "Add address…",
+      "searchFailed": "Search failed",
+      "empty": "No locations yet. Add an address above.",
+      "neighborSummary": {
+        "none": "No insured neighbors within {{radius}} km",
+        "one": "1 insured neighbor within {{radius}} km",
+        "other": "{{count}} insured neighbors within {{radius}} km"
+      },
+      "insuredChip": "insured",
+      "sameGroupChip": "same group",
+      "inRadiusChip": "in radius",
+      "viewDetails": "View details",
+      "viewDetailsFor": "Details for {{name}}",
+      "analyzing": "Analyzing…"
+    },
+    "layerPanel": {
+      "title": "Layers",
+      "activeCount": "{{count}} active",
+      "basemapSectionTitle": "Basemap",
+      "basemapSelectAriaLabel": "Select basemap",
+      "basemapLight": "Light",
+      "basemapDark": "Dark",
+      "basemapTerrain": "Terrain",
+      "opacityLabel": "Opacity",
+      "satelliteOpacityAriaLabel": "Satellite opacity",
+      "boundariesLayerLabel": "Parcels",
+      "nearbyInsuredLayerLabel": "Insured Neighbors",
+      "accumulationClustersLayerLabel": "Accumulation Clusters",
+      "overlaysSectionTitle": "Overlays",
+      "editingActiveBadge": "active",
+      "editBoundariesButton": "Edit boundaries",
+      "stopEditingButton": "Stop editing",
+      "drawingBadge": "drawing",
+      "saveMapTitle": "Save map as PNG",
+      "copyButton": "Copy",
+      "copyTitle": "Copy to clipboard"
+    },
+    "multiPerilOverlay": {
+      "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"
+    },
+    "page": {
+      "attributionOsm": "OpenStreetMap contributors",
+      "reanalyze": "Reanalyze",
+      "delete": "Delete",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "emptyTitle": "No locations yet",
+      "emptyDescription": "Add an address in the locations dock on the left, or import a CSV/Excel file.",
+      "analyzingProgress": "Analyzing {{done}}/{{total}}…",
+      "boundaryWarning": "{{count}} of {{total}} parcel boundaries not detected — estimated buffer only",
+      "dismissHint": "Dismiss hint",
+      "detectionWarning": "{{count}} of {{total}} vehicle counts are estimated only — no AI model loaded",
+      "noClustersInfo": "No accumulation clusters — this requires at least 2 locations within {{radius}} km of each other",
+      "defaultScenarioName": "Hail Corridor"
+    }
+  },
+  "ai": {
+    "memo": "Underwriting Memo",
+    "chat": "Portfolio Chat",
+    "summary": "Executive Summary",
+    "nlQuery": "Natural Language Query",
+    "boundaryRefine": "Boundary Review",
+    "askPlaceholder": "Ask a question about the portfolio…",
+    "queryPlaceholder": "e.g. \"Show all with high hail risk\"",
+    "showInDashboard": "Show in dashboard",
+    "generate": "Generate",
+    "streaming": "Responding…"
+  },
+  "risk": {
+    "LOW": "Low",
+    "MEDIUM": "Medium",
+    "HIGH": "High",
+    "EXTREME": "Extreme"
+  },
+  "underwriting": {
+    "systemMessages": "System messages",
+    "pricing": {
+      "high": "high price",
+      "normal": "normal price",
+      "low": "favorable price"
+    },
+    "hail": {
+      "highTitle": "High hail risk",
+      "highDetail": "Hail score {{score}}/100 — area with high hail exposure. Recommend cover only with a loading/deductible.",
+      "lowTitle": "Low hail risk",
+      "lowDetail": "Hail score {{score}}/100 — area with low hail exposure.",
+      "mediumTitle": "Medium hail risk",
+      "mediumDetail": "Hail score {{score}}/100."
+    },
+    "limit": {
+      "breachTitle": "Product limit reached",
+      "breachDetail": "Exposure {{exposure}} reaches/exceeds the product limit ({{limit}}). A medium-sized nat-cat event threatens a loss of {{loss}}.",
+      "warningTitle": "Product limit nearly reached",
+      "warningDetail": "Exposure {{exposure}} is approaching the product limit ({{limit}}). A medium-sized nat-cat event would cause a loss of {{loss}}."
+    },
+    "accumulation": {
+      "noneTitle": "No accumulation risk nearby",
+      "noneDetail": "No insured locations within {{radius}} km. Reinsurance not required — pricing may be more favorable.",
+      "highTitle": "High accumulation risk — reinsurance recommended",
+      "nearbyTitle": "Accumulation risk nearby",
+      "detail": "{{count}} insured locations within {{radius}} km, accumulated exposure {{exposure}}. {{reinsureText}} Pricing: {{pricing}}."
+    },
+    "reinsure": {
+      "yes": "Reinsure: yes.",
+      "no": "Reinsure: no.",
+      "yesWord": "yes",
+      "noWord": "no"
+    },
+    "group": {
+      "title": "Group \"{{group}}\" — {{count}} locations",
+      "breachNote": " {{count}} location(s) over product limit.",
+      "detail": "{{insured}}/{{total}} insured, accumulated exposure {{exposure}}, {{vehicles}} vehicles. Max. hail score {{maxHail}}/100.{{breachNote}} Reinsure (group): {{reinsureWord}}. Pricing (group): {{pricing}}."
+    }
+  },
+  "upload": {
+    "omnibox": {
+      "address": {
+        "placeholder": "Add address…",
+        "helper": "Enter an address – choose a suggestion or send to add the location."
+      },
+      "chat": {
+        "placeholder": "Ask the AI a question…",
+        "helper": "Send to ask the portfolio chat."
+      },
+      "dashboard": {
+        "placeholder": "Describe a dashboard, e.g. “Top risks and EAL distribution”…",
+        "helper": "Describe what the dashboard should show – the AI puts it together."
+      },
+      "searching": "Searching…",
+      "noResults": "No matches",
+      "searchFailed": "Search failed",
+      "addressToggleAriaLabel": "Address search",
+      "addressToggleLabel": "Address",
+      "chatToggleAriaLabel": "Chat",
+      "chatToggleLabel": "Chat",
+      "dashboardToggleAriaLabel": "Create dashboard",
+      "importFile": "Import CSV / Excel",
+      "send": "Send"
+    }
+  }
+}

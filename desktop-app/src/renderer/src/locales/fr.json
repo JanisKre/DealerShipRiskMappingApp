@@ -1,0 +1,275 @@
+{
+  "nav": {
+    "import": "Accueil",
+    "map": "Carte",
+    "dashboard": "Tableau de bord",
+    "aiDashboard": "Tableau de bord IA",
+    "settings": "Paramètres"
+  },
+  "shell": {
+    "editProjectName": "Modifier le nom du projet",
+    "autosaved": "Enregistrement automatique"
+  },
+  "start": {
+    "title": "Portefeuille et analyse",
+    "subtitle": "Ajoutez une adresse ou interrogez l'IA — le champ de saisie est en bas."
+  },
+  "command": {
+    "title": "Palette de commandes",
+    "placeholder": "Rechercher ou saisir une commande…",
+    "empty": "Aucun résultat trouvé.",
+    "navigation": "Navigation",
+    "actions": "Actions",
+    "theme": "Thème",
+    "toggleTheme": "Changer de thème"
+  },
+  "common": {
+    "loading": "Chargement…",
+    "save": "Enregistrer",
+    "saved": "Enregistré",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "export": "Exporter",
+    "analyze": "Analyser",
+    "search": "Rechercher",
+    "vehicles": "Véhicules",
+    "score": "Score",
+    "actions": "Actions"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "language": "Langue",
+    "llmProvider": "Fournisseur LLM",
+    "model": "Modèle",
+    "apiKey": "Clé API",
+    "apiKeyHint": "Stockée via safeStorage dans le trousseau du système — jamais en clair.",
+    "baseUrl": "Point de terminaison (URL de base)",
+    "baseUrlHint": "Laisser vide pour le point de terminaison officiel. Pour un proxy, p. ex. http://localhost:6655/openai/v1 (OpenAI/Custom) ou http://localhost:6655/anthropic (Claude).",
+    "modelPlaceholder": "p. ex. {{model}}",
+    "apiKeySetPlaceholder": "•••••••• (enregistrée) — saisir une nouvelle clé pour la remplacer",
+    "apiKeyUnsetPlaceholder": "Enregistrée de façon chiffrée (trousseau du système)",
+    "satelliteSource": {
+      "title": "Source d'imagerie aérienne",
+      "customOption": "WMS/XYZ (personnalisé)",
+      "tileTemplateLabel": "Modèle de tuile",
+      "tileTemplateHint": "URL XYZ/WMS avec les paramètres {z}/{x}/{y}. Revient à Esri sans modèle valide."
+    },
+    "appearance": {
+      "title": "Apparence",
+      "description": "Personnalisez l'apparence de l'application.",
+      "light": "Clair",
+      "dark": "Sombre",
+      "system": "Système"
+    }
+  },
+  "dashboard": {
+    "title": "Tableau de bord du portefeuille",
+    "locations": "Sites",
+    "totalExposure": "Exposition totale",
+    "totalEal": "EAL total",
+    "avgScore": "Score de risque moyen",
+    "extreme": "Risques extrêmes",
+    "pml": "Perte maximale probable (PML)",
+    "riskDistribution": "Répartition des risques",
+    "topRisks": "Sites à risque élevé",
+    "utilisation": "Utilisation",
+    "capacity": "Capacité",
+    "area": "Surface",
+    "boundarySource": "Source de délimitation",
+    "ealBreakdown": "Détail EAL",
+    "detailDialog": {
+      "exposureLabel": "Exposition",
+      "totalEalLabel": "EAL total",
+      "perilScoresTitle": "Scores de périls",
+      "hailZoneLabel": "Zone de grêle {{zone}}",
+      "hailZoneKasko": "K-Kasko · {{tier}}",
+      "hailZoneScore": "Score {{score}}/100",
+      "ealPeril": {
+        "hail": "Grêle",
+        "wind": "Vent",
+        "flood": "Inondation",
+        "lightning": "Foudre",
+        "snow": "Neige",
+        "heat": "Chaleur",
+        "total": "Total"
+      },
+      "boundaryTitle": "Limite de parcelle",
+      "boundarySourceLabel": "Source : {{source}}",
+      "boundaryConfidenceLabel": "· Confiance : {{confidence}}",
+      "osmLoading": "Chargement des infos OSM…",
+      "osmHeading": "Depuis OpenStreetMap",
+      "insuredLabel": "Assuré / Fait partie du portefeuille",
+      "insuredYesDesc": "Client existant — inclus dans le cumul",
+      "insuredNoDesc": "Nouveau client / Prospect",
+      "salesPartnerLabel": "Partenaire commercial",
+      "subPortfolioLabel": "Sous-portefeuille",
+      "groupLabel": "Groupe",
+      "productLimitLabel": "Limite produit (EUR)",
+      "temporalTitle": "Comparaison temporelle des véhicules",
+      "fromLabel": "Du",
+      "toLabel": "Au",
+      "compareButton": "Comparer",
+      "deltaVehicles": "{{delta}} véhicules",
+      "carLabel": "Voiture",
+      "vanLabel": "Camionnette",
+      "truckLabel": "Camion",
+      "busLabel": "Bus",
+      "sourceConfidence": "Source : {{provider}} · Confiance {{from}} → {{to}}",
+      "errorPrefix": "Erreur : {{error}}",
+      "recommendedDeductibleLabel": "Franchise recommandée",
+      "premiumLoadingLabel": "Majoration de prime"
+    }
+  },
+  "map": {
+    "satellite": "Satellite",
+    "street": "Rue",
+    "boundaries": "Limites",
+    "detections": "Détections de véhicules",
+    "clusters": "Carte de chaleur des clusters",
+    "scenario": "Scénario de grêle",
+    "editBoundary": "Modifier la limite",
+    "locationsPanel": {
+      "toggleAriaLabel": "Afficher/masquer la liste des sites",
+      "importPortfolio": "Importer le portefeuille (CSV / Excel)",
+      "addAddress": "Ajouter une adresse",
+      "addressPlaceholder": "Ajouter une adresse…",
+      "searchFailed": "Échec de la recherche",
+      "empty": "Aucun site pour l'instant. Ajoutez une adresse ci-dessus.",
+      "neighborSummary": {
+        "none": "Aucun voisin assuré dans un rayon de {{radius}} km",
+        "one": "1 voisin assuré dans un rayon de {{radius}} km",
+        "other": "{{count}} voisins assurés dans un rayon de {{radius}} km"
+      },
+      "insuredChip": "assuré",
+      "sameGroupChip": "même groupe",
+      "inRadiusChip": "dans le rayon",
+      "viewDetails": "Voir les détails",
+      "viewDetailsFor": "Détails pour {{name}}",
+      "analyzing": "Analyse en cours…"
+    },
+    "layerPanel": {
+      "title": "Couches",
+      "activeCount": "{{count}} actives",
+      "basemapSectionTitle": "Fond de carte",
+      "basemapSelectAriaLabel": "Choisir le fond de carte",
+      "basemapLight": "Clair",
+      "basemapDark": "Sombre",
+      "basemapTerrain": "Relief",
+      "opacityLabel": "Opacité",
+      "satelliteOpacityAriaLabel": "Opacité du satellite",
+      "boundariesLayerLabel": "Parcelles",
+      "nearbyInsuredLayerLabel": "Voisins assurés",
+      "accumulationClustersLayerLabel": "Clusters de cumul",
+      "overlaysSectionTitle": "Superpositions",
+      "editingActiveBadge": "actif",
+      "editBoundariesButton": "Modifier les limites",
+      "stopEditingButton": "Arrêter la modification",
+      "drawingBadge": "dessin en cours",
+      "saveMapTitle": "Enregistrer la carte en PNG",
+      "copyButton": "Copier",
+      "copyTitle": "Copier dans le presse-papiers"
+    },
+    "multiPerilOverlay": {
+      "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"
+    },
+    "page": {
+      "attributionOsm": "contributeurs d'OpenStreetMap",
+      "reanalyze": "Réanalyser",
+      "delete": "Supprimer",
+      "zoomIn": "Zoomer avant",
+      "zoomOut": "Zoomer arrière",
+      "emptyTitle": "Aucun site pour l'instant",
+      "emptyDescription": "Ajoutez une adresse dans le panneau des sites à gauche, ou importez un fichier CSV/Excel.",
+      "analyzingProgress": "Analyse en cours {{done}}/{{total}}…",
+      "boundaryWarning": "{{count}} limites de parcelle sur {{total}} non détectées — tampon estimé uniquement",
+      "dismissHint": "Masquer l'indication",
+      "detectionWarning": "{{count}} nombres de véhicules sur {{total}} sont uniquement estimés — aucun modèle IA chargé",
+      "noClustersInfo": "Aucun cluster de cumul — il faut au moins 2 sites à moins de {{radius}} km l'un de l'autre",
+      "defaultScenarioName": "Couloir de grêle"
+    }
+  },
+  "ai": {
+    "memo": "Note de souscription",
+    "chat": "Chat du portefeuille",
+    "summary": "Résumé exécutif",
+    "nlQuery": "Requête en langage naturel",
+    "boundaryRefine": "Révision des limites",
+    "askPlaceholder": "Posez une question sur le portefeuille…",
+    "queryPlaceholder": "ex. « Afficher tous à risque de grêle élevé »",
+    "showInDashboard": "Afficher dans le tableau de bord",
+    "generate": "Générer",
+    "streaming": "Réponse en cours…"
+  },
+  "risk": {
+    "LOW": "Faible",
+    "MEDIUM": "Moyen",
+    "HIGH": "Élevé",
+    "EXTREME": "Extrême"
+  },
+  "underwriting": {
+    "systemMessages": "Messages système",
+    "pricing": {
+      "high": "prix élevé",
+      "normal": "prix normal",
+      "low": "prix avantageux"
+    },
+    "hail": {
+      "highTitle": "Risque de grêle élevé",
+      "highDetail": "Score de grêle {{score}}/100 — zone à risque de grêle élevé. Recommander une couverture uniquement avec majoration/franchise.",
+      "lowTitle": "Risque de grêle faible",
+      "lowDetail": "Score de grêle {{score}}/100 — zone à faible risque de grêle.",
+      "mediumTitle": "Risque de grêle moyen",
+      "mediumDetail": "Score de grêle {{score}}/100."
+    },
+    "limit": {
+      "breachTitle": "Limite produit atteinte",
+      "breachDetail": "L'exposition {{exposure}} atteint/dépasse la limite produit ({{limit}}). Un événement nat-cat de taille moyenne menace de causer une perte de {{loss}}.",
+      "warningTitle": "Limite produit presque atteinte",
+      "warningDetail": "L'exposition {{exposure}} approche de la limite produit ({{limit}}). Un événement nat-cat de taille moyenne causerait une perte de {{loss}}."
+    },
+    "accumulation": {
+      "noneTitle": "Aucun risque de cumul à proximité",
+      "noneDetail": "Aucun site assuré dans un rayon de {{radius}} km. Réassurance non nécessaire — la tarification peut être plus avantageuse.",
+      "highTitle": "Risque de cumul élevé — réassurance recommandée",
+      "nearbyTitle": "Risque de cumul à proximité",
+      "detail": "{{count}} sites assurés dans un rayon de {{radius}} km, exposition cumulée {{exposure}}. {{reinsureText}} Tarification : {{pricing}}."
+    },
+    "reinsure": {
+      "yes": "Réassurer : oui.",
+      "no": "Réassurer : non.",
+      "yesWord": "oui",
+      "noWord": "non"
+    },
+    "group": {
+      "title": "Groupe « {{group}} » — {{count}} sites",
+      "breachNote": " {{count}} site(s) au-dessus de la limite produit.",
+      "detail": "{{insured}}/{{total}} assurés, exposition cumulée {{exposure}}, {{vehicles}} véhicules. Score de grêle max. {{maxHail}}/100.{{breachNote}} Réassurer (groupe) : {{reinsureWord}}. Tarification (groupe) : {{pricing}}."
+    }
+  },
+  "upload": {
+    "omnibox": {
+      "address": {
+        "placeholder": "Ajouter une adresse…",
+        "helper": "Saisissez une adresse – choisissez une suggestion ou envoyez pour ajouter le site."
+      },
+      "chat": {
+        "placeholder": "Posez une question à l'IA…",
+        "helper": "Envoyez pour interroger le chat du portefeuille."
+      },
+      "dashboard": {
+        "placeholder": "Décrivez un tableau de bord, p. ex. « Principaux risques et répartition EAL »…",
+        "helper": "Décrivez ce que le tableau de bord doit montrer – l'IA le compose pour vous."
+      },
+      "searching": "Recherche…",
+      "noResults": "Aucun résultat",
+      "searchFailed": "Échec de la recherche",
+      "addressToggleAriaLabel": "Recherche d'adresse",
+      "addressToggleLabel": "Adresse",
+      "chatToggleAriaLabel": "Chat",
+      "chatToggleLabel": "Chat",
+      "dashboardToggleAriaLabel": "Créer un tableau de bord",
+      "importFile": "Importer CSV / Excel",
+      "send": "Envoyer"
+    }
+  }
+}
