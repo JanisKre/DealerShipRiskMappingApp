@@ -1,7 +1,7 @@
 {
   "name": "dealership-risk-desktop",
   "productName": "Dealership Risk Mapping",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Desktop app for physical risk assessment of car dealership portfolios",
   "main": "./out/main/index.cjs",
   "author": "Janis Kretschmann",

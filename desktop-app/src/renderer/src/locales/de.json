@@ -44,7 +44,8 @@
     "search": "Suchen",
     "vehicles": "Fahrzeuge",
     "score": "Score",
-    "actions": "Aktionen"
+    "actions": "Aktionen",
+    "retry": "Erneut versuchen"
   },
   "parameters": {
     "title": "Modellparameter",
@@ -73,6 +74,19 @@
     "modelPlaceholder": "z. B. {{model}}",
     "apiKeySetPlaceholder": "•••••••• (hinterlegt) — neuen Key eingeben zum Ersetzen",
     "apiKeyUnsetPlaceholder": "Wird verschlüsselt gespeichert (OS-Keychain)",
+    "natCat": {
+      "title": "Naturgefahren-Datenquelle",
+      "description": "ZÜRS-Dateien werden beim CSV/Excel-Import automatisch erkannt. CatNet wird nur über einen lizenzierten HTTPS-Endpunkt abgefragt.",
+      "screening": "Open-Meteo-Screening",
+      "zuers": "ZÜRS Geo (Import)",
+      "catnet": "Swiss Re CatNet (API)",
+      "endpoint": "CatNet-Endpunkt",
+      "endpointHint": "Die genaue URL aus der Swiss-Re-API-Dokumentation eintragen (HTTPS erforderlich).",
+      "key": "CatNet API-Key",
+      "keySet": "•••••••• (hinterlegt)",
+      "keyUnset": "Wird verschlüsselt gespeichert (OS-Keychain)",
+      "save": "CatNet-Zugang speichern"
+    },
     "satelliteSource": {
       "title": "Luftbild-Kachelquelle",
       "customOption": "WMS/XYZ (eigen)",
@@ -207,6 +221,11 @@
       "truckLabel": "Lkw",
       "busLabel": "Bus",
       "sourceConfidence": "Quelle: {{provider}} · Konfidenz {{from}} → {{to}}",
+      "natCatTitle": "Naturgefahrenquelle",
+      "natCatRefresh": "CatNet aktualisieren",
+      "natCatRefreshing": "CatNet wird abgefragt…",
+      "natCatHazard": "{{peril}}: {{score}}/100 ({{unit}})",
+      "natCatAttribute": "{{name}}: {{value}}",
       "errorPrefix": "Fehler: {{error}}",
       "recommendedDeductibleLabel": "Empf. Selbstbehalt",
       "premiumLoadingLabel": "Prämienzuschlag"

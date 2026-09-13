@@ -34,10 +34,16 @@ export function loadDashboard(id: string): Dashboard | null {
       }
     | undefined;
   if (!row) return null;
-  const { prompt, spec } = JSON.parse(row.data) as {
-    prompt: string;
-    spec: DashboardSpec;
-  };
+  let stored: { prompt: string; spec: DashboardSpec };
+  try {
+    stored = JSON.parse(row.data) as {
+      prompt: string;
+      spec: DashboardSpec;
+    };
+  } catch {
+    return null;
+  }
+  const { prompt, spec } = stored;
   return {
     id: row.id,
     name: row.name,

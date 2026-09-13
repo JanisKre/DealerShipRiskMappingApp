@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import {
   ArrowRight,
   CalendarClock,
@@ -12,6 +13,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  RefreshCw,
   Save,
   ShieldCheck,
   Tag,
@@ -98,6 +100,8 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
       <OsmDetailsSection details={osmDetails} loading={osmLoading} />
 
       <PortfolioMetaSection d={d} />
+
+      <NatCatSection d={d} />
 
       <UnderwritingMessages d={d} />
 
@@ -352,6 +356,69 @@ function Metric({
     <div className="rounded-lg border p-2.5">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-0.5 font-medium">{value}</div>
+    </div>
+  );
+}
+
+function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
+  const { t } = useTranslation();
+  const refreshCatNet = useAppStore((state) => state.refreshCatNet);
+  const [refreshing, setRefreshing] = useState(false);
+  const assessment = d.natCat ?? d.risk?.natCat;
+
+  async function refresh(): Promise<void> {
+    setRefreshing(true);
+    try {
+      await refreshCatNet(d.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-md border bg-muted/20 p-3 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="font-semibold">{t("dashboard.detailDialog.natCatTitle")}</h4>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 gap-1 text-xs"
+          disabled={refreshing}
+          onClick={() => void refresh()}
+        >
+          <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing
+            ? t("dashboard.detailDialog.natCatRefreshing")
+            : t("dashboard.detailDialog.natCatRefresh")}
+        </Button>
+      </div>
+      {!assessment ? (
+        <p className="text-xs text-muted-foreground">—</p>
+      ) : (
+        <>
+          <div className="text-xs text-muted-foreground">
+            {assessment.provider} · {assessment.dataVersion ?? "unknown"}
+          </div>
+          <div className="grid gap-1 text-xs sm:grid-cols-2">
+            {assessment.hazards.map((hazard) => (
+              <div key={`${hazard.peril}-${hazard.unit}`}>
+                {t("dashboard.detailDialog.natCatHazard", {
+                  peril: hazard.peril,
+                  score: hazard.score.toFixed(0),
+                  unit: hazard.unit,
+                })}
+              </div>
+            ))}
+          </div>
+          {Object.entries(assessment.attributes).map(([name, value]) => (
+            <div key={name} className="text-xs text-muted-foreground">
+              {t("dashboard.detailDialog.natCatAttribute", { name, value: String(value) })}
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }

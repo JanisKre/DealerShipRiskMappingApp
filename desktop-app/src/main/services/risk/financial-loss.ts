@@ -1,4 +1,4 @@
-import type { EalBreakdown, HailZone } from "@shared/types";
+import type { EalBreakdown, HailZone, NatCatAssessment } from "@shared/types";
 import { hailZoneToScore } from "@shared/risk-math";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type { RiskParameters } from "@shared/types";
@@ -12,6 +12,7 @@ export function computeEalBreakdown(
   exposureRatio: number,
   hailZone?: HailZone,
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
+  natCat?: NatCatAssessment,
 ): EalBreakdown {
   if (exposure <= 0) {
     return { hail: 0, wind: 0, flood: 0, lightning: 0, snow: 0, heat: 0, total: 0 };
@@ -30,13 +31,17 @@ export function computeEalBreakdown(
     parameters.windSiteHitProbability * parameters.windDamageFraction;
 
   // Screening proxy: replace this with a hydraulic/flood-hazard adapter when available.
-  const floodReturnPeriod = w.annualPrecipMm > 1000 ? 20 : w.annualPrecipMm > 700 ? 50 : 100;
+  const floodHazard = natCat?.hazards.find((hazard) => hazard.peril === "flood");
+  const floodReturnPeriod = floodHazard?.returnPeriodYears ??
+    (w.annualPrecipMm > 1000 ? 20 : w.annualPrecipMm > 700 ? 50 : 100);
+  const floodProbability = floodHazard?.annualExceedanceProbability ??
+    (1 / floodReturnPeriod);
   const floodFraction = floodReturnPeriod <= 20
     ? parameters.floodDamageHq10
     : floodReturnPeriod <= 50
       ? parameters.floodDamageHq100
       : parameters.floodDamageHqExtrem;
-  const flood = exposure * exposureRatio * (1 / floodReturnPeriod) * floodFraction;
+  const flood = exposure * exposureRatio * floodProbability * floodFraction;
   const lightning = exposure * exposureRatio * w.lightningDensity * parameters.lightningDensityScale * parameters.lightningDamageFraction;
   const snow = exposure * exposureRatio * (w.maxSnowDepthCm / 30) * parameters.snowLoadDamageFractionPer30cm;
   const heat = exposure * exposureRatio * w.hotDays * parameters.heatDamageFractionPerHotday;

@@ -6,6 +6,8 @@ export const IPC = {
   // CSV / Import
   parseCsv: "csv:parse",
   parseXlsx: "xlsx:parse",
+  parseZuersCsv: "natcat:zuers:parseCsv",
+  parseZuersXlsx: "natcat:zuers:parseXlsx",
 
   // Geocoding
   geocode: "geocode:search",
@@ -28,6 +30,7 @@ export const IPC = {
   // Weather / Risk
   fetchWeather: "weather:fetch",
   scoreRisk: "risk:score",
+  fetchCatNet: "natcat:catnet:lookup",
 
   // Complete analysis pipeline run for one dataset
   analyzeDealership: "analyze:dealership",
@@ -72,6 +75,7 @@ export const IPC = {
   getSettings: "settings:get",
   setSettings: "settings:set",
   setLlmApiKey: "settings:setLlmApiKey", // -> safeStorage
+  setNatCatApiKey: "settings:setNatCatApiKey", // -> safeStorage
 
   // Map screenshot (Electron capturePage)
   mapCapture: "map:capture",

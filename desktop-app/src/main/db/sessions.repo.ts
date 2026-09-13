@@ -1,5 +1,9 @@
 import { randomUUID } from "crypto";
-import type { AnalyzedDealership, Session } from "@shared/types";
+import type {
+  AnalyzedDealership,
+  RiskParameters,
+  Session,
+} from "@shared/types";
 import { getDb } from "../db/database";
 
 /** Session-Persistenz in SQLite. Dealerships werden als JSON-Blob abgelegt. */
@@ -31,12 +35,28 @@ export function loadSession(id: string): Session | null {
       }
     | undefined;
   if (!row) return null;
+  let stored:
+    | AnalyzedDealership[]
+    | { dealerships?: AnalyzedDealership[]; parameters?: RiskParameters };
+  try {
+    stored = JSON.parse(row.data) as
+      | AnalyzedDealership[]
+      | { dealerships?: AnalyzedDealership[]; parameters?: RiskParameters };
+  } catch {
+    return null;
+  }
+  const dealerships = Array.isArray(stored)
+    ? stored
+    : (stored.dealerships ?? []);
   return {
     id: row.id,
     name: row.name,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    dealerships: JSON.parse(row.data) as AnalyzedDealership[],
+    dealerships,
+    ...(!Array.isArray(stored) && stored.parameters
+      ? { parameters: stored.parameters }
+      : {}),
   };
 }
 
@@ -55,7 +75,12 @@ export function saveSession(session: Session): void {
       name: session.name,
       createdAt: session.createdAt || now,
       updatedAt: now,
-      data: JSON.stringify(session.dealerships),
+      // Envelope format keeps session-scoped parameters together with the
+      // portfolio while the loader above remains compatible with old arrays.
+      data: JSON.stringify({
+        dealerships: session.dealerships,
+        parameters: session.parameters,
+      }),
     });
 }
 

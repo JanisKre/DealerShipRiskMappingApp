@@ -7,8 +7,27 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.2.0] – 2026-09-13
+
+### Added
+
 - Repository hardening: pinned GitHub Actions, dependency review, release
   checksums/SBOM/provenance, community issue forms, and agent instructions.
+- Added a source-aware natural-catastrophe provider architecture with
+  automatic ZÜRS Geo CSV/XLSX import, encrypted CatNet credentials, HTTPS API
+  lookup, provider evidence, and risk-score overrides with screening
+  fallbacks.
+
+### Changed
+
+- Hardened local persistence against damaged settings, session, conversation,
+  dashboard, and cache records.
+- Deferred Keychain decryption until an API key is actually needed, avoiding a
+  macOS credential prompt during normal startup.
+- Made settings writes safer by persisting WMS templates on blur and showing
+  recoverable errors in the settings page.
 
 ## [0.1.0] – 2026-08-20
 
@@ -33,5 +52,6 @@ the project follows [Semantic Versioning](https://semver.org/).
 - Export as PDF, Excel, CSV, plus portfolio file (`.drm`).
 - i18n (de / en / fr).
 
-[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.2.0
 [0.1.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.1.0

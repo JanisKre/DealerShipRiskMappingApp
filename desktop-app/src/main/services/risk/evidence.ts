@@ -1,6 +1,7 @@
 import type {
   BoundaryResult,
   DetectionResult,
+  NatCatAssessment,
   RiskEvidence,
 } from "@shared/types";
 import { RISK_MODEL_VERSION } from "./financial-loss";
@@ -66,11 +67,19 @@ export function riskEvidence(
 export function riskLimitations(
   boundary: BoundaryResult | undefined,
   detection: DetectionResult | undefined,
+  natCat?: NatCatAssessment,
 ): string[] {
   const limitations = [
     `Risk model ${RISK_MODEL_VERSION} is a screening model`,
     "Hazard values are location-level proxies and should be validated before underwriting decisions",
   ];
+  if (natCat && natCat.hazards.every((hazard) =>
+    hazard.annualExceedanceProbability == null && hazard.returnPeriodYears == null,
+  )) {
+    limitations.push(
+      `${natCat.provider} liefert Hazard-Klassen/Scores; die EAL bleibt ohne Frequenz- oder Verlustdaten ein Screening-Modell`,
+    );
+  }
   if (boundary?.source === "synthetic")
     limitations.push("Synthetic lot boundary used");
   if (boundary?.reviewRequired) {

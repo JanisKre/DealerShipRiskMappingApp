@@ -18,12 +18,23 @@ export function getSettings(): Settings {
     .prepare("SELECT value FROM settings WHERE key = ?")
     .get(SETTINGS_KEY) as { value: string } | undefined;
   if (!row) return DEFAULTS;
-  const parsed = SettingsSchema.safeParse(JSON.parse(row.value));
+  let raw: unknown;
+  try {
+    raw = JSON.parse(row.value);
+  } catch {
+    // A damaged settings row must not prevent the application from starting.
+    return DEFAULTS;
+  }
+  const parsed = SettingsSchema.safeParse(raw);
   if (!parsed.success) return DEFAULTS;
   const settings = parsed.data;
-  // Read-only flag: is a key stored in the keychain for the active provider?
+  // Only inspect presence here. Decrypting during startup accesses the
+  // macOS Keychain before the user actually needs an API.
   if (settings.llm) {
-    settings.llm.hasApiKey = getLlmApiKey(settings.llm.provider) != null;
+    settings.llm.hasApiKey = hasLlmApiKey(settings.llm.provider);
+  }
+  if (settings.natCat) {
+    settings.natCat.catnetHasApiKey = hasNatCatApiKey();
   }
   return settings;
 }
@@ -65,6 +76,47 @@ export function getLlmApiKey(provider: LlmProvider): string | null {
     }
   }
   return envApiKey(provider);
+}
+
+function hasLlmApiKey(provider: LlmProvider): boolean {
+  const row = getDb()
+    .prepare("SELECT 1 as present FROM settings WHERE key = ?")
+    .get(keyName(provider)) as { present: number } | undefined;
+  return row != null || envApiKey(provider) != null;
+}
+
+const NAT_CAT_KEY = "natcat.apikey.swissre-catnet";
+
+export function setNatCatApiKey(apiKey: string): void {
+  if (!apiKey.trim()) throw new Error("CatNet API key cannot be empty");
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error("safeStorage (OS keychain) not available");
+  }
+  const enc = safeStorage.encryptString(apiKey).toString("base64");
+  getDb()
+    .prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)")
+    .run(NAT_CAT_KEY, enc);
+}
+
+export function getNatCatApiKey(): string | null {
+  const row = getDb()
+    .prepare("SELECT value FROM settings WHERE key = ?")
+    .get(NAT_CAT_KEY) as { value: string } | undefined;
+  if (row) {
+    try {
+      return safeStorage.decryptString(Buffer.from(row.value, "base64"));
+    } catch {
+      // Fall back to the environment for managed deployments.
+    }
+  }
+  return process.env.SWISSRE_CATNET_API_KEY?.trim() || null;
+}
+
+function hasNatCatApiKey(): boolean {
+  const row = getDb()
+    .prepare("SELECT 1 as present FROM settings WHERE key = ?")
+    .get(NAT_CAT_KEY) as { present: number } | undefined;
+  return row != null || Boolean(process.env.SWISSRE_CATNET_API_KEY?.trim());
 }
 
 /**
