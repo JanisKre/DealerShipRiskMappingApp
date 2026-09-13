@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { DealershipInput } from "@shared/types";
 import { useAppStore } from "@renderer/store/appStore";
@@ -28,6 +29,7 @@ const RIGHT_ID = "drm-ws-right";
  * Panel widths are persisted in localStorage via `useDefaultLayout`.
  */
 export function WorkspacePage(): React.JSX.Element {
+  const { t } = useTranslation();
   const addAndAnalyze = useAppStore((s) => s.addAndAnalyze);
   const dealerships = useAppStore((s) => s.dealerships);
   const locationsPanelOpen = useMapStore((s) => s.locationsPanelOpen);
@@ -73,12 +75,10 @@ export function WorkspacePage(): React.JSX.Element {
     async (incoming: DealershipInput[]): Promise<void> => {
       const skipped = await addAndAnalyze(incoming);
       if (skipped > 0) {
-        toast.info(
-          `${skipped} duplicate${skipped > 1 ? "s" : ""} detected and skipped.`,
-        );
+        toast.info(t("start.duplicatesSkipped", { count: skipped }));
       }
     },
-    [addAndAnalyze],
+    [addAndAnalyze, t],
   );
 
   return (
@@ -112,7 +112,7 @@ export function WorkspacePage(): React.JSX.Element {
         <ResizableHandle withHandle />
 
         {/* Center: map */}
-        <ResizablePanel id={CENTER_ID} defaultSize={54} minSize={30}>
+        <ResizablePanel id={CENTER_ID} defaultSize={50} minSize={30}>
           <MapPage />
         </ResizablePanel>
 
@@ -123,8 +123,8 @@ export function WorkspacePage(): React.JSX.Element {
           id={RIGHT_ID}
           panelRef={rightRef}
           collapsible
-          defaultSize={26}
-          minSize={18}
+          defaultSize={28}
+          minSize={22}
           collapsedSize={0}
           onResize={(size) => {
             const collapsed = size.asPercentage <= 0;

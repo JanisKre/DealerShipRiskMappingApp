@@ -1,22 +1,63 @@
 import Database from "better-sqlite3";
 import { app } from "electron";
+import { copyFileSync, existsSync } from "node:fs";
 import { join } from "path";
 
 /**
  * Lokale SQLite-DB im userData-Pfad. Single-File, kein Server.
- * Tabellen werden idempotent per raw SQL erstellt (wie im DRM-Original).
+ * Tabellen werden über versionierte, transaktionale Migrationen erstellt.
  */
 let db: Database.Database | null = null;
+const SCHEMA_VERSION = 1;
 
 export function getDb(): Database.Database {
   if (db) return db;
 
   const dbPath = join(app.getPath("userData"), "dealership-risk.db");
+  const databaseAlreadyExists = existsSync(dbPath);
   db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
-  db.exec(`
+  const currentVersion = Number(db.pragma("user_version", { simple: true }));
+  if (currentVersion > SCHEMA_VERSION) {
+    db.close();
+    db = null;
+    throw new Error(
+      `Database schema ${currentVersion} is newer than this app supports (${SCHEMA_VERSION})`,
+    );
+  }
+  if (databaseAlreadyExists && currentVersion < SCHEMA_VERSION) {
+    createDatabaseBackup(db, dbPath);
+  }
+
+  try {
+    for (
+      let version = currentVersion + 1;
+      version <= SCHEMA_VERSION;
+      version++
+    ) {
+      const migrate = MIGRATIONS[version];
+      if (!migrate) throw new Error(`Missing database migration ${version}`);
+      db.transaction(() => {
+        migrate(db as Database.Database);
+        db?.pragma(`user_version = ${version}`);
+      })();
+    }
+  } catch (error) {
+    db.close();
+    db = null;
+    throw error;
+  }
+
+  return db;
+}
+
+type Migration = (database: Database.Database) => void;
+
+const MIGRATIONS: Record<number, Migration> = {
+  1: (database) =>
+    database.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id         TEXT PRIMARY KEY,
       name       TEXT NOT NULL,
@@ -52,7 +93,30 @@ export function getDb(): Database.Database {
       value      TEXT NOT NULL,
       expires_at INTEGER NOT NULL        -- Unix ms
     );
-  `);
+  `),
+};
 
-  return db;
+function createDatabaseBackup(
+  database: Database.Database,
+  dbPath: string,
+): void {
+  try {
+    // Checkpoint WAL pages so the backup is a standalone SQLite file.
+    database.pragma("wal_checkpoint(TRUNCATE)");
+    const backupPath = `${dbPath}.backup-${new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")}`;
+    copyFileSync(dbPath, backupPath);
+  } catch (error) {
+    // A backup failure must never silently turn into a destructive migration.
+    throw new Error(
+      `Could not create database backup before migration: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+export function closeDb(): void {
+  if (!db) return;
+  db.close();
+  db = null;
 }

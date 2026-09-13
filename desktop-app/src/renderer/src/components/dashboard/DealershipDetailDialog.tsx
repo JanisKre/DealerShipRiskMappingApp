@@ -380,7 +380,9 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   return (
     <div className="space-y-2 rounded-md border bg-muted/20 p-3 text-sm">
       <div className="flex items-center justify-between gap-2">
-        <h4 className="font-semibold">{t("dashboard.detailDialog.natCatTitle")}</h4>
+        <h4 className="font-semibold">
+          {t("dashboard.detailDialog.natCatTitle")}
+        </h4>
         <Button
           size="sm"
           variant="outline"
@@ -388,7 +390,9 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
           disabled={refreshing}
           onClick={() => void refresh()}
         >
-          <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`size-3.5 ${refreshing ? "animate-spin" : ""}`}
+          />
           {refreshing
             ? t("dashboard.detailDialog.natCatRefreshing")
             : t("dashboard.detailDialog.natCatRefresh")}
@@ -414,7 +418,10 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
           </div>
           {Object.entries(assessment.attributes).map(([name, value]) => (
             <div key={name} className="text-xs text-muted-foreground">
-              {t("dashboard.detailDialog.natCatAttribute", { name, value: String(value) })}
+              {t("dashboard.detailDialog.natCatAttribute", {
+                name,
+                value: String(value),
+              })}
             </div>
           ))}
         </>
@@ -561,6 +568,7 @@ function QuickLinksRow({
   d: AnalyzedDealership;
   website?: string;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-3 text-sm">
       <a
@@ -589,7 +597,7 @@ function QuickLinksRow({
           className="flex min-w-0 items-center gap-1.5 text-primary hover:underline"
         >
           <Globe className="size-3.5 shrink-0" />
-          <span className="truncate">Website</span>
+          <span className="truncate">{t("ui.website")}</span>
         </a>
       )}
     </div>

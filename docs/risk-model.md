@@ -41,3 +41,32 @@ existing EAL remains a screening estimate and is labeled accordingly.
 
 Import reports and scenario impacts follow the same principle: inputs,
 assumptions, versions, and quality warnings are kept next to the result.
+
+## Lot boundary and vehicle detection
+
+`desktop-app/src/main/services/detection.service.ts` runs a sliding-window
+YOLO-ONNX detector over aerial imagery captured at `DETECTION_ZOOM`
+(`shared/constants.ts`). Detection boxes are sanity-checked against
+real-world vehicle size bounds (`VEHICLE_MIN_WIDTH_M`, `VEHICLE_MAX_LENGTH_M`,
+`VEHICLE_MAX_ASPECT_RATIO`), converting model-input pixels to meters via the
+capture's own ground resolution — this keeps the check correct regardless of
+capture zoom, crop size, or edge-crop upscaling (a fixed pixel threshold
+quietly miscalibrates whenever any of those change). `tiles.service.ts`
+retries one zoom level down when a region doesn't publish imagery as sharp
+as requested, so raising the capture resolution doesn't regress coverage in
+lower-resolution areas.
+
+The aerial paved-surface boundary candidate
+(`surface-boundary.service.ts`) identifies a connected paved region and
+returns its footprint as a low-confidence, reviewable candidate — never
+treated as proof, per the provider pipeline in `boundary.service.ts`. The
+footprint is built with a concave ("digging") hull
+(`boundary-geometry.ts#nonConvexHull`) rather than a plain convex hull: a
+convex hull bridges any concave notch (an L-shaped site, two separated
+parking islands) with a straight edge, silently including whatever land
+sits in the notch. Industrial sites are disproportionately non-convex, so
+this was a systematic source of over-large, inaccurate lot boundaries there.
+The digging hull only pulls a vertex inward when the point cloud's own
+outline supports it, is validated against self-intersection, and falls back
+to the plain convex hull otherwise — it can enclose less area than a convex
+hull but never more, and never produces an invalid polygon.

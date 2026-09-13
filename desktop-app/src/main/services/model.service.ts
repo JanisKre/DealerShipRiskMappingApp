@@ -4,6 +4,7 @@ import { join } from "path";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 import { MODEL_FILENAME, modelsDir, resetDetector } from "./detection.service";
+import { fetchWithResilience } from "./http.service";
 
 /**
  * Download source of the vehicle detection model for the installation wizard.
@@ -38,7 +39,11 @@ export async function downloadModel(
   const finalPath = join(dir, MODEL_FILENAME);
   const tmpPath = `${finalPath}.download`;
 
-  const res = await fetch(MODEL_DOWNLOAD_URL, { signal });
+  const res = await fetchWithResilience(
+    MODEL_DOWNLOAD_URL,
+    { signal },
+    { retries: 0, timeoutMs: 120_000 },
+  );
   if (!res.ok || !res.body) {
     throw new Error(`Download failed: HTTP ${res.status}`);
   }

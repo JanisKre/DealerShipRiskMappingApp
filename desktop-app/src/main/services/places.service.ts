@@ -8,6 +8,8 @@
  * session token is no longer needed. Reverse geocoding/geocoding for further processing stays
  * with Nominatim (see geocoding.service.ts).
  */
+import { fetchWithResilience } from "./http.service";
+
 const PHOTON_URL = "https://photon.komoot.io/api";
 const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
 
@@ -49,7 +51,9 @@ export async function placesAutocomplete(
   query: string,
 ): Promise<PlaceSuggestion[]> {
   const url = `${PHOTON_URL}?q=${encodeURIComponent(query)}&lang=de&limit=5`;
-  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  const res = await fetchWithResilience(url, {
+    headers: { "User-Agent": USER_AGENT },
+  });
   if (!res.ok) throw new Error(`Photon ${res.status}`);
   const data = (await res.json()) as {
     features?: Array<{

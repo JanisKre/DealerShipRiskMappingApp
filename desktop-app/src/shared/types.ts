@@ -373,9 +373,6 @@ export type AnalyzedDealership = z.infer<typeof AnalyzedDealershipSchema>;
  */
 export const RiskParametersSchema = z.object({
   vehicleValueCarEur: z.number().nonnegative(),
-  vehicleValueVanEur: z.number().nonnegative(),
-  vehicleValueTruckEur: z.number().nonnegative(),
-  vehicleValueBusEur: z.number().nonnegative(),
   vehicleValueDefaultEur: z.number().nonnegative(),
   capacitySqmPerVehicle: z.number().positive(),
   hailDamageFraction: z.number().min(0).max(1),

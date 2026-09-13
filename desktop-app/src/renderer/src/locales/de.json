@@ -60,7 +60,228 @@
     "startHereDescription": "Für die meisten Portfolios reichen die markierten Einstellungen. Sie beeinflussen direkt Exposure, EAL oder Warnungen; alles Weitere bleibt unter „Erweiterte Parameter“ verfügbar.",
     "fractionHint": "Orientierung: Ein Anteil wird als Dezimalzahl eingegeben — 0,15 entspricht 15 %. Änderungen werden beim Verlassen eines Feldes übernommen.",
     "recommended": "wichtig",
-    "advancedParameters": "Erweiterte Parameter"
+    "advancedParameters": "Erweiterte Parameter",
+    "whatFor": "Wofür?",
+    "retry": "Erneut laden",
+    "loadErrorTitle": "Parameter konnten nicht geladen werden",
+    "loadErrorDescription": "Die übrige App bleibt verfügbar. Versuche, die Parameterseite erneut zu laden.",
+    "groups": {
+      "exposure": {
+        "title": "Exposition & Kapazität",
+        "description": "Werte und Flächenannahmen, die die finanzielle Exposition bestimmen."
+      },
+      "risk": {
+        "title": "Risiko & EAL",
+        "description": "Schadenquoten und Eintrittswahrscheinlichkeiten für die EAL-Berechnung."
+      },
+      "scores": {
+        "title": "Gefahren-Scores",
+        "description": "Grenzwerte, ab denen Messwerte einen maximalen Gefahren-Score erreichen."
+      },
+      "portfolio": {
+        "title": "Portfolio, PML & Szenarien",
+        "description": "Konzentrationsrisiken, Rückversicherung und Stressszenarien auf Portfolioebene."
+      },
+      "quality": {
+        "title": "Warnungen & Datenqualität",
+        "description": "Schwellenwerte für Hinweise, Prüfbedarf und die Qualität automatischer Ergebnisse."
+      }
+    },
+    "units": {
+      "eur": "€",
+      "squareMeters": "m²",
+      "fraction": "Anteil",
+      "kmh": "km/h",
+      "factor": "Faktor",
+      "strikesPerSqKmYear": "Schläge/km²/Jahr",
+      "daysPerYear": "Tage/Jahr",
+      "centimeters": "cm",
+      "millimetersPerYear": "mm/Jahr",
+      "kilometers": "km",
+      "outOf100": "von 100",
+      "meters": "m"
+    },
+    "parameterFields": {
+      "vehicleValueCarEur": {
+        "label": "Fahrzeugwert Pkw",
+        "description": "Durchschnittlicher Wert pro Pkw.",
+        "tip": "Anpassen, wenn der typische Fahrzeugmix deutlich vom Standardwert abweicht."
+      },
+      "vehicleValueDefaultEur": {
+        "label": "Standard-Fahrzeugwert",
+        "description": "Fallback, wenn keine Klasse bekannt ist."
+      },
+      "capacitySqmPerVehicle": {
+        "label": "Fläche pro Fahrzeug",
+        "description": "Annahme für die Grundstücks-Kapazität.",
+        "tip": "Der wichtigste Hebel für die geschätzte Kapazität, wenn keine verlässliche Fahrzeugzählung vorliegt."
+      },
+      "hailDamageFraction": {
+        "label": "Hagelschadenquote",
+        "description": "Schadenanteil je getroffenem Ereignis.",
+        "tip": "Schätzt, welcher Anteil der exponierten Fahrzeugwerte bei einem Treffer beschädigt wird."
+      },
+      "hailSiteHitProbability": {
+        "label": "Hagel-Treffwahrscheinlichkeit",
+        "description": "Wahrscheinlichkeit, dass der Standort getroffen wird.",
+        "tip": "Nur anpassen, wenn eigene Schadenhistorie oder ein anderes Gefahrenmodell vorliegt."
+      },
+      "climateLoadingFactor": {
+        "label": "Klimaaufschlag",
+        "description": "Multiplikativer Aufschlag auf die Hagelfrequenz.",
+        "tip": "Erhöht die modellierte Hagelfrequenz; 0,15 entspricht einem Aufschlag von 15 %."
+      },
+      "windStormThresholdKmh": {
+        "label": "Sturmschwelle",
+        "description": "Ab dieser Windgeschwindigkeit wird Windschaden modelliert."
+      },
+      "windDamageFraction": {
+        "label": "Wind-Schadenquote",
+        "description": "Schadenanteil pro modelliertem Sturmtag.",
+        "tip": "Beschreibt die durchschnittliche Schadenhöhe an einem als Sturm gewerteten Tag."
+      },
+      "windSiteHitProbability": {
+        "label": "Wind-Treffwahrscheinlichkeit",
+        "description": "Standortwahrscheinlichkeit für Windschaden."
+      },
+      "lightningDamageFraction": {
+        "label": "Blitz-Schadenquote",
+        "description": "Schadenanteil je Blitzereignis."
+      },
+      "lightningDensityScale": {
+        "label": "Blitzdichte-Skalierung",
+        "description": "Umrechnung der Blitzdichte in die EAL."
+      },
+      "snowLoadDamageFractionPer30cm": {
+        "label": "Schneelastquote je 30 cm",
+        "description": "Schadenanteil pro 30 cm Schneehöhe."
+      },
+      "floodDamageHq10": {
+        "label": "Hochwasserquote HQ10",
+        "description": "Schadenquote im 10-jährlichen Proxy-Szenario."
+      },
+      "floodDamageHq100": {
+        "label": "Hochwasserquote HQ100",
+        "description": "Schadenquote im 100-jährlichen Proxy-Szenario.",
+        "tip": "Nur ändern, wenn für die betrachteten Standorte belastbare Hochwasserannahmen vorliegen."
+      },
+      "floodDamageHqExtrem": {
+        "label": "Hochwasserquote Extrem",
+        "description": "Schadenquote im extremen Proxy-Szenario."
+      },
+      "heatHotdaysScoreMax": {
+        "label": "Hitzetage für Score 100",
+        "description": "Anzahl heißer Tage für den maximalen Hitze-Score."
+      },
+      "heatDamageFractionPerHotday": {
+        "label": "Hitzequote je Hitzetag",
+        "description": "Schadenanteil pro heißem Tag."
+      },
+      "windScoreMaxKmh": {
+        "label": "Wind bei Score 100",
+        "description": "Windgeschwindigkeit für den maximalen Wind-Score.",
+        "tip": "Sinnvoll, wenn der Score an ein eigenes internes Schwellenmodell angepasst werden soll."
+      },
+      "lightningScoreMaxDensity": {
+        "label": "Blitzdichte bei Score 100",
+        "description": "Blitzdichte für den maximalen Blitz-Score."
+      },
+      "snowScoreMaxCm": {
+        "label": "Schnee bei Score 100",
+        "description": "Schneehöhe für den maximalen Schnee-Score."
+      },
+      "floodScoreMaxAnnualPrecipMm": {
+        "label": "Niederschlag bei Score 100",
+        "description": "Jahresniederschlag für den maximalen Hochwasser-Score.",
+        "tip": "Definiert, bei welchem Jahresniederschlag der Hochwasser-Score den Höchstwert erreicht."
+      },
+      "pmlDamageFraction10": {
+        "label": "PML-Schadenquote 10 Jahre",
+        "description": "Schadenquote für das 10-Jahres-PML."
+      },
+      "pmlDamageFraction50": {
+        "label": "PML-Schadenquote 50 Jahre",
+        "description": "Schadenquote für das 50-Jahres-PML."
+      },
+      "pmlDamageFraction100": {
+        "label": "PML-Schadenquote 100 Jahre",
+        "description": "Schadenquote für das 100-Jahres-PML.",
+        "tip": "Die wichtigste PML-Annahme für ein seltenes, aber schweres Ereignis."
+      },
+      "pmlClusterRadiusKm": {
+        "label": "PML-Cluster-Radius",
+        "description": "Radius für die größte PML-Exposition."
+      },
+      "accumulationRadiusKm": {
+        "label": "Akkumulationsradius",
+        "description": "Entfernung, in der Standorte zusammengefasst werden.",
+        "tip": "Legt fest, ab welcher Nähe mehrere Standorte als ein Konzentrationsrisiko betrachtet werden."
+      },
+      "accumulationReinsureThresholdEur": {
+        "label": "Rückversicherungs-Schwelle",
+        "description": "Ab dieser akkumulierten Exposition wird Rückversicherung empfohlen.",
+        "tip": "Dient als organisatorischer Schwellenwert für die Rückversicherungswarnung."
+      },
+      "scenarioDamageLow": {
+        "label": "Szenarioquote Niedrig",
+        "description": "Schadenquote im niedrigen Stressszenario."
+      },
+      "scenarioDamageMedium": {
+        "label": "Szenarioquote Mittel",
+        "description": "Schadenquote im mittleren Stressszenario."
+      },
+      "scenarioDamageHigh": {
+        "label": "Szenarioquote Hoch",
+        "description": "Schadenquote im hohen Stressszenario."
+      },
+      "scenarioDamageExtreme": {
+        "label": "Szenarioquote Extrem",
+        "description": "Schadenquote im extremen Stressszenario."
+      },
+      "alertExtremeScore": {
+        "label": "Warnschwelle Risiko-Score",
+        "description": "Ab diesem Score wird ein kritischer Hinweis erzeugt.",
+        "tip": "Niedriger = mehr Warnungen; höher = nur die kritischsten Standorte hervorheben."
+      },
+      "alertOvercapacity": {
+        "label": "Warnschwelle Überkapazität",
+        "description": "Auslastung oberhalb dieses Faktors erzeugt einen Hinweis.",
+        "tip": "1,0 entspricht 100 % Auslastung. Werte über 1,0 erlauben den entsprechenden Puffer."
+      },
+      "alertLowBoundaryConfidence": {
+        "label": "Warnschwelle Boundary-Konfidenz",
+        "description": "Darunter gilt die Grundstücksgrenze als unsicher."
+      },
+      "alertEalPortfolioShare": {
+        "label": "Warnschwelle EAL-Anteil",
+        "description": "Portfolioanteil, ab dem ein Standort hervorgehoben wird."
+      },
+      "boundaryReviewConfidence": {
+        "label": "Boundary-Review-Konfidenz",
+        "description": "Unterhalb dieser Konfidenz ist eine Prüfung erforderlich."
+      },
+      "boundaryReviewTop2Margin": {
+        "label": "Boundary-Review Top-2-Abstand",
+        "description": "Mindestabstand zwischen bestem und zweitbestem Kandidaten."
+      },
+      "boundaryReviewSourceAgreement": {
+        "label": "Boundary-Review Quellenübereinstimmung",
+        "description": "Mindestübereinstimmung unabhängiger Geometrien."
+      },
+      "boundaryNearPointDistanceM": {
+        "label": "Boundary-Nähe zum Referenzpunkt",
+        "description": "Maximale Distanz für die Relation nahe."
+      },
+      "syntheticBoundaryRadiusM": {
+        "label": "Synthetischer Boundary-Radius",
+        "description": "Fallback-Radius, wenn keine Geometrie verfügbar ist."
+      },
+      "detectionConfidence": {
+        "label": "Erkennungs-Konfidenz",
+        "description": "Mindestkonfidenz des Fahrzeugmodells.",
+        "tip": "Niedriger findet mehr Fahrzeuge, kann aber mehr Fehlalarme erzeugen; höher ist konservativer."
+      }
+    }
   },
   "settings": {
     "title": "Einstellungen",
@@ -307,6 +528,8 @@
       "emptyTitle": "Noch keine Standorte",
       "emptyDescription": "Adresse links im Standorte-Dock hinzufügen oder CSV/Excel importieren.",
       "analyzingProgress": "Analysiere {{done}}/{{total}}…",
+      "cancelAnalysis": "Analyse stoppen",
+      "analysisErrors": "{{count}} Standorte konnten nicht analysiert werden",
       "boundaryDetectionPrompt": "Grenze für {{name}} geändert.",
       "boundaryEditedPrompt": "Grenze für {{name}} bearbeitet.",
       "saveBoundaryEdit": "Änderung speichern",
@@ -324,7 +547,7 @@
   "ai": {
     "memo": "Underwriting-Memo",
     "chat": "Portfolio-Chat",
-    "summary": "Executive Summary",
+    "summary": "Management-Zusammenfassung",
     "nlQuery": "Natürliche Abfrage",
     "naturalLanguageQuery": "Natürliche Abfrage",
     "queryInputPlaceholder": "Frage in natürlicher Sprache stellen…",
@@ -429,7 +652,7 @@
     "deleteThread": "Konversation löschen",
     "emptyChat": "Portfolio fragen oder ein KI-Dashboard erstellen lassen.",
     "dismiss": "Ausblenden",
-    "dismissSummary": "Executive Summary ausblenden",
+    "dismissSummary": "Management-Zusammenfassung ausblenden",
     "concentration": "Konzentration: {{value}}",
     "summaryDescription": "Erstellt eine managementtaugliche Zusammenfassung mit Top-Risiken, Konzentrationen und Rückversicherungsempfehlung.",
     "generate": "Generieren",
@@ -450,6 +673,7 @@
     "worstCluster": "Größter Cluster im {{radius}}-km-Radius",
     "lossFractionIncreases": "Der Schadensanteil steigt mit der Wiederkehrperiode.",
     "widgetError": "Widget konnte nicht dargestellt werden.",
+    "website": "Website",
     "reportExported": "Bericht exportiert: {{path}}",
     "portfolioExported": "Portfolio exportiert: {{path}}",
     "viewExported": "Ansicht exportiert: {{path}}",

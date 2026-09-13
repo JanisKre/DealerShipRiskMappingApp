@@ -5,22 +5,14 @@ import { getDb } from "../db/database";
  * Survives app restarts and enables partial offline operation.
  */
 export function cacheGet<T>(key: string): T | null {
-  const row = getDb()
-    .prepare("SELECT value, expires_at FROM api_cache WHERE key = ?")
-    .get(key) as { value: string; expires_at: number } | undefined;
+  const row = readCache<T>(key);
 
   if (!row) return null;
   if (row.expires_at < Date.now()) {
     getDb().prepare("DELETE FROM api_cache WHERE key = ?").run(key);
     return null;
   }
-  try {
-    return JSON.parse(row.value) as T;
-  } catch {
-    // Corrupt cache entries are disposable; the caller can fetch fresh data.
-    getDb().prepare("DELETE FROM api_cache WHERE key = ?").run(key);
-    return null;
-  }
+  return row.value;
 }
 
 export function cacheSet<T>(key: string, value: T, ttlMs: number): void {
@@ -37,11 +29,39 @@ export async function cached<T>(
   ttlMs: number,
   fetcher: () => Promise<T>,
 ): Promise<T> {
-  const hit = cacheGet<T>(key);
-  if (hit !== null) return hit;
-  const value = await fetcher();
-  cacheSet(key, value, ttlMs);
-  return value;
+  const cachedEntry = readCache<T>(key);
+  if (cachedEntry && cachedEntry.expires_at >= Date.now()) {
+    return cachedEntry.value;
+  }
+  try {
+    const value = await fetcher();
+    cacheSet(key, value, ttlMs);
+    return value;
+  } catch (error) {
+    // Offline mode remains useful with stale data. Callers can still expose
+    // the retrieval timestamp through their evidence metadata.
+    if (cachedEntry) return cachedEntry.value;
+    throw error;
+  }
+}
+
+interface CacheEntry<T> {
+  value: T;
+  expires_at: number;
+}
+
+function readCache<T>(key: string): CacheEntry<T> | null {
+  const row = getDb()
+    .prepare("SELECT value, expires_at FROM api_cache WHERE key = ?")
+    .get(key) as { value: string; expires_at: number } | undefined;
+  if (!row) return null;
+  try {
+    return { value: JSON.parse(row.value) as T, expires_at: row.expires_at };
+  } catch {
+    // Corrupt cache entries are disposable; the caller can fetch fresh data.
+    getDb().prepare("DELETE FROM api_cache WHERE key = ?").run(key);
+    return null;
+  }
 }
 
 export const TTL = {

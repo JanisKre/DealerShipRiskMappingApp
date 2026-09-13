@@ -194,3 +194,285 @@ function orientation(
 ): number {
   return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
 }
+
+// --- Convex / concave hull (generic 2D points, e.g. pixel or lon/lat) ------
+
+export type Point2D = [number, number];
+
+function keyOf(p: Point2D): string {
+  return `${p[0]}:${p[1]}`;
+}
+
+function dedupePoints(points: Point2D[]): Point2D[] {
+  return Array.from(new Map(points.map((p) => [keyOf(p), p])).values());
+}
+
+function closeRing2D(ring: Point2D[]): Point2D[] {
+  if (ring.length === 0) return ring;
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  return first[0] === last[0] && first[1] === last[1] ? ring : [...ring, first];
+}
+
+/** Standard Andrew's monotone chain convex hull. Returns a closed ring. */
+export function convexHull(points: Point2D[]): Point2D[] {
+  const unique = dedupePoints(points).sort(
+    (a, b) => a[0] - b[0] || a[1] - b[1],
+  );
+  if (unique.length < 3) return closeRing2D(unique);
+  const lower: Point2D[] = [];
+  for (const point of unique) {
+    while (
+      lower.length >= 2 &&
+      orientation(lower.at(-2)!, lower.at(-1)!, point) <= 0
+    )
+      lower.pop();
+    lower.push(point);
+  }
+  const upper: Point2D[] = [];
+  for (const point of [...unique].reverse()) {
+    while (
+      upper.length >= 2 &&
+      orientation(upper.at(-2)!, upper.at(-1)!, point) <= 0
+    )
+      upper.pop();
+    upper.push(point);
+  }
+  lower.pop();
+  upper.pop();
+  return closeRing2D([...lower, ...upper]);
+}
+
+function samePoint(a: Point2D, b: Point2D): boolean {
+  return a[0] === b[0] && a[1] === b[1];
+}
+
+function segmentsIntersectAny(
+  p: Point2D,
+  q: Point2D,
+  path: Point2D[],
+): boolean {
+  for (let i = 0; i < path.length - 1; i += 1) {
+    const c = path[i];
+    const d = path[i + 1];
+    // Segments that share an endpoint with (p,q) touch by construction —
+    // that's adjacency, not a crossing.
+    if (
+      samePoint(c, p) ||
+      samePoint(c, q) ||
+      samePoint(d, p) ||
+      samePoint(d, q)
+    )
+      continue;
+    if (segmentsIntersect(p, q, c, d)) return true;
+  }
+  return false;
+}
+
+/**
+ * Filters a raster-aligned point set (grid spacing `step`) down to cells
+ * that touch at least one empty 8-neighbor — i.e. the region's outline.
+ * Use this before `nonConvexHull` when the source is a dense area fill
+ * (e.g. every paved pixel of a lot) rather than an already-sparse outline.
+ */
+export function outlinePoints(points: Point2D[], step: number): Point2D[] {
+  const set = new Set(points.map(keyOf));
+  const offsets: Point2D[] = [
+    [-step, -step],
+    [0, -step],
+    [step, -step],
+    [-step, 0],
+    [step, 0],
+    [-step, step],
+    [0, step],
+    [step, step],
+  ];
+  return points.filter(([x, y]) =>
+    offsets.some(([dx, dy]) => !set.has(keyOf([x + dx, y + dy]))),
+  );
+}
+
+export interface NonConvexHullOptions {
+  /** Max recursive subdivisions per original hull edge. */
+  maxDepth?: number;
+  /** A dig only fires when perpendicular offset exceeds this share of the edge length. */
+  concavityRatio?: number;
+  /** Minimum perpendicular offset (same unit as the input points) worth digging into. */
+  minDigDistance?: number;
+}
+
+/**
+ * Concave ("digging") hull: starts from the convex hull and, for every edge,
+ * pulls in the interior point that best explains a concavity along that
+ * edge — but only when the indentation is geometrically significant and
+ * doesn't self-intersect.
+ *
+ * This replaces a plain convex hull for paved-surface footprints: a convex
+ * hull bridges concave notches (e.g. an L-shaped site, or two separated
+ * parking islands) with a straight edge that silently swallows whatever
+ * lies in the notch — trees, roads, neighbouring lots. Industrial sites are
+ * disproportionately non-convex, which is exactly where that bias showed up.
+ *
+ * `points` should approximate the shape's *outline* (e.g. only the
+ * perimeter cells of a filled raster mask), not a dense interior fill —
+ * candidates are picked by perpendicular distance from each hull edge, and a
+ * deep-interior point of a solid fill is trivially "far" from some edge
+ * without indicating any real concavity there. Callers with a raster mask
+ * should pre-filter to boundary cells first.
+ *
+ * As a safety net, the result is rejected in favor of the plain convex hull
+ * if it would end up self-intersecting — this can never enclose *less* area
+ * than the true point-cloud shape, and never more than the convex hull.
+ */
+export function nonConvexHull(
+  points: Point2D[],
+  options: NonConvexHullOptions = {},
+): Point2D[] {
+  const maxDepth = options.maxDepth ?? 6;
+  const concavityRatio = options.concavityRatio ?? 0.12;
+  const minDigDistance = options.minDigDistance ?? 3;
+
+  const unique = dedupePoints(points);
+  if (unique.length < 4) return closeRing2D(unique);
+
+  const hull = convexHull(unique);
+  const openHull = hull.slice(0, -1);
+  if (openHull.length < 3) return hull;
+  const hullKeys = new Set(openHull.map(keyOf));
+  const interior = unique.filter((p) => !hullKeys.has(keyOf(p)));
+  const center: Point2D = [
+    openHull.reduce((sum, p) => sum + p[0], 0) / openHull.length,
+    openHull.reduce((sum, p) => sum + p[1], 0) / openHull.length,
+  ];
+
+  // Assign every interior point to its single nearest hull edge before
+  // digging. Without this, a point that genuinely belongs to a distant,
+  // unrelated part of the outline can still pass the local side/ratio
+  // checks for some other short edge (its perpendicular offset from that
+  // edge's line is large simply because it's far away, not because it
+  // reveals a concavity there) — producing a nonsensical, self-intersecting
+  // "dig" clear across the shape.
+  const buckets: Point2D[][] = openHull.map(() => []);
+  for (const p of interior) {
+    let bestEdge = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < openHull.length; i += 1) {
+      const d = pointToSegmentDistance(
+        p,
+        openHull[i],
+        openHull[(i + 1) % openHull.length],
+      );
+      if (d < bestDist) {
+        bestDist = d;
+        bestEdge = i;
+      }
+    }
+    buckets[bestEdge].push(p);
+  }
+
+  const used = new Set<string>();
+  const result: Point2D[] = [];
+  for (let i = 0; i < openHull.length; i += 1) {
+    const a = openHull[i];
+    const b = openHull[(i + 1) % openHull.length];
+    result.push(a);
+    digEdge(
+      a,
+      b,
+      buckets[i],
+      used,
+      center,
+      result,
+      maxDepth,
+      concavityRatio,
+      minDigDistance,
+    );
+  }
+  const dug = closeRing2D(result);
+  return isSimpleRing(dug) ? dug : hull;
+}
+
+function isSimpleRing(ring: Point2D[]): boolean {
+  const open = ring.slice(0, -1);
+  for (let i = 0; i < open.length; i += 1) {
+    for (let j = i + 1; j < open.length; j += 1) {
+      if (j === i + 1 || (i === 0 && j === open.length - 1)) continue;
+      if (
+        segmentsIntersect(
+          open[i],
+          open[(i + 1) % open.length],
+          open[j],
+          open[(j + 1) % open.length],
+        )
+      )
+        return false;
+    }
+  }
+  return true;
+}
+
+function digEdge(
+  a: Point2D,
+  b: Point2D,
+  interior: Point2D[],
+  used: Set<string>,
+  interiorRefPoint: Point2D,
+  out: Point2D[],
+  depth: number,
+  concavityRatio: number,
+  minDigDistance: number,
+): void {
+  if (depth <= 0) return;
+  const abx = b[0] - a[0];
+  const aby = b[1] - a[1];
+  const edgeLen = Math.hypot(abx, aby);
+  if (edgeLen < minDigDistance * 2) return;
+  const interiorSign = Math.sign(orientation(a, b, interiorRefPoint)) || 1;
+
+  let best: { point: Point2D; perp: number } | null = null;
+  for (const p of interior) {
+    const key = keyOf(p);
+    if (used.has(key)) continue;
+    const apx = p[0] - a[0];
+    const apy = p[1] - a[1];
+    const t = (apx * abx + apy * aby) / (edgeLen * edgeLen);
+    if (t <= 0.08 || t >= 0.92) continue; // stay clear of the endpoints
+    const cross = abx * apy - aby * apx;
+    if (cross !== 0 && Math.sign(cross) !== interiorSign) continue;
+    const perp = Math.abs(cross) / edgeLen;
+    if (perp < minDigDistance || perp / edgeLen < concavityRatio) continue;
+    if (!best || perp > best.perp) best = { point: p, perp };
+  }
+  if (!best) return;
+  if (
+    segmentsIntersectAny(a, best.point, out) ||
+    segmentsIntersectAny(best.point, b, out)
+  ) {
+    return;
+  }
+
+  used.add(keyOf(best.point));
+  digEdge(
+    a,
+    best.point,
+    interior,
+    used,
+    interiorRefPoint,
+    out,
+    depth - 1,
+    concavityRatio,
+    minDigDistance,
+  );
+  out.push(best.point);
+  digEdge(
+    best.point,
+    b,
+    interior,
+    used,
+    interiorRefPoint,
+    out,
+    depth - 1,
+    concavityRatio,
+    minDigDistance,
+  );
+}

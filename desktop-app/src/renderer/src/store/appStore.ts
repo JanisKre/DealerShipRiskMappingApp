@@ -34,6 +34,10 @@ interface AppState {
   selectedId: string | null;
   analyzing: boolean;
   progress: { done: number; total: number } | null;
+  /** Last error per location from a batch analysis. */
+  analysisErrors: Record<string, string>;
+  /** Requests that the current batch stop after the active item. */
+  analysisCancelRequested: boolean;
   /** IDs whose background analysis is currently running (pin feedback). */
   analyzingIds: string[];
   /** Locations whose manually edited boundary has not been re-detected yet. */
@@ -123,6 +127,7 @@ interface AppState {
   /** Fetches a configured CatNet assessment and rescores one location. */
   refreshCatNet: (id: string) => Promise<void>;
   analyzeAll: (inputs: DealershipInput[]) => Promise<void>;
+  cancelAnalysis: () => void;
   /**
    * Adds locations to the portfolio (deduplicated against existing
    * entries), shows them immediately as pins, and analyzes them in the
@@ -167,6 +172,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedId: null,
   analyzing: false,
   progress: null,
+  analysisErrors: {},
+  analysisCancelRequested: false,
   analyzingIds: [],
   pendingBoundaryDetectionIds: [],
   detectionUpdateIds: [],
@@ -186,7 +193,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setParameters: (parameters) =>
     set({ parameters: normalizeRiskParameters(parameters) }),
   updateParameters: async (patch) => {
-    const parameters = normalizeRiskParameters({ ...get().parameters, ...patch });
+    const parameters = normalizeRiskParameters({
+      ...get().parameters,
+      ...patch,
+    });
     set({ parameters, parametersUpdating: true });
     try {
       const current = get().dealerships.filter(
@@ -202,15 +212,19 @@ export const useAppStore = create<AppState>((set, get) => ({
                 reviewRequired: boundaryNeedsReview(d.boundary, parameters),
               }
             : d.boundary;
-          return update ? { ...d, boundary, risk: update.risk } : { ...d, boundary };
+          return update
+            ? { ...d, boundary, risk: update.risk }
+            : { ...d, boundary };
         }),
       }));
     } catch (err) {
       console.error("Parameter recalculation failed:", err);
     } finally {
-      await get().saveSession().catch((err: unknown) => {
-        console.error("Saving parameters failed:", err);
-      });
+      await get()
+        .saveSession()
+        .catch((err: unknown) => {
+          console.error("Saving parameters failed:", err);
+        });
       set({ parametersUpdating: false });
     }
   },
@@ -226,14 +240,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       pendingBoundaryDetectionIds: [],
       detectionUpdateIds: [],
       detectionUpdateErrors: {},
+      analysisErrors: {},
+      analysisCancelRequested: false,
     }),
   upsertDealership: (d) =>
     set((s) => {
       const idx = s.dealerships.findIndex((x) => x.id === d.id);
-      if (idx === -1) return { dealerships: [...s.dealerships, d] };
+      const analysisErrors = d.risk
+        ? withoutKey(s.analysisErrors, d.id)
+        : s.analysisErrors;
+      if (idx === -1)
+        return { dealerships: [...s.dealerships, d], analysisErrors };
       const copy = [...s.dealerships];
       copy[idx] = d;
-      return { dealerships: copy };
+      return { dealerships: copy, analysisErrors };
     }),
   updateBoundary: (id, boundary) =>
     set((s) => {
@@ -510,6 +530,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({
       dealerships: s.dealerships.filter((d) => d.id !== id),
       selectedId: s.selectedId === id ? null : s.selectedId,
+      analysisErrors: withoutKey(s.analysisErrors, id),
     })),
 
   reanalyzeDealership: async (id) => {
@@ -564,21 +585,38 @@ export const useAppStore = create<AppState>((set, get) => ({
       analyzing: true,
       progress: { done: 0, total: inputs.length },
       dealerships: [],
+      analyzingIds: [],
+      analysisErrors: {},
+      analysisCancelRequested: false,
     });
-    for (let i = 0; i < inputs.length; i++) {
+    for (let i = 0; i < inputs.length && !get().analysisCancelRequested; i++) {
+      const input = inputs[i];
+      set((s) => ({
+        analyzingIds: [...s.analyzingIds, input.id],
+        analysisErrors: withoutKey(s.analysisErrors, input.id),
+      }));
       try {
         const result = await window.api.analyzeDealership(
-          inputs[i],
+          input,
           get().parameters,
         );
         get().upsertDealership(result);
       } catch (err) {
-        console.error(`Analysis failed for ${inputs[i].name}:`, err);
+        const message = errorMessage(err);
+        console.error(`Analysis failed for ${input.name}:`, err);
+        set((s) => ({
+          analysisErrors: { ...s.analysisErrors, [input.id]: message },
+        }));
       }
-      set({ progress: { done: i + 1, total: inputs.length } });
+      set((s) => ({
+        analyzingIds: s.analyzingIds.filter((id) => id !== input.id),
+        progress: { done: i + 1, total: inputs.length },
+      }));
     }
-    set({ analyzing: false });
+    set({ analyzing: false, analyzingIds: [], analysisCancelRequested: false });
   },
+
+  cancelAnalysis: () => set({ analysisCancelRequested: true }),
 
   addAndAnalyze: async (inputs) => {
     // Deduplicate new locations against the existing set: existing entries
@@ -603,9 +641,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedId: freshIds.length === 1 ? freshIds[0] : s.selectedId,
       analyzing: true,
       progress: { done: 0, total: fresh.length },
+      analysisCancelRequested: false,
+      analysisErrors: fresh.reduce<Record<string, string>>(
+        (errors, input) => {
+          delete errors[input.id];
+          return errors;
+        },
+        { ...get().analysisErrors },
+      ),
     }));
 
-    for (let i = 0; i < fresh.length; i++) {
+    for (let i = 0; i < fresh.length && !get().analysisCancelRequested; i++) {
       const input = fresh[i];
       set((s) => ({ analyzingIds: [...s.analyzingIds, input.id] }));
       try {
@@ -615,14 +661,18 @@ export const useAppStore = create<AppState>((set, get) => ({
         );
         get().upsertDealership(result);
       } catch (err) {
+        const message = errorMessage(err);
         console.error(`Analysis failed for ${input.name}:`, err);
+        set((s) => ({
+          analysisErrors: { ...s.analysisErrors, [input.id]: message },
+        }));
       }
       set((s) => ({
         analyzingIds: s.analyzingIds.filter((id) => id !== input.id),
         progress: { done: i + 1, total: fresh.length },
       }));
     }
-    set({ analyzing: false });
+    set({ analyzing: false, analyzingIds: [], analysisCancelRequested: false });
     return duplicates.length;
   },
 
@@ -666,6 +716,10 @@ function withoutKey(
   return copy;
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function boundaryNeedsReview(
   boundary: NonNullable<AnalyzedDealership["boundary"]>,
   parameters: RiskParameters,
@@ -676,7 +730,8 @@ function boundaryNeedsReview(
     boundary.confidence < parameters.boundaryReviewConfidence ||
     (boundary.quality?.top2Margin ?? 1) < parameters.boundaryReviewTop2Margin ||
     boundary.quality?.pointRelation === "outside" ||
-    (boundary.quality?.sourceAgreement ?? 0) < parameters.boundaryReviewSourceAgreement ||
+    (boundary.quality?.sourceAgreement ?? 0) <
+      parameters.boundaryReviewSourceAgreement ||
     (boundary.quality?.areaPlausibility ?? 0) < 0.5
   );
 }

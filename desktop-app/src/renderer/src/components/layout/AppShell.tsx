@@ -95,7 +95,7 @@ function SessionLoader(): null {
 }
 
 export function AppShell(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { pathname } = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -228,7 +228,7 @@ export function AppShell(): React.JSX.Element {
           ) : (
             <button
               type="button"
-              className="flex min-w-0 flex-col text-left hover:opacity-70"
+              className="flex min-w-0 flex-1 flex-col text-left hover:opacity-70"
               onClick={startEditing}
               title={t("shell.editProjectName")}
             >
@@ -249,18 +249,18 @@ export function AppShell(): React.JSX.Element {
                 orientation="vertical"
                 className="mx-1 data-[orientation=vertical]:h-4"
               />
-              <h1 className="truncate text-sm leading-tight font-semibold">
+              <h1 className="hidden truncate text-sm leading-tight font-semibold sm:block">
                 {t(activeTitleKey)}
               </h1>
             </>
           )}
           {lastSavedAt && (
             <span
-              className="ml-auto shrink-0 text-xs text-muted-foreground"
-              title={new Date(lastSavedAt).toLocaleString("de-DE")}
+              className="ml-auto hidden shrink-0 text-xs text-muted-foreground md:block"
+              title={new Date(lastSavedAt).toLocaleString(i18n.language)}
             >
               {t("shell.autosaved")} ·{" "}
-              {new Date(lastSavedAt).toLocaleTimeString("de-DE", {
+              {new Date(lastSavedAt).toLocaleTimeString(i18n.language, {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
@@ -271,7 +271,6 @@ export function AppShell(): React.JSX.Element {
           <Outlet />
         </div>
       </SidebarInset>
-      <AutosaveController />
       <ModelInstallWizard />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </SidebarProvider>
