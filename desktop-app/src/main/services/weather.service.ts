@@ -1,4 +1,5 @@
 import { cached, TTL } from "./cache.service";
+import { fetchWithResilience } from "./http.service";
 import type { HazardProvider } from "./hazard-provider";
 import type { RiskEvidence } from "@shared/types";
 
@@ -37,7 +38,7 @@ async function fetchOpenMeteoWeather(
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
       `&daily=wind_speed_10m_max,precipitation_sum,snowfall_sum,temperature_2m_max` +
       `&hourly=cape&past_days=92&forecast_days=1&timezone=auto`;
-    const res = await fetch(url);
+    const res = await fetchWithResilience(url);
     if (!res.ok) throw new Error(`Open-Meteo ${res.status}`);
     const data = (await res.json()) as {
       daily?: {

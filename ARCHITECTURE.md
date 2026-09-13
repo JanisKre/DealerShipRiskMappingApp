@@ -8,9 +8,9 @@ For feature scope, see [CORE_FUNCTIONALITIES.md](./CORE_FUNCTIONALITIES.md).
 
 | Area               | Choice                                                   |
 | ------------------ | ---------------------------------------------------------|
-| Runtime/Shell      | Electron 36                                              |
-| Build/Bundler      | electron-vite 3 + Vite 6                                  |
-| Language           | TypeScript 5.9 (strict), separate tsconfigs (node/web)    |
+| Runtime/Shell      | Electron 44                                              |
+| Build/Bundler      | electron-vite 5 + Vite 7                                 |
+| Language           | TypeScript 5.8 (strict), separate tsconfigs (node/web)    |
 | UI framework       | React 19                                                  |
 | UI components      | **shadcn/ui + Tailwind CSS 4** (Radix primitives)         |
 | State              | Zustand 5                                                 |
@@ -118,7 +118,7 @@ Interface: `tiles.service.ts` → `aerialImageForBbox(bbox) → RGBA`.
 | ---------------------------------- | --------------------------------------------- |
 | REST routes (`server/routes/*`)   | IPC handlers (`src/main/ipc/*.handlers.ts`)   |
 | `server/lib/*` business logic      | `src/main/services/*` (largely 1:1)           |
-| Express proxy (CORS/caching)       | Direct `fetch` in Main + local cache          |
+| Express proxy (CORS/caching)       | Resilient HTTP client in Main + local cache    |
 | oauth2-proxy / nginx / rate limit  | dropped entirely                              |
 | worker_threads inference           | Electron `utilityProcess` (ONNX)              |
 | API keys as server env vars        | `safeStorage` (OS-keychain-encrypted)         |
@@ -134,7 +134,7 @@ dealership-risk-desktop/
 │  │  ├─ index.ts              # app lifecycle, BrowserWindow
 │  │  ├─ ipc/                  # *.handlers.ts per domain
 │  │  ├─ services/             # boundary, detection, risk, weather, llm, export
-│  │  ├─ db/                   # database.ts, migrations, *.repo.ts
+│  │  ├─ db/                   # database.ts, versioned migrations, *.repo.ts
 │  │  ├─ workers/              # onnx-inference (utilityProcess)
 │  │  └─ config/               # settings, safeStorage keys
 │  ├─ preload/

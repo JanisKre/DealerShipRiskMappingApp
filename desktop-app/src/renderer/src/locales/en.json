@@ -60,7 +60,228 @@
     "startHereDescription": "For most portfolios, the marked settings are enough. They directly affect exposure, EAL, or alerts; everything else remains available under “Advanced parameters”.",
     "fractionHint": "Guidance: enter fractions as decimals — 0.15 means 15%. Changes are applied when you leave a field.",
     "recommended": "important",
-    "advancedParameters": "Advanced parameters"
+    "advancedParameters": "Advanced parameters",
+    "whatFor": "Why it matters:",
+    "retry": "Try again",
+    "loadErrorTitle": "Parameters could not be loaded",
+    "loadErrorDescription": "The rest of the app remains available. Try loading the parameters page again.",
+    "groups": {
+      "exposure": {
+        "title": "Exposure & capacity",
+        "description": "Values and area assumptions that determine financial exposure."
+      },
+      "risk": {
+        "title": "Risk & EAL",
+        "description": "Damage shares and occurrence probabilities for the EAL calculation."
+      },
+      "scores": {
+        "title": "Peril scores",
+        "description": "Thresholds at which measured values reach their maximum peril score."
+      },
+      "portfolio": {
+        "title": "Portfolio, PML & scenarios",
+        "description": "Concentration risk, reinsurance and portfolio-level stress scenarios."
+      },
+      "quality": {
+        "title": "Alerts & data quality",
+        "description": "Thresholds for alerts, reviews and the quality of automated results."
+      }
+    },
+    "units": {
+      "eur": "€",
+      "squareMeters": "m²",
+      "fraction": "share",
+      "kmh": "km/h",
+      "factor": "factor",
+      "strikesPerSqKmYear": "strikes/km²/year",
+      "daysPerYear": "days/year",
+      "centimeters": "cm",
+      "millimetersPerYear": "mm/year",
+      "kilometers": "km",
+      "outOf100": "out of 100",
+      "meters": "m"
+    },
+    "parameterFields": {
+      "vehicleValueCarEur": {
+        "label": "Passenger-car value",
+        "description": "Average value per passenger car.",
+        "tip": "Adjust this if the typical vehicle mix differs materially from the default value."
+      },
+      "vehicleValueDefaultEur": {
+        "label": "Default vehicle value",
+        "description": "Fallback when the vehicle class is unknown."
+      },
+      "capacitySqmPerVehicle": {
+        "label": "Area per vehicle",
+        "description": "Assumption used to estimate site capacity.",
+        "tip": "The most important lever for estimated capacity when no reliable vehicle count is available."
+      },
+      "hailDamageFraction": {
+        "label": "Hail damage share",
+        "description": "Share of damage for each affected event.",
+        "tip": "Estimates what share of exposed vehicle value is damaged when a site is hit."
+      },
+      "hailSiteHitProbability": {
+        "label": "Hail hit probability",
+        "description": "Probability that the site is hit.",
+        "tip": "Change only if your own claims history or a different peril model supports it."
+      },
+      "climateLoadingFactor": {
+        "label": "Climate loading",
+        "description": "Multiplicative loading applied to hail frequency.",
+        "tip": "Increases modeled hail frequency; 0.15 represents a 15% loading."
+      },
+      "windStormThresholdKmh": {
+        "label": "Storm threshold",
+        "description": "Wind damage is modeled above this wind speed."
+      },
+      "windDamageFraction": {
+        "label": "Wind damage share",
+        "description": "Share of damage per modeled storm day.",
+        "tip": "Describes the average loss severity on a day classified as a storm."
+      },
+      "windSiteHitProbability": {
+        "label": "Wind hit probability",
+        "description": "Site probability for wind damage."
+      },
+      "lightningDamageFraction": {
+        "label": "Lightning damage share",
+        "description": "Share of damage per lightning event."
+      },
+      "lightningDensityScale": {
+        "label": "Lightning-density scale",
+        "description": "Converts lightning density into EAL."
+      },
+      "snowLoadDamageFractionPer30cm": {
+        "label": "Snow-load share per 30 cm",
+        "description": "Share of damage per 30 cm of snow depth."
+      },
+      "floodDamageHq10": {
+        "label": "Flood damage share HQ10",
+        "description": "Damage share in the 10-year proxy scenario."
+      },
+      "floodDamageHq100": {
+        "label": "Flood damage share HQ100",
+        "description": "Damage share in the 100-year proxy scenario.",
+        "tip": "Change only when robust flood assumptions are available for the relevant sites."
+      },
+      "floodDamageHqExtrem": {
+        "label": "Extreme flood damage share",
+        "description": "Damage share in the extreme proxy scenario."
+      },
+      "heatHotdaysScoreMax": {
+        "label": "Hot days for score 100",
+        "description": "Number of hot days needed for the maximum heat score."
+      },
+      "heatDamageFractionPerHotday": {
+        "label": "Heat damage share per hot day",
+        "description": "Share of damage per hot day."
+      },
+      "windScoreMaxKmh": {
+        "label": "Wind at score 100",
+        "description": "Wind speed for the maximum wind score.",
+        "tip": "Useful when the score should follow an internal threshold model."
+      },
+      "lightningScoreMaxDensity": {
+        "label": "Lightning density at score 100",
+        "description": "Lightning density for the maximum lightning score."
+      },
+      "snowScoreMaxCm": {
+        "label": "Snow at score 100",
+        "description": "Snow depth for the maximum snow score."
+      },
+      "floodScoreMaxAnnualPrecipMm": {
+        "label": "Precipitation at score 100",
+        "description": "Annual precipitation for the maximum flood score.",
+        "tip": "Defines the annual precipitation at which the flood score reaches its maximum."
+      },
+      "pmlDamageFraction10": {
+        "label": "PML damage share, 10 years",
+        "description": "Damage share for the 10-year PML."
+      },
+      "pmlDamageFraction50": {
+        "label": "PML damage share, 50 years",
+        "description": "Damage share for the 50-year PML."
+      },
+      "pmlDamageFraction100": {
+        "label": "PML damage share, 100 years",
+        "description": "Damage share for the 100-year PML.",
+        "tip": "The key PML assumption for an infrequent but severe event."
+      },
+      "pmlClusterRadiusKm": {
+        "label": "PML cluster radius",
+        "description": "Radius used for the largest PML exposure."
+      },
+      "accumulationRadiusKm": {
+        "label": "Accumulation radius",
+        "description": "Distance within which sites are grouped.",
+        "tip": "Sets how close several sites must be to count as one concentration risk."
+      },
+      "accumulationReinsureThresholdEur": {
+        "label": "Reinsurance threshold",
+        "description": "Reinsurance is recommended above this accumulated exposure.",
+        "tip": "An operational threshold for the reinsurance alert."
+      },
+      "scenarioDamageLow": {
+        "label": "Low scenario damage share",
+        "description": "Damage share in the low stress scenario."
+      },
+      "scenarioDamageMedium": {
+        "label": "Medium scenario damage share",
+        "description": "Damage share in the medium stress scenario."
+      },
+      "scenarioDamageHigh": {
+        "label": "High scenario damage share",
+        "description": "Damage share in the high stress scenario."
+      },
+      "scenarioDamageExtreme": {
+        "label": "Extreme scenario damage share",
+        "description": "Damage share in the extreme stress scenario."
+      },
+      "alertExtremeScore": {
+        "label": "Risk-score alert threshold",
+        "description": "A critical alert is created from this score onward.",
+        "tip": "Lower means more alerts; higher highlights only the most critical locations."
+      },
+      "alertOvercapacity": {
+        "label": "Overcapacity alert threshold",
+        "description": "Utilisation above this factor creates an alert.",
+        "tip": "1.0 represents 100% utilisation. Values above 1.0 allow the corresponding buffer."
+      },
+      "alertLowBoundaryConfidence": {
+        "label": "Boundary-confidence alert threshold",
+        "description": "Below this value, the site boundary is treated as uncertain."
+      },
+      "alertEalPortfolioShare": {
+        "label": "EAL-share alert threshold",
+        "description": "Portfolio share above which a site is highlighted."
+      },
+      "boundaryReviewConfidence": {
+        "label": "Boundary-review confidence",
+        "description": "A review is required below this confidence."
+      },
+      "boundaryReviewTop2Margin": {
+        "label": "Boundary-review top-two margin",
+        "description": "Minimum difference between the best and second-best candidate."
+      },
+      "boundaryReviewSourceAgreement": {
+        "label": "Boundary-review source agreement",
+        "description": "Minimum agreement between independent geometries."
+      },
+      "boundaryNearPointDistanceM": {
+        "label": "Boundary proximity to reference point",
+        "description": "Maximum distance for the relationship 'near'."
+      },
+      "syntheticBoundaryRadiusM": {
+        "label": "Synthetic boundary radius",
+        "description": "Fallback radius when no geometry is available."
+      },
+      "detectionConfidence": {
+        "label": "Detection confidence",
+        "description": "Minimum confidence required from the vehicle model.",
+        "tip": "Lower detects more vehicles but may introduce more false positives; higher is more conservative."
+      }
+    }
   },
   "settings": {
     "title": "Settings",
@@ -307,6 +528,8 @@
       "emptyTitle": "No locations yet",
       "emptyDescription": "Add an address in the locations dock on the left, or import a CSV/Excel file.",
       "analyzingProgress": "Analyzing {{done}}/{{total}}…",
+      "cancelAnalysis": "Stop analysis",
+      "analysisErrors": "{{count}} locations could not be analyzed",
       "boundaryDetectionPrompt": "Boundary changed for {{name}}.",
       "boundaryEditedPrompt": "Boundary edited for {{name}}.",
       "saveBoundaryEdit": "Save edit",
@@ -450,6 +673,7 @@
     "worstCluster": "Worst {{radius}} km cluster",
     "lossFractionIncreases": "Loss fraction increases with the return period.",
     "widgetError": "Widget could not be rendered.",
+    "website": "Website",
     "reportExported": "Report exported: {{path}}",
     "portfolioExported": "Portfolio exported: {{path}}",
     "viewExported": "View exported: {{path}}",

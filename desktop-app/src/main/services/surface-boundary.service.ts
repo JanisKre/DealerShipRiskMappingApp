@@ -2,7 +2,13 @@ import type { BoundaryResult, Polygon } from "@shared/types";
 import type { RiskParameters } from "@shared/types";
 import { cached, TTL } from "./cache.service";
 import { polygonAreaSqm } from "./geo-math";
-import { checkRing, type LonLat } from "./boundary-geometry";
+import {
+  checkRing,
+  nonConvexHull,
+  outlinePoints,
+  type LonLat,
+  type Point2D,
+} from "./boundary-geometry";
 import { aerialImageForBbox } from "./tiles.service";
 
 /**
@@ -29,8 +35,7 @@ export async function fromAerialSurface(
     // narrow lanes/green strips. A one-tile/one-parcel crop systematically
     // clips those areas.
     const halfLat = searchRadiusM / 111_320;
-    const halfLon = searchRadiusM /
-      (111_320 * Math.cos((lat * Math.PI) / 180));
+    const halfLon = searchRadiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
     const bbox: [number, number, number, number] = [
       lon - halfLon,
       lat - halfLat,
@@ -39,18 +44,27 @@ export async function fromAerialSurface(
     ];
     const image = await aerialImageForBbox(bbox);
     if (!image.rgba || image.validTileCount === 0) return null;
+    const metersPerPixel =
+      (image.lonSpan * 111_320 * Math.cos((lat * Math.PI) / 180)) / image.width;
     const component = aggregatePavedSite(
       image.rgba,
       image.width,
       image.height,
       image.width / 2,
       image.height / 2,
-      (image.lonSpan * 111_320 * Math.cos((lat * Math.PI) / 180)) / image.width,
+      metersPerPixel,
     );
     if (component.length < 120) return null;
-    const ring = convexHull(
-      component.map(([x, y]) => pixelToLonLat(x, y, image)),
-    );
+    // Reduce the dense pixel fill to its outline before hulling: the digging
+    // algorithm looks for the interior point that best explains a concavity
+    // near each hull edge, and every deep-interior point of a solid fill is
+    // trivially "far" from some edge without indicating a real concavity.
+    const step = pavedSiteGridStep(metersPerPixel);
+    const outline = outlinePoints(component as Point2D[], step);
+    // Hull in pixel space (isotropic) rather than lon/lat (anisotropic with
+    // latitude) so concavity distance/angle comparisons stay accurate.
+    const hullPx = nonConvexHull(outline.length >= 4 ? outline : component);
+    const ring = hullPx.map(([x, y]) => pixelToLonLat(x, y, image));
     const check = checkRing(ring, { minAreaSqm: 250, maxAreaSqm: 250_000 });
     if (!check.valid) return null;
     const confidence = Math.min(
@@ -92,6 +106,16 @@ interface PixelComponent {
 }
 
 /**
+ * Target a roughly constant ~0.75m grid cell regardless of capture zoom, so
+ * raising DETECTION_ZOOM for sharper vehicle detection doesn't also blow up
+ * the point count (and hull complexity) fed into nonConvexHull — behaviour
+ * stays comparable across zoom levels.
+ */
+function pavedSiteGridStep(metersPerPixel: number): number {
+  return Math.min(12, Math.max(2, Math.round(0.75 / metersPerPixel)));
+}
+
+/**
  * Returns the site footprint rather than only one connected component.
  * Orthophotos commonly split a dealership into several paved islands because
  * of shadows, planting strips, loading lanes or parked vehicles. Components
@@ -105,7 +129,7 @@ function aggregatePavedSite(
   centerY: number,
   metersPerPixel: number,
 ): Array<[number, number]> {
-  const step = 4;
+  const step = pavedSiteGridStep(metersPerPixel);
   const cols = Math.floor(width / step);
   const rows = Math.floor(height / step);
   const mask = new Uint8Array(cols * rows);
@@ -188,8 +212,7 @@ function aggregatePavedSite(
       return {
         component,
         score:
-          (edgeDistance === 0 ? 2 : 1) *
-          component.points.length /
+          ((edgeDistance === 0 ? 2 : 1) * component.points.length) /
           (1 + centerDistance / Math.max(1, 180 / metersPerPixel)),
       };
     })
@@ -271,33 +294,4 @@ function pixelToLonLat(
     image.originLon + (x / image.width) * image.lonSpan,
     image.originLat - (y / image.height) * image.latSpan,
   ];
-}
-
-function convexHull(points: LonLat[]): LonLat[] {
-  const unique = Array.from(
-    new Map(
-      points.map((point) => [
-        `${point[0].toFixed(8)}:${point[1].toFixed(8)}`,
-        point,
-      ]),
-    ).values(),
-  ).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  if (unique.length < 3) return [...unique, unique[0]] as LonLat[];
-  const cross = (o: LonLat, a: LonLat, b: LonLat): number =>
-    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const lower: LonLat[] = [];
-  for (const point of unique) {
-    while (lower.length >= 2 && cross(lower.at(-2)!, lower.at(-1)!, point) <= 0)
-      lower.pop();
-    lower.push(point);
-  }
-  const upper: LonLat[] = [];
-  for (const point of [...unique].reverse()) {
-    while (upper.length >= 2 && cross(upper.at(-2)!, upper.at(-1)!, point) <= 0)
-      upper.pop();
-    upper.push(point);
-  }
-  lower.pop();
-  upper.pop();
-  return [...lower, ...upper, lower[0]];
 }

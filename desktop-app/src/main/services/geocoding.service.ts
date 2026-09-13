@@ -1,4 +1,5 @@
 import { cached, TTL } from "./cache.service";
+import { fetchWithResilience } from "./http.service";
 
 /**
  * Geocoding via Nominatim — im Main-Process direkt aufrufbar (kein CORS).
@@ -17,7 +18,9 @@ export async function geocode(query: string): Promise<GeocodeResult[]> {
   const key = `geocode:${query.toLowerCase().trim()}`;
   return cached(key, TTL.geocode, async () => {
     const url = `${NOMINATIM}?format=json&limit=5&q=${encodeURIComponent(query)}`;
-    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    const res = await fetchWithResilience(url, {
+      headers: { "User-Agent": USER_AGENT },
+    });
     if (!res.ok) throw new Error(`Nominatim ${res.status}`);
     const data = (await res.json()) as Array<{
       display_name: string;

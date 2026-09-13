@@ -2,7 +2,7 @@ import { app, BrowserWindow, shell, nativeImage, session } from "electron";
 import { join } from "path";
 import { pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc";
-import { getDb } from "./db/database";
+import { closeDb, getDb } from "./db/database";
 
 function isSafeExternalUrl(rawUrl: string): boolean {
   try {
@@ -112,4 +112,8 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
+});
+
+app.on("before-quit", () => {
+  closeDb();
 });

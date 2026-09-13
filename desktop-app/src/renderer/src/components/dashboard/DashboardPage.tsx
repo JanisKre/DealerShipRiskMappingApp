@@ -337,13 +337,14 @@ function DashboardTile({
     <section
       className={`group relative min-w-0 ${tileSpan(id)} ${dragged ? "opacity-50" : ""}`}
       draggable
+      tabIndex={0}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={(event) => event.preventDefault()}
       onDrop={onDrop}
       aria-label={label}
     >
-      <div className="pointer-events-none absolute right-2 top-2 z-20 flex items-center gap-1 opacity-70 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      <div className="pointer-events-none invisible absolute right-2 top-2 z-20 flex items-center gap-1 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
         <span
           className="pointer-events-auto rounded-md border bg-background/95 p-1 text-muted-foreground shadow-sm"
           title={t("dashboard.dragTile")}

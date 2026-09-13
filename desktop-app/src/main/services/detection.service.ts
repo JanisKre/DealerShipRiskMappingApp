@@ -9,10 +9,7 @@ import type {
   DetectionResult,
   VehicleClass,
 } from "@shared/types";
-import {
-  DETECTION_STRIDE,
-  DETECTION_WINDOW_SIZE,
-} from "@shared/constants";
+import { DETECTION_STRIDE, DETECTION_WINDOW_SIZE } from "@shared/constants";
 import type { AerialCapture } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type { RiskParameters } from "@shared/types";
@@ -214,6 +211,7 @@ export class OnnxYoloDetector implements VehicleDetector {
     width: number,
     height: number,
     confidenceThreshold: number,
+    metersPerModelPixel: number,
   ): Promise<WorkerResult> {
     const id = `${this.seq++}`;
     return new Promise<WorkerResult>((resolve, reject) => {
@@ -225,6 +223,7 @@ export class OnnxYoloDetector implements VehicleDetector {
         width,
         height,
         confidenceThreshold,
+        metersPerModelPixel,
       });
     });
   }
@@ -255,6 +254,16 @@ export class OnnxYoloDetector implements VehicleDetector {
     const { rgba, width, height } = image;
     const crops = this.planCrops(width, height);
 
+    // Ground resolution of the source capture (meters/pixel). Vehicle
+    // size sanity-checking happens in the worker in real-world units so it
+    // stays correct regardless of capture zoom — see VEHICLE_MIN_WIDTH_M.
+    const [west, south, east, north] = image.bbox;
+    const metersPerPixel =
+      ((east - west) *
+        111_320 *
+        Math.cos(((north + south) / 2) * (Math.PI / 180))) /
+      width;
+
     const allBoxes: Box[] = [];
     let totalInferenceMs = 0;
 
@@ -262,16 +271,17 @@ export class OnnxYoloDetector implements VehicleDetector {
     // bottleneck, not the JS slicing.
     for (const c of crops) {
       const cropBuf = this.extractCrop(rgba, width, c.cropX, c.cropY, c.w, c.h);
+      const scale = Math.min(WINDOW_SIZE / c.w, WINDOW_SIZE / c.h);
       const res = await this.runWindow(
         cropBuf,
         c.w,
         c.h,
         parameters.detectionConfidence,
+        metersPerPixel / scale,
       );
       if (res.error || !res.detections) continue;
       totalInferenceMs += res.inferenceMs ?? 0;
 
-      const scale = Math.min(WINDOW_SIZE / c.w, WINDOW_SIZE / c.h);
       const scaledW = Math.round(c.w * scale);
       const scaledH = Math.round(c.h * scale);
       const padLeft = Math.floor((WINDOW_SIZE - scaledW) / 2);

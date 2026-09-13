@@ -14,8 +14,8 @@ import {
   SCENARIO_INTENSITY_DAMAGE,
   SITE_HIT_PROBABILITY,
   SNOW_LOAD_DAMAGE_FRACTION_PER_30CM,
+  VEHICLE_VALUE_CAR_EUR,
   VEHICLE_VALUE_DEFAULT_EUR,
-  VEHICLE_VALUE_EUR,
   WIND_DAMAGE_FRACTION,
   WIND_SITE_HIT_PROBABILITY,
   WIND_STORM_THRESHOLD_KMH,
@@ -24,10 +24,7 @@ import { RiskParametersSchema, type RiskParameters } from "./types";
 
 /** Defaults used for new portfolios and for old sessions without parameters. */
 export const DEFAULT_RISK_PARAMETERS: RiskParameters = {
-  vehicleValueCarEur: VEHICLE_VALUE_EUR.car,
-  vehicleValueVanEur: VEHICLE_VALUE_EUR.van,
-  vehicleValueTruckEur: VEHICLE_VALUE_EUR.truck,
-  vehicleValueBusEur: VEHICLE_VALUE_EUR.bus,
+  vehicleValueCarEur: VEHICLE_VALUE_CAR_EUR,
   vehicleValueDefaultEur: VEHICLE_VALUE_DEFAULT_EUR,
   capacitySqmPerVehicle: CAPACITY_SQM_PER_VEHICLE,
   hailDamageFraction: HAIL_DAMAGE_FRACTION_BASE,

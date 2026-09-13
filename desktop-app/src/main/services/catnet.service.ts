@@ -5,6 +5,7 @@ import {
   type NatCatHazard,
 } from "@shared/types";
 import type { NatCatProviderAdapter } from "./hazard-provider";
+import { fetchWithResilience, HttpRequestError } from "./http.service";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
@@ -39,13 +40,8 @@ export async function fetchCatNetAssessment(
   const endpoint = validateEndpoint(config.endpoint);
   if (!config.apiKey.trim()) throw new Error("CatNet API key is not configured");
 
-  const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-  );
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetchWithResilience(endpoint, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -53,19 +49,19 @@ export async function fetchCatNetAssessment(
         Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({ latitude: lat, longitude: lon, perils }),
-      signal: controller.signal,
+    }, {
+      timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      retries: 0,
     });
     if (!response.ok) {
       throw new Error(`CatNet request failed (${response.status})`);
     }
     return normalizeCatNetResponse(await response.json());
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (error instanceof HttpRequestError && error.timedOut) {
       throw new Error("CatNet request timed out");
     }
     throw error;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 

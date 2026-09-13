@@ -6,6 +6,7 @@ import type {
   Polygon,
 } from "@shared/types";
 import { cached, TTL } from "./cache.service";
+import { fetchWithResilience } from "./http.service";
 import { fromAlkis } from "./alkis.service";
 import { polygonAreaSqm } from "./geo-math";
 import {
@@ -402,7 +403,7 @@ export async function fetchOverpass<T>(
 ): Promise<{ elements: T[] } | null> {
   for (const url of OVERPASS_ENDPOINTS) {
     try {
-      const res = await fetch(url, {
+      const res = await fetchWithResilience(url, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: query,

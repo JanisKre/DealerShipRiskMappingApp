@@ -1,4 +1,9 @@
 import * as ort from "onnxruntime-node";
+import {
+  VEHICLE_MAX_ASPECT_RATIO,
+  VEHICLE_MAX_LENGTH_M,
+  VEHICLE_MIN_WIDTH_M,
+} from "@shared/constants";
 
 /**
  * ONNX inference in an Electron utilityProcess (its own Node process, keeping
@@ -47,6 +52,15 @@ interface InferRequest {
   width: number;
   height: number;
   confidenceThreshold: number;
+  /**
+   * Real-world meters represented by one model-input pixel for this crop
+   * (source image ground resolution divided by the crop's letterbox scale).
+   * Lets the size-plausibility filter below stay correct regardless of
+   * capture zoom or edge-crop upscaling. Falls back to the zoom-19,
+   * unpadded-crop resolution (~0.1876 m/px) if omitted, for callers/tests
+   * that don't pass it.
+   */
+  metersPerModelPixel?: number;
 }
 
 type IncomingMessage = { type: "init"; modelPath: string } | InferRequest;
@@ -178,10 +192,17 @@ function runInference(req: InferRequest): void {
         const cy = output[1 * NUM_DETS + i];
         const w = output[2 * NUM_DETS + i];
         const h = output[3 * NUM_DETS + i];
-        // Rauschen (zu klein), unplausible Blobs und zu langgestreckte Formen verwerfen
-        const shortSide = Math.min(w, h);
-        const longSide = Math.max(w, h);
-        if (shortSide < 7 || longSide > 130 || longSide / shortSide > 5)
+        // Reject noise (too small), implausible blobs, and overly elongated
+        // shapes — in real-world meters, so the check stays correct at any
+        // capture zoom or crop scale (see metersPerModelPixel above).
+        const metersPerModelPixel = req.metersPerModelPixel ?? 0.1876;
+        const shortSideM = Math.min(w, h) * metersPerModelPixel;
+        const longSideM = Math.max(w, h) * metersPerModelPixel;
+        if (
+          shortSideM < VEHICLE_MIN_WIDTH_M ||
+          longSideM > VEHICLE_MAX_LENGTH_M ||
+          longSideM / shortSideM > VEHICLE_MAX_ASPECT_RATIO
+        )
           continue;
         detections.push({
           x: (cx - w / 2) / MODEL_INPUT,

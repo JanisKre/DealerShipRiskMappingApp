@@ -4,6 +4,7 @@ import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { point as turfPoint, polygon as turfPolygon } from "@turf/helpers";
 import type { BoundaryResult, Polygon } from "@shared/types";
 import { cached, TTL } from "./cache.service";
+import { fetchWithResilience } from "./http.service";
 import { polygonAreaSqm } from "./geo-math";
 import { checkRing, distanceToRingM } from "./boundary-geometry";
 
@@ -249,7 +250,9 @@ async function fetchAlkisXml(
     `&typeNames=${encodeURIComponent(endpoint.typeName)}&count=20` +
     `&srsName=${crsUrn}&bbox=${encodeURIComponent(bbox)}`;
   try {
-    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    const res = await fetchWithResilience(url, {
+      headers: { "User-Agent": USER_AGENT },
+    });
     if (!res.ok) return "error";
     const text = await res.text();
     if (text.includes("ExceptionReport")) return "error";

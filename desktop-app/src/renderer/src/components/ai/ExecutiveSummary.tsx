@@ -44,10 +44,12 @@ export function ExecutiveSummary(): React.JSX.Element | null {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="min-w-0">
+      <CardHeader className="gap-4 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base">{t("ai.summary")}</CardTitle>
+          <CardTitle className="min-w-0 truncate text-base">
+            {t("ai.summary")}
+          </CardTitle>
           <Button
             size="icon"
             variant="ghost"
@@ -59,15 +61,18 @@ export function ExecutiveSummary(): React.JSX.Element | null {
             <X className="size-4" />
           </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-3">
           {concentration && (
-            <Badge variant={concentration.severe ? "destructive" : "secondary"}>
+            <Badge
+              className="w-fit"
+              variant={concentration.severe ? "destructive" : "secondary"}
+            >
               {t("ui.concentration", { value: concentration.label })}
             </Badge>
           )}
           <Button
             size="sm"
-            className="ml-auto"
+            className="w-full justify-center"
             onClick={generate}
             disabled={streaming || dealerships.length === 0}
           >
@@ -76,7 +81,7 @@ export function ExecutiveSummary(): React.JSX.Element | null {
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
         {error && (
           <p className="text-sm text-destructive">{t("ui.error", { error })}</p>
         )}

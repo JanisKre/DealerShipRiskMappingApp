@@ -18,7 +18,7 @@ Upload CSV → detect lot boundaries → count vehicles with AI → score 5 natu
 ![Leaflet](https://img.shields.io/badge/Leaflet-1.9-199900?logo=leaflet&logoColor=white)
 
 ![Status](https://img.shields.io/badge/status-work_in_progress-yellow)
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-0.2.1-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 ![Type](https://img.shields.io/badge/mode-single--user_·_local-important)
 ![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)
@@ -89,7 +89,7 @@ The core workflow in one sentence:
   and natural-language queries; provider-agnostic (Ollama / OpenAI / Claude /
   Gemini) with streaming
 - 💾 **Local persistence** — SQLite in the `userData` path + persistent API
-  cache
+  cache with migrations and offline stale-data fallback
 - 📤 **Export** — PDF, Excel, CSV, plus portfolio file export/import (`.drm`)
 - 🌍 **i18n** — German, English, French
 
@@ -181,6 +181,10 @@ Run from `desktop-app/`:
 | `npm run smoke`         | Smoke-test the built Electron app       |
 | `npm run pack`          | Build unpacked app (`release/`)         |
 | `npm run dist`          | Build installer (dmg / nsis / AppImage) |
+
+External API calls use bounded timeouts and retries for safe idempotent
+requests. Batch analysis can be stopped after the active location; failures
+are retained per location so the remaining portfolio continues processing.
 
 ## Project Structure
 

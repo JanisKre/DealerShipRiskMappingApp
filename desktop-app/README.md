@@ -47,6 +47,11 @@ npm run dev       # starts Main + Preload + Renderer with HMR
 | `npm run pack`          | Build unpacked app (release/)       |
 | `npm run dist`          | Build installer (dmg/nsis/AppImage) |
 
+External provider requests use bounded timeouts and retries for safe
+idempotent calls. Cached provider data can be used while offline when a fresh
+request fails. SQLite schema changes are applied transactionally and create a
+standalone backup before migrating an existing database.
+
 ## Architecture (short form)
 
 3-process model with strict separation:

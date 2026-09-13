@@ -8,6 +8,7 @@ import {
 } from "@shared/constants";
 import { cacheGet, cacheSet } from "./cache.service";
 import { getSettings } from "./settings.service";
+import { fetchWithResilience } from "./http.service";
 import type { AerialImage } from "./detection.service";
 
 /**
@@ -62,7 +63,7 @@ async function loadTileRgb(
 
   if (!bytes) {
     try {
-      const res = await fetch(
+      const res = await fetchWithResilience(
         buildTileUrl(provider, z, y, x, { wmsTemplate, time }),
         {
           headers: { "User-Agent": "DealershipRiskMapping/1.0 (desktop)" },
@@ -164,7 +165,39 @@ export async function aerialImageForBbox(
   );
 }
 
+// Below this fraction of valid tiles, retry one zoom level down. Some
+// orthophoto providers don't publish their sharpest imagery everywhere, and
+// that failure mode (a region capped at a lower max zoom) is indistinguishable
+// from a plain network outage by ratio alone — but it's the more important
+// case to recover from here, since it's the direct risk of raising
+// DETECTION_ZOOM. A genuine outage just costs a few extra fast-failing
+// requests down to the floor below.
+const MIN_VALID_TILE_RATIO = 0.5;
+const MIN_FALLBACK_ZOOM = 15;
+
 async function captureMosaic(
+  bbox: [number, number, number, number],
+  zoom: number,
+  provider: SatelliteProvider,
+  wmsTemplate?: string,
+  time?: string,
+): Promise<AerialCapture> {
+  const capture = await captureMosaicOnce(
+    bbox,
+    zoom,
+    provider,
+    wmsTemplate,
+    time,
+  );
+  const ratio =
+    capture.tileCount === 0 ? 1 : capture.validTileCount / capture.tileCount;
+  if (ratio < MIN_VALID_TILE_RATIO && zoom > MIN_FALLBACK_ZOOM) {
+    return captureMosaic(bbox, zoom - 1, provider, wmsTemplate, time);
+  }
+  return capture;
+}
+
+async function captureMosaicOnce(
   bbox: [number, number, number, number],
   zoom: number,
   provider: SatelliteProvider,

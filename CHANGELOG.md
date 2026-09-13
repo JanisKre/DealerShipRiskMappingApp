@@ -9,6 +9,37 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 No changes yet.
 
+## [0.2.1] – 2026-09-13
+
+### Added
+
+- Added a shared HTTP resilience layer with bounded timeouts and retries for
+  safe idempotent provider requests.
+- Added stale-if-offline cache fallback and versioned SQLite migrations with a
+  pre-migration backup.
+- Batch analysis can now be stopped after the active location, and failures
+  are retained per location while the remaining portfolio continues.
+- Expanded automated coverage to 121 tests, including tile mosaics, temporal
+  changes, settings/keychain fallbacks, detector fallbacks, boundary/hull
+  geometry, and UI risk mappings; raised the global coverage gates.
+
+### Changed
+
+- Replaced the convex hull used for the aerial paved-surface boundary
+  candidate with a concave ("digging") hull, so non-convex sites (common on
+  industrial estates) no longer get a straight bridging edge across a
+  missing corner that silently swallows neighbouring land, roads, or
+  vegetation.
+- Raised the vehicle-detection capture resolution (`DETECTION_ZOOM` 19→20)
+  to better separate closely parked vehicles in dense/industrial lots, with
+  automatic one-zoom-level fallback when a region doesn't publish imagery
+  that sharp. Vehicle size sanity-checks now use real-world meters instead
+  of a fixed pixel threshold, so they stay correct at any capture zoom.
+- Removed the per-class van/truck/bus vehicle value parameters from
+  Settings — the detector reports one underwriting category (every vehicle
+  counted as a car; see `detection.service.ts`), so those fields never fed
+  into any calculation and only implied a distinction the app doesn't make.
+
 ## [0.2.0] – 2026-09-13
 
 ### Added
@@ -52,6 +83,7 @@ No changes yet.
 - Export as PDF, Excel, CSV, plus portfolio file (`.drm`).
 - i18n (de / en / fr).
 
-[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.2.1
 [0.2.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.2.0
 [0.1.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.1.0

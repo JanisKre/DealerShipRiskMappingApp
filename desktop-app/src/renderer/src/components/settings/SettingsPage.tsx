@@ -272,6 +272,7 @@ export function SettingsPage(): React.JSX.Element {
                 </label>
                 <div className="flex gap-2">
                   <Input
+                    className="min-w-0 flex-1"
                     type="password"
                     value={catnetApiKey}
                     placeholder={
@@ -281,7 +282,10 @@ export function SettingsPage(): React.JSX.Element {
                     }
                     onChange={(e) => setCatnetApiKey(e.target.value)}
                   />
-                  <Button onClick={() => void saveCatnetApiKey()}>
+                  <Button
+                    className="shrink-0"
+                    onClick={() => void saveCatnetApiKey()}
+                  >
                     {t("settings.natCat.save")}
                   </Button>
                 </div>
@@ -372,6 +376,7 @@ export function SettingsPage(): React.JSX.Element {
             </label>
             <div className="flex gap-2">
               <Input
+                className="min-w-0 flex-1"
                 type="password"
                 value={apiKey}
                 placeholder={
@@ -381,7 +386,9 @@ export function SettingsPage(): React.JSX.Element {
                 }
                 onChange={(e) => setApiKey(e.target.value)}
               />
-              <Button onClick={saveApiKey}>{t("common.save")}</Button>
+              <Button className="shrink-0" onClick={saveApiKey}>
+                {t("common.save")}
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground">
               {t("settings.apiKeyHint")}

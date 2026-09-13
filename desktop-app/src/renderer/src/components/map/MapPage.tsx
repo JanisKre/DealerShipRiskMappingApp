@@ -13,6 +13,7 @@ import {
   RotateCcw,
   ScanSearch,
   Save,
+  Square,
   Trash2,
   TriangleAlert,
   Undo2,
@@ -189,6 +190,8 @@ export function MapPage(): React.JSX.Element {
   const analyzingIds = useAppStore((s) => s.analyzingIds);
   const analyzing = useAppStore((s) => s.analyzing);
   const progress = useAppStore((s) => s.progress);
+  const analysisErrors = useAppStore((s) => s.analysisErrors);
+  const cancelAnalysis = useAppStore((s) => s.cancelAnalysis);
   const pendingBoundaryDetectionIds = useAppStore(
     (s) => s.pendingBoundaryDetectionIds,
   );
@@ -593,31 +596,48 @@ export function MapPage(): React.JSX.Element {
               done: progress.done,
               total: progress.total,
             })}
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={cancelAnalysis}
+              title={t("map.page.cancelAnalysis")}
+            >
+              <Square />
+              {t("map.page.cancelAnalysis")}
+            </Button>
           </div>
         )}
 
-        {!analyzing &&
-          !boundaryWarningDismissed &&
-          boundaryReviewCount > 0 && (
-            <div className="glass flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm shadow-lg">
-              <TriangleAlert className="size-4 shrink-0 text-amber-500" />
-              <span>
-                {t("map.page.boundaryWarning", {
-                  count: boundaryReviewCount,
-                  total: withCoords.length,
-                })}
-              </span>
-              <button
-                type="button"
-                className="shrink-0 text-muted-foreground hover:text-foreground"
-                onClick={() => setBoundaryWarningDismissed(true)}
-                title={t("map.page.dismissHint")}
-                aria-label={t("map.page.dismissHint")}
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          )}
+        {!analyzing && Object.keys(analysisErrors).length > 0 && (
+          <div className="glass flex items-center gap-2 rounded-full border border-destructive/40 px-3 py-1.5 text-sm shadow-lg">
+            <TriangleAlert className="size-4 shrink-0 text-destructive" />
+            {t("map.page.analysisErrors", {
+              count: Object.keys(analysisErrors).length,
+            })}
+          </div>
+        )}
+
+        {!analyzing && !boundaryWarningDismissed && boundaryReviewCount > 0 && (
+          <div className="glass flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm shadow-lg">
+            <TriangleAlert className="size-4 shrink-0 text-amber-500" />
+            <span>
+              {t("map.page.boundaryWarning", {
+                count: boundaryReviewCount,
+                total: withCoords.length,
+              })}
+            </span>
+            <button
+              type="button"
+              className="shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={() => setBoundaryWarningDismissed(true)}
+              title={t("map.page.dismissHint")}
+              aria-label={t("map.page.dismissHint")}
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
 
         {!analyzing && !modelWarningDismissed && stubDetectionCount > 0 && (
           <div className="glass flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm shadow-lg">

@@ -20,6 +20,7 @@ import {
 import { buildDefaultDashboardSpec } from "@shared/dashboard-aggregates";
 import { effectiveVehicleCount } from "@shared/risk-math";
 import { getLlmApiKey, getSettings } from "./settings.service";
+import { fetchWithResilience } from "./http.service";
 
 /**
  * Provider-agnostic LLM client with streaming. API keys come from safeStorage.
@@ -137,7 +138,7 @@ async function openAiComplete(
   messages: ChatMessage[],
   maxTokens: number,
 ): Promise<string> {
-  const res = await fetch(`${p.baseUrl}/chat/completions`, {
+  const res = await fetchWithResilience(`${p.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -159,7 +160,7 @@ async function claudeComplete(
 ): Promise<string> {
   const system = messages.find((m) => m.role === "system")?.content;
   const rest = messages.filter((m) => m.role !== "system");
-  const res = await fetch(`${p.baseUrl}/v1/messages`, {
+  const res = await fetchWithResilience(`${p.baseUrl}/v1/messages`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -202,7 +203,7 @@ async function* openAiStream(
   messages: ChatMessage[],
   signal?: AbortSignal,
 ): AsyncGenerator<string, void, unknown> {
-  const res = await fetch(`${p.baseUrl}/chat/completions`, {
+  const res = await fetchWithResilience(`${p.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -234,7 +235,7 @@ async function* claudeStream(
 ): AsyncGenerator<string, void, unknown> {
   const system = messages.find((m) => m.role === "system")?.content;
   const rest = messages.filter((m) => m.role !== "system");
-  const res = await fetch(`${p.baseUrl}/v1/messages`, {
+  const res = await fetchWithResilience(`${p.baseUrl}/v1/messages`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

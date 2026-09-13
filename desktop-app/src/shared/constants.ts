@@ -5,13 +5,13 @@
 
 // --- Vehicle exposure -------------------------------------------------------
 
-/** Average vehicle value per class in EUR (portfolio exposure). */
-export const VEHICLE_VALUE_EUR: Record<string, number> = {
-  car: 25_000,
-  van: 30_000,
-  truck: 50_000,
-  bus: 80_000,
-};
+/**
+ * Average vehicle value in EUR (portfolio exposure). The detector reports
+ * one underwriting category regardless of the source model's vehicle class
+ * (see detection.service.ts's `finalize()`), so exposure is valued
+ * uniformly rather than per class.
+ */
+export const VEHICLE_VALUE_CAR_EUR = 25_000;
 export const VEHICLE_VALUE_DEFAULT_EUR = 25_000;
 
 /** Assumed parking area per vehicle (sqm) — for capacity/utilisation. */
@@ -90,9 +90,26 @@ export const DETECTION_WINDOW_SIZE = 640;
 // soft-NMS to reliably merge edge vehicles from neighboring windows, but
 // ~4x fewer inferences than the previous 75% overlap (stride 160).
 export const DETECTION_STRIDE = 320;
-export const DETECTION_ZOOM = 19;
+// 20 ≈ 0.09–0.11 m/pixel at German dealership latitudes (was 19, ≈0.19m).
+// Densely parked rows in industrial/dealership lots put vehicles only 1-2
+// pixels apart at zoom 19, which starves the model of separable edges and
+// under-counts; the extra resolution directly targets that. tiles.service
+// falls back one zoom level when a region doesn't publish imagery this
+// sharp, so coverage in lower-resolution areas is unaffected.
+export const DETECTION_ZOOM = 20;
 export const DETECTION_CONFIDENCE = 0.22;
 export const TILE_SIZE = 256;
+
+// Real-world vehicle size sanity bounds (meters), used to reject
+// implausible detection boxes. Deliberately expressed in meters rather than
+// model-input pixels so the check stays correct regardless of capture zoom,
+// crop size, or letterboxing — a fixed pixel threshold silently miscalibrates
+// whenever any of those change (e.g. it used to reject real buses once
+// DETECTION_ZOOM increased, since the same real-world length then covers
+// more pixels).
+export const VEHICLE_MIN_WIDTH_M = 1.2;
+export const VEHICLE_MAX_LENGTH_M = 16;
+export const VEHICLE_MAX_ASPECT_RATIO = 5;
 
 /** Esri World Imagery — tile order is z/y/x. */
 export function buildEsriTileUrl(z: number, y: number, x: number): string {
