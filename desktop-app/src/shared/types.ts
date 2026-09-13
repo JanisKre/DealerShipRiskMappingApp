@@ -34,6 +34,40 @@ export const RiskEvidenceSchema = z.object({
 });
 export type RiskEvidence = z.infer<typeof RiskEvidenceSchema>;
 
+// --- Natural-catastrophe provider data -------------------------------------
+
+export const NAT_CAT_PROVIDERS = [
+  "zuers-geo",
+  "swissre-catnet",
+] as const;
+export const NatCatProviderSchema = z.enum(NAT_CAT_PROVIDERS);
+export type NatCatProvider = z.infer<typeof NatCatProviderSchema>;
+
+/** A normalized provider observation; rawValue preserves the source class/value. */
+export const NatCatHazardSchema = z.object({
+  /** Existing perils plus provider-specific values such as heavyRain. */
+  peril: z.string().min(1).max(64),
+  score: z.number().min(0).max(100),
+  hazardValue: z.number().optional(),
+  unit: z.string().min(1),
+  rawValue: z.union([z.string(), z.number(), z.boolean()]).optional(),
+  returnPeriodYears: z.number().positive().optional(),
+  annualExceedanceProbability: z.number().positive().max(1).optional(),
+});
+export type NatCatHazard = z.infer<typeof NatCatHazardSchema>;
+
+export const NatCatAssessmentSchema = z.object({
+  provider: NatCatProviderSchema,
+  retrievedAt: z.string(),
+  dataVersion: z.string().optional(),
+  spatialResolution: z.string().optional(),
+  hazards: z.array(NatCatHazardSchema),
+  /** Provider-specific classifications that are not directly scoreable. */
+  attributes: z.record(z.union([z.string(), z.number(), z.boolean()])).default({}),
+  evidence: RiskEvidenceSchema,
+});
+export type NatCatAssessment = z.infer<typeof NatCatAssessmentSchema>;
+
 // --- Dealership (input data) ------------------------------------------
 
 export const DealershipInputSchema = z.object({
@@ -54,6 +88,8 @@ export const DealershipInputSchema = z.object({
   group: z.string().optional(),
   /** Product limit / sum insured (EUR) — hard coverage cap. */
   productLimitEur: z.number().nonnegative().optional(),
+  /** Optional imported or API-fetched natural-catastrophe assessment. */
+  natCat: NatCatAssessmentSchema.optional(),
 });
 export type DealershipInput = z.infer<typeof DealershipInputSchema>;
 
@@ -285,6 +321,8 @@ export const RiskAssessmentSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
   modelVersion: z.string().optional(),
   evidence: z.array(RiskEvidenceSchema).optional(),
+  /** Provider assessment used to override screening hazard proxies. */
+  natCat: NatCatAssessmentSchema.optional(),
   limitations: z.array(z.string()).optional(),
   computedAt: z.string(),
 });
@@ -405,11 +443,26 @@ export const LlmSettingsSchema = z.object({
 });
 export type LlmSettings = z.infer<typeof LlmSettingsSchema>;
 
+export const NatCatSettingsSchema = z.object({
+  provider: z.enum(["screening", ...NAT_CAT_PROVIDERS]).default("screening"),
+  /** Exact contracted CatNet endpoint; no vendor URL is assumed by the app. */
+  catnetEndpoint: z
+    .string()
+    .url()
+    .refine((value) => new URL(value).protocol === "https:", {
+      message: "CatNet endpoint must use HTTPS",
+    })
+    .optional(),
+  catnetHasApiKey: z.boolean().optional(),
+});
+export type NatCatSettings = z.infer<typeof NatCatSettingsSchema>;
+
 // --- Settings ---------------------------------------------------------------
 
 export const SettingsSchema = z.object({
   language: z.enum(["en", "de", "fr"]).default("en"),
   llm: LlmSettingsSchema.optional(),
+  natCat: NatCatSettingsSchema.optional(),
   /** Satellite/aerial imagery tile source for the map & detection. */
   satelliteProvider: z.enum(["esri", "wms"]).optional(),
   /** XYZ/WMS tile template with {z}/{x}/{y} placeholders (for provider 'wms'). */

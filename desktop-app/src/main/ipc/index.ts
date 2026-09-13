@@ -37,8 +37,11 @@ import { getOsmDetails } from "../services/osmDetails.service";
 import { placesAutocomplete } from "../services/places.service";
 import {
   parseCsvWithReport,
+  parseZuersCsvWithReport,
+  parseZuersXlsxWithReport,
   parseXlsxWithReport,
 } from "../services/csv.service";
+import { createCatNetProvider } from "../services/catnet.service";
 import {
   executiveSummaryStream,
   generateDashboardSpec,
@@ -51,7 +54,9 @@ import {
 import { scoreRisk } from "../services/risk.service";
 import {
   getSettings,
+  getNatCatApiKey,
   setLlmApiKey,
+  setNatCatApiKey,
   setSettings,
 } from "../services/settings.service";
 import { aerialImageForBoundary } from "../services/tiles.service";
@@ -106,6 +111,8 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   mainWindowProvider = getMainWindow;
   handle(IPC.parseCsv, ({ content }) => parseCsvWithReport(content));
   handle(IPC.parseXlsx, ({ base64 }) => parseXlsxWithReport(base64));
+  handle(IPC.parseZuersCsv, ({ content }) => parseZuersCsvWithReport(content));
+  handle(IPC.parseZuersXlsx, ({ base64 }) => parseZuersXlsxWithReport(base64));
   handle(IPC.geocode, ({ query }) => geocode(query));
   handle(IPC.placesAutocomplete, ({ query }) => placesAutocomplete(query));
   handle(IPC.detectBoundary, ({ lat, lon, name, address }) =>
@@ -122,9 +129,21 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     compareTemporal(lat, lon, fromDate, toDate, boundary),
   );
   handle(IPC.fetchWeather, ({ lat, lon }) => fetchWeather(lat, lon));
-  handle(IPC.scoreRisk, ({ lat, lon, assetValue, detection, boundary, parameters }) =>
-    scoreRisk(lat, lon, assetValue, detection, boundary, undefined, parameters),
+  handle(IPC.scoreRisk, ({ lat, lon, assetValue, detection, boundary, parameters, natCat }) =>
+    scoreRisk(lat, lon, assetValue, detection, boundary, undefined, parameters, natCat),
   );
+  handle(IPC.fetchCatNet, async ({ lat, lon, perils }) => {
+    const settings = getSettings().natCat;
+    if (!settings?.catnetEndpoint) {
+      throw new Error("CatNet endpoint is not configured");
+    }
+    const apiKey = getNatCatApiKey();
+    if (!apiKey) throw new Error("CatNet API key is not configured");
+    return createCatNetProvider({
+      endpoint: settings.catnetEndpoint,
+      apiKey,
+    }).lookup(lat, lon, perils);
+  });
   handle(IPC.analyzeDealership, ({ dealership, parameters }) =>
     analyzeDealership(dealership, parameters),
   );
@@ -183,6 +202,10 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.setSettings, ({ settings }) => setSettings(settings));
   handle(IPC.setLlmApiKey, ({ provider, apiKey }) => {
     setLlmApiKey(provider, apiKey);
+    return { ok: true };
+  });
+  handle(IPC.setNatCatApiKey, ({ apiKey }) => {
+    setNatCatApiKey(apiKey);
     return { ok: true };
   });
 

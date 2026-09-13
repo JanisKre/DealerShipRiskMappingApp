@@ -31,12 +31,18 @@ export function loadConversation(id: string): Conversation | null {
       }
     | undefined;
   if (!row) return null;
+  let messages: ChatMessage[];
+  try {
+    messages = JSON.parse(row.data) as ChatMessage[];
+  } catch {
+    return null;
+  }
   return {
     id: row.id,
     name: row.name,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    messages: JSON.parse(row.data) as ChatMessage[],
+    messages,
   };
 }
 

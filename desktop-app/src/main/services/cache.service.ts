@@ -14,7 +14,13 @@ export function cacheGet<T>(key: string): T | null {
     getDb().prepare("DELETE FROM api_cache WHERE key = ?").run(key);
     return null;
   }
-  return JSON.parse(row.value) as T;
+  try {
+    return JSON.parse(row.value) as T;
+  } catch {
+    // Corrupt cache entries are disposable; the caller can fetch fresh data.
+    getDb().prepare("DELETE FROM api_cache WHERE key = ?").run(key);
+    return null;
+  }
 }
 
 export function cacheSet<T>(key: string, value: T, ttlMs: number): void {

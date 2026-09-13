@@ -18,7 +18,7 @@ Upload CSV → detect lot boundaries → count vehicles with AI → score 5 natu
 ![Leaflet](https://img.shields.io/badge/Leaflet-1.9-199900?logo=leaflet&logoColor=white)
 
 ![Status](https://img.shields.io/badge/status-work_in_progress-yellow)
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.2.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 ![Type](https://img.shields.io/badge/mode-single--user_·_local-important)
 ![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)

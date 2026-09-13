@@ -44,44 +44,88 @@ const PROVIDER_HINTS: Record<LlmProvider, { model: string; baseUrl: string }> =
     },
   };
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error && error.message
+    ? error.message
+    : "The operation could not be completed.";
+}
+
 export function SettingsPage(): React.JSX.Element {
   const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
   // Local draft for text fields — persist only onBlur (no toast per keystroke).
   const [model, setModel] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [wmsTileUrl, setWmsTileUrl] = useState("");
+  const [catnetEndpoint, setCatnetEndpoint] = useState("");
+  const [catnetApiKey, setCatnetApiKey] = useState("");
 
   useEffect(() => {
-    window.api.getSettings().then(setSettings);
+    let cancelled = false;
+    window.api
+      .getSettings()
+      .then((next) => {
+        if (!cancelled) {
+          setSettings(next);
+          setSettingsError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setSettingsError(errorMessage(err));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Sync the draft with the persisted values (only when they change externally).
   useEffect(() => {
     setModel(settings?.llm?.model ?? "");
     setBaseUrl(settings?.llm?.baseUrl ?? "");
-  }, [settings?.llm?.model, settings?.llm?.baseUrl]);
+    setWmsTileUrl(settings?.wmsTileUrl ?? "");
+  }, [settings?.llm?.model, settings?.llm?.baseUrl, settings?.wmsTileUrl]);
+
+  useEffect(() => {
+    setCatnetEndpoint(settings?.natCat?.catnetEndpoint ?? "");
+  }, [settings?.natCat?.catnetEndpoint]);
 
   if (!settings) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="animate-spin" />
+      <div className="flex h-full flex-col items-center justify-center gap-3">
+        {settingsError ? (
+          <>
+            <p className="text-destructive text-sm">{settingsError}</p>
+            <Button onClick={() => window.location.reload()} size="sm">
+              {t("common.retry")}
+            </Button>
+          </>
+        ) : (
+          <Loader2 className="animate-spin" />
+        )}
       </div>
     );
   }
 
   const provider = settings.llm?.provider ?? "openai";
+  const natCatProvider = settings.natCat?.provider ?? "screening";
 
   function notifySaved(): void {
     toast.success(t("common.saved"));
   }
 
   async function update(partial: Partial<Settings>): Promise<void> {
-    const next = await window.api.setSettings(partial);
-    setSettings(next);
-    if (partial.language) void i18n.changeLanguage(partial.language);
-    notifySaved();
+    try {
+      const next = await window.api.setSettings(partial);
+      setSettings(next);
+      if (partial.language) void i18n.changeLanguage(partial.language);
+      notifySaved();
+    } catch (err) {
+      console.error("Saving settings failed:", err);
+      toast.error(errorMessage(err));
+    }
   }
 
   async function updateLlm(
@@ -98,10 +142,40 @@ export function SettingsPage(): React.JSX.Element {
 
   async function saveApiKey(): Promise<void> {
     if (!apiKey.trim()) return;
-    await window.api.setLlmApiKey(provider, apiKey.trim());
-    setApiKey("");
-    setSettings(await window.api.getSettings());
-    notifySaved();
+    try {
+      await window.api.setLlmApiKey(provider, apiKey.trim());
+      setApiKey("");
+      setSettings(await window.api.getSettings());
+      notifySaved();
+    } catch (err) {
+      console.error("Saving LLM API key failed:", err);
+      toast.error(errorMessage(err));
+    }
+  }
+
+  async function updateNatCat(
+    partial: Partial<NonNullable<Settings["natCat"]>>,
+  ): Promise<void> {
+    await update({
+      natCat: {
+        provider: natCatProvider,
+        ...settings!.natCat,
+        ...partial,
+      },
+    });
+  }
+
+  async function saveCatnetApiKey(): Promise<void> {
+    if (!catnetApiKey.trim()) return;
+    try {
+      await window.api.setNatCatApiKey(catnetApiKey.trim());
+      setCatnetApiKey("");
+      setSettings(await window.api.getSettings());
+      notifySaved();
+    } catch (err) {
+      console.error("Saving CatNet API key failed:", err);
+      toast.error(errorMessage(err));
+    }
   }
 
   const themeOptions: Array<{ value: Theme; label: string; icon: typeof Sun }> =
@@ -140,6 +214,80 @@ export function SettingsPage(): React.JSX.Element {
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            {t("settings.natCat.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {t("settings.natCat.description")}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(["screening", "zuers-geo", "swissre-catnet"] as const).map(
+              (p) => (
+                <Button
+                  key={p}
+                  size="sm"
+                  variant={natCatProvider === p ? "default" : "outline"}
+                  onClick={() => void updateNatCat({ provider: p })}
+                >
+                  {t(
+                    `settings.natCat.${p === "screening" ? "screening" : p === "zuers-geo" ? "zuers" : "catnet"}`,
+                  )}
+                </Button>
+              ),
+            )}
+          </div>
+          {natCatProvider === "swissre-catnet" && (
+            <>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">
+                  {t("settings.natCat.endpoint")}
+                </label>
+                <Input
+                  value={catnetEndpoint}
+                  placeholder="https://…"
+                  onChange={(e) => setCatnetEndpoint(e.target.value)}
+                  onBlur={() => {
+                    if (
+                      catnetEndpoint !== (settings.natCat?.catnetEndpoint ?? "")
+                    )
+                      void updateNatCat({
+                        catnetEndpoint: catnetEndpoint || undefined,
+                      });
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.natCat.endpointHint")}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">
+                  {t("settings.natCat.key")}
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    type="password"
+                    value={catnetApiKey}
+                    placeholder={
+                      settings.natCat?.catnetHasApiKey
+                        ? t("settings.natCat.keySet")
+                        : t("settings.natCat.keyUnset")
+                    }
+                    onChange={(e) => setCatnetApiKey(e.target.value)}
+                  />
+                  <Button onClick={() => void saveCatnetApiKey()}>
+                    {t("settings.natCat.save")}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -271,9 +419,13 @@ export function SettingsPage(): React.JSX.Element {
                 {t("settings.satelliteSource.tileTemplateLabel")}
               </label>
               <Input
-                value={settings.wmsTileUrl ?? ""}
+                value={wmsTileUrl}
                 placeholder="https://…/{z}/{x}/{y}.png"
-                onChange={(e) => update({ wmsTileUrl: e.target.value })}
+                onChange={(e) => setWmsTileUrl(e.target.value)}
+                onBlur={() => {
+                  if (wmsTileUrl !== (settings.wmsTileUrl ?? ""))
+                    void update({ wmsTileUrl: wmsTileUrl || undefined });
+                }}
               />
               <p className="text-xs text-muted-foreground">
                 {t("settings.satelliteSource.tileTemplateHint")}

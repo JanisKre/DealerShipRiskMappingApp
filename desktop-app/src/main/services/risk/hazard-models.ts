@@ -1,4 +1,4 @@
-import type { HailZone, PerilScore } from "@shared/types";
+import type { HailZone, NatCatAssessment, PerilScore } from "@shared/types";
 import { hailZoneToScore } from "@shared/risk-math";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type { RiskParameters } from "@shared/types";
@@ -8,8 +8,9 @@ export function scorePerils(
   w: WeatherMetrics,
   hailZone?: HailZone,
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
+  natCat?: NatCatAssessment,
 ): PerilScore[] {
-  return [
+  const scores: PerilScore[] = [
     {
       peril: "wind",
       score: clamp((w.maxWindKmh / parameters.windScoreMaxKmh) * 100),
@@ -54,6 +55,18 @@ export function scorePerils(
       unit: "hot days/yr",
     },
   ];
+
+  // A licensed/imported NatCat assessment is authoritative for the hazard
+  // indicator it covers. Keep the source observation in RiskAssessment.natCat;
+  // this array only carries the normalized score used by the existing UI.
+  for (const score of scores) {
+    const override = natCat?.hazards.find((hazard) => hazard.peril === score.peril);
+    if (!override) continue;
+    score.score = override.score;
+    score.hazardValue = override.hazardValue ?? override.score;
+    score.unit = override.unit;
+  }
+  return scores;
 }
 
 /** Returns the configured primary dealership score from the peril results. */

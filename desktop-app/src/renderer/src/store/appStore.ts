@@ -120,6 +120,8 @@ interface AppState {
   removeDealership: (id: string) => void;
   /** Re-analyzes an existing location (recomputes boundary/detection/risk). */
   reanalyzeDealership: (id: string) => Promise<void>;
+  /** Fetches a configured CatNet assessment and rescores one location. */
+  refreshCatNet: (id: string) => Promise<void>;
   analyzeAll: (inputs: DealershipInput[]) => Promise<void>;
   /**
    * Adds locations to the portfolio (deduplicated against existing
@@ -187,22 +189,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const parameters = normalizeRiskParameters({ ...get().parameters, ...patch });
     set({ parameters, parametersUpdating: true });
     try {
-      const current = get().dealerships;
-      const updates = await Promise.all(
-        current
-          .filter((d) => d.lat != null && d.lon != null)
-          .map(async (d) => {
-            const risk = await window.api.scoreRisk(
-              d.lat,
-              d.lon,
-              d.assetValue,
-              d.detection,
-              d.boundary,
-              parameters,
-            );
-            return { id: d.id, risk };
-          }),
+      const current = get().dealerships.filter(
+        (d) => d.lat != null && d.lon != null,
       );
+      const updates = await rescoreWithConcurrency(current, parameters, 4);
       set((s) => ({
         dealerships: s.dealerships.map((d) => {
           const update = updates.find((x) => x.id === d.id);
@@ -297,6 +287,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         d.detection,
         boundary,
         get().parameters,
+        d.natCat,
       );
       get().upsertDealership({
         ...get().dealerships.find((x) => x.id === id)!,
@@ -339,6 +330,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         detection,
         d.boundary,
         get().parameters,
+        d.natCat,
       );
       const current = get().dealerships.find((x) => x.id === id);
       if (current) get().upsertDealership({ ...current, detection, risk });
@@ -409,6 +401,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       current.detection,
       previous,
       get().parameters,
+      current.natCat,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, risk });
@@ -444,6 +437,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       current.detection,
       baseBoundary,
       get().parameters,
+      current.natCat,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, risk });
@@ -480,6 +474,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       detection,
       current.boundary,
       get().parameters,
+      current.natCat,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, detection, risk });
@@ -503,6 +498,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       detection,
       current.boundary,
       get().parameters,
+      current.natCat,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, detection, risk });
@@ -535,6 +531,31 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error(`Re-analysis failed for ${d.name}:`, err);
     } finally {
       set((s) => ({ analyzingIds: s.analyzingIds.filter((x) => x !== id) }));
+    }
+  },
+
+  refreshCatNet: async (id) => {
+    const d = get().dealerships.find((x) => x.id === id);
+    if (!d) return;
+    try {
+      const natCat = await window.api.fetchCatNet(d.lat, d.lon);
+      const risk = await window.api.scoreRisk(
+        d.lat,
+        d.lon,
+        d.assetValue,
+        d.detection,
+        d.boundary,
+        get().parameters,
+        natCat,
+      );
+      const latest = get().dealerships.find((x) => x.id === id);
+      if (latest) {
+        get().upsertDealership({ ...latest, natCat, risk });
+        await get().saveSession();
+      }
+    } catch (err) {
+      console.error(`CatNet refresh failed for ${d.name}:`, err);
+      throw err;
     }
   },
 
@@ -658,6 +679,46 @@ function boundaryNeedsReview(
     (boundary.quality?.sourceAgreement ?? 0) < parameters.boundaryReviewSourceAgreement ||
     (boundary.quality?.areaPlausibility ?? 0) < 0.5
   );
+}
+
+/**
+ * Rescores a portfolio with bounded concurrency. Parameter changes used to
+ * start one network-heavy weather/risk pipeline per location at once, which
+ * could make Electron unresponsive for larger portfolios.
+ */
+async function rescoreWithConcurrency(
+  dealerships: AnalyzedDealership[],
+  parameters: RiskParameters,
+  concurrency: number,
+): Promise<Array<{ id: string; risk: AnalyzedDealership["risk"] }>> {
+  const updates: Array<{ id: string; risk: AnalyzedDealership["risk"] }> = [];
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (next < dealerships.length) {
+      const dealership = dealerships[next++];
+      try {
+        const risk = await window.api.scoreRisk(
+          dealership.lat,
+          dealership.lon,
+          dealership.assetValue,
+          dealership.detection,
+          dealership.boundary,
+          parameters,
+          dealership.natCat,
+        );
+        updates.push({ id: dealership.id, risk });
+      } catch (err) {
+        console.error(`Parameter rescore failed for ${dealership.name}:`, err);
+      }
+    }
+  }
+  await Promise.all(
+    Array.from(
+      { length: Math.min(Math.max(1, concurrency), dealerships.length) },
+      () => worker(),
+    ),
+  );
+  return updates;
 }
 
 /** Flat NL query projection of a dealership (for the filter evaluator in main). */

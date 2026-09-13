@@ -44,7 +44,8 @@
     "search": "Search",
     "vehicles": "Vehicles",
     "score": "Score",
-    "actions": "Actions"
+    "actions": "Actions",
+    "retry": "Retry"
   },
   "parameters": {
     "title": "Model parameters",
@@ -73,6 +74,19 @@
     "modelPlaceholder": "e.g. {{model}}",
     "apiKeySetPlaceholder": "•••••••• (stored) — enter a new key to replace",
     "apiKeyUnsetPlaceholder": "Stored encrypted (OS keychain)",
+    "natCat": {
+      "title": "Natural catastrophe data source",
+      "description": "ZÜRS files are detected automatically during CSV/Excel import. CatNet is queried only through a licensed HTTPS endpoint.",
+      "screening": "Open-Meteo screening",
+      "zuers": "ZÜRS Geo (import)",
+      "catnet": "Swiss Re CatNet (API)",
+      "endpoint": "CatNet endpoint",
+      "endpointHint": "Enter the exact URL from the Swiss Re API documentation (HTTPS required).",
+      "key": "CatNet API key",
+      "keySet": "•••••••• (stored)",
+      "keyUnset": "Stored encrypted (OS keychain)",
+      "save": "Save CatNet access"
+    },
     "satelliteSource": {
       "title": "Aerial Imagery Source",
       "customOption": "WMS/XYZ (custom)",
@@ -207,6 +221,11 @@
       "truckLabel": "Truck",
       "busLabel": "Bus",
       "sourceConfidence": "Source: {{provider}} · Confidence {{from}} → {{to}}",
+      "natCatTitle": "Natural catastrophe source",
+      "natCatRefresh": "Refresh CatNet",
+      "natCatRefreshing": "Querying CatNet…",
+      "natCatHazard": "{{peril}}: {{score}}/100 ({{unit}})",
+      "natCatAttribute": "{{name}}: {{value}}",
       "errorPrefix": "Error: {{error}}",
       "recommendedDeductibleLabel": "Rec. Deductible",
       "premiumLoadingLabel": "Premium Loading"

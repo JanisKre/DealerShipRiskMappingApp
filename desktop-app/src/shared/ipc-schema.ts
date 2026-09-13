@@ -11,6 +11,7 @@ import {
   DetectionResultSchema,
   ImportResultSchema,
   LlmProviderSchema,
+  NatCatAssessmentSchema,
   NlQueryDealershipSchema,
   NlQueryFilterSchema,
   OsmDetailsSchema,
@@ -32,6 +33,8 @@ import {
 export const ipcRequest = {
   "csv:parse": z.object({ content: z.string() }),
   "xlsx:parse": z.object({ base64: z.string() }),
+  "natcat:zuers:parseCsv": z.object({ content: z.string() }),
+  "natcat:zuers:parseXlsx": z.object({ base64: z.string() }),
   "geocode:search": z.object({ query: z.string().min(1) }),
   "places:autocomplete": z.object({
     query: z.string().min(1),
@@ -69,6 +72,12 @@ export const ipcRequest = {
     detection: DetectionResultSchema.optional(),
     boundary: BoundaryResultSchema.optional(),
     parameters: RiskParametersSchema.optional(),
+    natCat: NatCatAssessmentSchema.optional(),
+  }),
+  "natcat:catnet:lookup": z.object({
+    lat: z.number().finite().min(-90).max(90),
+    lon: z.number().finite().min(-180).max(180),
+    perils: z.array(z.string().min(1).max(64)).max(20).optional(),
   }),
   "analyze:dealership": z.object({
     dealership: DealershipInputSchema,
@@ -105,6 +114,7 @@ export const ipcRequest = {
     provider: LlmProviderSchema,
     apiKey: z.string(),
   }),
+  "settings:setNatCatApiKey": z.object({ apiKey: z.string().min(1) }),
   "map:capture": z.object({
     /** Optional crop rect in CSS pixels (renderer coordinates). */
     rect: z
@@ -124,6 +134,8 @@ export const ipcRequest = {
 export const ipcResponse = {
   "csv:parse": ImportResultSchema,
   "xlsx:parse": ImportResultSchema,
+  "natcat:zuers:parseCsv": ImportResultSchema,
+  "natcat:zuers:parseXlsx": ImportResultSchema,
   "geocode:search": z.array(
     z.object({ label: z.string(), lat: z.number(), lon: z.number() }),
   ),
@@ -136,6 +148,7 @@ export const ipcResponse = {
   "temporal:compare": TemporalChangeResultSchema,
   "weather:fetch": z.record(z.string(), z.number()),
   "risk:score": RiskAssessmentSchema,
+  "natcat:catnet:lookup": NatCatAssessmentSchema,
   "analyze:dealership": AnalyzedDealershipSchema,
   "sessions:list": z.array(
     z.object({ id: z.string(), name: z.string(), updatedAt: z.string() }),
@@ -165,6 +178,7 @@ export const ipcResponse = {
   "settings:get": SettingsSchema,
   "settings:set": SettingsSchema,
   "settings:setLlmApiKey": z.object({ ok: z.boolean() }),
+  "settings:setNatCatApiKey": z.object({ ok: z.boolean() }),
   "map:capture": z.object({ path: z.string().nullable(), ok: z.boolean() }),
   "model:status": z.object({
     available: z.boolean(),

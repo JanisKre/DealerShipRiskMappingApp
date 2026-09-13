@@ -23,6 +23,16 @@ const api = {
       base64,
     } satisfies IpcRequest["xlsx:parse"]),
 
+  parseZuersCsv: (content: string): Promise<IpcResponse["natcat:zuers:parseCsv"]> =>
+    ipcRenderer.invoke(IPC.parseZuersCsv, {
+      content,
+    } satisfies IpcRequest["natcat:zuers:parseCsv"]),
+
+  parseZuersXlsx: (base64: string): Promise<IpcResponse["natcat:zuers:parseXlsx"]> =>
+    ipcRenderer.invoke(IPC.parseZuersXlsx, {
+      base64,
+    } satisfies IpcRequest["natcat:zuers:parseXlsx"]),
+
   geocode: (query: string): Promise<IpcResponse["geocode:search"]> =>
     ipcRenderer.invoke(IPC.geocode, {
       query,
@@ -105,6 +115,7 @@ const api = {
     detection?: IpcRequest["risk:score"]["detection"],
     boundary?: IpcRequest["risk:score"]["boundary"],
     parameters?: IpcRequest["risk:score"]["parameters"],
+    natCat?: IpcRequest["risk:score"]["natCat"],
   ): Promise<IpcResponse["risk:score"]> =>
     ipcRenderer.invoke(IPC.scoreRisk, {
       lat,
@@ -113,7 +124,19 @@ const api = {
       detection,
       boundary,
       parameters,
+      natCat,
     } satisfies IpcRequest["risk:score"]),
+
+  fetchCatNet: (
+    lat: number,
+    lon: number,
+    perils?: IpcRequest["natcat:catnet:lookup"]["perils"],
+  ): Promise<IpcResponse["natcat:catnet:lookup"]> =>
+    ipcRenderer.invoke(IPC.fetchCatNet, {
+      lat,
+      lon,
+      perils,
+    } satisfies IpcRequest["natcat:catnet:lookup"]),
 
   analyzeDealership: (
     dealership: IpcRequest["analyze:dealership"]["dealership"],
@@ -275,6 +298,13 @@ const api = {
       provider,
       apiKey,
     } satisfies IpcRequest["settings:setLlmApiKey"]),
+
+  setNatCatApiKey: (
+    apiKey: string,
+  ): Promise<IpcResponse["settings:setNatCatApiKey"]> =>
+    ipcRenderer.invoke(IPC.setNatCatApiKey, {
+      apiKey,
+    } satisfies IpcRequest["settings:setNatCatApiKey"]),
 
   captureMap: (
     rect: IpcRequest["map:capture"]["rect"],

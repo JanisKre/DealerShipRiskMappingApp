@@ -8,6 +8,8 @@ import { scoreRisk } from "./risk.service";
 import { aerialImageForBoundary } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type { RiskParameters } from "@shared/types";
+import { createCatNetProvider } from "./catnet.service";
+import { getNatCatApiKey, getSettings } from "./settings.service";
 
 /** Extracts a 5-digit postal code from a German address string. */
 function extractPostalCode(address: string | undefined): string | null {
@@ -46,6 +48,28 @@ export async function analyzeDealership(
   const boundary = await detectBoundary(lat, lon, input.name, input.address, parameters);
   const image = await aerialImageForBoundary(lat, lon, boundary);
   const detection = await detectVehicles(image, boundary, parameters);
+  let natCat = input.natCat;
+  const natCatSettings = getSettings().natCat;
+  if (
+    !natCat &&
+    natCatSettings?.provider === "swissre-catnet" &&
+    natCatSettings.catnetEndpoint
+  ) {
+    const apiKey = getNatCatApiKey();
+    if (apiKey) {
+      try {
+        natCat = await createCatNetProvider({
+          endpoint: natCatSettings.catnetEndpoint,
+          apiKey,
+        }).lookup(lat, lon);
+      } catch (error) {
+        // Preserve the screening fallback when a licensed provider is
+        // temporarily unavailable; provenance will show Open-Meteo instead.
+        console.warn("CatNet lookup failed; using screening fallback", error);
+      }
+    }
+  }
+
   const risk = await scoreRisk(
     lat,
     lon,
@@ -54,6 +78,7 @@ export async function analyzeDealership(
     boundary,
     hailZone ?? undefined,
     parameters,
+    natCat,
   );
 
   const hailRiskTier = hailZone ? hailZoneToRiskTier(hailZone) : undefined;
@@ -65,6 +90,7 @@ export async function analyzeDealership(
     boundary,
     detection,
     risk,
+    ...(natCat ? { natCat } : {}),
     ...(hailZone != null ? { hailZone, hailRiskTier } : {}),
   };
 }

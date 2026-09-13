@@ -2,6 +2,7 @@ import type {
   BoundaryResult,
   DetectionResult,
   HailZone,
+  NatCatAssessment,
   RiskAssessment,
 } from "@shared/types";
 import { exposureRatioForBoundary } from "./roof.service";
@@ -28,13 +29,14 @@ export async function scoreRisk(
   boundary?: BoundaryResult,
   hailZone?: HailZone,
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
+  natCat?: NatCatAssessment,
 ): Promise<RiskAssessment> {
   const [weather, exposureRatio] = await Promise.all([
     fetchWeather(lat, lon),
     boundary ? exposureRatioForBoundary(boundary) : Promise.resolve(1),
   ]);
 
-  const perils = scorePerils(weather, hailZone, parameters);
+  const perils = scorePerils(weather, hailZone, parameters, natCat);
   // The dealership's primary score is intentionally hail-only for now.
   // Keep the other peril scores available for optional detail views and
   // future score configuration without mixing them into the main score.
@@ -51,12 +53,13 @@ export async function scoreRisk(
     exposureRatio,
     hailZone,
     parameters,
+    natCat,
   );
 
   const evidence = riskEvidence(
     boundary,
     detection,
-    openMeteoProvider.evidence(),
+    natCat?.evidence ?? openMeteoProvider.evidence(),
   );
   const confidence = round(
     evidence.reduce((sum, item) => sum + item.confidence, 0) / evidence.length,
@@ -73,7 +76,8 @@ export async function scoreRisk(
     confidence,
     modelVersion: RISK_MODEL_VERSION,
     evidence,
-    limitations: riskLimitations(boundary, detection),
+    ...(natCat ? { natCat } : {}),
+    limitations: riskLimitations(boundary, detection, natCat),
     computedAt: new Date().toISOString(),
   };
 }
