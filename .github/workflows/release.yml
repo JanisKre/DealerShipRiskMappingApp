@@ -61,6 +61,7 @@ jobs:
         if: github.event_name == 'push' || inputs.publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: .
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" --draft --title "Dealership Risk Mapping $RELEASE_TAG"
@@ -145,4 +146,5 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: .
         run: gh release edit "$RELEASE_TAG" --draft=false --title "Dealership Risk Mapping $RELEASE_TAG"
