@@ -70,4 +70,11 @@ export const TTL = {
   buildings: 7 * 24 * 60 * 60 * 1000, // 7 d
   weather: 12 * 60 * 60 * 1000, // 12 h
   osmDetails: 7 * 24 * 60 * 60 * 1000, // 7 d
+  /**
+   * Fences, roads, buildings and land use barely move. Re-fetching them at the
+   * 1 h `overpass` TTL is pure latency on every re-analysis.
+   */
+  osmVector: 7 * 24 * 60 * 60 * 1000, // 7 d
+  /** Cadastral parcels change on the order of years. */
+  cadastre: 30 * 24 * 60 * 60 * 1000, // 30 d
 } as const;

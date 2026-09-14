@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseExteriorRings } from "./alkis.service";
+import {
+  isTruncated,
+  parseExteriorRings,
+  parseWfsCounts,
+} from "./alkis.service";
 
 /** Real GML structure of the INSPIRE feature type `cp:CadastralParcel` (Saxony). */
 const INSPIRE_CP_SAMPLE = `<?xml version="1.0" encoding="utf-8"?>
@@ -62,5 +66,46 @@ describe("parseExteriorRings", () => {
   it("skips polygons without gml:exterior/posList instead of crashing", () => {
     const broken = `<gml:Polygon><gml:interior/></gml:Polygon>`;
     expect(parseExteriorRings(broken)).toEqual([]);
+  });
+});
+
+describe("WFS feature counts", () => {
+  it("reads matched and returned from the response envelope", () => {
+    const xml =
+      '<wfs:FeatureCollection numberMatched="500" numberReturned="250">' +
+      "</wfs:FeatureCollection>";
+    expect(parseWfsCounts(xml)).toEqual({ matched: 500, returned: 250 });
+  });
+
+  it("flags a response the service could not fit in one page", () => {
+    // A truncated set must not be used to assemble a multi-parcel site: which
+    // parcels are missing is arbitrary, so the union would be arbitrary too.
+    const xml = '<wfs:FeatureCollection numberMatched="500" numberReturned="250"/>';
+    expect(isTruncated(xml, 250)).toBe(true);
+  });
+
+  it("does not flag a response that fit", () => {
+    const xml = '<wfs:FeatureCollection numberMatched="7" numberReturned="7"/>';
+    expect(isTruncated(xml, 250)).toBe(false);
+  });
+
+  it("treats a full page as possibly truncated when matched is unknown", () => {
+    // Several state services stream without counting first.
+    const xml = '<wfs:FeatureCollection numberMatched="unknown" numberReturned="250"/>';
+    expect(parseWfsCounts(xml).matched).toBeNull();
+    expect(isTruncated(xml, 250)).toBe(true);
+  });
+
+  it("is not fooled by a partial page with an unknown match count", () => {
+    const xml = '<wfs:FeatureCollection numberMatched="unknown" numberReturned="12"/>';
+    expect(isTruncated(xml, 250)).toBe(false);
+  });
+
+  it("returns nulls when the envelope carries no counts", () => {
+    expect(parseWfsCounts("<wfs:FeatureCollection/>")).toEqual({
+      matched: null,
+      returned: null,
+    });
+    expect(isTruncated("<wfs:FeatureCollection/>", 250)).toBe(false);
   });
 });

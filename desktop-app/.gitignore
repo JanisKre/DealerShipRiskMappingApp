@@ -12,3 +12,8 @@ resources/models/*.onnx
 
 # Lokales Build-/Venv-Verzeichnis für das ONNX-Modell
 .model-build/
+
+# Benchmark-Ground-Truth aus manuellen Boundary-Korrekturen: enthält
+# kundenabgeleitete Geometrien und darf nie eingecheckt werden.
+# (Das Exportskript verweigert Pfade im Worktree — dies ist das zweite Netz.)
+*.local.json

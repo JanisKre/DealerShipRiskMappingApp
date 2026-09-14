@@ -1,0 +1,406 @@
+{
+  "label": "legacy engine (pre-fusion)",
+  "engineVersion": "0.2.1",
+  "measuredAt": "2026-09-14",
+  "fixtureSet": "boundary-public-v1",
+  "note": "Baseline for the fusion rewrite. Produced by scripts-free replay of the shipped provider chain (detectBoundary) against the public OSM fixture set. Winning source was alkis on 11 sites and the synthetic 100 m octagon on 6. The OSM semantic provider contributed no candidate on any site: its Overpass output statement combined the mutually exclusive geom and center modes, so every element returned a centroid with no geometry array and was dropped by the length>=3 filter. Treat this baseline as the behaviour that shipped, not as the best the existing sources could do.",
+  "all": {
+    "dataset": "boundary-public-v1",
+    "resolutionM": 0.5,
+    "evaluatedSamples": 17,
+    "meanIoU": 0.331,
+    "meanBoundaryF1": 0.181,
+    "meanCoverage": 0.677,
+    "coverage90Rate": 0.294,
+    "within2mBoundaryRate": 0.059,
+    "meanAreaBias": 0.9,
+    "calibration": {
+      "bins": [
+        {
+          "lower": 0,
+          "upper": 0.1,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "samples": 6,
+          "meanConfidence": 0.297,
+          "meanIoU": 0.446
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "samples": 1,
+          "meanConfidence": 0.592,
+          "meanIoU": 0.001
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "samples": 3,
+          "meanConfidence": 0.75,
+          "meanIoU": 0.285
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "samples": 7,
+          "meanConfidence": 0.827,
+          "meanIoU": 0.3
+        },
+        {
+          "lower": 0.9,
+          "upper": 1,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        }
+      ],
+      "meanAbsoluteError": 0.399
+    },
+    "evaluatedAt": "2026-09-14T07:53:52.471Z"
+  },
+  "tuning": {
+    "dataset": "boundary-public-v1/tuning",
+    "resolutionM": 0.5,
+    "evaluatedSamples": 13,
+    "meanIoU": 0.334,
+    "meanBoundaryF1": 0.215,
+    "meanCoverage": 0.664,
+    "coverage90Rate": 0.308,
+    "within2mBoundaryRate": 0.077,
+    "meanAreaBias": 0.772,
+    "calibration": {
+      "bins": [
+        {
+          "lower": 0,
+          "upper": 0.1,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "samples": 4,
+          "meanConfidence": 0.297,
+          "meanIoU": 0.432
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "samples": 1,
+          "meanConfidence": 0.592,
+          "meanIoU": 0.001
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "samples": 3,
+          "meanConfidence": 0.75,
+          "meanIoU": 0.285
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "samples": 5,
+          "meanConfidence": 0.828,
+          "meanIoU": 0.35
+        },
+        {
+          "lower": 0.9,
+          "upper": 1,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        }
+      ],
+      "meanAbsoluteError": 0.394
+    },
+    "evaluatedAt": "2026-09-14T07:53:52.486Z"
+  },
+  "holdout": {
+    "dataset": "boundary-public-v1/holdout",
+    "resolutionM": 0.5,
+    "evaluatedSamples": 4,
+    "meanIoU": 0.323,
+    "meanBoundaryF1": 0.073,
+    "meanCoverage": 0.718,
+    "coverage90Rate": 0.25,
+    "within2mBoundaryRate": 0,
+    "meanAreaBias": 1.317,
+    "calibration": {
+      "bins": [
+        {
+          "lower": 0,
+          "upper": 0.1,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "samples": 2,
+          "meanConfidence": 0.297,
+          "meanIoU": 0.472
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "samples": 2,
+          "meanConfidence": 0.824,
+          "meanIoU": 0.173
+        },
+        {
+          "lower": 0.9,
+          "upper": 1,
+          "samples": 0,
+          "meanConfidence": 0,
+          "meanIoU": 0
+        }
+      ],
+      "meanAbsoluteError": 0.413
+    },
+    "evaluatedAt": "2026-09-14T07:53:52.491Z"
+  },
+  "perSample": [
+    {
+      "id": "at-9-136796028",
+      "state": "Wien",
+      "holdout": true,
+      "cadastreAvailable": false,
+      "source": "synthetic",
+      "confidence": 0.29661806973244914
+    },
+    {
+      "id": "at-9-42201857",
+      "state": "Wien",
+      "holdout": true,
+      "cadastreAvailable": false,
+      "source": "synthetic",
+      "confidence": 0.2966180697324488
+    },
+    {
+      "id": "de-bb-1551712653",
+      "state": "Brandenburg",
+      "holdout": false,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.7889029270154704
+    },
+    {
+      "id": "de-be-486366264",
+      "state": "Berlin",
+      "holdout": false,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.8269894570908934
+    },
+    {
+      "id": "de-be-89721010",
+      "state": "Berlin",
+      "holdout": false,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.7319007488511022
+    },
+    {
+      "id": "de-by-1012830368",
+      "state": "Bayern",
+      "holdout": false,
+      "cadastreAvailable": false,
+      "source": "synthetic",
+      "confidence": 0.2966180697324427
+    },
+    {
+      "id": "de-by-31111675",
+      "state": "Bayern",
+      "holdout": false,
+      "cadastreAvailable": false,
+      "source": "synthetic",
+      "confidence": 0.29661806973244637
+    },
+    {
+      "id": "de-he-181059557",
+      "state": "Hessen",
+      "holdout": false,
+      "cadastreAvailable": false,
+      "source": "synthetic",
+      "confidence": 0.2966180697324439
+    },
+    {
+      "id": "de-he-258763760",
+      "state": "Hessen",
+      "holdout": false,
+      "cadastreAvailable": false,
+      "source": "synthetic",
+      "confidence": 0.29661806973245364
+    },
+    {
+      "id": "de-ni-196878995",
+      "state": "Niedersachsen",
+      "holdout": false,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.7295493153569754
+    },
+    {
+      "id": "de-ni-238789762",
+      "state": "Niedersachsen",
+      "holdout": false,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.5920691910297198
+    },
+    {
+      "id": "de-nw-26706097",
+      "state": "NRW",
+      "holdout": false,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.8398624812417593
+    },
+    {
+      "id": "de-nw-46914586",
+      "state": "NRW",
+      "holdout": false,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.8167578579238729
+    },
+    {
+      "id": "de-sn-24678567",
+      "state": "Sachsen",
+      "holdout": false,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.8098269088149992
+    },
+    {
+      "id": "de-sn-317818831",
+      "state": "Sachsen",
+      "holdout": false,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.8461427249222196
+    },
+    {
+      "id": "de-st-113379480",
+      "state": "Sachsen-Anhalt",
+      "holdout": true,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.8281059412227854
+    },
+    {
+      "id": "de-st-92412368",
+      "state": "Sachsen-Anhalt",
+      "holdout": true,
+      "cadastreAvailable": true,
+      "source": "alkis",
+      "confidence": 0.8191417128480725
+    }
+  ]
+}

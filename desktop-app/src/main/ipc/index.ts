@@ -24,7 +24,6 @@ import {
   MODEL_DOWNLOAD_URL,
   ModelDownloadUnavailableError,
 } from "../services/model.service";
-import { compareTemporal } from "../services/temporal-change.service";
 import {
   exportPortfolioFile,
   exportReport,
@@ -49,7 +48,6 @@ import {
   nlQueryFilter,
   nlQuerySummaryStream,
   portfolioChatStream,
-  refineBoundary,
 } from "../services/llm.service";
 import { scoreRisk } from "../services/risk.service";
 import {
@@ -115,8 +113,8 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.parseZuersXlsx, ({ base64 }) => parseZuersXlsxWithReport(base64));
   handle(IPC.geocode, ({ query }) => geocode(query));
   handle(IPC.placesAutocomplete, ({ query }) => placesAutocomplete(query));
-  handle(IPC.detectBoundary, ({ lat, lon, name, address }) =>
-    detectBoundary(lat, lon, name, address),
+  handle(IPC.detectBoundary, ({ lat, lon, name, address, parameters }) =>
+    detectBoundary(lat, lon, name, address, parameters),
   );
   handle(IPC.osmDetails, ({ lat, lon, name, address }) =>
     getOsmDetails(lat, lon, name, address),
@@ -125,9 +123,6 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     const image = await aerialImageForBoundary(lat, lon, boundary);
     return detectVehicles(image, boundary, parameters);
   });
-  handle(IPC.compareTemporal, ({ lat, lon, fromDate, toDate, boundary }) =>
-    compareTemporal(lat, lon, fromDate, toDate, boundary),
-  );
   handle(IPC.fetchWeather, ({ lat, lon }) => fetchWeather(lat, lon));
   handle(IPC.scoreRisk, ({ lat, lon, assetValue, detection, boundary, parameters, natCat }) =>
     scoreRisk(lat, lon, assetValue, detection, boundary, undefined, parameters, natCat),
@@ -196,7 +191,6 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   }));
 
   handle(IPC.llmMemo, ({ dealership }) => generateMemo(dealership));
-  handle(IPC.llmRefineBoundary, ({ dealership }) => refineBoundary(dealership));
 
   handle(IPC.getSettings, () => getSettings());
   handle(IPC.setSettings, ({ settings }) => setSettings(settings));

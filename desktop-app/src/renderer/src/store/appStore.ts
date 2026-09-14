@@ -14,6 +14,7 @@ import {
   DEFAULT_RISK_PARAMETERS,
   normalizeRiskParameters,
 } from "@shared/parameters";
+import { boundaryNeedsReview } from "@shared/boundary-review";
 import { dedupeDealerships } from "@shared/dedupe";
 import { effectiveVehicleCount } from "@shared/risk-math";
 import { riskLevel } from "@renderer/lib/riskColor";
@@ -69,6 +70,28 @@ interface AppState {
 
   setSession: (id: string | null, name: string) => void;
   setSessionName: (name: string) => void;
+  /**
+   * Saves the current portfolio (if it has any locations) and resets to a
+   * fresh, empty, unsaved one — the next `saveSession()` creates a new row
+   * rather than overwriting the one just left.
+   */
+  newPortfolio: () => Promise<void>;
+  /**
+   * Saves the current portfolio (if it has any locations), then loads a
+   * different saved one by id and makes it the active portfolio.
+   */
+  switchSession: (id: string) => Promise<void>;
+  /**
+   * Renames any saved portfolio by id — including ones other than the
+   * currently active one, for the portfolio-switcher list.
+   */
+  renameSavedSession: (id: string, name: string) => Promise<void>;
+  /**
+   * Permanently deletes a saved portfolio by id. If it's the active one,
+   * resets to a fresh empty portfolio afterwards (nothing left to keep it
+   * pointed at).
+   */
+  deleteSavedSession: (id: string) => Promise<void>;
   setImportReport: (report: ImportReport | null) => void;
   setDealerships: (d: AnalyzedDealership[]) => void;
   setParameters: (parameters?: Partial<RiskParameters> | null) => void;
@@ -110,6 +133,8 @@ interface AppState {
       >
     >,
   ) => void;
+  /** Bulk-sets the insured flag for multiple locations at once. */
+  setInsuredForDealerships: (ids: string[], insured: boolean) => void;
   /** Saves an optional human-reviewed vehicle count and recalculates risk. */
   updateManualVehicleCount: (id: string, count: number | null) => Promise<void>;
   /** Persists a completed map-based vehicle review and recalculates risk. */
@@ -122,6 +147,8 @@ interface AppState {
   select: (id: string | null) => void;
   /** Permanently removes a location from the portfolio. */
   removeDealership: (id: string) => void;
+  /** Permanently removes multiple locations from the portfolio at once. */
+  removeDealerships: (ids: string[]) => void;
   /** Re-analyzes an existing location (recomputes boundary/detection/risk). */
   reanalyzeDealership: (id: string) => Promise<void>;
   /** Fetches a configured CatNet assessment and rescores one location. */
@@ -163,9 +190,12 @@ const EMPTY_FILTERS: PortfolioFilters = {
   boundarySource: null,
 };
 
+/** Default name for a freshly created, not-yet-renamed portfolio. */
+export const DEFAULT_PORTFOLIO_NAME = "New Portfolio";
+
 export const useAppStore = create<AppState>((set, get) => ({
   sessionId: null,
-  sessionName: "New Portfolio",
+  sessionName: DEFAULT_PORTFOLIO_NAME,
   dealerships: [],
   parameters: DEFAULT_RISK_PARAMETERS,
   parametersUpdating: false,
@@ -189,6 +219,67 @@ export const useAppStore = create<AppState>((set, get) => ({
   filters: EMPTY_FILTERS,
 
   setSession: (id, name) => set({ sessionId: id, sessionName: name }),
+
+  newPortfolio: async () => {
+    if (get().dealerships.length > 0) {
+      await get()
+        .saveSession()
+        .catch((err: unknown) => {
+          console.error(
+            "Saving the current portfolio before starting a new one failed:",
+            err,
+          );
+        });
+    }
+    resetToBlankPortfolio(set, get);
+  },
+
+  switchSession: async (id) => {
+    if (get().sessionId === id) return;
+    if (get().dealerships.length > 0) {
+      await get()
+        .saveSession()
+        .catch((err: unknown) => {
+          console.error(
+            "Saving the current portfolio before switching failed:",
+            err,
+          );
+        });
+    }
+    const session = await window.api.loadSession(id);
+    if (!session) return;
+    set({
+      sessionId: session.id,
+      sessionName: session.name,
+      selectedId: null,
+      lastSavedAt: null,
+      scenario: null,
+      nlQueryMatchedIds: null,
+      filters: EMPTY_FILTERS,
+    });
+    get().setDealerships(session.dealerships);
+    get().setParameters(session.parameters);
+  },
+
+  renameSavedSession: async (id, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (id === get().sessionId) {
+      set({ sessionName: trimmed });
+      await get().saveSession();
+      return;
+    }
+    const session = await window.api.loadSession(id);
+    if (!session) return;
+    await window.api.saveSession({ ...session, name: trimmed });
+  },
+
+  deleteSavedSession: async (id) => {
+    await window.api.deleteSession(id);
+    if (get().sessionId !== id) return;
+    resetToBlankPortfolio(set, get);
+  },
+
   setSessionName: (name) => set({ sessionName: name }),
   setParameters: (parameters) =>
     set({ parameters: normalizeRiskParameters(parameters) }),
@@ -473,6 +564,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       );
       return { dealerships: copy };
     }),
+  setInsuredForDealerships: (ids, insured) =>
+    set((s) => {
+      const idSet = new Set(ids);
+      return {
+        dealerships: s.dealerships.map((d) =>
+          idSet.has(d.id) ? { ...d, insured } : d,
+        ),
+      };
+    }),
   updateManualVehicleCount: async (id, count) => {
     if (count != null && (!Number.isInteger(count) || count < 0)) return;
     const current = get().dealerships.find((d) => d.id === id);
@@ -526,12 +626,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   select: (id) => set({ selectedId: id }),
 
-  removeDealership: (id) =>
-    set((s) => ({
-      dealerships: s.dealerships.filter((d) => d.id !== id),
-      selectedId: s.selectedId === id ? null : s.selectedId,
-      analysisErrors: withoutKey(s.analysisErrors, id),
-    })),
+  removeDealership: (id) => get().removeDealerships([id]),
+
+  removeDealerships: (ids) =>
+    set((s) => {
+      const idSet = new Set(ids);
+      return {
+        dealerships: s.dealerships.filter((d) => !idSet.has(d.id)),
+        selectedId:
+          s.selectedId && idSet.has(s.selectedId) ? null : s.selectedId,
+        analysisErrors: Object.fromEntries(
+          Object.entries(s.analysisErrors).filter(([id]) => !idSet.has(id)),
+        ),
+      };
+    }),
 
   reanalyzeDealership: async (id) => {
     const d = get().dealerships.find((x) => x.id === id);
@@ -706,6 +814,30 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 }));
 
+/** Shared by `newPortfolio` and `deleteSavedSession` (when deleting the active one). */
+function resetToBlankPortfolio(
+  set: (partial: Partial<AppState>) => void,
+  get: () => AppState,
+): void {
+  set({
+    sessionId: null,
+    sessionName: DEFAULT_PORTFOLIO_NAME,
+    selectedId: null,
+    analyzing: false,
+    progress: null,
+    analysisCancelRequested: false,
+    analyzingIds: [],
+    lastAddedIds: [],
+    lastSavedAt: null,
+    lastImportReport: null,
+    scenario: null,
+    nlQueryMatchedIds: null,
+    filters: EMPTY_FILTERS,
+  });
+  get().setDealerships([]);
+  get().setParameters(DEFAULT_RISK_PARAMETERS);
+}
+
 function withoutKey(
   values: Record<string, string>,
   key: string,
@@ -718,22 +850,6 @@ function withoutKey(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function boundaryNeedsReview(
-  boundary: NonNullable<AnalyzedDealership["boundary"]>,
-  parameters: RiskParameters,
-): boolean {
-  return (
-    boundary.source === "synthetic" ||
-    boundary.role !== "operationalLot" ||
-    boundary.confidence < parameters.boundaryReviewConfidence ||
-    (boundary.quality?.top2Margin ?? 1) < parameters.boundaryReviewTop2Margin ||
-    boundary.quality?.pointRelation === "outside" ||
-    (boundary.quality?.sourceAgreement ?? 0) <
-      parameters.boundaryReviewSourceAgreement ||
-    (boundary.quality?.areaPlausibility ?? 0) < 0.5
-  );
 }
 
 /**

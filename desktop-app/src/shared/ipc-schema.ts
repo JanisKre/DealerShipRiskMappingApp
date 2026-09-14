@@ -2,7 +2,6 @@ import { z } from "zod";
 import {
   AnalyzedDealershipSchema,
   BoundaryResultSchema,
-  BoundarySuggestionSchema,
   ChatMessageSchema,
   ConversationSchema,
   DashboardSchema,
@@ -21,7 +20,6 @@ import {
   SessionSchema,
   SettingsSchema,
   StructuredMemoSchema,
-  TemporalChangeResultSchema,
 } from "./types";
 
 /**
@@ -44,6 +42,11 @@ export const ipcRequest = {
     lon: z.number(),
     name: z.string().optional(),
     address: z.string().optional(),
+    // Without this the renderer's own detections silently ran on
+    // DEFAULT_RISK_PARAMETERS, ignoring every boundary threshold the user had
+    // set on the parameters page — unlike the analyze pipeline, which passes
+    // session parameters through.
+    parameters: RiskParametersSchema.optional(),
   }),
   "osm:details": z.object({
     lat: z.number(),
@@ -56,13 +59,6 @@ export const ipcRequest = {
     lon: z.number(),
     boundary: BoundaryResultSchema.optional(),
     parameters: RiskParametersSchema.optional(),
-  }),
-  "temporal:compare": z.object({
-    lat: z.number(),
-    lon: z.number(),
-    fromDate: z.string().min(1),
-    toDate: z.string().min(1),
-    boundary: BoundaryResultSchema.optional(),
   }),
   "weather:fetch": z.object({ lat: z.number(), lon: z.number() }),
   "risk:score": z.object({
@@ -107,7 +103,6 @@ export const ipcRequest = {
   }),
   "report:readonlyView": z.object({ session: SessionSchema }),
   "llm:memo": z.object({ dealership: AnalyzedDealershipSchema }),
-  "llm:refineBoundary": z.object({ dealership: AnalyzedDealershipSchema }),
   "settings:get": z.void(),
   "settings:set": z.object({ settings: SettingsSchema.partial() }),
   "settings:setLlmApiKey": z.object({
@@ -145,7 +140,6 @@ export const ipcResponse = {
   "boundary:detect": BoundaryResultSchema,
   "osm:details": OsmDetailsSchema,
   "detect:vehicles": DetectionResultSchema,
-  "temporal:compare": TemporalChangeResultSchema,
   "weather:fetch": z.record(z.string(), z.number()),
   "risk:score": RiskAssessmentSchema,
   "natcat:catnet:lookup": NatCatAssessmentSchema,
@@ -174,7 +168,6 @@ export const ipcResponse = {
   "report:export": z.object({ path: z.string().nullable() }),
   "report:readonlyView": z.object({ path: z.string().nullable() }),
   "llm:memo": StructuredMemoSchema,
-  "llm:refineBoundary": BoundarySuggestionSchema,
   "settings:get": SettingsSchema,
   "settings:set": SettingsSchema,
   "settings:setLlmApiKey": z.object({ ok: z.boolean() }),

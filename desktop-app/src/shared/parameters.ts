@@ -65,6 +65,15 @@ export const DEFAULT_RISK_PARAMETERS: RiskParameters = {
   boundaryNearPointDistanceM: 35,
   syntheticBoundaryRadiusM: 100,
   detectionConfidence: DETECTION_CONFIDENCE,
+  boundaryGridResolutionM: 0.5,
+  boundaryGridExtentM: 400,
+  boundaryGrowHighThreshold: 0.6,
+  boundaryGrowLowThreshold: 0.15,
+  boundaryMaxAreaSqm: 200_000,
+  boundaryParcelSnapOverlap: 0.6,
+  boundaryVehicleEvidenceWeight: 1,
+  boundaryBarrierSupportReview: 0.35,
+  boundaryRegularizeAngleToleranceDeg: 12,
 };
 
 /** Normalizes a partial/legacy session value without mutating the input. */
