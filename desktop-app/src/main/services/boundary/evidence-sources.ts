@@ -39,7 +39,13 @@ export async function collectEvidence(
   const parcels =
     parcelResult.status === "fulfilled"
       ? parcelResult.value
-      : { parcels: [], state: null, truncated: false, reachable: false };
+      : {
+          parcels: [],
+          state: null,
+          truncated: false,
+          reachable: false,
+          containsAnchor: false,
+        };
   const match =
     matchResult.status === "fulfilled" ? matchResult.value : null;
   const matchedRing = match?.polygon.coordinates[0] as LonLat[] | undefined;
@@ -55,6 +61,7 @@ export async function collectEvidence(
     availability: {
       osm: osm != null,
       alkis: parcels.reachable,
+      alkisContainsAnchor: parcels.containsAnchor,
       nominatim: match != null,
     },
   };

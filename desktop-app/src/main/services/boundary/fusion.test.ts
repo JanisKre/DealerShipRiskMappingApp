@@ -257,7 +257,10 @@ describe("fuseBoundary", () => {
     expect(result).toBeNull();
   });
 
-  it("uses the parcel to corroborate operational evidence when both exist", () => {
+  it("lets the parcel corroborate evidence without extending past it", () => {
+    // Reinforcement is a score-level mechanism and is asserted on the grid,
+    // where it happens. (Snapping is a separate, shape-level step that does
+    // deliberately adopt the parcel's edges — see "cadastral snapping".)
     const osm: OsmEvidence = {
       areas: [
         { kind: "parking", ring: rect(0, 0, 30, 22), tags: {}, osmType: "way", osmId: 1 },
@@ -265,22 +268,29 @@ describe("fuseBoundary", () => {
       lines: [],
       addressNodes: [],
     };
-    const withoutParcel = fuseBoundary(bundle({ osm }), PARAMS)!;
-    const withParcel = fuseBoundary(
-      bundle({
-        osm,
-        parcels: [{ ring: rect(0, 0, 34, 26), areaSqm: 7072, state: "Berlin" }],
-      }),
-      PARAMS,
-    )!;
+    const parcels = [
+      { ring: rect(0, 0, 60, 50), areaSqm: 12_000, state: "Berlin" },
+    ];
+
+    const withoutParcel = buildEvidenceGrid(bundle({ osm }), PARAMS);
+    const withParcel = buildEvidenceGrid(bundle({ osm, parcels }), PARAMS);
 
     const parcelLayer = withParcel.layers.find(
       (l) => l.layer === "alkis-anchor-parcel",
     );
     expect(parcelLayer?.cells).toBeGreaterThan(0);
-    // Reinforcement raises confidence in the same shape; it does not inflate it
-    // out to the parcel's own edges.
-    expect(withParcel.areaSqm).toBeLessThan(withoutParcel.areaSqm * 1.15);
+
+    const centre = 400 * withParcel.grid.spec.cols + 400;
+    // Inside the evidenced area the parcel adds weight ...
+    expect(withParcel.grid.score[centre]).toBeGreaterThan(
+      withoutParcel.grid.score[centre],
+    );
+
+    // ... but a cell inside the parcel and outside the evidence stays at zero,
+    // which is what stops a large plot from flooding the region on its own.
+    const outside = 400 * withParcel.grid.spec.cols + 490; // ~45 m east
+    expect(withoutParcel.grid.score[outside]).toBe(0);
+    expect(withParcel.grid.score[outside]).toBe(0);
   });
 
   it("records OSM as unavailable rather than as a negative signal", () => {
@@ -466,5 +476,61 @@ describe("buildResultFromFusion", () => {
     expect(result.quality?.layers?.length).toBeGreaterThan(0);
     expect(result.evidence?.fallbackUsed).toBe(false);
     expect(result.evidence?.limitations[0]).toMatch(/not a survey/i);
+  });
+});
+
+describe("cadastral snapping", () => {
+  const dealerOsm = (ring: LonLat[]): OsmEvidence => ({
+    areas: [
+      { kind: "dealerArea", ring, tags: {}, osmType: "way", osmId: 1 },
+    ],
+    lines: [],
+    addressNodes: [],
+  });
+
+  it("replaces the raster outline with the parcel union when they agree", () => {
+    // Evidence covers a site that two abutting parcels describe exactly.
+    const site = rect(0, 0, 40, 25);
+    const result = fuseBoundary(
+      bundle({
+        osm: dealerOsm(site),
+        parcels: [
+          { ring: rect(-20, 0, 20, 25), areaSqm: 2_000, state: "Berlin" },
+          { ring: rect(20, 0, 20, 25), areaSqm: 2_000, state: "Berlin" },
+        ],
+      }),
+      PARAMS,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.cadastre).toBeDefined();
+    expect(result!.cadastre!.parcelCount).toBe(2);
+  });
+
+  it("keeps the fused outline when the cadastre describes a different place", () => {
+    const result = fuseBoundary(
+      bundle({
+        osm: dealerOsm(rect(0, 0, 40, 25)),
+        // A parcel layout that barely overlaps the evidenced site.
+        parcels: [{ ring: rect(150, 0, 40, 25), areaSqm: 2_000, state: "Berlin" }],
+      }),
+      PARAMS,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.cadastre).toBeUndefined();
+  });
+
+  it("skips snapping when the cadastral response was truncated", () => {
+    // Which parcels are missing is arbitrary, so the union would be arbitrary.
+    const site = rect(0, 0, 40, 25);
+    const result = fuseBoundary(
+      bundle({
+        osm: dealerOsm(site),
+        parcels: [{ ring: rect(0, 0, 40, 25), areaSqm: 4_000, state: "Berlin" }],
+        parcelsTruncated: true,
+      }),
+      PARAMS,
+    );
+    expect(result!.cadastre).toBeUndefined();
+    expect(result!.reasons.join(" ")).toMatch(/truncated/);
   });
 });

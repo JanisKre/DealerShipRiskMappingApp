@@ -233,8 +233,8 @@ async function tryFusedBoundary(
       // Until perimeter support is computed from the barrier lines themselves,
       // report layer diversity in its place rather than an invented number.
       barrierSupport: layerDiversity(outcome.layers),
-      cadastreSnapped: false,
-      parcelCount: bundle.parcels.length,
+      cadastreSnapped: outcome.cadastre != null,
+      parcelCount: outcome.cadastre?.parcelCount ?? bundle.parcels.length,
       areaPlausibility: areaPlausibilityScore("operationalLot", outcome.areaSqm),
       sourceAgreement,
     });
