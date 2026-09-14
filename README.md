@@ -29,9 +29,17 @@ Upload CSV → detect lot boundaries → count vehicles with AI → score 5 natu
 [![Download for macOS (Intel)](https://img.shields.io/badge/macOS-Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-mac-x64.dmg)
 [![Download for Windows](https://img.shields.io/badge/Windows-x64-0078D6?style=for-the-badge&logo=windowsterminal&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-win-x64.exe)
 
-_Builds are not code-signed (no paid developer certificate). macOS will show
-"app is damaged" — right-click the app → **Open** once to bypass Gatekeeper.
-Windows SmartScreen may warn "Unknown publisher" — click **More info → Run
+_Builds are not code-signed (no paid developer certificate). On current macOS
+this makes Gatekeeper report the app as **"damaged"** instead of the older
+"unidentified developer" prompt, and right-click → Open no longer offers a
+bypass. After dragging the app into **Applications**, clear the quarantine
+flag in Terminal, then open it normally:_
+
+```bash
+xattr -cr "/Applications/Dealership Risk Mapping.app"
+```
+
+_Windows SmartScreen may warn "Unknown publisher" — click **More info → Run
 anyway**. See [all releases](https://github.com/JanisKre/DealerShipRiskMappingApp/releases)._
 
 </div>
