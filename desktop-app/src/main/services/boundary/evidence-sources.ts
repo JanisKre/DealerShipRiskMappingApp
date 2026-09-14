@@ -1,7 +1,7 @@
-import type { RiskParameters } from "@shared/types";
+import type { RiskParameters, SourceStatus } from "@shared/types";
 import { fetchParcelsNear, PARCEL_SEARCH_RADIUS_M } from "../alkis.service";
 import { fetchOsmEvidence } from "./osm-evidence.service";
-import { fromNominatimPolygon } from "./nominatim-polygon";
+import { resolveNominatimMatch } from "./nominatim-polygon";
 import { OSM_EVIDENCE_RADIUS_M } from "./osm-overpass";
 import type { FusionBundle } from "./fusion";
 import type { LonLat } from "../boundary-geometry";
@@ -31,7 +31,7 @@ export async function collectEvidence(
   const [osmResult, parcelResult, matchResult] = await Promise.allSettled([
     fetchOsmEvidence(lat, lon, radiusM),
     fetchParcelsNear(lat, lon, PARCEL_SEARCH_RADIUS_M),
-    fromNominatimPolygon(lat, lon, context),
+    resolveNominatimMatch(lat, lon, context),
   ]);
 
   const osm =
@@ -45,10 +45,24 @@ export async function collectEvidence(
           truncated: false,
           reachable: false,
           containsAnchor: false,
+          status: "transientFailure" as const,
         };
-  const match =
-    matchResult.status === "fulfilled" ? matchResult.value : null;
+  const nominatim =
+    matchResult.status === "fulfilled"
+      ? matchResult.value
+      : { status: "transientFailure" as const, result: null };
+  const match = nominatim.result;
   const matchedRing = match?.polygon.coordinates[0] as LonLat[] | undefined;
+
+  // `fetchOsmEvidence` only returns null on a fetch failure (see its own
+  // comment); a reachable-but-empty response still yields an object, so
+  // emptiness has to be read from its contents to tell the two apart.
+  const osmStatus: SourceStatus =
+    osmResult.status !== "fulfilled" || osm == null
+      ? "transientFailure"
+      : osm.areas.length + osm.lines.length + osm.addressNodes.length === 0
+        ? "successEmpty"
+        : "success";
 
   return {
     anchor,
@@ -63,6 +77,11 @@ export async function collectEvidence(
       alkis: parcels.reachable,
       alkisContainsAnchor: parcels.containsAnchor,
       nominatim: match != null,
+    },
+    sourceStatus: {
+      osm: osmStatus,
+      alkis: parcels.status,
+      nominatim: nominatim.status,
     },
   };
 }

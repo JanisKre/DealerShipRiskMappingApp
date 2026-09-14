@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractNominatimRing,
   pickNominatimRing,
+  resolveNominatimMatch,
   MAX_MATCH_DISTANCE_M,
   type NominatimItem,
 } from "./nominatim-polygon";
@@ -114,5 +115,19 @@ describe("pickNominatimRing", () => {
 
   it("returns null for an empty result set", () => {
     expect(pickNominatimRing([], ANCHOR[1], ANCHOR[0])).toBeNull();
+  });
+});
+
+describe("resolveNominatimMatch", () => {
+  it("reports notQueried without any name or address to match on", async () => {
+    const match = await resolveNominatimMatch(ANCHOR[1], ANCHOR[0]);
+    expect(match).toEqual({ status: "notQueried", result: null });
+  });
+
+  it("reports notQueried when only a name is given (no address)", async () => {
+    const match = await resolveNominatimMatch(ANCHOR[1], ANCHOR[0], {
+      name: "Autohaus Beispiel",
+    });
+    expect(match).toEqual({ status: "notQueried", result: null });
   });
 });

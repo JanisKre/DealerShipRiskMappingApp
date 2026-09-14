@@ -1,12 +1,13 @@
 import sharp from "sharp";
 import type { BoundaryResult } from "@shared/types";
+import { geometryBbox } from "@shared/boundary-geometry-utils";
 import {
   buildTileUrl,
   DETECTION_ZOOM,
   TILE_SIZE,
   type SatelliteProvider,
 } from "@shared/constants";
-import { cacheGet, cacheSet } from "./cache.service";
+import { cacheGet, cacheKeyFragment, cacheSet } from "./cache.service";
 import { getSettings } from "./settings.service";
 import { fetchWithResilience } from "./http.service";
 import type { AerialImage } from "./detection.service";
@@ -55,7 +56,11 @@ async function loadTileRgb(
   wmsTemplate?: string,
   time?: string,
 ): Promise<{ data: Buffer; ok: boolean }> {
-  const cacheKey = `tile:${provider}:${time ?? "live"}:${z}/${y}/${x}`;
+  // `wmsTemplate` determines the actual endpoint for provider "wms"; without
+  // it in the key, switching custom WMS URLs would keep serving tiles cached
+  // from the previous endpoint.
+  const endpointKey = wmsTemplate ? `:${cacheKeyFragment(wmsTemplate)}` : "";
+  const cacheKey = `tile:${provider}${endpointKey}:${time ?? "live"}:${z}/${y}/${x}`;
   const cachedB64 = cacheGet<string>(cacheKey);
   let bytes: Buffer | null = cachedB64
     ? Buffer.from(cachedB64, "base64")
@@ -108,18 +113,7 @@ export interface AerialCapture extends AerialImage {
 }
 
 function boundingBox(b: BoundaryResult): [number, number, number, number] {
-  const ring = b.polygon.coordinates[0];
-  let west = Infinity;
-  let south = Infinity;
-  let east = -Infinity;
-  let north = -Infinity;
-  for (const [x, y] of ring) {
-    west = Math.min(west, x);
-    east = Math.max(east, x);
-    south = Math.min(south, y);
-    north = Math.max(north, y);
-  }
-  return [west, south, east, north];
+  return geometryBbox(b.polygon);
 }
 
 /**

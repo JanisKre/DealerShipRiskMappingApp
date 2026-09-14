@@ -1,4 +1,4 @@
-import type { BoundaryResult, Polygon } from "@shared/types";
+import type { BoundaryResult, Polygon, SourceStatus } from "@shared/types";
 import { cached, TTL } from "../cache.service";
 import { fetchWithResilience } from "../http.service";
 import { polygonAreaSqm } from "../geo-math";
@@ -144,59 +144,87 @@ function buildQuery(name?: string, address?: string): string | null {
   return parts.join(", ").slice(0, 250);
 }
 
-/** Boundary provider adapter. Returns null when there is nothing to match on. */
-export async function fromNominatimPolygon(
+export interface NominatimMatch {
+  status: SourceStatus;
+  result: BoundaryResult | null;
+}
+
+/**
+ * Resolves the address match and reports *why* there is no result, not just
+ * that there isn't one — "no address to match on", "no item near the anchor"
+ * and "Nominatim could not be reached" are different situations for a
+ * diagnostics view even though they all currently yield the same candidate
+ * (none).
+ */
+export async function resolveNominatimMatch(
   lat: number,
   lon: number,
   context?: { name?: string; address?: string },
-): Promise<BoundaryResult | null> {
+): Promise<NominatimMatch> {
   const query = buildQuery(context?.name, context?.address);
-  if (!query) return null;
+  if (!query) return { status: "notQueried", result: null };
 
   const key = `nominatim-poly:v1:${query.toLowerCase()}`;
-  const items = await cached<NominatimItem[] | null>(
-    key,
-    TTL.geocode,
-    async () => {
+  let items: NominatimItem[] | null;
+  try {
+    items = await cached<NominatimItem[]>(key, TTL.geocode, async () => {
       const url =
         `${NOMINATIM_URL}?format=jsonv2&polygon_geojson=1&extratags=1&limit=5` +
         `&q=${encodeURIComponent(query)}`;
       const res = await fetchWithResilience(url, {
         headers: { "User-Agent": USER_AGENT },
       });
-      if (!res.ok) return null;
+      // Thrown, not returned: a `cached()` fetcher's return value is
+      // persisted for the full `TTL.geocode` (30 days), so a rate-limited or
+      // down Nominatim must not be written through as "no match" — that
+      // would blind the engine to a real address for a month.
+      if (!res.ok) throw new Error(`Nominatim responded ${res.status}`);
       return (await res.json()) as NominatimItem[];
-    },
-  );
-  if (!items || items.length === 0) return null;
+    });
+  } catch {
+    return { status: "transientFailure", result: null };
+  }
+  if (!items || items.length === 0) return { status: "successEmpty", result: null };
 
   const match = pickNominatimRing(items, lat, lon);
-  if (!match) return null;
+  if (!match) return { status: "successEmpty", result: null };
 
   const polygon: Polygon = { type: "Polygon", coordinates: [match.ring] };
   // Identity-matched geometry that also contains the point is about as good as
   // a vector prior gets; one that merely sits nearby is a weaker claim.
   const confidence = match.contains ? 0.82 : 0.62;
   return {
-    source: "osm",
-    role: "parkingSurface",
-    provider: "nominatim-polygon",
-    polygon,
-    areaSqm: polygonAreaSqm(match.ring),
-    confidence,
-    ...(match.item.display_name
-      ? { label: match.item.display_name.split(",")[0] }
-      : {}),
-    evidence: {
-      source: "Nominatim / OpenStreetMap",
-      retrievedAt: new Date().toISOString(),
-      method: "address-matched OSM object geometry (polygon_geojson)",
+    status: "success",
+    result: {
+      source: "osm",
+      role: "parkingSurface",
+      provider: "nominatim-polygon",
+      polygon,
+      areaSqm: polygonAreaSqm(match.ring),
       confidence,
-      fallbackUsed: false,
-      limitations: [
-        "Matched on name and address text, not on ownership",
-        "Nominatim may match a differently-sized OSM object at the same address",
-      ],
-    },
-  } satisfies BoundaryResult;
+      ...(match.item.display_name
+        ? { label: match.item.display_name.split(",")[0] }
+        : {}),
+      evidence: {
+        source: "Nominatim / OpenStreetMap",
+        retrievedAt: new Date().toISOString(),
+        method: "address-matched OSM object geometry (polygon_geojson)",
+        confidence,
+        fallbackUsed: false,
+        limitations: [
+          "Matched on name and address text, not on ownership",
+          "Nominatim may match a differently-sized OSM object at the same address",
+        ],
+      },
+    } satisfies BoundaryResult,
+  };
+}
+
+/** Boundary provider adapter. Returns null when there is nothing to match on. */
+export async function fromNominatimPolygon(
+  lat: number,
+  lon: number,
+  context?: { name?: string; address?: string },
+): Promise<BoundaryResult | null> {
+  return (await resolveNominatimMatch(lat, lon, context)).result;
 }

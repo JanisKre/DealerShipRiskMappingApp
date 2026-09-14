@@ -108,6 +108,12 @@
       "tileTemplateLabel": "Modèle de tuile",
       "tileTemplateHint": "URL XYZ/WMS avec les paramètres {z}/{x}/{y}. Revient à Esri sans modèle valide."
     },
+    "boundaryEngine": {
+      "title": "Moteur de détection des limites",
+      "description": "« Fusion multi-sources » combine cadastre, OpenStreetMap et imagerie en une seule forme de parcelle étayée ; « classement des candidats » note chaque source séparément et garde la meilleure. Chaque résultat enregistre le moteur qui l'a réellement produit.",
+      "legacy": "Classement des candidats",
+      "fused": "Fusion multi-sources"
+    },
     "appearance": {
       "title": "Apparence",
       "description": "Personnalisez l'apparence de l'application.",
@@ -214,6 +220,13 @@
       "boundarySummary": "{{source}} · confiance {{confidence}}",
       "boundaryRoleLabel": "Rôle : {{role}}",
       "boundaryAgreementLabel": "Accord des sources : {{agreement}}",
+      "boundaryEngineLabel": "Moteur : {{engine}}",
+      "boundaryEngineFallbackSuffix": "(demandé {{requested}} — {{reason}})",
+      "boundaryEngineUnknownReason": "raison inconnue",
+      "boundaryEngine": {
+        "legacy": "classement des candidats",
+        "fused": "fusion multi-sources"
+      },
       "boundaryReviewLabel": "Vérification requise",
       "boundaryCandidatesTitle": "{{count}} limites candidates",
       "boundarySource": {

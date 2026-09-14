@@ -1,4 +1,5 @@
-import type { Polygon } from "@shared/types";
+import type { BoundaryGeometry } from "@shared/types";
+import { polygonParts } from "@shared/boundary-geometry-utils";
 import type { LonLat } from "../boundary-geometry";
 import {
   cellIndex,
@@ -128,6 +129,26 @@ export function rasterizeMaskPolygon(
   return scanlineFill(spec, ring, (index) => {
     out[index] = 1;
   });
+}
+
+/** Fills every component and subtracts holes of a GeoJSON boundary geometry. */
+export function rasterizeMaskGeometry(
+  spec: GridSpec,
+  geometry: BoundaryGeometry,
+  out: Uint8Array,
+): number {
+  let touched = 0;
+  for (const [outer, ...holes] of polygonParts(geometry)) {
+    touched += scanlineFill(spec, outer, (index) => {
+      out[index] = 1;
+    });
+    for (const hole of holes) {
+      scanlineFill(spec, hole, (index) => {
+        out[index] = 0;
+      });
+    }
+  }
+  return touched;
 }
 
 function forEachCellNearSegment(
@@ -376,18 +397,17 @@ const MAX_IOU_CELLS = 4_000_000;
  * magnitude as the boundary tolerance it is meant to score.
  */
 export function polygonRasterIoU(
-  a: Polygon,
-  b: Polygon,
+  a: BoundaryGeometry,
+  b: BoundaryGeometry,
   resolutionM = 0.5,
 ): number {
-  const ringA = a.coordinates[0] as LonLat[];
-  const ringB = b.coordinates[0] as LonLat[];
-  if (ringA.length < 4 || ringB.length < 4) return 0;
-  const { spec } = coveringGrid([ringA, ringB], resolutionM);
+  const rings = [...polygonParts(a).flat(), ...polygonParts(b).flat()] as LonLat[][];
+  if (rings.length === 0 || rings.some((ring) => ring.length < 4)) return 0;
+  const { spec } = coveringGrid(rings, resolutionM);
   const maskA = new Uint8Array(spec.cols * spec.rows);
   const maskB = new Uint8Array(spec.cols * spec.rows);
-  rasterizeMaskPolygon(spec, ringA, maskA);
-  rasterizeMaskPolygon(spec, ringB, maskB);
+  rasterizeMaskGeometry(spec, a, maskA);
+  rasterizeMaskGeometry(spec, b, maskB);
   let intersection = 0;
   let union = 0;
   for (let i = 0; i < maskA.length; i += 1) {

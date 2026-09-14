@@ -126,6 +126,31 @@ export const BoundaryPointRelationSchema = z.enum([
 export type BoundaryPointRelation = z.infer<typeof BoundaryPointRelationSchema>;
 
 /**
+ * Fine-grained outcome of asking one evidence source, so "no data here" (a
+ * real, cacheable answer) is never confused with "could not ask" (which must
+ * not silently reduce confidence or get cached as an absence).
+ */
+export const SourceStatusSchema = z.enum([
+  /** The source was not asked for this result. */
+  "notQueried",
+  /** Answered with usable data. */
+  "success",
+  /** Answered successfully; nothing found at this location. */
+  "successEmpty",
+  /** Answered, but the response was capped/paginated before completion. */
+  "partial",
+  /** Reachable in principle, but this attempt failed (network, rate limit, breaker open). */
+  "transientFailure",
+  /** No service of this kind covers this location at all. */
+  "unsupportedHere",
+]);
+export type SourceStatus = z.infer<typeof SourceStatusSchema>;
+
+/** Lot boundary detection engine. See `Settings.boundaryEngine`. */
+export const BoundaryEngineSchema = z.enum(["legacy", "fused"]);
+export type BoundaryEngine = z.infer<typeof BoundaryEngineSchema>;
+
+/**
  * One evidence source's contribution to a fused boundary. Kept per-layer so a
  * reviewer can see *why* a polygon has the shape it has, and which sources were
  * unavailable when it was produced.
@@ -139,6 +164,8 @@ export const BoundaryEvidenceLayerSchema = z.object({
   /** Grid cells this layer touched — 0 means "queried but contributed nothing". */
   cells: z.number().nonnegative(),
   available: z.boolean(),
+  /** Richer than `available`: distinguishes empty/partial/unreachable/unsupported. */
+  status: SourceStatusSchema.optional(),
   limitation: z.string().max(200).optional(),
 });
 export type BoundaryEvidenceLayer = z.infer<typeof BoundaryEvidenceLayerSchema>;
@@ -181,10 +208,19 @@ export const BoundaryQualitySchema = z.object({
   /** Vehicles just outside the ring — a strong sign the lot was clipped. */
   vehiclesOutsideNearby: z.number().int().nonnegative().optional(),
   stoppedBy: BoundaryGrowthStopSchema.optional(),
+  /** Engine selected by settings at the time of this result. */
+  requestedEngine: BoundaryEngineSchema.optional(),
+  /** Engine that actually produced this polygon — may differ from requested on fallback. */
+  usedEngine: BoundaryEngineSchema.optional(),
+  /** Set when `usedEngine` differs from `requestedEngine`: why fusion was not used. */
+  fallbackReason: z.string().max(200).optional(),
+  /** Version of whichever pipeline (`usedEngine`) produced this result, for rollback/diagnosis. */
+  resultVersion: z.number().int().nonnegative().optional(),
 });
 export type BoundaryQuality = z.infer<typeof BoundaryQualitySchema>;
 
-// GeoJSON polygon (ring of [lon, lat] pairs)
+// GeoJSON polygon (rings of [lon, lat] pairs). Keeping holes makes an edited
+// operational lot faithfully represent courtyards, ponds and excluded yards.
 export const PolygonSchema = z.object({
   type: z.literal("Polygon"),
   coordinates: z
@@ -193,12 +229,31 @@ export const PolygonSchema = z.object({
 });
 export type Polygon = z.infer<typeof PolygonSchema>;
 
+/** GeoJSON multipart geometry for operational sites split by a public road. */
+export const MultiPolygonSchema = z.object({
+  type: z.literal("MultiPolygon"),
+  coordinates: z
+    .array(
+      z
+        .array(z.array(z.tuple([z.number(), z.number()])).min(4))
+        .min(1),
+    )
+    .min(1),
+});
+export type MultiPolygon = z.infer<typeof MultiPolygonSchema>;
+
+export const BoundaryGeometrySchema = z.union([
+  PolygonSchema,
+  MultiPolygonSchema,
+]);
+export type BoundaryGeometry = z.infer<typeof BoundaryGeometrySchema>;
+
 /** A geometry considered during automatic boundary resolution. */
 export const BoundaryCandidateSchema = z.object({
   source: BoundarySourceSchema,
   role: BoundaryGeometryRoleSchema.optional(),
   provider: z.string().optional(),
-  polygon: PolygonSchema,
+  polygon: BoundaryGeometrySchema,
   areaSqm: z.number().nonnegative(),
   confidence: z.number().min(0).max(1),
   label: z.string().optional(),
@@ -213,7 +268,7 @@ export const BoundaryResultSchema = z.object({
   provider: z.string().optional(),
   gersId: z.string().optional(),
   label: z.string().optional(),
-  polygon: PolygonSchema,
+  polygon: BoundaryGeometrySchema,
   areaSqm: z.number().nonnegative(),
   confidence: z.number().min(0).max(1),
   quality: BoundaryQualitySchema.optional(),
@@ -516,10 +571,12 @@ export const SettingsSchema = z.object({
   /**
    * Lot boundary engine. "legacy" ranks candidate polygons and picks one;
    * "fused" rasterizes every source into one evidence grid and grows the site
-   * out of the combination. Defaults to legacy until the fused engine beats it
-   * on the hold-out stratum of the public benchmark.
+   * out of the combination. Unset is treated as "legacy" by the detector
+   * (`boundary.service.ts`'s `tryFusedBoundary`), which is what makes an
+   * upgraded install without this key keep its prior behaviour; new installs
+   * get an explicit "fused" default from `settings.service.ts`.
    */
-  boundaryEngine: z.enum(["legacy", "fused"]).optional(),
+  boundaryEngine: BoundaryEngineSchema.optional(),
   /** Install wizard for the vehicle detection model permanently dismissed. */
   modelWizardDismissed: z.boolean().optional(),
   /** First-run installation wizard completed by the user. */

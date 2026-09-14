@@ -1,9 +1,11 @@
 import type {
   BoundaryEvidenceLayer,
+  BoundaryGeometry,
   BoundaryGrowthStop,
   BoundaryResult,
   Polygon,
   RiskParameters,
+  SourceStatus,
 } from "@shared/types";
 import { checkRing, type LonLat } from "../boundary-geometry";
 import { createGrid, maskAreaSqm, type EvidenceGrid } from "./grid";
@@ -81,10 +83,12 @@ export interface FusionBundle {
   matchedRing?: LonLat[];
   /** Which sources were reachable. A missing source is not a negative signal. */
   availability: Record<string, boolean>;
+  /** Richer per-source outcome (empty/partial/unreachable/unsupported), keyed like `availability`. */
+  sourceStatus?: Record<string, SourceStatus>;
 }
 
 export interface FusionOutcome {
-  polygon: Polygon;
+  polygon: BoundaryGeometry;
   /** Set when the fused shape was replaced by a cadastral parcel union. */
   cadastre?: AssemblyResult;
   /**
@@ -270,6 +274,7 @@ export function buildEvidenceGrid(
     );
   }
 
+  const osmStatus = bundle.sourceStatus?.osm;
   for (const [layer, entry] of byKind) {
     acc.add({
       layer,
@@ -277,6 +282,7 @@ export function buildEvidenceGrid(
       weight: entry.weight,
       cells: entry.cells,
       available: true,
+      ...(osmStatus ? { status: osmStatus } : {}),
     });
   }
   if (!osmAvailable) {
@@ -286,6 +292,7 @@ export function buildEvidenceGrid(
       weight: 0,
       cells: 0,
       available: false,
+      status: osmStatus ?? "transientFailure",
       limitation: "Overpass was unreachable; no vector evidence for this site",
     });
   }
@@ -300,6 +307,7 @@ export function buildEvidenceGrid(
   const anchorParcel = bundle.parcels.find((parcel) =>
     ringContains(parcel.ring, bundle.anchor),
   );
+  const alkisStatus = bundle.sourceStatus?.alkis;
   if (anchorParcel) {
     const cells = rasterizeReinforcement(
       spec,
@@ -313,6 +321,7 @@ export function buildEvidenceGrid(
       weight: LAYER_WEIGHTS.anchorParcel,
       cells,
       available: true,
+      ...(alkisStatus ? { status: alkisStatus } : {}),
       ...(bundle.parcelsTruncated
         ? { limitation: "Cadastral response was truncated" }
         : {}),
@@ -324,7 +333,11 @@ export function buildEvidenceGrid(
       weight: 0,
       cells: 0,
       available: false,
-      limitation: "No cadastral service covers this location",
+      status: alkisStatus ?? "transientFailure",
+      limitation:
+        alkisStatus === "unsupportedHere"
+          ? "No cadastral service covers this location"
+          : "Cadastral service could not be reached for this location",
     });
   }
 
@@ -418,7 +431,7 @@ export function fuseBoundary(
     type: "Polygon",
     coordinates: [vector.ring],
   };
-  let polygon = fusedPolygon;
+  let polygon: BoundaryGeometry = fusedPolygon;
   let areaSqm = maskAreaSqm(grid.spec, mask);
   let cadastre: AssemblyResult | undefined;
 

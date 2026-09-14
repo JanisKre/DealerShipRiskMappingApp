@@ -329,6 +329,12 @@
       "tileTemplateLabel": "Tile Template",
       "tileTemplateHint": "XYZ/WMS URL with {z}/{x}/{y} placeholders. Falls back to Esri without a valid template."
     },
+    "boundaryEngine": {
+      "title": "Boundary Detection Engine",
+      "description": "\"Multi-source fusion\" combines cadastre, OpenStreetMap and imagery into one evidence-backed lot shape; \"Candidate ranking\" scores each source's polygon separately and keeps the best one. Every boundary result records which engine actually produced it.",
+      "legacy": "Candidate ranking",
+      "fused": "Multi-source fusion"
+    },
     "appearance": {
       "title": "Appearance",
       "description": "Customize how the application looks.",
@@ -435,6 +441,13 @@
       "boundarySummary": "{{source}} · {{confidence}} confidence",
       "boundaryRoleLabel": "Role: {{role}}",
       "boundaryAgreementLabel": "Source agreement: {{agreement}}",
+      "boundaryEngineLabel": "Engine: {{engine}}",
+      "boundaryEngineFallbackSuffix": "(requested {{requested}} — {{reason}})",
+      "boundaryEngineUnknownReason": "reason unknown",
+      "boundaryEngine": {
+        "legacy": "candidate ranking",
+        "fused": "multi-source fusion"
+      },
       "boundaryReviewLabel": "Review required",
       "boundaryCandidatesTitle": "{{count}} boundary candidates",
       "boundarySource": {

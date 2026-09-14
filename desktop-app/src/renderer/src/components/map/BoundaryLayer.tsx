@@ -2,9 +2,9 @@ import { useEffect } from "react";
 import { Polygon, useMap } from "react-leaflet";
 import type { Layer, LeafletEventHandlerFnMap } from "leaflet";
 import area from "@turf/area";
-import { polygon as turfPolygon } from "@turf/helpers";
 import type {
   AnalyzedDealership,
+  BoundaryGeometry,
   BoundaryResult,
   BoundarySource,
 } from "@shared/types";
@@ -28,6 +28,14 @@ function sourceColor(source: BoundarySource): string {
 /** [lon,lat][] -> [lat,lon][] for Leaflet. */
 function toLatLng(ring: [number, number][]): [number, number][] {
   return ring.map(([lon, lat]) => [lat, lon]);
+}
+
+function toLatLngGeometry(geometry: BoundaryGeometry): unknown {
+  return geometry.type === "Polygon"
+    ? geometry.coordinates.map((ring) => toLatLng(ring))
+    : geometry.coordinates.map((part) =>
+        part.map((ring) => toLatLng(ring)),
+      );
 }
 
 /**
@@ -68,7 +76,7 @@ export function BoundaryLayer({
         d.boundary ? (
           <Polygon
             key={d.id}
-            positions={toLatLng(d.boundary.polygon.coordinates[0])}
+            positions={toLatLngGeometry(d.boundary.polygon) as never}
             pathOptions={{
               color: sourceColor(d.boundary.source),
               weight: 2,
@@ -79,7 +87,7 @@ export function BoundaryLayer({
                 "pm:edit": (e: BoundaryEditEvent) => {
                   const layer = e.layer ?? e.target;
                   if (!layer) return;
-                  const updated = readPolygon(layer as EditableLayer);
+                  const updated = readGeometry(layer as EditableLayer);
                   if (updated)
                     void updateBoundaryAndRescore(
                       d.id,
@@ -102,7 +110,7 @@ interface PmMap {
 }
 
 interface EditableLayer extends Layer {
-  getLatLngs: () => Array<Array<{ lat: number; lng: number }>>;
+  getLatLngs: () => unknown;
 }
 
 /**
@@ -114,29 +122,58 @@ interface BoundaryEditEvent {
   target?: Layer;
 }
 
-/** Reads the (possibly nested) polygon of a Leaflet layer as a [lon,lat] ring. */
-function readPolygon(layer: EditableLayer): [number, number][] | null {
-  const latlngs = layer.getLatLngs();
-  const ring = Array.isArray(latlngs[0])
-    ? latlngs[0]
-    : (latlngs as unknown as Array<{ lat: number; lng: number }>);
-  if (!ring || ring.length < 3) return null;
-  const coords = ring.map((p) => [p.lng, p.lat] as [number, number]);
-  // Close the ring
+type LeafletPoint = { lat: number; lng: number };
+
+function isLeafletPoint(value: unknown): value is LeafletPoint {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as LeafletPoint).lat === "number" &&
+    typeof (value as LeafletPoint).lng === "number"
+  );
+}
+
+function readRing(value: unknown): [number, number][] | null {
+  if (!Array.isArray(value) || value.length < 3 || !value.every(isLeafletPoint)) {
+    return null;
+  }
+  const coords = value.map((point) => [point.lng, point.lat] as [number, number]);
   const first = coords[0];
   const last = coords.at(-1)!;
   if (first[0] !== last[0] || first[1] !== last[1]) coords.push(first);
   return coords;
 }
 
+/** Reads a Polygon, including holes, or a MultiPolygon from a Leaflet layer. */
+function readGeometry(layer: EditableLayer): BoundaryGeometry | null {
+  const latlngs = layer.getLatLngs();
+  if (!Array.isArray(latlngs) || latlngs.length === 0) return null;
+  if (readRing(latlngs[0])) {
+    const rings = latlngs.map(readRing);
+    return rings.every((ring): ring is [number, number][] => ring !== null)
+      ? { type: "Polygon", coordinates: rings }
+      : null;
+  }
+  const parts = latlngs.map((part) => {
+    if (!Array.isArray(part)) return null;
+    const rings = part.map(readRing);
+    return rings.every((ring): ring is [number, number][] => ring !== null)
+      ? rings
+      : null;
+  });
+  return parts.every((part): part is [number, number][][] => part !== null)
+    ? { type: "MultiPolygon", coordinates: parts }
+    : null;
+}
+
 /** Builds a new BoundaryResult with source='manual' + updated area. */
 function rebuildBoundary(
   prev: BoundaryResult,
-  ring: [number, number][],
+  polygon: BoundaryGeometry,
 ): BoundaryResult {
   let areaSqm = prev.areaSqm;
   try {
-    areaSqm = area(turfPolygon([ring]));
+    areaSqm = area(polygon as never);
   } catch {
     // Area stays unchanged on error
   }
@@ -145,7 +182,7 @@ function rebuildBoundary(
     source: "manual",
     role: "operationalLot",
     provider: "manual",
-    polygon: { type: "Polygon", coordinates: [ring] },
+    polygon,
     areaSqm,
     confidence: 1,
     quality: {
