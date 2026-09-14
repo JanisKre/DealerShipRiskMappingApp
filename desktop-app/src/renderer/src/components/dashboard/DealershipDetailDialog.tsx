@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { toast } from "sonner";
 import {
-  ArrowRight,
-  CalendarClock,
   ChevronDown,
   Clock,
   ExternalLink,
@@ -15,15 +14,12 @@ import {
   Phone,
   RefreshCw,
   Save,
-  ShieldCheck,
   Tag,
 } from "lucide-react";
 import type {
   AnalyzedDealership,
-  BoundarySuggestion,
   OsmDetails,
   StructuredMemo,
-  TemporalChangeResult,
 } from "@shared/types";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
@@ -239,104 +235,9 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
         </div>
       )}
 
-      <div className="space-y-1 text-sm">
-        <h4 className="font-semibold">
-          {t("dashboard.detailDialog.boundaryTitle")}
-        </h4>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <span>
-            {t("dashboard.detailDialog.boundarySourceLabel", {
-              source: d.boundary?.source ?? "–",
-            })}
-          </span>
-          {d.boundary?.confidence != null && (
-            <span>
-              {t("dashboard.detailDialog.boundaryConfidenceLabel", {
-                confidence: pct(d.boundary.confidence, 0),
-              })}
-            </span>
-          )}
-          {d.boundary?.role && (
-            <span>
-              {t("dashboard.detailDialog.boundaryRoleLabel", {
-                role: d.boundary.role,
-              })}
-            </span>
-          )}
-          {d.boundary?.quality && (
-            <span>
-              {t("dashboard.detailDialog.boundaryAgreementLabel", {
-                agreement: pct(d.boundary.quality.sourceAgreement, 0),
-              })}
-            </span>
-          )}
-          {d.boundary?.reviewRequired && (
-            <Badge
-              variant="outline"
-              className="border-amber-500 text-amber-600"
-            >
-              {t("dashboard.detailDialog.boundaryReviewLabel")}
-            </Badge>
-          )}
-        </div>
-        {d.boundary?.candidates && d.boundary.candidates.length > 1 && (
-          <details className="mt-2 rounded-md border bg-muted/20 p-2 text-xs">
-            <summary className="cursor-pointer font-medium">
-              {t("dashboard.detailDialog.boundaryCandidatesTitle", {
-                count: d.boundary.candidates.length,
-              })}
-            </summary>
-            <div className="mt-2 space-y-1.5 text-muted-foreground">
-              {d.boundary.candidates.slice(0, 5).map((candidate, index) => (
-                <div
-                  key={`${candidate.source}-${candidate.label ?? "candidate"}-${index}`}
-                  className="flex items-center justify-between gap-2"
-                >
-                  <span className="truncate">
-                    {candidate.label ?? candidate.source}
-                  </span>
-                  <span className="shrink-0">
-                    {num(candidate.areaSqm)} m² · {pct(candidate.confidence, 0)}
-                    {candidate.role ? ` · ${candidate.role}` : ""}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
-      </div>
+      <BoundarySummary d={d} />
 
-      {d.risk && (
-        <div className="space-y-2 rounded-md border bg-muted/20 p-3 text-sm">
-          <div className="flex justify-between gap-3">
-            <span className="font-semibold">{t("ui.modelConfidence")}</span>
-            <span>
-              {pct(d.risk.confidence, 0)} · {d.risk.modelVersion ?? "unknown"}
-            </span>
-          </div>
-          {d.risk.limitations && d.risk.limitations.length > 0 && (
-            <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-              {d.risk.limitations.map((limitation) => (
-                <li key={limitation}>{limitation}</li>
-              ))}
-            </ul>
-          )}
-          {d.risk.evidence && d.risk.evidence.length > 0 && (
-            <div className="space-y-1 border-t pt-2 text-xs text-muted-foreground">
-              {d.risk.evidence.map((item) => (
-                <div key={`${item.source}-${item.method}`}>
-                  {item.source} · {item.method} · {pct(item.confidence, 0)}
-                  {item.fallbackUsed ? " · fallback" : ""}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <Separator />
-
-      <TemporalSection d={d} />
+      <ModelConfidenceSummary d={d} />
 
       <Separator />
 
@@ -356,6 +257,168 @@ function Metric({
     <div className="rounded-lg border p-2.5">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-0.5 font-medium">{value}</div>
+    </div>
+  );
+}
+
+/** Human-readable label for a raw boundary source code, falling back to it verbatim. */
+function boundarySourceLabel(t: TFunction, source: string | undefined): string {
+  if (!source) return "–";
+  return t(`dashboard.detailDialog.boundarySource.${source}`, {
+    defaultValue: source,
+  });
+}
+
+/** Human-readable label for a raw boundary role code, falling back to it verbatim. */
+function boundaryRoleLabel(t: TFunction, role: string | undefined): string {
+  if (!role) return "";
+  return t(`dashboard.detailDialog.boundaryRole.${role}`, {
+    defaultValue: role,
+  });
+}
+
+/**
+ * Boundary provenance: one always-visible summary line (source, confidence,
+ * a review badge when needed) plus every other technical detail — role,
+ * source agreement, alternative candidates — behind a single "Show details"
+ * disclosure. The data itself isn't reduced, just not all shown at once.
+ */
+function BoundarySummary({ d }: { d: AnalyzedDealership }): React.JSX.Element {
+  const { t } = useTranslation();
+  const boundary = d.boundary;
+  const hasDetails =
+    !!boundary?.role ||
+    !!boundary?.quality ||
+    (boundary?.candidates?.length ?? 0) > 1;
+
+  return (
+    <div className="space-y-1.5 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="font-semibold">
+          {t("dashboard.detailDialog.boundaryTitle")}
+        </h4>
+        {boundary?.reviewRequired && (
+          <Badge variant="outline" className="border-amber-500 text-amber-600">
+            {t("dashboard.detailDialog.boundaryReviewLabel")}
+          </Badge>
+        )}
+      </div>
+      <p className="text-muted-foreground">
+        {t("dashboard.detailDialog.boundarySummary", {
+          source: boundarySourceLabel(t, boundary?.source),
+          confidence: pct(boundary?.confidence, 0),
+        })}
+      </p>
+      {hasDetails && (
+        <details className="rounded-md border bg-muted/20 text-xs">
+          <summary className="cursor-pointer px-2 py-1.5 font-medium text-muted-foreground">
+            {t("dashboard.detailDialog.showDetails")}
+          </summary>
+          <div className="space-y-1.5 border-t px-2 py-2 text-muted-foreground">
+            {boundary?.role && (
+              <div>
+                {t("dashboard.detailDialog.boundaryRoleLabel", {
+                  role: boundaryRoleLabel(t, boundary.role),
+                })}
+              </div>
+            )}
+            {boundary?.quality && (
+              <div>
+                {t("dashboard.detailDialog.boundaryAgreementLabel", {
+                  agreement: pct(boundary.quality.sourceAgreement, 0),
+                })}
+              </div>
+            )}
+            {boundary?.candidates && boundary.candidates.length > 1 && (
+              <div className="space-y-1 border-t pt-1.5">
+                <div className="font-medium text-foreground">
+                  {t("dashboard.detailDialog.boundaryCandidatesTitle", {
+                    count: boundary.candidates.length,
+                  })}
+                </div>
+                {boundary.candidates.slice(0, 5).map((candidate, index) => (
+                  <div
+                    key={`${candidate.source}-${candidate.label ?? "candidate"}-${index}`}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="truncate">
+                      {candidate.label ??
+                        boundarySourceLabel(t, candidate.source)}
+                    </span>
+                    <span className="shrink-0">
+                      {num(candidate.areaSqm)} m² ·{" "}
+                      {pct(candidate.confidence, 0)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Risk-model provenance: confidence at a glance, with the full limitations
+ * and evidence-source list (required to stay reproducible/source-aware)
+ * behind a single "Show details" disclosure rather than always spelled out.
+ */
+function ModelConfidenceSummary({
+  d,
+}: {
+  d: AnalyzedDealership;
+}): React.JSX.Element | null {
+  const { t } = useTranslation();
+  if (!d.risk) return null;
+  const limitations = d.risk.limitations ?? [];
+  const evidence = d.risk.evidence ?? [];
+  const hasDetails = limitations.length > 0 || evidence.length > 0;
+
+  return (
+    <div className="space-y-1.5 rounded-md border bg-muted/20 p-3 text-sm">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-semibold">{t("ui.modelConfidence")}</span>
+        <span className="text-muted-foreground">
+          {pct(d.risk.confidence, 0)}
+        </span>
+      </div>
+      {hasDetails && (
+        <details className="text-xs">
+          <summary className="cursor-pointer font-medium text-muted-foreground">
+            {t("dashboard.detailDialog.showDetails")}
+          </summary>
+          <div className="mt-1.5 space-y-2 border-t pt-2">
+            {d.risk.modelVersion && (
+              <div className="text-muted-foreground">
+                {t("dashboard.detailDialog.modelVersionLabel", {
+                  version: d.risk.modelVersion,
+                })}
+              </div>
+            )}
+            {limitations.length > 0 && (
+              <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+                {limitations.map((limitation) => (
+                  <li key={limitation}>{limitation}</li>
+                ))}
+              </ul>
+            )}
+            {evidence.length > 0 && (
+              <div className="space-y-1 border-t pt-1.5 text-muted-foreground">
+                {evidence.map((item) => (
+                  <div key={`${item.source}-${item.method}`}>
+                    {item.source} · {item.method} · {pct(item.confidence, 0)}
+                    {item.fallbackUsed
+                      ? t("dashboard.detailDialog.evidenceFallbackSuffix")
+                      : ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </details>
+      )}
     </div>
   );
 }
@@ -747,43 +810,17 @@ function PortfolioMetaSection({
   );
 }
 
-/** ISO date (YYYY-MM-DD) for today minus `days` days. */
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-function fmtDelta(n: number): string {
-  return n > 0 ? `+${n}` : String(n);
-}
-
-/**
- * Two-point-in-time comparison of vehicle detection. Requires a date-capable
- * tile source (WMS template with {time}); otherwise the main service reports
- * a clear error that is displayed here.
- */
-function TemporalSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
+function AiSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   const { t } = useTranslation();
-  const [fromDate, setFromDate] = useState(() => isoDaysAgo(365));
-  const [toDate, setToDate] = useState(() => isoDaysAgo(0));
-  const [result, setResult] = useState<TemporalChangeResult | null>(null);
+  const [memo, setMemo] = useState<StructuredMemo | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function run(): Promise<void> {
+  async function genMemo(): Promise<void> {
     setBusy(true);
     setError(null);
     try {
-      setResult(
-        await window.api.compareTemporal(
-          d.lat,
-          d.lon,
-          fromDate,
-          toDate,
-          d.boundary,
-        ),
-      );
+      setMemo(await window.api.llmMemo(d));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -791,147 +828,12 @@ function TemporalSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
     }
   }
 
-  const delta = result?.deltaCount ?? 0;
-  const deltaColor =
-    delta > 0
-      ? "text-emerald-600"
-      : delta < 0
-        ? "text-destructive"
-        : "text-muted-foreground";
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <CalendarClock className="size-4" />
-        <h4 className="text-sm font-semibold">
-          {t("dashboard.detailDialog.temporalTitle")}
-        </h4>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="flex w-36 flex-col gap-1 text-xs text-muted-foreground">
-          {t("dashboard.detailDialog.fromLabel")}
-          <Input
-            type="date"
-            value={fromDate}
-            max={toDate}
-            onChange={(e) => setFromDate(e.target.value)}
-          />
-        </label>
-        <label className="flex w-36 flex-col gap-1 text-xs text-muted-foreground">
-          {t("dashboard.detailDialog.toLabel")}
-          <Input
-            type="date"
-            value={toDate}
-            min={fromDate}
-            onChange={(e) => setToDate(e.target.value)}
-          />
-        </label>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={run}
-          disabled={busy || !fromDate || !toDate}
-        >
-          {busy ? <Loader2 className="animate-spin" /> : <CalendarClock />}{" "}
-          {t("dashboard.detailDialog.compareButton")}
-        </Button>
-      </div>
-
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      {result && (
-        <div className="space-y-2 rounded-lg border bg-muted/40 p-3 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="font-mono">{result.fromCount}</span>
-            <ArrowRight className="size-4 text-muted-foreground" />
-            <span className="font-mono">{result.toCount}</span>
-            <span className={`font-medium ${deltaColor}`}>
-              {t("dashboard.detailDialog.deltaVehicles", {
-                delta: fmtDelta(delta),
-              })}
-              {result.deltaPct != null &&
-                ` (${(result.deltaPct * 100).toFixed(0)} %)`}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
-            <Metric
-              label={t("dashboard.detailDialog.carLabel")}
-              value={fmtDelta(result.classDeltas.car)}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {t("dashboard.detailDialog.sourceConfidence", {
-              provider: result.provider,
-              from: pct(result.fromConfidence, 0),
-              to: pct(result.toConfidence, 0),
-            })}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AiSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
-  const { t } = useTranslation();
-  const [memo, setMemo] = useState<StructuredMemo | null>(null);
-  const [suggestion, setSuggestion] = useState<BoundarySuggestion | null>(null);
-  const [busy, setBusy] = useState<"memo" | "boundary" | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function genMemo(): Promise<void> {
-    setBusy("memo");
-    setError(null);
-    try {
-      setMemo(await window.api.llmMemo(d));
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function refine(): Promise<void> {
-    setBusy("boundary");
-    setError(null);
-    try {
-      setSuggestion(await window.api.llmRefineBoundary(d));
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  }
-
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={genMemo}
-          disabled={busy !== null}
-        >
-          {busy === "memo" ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <FileText />
-          )}{" "}
+        <Button size="sm" variant="outline" onClick={genMemo} disabled={busy}>
+          {busy ? <Loader2 className="animate-spin" /> : <FileText />}{" "}
           {t("ai.memo")}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={refine}
-          disabled={busy !== null}
-        >
-          {busy === "boundary" ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <ShieldCheck />
-          )}{" "}
-          {t("ai.boundaryRefine")}
         </Button>
       </div>
 
@@ -961,18 +863,6 @@ function AiSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
             </ul>
           )}
           <p>{memo.reasoning}</p>
-        </div>
-      )}
-
-      {suggestion && (
-        <div className="space-y-1 rounded-lg border bg-muted/40 p-3 text-sm">
-          <Badge variant="secondary">{suggestion.recommendedAction}</Badge>
-          {suggestion.expandMeters != null && (
-            <span className="ml-2 text-muted-foreground">
-              +{suggestion.expandMeters} m
-            </span>
-          )}
-          <p className="mt-1">{suggestion.reasoning}</p>
         </div>
       )}
     </div>

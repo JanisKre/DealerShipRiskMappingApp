@@ -24,9 +24,6 @@ export const IPC = {
   // Vehicle detection
   detectVehicles: "detect:vehicles",
 
-  // Temporal change (two-point-in-time comparison of vehicle detection)
-  compareTemporal: "temporal:compare",
-
   // Weather / Risk
   fetchWeather: "weather:fetch",
   scoreRisk: "risk:score",
@@ -62,7 +59,6 @@ export const IPC = {
 
   // LLM — invoke-based (non-streaming, structured)
   llmMemo: "llm:memo", // structured underwriting memo (StructuredMemo)
-  llmRefineBoundary: "llm:refineBoundary", // boundary suggestion (BoundarySuggestion)
 
   // LLM — streaming (not via invoke; see streaming pattern in ipc/index.ts)
   llmStream: "llm:stream", // generic start channel (renderer -> main)

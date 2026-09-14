@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Radar } from "lucide-react";
@@ -10,8 +10,8 @@ import {
   NAV_ITEMS,
   SETTINGS_ITEM,
 } from "@renderer/components/layout/navigation";
+import { PortfolioSwitcher } from "@renderer/components/layout/PortfolioSwitcher";
 import { ThemeToggle } from "@renderer/components/theme/ThemeToggle";
-import { Input } from "@renderer/components/ui/input";
 import { Separator } from "@renderer/components/ui/separator";
 import {
   Sidebar,
@@ -98,25 +98,7 @@ export function AppShell(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { pathname } = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
-
-  // Editable project name from the appStore.
-  const sessionName = useAppStore((s) => s.sessionName);
-  const setSessionName = useAppStore((s) => s.setSessionName);
   const lastSavedAt = useAppStore((s) => s.lastSavedAt);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const nameInputRef = useRef<HTMLInputElement>(null);
-
-  function startEditing(): void {
-    setDraft(sessionName);
-    setEditing(true);
-  }
-
-  function commitEdit(): void {
-    const trimmed = draft.trim();
-    if (trimmed) setSessionName(trimmed);
-    setEditing(false);
-  }
 
   const activeItem = ALL_NAV_ITEMS.find((item) =>
     isItemActive(pathname, item.to, item.end),
@@ -211,37 +193,7 @@ export function AppShell(): React.JSX.Element {
             orientation="vertical"
             className="mr-1 data-[orientation=vertical]:h-4"
           />
-          {/* Editable project name */}
-          {editing ? (
-            <Input
-              ref={nameInputRef}
-              value={draft}
-              autoFocus
-              className="h-7 max-w-[14rem] text-sm font-semibold"
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commitEdit}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitEdit();
-                if (e.key === "Escape") setEditing(false);
-              }}
-            />
-          ) : (
-            <button
-              type="button"
-              className="flex min-w-0 flex-1 flex-col text-left hover:opacity-70"
-              onClick={startEditing}
-              title={t("shell.editProjectName")}
-            >
-              <span className="truncate text-sm font-semibold leading-tight">
-                {sessionName}
-              </span>
-              {activeDescKey && (
-                <span className="text-muted-foreground truncate text-xs leading-tight">
-                  {t(activeDescKey)}
-                </span>
-              )}
-            </button>
-          )}
+          <PortfolioSwitcher descriptionKey={activeDescKey} />
           {/* Page name as a secondary separator, when on a workspace route */}
           {pathname !== "/" && (
             <>
