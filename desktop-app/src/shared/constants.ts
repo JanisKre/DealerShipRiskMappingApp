@@ -146,11 +146,3 @@ export function buildTileUrl(
   }
   return buildEsriTileUrl(z, y, x);
 }
-
-/**
- * True if the WMS template carries a time dimension ({time}) — a prerequisite
- * for temporal change detection (Esri does not provide history).
- */
-export function wmsTemplateSupportsTime(template?: string): boolean {
-  return !!template && template.includes("{time}");
-}

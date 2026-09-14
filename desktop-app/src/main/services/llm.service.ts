@@ -1,6 +1,5 @@
 import type {
   AnalyzedDealership,
-  BoundarySuggestion,
   ChatMessage,
   DashboardSpec,
   LlmProvider,
@@ -9,7 +8,6 @@ import type {
   StructuredMemo,
 } from "@shared/types";
 import {
-  BoundarySuggestionSchema,
   DASHBOARD_KPI_KEYS,
   DASHBOARD_SERIES_KEYS,
   DASHBOARD_WIDGET_TYPES,
@@ -30,7 +28,7 @@ import { fetchWithResilience } from "./http.service";
  *   - `chatCompleteStream` → async-iterable token stream (for UI streaming)
  *
  * Agent functions (prompts ported from `server/routes/agents.ts`):
- *   generateMemo, refineBoundary       → structured JSON (invoke)
+ *   generateMemo                       → structured JSON (invoke)
  *   executiveSummary, portfolioChat    → token stream
  *   nlQuery                            → 2-phase: filter JSON → applyFilter → stream
  */
@@ -409,44 +407,6 @@ IMPORTANT: Never output concrete figures or values. You only arrange widgets; th
     // No/invalid LLM output → deterministic default layout.
     return buildDefaultDashboardSpec();
   }
-}
-
-// --- Agent: boundary refinement (structured) --------------------------------
-export async function refineBoundary(
-  dealership: AnalyzedDealership,
-): Promise<BoundarySuggestion> {
-  const content = await chatComplete([
-    {
-      role: "system",
-      content: `You are a GIS quality reviewer for German dealership lot boundaries.
-Assess the submitted metadata and recommend an action:
-- "keep": the boundary is sufficiently accurate.
-- "use-alkis": ALKIS data (official German cadastre) is available and should be preferred.
-- "expand": the lot appears too small — suggest an expansion in meters.
-- "manual-review": manual review by an analyst is required.
-Respond EXCLUSIVELY with JSON: {"recommendedAction":"...","expandMeters":null,"reasoning":"2-3 sentences in ${responseLanguageName()}"}`,
-    },
-    {
-      role: "user",
-      content: JSON.stringify({
-        name: dealership.name,
-        lat: dealership.lat,
-        lon: dealership.lon,
-        boundarySource: dealership.boundary?.source,
-        boundaryConfidence: dealership.boundary?.confidence,
-        areaSqm: dealership.boundary?.areaSqm,
-        vehicleCount: dealership.detection
-          ? effectiveVehicleCount(dealership.detection)
-          : undefined,
-      }),
-    },
-  ]);
-  const suggestion = parseLLMJson(content, BoundarySuggestionSchema);
-  const valid = ["keep", "use-alkis", "expand", "manual-review"];
-  if (!valid.includes(suggestion.recommendedAction)) {
-    return { ...suggestion, recommendedAction: "manual-review" };
-  }
-  return suggestion;
 }
 
 // --- Agent: executive summary (stream) --------------------------------------

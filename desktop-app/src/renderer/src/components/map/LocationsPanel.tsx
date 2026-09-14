@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   Loader2,
@@ -9,13 +10,25 @@ import {
   Paperclip,
   Plus,
   ShieldCheck,
+  ShieldOff,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import type { AnalyzedDealership } from "@shared/types";
 import { haversineKm, nearbyInsured } from "@shared/risk-math";
 import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
 import { Button } from "@renderer/components/ui/button";
+import { Checkbox } from "@renderer/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@renderer/components/ui/dialog";
 import { Input } from "@renderer/components/ui/input";
 import { cn } from "@renderer/lib/utils";
 import { riskLevel, riskLevelColor } from "@renderer/lib/riskColor";
@@ -65,6 +78,61 @@ export function LocationsPanel({
   const toggleOpen = (): void => setOpen((v) => !v);
   const [adding, setAdding] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
+  const removeDealerships = useAppStore((s) => s.removeDealerships);
+  const setInsuredForDealerships = useAppStore(
+    (s) => s.setInsuredForDealerships,
+  );
+
+  // Multi-select for bulk removal — purely local UI state, decoupled from
+  // `selectedId` (which drives the map focus / detail subject).
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  function toggleSelectMode(): void {
+    setSelectMode((v) => !v);
+    setSelectedIds(new Set());
+  }
+
+  function toggleChecked(id: string): void {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll(): void {
+    setSelectedIds(new Set(dealerships.map((d) => d.id)));
+  }
+
+  function deselectAll(): void {
+    setSelectedIds(new Set());
+  }
+
+  function confirmDelete(): void {
+    const count = selectedIds.size;
+    removeDealerships([...selectedIds]);
+    setConfirmingDelete(false);
+    setSelectedIds(new Set());
+    setSelectMode(false);
+    toast.success(t("map.locationsPanel.deleteSelectedToast", { count }));
+  }
+
+  function markSelectedInsured(insured: boolean): void {
+    const count = selectedIds.size;
+    setInsuredForDealerships([...selectedIds], insured);
+    setSelectedIds(new Set());
+    toast.success(
+      t(
+        insured
+          ? "map.locationsPanel.markInsuredToast"
+          : "map.locationsPanel.markNotInsuredToast",
+        { count },
+      ),
+    );
+  }
 
   async function onFileChange(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -162,6 +230,32 @@ export function LocationsPanel({
             </Button>
           </>
         )}
+        {dealerships.length > 0 && (
+          <Button
+            type="button"
+            size="icon"
+            variant={selectMode ? "default" : "ghost"}
+            className="size-6 shrink-0"
+            onClick={toggleSelectMode}
+            title={t(
+              selectMode
+                ? "map.locationsPanel.selectModeExit"
+                : "map.locationsPanel.selectModeEnter",
+            )}
+            aria-label={t(
+              selectMode
+                ? "map.locationsPanel.selectModeExit"
+                : "map.locationsPanel.selectModeEnter",
+            )}
+            aria-pressed={selectMode}
+          >
+            {selectMode ? (
+              <X className="size-3.5" />
+            ) : (
+              <CheckSquare className="size-3.5" />
+            )}
+          </Button>
+        )}
         <Button
           type="button"
           size="icon"
@@ -184,11 +278,76 @@ export function LocationsPanel({
 
       {open && (
         <>
-          {/* Subject's relationship summary */}
-          {subject && (
-            <div className="shrink-0 border-t px-2.5 py-1.5 text-xs text-muted-foreground">
-              {neighborSummaryText(t, neighborCount)}
+          {/* Bulk-selection toolbar, or the subject's relationship summary */}
+          {selectMode ? (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-2.5 py-1.5 text-xs">
+              <div className="flex min-w-0 items-center gap-2">
+                <button
+                  type="button"
+                  className="shrink-0 font-medium text-primary hover:underline"
+                  onClick={
+                    selectedIds.size === dealerships.length
+                      ? deselectAll
+                      : selectAll
+                  }
+                >
+                  {t(
+                    selectedIds.size === dealerships.length
+                      ? "map.locationsPanel.deselectAll"
+                      : "map.locationsPanel.selectAll",
+                  )}
+                </button>
+                <span className="shrink-0 text-muted-foreground">
+                  {t("map.locationsPanel.selectedCount", {
+                    count: selectedIds.size,
+                  })}
+                </span>
+              </div>
+              <div className="ml-auto flex shrink-0 items-center gap-1">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="size-6 shrink-0"
+                  disabled={selectedIds.size === 0}
+                  onClick={() => markSelectedInsured(true)}
+                  title={t("map.locationsPanel.markInsured")}
+                  aria-label={t("map.locationsPanel.markInsured")}
+                >
+                  <ShieldCheck className="size-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="size-6 shrink-0"
+                  disabled={selectedIds.size === 0}
+                  onClick={() => markSelectedInsured(false)}
+                  title={t("map.locationsPanel.markNotInsured")}
+                  aria-label={t("map.locationsPanel.markNotInsured")}
+                >
+                  <ShieldOff className="size-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="destructive"
+                  className="size-6 shrink-0"
+                  disabled={selectedIds.size === 0}
+                  onClick={() => setConfirmingDelete(true)}
+                  title={t("map.page.delete")}
+                  aria-label={t("map.page.delete")}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
             </div>
+          ) : (
+            subject && (
+              <div className="shrink-0 border-t px-2.5 py-1.5 text-xs text-muted-foreground">
+                {neighborSummaryText(t, neighborCount)}
+              </div>
+            )
           )}
 
           {/* List */}
@@ -207,6 +366,9 @@ export function LocationsPanel({
                     pending={!row.d.risk || analyzingIds.includes(row.d.id)}
                     onSelect={onSelect}
                     onOpenDetails={onOpenDetails}
+                    selectMode={selectMode}
+                    checked={selectedIds.has(row.d.id)}
+                    onToggleCheck={toggleChecked}
                   />
                 ))}
               </ul>
@@ -214,7 +376,54 @@ export function LocationsPanel({
           </div>
         </>
       )}
+
+      <DeleteSelectedDialog
+        open={confirmingDelete}
+        count={selectedIds.size}
+        onOpenChange={setConfirmingDelete}
+        onConfirm={confirmDelete}
+      />
     </div>
+  );
+}
+
+/** Confirmation dialog for permanently removing the selected locations. */
+function DeleteSelectedDialog({
+  open,
+  count,
+  onOpenChange,
+  onConfirm,
+}: Readonly<{
+  open: boolean;
+  count: number;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}>): React.JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {t("map.locationsPanel.deleteSelectedConfirmTitle")}
+          </DialogTitle>
+          <DialogDescription>
+            {t("map.locationsPanel.deleteSelectedConfirmDescription", {
+              count,
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="destructive" onClick={onConfirm}>
+            <Trash2 className="size-4" />
+            {t("map.page.delete")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -235,12 +444,18 @@ function LocationRow({
   pending,
   onSelect,
   onOpenDetails,
+  selectMode = false,
+  checked = false,
+  onToggleCheck,
 }: Readonly<{
   row: Row;
   selected: boolean;
   pending: boolean;
   onSelect: (id: string) => void;
   onOpenDetails: (id: string) => void;
+  selectMode?: boolean;
+  checked?: boolean;
+  onToggleCheck?: (id: string) => void;
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const { d, distanceKm, sameGroup, inRadius } = row;
@@ -249,12 +464,23 @@ function LocationRow({
 
   return (
     <li className={cn("flex items-stretch", selected && "bg-accent")}>
+      {selectMode && (
+        <label className="flex shrink-0 items-center pl-2.5">
+          <Checkbox
+            checked={checked}
+            onCheckedChange={() => onToggleCheck?.(d.id)}
+            aria-label={t("map.locationsPanel.viewDetailsFor", {
+              name: d.name,
+            })}
+          />
+        </label>
+      )}
       {/* Selection button (fills the row) */}
       <button
         type="button"
         className="flex min-w-0 flex-1 items-start gap-2 px-2.5 py-2 text-left text-sm hover:bg-accent/60"
-        onClick={() => onSelect(d.id)}
-        aria-pressed={selected}
+        onClick={() => (selectMode ? onToggleCheck?.(d.id) : onSelect(d.id))}
+        aria-pressed={selectMode ? checked : selected}
       >
         <span
           className="mt-1 size-2.5 shrink-0 rounded-full"
@@ -299,16 +525,20 @@ function LocationRow({
           </div>
         </div>
       </button>
-      {/* Open details (separate button, not nested) */}
-      <button
-        type="button"
-        className="shrink-0 px-1.5 text-muted-foreground hover:text-foreground"
-        onClick={() => onOpenDetails(d.id)}
-        title={t("map.locationsPanel.viewDetails")}
-        aria-label={t("map.locationsPanel.viewDetailsFor", { name: d.name })}
-      >
-        <ChevronRight className="size-4" />
-      </button>
+      {/* Open details (separate button, not nested) — hidden while selecting */}
+      {!selectMode && (
+        <button
+          type="button"
+          className="shrink-0 px-1.5 text-muted-foreground hover:text-foreground"
+          onClick={() => onOpenDetails(d.id)}
+          title={t("map.locationsPanel.viewDetails")}
+          aria-label={t("map.locationsPanel.viewDetailsFor", {
+            name: d.name,
+          })}
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      )}
     </li>
   );
 }

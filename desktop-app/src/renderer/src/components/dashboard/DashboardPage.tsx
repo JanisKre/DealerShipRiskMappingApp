@@ -78,8 +78,11 @@ export function DashboardPage(): React.JSX.Element {
   const dealerships = useAppStore((s) => s.dealerships);
   const sessionName = useAppStore((s) => s.sessionName);
   const nlQueryMatchedIds = useAppStore((s) => s.nlQueryMatchedIds);
-  const selectedId = useAppStore((s) => s.selectedId);
   const select = useAppStore((s) => s.select);
+  // Opened only by an explicit row/card click (`onSelect` below) — never
+  // derived from the shared `selectedId`, which other actions (e.g. adding
+  // a single address) set for the map's fly-to behavior and would otherwise
+  // pop this dialog open the moment the Dashboard mounts.
   const [detail, setDetail] = useState<AnalyzedDealership | null>(null);
   const [tileOrder, setTileOrder] = useState<DashboardTileId[]>(readTileOrder);
   const [draggedTile, setDraggedTile] = useState<DashboardTileId | null>(null);
@@ -90,12 +93,6 @@ export function DashboardPage(): React.JSX.Element {
   useEffect(() => {
     window.localStorage.setItem(TILE_STORAGE_KEY, JSON.stringify(tileOrder));
   }, [tileOrder]);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    const match = dealerships.find((d) => d.id === selectedId);
-    if (match) setDetail(match);
-  }, [selectedId, dealerships]);
 
   const tileLabels = useMemo(
     () => new Map(TILE_DEFINITIONS.map((tile) => [tile.id, t(tile.labelKey)])),

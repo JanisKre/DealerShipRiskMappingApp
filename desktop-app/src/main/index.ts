@@ -29,13 +29,22 @@ function isRendererUrl(
   }
 }
 
+// Resolved once and reused for both the BrowserWindow icon (title bar on
+// Windows/Linux) and the macOS Dock icon set below — on macOS, Electron's
+// `BrowserWindow` `icon` option only affects the window itself, never the
+// Dock/Cmd+Tab icon, which otherwise falls back to the generic Electron
+// logo while running unpackaged (a packaged build already gets the right
+// icon from `electron-builder.json`'s `mac.icon`, baked into the bundle).
+const appIcon = nativeImage.createFromPath(
+  join(__dirname, "../../resources/icon.png"),
+);
+
 /**
  * Main process: app lifecycle + window. Security baseline:
  * contextIsolation on, sandbox on, nodeIntegration off. The renderer reaches
  * Node exclusively via the IPC channels exposed in the preload.
  */
 function createWindow(): BrowserWindow {
-  const iconPath = join(__dirname, "../../resources/icon.png");
   const rendererFilePath = join(__dirname, "../renderer/index.html");
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -45,7 +54,7 @@ function createWindow(): BrowserWindow {
     show: false,
     autoHideMenuBar: true,
     title: "Dealership Risk Mapping",
-    icon: nativeImage.createFromPath(iconPath),
+    icon: appIcon,
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       sandbox: true,
@@ -90,6 +99,9 @@ app.whenReady().then(() => {
 
   if (process.platform === "win32") {
     app.setAppUserModelId("io.github.janiskre.dealership-risk-mapping");
+  }
+  if (process.platform === "darwin" && !app.isPackaged) {
+    app.dock?.setIcon(appIcon);
   }
 
   app.on("browser-window-created", (_, window) => {
