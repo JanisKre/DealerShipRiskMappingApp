@@ -91,6 +91,9 @@ describe("boundaryEngine flag", () => {
     expect(result.source).toBe("synthetic");
     expect(spy).not.toHaveBeenCalled();
     expect(mocks.collectEvidence).not.toHaveBeenCalled();
+    expect(result.quality?.requestedEngine).toBe("legacy");
+    expect(result.quality?.usedEngine).toBe("legacy");
+    expect(result.quality?.fallbackReason).toBeUndefined();
   });
 
   it("stays on the chain when the flag says legacy", async () => {
@@ -98,6 +101,8 @@ describe("boundaryEngine flag", () => {
     const result = await detectBoundary(LAT, LON);
     expect(result.source).toBe("synthetic");
     expect(mocks.collectEvidence).not.toHaveBeenCalled();
+    expect(result.quality?.requestedEngine).toBe("legacy");
+    expect(result.quality?.usedEngine).toBe("legacy");
   });
 
   it("uses the fused result when the engine is enabled and succeeds", async () => {
@@ -121,6 +126,10 @@ describe("boundaryEngine flag", () => {
     expect(result.role).toBe("operationalLot");
     expect(result.areaSqm).toBe(4_800);
     expect(result.quality?.fusionVersion).toBe(fusion.FUSION_VERSION);
+    expect(result.quality?.requestedEngine).toBe("fused");
+    expect(result.quality?.usedEngine).toBe("fused");
+    expect(result.quality?.fallbackReason).toBeUndefined();
+    expect(result.quality?.resultVersion).toBe(fusion.FUSION_VERSION);
   });
 
   it("falls back to the chain when fusion finds nothing to grow from", async () => {
@@ -128,6 +137,9 @@ describe("boundaryEngine flag", () => {
     vi.spyOn(fusion, "fuseBoundary").mockReturnValue(null);
     const result = await detectBoundary(LAT, LON);
     expect(result.source).toBe("synthetic");
+    expect(result.quality?.requestedEngine).toBe("fused");
+    expect(result.quality?.usedEngine).toBe("legacy");
+    expect(result.quality?.fallbackReason).toMatch(/no defensible evidence/i);
   });
 
   it("falls back to the chain when evidence collection throws", async () => {
@@ -136,6 +148,8 @@ describe("boundaryEngine flag", () => {
     const result = await detectBoundary(LAT, LON);
     expect(result.source).toBe("synthetic");
     expect(result.polygon.coordinates[0].length).toBeGreaterThan(3);
+    expect(result.quality?.usedEngine).toBe("legacy");
+    expect(result.quality?.fallbackReason).toMatch(/overpass down/);
   });
 
   it("falls back to the chain when fusion itself throws", async () => {
@@ -145,6 +159,7 @@ describe("boundaryEngine flag", () => {
     });
     const result = await detectBoundary(LAT, LON);
     expect(result.source).toBe("synthetic");
+    expect(result.quality?.fallbackReason).toMatch(/bad geometry/);
   });
 
   it("falls back to the chain when settings are unreadable", async () => {
@@ -154,6 +169,8 @@ describe("boundaryEngine flag", () => {
     });
     const result = await detectBoundary(LAT, LON);
     expect(result.source).toBe("synthetic");
+    expect(result.quality?.usedEngine).toBe("legacy");
+    expect(result.quality?.fallbackReason).toMatch(/settings unavailable/);
   });
 
   it("still attaches candidates and a review verdict to a fused result", async () => {

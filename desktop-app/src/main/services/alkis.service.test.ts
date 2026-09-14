@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fetchParcelsNear,
   isTruncated,
   parseExteriorRings,
   parseWfsCounts,
@@ -66,6 +67,17 @@ describe("parseExteriorRings", () => {
   it("skips polygons without gml:exterior/posList instead of crashing", () => {
     const broken = `<gml:Polygon><gml:interior/></gml:Polygon>`;
     expect(parseExteriorRings(broken)).toEqual([]);
+  });
+});
+
+describe("fetchParcelsNear source status", () => {
+  it("reports unsupportedHere for a location outside every covered state", async () => {
+    // Munich/Bavaria: no state bbox in `STATE_BBOXES` covers it, so this must
+    // resolve without ever touching the cache or network.
+    const lookup = await fetchParcelsNear(48.137, 11.575);
+    expect(lookup.status).toBe("unsupportedHere");
+    expect(lookup.reachable).toBe(false);
+    expect(lookup.parcels).toEqual([]);
   });
 });
 

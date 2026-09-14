@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getDb } from "../db/database";
 
 /**
@@ -62,6 +63,16 @@ function readCache<T>(key: string): CacheEntry<T> | null {
     getDb().prepare("DELETE FROM api_cache WHERE key = ?").run(key);
     return null;
   }
+}
+
+/**
+ * Short, deterministic fragment for embedding free-form config (a custom WMS
+ * URL, a parser identifier) into a cache key. A cache key must change when
+ * the *meaning* of a request changes — a raw URL would work too, but it can
+ * contain characters that make keys unwieldy to read in the `api_cache` table.
+ */
+export function cacheKeyFragment(value: string): string {
+  return createHash("sha1").update(value).digest("hex").slice(0, 10);
 }
 
 export const TTL = {

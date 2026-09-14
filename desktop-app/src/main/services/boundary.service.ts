@@ -1,12 +1,18 @@
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import type {
   BoundaryCandidate,
+  BoundaryEngine,
   BoundaryGeometryRole,
   BoundaryResult,
   Polygon,
 } from "@shared/types";
 import { fromAlkis } from "./alkis.service";
 import { polygonAreaSqm } from "./geo-math";
+import {
+  geometryAreaSqm,
+  outerRings,
+  primaryOuterRing,
+} from "@shared/boundary-geometry-utils";
 import {
   approximatePolygonIoU,
   checkRing,
@@ -18,6 +24,7 @@ import { fromNominatimPolygon } from "./boundary/nominatim-polygon";
 import { collectEvidence } from "./boundary/evidence-sources";
 import {
   buildResultFromFusion,
+  FUSION_VERSION,
   fuseBoundary,
   layerDiversity,
 } from "./boundary/fusion";
@@ -132,7 +139,8 @@ export async function detectBoundary(
     lon,
     parameters,
   );
-  const fused = await tryFusedBoundary(lat, lon, context, ranked, parameters);
+  const attempt = await tryFusedBoundary(lat, lon, context, ranked, parameters);
+  const fused = attempt.result;
   const result = fused ?? ranked[0] ?? fallback;
   const top2Margin = ranked[1]
     ? Math.max(0, ranked[0].selectionScore - ranked[1].selectionScore)
@@ -152,6 +160,13 @@ export async function detectBoundary(
           // margin only describes the ranking it did not take part in.
           top2Margin: fused ? 1 : top2Margin,
           reasons: [...result.quality.reasons, ...providerErrors],
+          requestedEngine: attempt.requestedEngine,
+          usedEngine: attempt.usedEngine,
+          ...(attempt.fallbackReason
+            ? { fallbackReason: attempt.fallbackReason }
+            : {}),
+          resultVersion:
+            attempt.usedEngine === "fused" ? FUSION_VERSION : LEGACY_RANKING_VERSION,
         }
       : undefined,
   };
@@ -181,14 +196,32 @@ export async function detectBoundary(
   };
 }
 
+/** Bumped whenever the legacy candidate-ranking logic changes structurally. */
+export const LEGACY_RANKING_VERSION = 1;
+
+/**
+ * Which engine actually produced a result, and — when it differs from what
+ * was requested — why. Kept separate from the `BoundaryResult` itself so
+ * `detectBoundary` can attach it to whichever result (fused or chain) it ends
+ * up using.
+ */
+interface FusionAttempt {
+  requestedEngine: BoundaryEngine;
+  usedEngine: BoundaryEngine;
+  fallbackReason?: string;
+  result: BoundaryResult | null;
+}
+
 /**
  * Runs the evidence-fusion engine, when it is enabled and has something to work
  * with.
  *
- * Returns null in every failure mode — disabled, no evidence, nothing
- * defensible to grow from, or an outright error — so detection always falls
- * back to the candidate chain rather than to nothing. Fusion is an improvement
- * on the ranking, not a replacement for having an answer.
+ * Returns a null `result` in every failure mode — disabled, no evidence,
+ * nothing defensible to grow from, or an outright error — so detection always
+ * falls back to the candidate chain rather than to nothing. Fusion is an
+ * improvement on the ranking, not a replacement for having an answer. The
+ * `fallbackReason` records *why* whenever that happens despite fusion being
+ * requested, for the diagnostics view.
  */
 async function tryFusedBoundary(
   lat: number,
@@ -196,15 +229,24 @@ async function tryFusedBoundary(
   context: BoundaryLookupContext,
   ranked: RankedBoundary[],
   parameters: RiskParameters,
-): Promise<BoundaryResult | null> {
+): Promise<FusionAttempt> {
   let engine: string | undefined;
   try {
     engine = getSettings().boundaryEngine;
   } catch {
-    // Settings live in SQLite; if that is unavailable the legacy path still works.
-    return null;
+    // Settings live in SQLite; if that is unavailable the legacy path still
+    // works. There is no meaningful "requested" engine to report here.
+    return {
+      requestedEngine: "legacy",
+      usedEngine: "legacy",
+      fallbackReason: "settings unavailable",
+      result: null,
+    };
   }
-  if (engine !== "fused") return null;
+  const requestedEngine: BoundaryEngine = engine === "fused" ? "fused" : "legacy";
+  if (requestedEngine !== "fused") {
+    return { requestedEngine, usedEngine: "legacy", result: null };
+  }
 
   try {
     const bundle = await collectEvidence(lat, lon, {
@@ -213,7 +255,14 @@ async function tryFusedBoundary(
       parameters,
     });
     const outcome = fuseBoundary(bundle, parameters);
-    if (!outcome) return null;
+    if (!outcome) {
+      return {
+        requestedEngine,
+        usedEngine: "legacy",
+        fallbackReason: "no defensible evidence to grow a site from",
+        result: null,
+      };
+    }
 
     // Agreement against the independently-derived candidates, not against the
     // sources fusion already consumed — otherwise it would be corroborating
@@ -229,7 +278,7 @@ async function tryFusedBoundary(
       0,
     );
 
-    return buildResultFromFusion(outcome, parameters, {
+    const result = buildResultFromFusion(outcome, parameters, {
       // Until perimeter support is computed from the barrier lines themselves,
       // report layer diversity in its place rather than an invented number.
       barrierSupport: layerDiversity(outcome.layers),
@@ -238,8 +287,14 @@ async function tryFusedBoundary(
       areaPlausibility: areaPlausibilityScore("operationalLot", outcome.areaSqm),
       sourceAgreement,
     });
-  } catch {
-    return null;
+    return { requestedEngine, usedEngine: "fused", result };
+  } catch (error) {
+    return {
+      requestedEngine,
+      usedEngine: "legacy",
+      fallbackReason: `fusion engine error: ${error instanceof Error ? error.message : "unknown"}`,
+      result: null,
+    };
   }
 }
 
@@ -391,23 +446,29 @@ function evaluateCandidate(
   lon: number,
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): RankedBoundary | null {
-  const ring = candidate.polygon.coordinates[0] as LonLat[];
-  if (!Array.isArray(ring)) return null;
+  const rings = outerRings(candidate.polygon) as LonLat[][];
+  const ring = primaryOuterRing(candidate.polygon) as LonLat[];
+  if (rings.length === 0 || ring.length < 4) return null;
   const [, , maxAreaSqm] = areaBoundsForRole(candidate.role);
-  let check: ReturnType<typeof checkRing>;
+  let areaSqm: number;
   try {
-    check = checkRing(ring, {
-      minAreaSqm: candidate.role === "building" ? 10 : 25,
-      // Share the upper bound with areaPlausibilityScore. They used to disagree
-      // (2 000 000 here, 250 000 there), so an absurdly large polygon scored
-      // plausibility 0 yet still collected points from every other term and
-      // could win the ranking outright.
-      maxAreaSqm,
-    });
+    const checks = rings.map((part) =>
+      checkRing(part, {
+        minAreaSqm: candidate.role === "building" ? 10 : 25,
+        maxAreaSqm,
+      }),
+    );
+    if (checks.some((part) => !part.valid)) return null;
+    areaSqm = geometryAreaSqm(candidate.polygon);
+    if (areaSqm <= 0 || areaSqm > maxAreaSqm) return null;
+    /*
+     * The per-component check rejects malformed rings; total area is then used
+     * for the operational plausibility score so split facilities are not
+     * silently reduced to their largest component.
+     */
   } catch {
     return null;
   }
-  if (!check.valid) return null;
   let inside = false;
   try {
     inside = booleanPointInPolygon([lon, lat], candidate.polygon);
@@ -420,7 +481,7 @@ function evaluateCandidate(
     : pointDistanceM <= parameters.boundaryNearPointDistanceM
       ? "near"
       : "outside";
-  const areaPlausibility = areaPlausibilityScore(candidate.role, check.areaSqm);
+  const areaPlausibility = areaPlausibilityScore(candidate.role, areaSqm);
   const boundaryFit =
     candidate.role === "operationalLot"
       ? 1
@@ -441,7 +502,7 @@ function evaluateCandidate(
   if (areaPlausibility < 0.5) reasons.push("candidate area is atypical");
   return {
     ...candidate,
-    areaSqm: check.areaSqm,
+    areaSqm,
     quality: {
       geometryValid: true,
       pointRelation,
@@ -706,8 +767,8 @@ async function fromOsmBuildings(
     // Nearest-first, so the 10 kept are the ones plausibly on this site.
     .sort(
       (a, b) =>
-        distanceToRingM([lon, lat], a.polygon.coordinates[0] as LonLat[]) -
-        distanceToRingM([lon, lat], b.polygon.coordinates[0] as LonLat[]),
+        distanceToRingM([lon, lat], primaryOuterRing(a.polygon) as LonLat[]) -
+        distanceToRingM([lon, lat], primaryOuterRing(b.polygon) as LonLat[]),
     )
     .slice(0, 10);
 }

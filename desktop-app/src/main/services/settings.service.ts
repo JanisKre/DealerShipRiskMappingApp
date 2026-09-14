@@ -11,7 +11,10 @@ import { getDb } from "../db/database";
 
 const SETTINGS_KEY = "app.settings";
 
-const DEFAULTS: Settings = { language: "en" };
+// The fusion engine is the supported operational detector. Keeping legacy as
+// an explicit setting still makes comparison/replay possible without silently
+// shipping its weaker candidate-only path to new installations.
+const DEFAULTS: Settings = { language: "en", boundaryEngine: "fused" };
 
 export function getSettings(): Settings {
   const row = getDb()

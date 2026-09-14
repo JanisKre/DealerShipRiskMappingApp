@@ -1,4 +1,5 @@
-import type { Polygon } from "@shared/types";
+import type { BoundaryGeometry } from "@shared/types";
+import { geometryBbox, outerRings } from "@shared/boundary-geometry-utils";
 
 export type LonLat = [number, number];
 
@@ -120,21 +121,30 @@ export function distanceToRingM(point: LonLat, ring: LonLat[]): number {
 
 /** Approximate polygon IoU in a local metric grid; deterministic and dependency-free. */
 export function approximatePolygonIoU(
-  a: Polygon,
-  b: Polygon,
+  a: BoundaryGeometry,
+  b: BoundaryGeometry,
   cellSizeM = 5,
 ): number {
-  const ringA = a.coordinates[0] as LonLat[];
-  const ringB = b.coordinates[0] as LonLat[];
-  if (ringA.length < 4 || ringB.length < 4) return 0;
-  const origin = ringA[0];
-  const points = [...ringA, ...ringB].map((point) =>
+  const ringsA = outerRings(a) as LonLat[][];
+  const ringsB = outerRings(b) as LonLat[][];
+  const allRings = [...ringsA, ...ringsB];
+  if (allRings.length === 0 || allRings.some((ring) => ring.length < 4)) return 0;
+  const origin = allRings[0][0];
+  const [west, south, east, north] = geometryBbox({
+    type: "MultiPolygon",
+    coordinates: [
+      ...(a.type === "Polygon" ? [a.coordinates] : a.coordinates),
+      ...(b.type === "Polygon" ? [b.coordinates] : b.coordinates),
+    ],
+  });
+  const points: LonLat[] = [[west, south], [east, north]];
+  const projectedPoints = points.map((point) =>
     projectPoint(point, origin),
   );
-  const minX = Math.min(...points.map(([x]) => x));
-  const maxX = Math.max(...points.map(([x]) => x));
-  const minY = Math.min(...points.map(([, y]) => y));
-  const maxY = Math.max(...points.map(([, y]) => y));
+  const minX = Math.min(...projectedPoints.map(([x]) => x));
+  const maxX = Math.max(...projectedPoints.map(([x]) => x));
+  const minY = Math.min(...projectedPoints.map(([, y]) => y));
+  const maxY = Math.max(...projectedPoints.map(([, y]) => y));
   const cols = Math.min(200, Math.max(1, Math.ceil((maxX - minX) / cellSizeM)));
   const rows = Math.min(200, Math.max(1, Math.ceil((maxY - minY) / cellSizeM)));
   let intersection = 0;
@@ -151,8 +161,8 @@ export function approximatePolygonIoU(
             (METERS_PER_DEGREE * Math.cos((origin[1] * Math.PI) / 180)),
         origin[1] + projected[1] / METERS_PER_DEGREE,
       ];
-      const inA = pointInRing(sample, ringA);
-      const inB = pointInRing(sample, ringB);
+      const inA = ringsA.some((ring) => pointInRing(sample, ring));
+      const inB = ringsB.some((ring) => pointInRing(sample, ring));
       if (inA || inB) union += 1;
       if (inA && inB) intersection += 1;
     }

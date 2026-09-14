@@ -1,7 +1,11 @@
-import type { BoundaryResult, Polygon } from "@shared/types";
+import type { BoundaryGeometry, BoundaryResult } from "@shared/types";
 import { distanceToRingM, type LonLat } from "./boundary-geometry";
-import { polygonAreaSqm } from "./geo-math";
-import { coveringGrid, rasterizeMaskPolygon } from "./boundary/rasterize";
+import {
+  geometryAreaSqm,
+  outerRings,
+  polygonParts,
+} from "@shared/boundary-geometry-utils";
+import { coveringGrid, rasterizeMaskGeometry } from "./boundary/rasterize";
 
 /**
  * Benchmark grid resolution. Deliberately finer than the 2 m Boundary-F1
@@ -12,8 +16,8 @@ export const BENCHMARK_RESOLUTION_M = 0.5;
 
 export interface BoundaryBenchmarkSample {
   id: string;
-  reference: Polygon;
-  predicted: Polygon;
+  reference: BoundaryGeometry;
+  predicted: BoundaryGeometry;
   predictedSource?: BoundaryResult["source"];
   predictedConfidence?: number;
 }
@@ -119,18 +123,16 @@ function evaluateSample(
   areaBias: number;
   confidence?: number;
 } {
-  const referenceRing = sample.reference.coordinates[0] as LonLat[];
-  const predictedRing = sample.predicted.coordinates[0] as LonLat[];
-  const referenceArea = polygonAreaSqm(referenceRing);
-  const predictedArea = polygonAreaSqm(predictedRing);
+  const referenceArea = geometryAreaSqm(sample.reference);
+  const predictedArea = geometryAreaSqm(sample.predicted);
 
   // IoU and coverage are measured on one shared raster rather than derived
   // algebraically from IoU. The old derivation assumed a relationship between
   // intersection and union that only holds exactly, which made coverage a
   // restatement of IoU instead of an independent signal.
   const { iou, coverage } = overlapMetrics(
-    referenceRing,
-    predictedRing,
+    sample.reference,
+    sample.predicted,
     resolutionM,
   );
 
@@ -144,19 +146,20 @@ function evaluateSample(
 }
 
 function overlapMetrics(
-  referenceRing: LonLat[],
-  predictedRing: LonLat[],
+  reference: BoundaryGeometry,
+  predicted: BoundaryGeometry,
   resolutionM: number,
 ): { iou: number; coverage: number } {
-  if (referenceRing.length < 4 || predictedRing.length < 4) {
+  const rings = [...polygonParts(reference).flat(), ...polygonParts(predicted).flat()] as LonLat[][];
+  if (rings.length === 0 || rings.some((ring) => ring.length < 4)) {
     return { iou: 0, coverage: 0 };
   }
-  const { spec } = coveringGrid([referenceRing, predictedRing], resolutionM);
+  const { spec } = coveringGrid(rings, resolutionM);
   const cells = spec.cols * spec.rows;
   const referenceMask = new Uint8Array(cells);
   const predictedMask = new Uint8Array(cells);
-  rasterizeMaskPolygon(spec, referenceRing, referenceMask);
-  rasterizeMaskPolygon(spec, predictedRing, predictedMask);
+  rasterizeMaskGeometry(spec, reference, referenceMask);
+  rasterizeMaskGeometry(spec, predicted, predictedMask);
 
   let intersection = 0;
   let union = 0;
@@ -175,24 +178,26 @@ function overlapMetrics(
 }
 
 function boundaryF1AtTolerance(
-  reference: Polygon,
-  predicted: Polygon,
+  reference: BoundaryGeometry,
+  predicted: BoundaryGeometry,
   toleranceM: number,
 ): number {
-  const refRing = reference.coordinates[0] as LonLat[];
-  const predRing = predicted.coordinates[0] as LonLat[];
+  const refRings = outerRings(reference) as LonLat[][];
+  const predRings = outerRings(predicted) as LonLat[][];
+  const distanceToAny = (point: LonLat, rings: LonLat[][]): number =>
+    Math.min(...rings.map((ring) => distanceToRingM(point, ring)));
+  const refPoints = refRings.flat();
+  const predPoints = predRings.flat();
   const precision =
-    predRing.length < 2
+    predPoints.length < 2
       ? 0
-      : predRing.filter(
-          (point) => distanceToRingM(point, refRing) <= toleranceM,
-        ).length / predRing.length;
+      : predPoints.filter((point) => distanceToAny(point, refRings) <= toleranceM)
+          .length / predPoints.length;
   const recall =
-    refRing.length < 2
+    refPoints.length < 2
       ? 0
-      : refRing.filter(
-          (point) => distanceToRingM(point, predRing) <= toleranceM,
-        ).length / refRing.length;
+      : refPoints.filter((point) => distanceToAny(point, predRings) <= toleranceM)
+          .length / refPoints.length;
   return precision + recall === 0
     ? 0
     : (2 * precision * recall) / (precision + recall);

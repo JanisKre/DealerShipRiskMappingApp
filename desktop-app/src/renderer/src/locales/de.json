@@ -329,6 +329,12 @@
       "tileTemplateLabel": "Kachel-Template",
       "tileTemplateHint": "XYZ/WMS-URL mit Platzhaltern {z}/{x}/{y}. Ohne gültiges Template wird auf Esri zurückgefallen."
     },
+    "boundaryEngine": {
+      "title": "Grundstückserkennungs-Engine",
+      "description": "„Multi-Quellen-Fusion“ kombiniert Kataster, OpenStreetMap und Luftbild zu einer belegten Geländeform; „Kandidatenauswahl“ bewertet jede Quelle einzeln und übernimmt die beste. Jedes Ergebnis speichert, welche Engine es tatsächlich erzeugt hat.",
+      "legacy": "Kandidatenauswahl",
+      "fused": "Multi-Quellen-Fusion"
+    },
     "appearance": {
       "title": "Darstellung",
       "description": "Erscheinungsbild der Anwendung anpassen.",
@@ -435,6 +441,13 @@
       "boundarySummary": "{{source}} · {{confidence}} Konfidenz",
       "boundaryRoleLabel": "Rolle: {{role}}",
       "boundaryAgreementLabel": "Quellenübereinstimmung: {{agreement}}",
+      "boundaryEngineLabel": "Engine: {{engine}}",
+      "boundaryEngineFallbackSuffix": "(angefordert {{requested}} — {{reason}})",
+      "boundaryEngineUnknownReason": "Grund unbekannt",
+      "boundaryEngine": {
+        "legacy": "Kandidatenauswahl",
+        "fused": "Multi-Quellen-Fusion"
+      },
       "boundaryReviewLabel": "Prüfung erforderlich",
       "boundaryCandidatesTitle": "{{count}} Grenzkandidaten",
       "boundarySource": {

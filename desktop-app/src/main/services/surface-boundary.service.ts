@@ -1,6 +1,6 @@
 import type { BoundaryResult, Polygon } from "@shared/types";
 import type { RiskParameters } from "@shared/types";
-import { cached, TTL } from "./cache.service";
+import { cached, cacheKeyFragment, TTL } from "./cache.service";
 import { polygonAreaSqm } from "./geo-math";
 import {
   checkRing,
@@ -10,6 +10,7 @@ import {
   type Point2D,
 } from "./boundary-geometry";
 import { aerialImageForBbox } from "./tiles.service";
+import { getSettings } from "./settings.service";
 
 /**
  * Low-confidence, deterministic aerial-surface baseline. It identifies large
@@ -27,8 +28,16 @@ export async function fromAerialSurface(
     (context?.parameters?.syntheticBoundaryRadiusM ?? 100) * 2.2,
   );
   // Version the cache key whenever segmentation/search logic changes so old
-  // clipped hulls cannot silently survive a new application build.
-  const key = `aerial-surface:v2:${Math.round(searchRadiusM)}:${lat.toFixed(5)},${lon.toFixed(5)}`;
+  // clipped hulls cannot silently survive a new application build. Imagery
+  // provider/WMS config is included too: this heuristic reads pixel colour,
+  // so a hull computed from Esri imagery must not be served back once the
+  // user switches to a different WMS source at the same coordinates.
+  const settings = getSettings();
+  const providerKey = settings.satelliteProvider ?? "esri";
+  const endpointKey = settings.wmsTileUrl
+    ? `:${cacheKeyFragment(settings.wmsTileUrl)}`
+    : "";
+  const key = `aerial-surface:v2:${providerKey}${endpointKey}:${Math.round(searchRadiusM)}:${lat.toFixed(5)},${lon.toFixed(5)}`;
   return cached(key, TTL.buildings, async () => {
     // Search beyond the current parcel candidate. Dealership operations often
     // span multiple cadastral parcels and multiple paved bays separated by

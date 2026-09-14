@@ -1,10 +1,14 @@
 import { area as turfArea } from "@turf/area";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
-import { featureCollection, polygon as turfPolygon } from "@turf/helpers";
+import {
+  featureCollection,
+  multiPolygon as turfMultiPolygon,
+  polygon as turfPolygon,
+} from "@turf/helpers";
 import intersect from "@turf/intersect";
 import { union } from "@turf/union";
 import type { Feature, MultiPolygon, Polygon as GeoPolygon } from "geojson";
-import type { Polygon } from "@shared/types";
+import type { BoundaryGeometry, Polygon } from "@shared/types";
 import { distanceToRingM, type LonLat } from "../boundary-geometry";
 import type { ParcelFeature } from "../alkis.service";
 
@@ -58,7 +62,7 @@ export interface ParcelEvidence {
 }
 
 export interface AssemblyResult {
-  polygon: Polygon;
+  polygon: BoundaryGeometry;
   areaSqm: number;
   /** Parcels that went into the union. */
   parcelCount: number;
@@ -76,8 +80,14 @@ function toFeature(ring: LonLat[]): PolyFeature | null {
   }
 }
 
-function polygonToFeature(polygon: Polygon): PolyFeature | null {
-  return toFeature(polygon.coordinates[0] as LonLat[]);
+function polygonToFeature(polygon: BoundaryGeometry): PolyFeature | null {
+  try {
+    return polygon.type === "Polygon"
+      ? (turfPolygon(polygon.coordinates as never) as PolyFeature)
+      : (turfMultiPolygon(polygon.coordinates as never) as PolyFeature);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -168,26 +178,19 @@ function unionAll(features: PolyFeature[]): PolyFeature | null {
   return merged;
 }
 
-/** Largest outer ring of a Polygon or MultiPolygon result. */
-function outerRingOf(feature: PolyFeature): LonLat[] | null {
+/** Preserves every component and hole returned by the parcel union. */
+function geometryOf(feature: PolyFeature): BoundaryGeometry | null {
   const geometry = feature.geometry;
   if (geometry.type === "Polygon") {
-    return (geometry.coordinates[0] as LonLat[]) ?? null;
+    return { type: "Polygon", coordinates: geometry.coordinates as never };
   }
-  let best: LonLat[] | null = null;
-  let bestArea = 0;
-  for (const part of geometry.coordinates) {
-    const ring = part[0] as LonLat[];
-    if (!ring) continue;
-    const candidate = toFeature(ring);
-    if (!candidate) continue;
-    const size = turfArea(candidate);
-    if (size > bestArea) {
-      bestArea = size;
-      best = ring;
-    }
+  if (geometry.type === "MultiPolygon") {
+    return {
+      type: "MultiPolygon",
+      coordinates: geometry.coordinates as never,
+    };
   }
-  return best;
+  return null;
 }
 
 /**
@@ -310,11 +313,11 @@ export function assembleSiteFromParcels(
 
   const merged = unionAll([...selected].map((index) => features[index].feature));
   if (!merged) return null;
-  const ring = outerRingOf(merged);
-  if (!ring || ring.length < 4) return null;
+  const polygon = geometryOf(merged);
+  if (!polygon) return null;
 
   return {
-    polygon: { type: "Polygon", coordinates: [ring] },
+    polygon,
     areaSqm: turfArea(merged),
     parcelCount: selected.size,
     expandedCount: expanded,

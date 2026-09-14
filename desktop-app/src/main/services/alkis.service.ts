@@ -2,7 +2,7 @@ import { centroid } from "@turf/centroid";
 import { distance } from "@turf/distance";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { point as turfPoint, polygon as turfPolygon } from "@turf/helpers";
-import type { BoundaryResult, Polygon } from "@shared/types";
+import type { BoundaryResult, Polygon, SourceStatus } from "@shared/types";
 import { cacheGet, cacheSet, TTL } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
 import { polygonAreaSqm } from "./geo-math";
@@ -211,6 +211,12 @@ export interface ParcelLookup {
    * False means the nearest parcel was taken instead, which is a weaker claim.
    */
   containsAnchor: boolean;
+  /**
+   * Distinguishes "no service covers this location", "asked, but the service
+   * failed", "asked and got an empty answer" and "asked and got a capped
+   * answer" — `reachable` alone collapses all but the first into one boolean.
+   */
+  status: SourceStatus;
 }
 
 /**
@@ -247,7 +253,20 @@ export async function fetchParcelsNear(
   lon: number,
   radiusM: number = PARCEL_SEARCH_RADIUS_M,
 ): Promise<ParcelLookup> {
-  for (const state of statesForPoint(lat, lon)) {
+  const candidateStates = statesForPoint(lat, lon);
+  if (candidateStates.length === 0) {
+    return {
+      parcels: [],
+      state: null,
+      truncated: false,
+      reachable: false,
+      containsAnchor: false,
+      status: "unsupportedHere",
+    };
+  }
+
+  let answeredAtLeastOnce = false;
+  for (const state of candidateStates) {
     const endpoint = ALKIS_ENDPOINTS[state];
     if (!endpoint || breaker.isOpen(state)) continue;
 
@@ -256,7 +275,14 @@ export async function fetchParcelsNear(
     const key = `alkis:v2:${state}:${radiusM}:${lat.toFixed(4)},${lon.toFixed(4)}`;
     const hit = cacheGet<ParcelLookup>(key);
     if (hit) {
-      if (hit.parcels.length > 0) return hit;
+      answeredAtLeastOnce = true;
+      if (hit.parcels.length > 0) {
+        // The cache key rounds to ~11 m, so a real anchor up to that far from
+        // the one that populated this entry can sit on the other side of a
+        // parcel line. The parcel geometry is safe to reuse; whether *this*
+        // point falls inside it is not.
+        return { ...hit, containsAnchor: parcelContainsPoint(hit.parcels, lat, lon) };
+      }
       continue;
     }
 
@@ -269,6 +295,7 @@ export async function fetchParcelsNear(
       continue;
     }
     breaker.recordSuccess(state);
+    answeredAtLeastOnce = true;
 
     const parcels: ParcelFeature[] = [];
     if (fetched) {
@@ -278,12 +305,14 @@ export async function fetchParcelsNear(
         parcels.push({ ring, areaSqm: check.areaSqm, state });
       }
     }
+    const truncated = fetched ? isTruncated(fetched, PARCEL_REQUEST_LIMIT) : false;
     const result: ParcelLookup = {
       parcels,
       state,
-      truncated: fetched ? isTruncated(fetched, PARCEL_REQUEST_LIMIT) : false,
+      truncated,
       reachable: true,
       containsAnchor: parcelContainsPoint(parcels, lat, lon),
+      status: parcels.length === 0 ? "successEmpty" : truncated ? "partial" : "success",
     };
     cacheSet(key, result, TTL.cadastre);
 
@@ -295,8 +324,9 @@ export async function fetchParcelsNear(
     parcels: [],
     state: null,
     truncated: false,
-    reachable: false,
+    reachable: answeredAtLeastOnce,
     containsAnchor: false,
+    status: answeredAtLeastOnce ? "successEmpty" : "transientFailure",
   };
 }
 

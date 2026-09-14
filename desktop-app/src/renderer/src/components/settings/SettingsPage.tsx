@@ -400,6 +400,37 @@ export function SettingsPage(): React.JSX.Element {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
+            {t("settings.boundaryEngine.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {t("settings.boundaryEngine.description")}
+          </p>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            // An unset value behaves as "legacy" in the detector
+            // (`boundary.service.ts`'s `tryFusedBoundary`); shown the same way
+            // here so this toggle never claims an engine is active that isn't.
+            value={settings.boundaryEngine === "fused" ? "fused" : "legacy"}
+            onValueChange={(v) =>
+              v && update({ boundaryEngine: v as Settings["boundaryEngine"] })
+            }
+          >
+            <ToggleGroupItem value="legacy" className="px-4">
+              {t("settings.boundaryEngine.legacy")}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="fused" className="px-4">
+              {t("settings.boundaryEngine.fused")}
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
             {t("settings.satelliteSource.title")}
           </CardTitle>
         </CardHeader>

@@ -329,6 +329,29 @@ function BoundarySummary({ d }: { d: AnalyzedDealership }): React.JSX.Element {
                 })}
               </div>
             )}
+            {boundary?.quality?.usedEngine && (
+              <div>
+                {t("dashboard.detailDialog.boundaryEngineLabel", {
+                  engine: t(
+                    `dashboard.detailDialog.boundaryEngine.${boundary.quality.usedEngine}`,
+                  ),
+                })}
+                {boundary.quality.requestedEngine &&
+                  boundary.quality.requestedEngine !== boundary.quality.usedEngine && (
+                    <span>
+                      {" "}
+                      {t("dashboard.detailDialog.boundaryEngineFallbackSuffix", {
+                        requested: t(
+                          `dashboard.detailDialog.boundaryEngine.${boundary.quality.requestedEngine}`,
+                        ),
+                        reason:
+                          boundary.quality.fallbackReason ??
+                          t("dashboard.detailDialog.boundaryEngineUnknownReason"),
+                      })}
+                    </span>
+                  )}
+              </div>
+            )}
             {boundary?.candidates && boundary.candidates.length > 1 && (
               <div className="space-y-1 border-t pt-1.5">
                 <div className="font-medium text-foreground">

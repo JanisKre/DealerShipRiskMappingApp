@@ -2,6 +2,7 @@ import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { centroid } from "@turf/centroid";
 import { polygon as turfPolygon } from "@turf/helpers";
 import type { BoundaryResult } from "@shared/types";
+import { geometryBbox } from "@shared/boundary-geometry-utils";
 import { cached, TTL } from "./cache.service";
 import { fetchOverpass } from "./boundary.service";
 import { polygonAreaSqm } from "./geo-math";
@@ -22,25 +23,6 @@ interface OverpassWay {
   geometry?: Array<{ lat: number; lon: number }>;
 }
 
-function bboxOf(ring: [number, number][]): {
-  s: number;
-  w: number;
-  n: number;
-  e: number;
-} {
-  let s = Infinity;
-  let w = Infinity;
-  let n = -Infinity;
-  let e = -Infinity;
-  for (const [lon, lat] of ring) {
-    if (lat < s) s = lat;
-    if (lat > n) n = lat;
-    if (lon < w) w = lon;
-    if (lon > e) e = lon;
-  }
-  return { s, w, n, e };
-}
-
 /**
  * Built-over area share (0..1) of the lot. When building data is missing
  * or an error occurs, 0 is returned (no masking — conservative).
@@ -48,19 +30,8 @@ function bboxOf(ring: [number, number][]): {
 export async function roofCoverageRatio(
   boundary: BoundaryResult,
 ): Promise<number> {
-  const raw = boundary.polygon.coordinates[0] as [number, number][];
-  if (!raw || raw.length < 3 || boundary.areaSqm <= 0) return 0;
-  // Defensively close the ring (turf.polygon requires first === last).
-  const ring = [...raw];
-  if (
-    ring[0][0] !== ring[ring.length - 1][0] ||
-    ring[0][1] !== ring[ring.length - 1][1]
-  ) {
-    ring.push(ring[0]);
-  }
-  if (ring.length < 4) return 0;
-
-  const { s, w, n, e } = bboxOf(ring);
+  if (boundary.areaSqm <= 0) return 0;
+  const [w, s, e, n] = geometryBbox(boundary.polygon);
   const key = `roof:${s.toFixed(5)},${w.toFixed(5)},${n.toFixed(5)},${e.toFixed(5)}`;
 
   const ratio = await cached(key, TTL.buildings, async () => {
@@ -71,7 +42,7 @@ export async function roofCoverageRatio(
     const data = await fetchOverpass<OverpassWay>(query);
     if (!data) return 0;
 
-    const parcel = turfPolygon([ring]);
+    const parcel = { type: "Feature" as const, properties: {}, geometry: boundary.polygon };
     let roofArea = 0;
     for (const el of data.elements) {
       if (!el.geometry || el.geometry.length < 3) continue;

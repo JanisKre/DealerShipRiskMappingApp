@@ -58,7 +58,7 @@ describe("settings persistence", () => {
   it("falls back to defaults when the settings JSON is damaged", () => {
     mocks.statement.get.mockReturnValueOnce({ value: "not-json" });
 
-    expect(getSettings()).toEqual({ language: "en" });
+    expect(getSettings()).toEqual({ language: "en", boundaryEngine: "fused" });
     expect(mocks.safeStorage.decryptString).not.toHaveBeenCalled();
   });
 
