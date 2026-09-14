@@ -25,7 +25,9 @@
     "smoke": "node scripts/smoke-test.mjs",
     "release:metadata": "node scripts/create-release-metadata.mjs",
     "pack": "electron-vite build && electron-builder --dir",
-    "dist": "electron-vite build && electron-builder"
+    "dist": "electron-vite build && electron-builder",
+    "benchmark:boundary": "BOUNDARY_BENCHMARK=1 vitest run src/main/services/boundary/boundary-benchmark.run.test.ts",
+    "benchmark:boundary:fused": "BOUNDARY_BENCHMARK=1 BOUNDARY_ENGINE=fused vitest run src/main/services/boundary/boundary-benchmark.run.test.ts"
   },
   "dependencies": {
     "@electron-toolkit/preload": "3.0.2",

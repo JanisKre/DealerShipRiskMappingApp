@@ -175,6 +175,33 @@ export async function aerialImageForBbox(
 const MIN_VALID_TILE_RATIO = 0.5;
 const MIN_FALLBACK_ZOOM = 15;
 
+/**
+ * Tile requests used to be fired all at once. That was harmless while capture
+ * boxes were ~200 m wide, but the boundary evidence raster covers 400 m, and an
+ * unbounded fan-out there means hundreds of simultaneous requests to a public
+ * imagery service — which gets rate-limited, not served faster.
+ */
+const TILE_FETCH_CONCURRENCY = 8;
+
+/** Runs `worker` over `items` with at most `limit` in flight, preserving no order. */
+async function mapWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  let next = 0;
+  const runners = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (next < items.length) {
+        const index = next++;
+        await worker(items[index]);
+      }
+    },
+  );
+  await Promise.all(runners);
+}
+
 async function captureMosaic(
   bbox: [number, number, number, number],
   zoom: number,
@@ -222,34 +249,35 @@ async function captureMosaicOnce(
   // Pre-fill alpha with 255
   for (let i = 3; i < rgba.length; i += 4) rgba[i] = 255;
 
-  const jobs: Promise<void>[] = [];
-  let validTileCount = 0;
+  const tiles: Array<{ tx: number; ty: number }> = [];
   for (let ty = yMin; ty <= yMax; ty++) {
-    for (let tx = xMin; tx <= xMax; tx++) {
-      const destCol = tx - xMin;
-      const destRow = ty - yMin;
-      jobs.push(
-        loadTileRgb(zoom, ty, tx, provider, wmsTemplate, time).then(
-          ({ data, ok }) => {
-            if (ok) validTileCount += 1;
-            const px0 = destCol * TILE_SIZE;
-            const py0 = destRow * TILE_SIZE;
-            for (let row = 0; row < TILE_SIZE; row++) {
-              for (let col = 0; col < TILE_SIZE; col++) {
-                const src = (row * TILE_SIZE + col) * 3;
-                const dst = ((py0 + row) * width + (px0 + col)) * 4;
-                rgba[dst] = data[src];
-                rgba[dst + 1] = data[src + 1];
-                rgba[dst + 2] = data[src + 2];
-                rgba[dst + 3] = 255;
-              }
-            }
-          },
-        ),
-      );
-    }
+    for (let tx = xMin; tx <= xMax; tx++) tiles.push({ tx, ty });
   }
-  await Promise.all(jobs);
+
+  let validTileCount = 0;
+  await mapWithConcurrency(tiles, TILE_FETCH_CONCURRENCY, async ({ tx, ty }) => {
+    const { data, ok } = await loadTileRgb(
+      zoom,
+      ty,
+      tx,
+      provider,
+      wmsTemplate,
+      time,
+    );
+    if (ok) validTileCount += 1;
+    const px0 = (tx - xMin) * TILE_SIZE;
+    const py0 = (ty - yMin) * TILE_SIZE;
+    for (let row = 0; row < TILE_SIZE; row++) {
+      for (let col = 0; col < TILE_SIZE; col++) {
+        const src = (row * TILE_SIZE + col) * 3;
+        const dst = ((py0 + row) * width + (px0 + col)) * 4;
+        rgba[dst] = data[src];
+        rgba[dst + 1] = data[src + 1];
+        rgba[dst + 2] = data[src + 2];
+        rgba[dst + 3] = 255;
+      }
+    }
+  });
 
   const originLon = tile2lon(xMin, zoom);
   const originLat = tile2lat(yMin, zoom);
@@ -267,6 +295,6 @@ async function captureMosaicOnce(
     latSpan,
     zoom,
     validTileCount,
-    tileCount: jobs.length,
+    tileCount: tiles.length,
   };
 }

@@ -47,6 +47,31 @@ describe("aerial tile mosaics", () => {
     );
   });
 
+  it("caps concurrent tile requests so a wide box cannot flood the provider", async () => {
+    // The boundary evidence raster covers 400 m, which is hundreds of tiles.
+    // Firing them all at once gets rate-limited rather than served faster.
+    let inFlight = 0;
+    let peak = 0;
+    mocks.fetchWithResilience.mockImplementation(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      inFlight -= 1;
+      return {
+        ok: true,
+        arrayBuffer: vi.fn().mockResolvedValue(Buffer.from("tile")),
+      };
+    });
+
+    const capture = await aerialImageForBbox([7, 51, 7.004, 51.004], 18);
+
+    expect(capture.tileCount).toBeGreaterThan(8);
+    expect(peak).toBeLessThanOrEqual(8);
+    // Every tile is still fetched and stitched; the cap only paces them.
+    expect(capture.validTileCount).toBe(capture.tileCount);
+    expect(mocks.fetchWithResilience).toHaveBeenCalledTimes(capture.tileCount);
+  });
+
   it("loads, decodes and mosaics all tiles for a bbox", async () => {
     const capture = await aerialImageForBbox([7, 51, 7.0001, 51.0001], 18);
 

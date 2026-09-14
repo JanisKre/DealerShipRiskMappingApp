@@ -5,8 +5,6 @@ import type {
   BoundaryResult,
   Polygon,
 } from "@shared/types";
-import { cached, TTL } from "./cache.service";
-import { fetchWithResilience } from "./http.service";
 import { fromAlkis } from "./alkis.service";
 import { polygonAreaSqm } from "./geo-math";
 import {
@@ -15,10 +13,22 @@ import {
   distanceToRingM,
   type LonLat,
 } from "./boundary-geometry";
+import { fetchOsmEvidence } from "./boundary/osm-evidence.service";
+import { fromNominatimPolygon } from "./boundary/nominatim-polygon";
+import { collectEvidence } from "./boundary/evidence-sources";
+import {
+  buildResultFromFusion,
+  fuseBoundary,
+  layerDiversity,
+} from "./boundary/fusion";
+import { getSettings } from "./settings.service";
 import { fromOverture } from "./overture.service";
 import { fromAerialSurface } from "./surface-boundary.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
+import { boundaryNeedsReview } from "@shared/boundary-review";
 import type { RiskParameters } from "@shared/types";
+
+export { fetchOverpass } from "./boundary/overpass-client";
 
 /** Adapter contract for a parcel/building boundary source. */
 export interface BoundaryProvider {
@@ -40,6 +50,7 @@ const BOUNDARY_PROVIDERS: BoundaryProvider[] = [
   { id: "alkis", resolve: fromAlkis },
   { id: "osm-landuse", resolve: fromOsm },
   { id: "osm-building", resolve: fromOsmBuildings },
+  { id: "nominatim", resolve: fromNominatimPolygon },
   { id: "overture", resolve: fromOverture },
 ];
 const AERIAL_SURFACE_PROVIDER: BoundaryProvider = {
@@ -54,9 +65,14 @@ const AERIAL_SURFACE_PROVIDER: BoundaryProvider = {
  *      no reverse-geocoding call needed anymore)
  *   2. OSM landuse/amenity via Overpass           — semantic parking candidate
  *   3. OSM building footprint via Overpass        — building candidate
- *   4. Overture Buildings via optional CLI        — independent building source
- *   5. aerial paved-surface baseline              — reviewable surface candidate
- *   6. synthetic octagonal fallback boundary     — always succeeds
+ *   4. Nominatim address match with geometry      — identity-matched candidate
+ *   5. Overture Buildings via optional CLI        — independent building source
+ *   6. aerial paved-surface baseline              — reviewable surface candidate
+ *   7. synthetic octagonal fallback boundary      — always succeeds
+ *
+ * Providers 2 and 3 share one cached Overpass round trip
+ * (boundary/osm-evidence.service.ts), which also collects the barriers, roads
+ * and address nodes the fusion engine needs.
  *
  * Overture is accessed through its official bbox-pruned CLI because Overture
  * publishes GeoParquet rather than a small REST endpoint. It remains optional
@@ -116,7 +132,8 @@ export async function detectBoundary(
     lon,
     parameters,
   );
-  const result = ranked[0] ?? fallback;
+  const fused = await tryFusedBoundary(lat, lon, context, ranked, parameters);
+  const result = fused ?? ranked[0] ?? fallback;
   const top2Margin = ranked[1]
     ? Math.max(0, ranked[0].selectionScore - ranked[1].selectionScore)
     : 1;
@@ -131,20 +148,15 @@ export async function detectBoundary(
     quality: result.quality
       ? {
           ...result.quality,
-          top2Margin,
+          // A fused result has no competing candidate to be close to; the
+          // margin only describes the ranking it did not take part in.
+          top2Margin: fused ? 1 : top2Margin,
           reasons: [...result.quality.reasons, ...providerErrors],
         }
       : undefined,
   };
   const candidateSummaries = [...ranked].slice(0, 10).map(toBoundaryCandidate);
-  const reviewRequired =
-    result.source === "synthetic" ||
-    result.role !== "operationalLot" ||
-    result.confidence < parameters.boundaryReviewConfidence ||
-    top2Margin < parameters.boundaryReviewTop2Margin ||
-    result.quality?.pointRelation === "outside" ||
-    (result.quality?.sourceAgreement ?? 0) < parameters.boundaryReviewSourceAgreement ||
-    (result.quality?.areaPlausibility ?? 0) < 0.5;
+  const reviewRequired = boundaryNeedsReview(resultWithQuality, parameters);
 
   return {
     ...resultWithQuality,
@@ -167,6 +179,68 @@ export async function detectBoundary(
         : [],
     },
   };
+}
+
+/**
+ * Runs the evidence-fusion engine, when it is enabled and has something to work
+ * with.
+ *
+ * Returns null in every failure mode — disabled, no evidence, nothing
+ * defensible to grow from, or an outright error — so detection always falls
+ * back to the candidate chain rather than to nothing. Fusion is an improvement
+ * on the ranking, not a replacement for having an answer.
+ */
+async function tryFusedBoundary(
+  lat: number,
+  lon: number,
+  context: BoundaryLookupContext,
+  ranked: RankedBoundary[],
+  parameters: RiskParameters,
+): Promise<BoundaryResult | null> {
+  let engine: string | undefined;
+  try {
+    engine = getSettings().boundaryEngine;
+  } catch {
+    // Settings live in SQLite; if that is unavailable the legacy path still works.
+    return null;
+  }
+  if (engine !== "fused") return null;
+
+  try {
+    const bundle = await collectEvidence(lat, lon, {
+      name: context.name,
+      address: context.address,
+      parameters,
+    });
+    const outcome = fuseBoundary(bundle, parameters);
+    if (!outcome) return null;
+
+    // Agreement against the independently-derived candidates, not against the
+    // sources fusion already consumed — otherwise it would be corroborating
+    // itself.
+    const sourceAgreement = ranked.reduce(
+      (best, candidate) =>
+        candidate.source === "synthetic"
+          ? best
+          : Math.max(
+              best,
+              approximatePolygonIoU(outcome.polygon, candidate.polygon),
+            ),
+      0,
+    );
+
+    return buildResultFromFusion(outcome, parameters, {
+      // Until perimeter support is computed from the barrier lines themselves,
+      // report layer diversity in its place rather than an invented number.
+      barrierSupport: layerDiversity(outcome.layers),
+      cadastreSnapped: false,
+      parcelCount: bundle.parcels.length,
+      areaPlausibility: areaPlausibilityScore("operationalLot", outcome.areaSqm),
+      sourceAgreement,
+    });
+  } catch {
+    return null;
+  }
 }
 
 function shouldRunAerialRefinement(
@@ -206,7 +280,14 @@ function rankCandidates(
   return prepared
     .map((candidate) => {
       const peers = prepared.filter(
-        (other) => other !== candidate && other.provider !== candidate.provider,
+        (other) =>
+          other !== candidate &&
+          // The synthetic octagon is a circle drawn around the geocoded point.
+          // It carries no information about the site, so any overlap with it is
+          // an artefact of both shapes being near the same coordinate — it must
+          // never read as a second opinion.
+          other.source !== "synthetic" &&
+          datasetOf(other) !== datasetOf(candidate),
       );
       const agreement = peers.reduce(
         (best, other) =>
@@ -280,6 +361,30 @@ function rankCandidates(
     .sort((a, b) => b.selectionScore - a.selectionScore);
 }
 
+/**
+ * The underlying dataset a candidate came from.
+ *
+ * Source agreement is supposed to measure *independent* corroboration, and it
+ * used to compare by provider id. But `osm-landuse`, `osm-building` and
+ * `nominatim-polygon` are three views of one dataset — since the OSM providers
+ * were merged they are literally three readings of the same Overpass response.
+ * A parking polygon "agreeing" with a building footprint drawn by the same
+ * mapper is not a second opinion, and counting it as one inflates confidence
+ * exactly where the data is thinnest.
+ */
+function datasetOf(candidate: BoundaryResult): string {
+  const provider = candidate.provider ?? candidate.source;
+  if (candidate.source === "alkis" || provider.startsWith("alkis")) {
+    return "alkis";
+  }
+  if (candidate.source === "osm" || provider === "nominatim-polygon") {
+    return "osm";
+  }
+  // Overture buildings blend OSM with Microsoft and Esri footprints, so they
+  // carry information OSM alone does not.
+  return candidate.source;
+}
+
 function evaluateCandidate(
   candidate: BoundaryResult,
   lat: number,
@@ -288,11 +393,16 @@ function evaluateCandidate(
 ): RankedBoundary | null {
   const ring = candidate.polygon.coordinates[0] as LonLat[];
   if (!Array.isArray(ring)) return null;
+  const [, , maxAreaSqm] = areaBoundsForRole(candidate.role);
   let check: ReturnType<typeof checkRing>;
   try {
     check = checkRing(ring, {
       minAreaSqm: candidate.role === "building" ? 10 : 25,
-      maxAreaSqm: 2_000_000,
+      // Share the upper bound with areaPlausibilityScore. They used to disagree
+      // (2 000 000 here, 250 000 there), so an absurdly large polygon scored
+      // plausibility 0 yet still collected points from every other term and
+      // could win the ranking outright.
+      maxAreaSqm,
     });
   } catch {
     return null;
@@ -357,16 +467,22 @@ function roleSelectionWeight(role?: BoundaryGeometryRole): number {
           : 0;
 }
 
+/** `[min, ideal, max]` plausible area in m² per geometry role. */
+function areaBoundsForRole(
+  role: BoundaryGeometryRole | undefined,
+): [number, number, number] {
+  return role === "building"
+    ? [20, 2_500, 50_000]
+    : role === "parcel"
+      ? [100, 5_000, 500_000]
+      : [250, 8_000, 250_000];
+}
+
 function areaPlausibilityScore(
   role: BoundaryGeometryRole | undefined,
   areaSqm: number,
 ): number {
-  const [min, ideal, max] =
-    role === "building"
-      ? [20, 2_500, 50_000]
-      : role === "parcel"
-        ? [100, 5_000, 500_000]
-        : [250, 8_000, 250_000];
+  const [min, ideal, max] = areaBoundsForRole(role);
   if (areaSqm < min || areaSqm > max) return 0;
   if (areaSqm <= ideal) return (areaSqm - min) / Math.max(1, ideal - min);
   return Math.max(0, 1 - (areaSqm - ideal) / Math.max(1, max - ideal));
@@ -389,100 +505,58 @@ function toBoundaryCandidate(result: BoundaryResult): BoundaryCandidate {
 // --- 1. ALKIS (implemented in alkis.service.ts) ------------------------
 // State WFS in the AdV schema "ALKIS simplified"; see fromAlkis import above.
 
-// --- Overpass call with mirror fallback ---------------------------------
-// The public main instance is regularly overloaded (504) — on failure
-// the load-balanced mirror is tried before the source is considered
-// "nothing found" (instead of falling straight through to the synthetic octagon).
-const OVERPASS_ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://lz4.overpass-api.de/api/interpreter",
-];
-
-export async function fetchOverpass<T>(
-  query: string,
-): Promise<{ elements: T[] } | null> {
-  for (const url of OVERPASS_ENDPOINTS) {
-    try {
-      const res = await fetchWithResilience(url, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: query,
-      });
-      if (!res.ok) continue;
-      return (await res.json()) as { elements: T[] };
-    } catch {
-      // Network error → try the next mirror.
-    }
-  }
-  return null;
-}
-
-// --- 2. OSM via Overpass (implemented) ---------------------------------
+// --- 2. OSM semantic candidates (dealer / parking / land use) ----------
+// Geometry comes from the shared evidence fetch, so this provider and the
+// building provider below cost one Overpass round trip between them.
 async function fromOsm(
   lat: number,
   lon: number,
   context?: BoundaryLookupContext,
 ): Promise<BoundaryResult[] | null> {
-  const contextKey = normalizeSearchText(
-    `${context?.name ?? ""} ${context?.address ?? ""}`,
-  ).slice(0, 50);
-  const key = `osm:${lat.toFixed(5)},${lon.toFixed(5)}:${contextKey}`;
-  return cached<BoundaryResult[] | null>(key, TTL.overpass, async () => {
-    const query = `
-      [out:json][timeout:20];
-      (
-        nwr(around:250,${lat},${lon})["amenity"="parking"];
-        nwr(around:250,${lat},${lon})["site"="parking"];
-        way(around:250,${lat},${lon})["parking"="surface"];
-        nwr(around:250,${lat},${lon})["landuse"~"^(retail|commercial)$"];
-        nwr(around:250,${lat},${lon})["shop"="car"];
-      );
-      out geom center tags;`;
-    const data = await fetchOverpass<{
-      geometry?: Array<{ lat: number; lon: number }>;
-      tags?: Record<string, string>;
-    }>(query);
-    if (!data) return null;
-    const ranked = data.elements
-      .filter((e) => e.geometry && e.geometry.length >= 3)
-      .map((element) => {
-        const ring = closeRing(
-          element.geometry!.map((p) => [p.lon, p.lat] as [number, number]),
-        );
-        return {
-          ring,
-          tags: element.tags ?? {},
-          score: scoreOsmBoundary(element.tags ?? {}, ring, lat, lon, context),
-        };
-      })
-      .sort((a, b) => b.score - a.score);
-    return ranked.slice(0, 5).map((candidate) => {
-      const polygon: Polygon = {
-        type: "Polygon",
-        coordinates: [candidate.ring],
-      };
-      const confidence = Math.min(0.86, Math.max(0.45, candidate.score));
-      const role = osmRole(candidate.tags);
-      return {
-        source: "osm",
-        role,
-        polygon,
-        areaSqm: polygonAreaSqm(candidate.ring),
+  const evidence = await fetchOsmEvidence(lat, lon);
+  if (!evidence) return null;
+
+  const ranked = evidence.areas
+    .filter(
+      (area) =>
+        area.kind === "dealerArea" ||
+        area.kind === "parking" ||
+        area.kind === "landuse",
+    )
+    .map((area) => ({
+      ring: area.ring,
+      tags: area.tags,
+      score: scoreOsmBoundary(area.tags, area.ring, lat, lon, context),
+    }))
+    .sort((a, b) => b.score - a.score);
+  if (ranked.length === 0) return [];
+
+  return ranked.slice(0, 5).map((candidate) => {
+    const polygon: Polygon = {
+      type: "Polygon",
+      coordinates: [candidate.ring],
+    };
+    const confidence = Math.min(0.86, Math.max(0.45, candidate.score));
+    const role = osmRole(candidate.tags);
+    return {
+      source: "osm",
+      role,
+      polygon,
+      areaSqm: polygonAreaSqm(candidate.ring),
+      confidence,
+      ...(candidate.tags.name ? { label: candidate.tags.name } : {}),
+      evidence: {
+        source: "OpenStreetMap / Overpass",
+        retrievedAt: new Date().toISOString(),
+        method: "semantic parking, retail and car-dealer geometry ranking",
         confidence,
-        ...(candidate.tags.name ? { label: candidate.tags.name } : {}),
-        evidence: {
-          source: "OpenStreetMap / Overpass",
-          retrievedAt: new Date().toISOString(),
-          method: "semantic parking, retail and car-dealer geometry ranking",
-          confidence,
-          fallbackUsed: false,
-          limitations: [
-            "OSM coverage and geometry quality vary by region",
-            "Confirm that the selected polygon belongs to the dealership",
-          ],
-        },
-      } satisfies BoundaryResult;
-    });
+        fallbackUsed: false,
+        limitations: [
+          "OSM coverage and geometry quality vary by region",
+          "Confirm that the selected polygon belongs to the dealership",
+        ],
+      },
+    } satisfies BoundaryResult;
   });
 }
 
@@ -588,75 +662,54 @@ function extractHouseNumber(value?: string): string | undefined {
   return value?.match(/\b\d+[a-z]?\b/i)?.[0].toLowerCase();
 }
 
-function closeRing(ring: [number, number][]): [number, number][] {
-  if (
-    ring.length > 0 &&
-    (ring[0][0] !== ring[ring.length - 1][0] ||
-      ring[0][1] !== ring[ring.length - 1][1])
-  ) {
-    ring.push(ring[0]);
-  }
-  return ring;
-}
 
-// --- 3. OSM building footprint via Overpass (implemented) --------------
-// Fills the former "Overture" role dependency-free: building footprint from OSM.
-// Picks the building that contains the point, otherwise the largest one in the vicinity.
+// --- 3. OSM building footprints ---------------------------------------
+// Reuses the same cached evidence fetch. Buildings mapped as multipolygon
+// relations are now included; the old `way(...)["building"]` query could not
+// see them at all, and its 60 m radius missed showrooms set back from the
+// geocoded point.
 async function fromOsmBuildings(
   lat: number,
   lon: number,
   _context?: BoundaryLookupContext,
 ): Promise<BoundaryResult[] | null> {
-  const key = `osmbuilding:${lat.toFixed(5)},${lon.toFixed(5)}`;
-  return cached<BoundaryResult[] | null>(key, TTL.buildings, async () => {
-    const query = `
-      [out:json][timeout:15];
-      way(around:60,${lat},${lon})["building"];
-      out geom;`;
-    const data = await fetchOverpass<{
-      geometry?: Array<{ lat: number; lon: number }>;
-    }>(query);
-    if (!data) return null;
-    const rings = data.elements
-      .filter((e) => e.geometry && e.geometry.length >= 3)
-      .map((e) => {
-        const ring = e.geometry!.map((p) => [p.lon, p.lat] as [number, number]);
-        if (
-          ring[0][0] !== ring[ring.length - 1][0] ||
-          ring[0][1] !== ring[ring.length - 1][1]
-        ) {
-          ring.push(ring[0]);
-        }
-        return ring;
-      });
-    if (rings.length === 0) return null;
+  const evidence = await fetchOsmEvidence(lat, lon);
+  if (!evidence) return null;
 
-    return rings
-      .map((ring) => {
-        const contains = booleanPointInPolygon([lon, lat], {
-          type: "Polygon",
-          coordinates: [ring],
-        });
-        const confidence = contains ? 0.5 : 0.35;
-        return {
-          source: "osm",
-          role: "building",
-          polygon: { type: "Polygon", coordinates: [ring] } as Polygon,
-          areaSqm: polygonAreaSqm(ring),
+  const buildings = evidence.areas.filter((area) => area.kind === "building");
+  if (buildings.length === 0) return [];
+
+  return buildings
+    .map((area) => {
+      const contains = booleanPointInPolygon([lon, lat], {
+        type: "Polygon",
+        coordinates: [area.ring],
+      });
+      const confidence = contains ? 0.5 : 0.35;
+      return {
+        source: "osm",
+        role: "building",
+        polygon: { type: "Polygon", coordinates: [area.ring] } as Polygon,
+        areaSqm: polygonAreaSqm(area.ring),
+        confidence,
+        label: "OSM building footprint",
+        evidence: {
+          source: "OpenStreetMap / Overpass",
+          retrievedAt: new Date().toISOString(),
+          method: "building footprint candidate near dealership point",
           confidence,
-          label: "OSM building footprint",
-          evidence: {
-            source: "OpenStreetMap / Overpass",
-            retrievedAt: new Date().toISOString(),
-            method: "building footprint candidate near dealership point",
-            confidence,
-            fallbackUsed: true,
-            limitations: ["A building footprint is not a parking-lot boundary"],
-          },
-        } satisfies BoundaryResult;
-      })
-      .slice(0, 10);
-  });
+          fallbackUsed: true,
+          limitations: ["A building footprint is not a parking-lot boundary"],
+        },
+      } satisfies BoundaryResult;
+    })
+    // Nearest-first, so the 10 kept are the ones plausibly on this site.
+    .sort(
+      (a, b) =>
+        distanceToRingM([lon, lat], a.polygon.coordinates[0] as LonLat[]) -
+        distanceToRingM([lon, lat], b.polygon.coordinates[0] as LonLat[]),
+    )
+    .slice(0, 10);
 }
 
 // --- 4. Synthetic fallback boundary -----------------------------------

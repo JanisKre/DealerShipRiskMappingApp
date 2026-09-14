@@ -50,12 +50,14 @@ const api = {
     lon: number,
     name?: string,
     address?: string,
+    parameters?: IpcRequest["boundary:detect"]["parameters"],
   ): Promise<IpcResponse["boundary:detect"]> =>
     ipcRenderer.invoke(IPC.detectBoundary, {
       lat,
       lon,
       name,
       address,
+      parameters,
     } satisfies IpcRequest["boundary:detect"]),
 
   detectVehicles: (
@@ -92,21 +94,6 @@ const api = {
       lat,
       lon,
     } satisfies IpcRequest["weather:fetch"]),
-
-  compareTemporal: (
-    lat: number,
-    lon: number,
-    fromDate: string,
-    toDate: string,
-    boundary?: IpcRequest["temporal:compare"]["boundary"],
-  ): Promise<IpcResponse["temporal:compare"]> =>
-    ipcRenderer.invoke(IPC.compareTemporal, {
-      lat,
-      lon,
-      fromDate,
-      toDate,
-      boundary,
-    } satisfies IpcRequest["temporal:compare"]),
 
   scoreRisk: (
     lat: number,
@@ -250,13 +237,6 @@ const api = {
     ipcRenderer.invoke(IPC.llmMemo, {
       dealership,
     } satisfies IpcRequest["llm:memo"]),
-
-  llmRefineBoundary: (
-    dealership: IpcRequest["llm:refineBoundary"]["dealership"],
-  ): Promise<IpcResponse["llm:refineBoundary"]> =>
-    ipcRenderer.invoke(IPC.llmRefineBoundary, {
-      dealership,
-    } satisfies IpcRequest["llm:refineBoundary"]),
 
   /**
    * Starts an LLM stream. The main process sends chunks over a dedicated

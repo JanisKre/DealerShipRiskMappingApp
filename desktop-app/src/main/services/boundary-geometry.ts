@@ -18,6 +18,23 @@ export function projectPoint(point: LonLat, origin: LonLat): [number, number] {
   ];
 }
 
+/**
+ * Inverse of `projectPoint`: metres east/north back to lon/lat about the same
+ * origin. Exact to within a few centimetres over the few-hundred-metre windows
+ * the boundary engine works in, because both directions use the same fixed
+ * cos(lat) taken at the origin.
+ */
+export function unprojectPoint(
+  offset: [number, number],
+  origin: LonLat,
+): LonLat {
+  const cosLat = Math.cos((origin[1] * Math.PI) / 180);
+  return [
+    origin[0] + offset[0] / (METERS_PER_DEGREE * cosLat),
+    origin[1] + offset[1] / METERS_PER_DEGREE,
+  ];
+}
+
 export function ringAreaSqm(ring: LonLat[]): number {
   if (ring.length < 4) return 0;
   const origin = ring[0];
@@ -392,7 +409,7 @@ export function nonConvexHull(
   return isSimpleRing(dug) ? dug : hull;
 }
 
-function isSimpleRing(ring: Point2D[]): boolean {
+export function isSimpleRing(ring: Point2D[]): boolean {
   const open = ring.slice(0, -1);
   for (let i = 0; i < open.length; i += 1) {
     for (let j = i + 1; j < open.length; j += 1) {

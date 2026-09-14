@@ -3,10 +3,11 @@ import { distance } from "@turf/distance";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { point as turfPoint, polygon as turfPolygon } from "@turf/helpers";
 import type { BoundaryResult, Polygon } from "@shared/types";
-import { cached, TTL } from "./cache.service";
+import { cacheGet, cacheSet, TTL } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
 import { polygonAreaSqm } from "./geo-math";
-import { checkRing, distanceToRingM } from "./boundary-geometry";
+import { checkRing, distanceToRingM, type LonLat } from "./boundary-geometry";
+import { createCircuitBreaker } from "./boundary/circuit-breaker";
 
 /**
  * ALKIS cadastral parcels (official lot boundaries) via the open
@@ -144,95 +145,170 @@ function statesForPoint(lat: number, lon: number): string[] {
 
 // --- Circuit breaker (in-memory, per state) --------------------------
 // Prevents a permanently unreachable state service from delaying every
-// analysis: after FAIL_THRESHOLD consecutive real network/HTTP errors, the
-// service is skipped for OPEN_DURATION_MS. A valid empty result
-// (service reachable, no parcel at this location) does NOT count as a failure.
+// analysis. A valid empty result (service reachable, no parcel at this
+// location) does NOT count as a failure — see boundary/circuit-breaker.ts.
 
-const FAIL_THRESHOLD = 3;
-const OPEN_DURATION_MS = 30_000;
+const breaker = createCircuitBreaker();
 
-interface CircuitState {
-  failCount: number;
-  openUntil: number;
+/** Test seam: clears breaker state between cases. */
+export function resetAlkisCircuits(): void {
+  breaker.reset();
 }
 
-const circuits = new Map<string, CircuitState>();
+/**
+ * Default search radius around the point.
+ *
+ * Was 60 m, which returns the containing parcel and little else. A dealership
+ * routinely occupies several adjacent parcels, so the boundary engine needs
+ * the neighbourhood, not just the hit.
+ */
+export const PARCEL_SEARCH_RADIUS_M = 250;
 
-function isCircuitOpen(state: string): boolean {
-  const c = circuits.get(state);
-  if (!c) return false;
-  if (Date.now() >= c.openUntil) {
-    circuits.delete(state);
-    return false;
+/** Upper bound on features requested per call. */
+const PARCEL_REQUEST_LIMIT = 250;
+
+export interface ParcelFeature {
+  ring: LonLat[];
+  areaSqm: number;
+  state: string;
+}
+
+export interface ParcelLookup {
+  parcels: ParcelFeature[];
+  state: string | null;
+  /**
+   * True when the service had more parcels than it returned. A truncated set
+   * must not be used to assemble a multi-parcel site: the missing parcels are
+   * arbitrary, so the union would be arbitrary too.
+   */
+  truncated: boolean;
+  /** True when at least one state service answered, even if it had no parcels. */
+  reachable: boolean;
+}
+
+/**
+ * Reads the WFS response envelope's feature counts.
+ *
+ * `numberMatched` may legitimately be "unknown" — several state services do
+ * not count before streaming — in which case a full page is the only signal
+ * that there may be more.
+ */
+export function parseWfsCounts(xml: string): {
+  matched: number | null;
+  returned: number | null;
+} {
+  const matchedRaw = xml.match(/numberMatched="([^"]+)"/)?.[1];
+  const returnedRaw = xml.match(/numberReturned="([^"]+)"/)?.[1];
+  const toNumber = (value?: string): number | null => {
+    if (value == null) return null;
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  return { matched: toNumber(matchedRaw), returned: toNumber(returnedRaw) };
+}
+
+export function isTruncated(xml: string, limit: number): boolean {
+  const { matched, returned } = parseWfsCounts(xml);
+  if (matched != null && returned != null) return matched > returned;
+  if (returned != null) return returned >= limit;
+  return false;
+}
+
+/** All cadastral parcels near a point, for multi-parcel site assembly. */
+export async function fetchParcelsNear(
+  lat: number,
+  lon: number,
+  radiusM: number = PARCEL_SEARCH_RADIUS_M,
+): Promise<ParcelLookup> {
+  for (const state of statesForPoint(lat, lon)) {
+    const endpoint = ALKIS_ENDPOINTS[state];
+    if (!endpoint || breaker.isOpen(state)) continue;
+
+    // Four decimals (~11 m) on purpose: neighbouring locations in the same
+    // business park then share one cached cadastre response.
+    const key = `alkis:v2:${state}:${radiusM}:${lat.toFixed(4)},${lon.toFixed(4)}`;
+    const hit = cacheGet<ParcelLookup>(key);
+    if (hit) {
+      if (hit.parcels.length > 0) return hit;
+      continue;
+    }
+
+    const fetched = await fetchAlkisXml(endpoint, lat, lon, radiusM);
+    if (fetched === "error") {
+      breaker.recordFailure(state);
+      // A transient service error is not a statement about this location.
+      // Writing it through `cached()` would persist "no parcels here" for a
+      // month, long after the service recovered.
+      continue;
+    }
+    breaker.recordSuccess(state);
+
+    const parcels: ParcelFeature[] = [];
+    if (fetched) {
+      for (const ring of parseExteriorRings(fetched)) {
+        const check = checkRing(ring, { minAreaSqm: 25, maxAreaSqm: 2_000_000 });
+        if (!check.valid) continue;
+        parcels.push({ ring, areaSqm: check.areaSqm, state });
+      }
+    }
+    const result: ParcelLookup = {
+      parcels,
+      state,
+      truncated: fetched ? isTruncated(fetched, PARCEL_REQUEST_LIMIT) : false,
+      reachable: true,
+    };
+    cacheSet(key, result, TTL.cadastre);
+
+    if (result.parcels.length > 0) return result;
+    // Service answered but holds nothing here — try the next candidate state
+    // (the bounding boxes overlap on purpose) before giving up.
   }
-  return c.failCount >= FAIL_THRESHOLD;
+  return { parcels: [], state: null, truncated: false, reachable: false };
 }
 
-function recordFailure(state: string): void {
-  const c = circuits.get(state) ?? { failCount: 0, openUntil: 0 };
-  c.failCount += 1;
-  if (c.failCount >= FAIL_THRESHOLD)
-    c.openUntil = Date.now() + OPEN_DURATION_MS;
-  circuits.set(state, c);
-}
-
-function recordSuccess(state: string): void {
-  circuits.delete(state);
-}
-
-/** Half edge length of the search box around the point (m) — parcels are usually < 100 m. */
-const SEARCH_HALF_M = 60;
-
+/**
+ * Single containing parcel, as a boundary candidate.
+ *
+ * Kept as a thin wrapper over `fetchParcelsNear` so the existing ranking chain
+ * is unchanged. A parcel is legal context, not an operational footprint — the
+ * multi-parcel assembly that turns these into a site lives in the fusion
+ * engine.
+ */
 export async function fromAlkis(
   lat: number,
   lon: number,
 ): Promise<BoundaryResult | null> {
-  for (const state of statesForPoint(lat, lon)) {
-    const endpoint = ALKIS_ENDPOINTS[state];
-    if (!endpoint || isCircuitOpen(state)) continue;
+  const lookup = await fetchParcelsNear(lat, lon);
+  if (lookup.parcels.length === 0) return null;
+  const chosen = pickRingForPoint(
+    lookup.parcels.map((parcel) => parcel.ring),
+    lat,
+    lon,
+  );
+  if (!chosen) return null;
 
-    const key = `alkis:${state}:${lat.toFixed(5)},${lon.toFixed(5)}`;
-    const result = await cached(key, TTL.buildings, async () => {
-      const fetched = await fetchAlkisXml(endpoint, lat, lon);
-      if (fetched === "error") {
-        recordFailure(state);
-        return null;
-      }
-      recordSuccess(state);
-      if (!fetched) return null;
-
-      const rings = parseExteriorRings(fetched).filter(
-        (ring) =>
-          checkRing(ring, { minAreaSqm: 25, maxAreaSqm: 2_000_000 }).valid,
-      );
-      const chosen = pickRingForPoint(rings, lat, lon);
-      if (!chosen) return null;
-
-      const polygon: Polygon = { type: "Polygon", coordinates: [chosen] };
-      return {
-        source: "alkis",
-        role: "parcel",
-        provider: `alkis:${state}`,
-        polygon,
-        areaSqm: polygonAreaSqm(chosen),
-        confidence: 0.9,
-        evidence: {
-          source: "German cadastral service / ALKIS",
-          retrievedAt: new Date().toISOString(),
-          method: "INSPIRE/ALKIS cadastral parcel lookup",
-          confidence: 0.9,
-          fallbackUsed: false,
-          limitations: [
-            "A cadastral parcel is not necessarily the dealership's operational lot",
-          ],
-        },
-      } satisfies BoundaryResult;
-    });
-
-    if (result) return result;
-    // No hit in this state (but service reachable) → next candidate.
-  }
-  return null;
+  const polygon: Polygon = { type: "Polygon", coordinates: [chosen] };
+  return {
+    source: "alkis",
+    role: "parcel",
+    provider: `alkis:${lookup.state ?? "de"}`,
+    polygon,
+    areaSqm: polygonAreaSqm(chosen),
+    confidence: 0.9,
+    evidence: {
+      source: "German cadastral service / ALKIS",
+      retrievedAt: new Date().toISOString(),
+      method: "INSPIRE/ALKIS cadastral parcel lookup",
+      confidence: 0.9,
+      fallbackUsed: false,
+      limitations: [
+        "A cadastral parcel is not necessarily the dealership's operational lot",
+        ...(lookup.truncated
+          ? ["Cadastral response was truncated; nearby parcels may be missing"]
+          : []),
+      ],
+    },
+  } satisfies BoundaryResult;
 }
 
 /** "error" = network/HTTP error (counts toward the circuit breaker); null = reachable, but no hit. */
@@ -240,14 +316,15 @@ async function fetchAlkisXml(
   endpoint: AlkisEndpoint,
   lat: number,
   lon: number,
+  radiusM: number,
 ): Promise<string | null | "error"> {
-  const dLat = SEARCH_HALF_M / 111_320;
-  const dLon = SEARCH_HALF_M / (111_320 * Math.cos((lat * Math.PI) / 180));
+  const dLat = radiusM / 111_320;
+  const dLon = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
   const crsUrn = `urn:ogc:def:crs:EPSG::${endpoint.crs}`;
   const bbox = `${lat - dLat},${lon - dLon},${lat + dLat},${lon + dLon},${crsUrn}`;
   const url =
     `${endpoint.url}?service=WFS&version=2.0.0&request=GetFeature` +
-    `&typeNames=${encodeURIComponent(endpoint.typeName)}&count=20` +
+    `&typeNames=${encodeURIComponent(endpoint.typeName)}&count=${PARCEL_REQUEST_LIMIT}` +
     `&srsName=${crsUrn}&bbox=${encodeURIComponent(bbox)}`;
   try {
     const res = await fetchWithResilience(url, {

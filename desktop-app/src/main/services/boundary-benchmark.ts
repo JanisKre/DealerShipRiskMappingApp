@@ -1,10 +1,14 @@
 import type { BoundaryResult, Polygon } from "@shared/types";
-import {
-  approximatePolygonIoU,
-  distanceToRingM,
-  type LonLat,
-} from "./boundary-geometry";
+import { distanceToRingM, type LonLat } from "./boundary-geometry";
 import { polygonAreaSqm } from "./geo-math";
+import { coveringGrid, rasterizeMaskPolygon } from "./boundary/rasterize";
+
+/**
+ * Benchmark grid resolution. Deliberately finer than the 2 m Boundary-F1
+ * tolerance this evaluator also reports, so the overlap metric can actually
+ * resolve the errors the tolerance metric is measuring.
+ */
+export const BENCHMARK_RESOLUTION_M = 0.5;
 
 export interface BoundaryBenchmarkSample {
   id: string;
@@ -14,8 +18,15 @@ export interface BoundaryBenchmarkSample {
   predictedConfidence?: number;
 }
 
+export interface BoundaryBenchmarkOptions {
+  dataset?: string;
+  /** Grid cell size for the overlap metrics. */
+  resolutionM?: number;
+}
+
 export interface BoundaryBenchmarkResult {
   dataset: string;
+  resolutionM: number;
   evaluatedSamples: number;
   meanIoU: number;
   meanBoundaryF1: number;
@@ -45,11 +56,14 @@ export interface BoundaryCalibration {
  */
 export function evaluateBoundaryBenchmark(
   samples: BoundaryBenchmarkSample[],
-  dataset = "dealership-boundary-v1",
+  options: BoundaryBenchmarkOptions = {},
 ): BoundaryBenchmarkResult {
+  const dataset = options.dataset ?? "dealership-boundary-v1";
+  const resolutionM = options.resolutionM ?? BENCHMARK_RESOLUTION_M;
   if (samples.length === 0) {
     return {
       dataset,
+      resolutionM,
       evaluatedSamples: 0,
       meanIoU: 0,
       meanBoundaryF1: 0,
@@ -62,12 +76,15 @@ export function evaluateBoundaryBenchmark(
     };
   }
 
-  const evaluations = samples.map((sample) => evaluateSample(sample));
+  const evaluations = samples.map((sample) =>
+    evaluateSample(sample, resolutionM),
+  );
   const confidencePairs = evaluations.filter(
     (evaluation) => evaluation.confidence != null,
   );
   return {
     dataset,
+    resolutionM,
     evaluatedSamples: samples.length,
     meanIoU: round(mean(evaluations.map((evaluation) => evaluation.iou))),
     meanBoundaryF1: round(
@@ -92,29 +109,68 @@ export function evaluateBoundaryBenchmark(
   };
 }
 
-function evaluateSample(sample: BoundaryBenchmarkSample): {
+function evaluateSample(
+  sample: BoundaryBenchmarkSample,
+  resolutionM: number,
+): {
   iou: number;
   boundaryF1: number;
   coverage: number;
   areaBias: number;
   confidence?: number;
 } {
-  const iou = approximatePolygonIoU(sample.reference, sample.predicted);
-  const referenceArea = polygonAreaSqm(
-    sample.reference.coordinates[0] as LonLat[],
+  const referenceRing = sample.reference.coordinates[0] as LonLat[];
+  const predictedRing = sample.predicted.coordinates[0] as LonLat[];
+  const referenceArea = polygonAreaSqm(referenceRing);
+  const predictedArea = polygonAreaSqm(predictedRing);
+
+  // IoU and coverage are measured on one shared raster rather than derived
+  // algebraically from IoU. The old derivation assumed a relationship between
+  // intersection and union that only holds exactly, which made coverage a
+  // restatement of IoU instead of an independent signal.
+  const { iou, coverage } = overlapMetrics(
+    referenceRing,
+    predictedRing,
+    resolutionM,
   );
-  const predictedArea = polygonAreaSqm(
-    sample.predicted.coordinates[0] as LonLat[],
-  );
-  const intersectionArea =
-    iou === 0 ? 0 : (iou * (referenceArea + predictedArea)) / (1 + iou);
-  const coverage = referenceArea === 0 ? 0 : intersectionArea / referenceArea;
+
   return {
     iou,
     boundaryF1: boundaryF1AtTolerance(sample.reference, sample.predicted, 2),
-    coverage: Math.min(1, Math.max(0, coverage)),
+    coverage,
     areaBias: referenceArea === 0 ? 0 : predictedArea / referenceArea - 1,
     confidence: sample.predictedConfidence,
+  };
+}
+
+function overlapMetrics(
+  referenceRing: LonLat[],
+  predictedRing: LonLat[],
+  resolutionM: number,
+): { iou: number; coverage: number } {
+  if (referenceRing.length < 4 || predictedRing.length < 4) {
+    return { iou: 0, coverage: 0 };
+  }
+  const { spec } = coveringGrid([referenceRing, predictedRing], resolutionM);
+  const cells = spec.cols * spec.rows;
+  const referenceMask = new Uint8Array(cells);
+  const predictedMask = new Uint8Array(cells);
+  rasterizeMaskPolygon(spec, referenceRing, referenceMask);
+  rasterizeMaskPolygon(spec, predictedRing, predictedMask);
+
+  let intersection = 0;
+  let union = 0;
+  let referenceCells = 0;
+  for (let i = 0; i < cells; i += 1) {
+    const inReference = referenceMask[i] !== 0;
+    const inPredicted = predictedMask[i] !== 0;
+    if (inReference) referenceCells += 1;
+    if (inReference && inPredicted) intersection += 1;
+    if (inReference || inPredicted) union += 1;
+  }
+  return {
+    iou: union === 0 ? 0 : intersection / union,
+    coverage: referenceCells === 0 ? 0 : intersection / referenceCells,
   };
 }
 

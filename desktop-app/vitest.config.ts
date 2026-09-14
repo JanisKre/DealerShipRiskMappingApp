@@ -20,11 +20,14 @@ export default defineConfig({
         "src/renderer/src/components/ui/**",
         "src/renderer/src/main.tsx",
       ],
+      // Raised with the boundary fusion work (measured 70.6/62.2/68.8/59.8).
+      // Headroom is deliberate: these are a ratchet against regression, not a
+      // target to sit exactly on.
       thresholds: {
-        lines: 50,
-        functions: 45,
-        statements: 48,
-        branches: 35,
+        lines: 62,
+        functions: 55,
+        statements: 61,
+        branches: 50,
       },
     },
   },

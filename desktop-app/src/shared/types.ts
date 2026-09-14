@@ -100,6 +100,8 @@ export const BoundarySourceSchema = z.enum([
   "osm",
   "overture",
   "aerial",
+  /** Multi-source evidence fusion — the union several sources each describe partly. */
+  "fused",
   "synthetic",
   "manual",
 ]);
@@ -123,7 +125,39 @@ export const BoundaryPointRelationSchema = z.enum([
 ]);
 export type BoundaryPointRelation = z.infer<typeof BoundaryPointRelationSchema>;
 
-/** Explainable quality signals used for ranking and underwriting review. */
+/**
+ * One evidence source's contribution to a fused boundary. Kept per-layer so a
+ * reviewer can see *why* a polygon has the shape it has, and which sources were
+ * unavailable when it was produced.
+ */
+export const BoundaryEvidenceLayerSchema = z.object({
+  /** Stable slug, e.g. "osm-fence", "alkis-parcel", "yolo-vehicles". */
+  layer: z.string().min(1).max(48),
+  source: z.string().min(1).max(120),
+  /** Signed score weight applied per covered cell; barriers use 0. */
+  weight: z.number(),
+  /** Grid cells this layer touched — 0 means "queried but contributed nothing". */
+  cells: z.number().nonnegative(),
+  available: z.boolean(),
+  limitation: z.string().max(200).optional(),
+});
+export type BoundaryEvidenceLayer = z.infer<typeof BoundaryEvidenceLayerSchema>;
+
+/** Why region growing stopped; anything but "exhausted" means the lot was truncated. */
+export const BoundaryGrowthStopSchema = z.enum([
+  "exhausted",
+  "areaCap",
+  "radiusCap",
+]);
+export type BoundaryGrowthStop = z.infer<typeof BoundaryGrowthStopSchema>;
+
+/**
+ * Explainable quality signals used for ranking and underwriting review.
+ *
+ * Everything below `reasons` is produced only by the fusion engine and is
+ * therefore optional: sessions saved by earlier versions must keep parsing
+ * unchanged, and the review rule must not fire on a field that is simply absent.
+ */
 export const BoundaryQualitySchema = z.object({
   geometryValid: z.boolean(),
   pointRelation: BoundaryPointRelationSchema,
@@ -133,6 +167,20 @@ export const BoundaryQualitySchema = z.object({
   boundaryFit: z.number().min(0).max(1),
   top2Margin: z.number().min(0).max(1).optional(),
   reasons: z.array(z.string()).default([]),
+  /** Per-source contributions to the fused geometry. */
+  layers: z.array(BoundaryEvidenceLayerSchema).max(32).optional(),
+  /** Bumped whenever fusion scoring changes, so cached results can be retired. */
+  fusionVersion: z.number().int().nonnegative().optional(),
+  /** Share of the outline backed by a physical or legal edge, not a colour threshold. */
+  barrierSupport: z.number().min(0).max(1).optional(),
+  /** Distance between the geocoded anchor and the growth seed. */
+  anchorShiftM: z.number().nonnegative().optional(),
+  cadastreSnapped: z.boolean().optional(),
+  parcelCount: z.number().int().nonnegative().optional(),
+  vehiclesInside: z.number().int().nonnegative().optional(),
+  /** Vehicles just outside the ring — a strong sign the lot was clipped. */
+  vehiclesOutsideNearby: z.number().int().nonnegative().optional(),
+  stoppedBy: BoundaryGrowthStopSchema.optional(),
 });
 export type BoundaryQuality = z.infer<typeof BoundaryQualitySchema>;
 
@@ -268,27 +316,6 @@ export const DetectionResultSchema = z.object({
 });
 export type DetectionResult = z.infer<typeof DetectionResultSchema>;
 
-// --- Temporal change (two-point-in-time comparison of vehicle detection) --
-
-export const TemporalChangeResultSchema = z.object({
-  fromDate: z.string(), // ISO date (YYYY-MM-DD) of the earlier aerial image
-  toDate: z.string(), // ISO date of the later aerial image
-  fromCount: z.number().int().nonnegative(),
-  toCount: z.number().int().nonnegative(),
-  deltaCount: z.number().int(), // toCount - fromCount (can be negative)
-  deltaPct: z.number().nullable(), // relative to fromCount; null if fromCount = 0
-  classDeltas: z.object({
-    car: z.number().int(),
-    van: z.number().int(),
-    truck: z.number().int(),
-    bus: z.number().int(),
-  }),
-  fromConfidence: z.number().min(0).max(1),
-  toConfidence: z.number().min(0).max(1),
-  provider: z.string(), // tile source used (for traceability)
-});
-export type TemporalChangeResult = z.infer<typeof TemporalChangeResultSchema>;
-
 export const PerilScoreSchema = z.object({
   peril: PerilSchema,
   score: z.number().min(0).max(100),
@@ -413,6 +440,28 @@ export const RiskParametersSchema = z.object({
   boundaryNearPointDistanceM: z.number().nonnegative(),
   syntheticBoundaryRadiusM: z.number().positive(),
   detectionConfidence: z.number().min(0).max(1),
+  // --- Boundary fusion engine -------------------------------------------
+  // These carry Zod defaults on purpose: every stored session is re-parsed
+  // with this schema, so a new *required* field would break loading every
+  // portfolio saved before this release.
+  /** Evidence raster cell size. 0.5 m matches z18 imagery at German latitudes. */
+  boundaryGridResolutionM: z.number().positive().default(0.5),
+  /** Square evidence window around the anchor. */
+  boundaryGridExtentM: z.number().positive().default(400),
+  /** A grown region must contain at least one cell at or above this score. */
+  boundaryGrowHighThreshold: z.number().default(0.6),
+  /** Growth continues through cells at or above this score (hysteresis). */
+  boundaryGrowLowThreshold: z.number().default(0.15),
+  /** Hard area cap; hitting it flags the result for review. */
+  boundaryMaxAreaSqm: z.number().positive().default(200_000),
+  /** Share of a cadastral parcel that must be covered before it is snapped in. */
+  boundaryParcelSnapOverlap: z.number().min(0).max(1).default(0.6),
+  /** Scales how strongly detected vehicles pull the boundary outwards. */
+  boundaryVehicleEvidenceWeight: z.number().nonnegative().default(1),
+  /** Below this share of barrier-backed outline the result needs review. */
+  boundaryBarrierSupportReview: z.number().min(0).max(1).default(0.35),
+  /** Segments within this angle of the dominant axis are snapped square. */
+  boundaryRegularizeAngleToleranceDeg: z.number().min(0).max(45).default(12),
 });
 export type RiskParameters = z.infer<typeof RiskParametersSchema>;
 
@@ -464,6 +513,13 @@ export const SettingsSchema = z.object({
   satelliteProvider: z.enum(["esri", "wms"]).optional(),
   /** XYZ/WMS tile template with {z}/{x}/{y} placeholders (for provider 'wms'). */
   wmsTileUrl: z.string().optional(),
+  /**
+   * Lot boundary engine. "legacy" ranks candidate polygons and picks one;
+   * "fused" rasterizes every source into one evidence grid and grows the site
+   * out of the combination. Defaults to legacy until the fused engine beats it
+   * on the hold-out stratum of the public benchmark.
+   */
+  boundaryEngine: z.enum(["legacy", "fused"]).optional(),
   /** Install wizard for the vehicle detection model permanently dismissed. */
   modelWizardDismissed: z.boolean().optional(),
   /** First-run installation wizard completed by the user. */
@@ -584,14 +640,6 @@ export const StructuredMemoSchema = z.object({
   reasoning: z.string(),
 });
 export type StructuredMemo = z.infer<typeof StructuredMemoSchema>;
-
-// Boundary refinement suggestion
-export const BoundarySuggestionSchema = z.object({
-  recommendedAction: z.enum(["keep", "use-alkis", "expand", "manual-review"]),
-  expandMeters: z.number().optional(),
-  reasoning: z.string(),
-});
-export type BoundarySuggestion = z.infer<typeof BoundarySuggestionSchema>;
 
 // NL query: filter expression (recursive), produced by the LLM, applied deterministically
 export type NlQueryFilter =
