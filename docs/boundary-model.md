@@ -253,6 +253,67 @@ The baseline numbers have not moved yet: the engine that produces them is still
 at each site, so a run made during an outage is visible as such rather than
 being mistaken for a regression.
 
+## Cadastral snapping
+
+When the grown region and the cadastre describe the same place, the fused
+outline is replaced by the **union of the parcels the site occupies**. The
+grown region knows where the operational site is; the cadastre knows where the
+legal edges are, and surveyed edges beat a 0.5 m raster staircase.
+
+Assembly (`boundary/parcel-assembly.ts`) is two-stage:
+
+1. **Anchors** — parcels containing the geocoded point, plus parcels covering a
+   real share of the mapped footprint.
+2. **Expansion** — grow along *shared boundaries* onto parcels that carry their
+   own supporting evidence. A parcel with no evidence is never added, however
+   adjacent; that is what stops a site running away across a business park.
+
+The union is adopted only if it overlaps the fused shape by at least
+`boundaryParcelSnapOverlap`, and never when the cadastral response was
+truncated — which parcels are missing is arbitrary, so the union would be too.
+
+### Two things learned building it
+
+**`@turf/intersect` cannot detect adjacency.** Two parcels that abut share a
+boundary of zero area, and intersecting zero-area geometry returns null. Used
+naively it reports every neighbour as non-adjacent while appearing to work.
+Shared boundary length is therefore measured by sampling
+(`sharedBoundaryLengthM`), with a 0.5 m tolerance — neighbouring parcels are
+digitised independently and their shared edge is rarely coordinate-identical.
+
+**Size ratios need a carve-out for showrooms.** A parcel far larger than the
+mapped footprint is normally wrong, but when OSM maps only the showroom
+building (under ~1,000 m²) the true compound can legitimately be far bigger.
+A single tight ratio rejects correct parcels exactly where evidence is thinnest,
+so the limit relaxes to 25x below that threshold.
+
+## Verified negative results
+
+Recorded so they are not rediscovered. Both were probed live on 14 Sep 2026.
+
+**A 16-state ALKIS endpoint table does not work.** A predecessor project
+(`JanisKre/DealerShipRiskMapping`) carried direct state ALKIS WFS endpoints for
+all 16 states. Probed live, **16 of 16 failed** — mostly HTTP 404, plus 400,
+403, a service exception, a dead connection, and one service that answered with
+no geometry. The seven INSPIRE endpoints this project uses were re-verified
+through the same harness and all returned parcels, so the harness was sound.
+Extending coverage to the remaining nine states needs real service discovery
+via the GDI-DE / INSPIRE catalogue, not a copied table.
+
+**`CQL_FILTER=INTERSECTS(...)` is silently ignored.** A point in the North Sea
+returns the same parcels as an unfiltered request. It answers HTTP 200 with
+plausible data, which makes it more dangerous than an outright rejection: any
+logic built on "a direct INTERSECTS hit identifies the property" would be
+quietly meaningless. BBOX is the only spatial filter these services honour, so
+containment is decided client-side and reported as `containsAnchor`.
+
+**Copernicus HRL Imperviousness WCS is not reachable** at
+`land.copernicus.eu/wcs` — it returns the marketing site with HTTP 404. The
+imperviousness layer remains the single most attractive addition to the
+evidence raster (10 m sealed-surface percentage, Europe-wide, directly measures
+what the colour heuristic only approximates), but it needs a working endpoint
+first.
+
 ## Limitations
 
 - The engine produces a **screening estimate**, not a survey. It must not be

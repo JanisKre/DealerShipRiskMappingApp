@@ -28,3 +28,8 @@ Ground truth derived from manual boundary corrections is customer-derived and
 is **never** committed. It is produced locally by
 `scripts/export-boundary-groundtruth.mjs`, which refuses to write anywhere
 inside the git working tree, and `*.local.json` is additionally gitignored.
+
+## Dependencies added for cadastral assembly
+
+`@turf/union` and `@turf/intersect` (MIT), used to union the parcels a
+dealership occupies. `npm audit` reports 0 vulnerabilities.

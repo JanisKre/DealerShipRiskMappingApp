@@ -8,6 +8,7 @@ import type {
 import { checkRing, type LonLat } from "../boundary-geometry";
 import { createGrid, maskAreaSqm, type EvidenceGrid } from "./grid";
 import {
+  polygonRasterIoU,
   rasterizeBarrier,
   rasterizeDisk,
   rasterizePolygon,
@@ -25,6 +26,10 @@ import {
 import { maskToPolygon } from "./vectorize";
 import type { EvidenceArea, EvidenceLine, OsmEvidence } from "./osm-overpass";
 import type { ParcelFeature } from "../alkis.service";
+import {
+  assembleSiteFromParcels,
+  type AssemblyResult,
+} from "./parcel-assembly";
 
 /**
  * Evidence fusion: the step that replaces "rank the candidate polygons and keep
@@ -80,6 +85,8 @@ export interface FusionBundle {
 
 export interface FusionOutcome {
   polygon: Polygon;
+  /** Set when the fused shape was replaced by a cadastral parcel union. */
+  cadastre?: AssemblyResult;
   /**
    * Area from the **mask**, not the ring. The ring carries only an outer
    * boundary, so an unfilled interior void would otherwise be counted as lot.
@@ -402,9 +409,51 @@ export function fuseBoundary(
     (seed.row - grid.spec.rows / 2) * grid.spec.resolutionM,
   );
 
+  // Snap to the cadastre when it agrees. The grown region knows where the
+  // *operational* site is; the cadastre knows where the *legal* edges are.
+  // Taking the parcel union gives surveyed edges instead of a 0.5 m raster
+  // staircase — but only if it describes the same place, so a parcel layout
+  // that disagrees with the evidence is discarded rather than imposed.
+  const fusedPolygon: Polygon = {
+    type: "Polygon",
+    coordinates: [vector.ring],
+  };
+  let polygon = fusedPolygon;
+  let areaSqm = maskAreaSqm(grid.spec, mask);
+  let cadastre: AssemblyResult | undefined;
+
+  if (!bundle.parcelsTruncated && bundle.parcels.length > 0) {
+    const assembled = assembleSiteFromParcels(bundle.parcels, bundle.anchor, {
+      footprint: fusedPolygon,
+      supporting: (bundle.osm?.areas ?? [])
+        .filter((a) => a.kind === "dealerArea" || a.kind === "parking")
+        .map((a) => ({ type: "Polygon", coordinates: [a.ring] }) as Polygon),
+    });
+    if (assembled) {
+      const agreement = polygonRasterIoU(
+        assembled.polygon,
+        fusedPolygon,
+        parameters.boundaryGridResolutionM,
+      );
+      if (agreement >= parameters.boundaryParcelSnapOverlap) {
+        polygon = assembled.polygon;
+        areaSqm = assembled.areaSqm;
+        cadastre = assembled;
+        reasons.push(...assembled.reasons);
+      } else {
+        reasons.push(
+          `cadastral union rejected: ${agreement.toFixed(2)} overlap with the fused site`,
+        );
+      }
+    }
+  } else if (bundle.parcelsTruncated) {
+    reasons.push("cadastral response was truncated; snapping skipped");
+  }
+
   return {
-    polygon: { type: "Polygon", coordinates: [vector.ring] },
-    areaSqm: maskAreaSqm(grid.spec, mask),
+    polygon,
+    areaSqm,
+    ...(cadastre ? { cadastre } : {}),
     layers,
     stoppedBy: grown.stoppedBy,
     confirmed: grown.confirmed,

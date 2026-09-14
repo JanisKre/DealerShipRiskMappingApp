@@ -76,6 +76,21 @@ the project follows [Semantic Versioning](https://semver.org/).
   circuit breaker so a failing one is skipped rather than retried on every
   request.
 
+### Added
+
+- Cadastral snapping: when the grown region and the cadastre agree, the fused
+  outline is replaced by the union of the parcels the site actually occupies.
+  Assembly anchors on parcels containing the reference point or covering the
+  mapped footprint, then expands along shared boundaries onto parcels carrying
+  their own evidence — never onto unevidenced neighbours, however adjacent.
+  Adjacency is measured as shared boundary length, because `@turf/intersect`
+  returns null for abutting parcels (a shared edge has zero area) and would
+  report every neighbour as non-adjacent while appearing to work.
+- Cadastral lookups now report whether the reference point actually falls
+  inside a returned parcel (`containsAnchor`). A parcel containing the point
+  identifies the property; the nearest parcel is a guess that happens to be
+  close, and the two were previously indistinguishable.
+
 ### Fixed
 
 - The OSM lookup that finds dealership lots never returned anything. Its

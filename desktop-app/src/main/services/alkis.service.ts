@@ -13,6 +13,28 @@ import { createCircuitBreaker } from "./boundary/circuit-breaker";
  * ALKIS cadastral parcels (official lot boundaries) via the open
  * WFS services of the German federal states.
  *
+ * ENDPOINT AND FILTER FINDINGS (verified live, 14 Sep 2026)
+ * --------------------------------------------------------
+ * Two things were tested and did NOT work; both are recorded here so nobody
+ * spends the afternoon rediscovering them.
+ *
+ * 1. A predecessor project carried a table of direct state ALKIS WFS endpoints
+ *    covering all 16 states (`adv:AX_Flurstueck` and friends). Probed live,
+ *    16 of 16 failed: HTTP 404 for Berlin, Hamburg, Bremen, Bayern, BW,
+ *    Niedersachsen, Brandenburg, MV, Sachsen-Anhalt and RLP; 400 for NRW and
+ *    Saarland; 403 for Sachsen; a service exception for Hessen; a dead
+ *    connection for SH; and Thüringen answered but returned no geometry. The
+ *    seven INSPIRE endpoints below were re-verified through the same harness
+ *    and all returned parcels, so the harness was sound and that table is
+ *    simply stale.
+ *
+ * 2. `CQL_FILTER=INTERSECTS(geom, POINT(...))` is **silently ignored** by these
+ *    services. A point in the North Sea returns the same features as an
+ *    unfiltered request. The filter appears to work — it answers 200 with
+ *    plausible data — which makes it worse than an outright rejection. BBOX is
+ *    the only spatial filter these endpoints honour, so "which parcel contains
+ *    this point" is decided client-side, in `pickRingForPoint`.
+ *
  * The state is determined **offline** via bounding box from the coordinate
  * (no reverse-geocoding call needed anymore, no single point of failure).
  *
@@ -184,6 +206,11 @@ export interface ParcelLookup {
   truncated: boolean;
   /** True when at least one state service answered, even if it had no parcels. */
   reachable: boolean;
+  /**
+   * True when the geocoded point falls inside one of the returned parcels.
+   * False means the nearest parcel was taken instead, which is a weaker claim.
+   */
+  containsAnchor: boolean;
 }
 
 /**
@@ -256,6 +283,7 @@ export async function fetchParcelsNear(
       state,
       truncated: fetched ? isTruncated(fetched, PARCEL_REQUEST_LIMIT) : false,
       reachable: true,
+      containsAnchor: parcelContainsPoint(parcels, lat, lon),
     };
     cacheSet(key, result, TTL.cadastre);
 
@@ -263,7 +291,13 @@ export async function fetchParcelsNear(
     // Service answered but holds nothing here — try the next candidate state
     // (the bounding boxes overlap on purpose) before giving up.
   }
-  return { parcels: [], state: null, truncated: false, reachable: false };
+  return {
+    parcels: [],
+    state: null,
+    truncated: false,
+    reachable: false,
+    containsAnchor: false,
+  };
 }
 
 /**
@@ -306,6 +340,9 @@ export async function fromAlkis(
         ...(lookup.truncated
           ? ["Cadastral response was truncated; nearby parcels may be missing"]
           : []),
+        ...(lookup.containsAnchor
+          ? []
+          : ["Reference point lies outside every returned parcel"]),
       ],
     },
   } satisfies BoundaryResult;
@@ -369,6 +406,26 @@ export function parseExteriorRings(xml: string): [number, number][][] {
     rings.push(ring);
   }
   return rings;
+}
+
+/**
+ * Whether the geocoded point actually falls inside one of the parcels.
+ *
+ * This is a real confidence signal and the two cases must not be conflated: a
+ * parcel *containing* the point identifies the property, whereas the *nearest*
+ * parcel is a guess that happens to be close. The services will not make this
+ * distinction for us (their spatial filter is ignored — see the header), so it
+ * is made here.
+ */
+export function parcelContainsPoint(
+  parcels: ParcelFeature[],
+  lat: number,
+  lon: number,
+): boolean {
+  const pt = turfPoint([lon, lat]);
+  return parcels.some((parcel) =>
+    booleanPointInPolygon(pt, { type: "Polygon", coordinates: [parcel.ring] }),
+  );
 }
 
 /** Picks a containing ring; nearest rings are accepted only within 35 m. */
