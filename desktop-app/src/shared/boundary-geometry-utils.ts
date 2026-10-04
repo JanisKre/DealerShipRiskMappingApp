@@ -1,5 +1,8 @@
 import type { BoundaryGeometry, Polygon } from "./types";
-import area from "@turf/area";
+// Named import: in the main-process CJS bundle the default import compiles to
+// `require("@turf/area")` — the module object, not the function — so every
+// area computation threw "area is not a function" (see geo-math.ts).
+import { area } from "@turf/area";
 
 export type LonLat = [number, number];
 export type Ring = LonLat[];

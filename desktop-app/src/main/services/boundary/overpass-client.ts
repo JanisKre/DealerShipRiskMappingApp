@@ -83,14 +83,56 @@ export function resetOverpassCircuits(): void {
   breaker.reset();
 }
 
+/** Below this much remaining budget another mirror attempt is not worth starting. */
+const MIN_ATTEMPT_MS = 2_000;
+
+export interface FetchOverpassOptions {
+  /**
+   * Overall time budget across every mirror and pass. Without one, a run of
+   * stalled mirrors costs up to 4 × 2 × `ATTEMPT_TIMEOUT_MS` — fine for the
+   * boundary evidence the analysis cannot do without, far too long for an
+   * optional refinement such as roof masking.
+   */
+  budgetMs?: number;
+}
+
+/**
+ * Reads the JSON body within `timeoutMs`. `fetchWithResilience` bounds the
+ * request only until the headers arrive; Overpass often sends those at once
+ * and then streams the result slowly, or stalls mid-body.
+ */
+async function readJsonWithin<T>(res: Response, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      void res.body?.cancel().catch(() => undefined);
+      reject(new Error("Overpass response body timed out"));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([res.json() as Promise<T>, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function fetchOverpass<T>(
   query: string,
+  options: FetchOverpassOptions = {},
 ): Promise<{ elements: T[] } | null> {
   const useGet = query.length <= MAX_GET_QUERY_CHARS;
+  const deadline =
+    options.budgetMs != null ? Date.now() + options.budgetMs : Infinity;
 
   for (let pass = 0; pass < MIRROR_PASSES; pass += 1) {
     for (const url of OVERPASS_ENDPOINTS) {
       if (breaker.isOpen(url)) continue;
+      const remainingMs = deadline - Date.now();
+      // Out of budget is "could not ask", like every mirror failing — callers
+      // already treat null that way and must not cache it.
+      if (remainingMs < MIN_ATTEMPT_MS) return null;
+      const attemptStart = Date.now();
+      const attemptTimeoutMs = Math.min(ATTEMPT_TIMEOUT_MS, remainingMs);
       try {
         const res = await fetchWithResilience(
           useGet ? `${url}?${new URLSearchParams({ data: query })}` : url,
@@ -105,7 +147,7 @@ export async function fetchOverpass<T>(
                 body: query,
               },
           // One attempt per mirror; the mirror list provides the redundancy.
-          { retries: 0, timeoutMs: ATTEMPT_TIMEOUT_MS },
+          { retries: 0, timeoutMs: attemptTimeoutMs },
         );
         if (res.status === 429) {
           // The public instances rate-limit by IP. Retrying in 250 ms — which
@@ -121,8 +163,13 @@ export async function fetchOverpass<T>(
           breaker.recordFailure(url);
           continue;
         }
+        // The body shares the attempt's budget with the headers.
+        const data = await readJsonWithin<{ elements: T[] }>(
+          res,
+          Math.max(0, attemptTimeoutMs - (Date.now() - attemptStart)),
+        );
         breaker.recordSuccess(url);
-        return (await res.json()) as { elements: T[] };
+        return data;
       } catch {
         breaker.recordFailure(url);
       }
