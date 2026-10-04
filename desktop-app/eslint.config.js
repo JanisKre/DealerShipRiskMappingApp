@@ -16,6 +16,23 @@ module.exports = tseslint.config(
     },
   },
   {
+    files: ["src/main/**/*.ts", "src/shared/**/*.ts"],
+    rules: {
+      // Im CJS-Bundle des Main-Prozesses wird ein Default-Import von
+      // @turf/area zu require(...) — dem Modulobjekt statt der Funktion
+      // ("area is not a function"). Unit-Tests (ESM) sehen das nicht.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "ImportDeclaration[source.value='@turf/area'] > ImportDefaultSpecifier",
+          message:
+            "Use the named import `{ area }` from @turf/area; the default import breaks in the main-process CJS bundle.",
+        },
+      ],
+    },
+  },
+  {
     rules: {
       // Präfix-Konvention für bewusst ungenutzte Parameter/Variablen (z. B. Callback-Signaturen).
       "@typescript-eslint/no-unused-vars": [

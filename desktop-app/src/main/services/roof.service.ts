@@ -24,6 +24,13 @@ interface OverpassWay {
 }
 
 /**
+ * Overall Overpass budget for the roof lookup. Roof masking only refines the
+ * exposure ratio and has a conservative fallback, so it must not hold the
+ * whole analysis hostage while the public mirrors are slow.
+ */
+const ROOF_LOOKUP_BUDGET_MS = 20_000;
+
+/**
  * Built-over area share (0..1) of the lot. When building data is missing
  * or an error occurs, 0 is returned (no masking — conservative).
  */
@@ -39,8 +46,12 @@ export async function roofCoverageRatio(
       [out:json][timeout:15];
       way(${s},${w},${n},${e})["building"];
       out geom;`;
-    const data = await fetchOverpass<OverpassWay>(query);
-    if (!data) return 0;
+    const data = await fetchOverpass<OverpassWay>(query, {
+      budgetMs: ROOF_LOOKUP_BUDGET_MS,
+    });
+    // Throw rather than return 0: `cached()` would otherwise persist "could
+    // not ask" as "no buildings here" for the whole TTL.
+    if (!data) throw new Error("Overpass unavailable for roof lookup");
 
     const parcel = { type: "Feature" as const, properties: {}, geometry: boundary.polygon };
     let roofArea = 0;
@@ -62,7 +73,7 @@ export async function roofCoverageRatio(
 
     // Cap at the lot area (buildings can extend beyond the edge).
     return Math.min(1, roofArea / boundary.areaSqm);
-  });
+  }).catch(() => 0);
 
   return ratio ?? 0;
 }
