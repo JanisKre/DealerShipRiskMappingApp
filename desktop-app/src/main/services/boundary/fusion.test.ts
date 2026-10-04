@@ -10,6 +10,7 @@ import {
   type FusionBundle,
 } from "./fusion";
 import { polygonRasterIoU } from "./rasterize";
+import { cellIndex, lonLatToCell } from "./grid";
 import { unprojectPoint, ringAreaSqm, type LonLat } from "../boundary-geometry";
 import type { OsmEvidence } from "./osm-overpass";
 import type { Polygon } from "@shared/types";
@@ -39,7 +40,7 @@ function rect(
 }
 
 function emptyOsm(): OsmEvidence {
-  return { areas: [], lines: [], addressNodes: [] };
+  return { areas: [], lines: [], addressNodes: [], namedPlaces: [] };
 }
 
 function bundle(patch: Partial<FusionBundle> = {}): FusionBundle {
@@ -98,8 +99,20 @@ describe("buildEvidenceGrid", () => {
       bundle({
         osm: {
           areas: [
-            { kind: "dealerArea", ring: rect(0, 0, 40, 25), tags: {}, osmType: "way", osmId: 1 },
-            { kind: "building", ring: rect(0, 0, 10, 8), tags: {}, osmType: "way", osmId: 2 },
+            {
+              kind: "dealerArea",
+              ring: rect(0, 0, 40, 25),
+              tags: {},
+              osmType: "way",
+              osmId: 1,
+            },
+            {
+              kind: "building",
+              ring: rect(0, 0, 10, 8),
+              tags: {},
+              osmType: "way",
+              osmId: 2,
+            },
           ],
           lines: [],
           addressNodes: [],
@@ -137,15 +150,33 @@ describe("buildEvidenceGrid", () => {
   });
 
   it("blocks cells along a road but not along a parking aisle", () => {
-    const road = [unprojectPoint([-100, 40], ANCHOR), unprojectPoint([100, 40], ANCHOR)];
-    const aisle = [unprojectPoint([-100, 0], ANCHOR), unprojectPoint([100, 0], ANCHOR)];
+    const road = [
+      unprojectPoint([-100, 40], ANCHOR),
+      unprojectPoint([100, 40], ANCHOR),
+    ];
+    const aisle = [
+      unprojectPoint([-100, 0], ANCHOR),
+      unprojectPoint([100, 0], ANCHOR),
+    ];
     const { grid } = buildEvidenceGrid(
       bundle({
         osm: {
           areas: [],
           lines: [
-            { kind: "publicRoad", line: road, halfWidthM: 3, tags: {}, osmId: 1 },
-            { kind: "serviceAisle", line: aisle, halfWidthM: 3, tags: {}, osmId: 2 },
+            {
+              kind: "publicRoad",
+              line: road,
+              halfWidthM: 3,
+              tags: {},
+              osmId: 1,
+            },
+            {
+              kind: "serviceAisle",
+              line: aisle,
+              halfWidthM: 3,
+              tags: {},
+              osmId: 2,
+            },
           ],
           addressNodes: [],
         },
@@ -178,19 +209,46 @@ describe("fuseBoundary", () => {
       bundle({
         osm: {
           areas: [
-            { kind: "parking", ring: rect(-20, 0, 20, 30), tags: {}, osmType: "way", osmId: 1 },
-            { kind: "dealerArea", ring: rect(10, 0, 30, 28), tags: { name: "Autohaus Brinkmann" }, osmType: "way", osmId: 2 },
-            { kind: "building", ring: rect(20, 15, 12, 10), tags: {}, osmType: "way", osmId: 3 },
+            {
+              kind: "parking",
+              ring: rect(-20, 0, 20, 30),
+              tags: {},
+              osmType: "way",
+              osmId: 1,
+            },
+            {
+              kind: "dealerArea",
+              ring: rect(10, 0, 30, 28),
+              tags: { name: "Autohaus Brinkmann" },
+              osmType: "way",
+              osmId: 2,
+            },
+            {
+              kind: "building",
+              ring: rect(20, 15, 12, 10),
+              tags: {},
+              osmType: "way",
+              osmId: 3,
+            },
           ],
           lines: [
             {
               kind: "publicRoad",
-              line: [unprojectPoint([-120, 45], ANCHOR), unprojectPoint([120, 45], ANCHOR)],
+              line: [
+                unprojectPoint([-120, 45], ANCHOR),
+                unprojectPoint([120, 45], ANCHOR),
+              ],
               halfWidthM: 5,
               tags: { highway: "secondary" },
               osmId: 4,
             },
-            { kind: "barrier", line: fence, halfWidthM: 0, tags: { barrier: "fence" }, osmId: 5 },
+            {
+              kind: "barrier",
+              line: fence,
+              halfWidthM: 0,
+              tags: { barrier: "fence" },
+              osmId: 5,
+            },
           ],
           addressNodes: [],
         },
@@ -215,14 +273,29 @@ describe("fuseBoundary", () => {
       bundle({
         osm: {
           areas: [
-            { kind: "dealerArea", ring: rect(0, -30, 40, 25), tags: {}, osmType: "way", osmId: 1 },
+            {
+              kind: "dealerArea",
+              ring: rect(0, -30, 40, 25),
+              tags: {},
+              osmType: "way",
+              osmId: 1,
+            },
             // A second, unrelated lot on the far side of the road.
-            { kind: "dealerArea", ring: rect(0, 40, 40, 25), tags: {}, osmType: "way", osmId: 2 },
+            {
+              kind: "dealerArea",
+              ring: rect(0, 40, 40, 25),
+              tags: {},
+              osmType: "way",
+              osmId: 2,
+            },
           ],
           lines: [
             {
               kind: "publicRoad",
-              line: [unprojectPoint([-150, 6], ANCHOR), unprojectPoint([150, 6], ANCHOR)],
+              line: [
+                unprojectPoint([-150, 6], ANCHOR),
+                unprojectPoint([150, 6], ANCHOR),
+              ],
               halfWidthM: 5,
               tags: { highway: "primary" },
               osmId: 3,
@@ -263,7 +336,13 @@ describe("fuseBoundary", () => {
     // deliberately adopt the parcel's edges — see "cadastral snapping".)
     const osm: OsmEvidence = {
       areas: [
-        { kind: "parking", ring: rect(0, 0, 30, 22), tags: {}, osmType: "way", osmId: 1 },
+        {
+          kind: "parking",
+          ring: rect(0, 0, 30, 22),
+          tags: {},
+          osmType: "way",
+          osmId: 1,
+        },
       ],
       lines: [],
       addressNodes: [],
@@ -303,7 +382,9 @@ describe("fuseBoundary", () => {
       PARAMS,
     );
     expect(result).not.toBeNull();
-    expect(result!.layers.find((l) => l.layer === "osm")?.available).toBe(false);
+    expect(result!.layers.find((l) => l.layer === "osm")?.available).toBe(
+      false,
+    );
   });
 
   it("returns null when there is nothing to grow from", () => {
@@ -315,7 +396,13 @@ describe("fuseBoundary", () => {
       bundle({
         osm: {
           areas: [
-            { kind: "dealerArea", ring: rect(0, 0, 150, 150), tags: {}, osmType: "way", osmId: 1 },
+            {
+              kind: "dealerArea",
+              ring: rect(0, 0, 150, 150),
+              tags: {},
+              osmType: "way",
+              osmId: 1,
+            },
           ],
           lines: [],
           addressNodes: [],
@@ -331,7 +418,13 @@ describe("fuseBoundary", () => {
     const input = bundle({
       osm: {
         areas: [
-          { kind: "dealerArea", ring: rect(3, -4, 37, 26), tags: {}, osmType: "way", osmId: 1 },
+          {
+            kind: "dealerArea",
+            ring: rect(3, -4, 37, 26),
+            tags: {},
+            osmType: "way",
+            osmId: 1,
+          },
         ],
         lines: [],
         addressNodes: [],
@@ -350,8 +443,20 @@ describe("fuseBoundary", () => {
       bundle({
         osm: {
           areas: [
-            { kind: "dealerArea", ring: rect(0, 0, 90, 90), tags: {}, osmType: "way", osmId: 1 },
-            { kind: "water", ring: rect(0, 0, 40, 40), tags: {}, osmType: "way", osmId: 2 },
+            {
+              kind: "dealerArea",
+              ring: rect(0, 0, 90, 90),
+              tags: {},
+              osmType: "way",
+              osmId: 1,
+            },
+            {
+              kind: "water",
+              ring: rect(0, 0, 40, 40),
+              tags: {},
+              osmType: "way",
+              osmId: 2,
+            },
           ],
           lines: [],
           addressNodes: [],
@@ -452,7 +557,13 @@ describe("buildResultFromFusion", () => {
       bundle({
         osm: {
           areas: [
-            { kind: "dealerArea", ring: rect(0, 0, 40, 25), tags: {}, osmType: "way", osmId: 1 },
+            {
+              kind: "dealerArea",
+              ring: rect(0, 0, 40, 25),
+              tags: {},
+              osmType: "way",
+              osmId: 1,
+            },
           ],
           lines: [],
           addressNodes: [],
@@ -470,7 +581,7 @@ describe("buildResultFromFusion", () => {
 
     expect(result.source).toBe("fused");
     expect(result.role).toBe("operationalLot");
-    expect(result.quality?.fusionVersion).toBe(1);
+    expect(result.quality?.fusionVersion).toBe(2);
     expect(result.quality?.cadastreSnapped).toBe(true);
     expect(result.quality?.parcelCount).toBe(2);
     expect(result.quality?.layers?.length).toBeGreaterThan(0);
@@ -480,19 +591,40 @@ describe("buildResultFromFusion", () => {
 });
 
 describe("separately-confirmed components (P3)", () => {
-  const road = [unprojectPoint([-150, 6], ANCHOR), unprojectPoint([150, 6], ANCHOR)];
+  const road = [
+    unprojectPoint([-150, 6], ANCHOR),
+    unprojectPoint([150, 6], ANCHOR),
+  ];
 
   it("adds a same-named lot across the road as a MultiPolygon part", () => {
     const result = fuseBoundary(
       bundle({
         osm: {
           areas: [
-            { kind: "dealerArea", ring: rect(0, -30, 40, 25), tags: { name: "Autohaus Brinkmann" }, osmType: "way", osmId: 1 },
+            {
+              kind: "dealerArea",
+              ring: rect(0, -30, 40, 25),
+              tags: { name: "Autohaus Brinkmann" },
+              osmType: "way",
+              osmId: 1,
+            },
             // A same-named storage yard the site's own name confirms as theirs.
-            { kind: "dealerArea", ring: rect(0, 40, 30, 20), tags: { name: "Autohaus Brinkmann" }, osmType: "way", osmId: 2 },
+            {
+              kind: "dealerArea",
+              ring: rect(0, 40, 30, 20),
+              tags: { name: "Autohaus Brinkmann" },
+              osmType: "way",
+              osmId: 2,
+            },
           ],
           lines: [
-            { kind: "publicRoad", line: road, halfWidthM: 5, tags: { highway: "primary" }, osmId: 3 },
+            {
+              kind: "publicRoad",
+              line: road,
+              halfWidthM: 5,
+              tags: { highway: "primary" },
+              osmId: 3,
+            },
           ],
           addressNodes: [],
         },
@@ -514,11 +646,29 @@ describe("separately-confirmed components (P3)", () => {
       bundle({
         osm: {
           areas: [
-            { kind: "dealerArea", ring: rect(0, -30, 40, 25), tags: {}, osmType: "way", osmId: 1 },
-            { kind: "dealerArea", ring: rect(0, 40, 40, 25), tags: {}, osmType: "way", osmId: 2 },
+            {
+              kind: "dealerArea",
+              ring: rect(0, -30, 40, 25),
+              tags: {},
+              osmType: "way",
+              osmId: 1,
+            },
+            {
+              kind: "dealerArea",
+              ring: rect(0, 40, 40, 25),
+              tags: {},
+              osmType: "way",
+              osmId: 2,
+            },
           ],
           lines: [
-            { kind: "publicRoad", line: road, halfWidthM: 5, tags: { highway: "primary" }, osmId: 3 },
+            {
+              kind: "publicRoad",
+              line: road,
+              halfWidthM: 5,
+              tags: { highway: "primary" },
+              osmId: 3,
+            },
           ],
           addressNodes: [],
         },
@@ -534,9 +684,7 @@ describe("separately-confirmed components (P3)", () => {
 
 describe("cadastral snapping", () => {
   const dealerOsm = (ring: LonLat[]): OsmEvidence => ({
-    areas: [
-      { kind: "dealerArea", ring, tags: {}, osmType: "way", osmId: 1 },
-    ],
+    areas: [{ kind: "dealerArea", ring, tags: {}, osmType: "way", osmId: 1 }],
     lines: [],
     addressNodes: [],
   });
@@ -564,7 +712,9 @@ describe("cadastral snapping", () => {
       bundle({
         osm: dealerOsm(rect(0, 0, 40, 25)),
         // A parcel layout that barely overlaps the evidenced site.
-        parcels: [{ ring: rect(150, 0, 40, 25), areaSqm: 2_000, state: "Berlin" }],
+        parcels: [
+          { ring: rect(150, 0, 40, 25), areaSqm: 2_000, state: "Berlin" },
+        ],
       }),
       PARAMS,
     );
@@ -578,12 +728,217 @@ describe("cadastral snapping", () => {
     const result = fuseBoundary(
       bundle({
         osm: dealerOsm(site),
-        parcels: [{ ring: rect(0, 0, 40, 25), areaSqm: 4_000, state: "Berlin" }],
+        parcels: [
+          { ring: rect(0, 0, 40, 25), areaSqm: 4_000, state: "Berlin" },
+        ],
         parcelsTruncated: true,
       }),
       PARAMS,
     );
     expect(result!.cadastre).toBeUndefined();
     expect(result!.reasons.join(" ")).toMatch(/truncated/);
+  });
+});
+
+describe("foreign businesses as counter-evidence (P3)", () => {
+  // Modelled on a real failure: a dealership in a business park whose result
+  // swallowed a neighbour's named industrial plot and a car wash next door.
+  const dealer = rect(0, 0, 40, 25);
+  const siteName = "Autohaus Dresden GmbH";
+
+  it("does not grow into a neighbour's named industrial landuse", () => {
+    const osm: OsmEvidence = {
+      areas: [
+        { kind: "parking", ring: dealer, tags: {}, osmType: "way", osmId: 1 },
+        // Unnamed landuse under the dealer plus a named plot touching it.
+        {
+          kind: "landuse",
+          ring: rect(0, 0, 40, 25),
+          tags: { landuse: "commercial" },
+          osmType: "way",
+          osmId: 2,
+        },
+        {
+          kind: "landuse",
+          ring: rect(80, 0, 40, 25),
+          tags: { landuse: "industrial", name: "Fabmatics GmbH" },
+          osmType: "way",
+          osmId: 3,
+        },
+      ],
+      lines: [],
+      addressNodes: [],
+      namedPlaces: [],
+    };
+    const result = fuseBoundary(bundle({ osm, name: siteName }), PARAMS);
+    expect(result).not.toBeNull();
+    expect(result!.areaSqm).toBeLessThan(4_600);
+    expect(result!.reasons.join(" ")).toMatch(
+      /another operator's site: Fabmatics GmbH/,
+    );
+    expect(result!.layers.some((l) => l.layer === "osm-foreignBusiness")).toBe(
+      true,
+    );
+  });
+
+  it("turns a neighbouring building with another business inside it negative", () => {
+    const osm: OsmEvidence = {
+      areas: [
+        { kind: "parking", ring: dealer, tags: {}, osmType: "way", osmId: 1 },
+        {
+          kind: "landuse",
+          ring: rect(30, 0, 70, 25),
+          tags: { landuse: "commercial" },
+          osmType: "way",
+          osmId: 2,
+        },
+        {
+          kind: "building",
+          ring: rect(65, 0, 20, 20),
+          tags: { building: "yes" },
+          osmType: "way",
+          osmId: 3,
+        },
+      ],
+      lines: [],
+      addressNodes: [],
+      namedPlaces: [
+        {
+          point: unprojectPoint([65, 0], ANCHOR),
+          tags: { amenity: "car_wash", name: "Astrein Autoreinigung" },
+        },
+      ],
+    };
+    const { grid } = buildEvidenceGrid(bundle({ osm, name: siteName }), PARAMS);
+    const at = (e: number, n: number): number => {
+      const cell = lonLatToCell(grid.spec, unprojectPoint([e, n], ANCHOR))!;
+      return grid.score[cellIndex(grid.spec, cell.col, cell.row)];
+    };
+    expect(at(65, 10)).toBeLessThan(0);
+    expect(at(0, 0)).toBeGreaterThan(0.5);
+  });
+
+  it("treats a separate business-park plot housing other firms as theirs", () => {
+    const osm: OsmEvidence = {
+      areas: [
+        { kind: "parking", ring: dealer, tags: {}, osmType: "way", osmId: 1 },
+        { kind: "landuse", ring: rect(0, 0, 40, 25), tags: { landuse: "commercial" }, osmType: "way", osmId: 2 },
+        // An unnamed office plot next door; only its tenants' points say whose it is.
+        { kind: "landuse", ring: rect(90, 0, 50, 30), tags: { landuse: "commercial" }, osmType: "way", osmId: 3 },
+        { kind: "parking", ring: rect(90, 0, 45, 25), tags: {}, osmType: "way", osmId: 4 },
+      ],
+      lines: [],
+      addressNodes: [],
+      namedPlaces: [
+        { point: unprojectPoint([95, 5], ANCHOR), tags: { office: "company", name: "DREEBIT GmbH" } },
+      ],
+    };
+    const result = fuseBoundary(bundle({ osm, name: siteName }), PARAMS);
+    expect(result).not.toBeNull();
+    expect(result!.areaSqm).toBeLessThan(4_600);
+  });
+
+  it("never marks the dealership's own point or name as foreign", () => {
+    const osm: OsmEvidence = {
+      areas: [
+        { kind: "parking", ring: dealer, tags: {}, osmType: "way", osmId: 1 },
+        // A tenant node a few metres from the anchor: protected, not carved out.
+        {
+          kind: "building",
+          ring: rect(0, 0, 10, 10),
+          tags: {
+            building: "retail",
+            name: "Fremdfirma Meier",
+            shop: "car_parts",
+          },
+          osmType: "way",
+          osmId: 2,
+        },
+      ],
+      lines: [],
+      addressNodes: [],
+      namedPlaces: [
+        {
+          point: unprojectPoint([30, 0], ANCHOR),
+          tags: { shop: "car", name: "Autohaus Dresden GmbH", brand: "Opel" },
+        },
+      ],
+    };
+    const result = fuseBoundary(bundle({ osm, name: siteName }), PARAMS);
+    expect(result).not.toBeNull();
+    expect(result!.reasons.join(" ")).not.toMatch(/another operator/);
+    expect(result!.areaSqm).toBeGreaterThan(3_500);
+  });
+});
+
+describe("separate components need more than an adjacent parcel (P3)", () => {
+  const road = [
+    unprojectPoint([-150, 6], ANCHOR),
+    unprojectPoint([150, 6], ANCHOR),
+  ];
+  const anchor = unprojectPoint([0, -30], ANCHOR);
+  // Two parcels sharing the road's centre line as their edge: adjacent.
+  const parcels = [
+    { ring: rect(0, -25, 45, 31), areaSqm: 5_580, state: "Sachsen" },
+    { ring: rect(0, 33, 45, 27), areaSqm: 4_860, state: "Sachsen" },
+  ];
+  const withSecondLot = (
+    tags: Record<string, string>,
+    kind: "parking" | "dealerArea",
+  ): ReturnType<typeof fuseBoundary> =>
+    fuseBoundary(
+      bundle({
+        anchor,
+        name: "Autohaus Brinkmann",
+        parcels,
+        osm: {
+          areas: [
+            {
+              kind: "dealerArea",
+              ring: rect(0, -30, 40, 25),
+              tags: { name: "Autohaus Brinkmann" },
+              osmType: "way",
+              osmId: 1,
+            },
+            { kind, ring: rect(0, 35, 30, 20), tags, osmType: "way", osmId: 2 },
+          ],
+          lines: [
+            {
+              kind: "publicRoad",
+              line: road,
+              halfWidthM: 5,
+              tags: { highway: "primary" },
+              osmId: 3,
+            },
+          ],
+          addressNodes: [],
+          namedPlaces: [],
+        },
+      }),
+      PARAMS,
+    );
+
+  it("rejects an untagged car park whose only link is the adjacent parcel", () => {
+    const result = withSecondLot({ amenity: "parking" }, "parking");
+    expect(result).not.toBeNull();
+    expect(result!.additionalComponents).toBe(0);
+    expect(result!.reasons.join(" ")).toMatch(
+      /adjacency alone is not evidence/,
+    );
+  });
+
+  it("still accepts vehicle-trade use on the adjacent parcel", () => {
+    const result = withSecondLot({ shop: "car" }, "dealerArea");
+    expect(result).not.toBeNull();
+    expect(result!.additionalComponents).toBe(1);
+  });
+
+  it("rejects a component that belongs to another named business", () => {
+    const result = withSecondLot(
+      { shop: "car", name: "Autohaus Konkurrenz" },
+      "dealerArea",
+    );
+    expect(result).not.toBeNull();
+    expect(result!.additionalComponents).toBe(0);
   });
 });

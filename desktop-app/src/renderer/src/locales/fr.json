@@ -90,29 +90,89 @@
     "apiKeySetPlaceholder": "•••••••• (enregistrée) — saisir une nouvelle clé pour la remplacer",
     "apiKeyUnsetPlaceholder": "Enregistrée de façon chiffrée (trousseau du système)",
     "natCat": {
-      "title": "Source de données catastrophes naturelles",
-      "description": "Les fichiers ZÜRS sont détectés automatiquement lors de l’import CSV/Excel. CatNet est interrogé uniquement via un endpoint HTTPS sous licence.",
-      "screening": "Screening Open-Meteo",
-      "zuers": "ZÜRS Geo (import)",
-      "catnet": "Swiss Re CatNet (API)",
-      "endpoint": "Endpoint CatNet",
-      "endpointHint": "Saisissez l’URL exacte de la documentation API Swiss Re (HTTPS obligatoire).",
-      "key": "Clé API CatNet",
-      "keySet": "•••••••• (enregistrée)",
-      "keyUnset": "Enregistrée chiffrée (trousseau système)",
-      "save": "Enregistrer l’accès CatNet"
+      "title": "Sources de données sur les risques naturels",
+      "statusDefault": "Par défaut : screening",
+      "statusLicensed": "Données sous licence actives",
+      "reset": "Rétablir le mode par défaut",
+      "resetHint": "Évaluer à nouveau tous les périls avec le screening Open-Meteo. Les fournisseurs connectés restent enregistrés.",
+      "intro": "Définissez la source de chaque péril : une source principale pour tous les périls et, si besoin, des spécialistes pour certains périls (p. ex. inondation). Sans choix, le screening Open-Meteo s’applique.",
+      "screening": "Screening (Open-Meteo)",
+      "screeningDefault": "Screening (Open-Meteo) – par défaut",
+      "notConnected": "non connecté",
+      "keySet": "•••••••• (enregistrée) – saisir une nouvelle clé pour remplacer",
+      "keyUnset": "Enregistrée chiffrée (trousseau du système)",
+      "routing": {
+        "title": "Source par péril",
+        "primary": "Source principale",
+        "followPrimary": "Comme la source principale ({{source}})",
+        "order": "Ordre par péril : source choisie → données ZÜRS importées du site → source principale → screening. Si une source ne fournit pas de valeur, la suivante s’applique ; c’est indiqué sur le site.",
+        "applies": "Les modifications s’appliquent aux nouvelles analyses. Mettez à jour les sites existants via « Réanalyser » ou « Réinterroger les sources » dans le détail du site."
+      },
+      "perils": {
+        "wind": "Tempête",
+        "lightning": "Foudre",
+        "snow": "Neige",
+        "flood": "Inondation",
+        "hail": "Grêle",
+        "heat": "Chaleur",
+        "heavyRain": "Pluies intenses"
+      },
+      "catalog": {
+        "title": "Fournisseurs",
+        "showAll": "Afficher plus de fournisseurs ({{count}})",
+        "hideAll": "Réduire la liste des fournisseurs",
+        "description": "Sources courantes de données sur les risques naturels. Les fournisseurs commerciaux se connectent via un endpoint HTTPS au format hazard API de l’application (contrat et, si nécessaire, service de traduction chez le fournisseur requis). Couverture selon les éditeurs, octobre 2026.",
+        "customName": "Hazard API personnalisée",
+        "website": "Site du fournisseur",
+        "allPerils": "Tous les périls",
+        "license": {
+          "free": "Gratuit",
+          "commercial": "Licence requise"
+        },
+        "status": {
+          "builtin": "Par défaut · toujours actif",
+          "import": "Via import CSV/Excel",
+          "planned": "Prévu",
+          "connected": "Connecté",
+          "available": "Non connecté"
+        },
+        "notes": {
+          "screening": "Approximation météo à partir des données climatiques Open-Meteo et des zones de grêle GDV. Pas un modèle catastrophe.",
+          "zuers": "Zonage GDV pour inondation et pluies intenses. Détecté automatiquement lors de l’import des sites.",
+          "catnet": "Données multi-périls de Swiss Re pour des sites dans le monde entier.",
+          "munichre": "Scores notamment pour grêle, foudre, crue fluviale, onde de tempête et séisme (anciennement NATHAN).",
+          "moodys": "Scores de risque et perte annuelle moyenne (AAL) pour plus de 100 pays.",
+          "verisk": "Europe : tempête et orages/grêle (22 pays), inondation pour l’Europe centrale dont l’Allemagne.",
+          "jba": "Spécialiste inondation ; carte de l’Allemagne à 5 m pour crues fluviales et ruissellement.",
+          "fathom": "Cartes mondiales d’inondation fluviale, pluviale et côtière.",
+          "custom": "Tout autre service répondant au format hazard API de l’application – p. ex. votre propre service de traduction.",
+          "jrc": "Cartes européennes gratuites d’aléa inondation (100 m, périodes de retour 10–500 ans). Pas encore intégrées."
+        }
+      },
+      "connector": {
+        "edit": "Modifier",
+        "connect": "Connecter",
+        "contract": "L’endpoint reçoit POST {latitude, longitude, perils} avec un jeton Bearer et doit renvoyer {hazards: [{peril, score 0–100, …}]}. Seules les coordonnées du site sont transmises.",
+        "endpoint": "Endpoint (HTTPS)",
+        "key": "Clé API",
+        "save": "Enregistrer",
+        "test": "Tester la connexion",
+        "disconnect": "Déconnecter",
+        "testOk": "Connecté – réponse en {{ms}} ms avec : {{perils}}",
+        "testFailed": "Échec du test : {{error}}"
+      }
     },
     "satelliteSource": {
       "title": "Source d'imagerie aérienne",
       "customOption": "WMS/XYZ (personnalisé)",
+      "customShort": "Utiliser une URL de tuiles",
+      "esriOption": "Esri World Imagery",
+      "esriShort": "Utiliser Esri uniquement",
       "tileTemplateLabel": "Modèle de tuile",
-      "tileTemplateHint": "URL XYZ/WMS avec les paramètres {z}/{x}/{y}. Revient à Esri sans modèle valide."
-    },
-    "boundaryEngine": {
-      "title": "Moteur de détection des limites",
-      "description": "« Fusion multi-sources » combine cadastre, OpenStreetMap et imagerie en une seule forme de parcelle étayée ; « classement des candidats » note chaque source séparément et garde la meilleure. Chaque résultat enregistre le moteur qui l'a réellement produit.",
-      "legacy": "Classement des candidats",
-      "fused": "Fusion multi-sources"
+      "tileTemplateHint": "URL XYZ avec {z}/{x}/{y} ou URL WMS GetMap avec {bbox-epsg-3857}. Revient à Esri sans modèle valide.",
+      "autoOption": "Automatique (recommandé)",
+      "autoShort": "Meilleure source disponible par site",
+      "autoHint": "Choisit la source la plus récente par site : Esri World Imagery ou l'orthophoto officielle du Land (14 Länder avec service ouvert). La carte et la détection de véhicules utilisent la même source ; le choix est enregistré avec chaque détection."
     },
     "appearance": {
       "title": "Apparence",
@@ -120,6 +180,104 @@
       "light": "Clair",
       "dark": "Sombre",
       "system": "Système"
+    },
+    "llmReady": "Configuré",
+    "llmNotReady": "Non configuré",
+    "llmSetupHint": "Requis pour le chat, la synthèse exécutive et la note de souscription : choisissez un fournisseur, saisissez un modèle et – pour OpenAI/Claude – enregistrez une clé API. Un modèle local n’a pas besoin de clé.",
+    "local": {
+      "description": "L’application recherche automatiquement les runtimes actifs sur cet ordinateur. Les données du portefeuille ne quittent pas l’appareil.",
+      "checking": "Vérification …",
+      "running": "Actif · {{count}} modèles",
+      "notFound": "Introuvable",
+      "detect": "Rechercher à nouveau",
+      "noneRunning": "Aucun runtime local trouvé. Installez et démarrez Ollama :",
+      "baseUrlHint": "Uniquement des adresses sur cet ordinateur (localhost). Laisser vide pour Ollama (http://localhost:11434/v1)."
+    },
+    "models": {
+      "pick": "Choisir un modèle ({{count}} disponibles)",
+      "none": "Le fournisseur n’a signalé aucun modèle de chat – saisissez l’ID manuellement.",
+      "noneLocal": "Aucun modèle installé – installez-en un depuis Hugging Face ci-dessous.",
+      "failed": "Impossible de charger la liste des modèles : {{error}}",
+      "needKey": "Enregistrez une clé API – les modèles disponibles apparaissent ensuite ici automatiquement.",
+      "needBaseUrl": "Saisissez l’URL de base – les modèles disponibles apparaissent ensuite ici automatiquement.",
+      "loading": "Chargement des modèles …",
+      "manualPlaceholder": "Saisir un ID de modèle, p. ex. gpt-4.1-mini",
+      "reload": "Recharger la liste",
+      "enterManually": "Saisir l’ID du modèle manuellement",
+      "backToList": "Retour à la liste"
+    },
+    "test": {
+      "button": "Tester la connexion",
+      "localSlow": "Les modèles locaux sont chargés au premier appel – cela peut prendre jusqu’à une minute.",
+      "ok": "La connexion fonctionne – réponse en {{ms}} ms.",
+      "not_configured": "Configuration incomplète : modèle et (pour OpenAI/Claude) clé API manquants.",
+      "auth": "Clé API refusée (401/403). Vérifiez la clé et enregistrez-la à nouveau.",
+      "not_found": "Modèle ou endpoint introuvable (404). Vérifiez le nom du modèle et l’URL de base – « Charger les modèles » affiche les noms disponibles.",
+      "unreachable": "Serveur injoignable. Le runtime local est-il démarré et l’URL de base correcte ?",
+      "error": "Le fournisseur a signalé une erreur."
+    },
+    "hf": {
+      "title": "Installer un modèle depuis Hugging Face",
+      "description": "Liste en direct des modèles GGUF sur Hugging Face. « Installer » télécharge la variante choisie via Ollama. Seul le terme de recherche est envoyé à huggingface.co.",
+      "otherRuntime": "L’installation depuis l’application fonctionne avec Ollama. Pour LM Studio ou llama.cpp, chargez le modèle dans ce runtime – cette liste sert d’orientation.",
+      "searchPlaceholder": "p. ex. qwen, llama, mistral …",
+      "search": "Rechercher",
+      "sort": {
+        "trending": "Tendances",
+        "downloads": "Plus téléchargés",
+        "likes": "Plus aimés"
+      },
+      "searchFailed": "Échec de la recherche : {{error}}",
+      "noResults": "Aucun modèle GGUF correspondant.",
+      "filesFailed": "Impossible de charger les fichiers : {{error}}",
+      "parameters": "{{value}} paramètres",
+      "context": "{{value}} de contexte",
+      "gated": "Accès Hugging Face requis",
+      "noQuants": "Aucun fichier GGUF installable individuellement dans ce dépôt.",
+      "recommended": "Recommandé",
+      "install": "Installer",
+      "ollamaUnreachable": "Ollama est injoignable. Installez et démarrez Ollama, puis réessayez.",
+      "pullFailed": "Échec de l’installation : {{error}}",
+      "starting": "Démarrage du téléchargement …"
+    },
+    "steps": {
+      "provider": "Choisir le fournisseur",
+      "access": "Accès",
+      "model": "Modèle"
+    },
+    "providers": {
+      "openai": {
+        "title": "OpenAI",
+        "description": "Modèles GPT via l’API OpenAI – clé API requise."
+      },
+      "claude": {
+        "title": "Anthropic Claude",
+        "description": "Modèles Claude via l’API Anthropic – clé API requise."
+      },
+      "local": {
+        "title": "Modèle local",
+        "description": "Fonctionne sur cet ordinateur (Ollama, LM Studio, llama.cpp) – sans clé, les données restent locales."
+      },
+      "custom": {
+        "title": "Endpoint personnalisé",
+        "description": "Tout serveur compatible OpenAI : saisir l’URL de base et une clé si nécessaire."
+      }
+    },
+    "customBaseUrlHint": "Adresse compatible OpenAI, se terminant généralement par /v1. Les modèles disponibles se chargent ensuite automatiquement.",
+    "optional": "facultatif",
+    "advanced": "Avancé : URL de base personnalisée / proxy",
+    "dealerDirectory": {
+      "title": "Annuaire des concessionnaires (Overture Maps)",
+      "description": "Ajoute à la recherche environ 44 000 concessionnaires automobiles, motos, poids lourds et camping-cars en Allemagne issus d’Overture Maps (Meta, Microsoft, Foursquare, etc.), souvent absents d’OpenStreetMap. Téléchargement unique d’environ 500 Mo, quelques minutes ; seuls les concessionnaires sont stockés localement.",
+      "notLoaded": "Pas encore chargé — la recherche utilise uniquement OpenStreetMap.",
+      "loaded": "{{total}} concessionnaires chargés · version Overture {{release}} · au {{date}}",
+      "download": "Télécharger l’annuaire",
+      "refresh": "Mettre à jour",
+      "cancel": "Annuler",
+      "discovering": "Recherche de la version Overture actuelle…",
+      "reading": "Chargement… {{pct}} % · {{found}} concessionnaires trouvés",
+      "backgroundHint": "Continue en arrière-plan — vous pouvez utiliser l’application.",
+      "attribution": "Données : Overture Maps Foundation, CDLA Permissive 2.0. Contient des données de Foursquare : Copyright 2024 Foursquare Labs, Inc. All rights reserved."
     }
   },
   "model": {
@@ -146,6 +304,28 @@
     "riskDistribution": "Répartition des risques",
     "topRisks": "Sites à risque élevé",
     "noAnomalies": "Aucune anomalie ni valeur aberrante détectée.",
+    "insightsTitle": "Anomalies",
+    "insightsSummary": "{{alerts}} alertes · {{outliers}} valeurs aberrantes",
+    "statisticalOutliers": "Valeurs aberrantes statistiques",
+    "alertLevel": {
+      "critical": "Critique",
+      "warning": "Avertissement"
+    },
+    "alert": {
+      "extremeRisk": "Risque extrême (score {{score}}/100).",
+      "highEal": "Représente {{share}} % de l’EAL du portefeuille.",
+      "overcapacity": "Surcapacité ({{utilisation}} % de la capacité).",
+      "lowBoundaryConfidence": "Limite de parcelle incertaine (source {{source}}).",
+      "noDetection": "Aucun véhicule détecté — vérifier la limite et l’image aérienne."
+    },
+    "anomalyMetric": {
+      "score": "Score de risque",
+      "eal": "EAL",
+      "utilisation": "Utilisation"
+    },
+    "sortAscending": "Tri croissant ; cliquer pour modifier",
+    "sortDescending": "Tri décroissant ; cliquer pour modifier",
+    "sortNone": "Non trié ; cliquer pour trier",
     "seasonalTitle": "Profil de risque saisonnier",
     "seasonalDescription": "Répartition annuelle typique du risque du portefeuille par péril",
     "coverageTitle": "Couverture des périls et concentration",
@@ -190,6 +370,8 @@
       "table": "Tableau des sites"
     },
     "detailDialog": {
+      "imageryCountedOn": "Véhicules comptés sur",
+      "imageryUnrecorded": "Source d'image du comptage non enregistrée (analyse antérieure à la sélection automatique) – relancer l'analyse pour obtenir la date de prise de vue.",
       "machineVehicleCount": "Véhicules détectés par la machine",
       "manualVehicleCount": "Nombre de véhicules ajusté manuellement",
       "manualVehicleCountPlaceholder": "Saisir le nombre…",
@@ -250,6 +432,23 @@
       "showDetails": "Afficher les détails",
       "modelVersionLabel": "Modèle : {{version}}",
       "evidenceFallbackSuffix": " · repli",
+      "riskText": {
+        "screeningModel": "Le modèle de risque {{version}} est un modèle de présélection",
+        "hazardProxy": "Les valeurs d’aléa sont des approximations locales à valider avant toute décision de souscription",
+        "notEngineeringAssessment": "Ni modèle de catastrophe ni évaluation technique",
+        "weatherWindow": "Fenêtre météo de 92 jours avec approximations de présélection",
+        "syntheticBoundaryMethod": "Limite synthétique par rayon",
+        "boundaryLookupMethod": "Recherche géospatiale de limite",
+        "manualBoundaryReview": "Vérification manuelle de la limite recommandée",
+        "areaEstimateMethod": "Estimation basée sur la surface",
+        "aerialDetectionMethod": "Détection d’objets sur image aérienne",
+        "vehicleEstimate": "Le nombre de véhicules est estimé ; installer le modèle de détection",
+        "syntheticBoundary": "Limite de parcelle synthétique utilisée",
+        "boundaryReviewRequired": "La limite doit être vérifiée avant son utilisation en souscription",
+        "boundaryDisagreement": "Les sources de limites ne concordent pas suffisamment",
+        "noMlModel": "L’exposition des véhicules est estimée car aucun modèle ML n’est installé",
+        "boundaryRole": "La limite décrit {{role}}, et non le site opérationnel confirmé"
+      },
       "osmLoading": "Chargement des infos OSM…",
       "osmHeading": "Depuis OpenStreetMap",
       "insuredLabel": "Assuré / Fait partie du portefeuille",
@@ -260,8 +459,8 @@
       "groupLabel": "Groupe",
       "productLimitLabel": "Limite produit (EUR)",
       "natCatTitle": "Source catastrophes naturelles",
-      "natCatRefresh": "Actualiser CatNet",
-      "natCatRefreshing": "Interrogation de CatNet…",
+      "natCatRefresh": "Réinterroger les sources",
+      "natCatRefreshing": "Interrogation des sources…",
       "natCatHazard": "{{peril}} : {{score}}/100 ({{unit}})",
       "natCatAttribute": "{{name}} : {{value}}",
       "errorPrefix": "Erreur : {{error}}",
@@ -283,7 +482,43 @@
       "vehicles": "Véhicules",
       "carCategory": "Véhicule / Car",
       "estimated": "Limite de secours",
-      "manual": "Manuel"
+      "manual": "Manuel",
+      "imageryTitle": "Image satellite (centre de la carte)",
+      "imageryLoading": "Chargement des métadonnées…",
+      "imageryNoMetadataWms": "La source WMS personnalisée ne fournit aucune métadonnée ; la date de prise de vue est inconnue.",
+      "imageryDate": "Prise de vue",
+      "imageryUnknown": "date inconnue",
+      "imageryAge_one": "{{count}} an",
+      "imageryAge_other": "{{count}} ans",
+      "imagerySource": "Fournisseur",
+      "imagerySensor": "Capteur",
+      "imageryDescription": "Description",
+      "imageryResolution": "Résolution",
+      "imageryResolutionMosaic": "{{native}} ({{mosaic}} dans la mosaïque)",
+      "imageryAccuracy": "Précision de position",
+      "imageryZoom": "Niveau de zoom",
+      "imageryZoomRange": "{{zoom}} (source pour z{{min}}–{{max}})",
+      "imageryRelease": "Version Esri",
+      "imageryHint": "Valable uniquement pour le centre de la carte à ce niveau de zoom. En mode « Automatique », la source la plus récente est choisie par site ; une source plus nette l'emporte si elle a au plus 6 mois de plus.",
+      "imageryMoreDetails": "Plus de détails sur l’image",
+      "imagerySourceLabel": "Source d'image",
+      "imageryDateSource": "Source de la date",
+      "imageryDateSources": {
+        "esri-metadata": "métadonnées d'image Esri",
+        "bkg-flight-index": "date de vol selon le BKG",
+        "none": "–"
+      },
+      "imageryAttribution": "Mention de source",
+      "imagerySelection": "Sélection",
+      "imageryReasons": {
+        "newest": "source disponible la plus récente",
+        "sharper-within-tolerance": "plus nette, au plus 6 mois plus ancienne que la plus récente",
+        "only-option": "seule source datée",
+        "no-dated-source": "aucune source datée – Esri par défaut",
+        "fixed-provider": "fixée dans les paramètres",
+        "overview-zoom": "zoom d'ensemble – mosaïque Esri"
+      },
+      "imageryAlternatives": "Alternatives vérifiées"
     },
     "editBoundary": "Modifier la limite",
     "locationsPanel": {
@@ -315,7 +550,9 @@
       "markInsured": "Marquer la sélection comme assurée",
       "markNotInsured": "Marquer la sélection comme non assurée",
       "markInsuredToast": "{{count}} site(s) marqué(s) comme assuré(s)",
-      "markNotInsuredToast": "{{count}} site(s) marqué(s) comme non assuré(s)"
+      "markNotInsuredToast": "{{count}} site(s) marqué(s) comme non assuré(s)",
+      "directoryHintPrefix": "Concessionnaire introuvable ?",
+      "directoryHintLink": "Charger l’annuaire"
     },
     "layerPanel": {
       "title": "Couches",
@@ -356,7 +593,11 @@
       "zoomOut": "Zoomer arrière",
       "emptyTitle": "Aucun site pour l'instant",
       "emptyDescription": "Ajoutez une adresse dans le panneau des sites à gauche, ou importez un fichier CSV/Excel.",
-      "analyzingProgress": "Analyse en cours {{done}}/{{total}}…",
+      "analyzingProgress": "Analyse en cours {{done}}/{{total}}",
+      "analyzingEstimating": "Estimation du temps restant…",
+      "analyzingRemaining": "encore env. {{time}}",
+      "durationMinutes": "{{minutes}} min",
+      "durationHours": "{{hours}} h {{minutes}} min",
       "cancelAnalysis": "Arrêter l'analyse",
       "analysisErrors": "{{count}} sites n'ont pas pu être analysés",
       "boundaryDetectionPrompt": "Limite modifiée pour {{name}}.",
@@ -365,7 +606,8 @@
       "undoBoundaryEdit": "Annuler",
       "revertBoundaryDefault": "Rétablir la limite par défaut",
       "updateCarDetection": "Actualiser la détection des voitures",
-      "boundaryWarning": "{{count}} limites sur {{total}} doivent être vérifiées — confirmez la couverture ou modifiez-les avant utilisation",
+      "boundaryWarning": "Vérifier {{count}}/{{total}} limites de terrain",
+      "boundaryWarningHint": "La zone colorée couvre-t-elle le site ? Cliquez sur l’épingle → « Confirmer la limite ». Sinon, « Modifier les limites » et déplacez les sommets.",
       "dismissHint": "Masquer l'indication",
       "detectionWarning": "{{count}} nombres de véhicules sur {{total}} sont uniquement estimés — aucun modèle IA chargé",
       "detectionReviewSummary": "Machine : {{machine}} · Ajoutés : +{{added}} · Supprimés : −{{removed}} · Total vérifié : {{total}}",
@@ -507,6 +749,7 @@
     "viewExported": "Vue exportée : {{path}}",
     "exportFailed": "Échec de l'export : {{error}}",
     "pdfReport": "Rapport PDF",
+    "portfolioFile": "Fichier portefeuille (.drm)",
     "excelReport": "Rapport Excel",
     "csvReport": "Rapport CSV",
     "readonlyView": "Vue HTML en lecture seule",
@@ -518,6 +761,10 @@
     "compareDescription": "Comparer le portefeuille actif avec une session enregistrée.",
     "selectBaseline": "Sélectionner la session de référence…",
     "generatingDashboard": "Génération du tableau de bord…",
+    "hailRisk": "Risque de grêle",
+    "estimated": "estimé",
+    "boundaryReviewNeeded": "⚠ Vérifier la limite du terrain",
+    "confirmBoundary": "✓ Confirmer la limite",
     "topPeril": "Péril principal",
     "risk": "Risque",
     "ealYear": "EAL / an",
@@ -555,5 +802,12 @@
     "boundarySource": "Source de la limite",
     "allBoundaries": "Toutes les limites",
     "fallbackBoundary": "Limite de secours"
+  },
+  "aiSetup": {
+    "missingTitle": "Assistant IA pas encore configuré",
+    "missingDescription": "Choisissez un fournisseur (OpenAI, Claude, un modèle local ou un endpoint personnalisé) et un modèle dans les paramètres pour utiliser le chat.",
+    "rejectedTitle": "Identifiants refusés",
+    "rejectedDescription": "L’endpoint IA n’a pas accepté la clé API (401/403). Vérifiez la clé, le modèle et l’endpoint dans les paramètres.",
+    "openSettings": "Configurer l’IA"
   }
 }

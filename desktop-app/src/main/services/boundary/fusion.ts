@@ -7,8 +7,15 @@ import type {
   RiskParameters,
   SourceStatus,
 } from "@shared/types";
-import { checkRing, type LonLat } from "../boundary-geometry";
-import { cellToLonLat, createGrid, maskAreaSqm, type EvidenceGrid } from "./grid";
+import { checkRing, projectPoint, type LonLat } from "../boundary-geometry";
+import {
+  cellIndex,
+  cellToLonLat,
+  createGrid,
+  lonLatToCell,
+  maskAreaSqm,
+  type EvidenceGrid,
+} from "./grid";
 import {
   boundarySupportedByBarrier,
   polygonRasterIoU,
@@ -31,8 +38,10 @@ import { maskToPolygon, masksToGeometry } from "./vectorize";
 import type { EvidenceArea, EvidenceLine, OsmEvidence } from "./osm-overpass";
 import type { ParcelFeature } from "../alkis.service";
 import {
+  businessIdentity,
   evaluateComponentMembership,
   isAdjacentParcel,
+  isForeignBusiness,
   matchesSite,
 } from "./site-membership";
 import {
@@ -56,7 +65,9 @@ import {
  */
 
 /** Bumped whenever scoring changes, so cached results can be retired. */
-export const FUSION_VERSION = 1;
+// v2: foreign businesses are counter-evidence; an adjacent parcel alone no
+// longer admits a separate component.
+export const FUSION_VERSION = 2;
 
 /** Below this, a separately-confirmed component reads as raster noise, not a site part. */
 const MIN_SECONDARY_COMPONENT_SQM = 100;
@@ -77,6 +88,12 @@ export const LAYER_WEIGHTS = {
   /** Only the parcel containing the anchor; neighbours are for snapping. */
   anchorParcel: 0.5,
   addressNode: 0.4,
+  /**
+   * A *different* named business (another tenant, a neighbour's yard).
+   * Replaces the area's own positive weight rather than adding to it, so a
+   * named industrial landuse stops counting as site evidence.
+   */
+  foreignBusiness: -1,
   publicRoad: -1.5,
   railway: -1.5,
   waterway: -1.5,
@@ -179,11 +196,67 @@ function lineWeight(line: EvidenceLine): number {
   }
 }
 
+/**
+ * Around the anchor itself nothing is declared foreign: the geocoded point
+ * sits on *this* dealership, and a shared building or a POI placed a few metres
+ * off must not carve the site out from under its own anchor.
+ */
+const FOREIGN_ANCHOR_PROTECTION_M = 20;
+/** Radius of the score dip around a foreign business point. */
+const FOREIGN_POINT_RADIUS_M = 15;
+
+function distanceM(a: LonLat, b: LonLat): number {
+  const [x, y] = projectPoint(a, b);
+  return Math.hypot(x, y);
+}
+
+/** Foreign business points away from the anchor, with their identity. */
+function foreignPoints(
+  bundle: FusionBundle,
+): Array<{ point: LonLat; identity: string }> {
+  const out: Array<{ point: LonLat; identity: string }> = [];
+  for (const place of bundle.osm?.namedPlaces ?? []) {
+    if (!isForeignBusiness(place.tags, bundle.name)) continue;
+    if (distanceM(place.point, bundle.anchor) < FOREIGN_ANCHOR_PROTECTION_M)
+      continue;
+    out.push({ point: place.point, identity: businessIdentity(place.tags)! });
+  }
+  return out;
+}
+
+/**
+ * The foreign identity an area carries, if any: its own tags, or — for a
+ * building or business landuse — a foreign business point inside it. An area
+ * containing the anchor is never foreign.
+ */
+function foreignIdentityOf(
+  area: EvidenceArea,
+  bundle: FusionBundle,
+  points: Array<{ point: LonLat; identity: string }>,
+): string | null {
+  if (ringContains(area.ring, bundle.anchor)) return null;
+  if (isForeignBusiness(area.tags, bundle.name))
+    return businessIdentity(area.tags);
+  // A building or business-landuse polygon housing another business is that
+  // business's premises. Parking and dealer areas are left alone: a third
+  // party's point on a dealer's own forecourt is not grounds to drop it.
+  if (area.kind === "building" || area.kind === "landuse") {
+    const inside = points.find((p) => ringContains(area.ring, p.point));
+    if (inside) return inside.identity;
+  }
+  return null;
+}
+
 /** Builds the evidence grid. Exported so tests can inspect it directly. */
 export function buildEvidenceGrid(
   bundle: FusionBundle,
   parameters: RiskParameters,
-): { grid: EvidenceGrid; layers: BoundaryEvidenceLayer[] } {
+): {
+  grid: EvidenceGrid;
+  layers: BoundaryEvidenceLayer[];
+  /** Other businesses whose evidence was turned negative, for the reasons list. */
+  foreignBusinesses: string[];
+} {
   const grid = createGrid(
     bundle.anchor,
     parameters.boundaryGridResolutionM,
@@ -211,10 +284,17 @@ export function buildEvidenceGrid(
   const osmAvailable = bundle.osm != null;
   const byKind = new Map<string, { cells: number; weight: number }>();
 
+  const points = foreignPoints(bundle);
+  const foreignBusinesses = new Set<string>();
+
   for (const area of bundle.osm?.areas ?? []) {
-    const weight = areaWeight(area, bundle.name, bundle.address);
+    const foreign = foreignIdentityOf(area, bundle, points);
+    if (foreign) foreignBusinesses.add(foreign);
+    const weight = foreign
+      ? LAYER_WEIGHTS.foreignBusiness
+      : areaWeight(area, bundle.name, bundle.address);
     const cells = rasterizePolygon(spec, area.ring, score, weight);
-    const key = `osm-${area.kind}`;
+    const key = foreign ? "osm-foreignBusiness" : `osm-${area.kind}`;
     const entry = byKind.get(key) ?? { cells: 0, weight };
     entry.cells += cells;
     // A matched and an unmatched dealer area share a layer but not a weight;
@@ -228,7 +308,13 @@ export function buildEvidenceGrid(
     const weight = lineWeight(line);
     let cells = 0;
     if (weight !== 0) {
-      cells = rasterizePolyline(spec, line.line, line.halfWidthM, score, weight);
+      cells = rasterizePolyline(
+        spec,
+        line.line,
+        line.halfWidthM,
+        score,
+        weight,
+      );
     }
     // Roads, rails and watercourses cut as well as push down: a lot does not
     // continue across the street just because the far side also looks paved.
@@ -250,6 +336,24 @@ export function buildEvidenceGrid(
       LAYER_WEIGHTS.addressNode,
       "gauss",
     );
+  }
+
+  for (const place of points) {
+    foreignBusinesses.add(place.identity);
+    const cells = rasterizeDisk(
+      spec,
+      place.point,
+      FOREIGN_POINT_RADIUS_M,
+      score,
+      LAYER_WEIGHTS.foreignBusiness,
+      "gauss",
+    );
+    const entry = byKind.get("osm-foreignBusiness") ?? {
+      cells: 0,
+      weight: LAYER_WEIGHTS.foreignBusiness,
+    };
+    entry.cells += cells;
+    byKind.set("osm-foreignBusiness", entry);
   }
 
   const osmStatus = bundle.sourceStatus?.osm;
@@ -319,7 +423,11 @@ export function buildEvidenceGrid(
     });
   }
 
-  return { grid, layers: acc.layers };
+  return {
+    grid,
+    layers: acc.layers,
+    foreignBusinesses: [...foreignBusinesses],
+  };
 }
 
 /** Union of several equally-sized masks, cell by cell. */
@@ -347,6 +455,34 @@ function ringContains(ring: LonLat[], point: LonLat): boolean {
 }
 
 /**
+ * Other businesses inside a grown component: foreign business points whose
+ * cell is in the mask, plus foreign identities on the areas under its seed.
+ */
+function foreignBusinessesInMask(
+  bundle: FusionBundle,
+  grid: EvidenceGrid,
+  mask: Uint8Array,
+  seedAreas: Array<{ kind: string; tags: Record<string, string> }>,
+): string[] {
+  const found = new Set<string>();
+  for (const area of seedAreas) {
+    if (isForeignBusiness(area.tags, bundle.name)) {
+      const identity = businessIdentity(area.tags);
+      if (identity) found.add(identity);
+    }
+  }
+  for (const place of bundle.osm?.namedPlaces ?? []) {
+    if (!isForeignBusiness(place.tags, bundle.name)) continue;
+    const cell = lonLatToCell(grid.spec, place.point);
+    if (cell && mask[cellIndex(grid.spec, cell.col, cell.row)]) {
+      const identity = businessIdentity(place.tags);
+      if (identity) found.add(identity);
+    }
+  }
+  return [...found];
+}
+
+/**
  * Grows a site from the fused evidence.
  *
  * Returns null when there is nothing defensible to grow from — the caller then
@@ -356,8 +492,16 @@ export function fuseBoundary(
   bundle: FusionBundle,
   parameters: RiskParameters,
 ): FusionOutcome | null {
-  const { grid, layers } = buildEvidenceGrid(bundle, parameters);
+  const { grid, layers, foreignBusinesses } = buildEvidenceGrid(
+    bundle,
+    parameters,
+  );
   const reasons: string[] = [];
+  if (foreignBusinesses.length > 0) {
+    reasons.push(
+      `treated as another operator's site: ${foreignBusinesses.slice(0, 5).join(", ")}`,
+    );
+  }
 
   const growOptions = {
     highThreshold: parameters.boundaryGrowHighThreshold,
@@ -369,7 +513,10 @@ export function fuseBoundary(
   // The anchor may sit on the street or on a neighbouring roof, so the seed is
   // allowed to move. The grid origin is not — moving it would silently change
   // every downstream cache key.
-  const anchorLeashM = Math.min(60, parameters.boundaryNearPointDistanceM * 1.7);
+  const anchorLeashM = Math.min(
+    60,
+    parameters.boundaryNearPointDistanceM * 1.7,
+  );
   const seed = pickSeed(grid, anchorLeashM, growOptions);
   if (!seed) return null;
 
@@ -397,7 +544,10 @@ export function fuseBoundary(
   });
   if (!vector) return null;
 
-  const check = checkRing(vector.ring, { minAreaSqm: 250, maxAreaSqm: 500_000 });
+  const check = checkRing(vector.ring, {
+    minAreaSqm: 250,
+    maxAreaSqm: 500_000,
+  });
   if (!check.valid) {
     reasons.push(`fused ring rejected: ${check.reason}`);
     return null;
@@ -432,7 +582,11 @@ export function fuseBoundary(
     });
     for (const candidate of candidates) {
       if (additionalMasks.length >= MAX_ADDITIONAL_COMPONENTS) break;
-      const seedPoint = cellToLonLat(grid.spec, candidate.seed.col, candidate.seed.row);
+      const seedPoint = cellToLonLat(
+        grid.spec,
+        candidate.seed.col,
+        candidate.seed.row,
+      );
       const overlappingAreaTags = (bundle.osm?.areas ?? [])
         .filter((area) => ringContains(area.ring, seedPoint))
         .map((area) => ({ kind: area.kind, tags: area.tags }));
@@ -444,29 +598,49 @@ export function fuseBoundary(
         parcelHere != null &&
         parcelHere !== anchorParcel &&
         isAdjacentParcel(parcelHere, anchorParcel);
+
+      // Grown before it is judged, so another business anywhere *inside* the
+      // component — not only under its seed — counts against it.
+      const grownComponent = growRegion(grid, candidate.seed, {
+        ...growOptions,
+        maxAreaSqm: remainingBudget,
+      });
+      if (grownComponent.areaSqm === 0) continue;
+      const foreignInComponent = foreignBusinessesInMask(
+        bundle,
+        grid,
+        grownComponent.mask,
+        overlappingAreaTags,
+      );
+
       const evaluation = evaluateComponentMembership({
         name: bundle.name,
         address: bundle.address,
         overlappingAreaTags,
         onAdjacentParcel,
+        foreignBusinesses: foreignInComponent,
       });
       if (!evaluation.accepted) {
         reasons.push(`separate component excluded: ${evaluation.reasons[0]}`);
         continue;
       }
 
-      const grownComponent = growRegion(grid, candidate.seed, {
-        ...growOptions,
-        maxAreaSqm: remainingBudget,
-      });
-      if (grownComponent.areaSqm === 0) continue;
-      let componentMask = closeMask(grid.spec, grownComponent.mask, closingCells);
+      let componentMask = closeMask(
+        grid.spec,
+        grownComponent.mask,
+        closingCells,
+      );
       componentMask = largestComponent(grid.spec, componentMask);
       componentMask = fillHoles(grid.spec, componentMask, 2_500);
-      componentMask = reclaimBarrierCells(grid.spec, componentMask, grid.blocked);
+      componentMask = reclaimBarrierCells(
+        grid.spec,
+        componentMask,
+        grid.blocked,
+      );
       const componentVector = maskToPolygon(grid.spec, componentMask, {
         simplifyToleranceM: 1,
-        regularizeAngleToleranceDeg: parameters.boundaryRegularizeAngleToleranceDeg,
+        regularizeAngleToleranceDeg:
+          parameters.boundaryRegularizeAngleToleranceDeg,
       });
       if (
         !componentVector ||
@@ -506,7 +680,8 @@ export function fuseBoundary(
       ? fusedPolygon
       : (masksToGeometry(grid.spec, [mask, ...additionalMasks], {
           simplifyToleranceM: 1,
-          regularizeAngleToleranceDeg: parameters.boundaryRegularizeAngleToleranceDeg,
+          regularizeAngleToleranceDeg:
+            parameters.boundaryRegularizeAngleToleranceDeg,
         })?.geometry ?? fusedPolygon);
   let polygon: BoundaryGeometry = fusedGeometry;
   let areaSqm = maskAreaSqm(grid.spec, combinedMask);

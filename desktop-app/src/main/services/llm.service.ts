@@ -16,9 +16,17 @@ import {
   StructuredMemoSchema,
 } from "@shared/types";
 import { buildDefaultDashboardSpec } from "@shared/dashboard-aggregates";
+import type { LlmConnectionTest, LocalRuntimeStatus } from "@shared/ipc-schema";
+import {
+  DEFAULT_LOCAL_BASE_URL,
+  LLM_NOT_CONFIGURED,
+  LOCAL_RUNTIMES,
+  isLoopbackUrl,
+  type LocalRuntime,
+} from "@shared/llm-config";
 import { effectiveVehicleCount } from "@shared/risk-math";
 import { getLlmApiKey, getSettings } from "./settings.service";
-import { fetchWithResilience } from "./http.service";
+import { fetchWithResilience, HttpRequestError } from "./http.service";
 
 /**
  * Provider-agnostic LLM client with streaming. API keys come from safeStorage.
@@ -50,7 +58,15 @@ interface ResolvedProvider {
   model: string;
   baseUrl: string;
   apiKey?: string;
+  /** Time until response headers arrive (covers loading a local model). */
+  timeoutMs?: number;
 }
+
+/**
+ * A local runtime loads the model into memory on the first request, which
+ * can take far longer than the default HTTP timeout.
+ */
+const LOCAL_TIMEOUT_MS = 180_000;
 
 function normalizeBaseUrl(rawUrl: string, label: string): string {
   let url: URL;
@@ -69,16 +85,43 @@ function normalizeBaseUrl(rawUrl: string, label: string): string {
   return url.toString().replace(/\/+$/, "");
 }
 
-function resolveProvider(): ResolvedProvider {
+/**
+ * Resolves endpoint, key and model from the saved settings. `requireModel:
+ * false` is for listing the available models before one is chosen.
+ */
+function resolveProvider({ requireModel = true } = {}): ResolvedProvider {
   const settings = getSettings();
   const llm = settings.llm;
   const provider: LlmProvider = llm?.provider ?? "openai";
-  const model = llm?.model ?? "";
+  const model = llm?.model.trim() ?? "";
   // Strip trailing slash so `${baseUrl}/v1/messages` composes cleanly.
   const baseUrlSetting = llm?.baseUrl?.trim();
-  // API key is optional: local proxies/endpoints may not require auth;
-  // if a required key is missing, the endpoint itself reports 401.
+  if (requireModel && !model) {
+    throw new Error(`${LLM_NOT_CONFIGURED}: no model configured`);
+  }
+
+  if (provider === "local") {
+    // No API key: a local runtime needs none, and a stored cloud key must
+    // not be sent to whatever listens on a local port.
+    const baseUrl = normalizeBaseUrl(
+      baseUrlSetting || DEFAULT_LOCAL_BASE_URL,
+      "Local model base URL",
+    );
+    if (!isLoopbackUrl(baseUrl)) {
+      throw new Error(
+        "Local model base URL must point to this computer (localhost)",
+      );
+    }
+    return { provider, model, baseUrl, timeoutMs: LOCAL_TIMEOUT_MS };
+  }
+
+  // API key is optional for a custom base URL (local proxies may not require
+  // auth); the official endpoints always need one. Fail before the request so
+  // the renderer can route the user to the AI settings instead of showing 401.
   const apiKey = getLlmApiKey(provider) ?? undefined;
+  if (provider !== "custom" && !baseUrlSetting && !apiKey) {
+    throw new Error(`${LLM_NOT_CONFIGURED}: no API key configured`);
+  }
 
   if (provider === "claude") {
     return {
@@ -93,7 +136,9 @@ function resolveProvider(): ResolvedProvider {
   }
   if (provider === "custom") {
     if (!baseUrlSetting)
-      throw new Error("No base URL configured for the custom provider");
+      throw new Error(
+        `${LLM_NOT_CONFIGURED}: no base URL configured for the custom provider`,
+      );
     return {
       provider,
       model,
@@ -123,6 +168,7 @@ export async function chatComplete(
   switch (p.provider) {
     case "openai":
     case "custom":
+    case "local":
       return openAiComplete(p, messages, maxTokens);
     case "claude":
       return claudeComplete(p, messages, maxTokens);
@@ -136,14 +182,18 @@ async function openAiComplete(
   messages: ChatMessage[],
   maxTokens: number,
 ): Promise<string> {
-  const res = await fetchWithResilience(`${p.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(p.apiKey ? { Authorization: `Bearer ${p.apiKey}` } : {}),
+  const res = await fetchWithResilience(
+    `${p.baseUrl}/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(p.apiKey ? { Authorization: `Bearer ${p.apiKey}` } : {}),
+      },
+      body: JSON.stringify({ model: p.model, messages, max_tokens: maxTokens }),
     },
-    body: JSON.stringify({ model: p.model, messages, max_tokens: maxTokens }),
-  });
+    { timeoutMs: p.timeoutMs },
+  );
   if (!res.ok) throw new Error(`LLM ${res.status}: ${await res.text()}`);
   const data = (await res.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
@@ -201,15 +251,19 @@ async function* openAiStream(
   messages: ChatMessage[],
   signal?: AbortSignal,
 ): AsyncGenerator<string, void, unknown> {
-  const res = await fetchWithResilience(`${p.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(p.apiKey ? { Authorization: `Bearer ${p.apiKey}` } : {}),
+  const res = await fetchWithResilience(
+    `${p.baseUrl}/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(p.apiKey ? { Authorization: `Bearer ${p.apiKey}` } : {}),
+      },
+      body: JSON.stringify({ model: p.model, messages, stream: true }),
+      signal,
     },
-    body: JSON.stringify({ model: p.model, messages, stream: true }),
-    signal,
-  });
+    { timeoutMs: p.timeoutMs },
+  );
   if (!res.ok || !res.body)
     throw new Error(`LLM ${res.status}: ${await res.text()}`);
   for await (const data of sseLines(res.body, signal)) {
@@ -291,6 +345,166 @@ async function* sseLines(
   } finally {
     reader.releaseLock();
   }
+}
+
+// --- Setup: connection test + model list ------------------------------------
+
+/** Longest provider response passed to the renderer as diagnosis detail. */
+const MAX_DETAIL_CHARS = 300;
+
+/**
+ * Sends a minimal request over the same streaming path the chat uses and
+ * stops at the first token. A real completion (not just `/models`) is the
+ * only check that covers key, endpoint AND model name at once.
+ */
+export async function testLlmConnection(): Promise<LlmConnectionTest> {
+  const started = Date.now();
+  const result = (
+    code: LlmConnectionTest["code"],
+    detail?: string,
+  ): LlmConnectionTest => ({
+    ok: code === "ok",
+    code,
+    detail: detail?.slice(0, MAX_DETAIL_CHARS),
+    latencyMs: Date.now() - started,
+  });
+  const controller = new AbortController();
+  try {
+    for await (const token of chatCompleteStream(
+      [{ role: "user", content: "Reply with: ok" }],
+      controller.signal,
+    )) {
+      if (token) break;
+    }
+    return result("ok");
+  } catch (error) {
+    return result(classifyLlmError(error), errorText(error));
+  } finally {
+    // Close the connection instead of streaming the rest of the answer.
+    controller.abort();
+  }
+}
+
+/** Maps a failed LLM call to the hint the settings page shows. */
+export function classifyLlmError(error: unknown): LlmConnectionTest["code"] {
+  const message = errorText(error);
+  if (message.startsWith(LLM_NOT_CONFIGURED)) return "not_configured";
+  const status = /^(?:LLM|Claude) (\d{3})\b/.exec(message)?.[1];
+  if (status === "401" || status === "403") return "auth";
+  if (status === "404") return "not_found";
+  // Ollama answers an unknown model on /chat/completions with 404, but some
+  // OpenAI-compatible servers use 400 with a "model not found" message.
+  if (status && /model.*(not found|does not exist)/i.test(message))
+    return "not_found";
+  if (status) return "error";
+  // No HTTP status: the server was not reachable (refused, DNS, timeout).
+  if (error instanceof HttpRequestError || error instanceof TypeError)
+    return "unreachable";
+  return "error";
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Model IDs the configured endpoint offers right now. Read live from the
+ * provider (`GET /models`), so new models appear without an app update.
+ */
+export async function listLlmModels(): Promise<{
+  models: Array<{ id: string; label?: string }>;
+}> {
+  const p = resolveProvider({ requireModel: false });
+  if (p.provider === "claude") {
+    const res = await fetchWithResilience(`${p.baseUrl}/v1/models?limit=100`, {
+      headers: {
+        ...(p.apiKey ? { "x-api-key": p.apiKey } : {}),
+        "anthropic-version": "2023-06-01",
+      },
+    });
+    if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`);
+    const data = (await res.json()) as {
+      data?: Array<{ id?: unknown; display_name?: unknown }>;
+    };
+    // Anthropic returns the newest models first; keep that order.
+    return {
+      models: (data.data ?? []).flatMap((m) =>
+        typeof m.id === "string"
+          ? [
+              {
+                id: m.id,
+                label:
+                  typeof m.display_name === "string"
+                    ? m.display_name
+                    : undefined,
+              },
+            ]
+          : [],
+      ),
+    };
+  }
+
+  const res = await fetchWithResilience(
+    `${p.baseUrl}/models`,
+    { headers: p.apiKey ? { Authorization: `Bearer ${p.apiKey}` } : {} },
+    { timeoutMs: p.provider === "local" ? 10_000 : undefined },
+  );
+  if (!res.ok) throw new Error(`LLM ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as {
+    data?: Array<{ id?: unknown; created?: unknown }>;
+  };
+  const models = (data.data ?? [])
+    .flatMap((m) =>
+      typeof m.id === "string"
+        ? [{ id: m.id, created: typeof m.created === "number" ? m.created : 0 }]
+        : [],
+    )
+    .filter((m) => p.provider !== "openai" || isOpenAiChatModel(m.id))
+    // Newest first (OpenAI/Ollama report `created`), then by name.
+    .sort((a, b) => b.created - a.created || a.id.localeCompare(b.id));
+  return { models: models.map(({ id }) => ({ id })) };
+}
+
+/**
+ * Probes the known local runtimes on their default ports, so the settings
+ * can preselect whichever one is running. Fixed loopback URLs only; nothing
+ * user-supplied is fetched here.
+ */
+export async function detectLocalRuntimes(): Promise<LocalRuntimeStatus[]> {
+  const entries = Object.entries(LOCAL_RUNTIMES) as Array<
+    [LocalRuntime, (typeof LOCAL_RUNTIMES)[LocalRuntime]]
+  >;
+  return Promise.all(
+    entries.map(async ([runtime, { baseUrl }]) => {
+      try {
+        const res = await fetchWithResilience(
+          `${baseUrl}/models`,
+          {},
+          { retries: 0, timeoutMs: 1_500 },
+        );
+        if (!res.ok) return { runtime, baseUrl, reachable: false };
+        const data = (await res.json()) as { data?: unknown[] };
+        return {
+          runtime,
+          baseUrl,
+          reachable: true,
+          modelCount: Array.isArray(data.data) ? data.data.length : 0,
+        };
+      } catch {
+        return { runtime, baseUrl, reachable: false };
+      }
+    }),
+  );
+}
+
+/**
+ * OpenAI's `/models` also lists embedding, audio, image and moderation
+ * models, which cannot answer chat requests.
+ */
+function isOpenAiChatModel(id: string): boolean {
+  return !/embedding|whisper|tts|dall-e|image|audio|realtime|transcribe|moderation|search|davinci|babbage/i.test(
+    id,
+  );
 }
 
 // --- JSON parsing of model responses ----------------------------------------

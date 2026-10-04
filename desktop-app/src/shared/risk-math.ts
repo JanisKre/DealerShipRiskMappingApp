@@ -99,11 +99,12 @@ export function computePML(
   return {
     returnPeriod,
     estimatedLossEur: Math.round(
-      bestClusterExposure * ({
-        10: parameters.pmlDamageFraction10,
-        50: parameters.pmlDamageFraction50,
-        100: parameters.pmlDamageFraction100,
-      }[returnPeriod]),
+      bestClusterExposure *
+        {
+          10: parameters.pmlDamageFraction10,
+          50: parameters.pmlDamageFraction50,
+          100: parameters.pmlDamageFraction100,
+        }[returnPeriod],
     ),
     dealershipsInScenario: bestClusterCount,
     clusterRadiusKm: parameters.pmlClusterRadiusKm,

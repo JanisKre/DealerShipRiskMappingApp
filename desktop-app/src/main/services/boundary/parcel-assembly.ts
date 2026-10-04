@@ -315,7 +315,9 @@ export function assembleSiteFromParcels(
     }
   }
 
-  const merged = unionAll([...selected].map((index) => features[index].feature));
+  const merged = unionAll(
+    [...selected].map((index) => features[index].feature),
+  );
   if (!merged) return null;
   const polygon = geometryOf(merged);
   if (!polygon) return null;

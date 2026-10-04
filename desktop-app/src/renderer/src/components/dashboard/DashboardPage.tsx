@@ -206,13 +206,18 @@ export function DashboardPage(): React.JSX.Element {
                 }
               />
             ) : (
-              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              <div
+                className={`grid grid-cols-1 items-start gap-4 lg:grid-cols-2 ${
+                  assistantOpen ? "2xl:grid-cols-2" : "xl:grid-cols-3"
+                }`}
+              >
                 {tileOrder.map((id) => (
                   <DashboardTile
                     key={id}
                     id={id}
                     label={tileLabels.get(id) ?? id}
                     dragged={draggedTile === id}
+                    compact={assistantOpen}
                     onDragStart={() => setDraggedTile(id)}
                     onDragEnd={() => setDraggedTile(null)}
                     onDrop={() => moveTile(id)}
@@ -235,7 +240,7 @@ export function DashboardPage(): React.JSX.Element {
       </div>
 
       {assistantOpen && (
-        <div className="absolute inset-y-0 right-0 z-30 flex w-full max-w-md shadow-2xl md:static md:w-96 md:max-w-none md:shadow-none">
+        <div className="absolute inset-y-0 right-0 z-30 flex w-full max-w-md shadow-2xl 2xl:static 2xl:w-96 2xl:max-w-none 2xl:shadow-none">
           <DashboardAssistant
             onClose={() => setAssistantOpen(false)}
             onDashboardCommand={handleDashboardCommand}
@@ -296,7 +301,12 @@ function renderTile(
   }
 }
 
-function tileSpan(id: DashboardTileId): string {
+function tileSpan(id: DashboardTileId, compact: boolean): string {
+  if (compact) {
+    return id === "insights" || id === "coverage"
+      ? "lg:col-span-1"
+      : "lg:col-span-2";
+  }
   if (
     id === "summary" ||
     id === "seasonal" ||
@@ -313,6 +323,7 @@ function DashboardTile({
   id,
   label,
   dragged,
+  compact,
   onDragStart,
   onDragEnd,
   onDrop,
@@ -323,6 +334,7 @@ function DashboardTile({
   id: DashboardTileId;
   label: string;
   dragged: boolean;
+  compact: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
   onDrop: () => void;
@@ -332,7 +344,7 @@ function DashboardTile({
 }>): React.JSX.Element {
   return (
     <section
-      className={`group relative min-w-0 ${tileSpan(id)} ${dragged ? "opacity-50" : ""}`}
+      className={`group relative min-w-0 ${tileSpan(id, compact)} ${dragged ? "opacity-50" : ""}`}
       draggable
       tabIndex={0}
       onDragStart={onDragStart}
@@ -480,7 +492,9 @@ function Actions(): React.JSX.Element {
           <DropdownMenuItem onClick={exportReadonly}>
             {t("ui.readonlyView")}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={exportFile}>.drm File</DropdownMenuItem>
+          <DropdownMenuItem onClick={exportFile}>
+            {t("ui.portfolioFile")}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

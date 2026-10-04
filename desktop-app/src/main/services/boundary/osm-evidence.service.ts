@@ -33,7 +33,8 @@ export async function fetchOsmEvidence(
   lon: number,
   radiusM: number = OSM_EVIDENCE_RADIUS_M,
 ): Promise<OsmEvidence | null> {
-  const key = `osm-evidence:v1:${radiusM}:${lat.toFixed(5)},${lon.toFixed(5)}`;
+  // v2: adds named business points; v1 entries lack them.
+  const key = `osm-evidence:v2:${radiusM}:${lat.toFixed(5)},${lon.toFixed(5)}`;
   const hit = cacheGet<OsmEvidence>(key);
   if (hit) return hit;
 

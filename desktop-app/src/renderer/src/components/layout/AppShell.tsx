@@ -106,6 +106,12 @@ export function AppShell(): React.JSX.Element {
   const activeTitleKey =
     activeItem?.titleKey ?? activeItem?.labelKey ?? "nav.map";
   const activeDescKey = activeItem?.descKey;
+  // Settings are app-wide, so the portfolio switcher would only distract there.
+  const showPortfolioSwitcher = !isItemActive(
+    pathname,
+    SETTINGS_ITEM.to,
+    SETTINGS_ITEM.end,
+  );
 
   // Global Cmd/Ctrl+K shortcut opens the command palette.
   useEffect(() => {
@@ -193,14 +199,18 @@ export function AppShell(): React.JSX.Element {
             orientation="vertical"
             className="mr-1 data-[orientation=vertical]:h-4"
           />
-          <PortfolioSwitcher descriptionKey={activeDescKey} />
+          {showPortfolioSwitcher && (
+            <PortfolioSwitcher descriptionKey={activeDescKey} />
+          )}
           {/* Page name as a secondary separator, when on a workspace route */}
           {pathname !== "/" && (
             <>
-              <Separator
-                orientation="vertical"
-                className="mx-1 data-[orientation=vertical]:h-4"
-              />
+              {showPortfolioSwitcher && (
+                <Separator
+                  orientation="vertical"
+                  className="mx-1 data-[orientation=vertical]:h-4"
+                />
+              )}
               <h1 className="hidden truncate text-sm leading-tight font-semibold sm:block">
                 {t(activeTitleKey)}
               </h1>

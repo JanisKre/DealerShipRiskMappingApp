@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { PenLine, Trash2, Zap } from "lucide-react";
+import { PenLine, Trash2 } from "lucide-react";
 import type { HailstormScenario } from "@shared/types";
 import { computeScenarioImpact } from "@shared/risk-math";
 import { Button } from "@renderer/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import { eur, num } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
 import { INTENSITY_LEVELS } from "./HailstormScenarioLayer";
+import { PANEL_ACTION_CLASS } from "./panelStyles";
 
 /**
  * Control panel for the hailstorm scenario: draw a corridor, adjust width
@@ -36,7 +37,10 @@ export function ScenarioBuilder({
   const setScenario = useAppStore((s) => s.setScenario);
 
   const impact = useMemo(
-    () => (scenario ? computeScenarioImpact(scenario, dealerships, parameters) : null),
+    () =>
+      scenario
+        ? computeScenarioImpact(scenario, dealerships, parameters)
+        : null,
     [scenario, dealerships, parameters],
   );
 
@@ -46,31 +50,32 @@ export function ScenarioBuilder({
   }
 
   return (
-    <div className="glass w-full space-y-2.5 rounded-lg border p-3 shadow-lg">
-      <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-1.5 text-sm font-semibold">
-          <Zap className="size-4" /> {t("map.scenario")}
-        </h3>
+    // Rendered inside a layer-panel section, which already supplies the
+    // title and frame.
+    <div className="w-full space-y-2.5">
+      <div className="flex gap-1.5">
+        <Button
+          variant={drawing ? "default" : "outline"}
+          size="sm"
+          className={`${PANEL_ACTION_CLASS} flex-1`}
+          onClick={onToggleDraw}
+        >
+          <PenLine className="size-3" />
+          {drawing ? t("ui.finishDrawing") : t("ui.drawCorridor")}
+        </Button>
         {scenario && (
           <Button
-            variant="ghost"
-            size="icon"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
             onClick={() => setScenario(null)}
             title={t("ui.delete")}
+            aria-label={t("ui.delete")}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="size-3" />
           </Button>
         )}
       </div>
-
-      <Button
-        variant={drawing ? "default" : "outline"}
-        size="sm"
-        className="w-full"
-        onClick={onToggleDraw}
-      >
-        <PenLine /> {drawing ? t("ui.finishDrawing") : t("ui.drawCorridor")}
-      </Button>
 
       {drawing && (
         <p className="text-xs text-muted-foreground">{t("ui.drawingHint")}</p>

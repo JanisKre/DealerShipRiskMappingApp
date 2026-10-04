@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  cellIndex,
-  createGridSpec,
-  maskAreaSqm,
-  type GridSpec,
-} from "./grid";
+import { cellIndex, createGridSpec, maskAreaSqm, type GridSpec } from "./grid";
 import {
   boundarySupportedByBarrier,
   dilate,
@@ -29,7 +24,11 @@ function ringFromMetres(points: Array<[number, number]>): LonLat[] {
   return ring;
 }
 
-function rect(halfWidth: number, halfHeight: number, rotationDeg = 0): LonLat[] {
+function rect(
+  halfWidth: number,
+  halfHeight: number,
+  rotationDeg = 0,
+): LonLat[] {
   const rad = (rotationDeg * Math.PI) / 180;
   const corners: Array<[number, number]> = [
     [-halfWidth, -halfHeight],
@@ -171,7 +170,12 @@ describe("rasterizeBarrier", () => {
       const index = queue.pop()!;
       const col = index % SPEC.cols;
       const row = Math.floor(index / SPEC.cols);
-      if (col === 0 || row === 0 || col === SPEC.cols - 1 || row === SPEC.rows - 1) {
+      if (
+        col === 0 ||
+        row === 0 ||
+        col === SPEC.cols - 1 ||
+        row === SPEC.rows - 1
+      ) {
         escaped = true;
         break;
       }
@@ -204,7 +208,12 @@ describe("rasterizeBarrier", () => {
       const index = queue.pop()!;
       const col = index % SPEC.cols;
       const row = Math.floor(index / SPEC.cols);
-      if (col === 0 || row === 0 || col === SPEC.cols - 1 || row === SPEC.rows - 1) {
+      if (
+        col === 0 ||
+        row === 0 ||
+        col === SPEC.cols - 1 ||
+        row === SPEC.rows - 1
+      ) {
         escaped = true;
         break;
       }
@@ -318,10 +327,11 @@ describe("polygonRasterIoU", () => {
   });
 
   it("returns 0 for a degenerate ring instead of throwing", () => {
-    const degenerate = { type: "Polygon" as const, coordinates: [[[13.4, 52.5]]] };
-    expect(
-      polygonRasterIoU(degenerate as never, poly(rect(10, 10))),
-    ).toBe(0);
+    const degenerate = {
+      type: "Polygon" as const,
+      coordinates: [[[13.4, 52.5]]],
+    };
+    expect(polygonRasterIoU(degenerate as never, poly(rect(10, 10)))).toBe(0);
   });
 });
 
@@ -354,7 +364,11 @@ describe("boundarySupportedByBarrier", () => {
     const blocked = new Uint8Array(spec.cols * spec.rows);
     expect(boundarySupportedByBarrier(spec, mask, blocked)).toBe(0);
     expect(
-      boundarySupportedByBarrier(spec, new Uint8Array(spec.cols * spec.rows), blocked),
+      boundarySupportedByBarrier(
+        spec,
+        new Uint8Array(spec.cols * spec.rows),
+        blocked,
+      ),
     ).toBe(0);
   });
 
@@ -362,7 +376,8 @@ describe("boundarySupportedByBarrier", () => {
     const spec = createGridSpec(ORIGIN, 1, 10);
     const mask = new Uint8Array(spec.cols * spec.rows);
     // Mark the entire first row: every north-facing side falls outside the grid.
-    for (let col = 0; col < spec.cols; col += 1) mask[cellIndex(spec, col, 0)] = 1;
+    for (let col = 0; col < spec.cols; col += 1)
+      mask[cellIndex(spec, col, 0)] = 1;
     const blocked = new Uint8Array(spec.cols * spec.rows);
     // Only the outline facing south (into the grid) can be measured; none of
     // it is blocked, so the result is 0, not skewed by the missing north side.

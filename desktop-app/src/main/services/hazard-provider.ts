@@ -1,4 +1,8 @@
-import type { NatCatAssessment, NatCatProvider, RiskEvidence } from "@shared/types";
+import type {
+  NatCatAssessment,
+  NatCatProvider,
+  RiskEvidence,
+} from "@shared/types";
 import type { WeatherMetrics } from "./weather.service";
 
 /** Adapter contract for a location-level hazard data provider. */
@@ -14,5 +18,9 @@ export interface HazardProvider {
  */
 export interface NatCatProviderAdapter {
   readonly id: NatCatProvider;
-  lookup(lat: number, lon: number, perils?: string[]): Promise<NatCatAssessment>;
+  lookup(
+    lat: number,
+    lon: number,
+    perils?: string[],
+  ): Promise<NatCatAssessment>;
 }

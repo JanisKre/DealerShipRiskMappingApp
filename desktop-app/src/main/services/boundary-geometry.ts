@@ -128,7 +128,8 @@ export function approximatePolygonIoU(
   const ringsA = outerRings(a) as LonLat[][];
   const ringsB = outerRings(b) as LonLat[][];
   const allRings = [...ringsA, ...ringsB];
-  if (allRings.length === 0 || allRings.some((ring) => ring.length < 4)) return 0;
+  if (allRings.length === 0 || allRings.some((ring) => ring.length < 4))
+    return 0;
   const origin = allRings[0][0];
   const [west, south, east, north] = geometryBbox({
     type: "MultiPolygon",
@@ -137,10 +138,11 @@ export function approximatePolygonIoU(
       ...(b.type === "Polygon" ? [b.coordinates] : b.coordinates),
     ],
   });
-  const points: LonLat[] = [[west, south], [east, north]];
-  const projectedPoints = points.map((point) =>
-    projectPoint(point, origin),
-  );
+  const points: LonLat[] = [
+    [west, south],
+    [east, north],
+  ];
+  const projectedPoints = points.map((point) => projectPoint(point, origin));
   const minX = Math.min(...projectedPoints.map(([x]) => x));
   const maxX = Math.max(...projectedPoints.map(([x]) => x));
   const minY = Math.min(...projectedPoints.map(([, y]) => y));

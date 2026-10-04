@@ -1,10 +1,15 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare, Plus, X } from "lucide-react";
+import {
+  LlmErrorMessage,
+  LlmSetupNotice,
+} from "@renderer/components/ai/LlmSetupNotice";
 import { useChat } from "@renderer/components/chat/useChat";
 import { MessageBubble } from "@renderer/components/chat/MessageBubble";
 import { Omnibox } from "@renderer/components/upload/Omnibox";
 import { Button } from "@renderer/components/ui/button";
+import { useLlmReady } from "@renderer/lib/useLlmReady";
 import { useConversationStore } from "@renderer/store/conversationStore";
 
 export function DashboardAssistant({
@@ -16,6 +21,7 @@ export function DashboardAssistant({
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const { messages, streamingText, streaming, error, send } = useChat();
+  const llmReady = useLlmReady();
   const newConversation = useConversationStore((s) => s.newConversation);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -28,9 +34,18 @@ export function DashboardAssistant({
 
   function submit(prompt: string): void {
     const commandResult = onDashboardCommand(prompt);
-    send(prompt);
+    const store = useConversationStore.getState();
+    if (llmReady === false) {
+      // Tile commands are local and keep working without an AI provider;
+      // free-form questions are blocked by the setup prompt instead.
+      if (!commandResult) return;
+      if (!store.activeId) store.newConversation();
+      store.appendMessage({ role: "user", content: prompt });
+    } else {
+      send(prompt);
+    }
     if (commandResult) {
-      useConversationStore.getState().appendMessage({
+      store.appendMessage({
         role: "assistant",
         content: commandResult,
       });
@@ -80,26 +95,29 @@ export function DashboardAssistant({
       </header>
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+        {llmReady === false && <LlmSetupNotice className="mb-3" />}
         {messages.length === 0 && !streaming ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center">
-            <MessageSquare className="size-7 text-muted-foreground/50" />
-            <p className="text-xs text-muted-foreground">
-              {t("dashboard.assistantEmpty")}
-            </p>
-            <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-              {examplePrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  className="rounded-full border bg-background px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => submit(prompt)}
-                  disabled={streaming}
-                >
-                  {prompt}
-                </button>
-              ))}
+          llmReady === false ? null : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center">
+              <MessageSquare className="size-7 text-muted-foreground/50" />
+              <p className="text-xs text-muted-foreground">
+                {t("dashboard.assistantEmpty")}
+              </p>
+              <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+                {examplePrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="rounded-full border bg-background px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => submit(prompt)}
+                    disabled={streaming}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )
         ) : (
           <div className="space-y-3">
             {messages.map((message, index) => (
@@ -112,11 +130,7 @@ export function DashboardAssistant({
             {streaming && (
               <MessageBubble role="assistant" content={streamingText} pending />
             )}
-            {error && (
-              <p className="text-xs text-destructive">
-                {t("ui.error", { error })}
-              </p>
-            )}
+            {error && <LlmErrorMessage error={error} />}
           </div>
         )}
       </div>

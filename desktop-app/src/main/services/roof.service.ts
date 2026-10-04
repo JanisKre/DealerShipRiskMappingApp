@@ -53,7 +53,11 @@ export async function roofCoverageRatio(
     // not ask" as "no buildings here" for the whole TTL.
     if (!data) throw new Error("Overpass unavailable for roof lookup");
 
-    const parcel = { type: "Feature" as const, properties: {}, geometry: boundary.polygon };
+    const parcel = {
+      type: "Feature" as const,
+      properties: {},
+      geometry: boundary.polygon,
+    };
     let roofArea = 0;
     for (const el of data.elements) {
       if (!el.geometry || el.geometry.length < 3) continue;

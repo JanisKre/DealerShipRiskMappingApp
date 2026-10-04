@@ -9,6 +9,8 @@ import {
 } from "@renderer/components/ui/toggle-group";
 import { classifyInput } from "@renderer/lib/classifyInput";
 import { cn } from "@renderer/lib/utils";
+import { searchBias } from "@renderer/lib/searchBias";
+import { PlaceSourceTag } from "@renderer/components/map/PlaceSourceTag";
 
 export interface PlacePick {
   label: string;
@@ -40,6 +42,7 @@ interface Suggestion {
   label: string;
   lat: number;
   lon: number;
+  source?: "osm" | "overture";
 }
 
 const DEBOUNCE_MS = 300;
@@ -120,7 +123,7 @@ export function Omnibox({
       setLoading(true);
       setError(null);
       try {
-        const hits = await window.api.placesAutocomplete(trimmed);
+        const hits = await window.api.placesAutocomplete(trimmed, searchBias());
         if (!cancelled) {
           setSuggestions(hits);
           setOpen(true);
@@ -218,6 +221,7 @@ export function Omnibox({
             >
               <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <span>{s.label}</span>
+              <PlaceSourceTag source={s.source} />
             </button>
           </li>
         ))}

@@ -33,7 +33,7 @@ export async function fromAerialSurface(
   // so a hull computed from Esri imagery must not be served back once the
   // user switches to a different WMS source at the same coordinates.
   const settings = getSettings();
-  const providerKey = settings.satelliteProvider ?? "esri";
+  const providerKey = settings.satelliteProvider ?? "auto";
   const endpointKey = settings.wmsTileUrl
     ? `:${cacheKeyFragment(settings.wmsTileUrl)}`
     : "";

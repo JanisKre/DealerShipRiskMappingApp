@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => {
     cacheSet: vi.fn(),
     getSettings: vi.fn(),
     fetchWithResilience: vi.fn(),
+    selectImageryForDetection: vi.fn(),
   };
 });
 
@@ -24,6 +25,15 @@ vi.mock("sharp", () => ({ default: mocks.sharp }));
 vi.mock("./cache.service", () => ({
   cacheGet: mocks.cacheGet,
   cacheSet: mocks.cacheSet,
+  cacheKeyFragment: (v: string) => v.length.toString(16),
+  cached: (_k: string, _t: number, fetcher: () => Promise<unknown>) =>
+    fetcher(),
+  TTL: { imageryMetadata: 1 },
+}));
+// Real tile-source routing, but the per-location choice is scripted.
+vi.mock("./imagery-source.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./imagery-source.service")>()),
+  selectImageryForDetection: mocks.selectImageryForDetection,
 }));
 vi.mock("./settings.service", () => ({ getSettings: mocks.getSettings }));
 vi.mock("./http.service", () => ({
@@ -31,12 +41,39 @@ vi.mock("./http.service", () => ({
 }));
 
 import { TILE_SIZE } from "@shared/constants";
+import type {
+  ImageryCandidate,
+  ImagerySelection,
+} from "@shared/imagery-sources";
 import { aerialImageForBbox, aerialImageForContext } from "./tiles.service";
+
+function selectionOf(chosen: Partial<ImageryCandidate>): ImagerySelection {
+  const full: ImageryCandidate = {
+    id: "esri:z20",
+    kind: "esri",
+    label: "Esri World Imagery",
+    capturedAt: "2025-06-18",
+    dateSource: "esri-metadata",
+    resolutionM: 0.3,
+    zoom: 20,
+    attribution: "© Esri World Imagery",
+    ...chosen,
+  };
+  return {
+    mode: "auto",
+    chosen: full,
+    reason: "newest",
+    candidates: [full],
+    toleranceDays: 183,
+    resolvedAt: "2026-10-04T00:00:00.000Z",
+  };
+}
 
 describe("aerial tile mosaics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getSettings.mockReturnValue({ satelliteProvider: "esri" });
+    mocks.selectImageryForDetection.mockResolvedValue(selectionOf({}));
     mocks.cacheGet.mockReturnValue(null);
     mocks.fetchWithResilience.mockResolvedValue({
       ok: true,
@@ -127,6 +164,61 @@ describe("aerial tile mosaics", () => {
     expect(capture.validTileCount).toBe(capture.tileCount);
   });
 
+  it("asks Esri for a 404 instead of its 'Map data not yet available' placeholder", async () => {
+    // Without blankTile=false Esri answers missing z20 tiles with a gray
+    // placeholder JPEG and status 200, so the fallback above never fired
+    // and the detector ran on placeholder images.
+    await aerialImageForBbox([7, 51, 7.0001, 51.0001], 20);
+
+    const urls = mocks.fetchWithResilience.mock.calls.map((c) => String(c[0]));
+    expect(urls.length).toBeGreaterThan(0);
+    expect(urls.every((u) => u.endsWith("?blankTile=false"))).toBe(true);
+    // Placeholders cached under the old key must not be served again.
+    const keys = mocks.cacheGet.mock.calls.map((c) => String(c[0]));
+    expect(keys.every((k) => k.startsWith("tile:v2:esri:"))).toBe(true);
+  });
+
+  it("captures from the state orthophoto when the selection picks it", async () => {
+    mocks.selectImageryForDetection.mockResolvedValue(
+      selectionOf({
+        id: "dop:BY",
+        kind: "state-dop",
+        state: "BY",
+        label: "DOP20 Bayern",
+        resolutionM: 0.2,
+      }),
+    );
+
+    const capture = await aerialImageForBbox([11.575, 48.137, 11.5752, 48.1372], 20);
+
+    const urls = mocks.fetchWithResilience.mock.calls.map((c) => String(c[0]));
+    expect(urls.every((u) => u.startsWith("https://wmtsod1.bayernwolke.de/"))).toBe(true);
+    const keys = mocks.cacheGet.mock.calls.map((c) => String(c[0]));
+    expect(keys.every((k) => k.startsWith("tile:v2:dop:BY:"))).toBe(true);
+    expect(capture.imagery?.chosen.id).toBe("dop:BY");
+  });
+
+  it("caps the capture at the zoom of the chosen Esri scene", async () => {
+    // Esri's z20 can be an older, different image than z19 at the same spot.
+    mocks.selectImageryForDetection.mockResolvedValue(
+      selectionOf({ id: "esri:z19", zoom: 19 }),
+    );
+
+    const capture = await aerialImageForBbox([7, 51, 7.0001, 51.0001], 20);
+
+    expect(capture.zoom).toBe(19);
+    expect(capture.imagery?.chosen.id).toBe("esri:z19");
+  });
+
+  it("still captures from Esri when source selection fails", async () => {
+    mocks.selectImageryForDetection.mockRejectedValue(new Error("boom"));
+
+    const capture = await aerialImageForBbox([7, 51, 7.0001, 51.0001], 18);
+
+    expect(capture.validTileCount).toBe(capture.tileCount);
+    expect(capture.imagery).toBeUndefined();
+  });
+
   it("does not retry when the requested zoom already has good coverage", async () => {
     const capture = await aerialImageForBbox([7, 51, 7.0001, 51.0001], 20);
 
@@ -139,6 +231,7 @@ describe("aerialImageForContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getSettings.mockReturnValue({ satelliteProvider: "esri" });
+    mocks.selectImageryForDetection.mockResolvedValue(selectionOf({}));
     mocks.cacheGet.mockReturnValue(null);
     mocks.fetchWithResilience.mockResolvedValue({
       ok: true,
@@ -166,7 +259,9 @@ describe("aerialImageForContext", () => {
     const a = await aerialImageForContext(52.5, 13.4);
     const b = await aerialImageForContext(48.1, 11.6);
     const spanM = (capture: typeof a, lat: number): number =>
-      (capture.bbox[2] - capture.bbox[0]) * 111_320 * Math.cos((lat * Math.PI) / 180);
+      (capture.bbox[2] - capture.bbox[0]) *
+      111_320 *
+      Math.cos((lat * Math.PI) / 180);
     expect(spanM(a, 52.5)).toBeCloseTo(spanM(b, 48.1), 0);
   });
 });

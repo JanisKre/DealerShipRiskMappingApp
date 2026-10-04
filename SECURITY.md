@@ -42,8 +42,22 @@ Relevant security properties already in place:
 - LLM provider API keys are stored via Electron's `safeStorage` (OS-keychain
   encrypted) — never written to disk in plaintext, never exposed to the
   renderer
+- The local model provider only accepts loopback URLs (`localhost`,
+  `127.0.0.0/8`, `[::1]`) and never sends an API key, so a cloud token cannot
+  reach whatever listens on a local port. Ollama pulls accept only
+  `hf.co/<owner>/<repo>:<quant>` references, validated at the IPC boundary
+- Natural hazard API connectors send only the location's coordinates, require
+  HTTPS endpoints without embedded credentials, and keep one key per provider
+  in the OS keychain
+- Hugging Face model discovery sends only the search term to the public Hub
+  API (`huggingface.co`); no token or portfolio data is transmitted
 - ONNX model inference runs in a separate `utilityProcess`, isolated from the
   main IPC event loop
+- The Overture Maps dealer directory is downloaded on explicit request only,
+  in its own `utilityProcess`. URLs taken from the remote STAC catalog are
+  accepted only over HTTPS from `stac.overturemaps.org` and the public
+  Overture S3 bucket; no portfolio data is sent. Location search sends the
+  typed text and the map centre to Photon (`photon.komoot.io`)
 
 Reports about missing multi-user auth, rate limiting, or similar are out of
 scope by design — this is not a hosted, multi-tenant service.

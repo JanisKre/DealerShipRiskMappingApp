@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { Loader2, Monitor, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
-import type { LlmProvider, Settings } from "@shared/types";
+import type { Settings } from "@shared/types";
 import i18n from "@renderer/i18n";
 import { useTheme, type Theme } from "@renderer/components/theme/ThemeProvider";
 import { Button } from "@renderer/components/ui/button";
@@ -17,32 +18,9 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@renderer/components/ui/toggle-group";
-
-const PROVIDERS: LlmProvider[] = ["openai", "claude", "custom"];
-
-/** Provider display names (not i18n — proper names). */
-const PROVIDER_LABELS: Record<LlmProvider, string> = {
-  openai: "OpenAI",
-  claude: "Claude",
-  custom: "Custom",
-};
-
-/** Example model name and base URL per provider, for the placeholder text. */
-const PROVIDER_HINTS: Record<LlmProvider, { model: string; baseUrl: string }> =
-  {
-    openai: {
-      model: "gpt-4.1-mini",
-      baseUrl: "https://api.openai.com/v1",
-    },
-    claude: {
-      model: "claude-sonnet-4-6",
-      baseUrl: "https://api.anthropic.com",
-    },
-    custom: {
-      model: "gpt-4.1-mini",
-      baseUrl: "http://localhost:6655/openai/v1",
-    },
-  };
+import { DealerDirectoryCard } from "./DealerDirectoryCard";
+import { LlmSettingsCard } from "./LlmSettingsCard";
+import { NatCatSettingsCard } from "./NatCatSettingsCard";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message
@@ -55,13 +33,13 @@ export function SettingsPage(): React.JSX.Element {
   const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState("");
   // Local draft for text fields — persist only onBlur (no toast per keystroke).
-  const [model, setModel] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
   const [wmsTileUrl, setWmsTileUrl] = useState("");
-  const [catnetEndpoint, setCatnetEndpoint] = useState("");
-  const [catnetApiKey, setCatnetApiKey] = useState("");
+  // `?section=ai` (from the AI setup prompt) scrolls to and highlights the
+  // LLM card.
+  const [searchParams] = useSearchParams();
+  const focusAi = searchParams.get("section") === "ai";
+  const aiCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,14 +61,14 @@ export function SettingsPage(): React.JSX.Element {
 
   // Sync the draft with the persisted values (only when they change externally).
   useEffect(() => {
-    setModel(settings?.llm?.model ?? "");
-    setBaseUrl(settings?.llm?.baseUrl ?? "");
     setWmsTileUrl(settings?.wmsTileUrl ?? "");
-  }, [settings?.llm?.model, settings?.llm?.baseUrl, settings?.wmsTileUrl]);
+  }, [settings?.wmsTileUrl]);
 
+  const settingsLoaded = settings !== null;
   useEffect(() => {
-    setCatnetEndpoint(settings?.natCat?.catnetEndpoint ?? "");
-  }, [settings?.natCat?.catnetEndpoint]);
+    if (focusAi && settingsLoaded)
+      aiCardRef.current?.scrollIntoView({ block: "start" });
+  }, [focusAi, settingsLoaded]);
 
   if (!settings) {
     return (
@@ -109,9 +87,6 @@ export function SettingsPage(): React.JSX.Element {
     );
   }
 
-  const provider = settings.llm?.provider ?? "openai";
-  const natCatProvider = settings.natCat?.provider ?? "screening";
-
   function notifySaved(): void {
     toast.success(t("common.saved"));
   }
@@ -124,56 +99,6 @@ export function SettingsPage(): React.JSX.Element {
       notifySaved();
     } catch (err) {
       console.error("Saving settings failed:", err);
-      toast.error(errorMessage(err));
-    }
-  }
-
-  async function updateLlm(
-    partial: Partial<NonNullable<Settings["llm"]>>,
-  ): Promise<void> {
-    const llm = {
-      provider,
-      model: settings!.llm?.model ?? "",
-      ...settings!.llm,
-      ...partial,
-    };
-    await update({ llm });
-  }
-
-  async function saveApiKey(): Promise<void> {
-    if (!apiKey.trim()) return;
-    try {
-      await window.api.setLlmApiKey(provider, apiKey.trim());
-      setApiKey("");
-      setSettings(await window.api.getSettings());
-      notifySaved();
-    } catch (err) {
-      console.error("Saving LLM API key failed:", err);
-      toast.error(errorMessage(err));
-    }
-  }
-
-  async function updateNatCat(
-    partial: Partial<NonNullable<Settings["natCat"]>>,
-  ): Promise<void> {
-    await update({
-      natCat: {
-        provider: natCatProvider,
-        ...settings!.natCat,
-        ...partial,
-      },
-    });
-  }
-
-  async function saveCatnetApiKey(): Promise<void> {
-    if (!catnetApiKey.trim()) return;
-    try {
-      await window.api.setNatCatApiKey(catnetApiKey.trim());
-      setCatnetApiKey("");
-      setSettings(await window.api.getSettings());
-      notifySaved();
-    } catch (err) {
-      console.error("Saving CatNet API key failed:", err);
       toast.error(errorMessage(err));
     }
   }
@@ -217,83 +142,9 @@ export function SettingsPage(): React.JSX.Element {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            {t("settings.natCat.title")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            {t("settings.natCat.description")}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {(["screening", "zuers-geo", "swissre-catnet"] as const).map(
-              (p) => (
-                <Button
-                  key={p}
-                  size="sm"
-                  variant={natCatProvider === p ? "default" : "outline"}
-                  onClick={() => void updateNatCat({ provider: p })}
-                >
-                  {t(
-                    `settings.natCat.${p === "screening" ? "screening" : p === "zuers-geo" ? "zuers" : "catnet"}`,
-                  )}
-                </Button>
-              ),
-            )}
-          </div>
-          {natCatProvider === "swissre-catnet" && (
-            <>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">
-                  {t("settings.natCat.endpoint")}
-                </label>
-                <Input
-                  value={catnetEndpoint}
-                  placeholder="https://…"
-                  onChange={(e) => setCatnetEndpoint(e.target.value)}
-                  onBlur={() => {
-                    if (
-                      catnetEndpoint !== (settings.natCat?.catnetEndpoint ?? "")
-                    )
-                      void updateNatCat({
-                        catnetEndpoint: catnetEndpoint || undefined,
-                      });
-                  }}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t("settings.natCat.endpointHint")}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">
-                  {t("settings.natCat.key")}
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    className="min-w-0 flex-1"
-                    type="password"
-                    value={catnetApiKey}
-                    placeholder={
-                      settings.natCat?.catnetHasApiKey
-                        ? t("settings.natCat.keySet")
-                        : t("settings.natCat.keyUnset")
-                    }
-                    onChange={(e) => setCatnetApiKey(e.target.value)}
-                  />
-                  <Button
-                    className="shrink-0"
-                    onClick={() => void saveCatnetApiKey()}
-                  >
-                    {t("settings.natCat.save")}
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <NatCatSettingsCard settings={settings} onSettingsChange={setSettings} />
+
+      <DealerDirectoryCard />
 
       <Card>
         <CardHeader>
@@ -317,116 +168,12 @@ export function SettingsPage(): React.JSX.Element {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            {t("settings.llmProvider")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {PROVIDERS.map((p) => (
-              <Button
-                key={p}
-                size="sm"
-                variant={provider === p ? "default" : "outline"}
-                onClick={() => updateLlm({ provider: p })}
-              >
-                {PROVIDER_LABELS[p]}
-              </Button>
-            ))}
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium">{t("settings.model")}</label>
-            <Input
-              value={model}
-              placeholder={t("settings.modelPlaceholder", {
-                model: PROVIDER_HINTS[provider].model,
-              })}
-              onChange={(e) => setModel(e.target.value)}
-              onBlur={() => {
-                if (model !== (settings!.llm?.model ?? ""))
-                  void updateLlm({ model });
-              }}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium">
-              {t("settings.baseUrl")}
-            </label>
-            <Input
-              value={baseUrl}
-              placeholder={PROVIDER_HINTS[provider].baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-              onBlur={() => {
-                if (baseUrl !== (settings!.llm?.baseUrl ?? ""))
-                  void updateLlm({ baseUrl });
-              }}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("settings.baseUrlHint")}
-            </p>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium">
-              {t("settings.apiKey")}
-            </label>
-            <div className="flex gap-2">
-              <Input
-                className="min-w-0 flex-1"
-                type="password"
-                value={apiKey}
-                placeholder={
-                  settings.llm?.hasApiKey
-                    ? t("settings.apiKeySetPlaceholder")
-                    : t("settings.apiKeyUnsetPlaceholder")
-                }
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-              <Button className="shrink-0" onClick={saveApiKey}>
-                {t("common.save")}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {t("settings.apiKeyHint")}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            {t("settings.boundaryEngine.title")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            {t("settings.boundaryEngine.description")}
-          </p>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            // An unset value behaves as "legacy" in the detector
-            // (`boundary.service.ts`'s `tryFusedBoundary`); shown the same way
-            // here so this toggle never claims an engine is active that isn't.
-            value={settings.boundaryEngine === "fused" ? "fused" : "legacy"}
-            onValueChange={(v) =>
-              v && update({ boundaryEngine: v as Settings["boundaryEngine"] })
-            }
-          >
-            <ToggleGroupItem value="legacy" className="px-4">
-              {t("settings.boundaryEngine.legacy")}
-            </ToggleGroupItem>
-            <ToggleGroupItem value="fused" className="px-4">
-              {t("settings.boundaryEngine.fused")}
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </CardContent>
-      </Card>
+      <LlmSettingsCard
+        ref={aiCardRef}
+        settings={settings}
+        onSettingsChange={setSettings}
+        highlight={focusAi}
+      />
 
       <Card>
         <CardHeader>
@@ -438,20 +185,59 @@ export function SettingsPage(): React.JSX.Element {
           <ToggleGroup
             type="single"
             variant="outline"
-            value={settings.satelliteProvider ?? "esri"}
+            value={settings.satelliteProvider ?? "auto"}
             onValueChange={(v) =>
               v &&
               update({ satelliteProvider: v as Settings["satelliteProvider"] })
             }
+            className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3"
           >
-            <ToggleGroupItem value="esri" className="px-4">
-              Esri World Imagery
+            <ToggleGroupItem
+              value="auto"
+              className="h-auto min-h-14 rounded-md px-3 py-2 text-center whitespace-normal leading-tight first:rounded-md last:rounded-md"
+            >
+              <span className="flex flex-col items-center gap-0.5">
+                <span className="font-medium">
+                  {t("settings.satelliteSource.autoOption")}
+                </span>
+                <span className="text-[11px] font-normal opacity-75">
+                  {t("settings.satelliteSource.autoShort")}
+                </span>
+              </span>
             </ToggleGroupItem>
-            <ToggleGroupItem value="wms" className="px-4">
-              {t("settings.satelliteSource.customOption")}
+            <ToggleGroupItem
+              value="esri"
+              className="h-auto min-h-14 rounded-md px-3 py-2 text-center whitespace-normal leading-tight first:rounded-md last:rounded-md"
+            >
+              <span className="flex flex-col items-center gap-0.5">
+                <span className="font-medium">
+                  {t("settings.satelliteSource.esriOption")}
+                </span>
+                <span className="text-[11px] font-normal opacity-75">
+                  {t("settings.satelliteSource.esriShort")}
+                </span>
+              </span>
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="wms"
+              className="h-auto min-h-14 rounded-md px-3 py-2 text-center whitespace-normal leading-tight first:rounded-md last:rounded-md"
+            >
+              <span className="flex flex-col items-center gap-0.5">
+                <span className="font-medium">
+                  {t("settings.satelliteSource.customOption")}
+                </span>
+                <span className="text-[11px] font-normal opacity-75">
+                  {t("settings.satelliteSource.customShort")}
+                </span>
+              </span>
             </ToggleGroupItem>
           </ToggleGroup>
-          {(settings.satelliteProvider ?? "esri") === "wms" && (
+          {(settings.satelliteProvider ?? "auto") === "auto" && (
+            <p className="text-xs text-muted-foreground">
+              {t("settings.satelliteSource.autoHint")}
+            </p>
+          )}
+          {settings.satelliteProvider === "wms" && (
             <div className="space-y-1">
               <label className="text-sm font-medium">
                 {t("settings.satelliteSource.tileTemplateLabel")}

@@ -165,7 +165,9 @@ export async function detectBoundary(
             ? { fallbackReason: attempt.fallbackReason }
             : {}),
           resultVersion:
-            attempt.usedEngine === "fused" ? FUSION_VERSION : LEGACY_RANKING_VERSION,
+            attempt.usedEngine === "fused"
+              ? FUSION_VERSION
+              : LEGACY_RANKING_VERSION,
           ...(attempt.possiblyIncomplete ? { possiblyIncomplete: true } : {}),
         }
       : undefined,
@@ -255,7 +257,8 @@ async function tryFusedBoundary(
       result: null,
     };
   }
-  const requestedEngine: BoundaryEngine = engine === "fused" ? "fused" : "legacy";
+  const requestedEngine: BoundaryEngine =
+    engine === "fused" ? "fused" : "legacy";
   if (requestedEngine !== "fused") {
     return { requestedEngine, usedEngine: "legacy", result: null };
   }
@@ -320,7 +323,10 @@ async function tryFusedBoundary(
       barrierSupport: outcome.barrierSupport,
       cadastreSnapped: outcome.cadastre != null,
       parcelCount: outcome.cadastre?.parcelCount ?? bundle.parcels.length,
-      areaPlausibility: areaPlausibilityScore("operationalLot", outcome.areaSqm),
+      areaPlausibility: areaPlausibilityScore(
+        "operationalLot",
+        outcome.areaSqm,
+      ),
       sourceAgreement,
     });
     return { requestedEngine, usedEngine: "fused", result, possiblyIncomplete };
@@ -350,7 +356,8 @@ function shouldRunAerialRefinement(
   if (best.source === "aerial") return false;
   return (
     best.confidence < parameters.boundaryReviewConfidence + 0.08 ||
-    (best.quality?.sourceAgreement ?? 0) < parameters.boundaryReviewSourceAgreement + 0.1 ||
+    (best.quality?.sourceAgreement ?? 0) <
+      parameters.boundaryReviewSourceAgreement + 0.1 ||
     best.quality?.pointRelation !== "inside"
   );
 }
@@ -759,7 +766,6 @@ function extractHouseNumber(value?: string): string | undefined {
   return value?.match(/\b\d+[a-z]?\b/i)?.[0].toLowerCase();
 }
 
-
 // --- 3. OSM building footprints ---------------------------------------
 // Reuses the same cached evidence fetch. Buildings mapped as multipolygon
 // relations are now included; the old `way(...)["building"]` query could not
@@ -776,37 +782,39 @@ async function fromOsmBuildings(
   const buildings = evidence.areas.filter((area) => area.kind === "building");
   if (buildings.length === 0) return [];
 
-  return buildings
-    .map((area) => {
-      const contains = booleanPointInPolygon([lon, lat], {
-        type: "Polygon",
-        coordinates: [area.ring],
-      });
-      const confidence = contains ? 0.5 : 0.35;
-      return {
-        source: "osm",
-        role: "building",
-        polygon: { type: "Polygon", coordinates: [area.ring] } as Polygon,
-        areaSqm: polygonAreaSqm(area.ring),
-        confidence,
-        label: "OSM building footprint",
-        evidence: {
-          source: "OpenStreetMap / Overpass",
-          retrievedAt: new Date().toISOString(),
-          method: "building footprint candidate near dealership point",
+  return (
+    buildings
+      .map((area) => {
+        const contains = booleanPointInPolygon([lon, lat], {
+          type: "Polygon",
+          coordinates: [area.ring],
+        });
+        const confidence = contains ? 0.5 : 0.35;
+        return {
+          source: "osm",
+          role: "building",
+          polygon: { type: "Polygon", coordinates: [area.ring] } as Polygon,
+          areaSqm: polygonAreaSqm(area.ring),
           confidence,
-          fallbackUsed: true,
-          limitations: ["A building footprint is not a parking-lot boundary"],
-        },
-      } satisfies BoundaryResult;
-    })
-    // Nearest-first, so the 10 kept are the ones plausibly on this site.
-    .sort(
-      (a, b) =>
-        distanceToRingM([lon, lat], primaryOuterRing(a.polygon) as LonLat[]) -
-        distanceToRingM([lon, lat], primaryOuterRing(b.polygon) as LonLat[]),
-    )
-    .slice(0, 10);
+          label: "OSM building footprint",
+          evidence: {
+            source: "OpenStreetMap / Overpass",
+            retrievedAt: new Date().toISOString(),
+            method: "building footprint candidate near dealership point",
+            confidence,
+            fallbackUsed: true,
+            limitations: ["A building footprint is not a parking-lot boundary"],
+          },
+        } satisfies BoundaryResult;
+      })
+      // Nearest-first, so the 10 kept are the ones plausibly on this site.
+      .sort(
+        (a, b) =>
+          distanceToRingM([lon, lat], primaryOuterRing(a.polygon) as LonLat[]) -
+          distanceToRingM([lon, lat], primaryOuterRing(b.polygon) as LonLat[]),
+      )
+      .slice(0, 10)
+  );
 }
 
 // --- 4. Synthetic fallback boundary -----------------------------------

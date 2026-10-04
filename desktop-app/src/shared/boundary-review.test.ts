@@ -109,7 +109,9 @@ describe("boundaryNeedsReview", () => {
     const bare = clean({ quality: undefined });
     // Only the missing sourceAgreement/areaPlausibility should fire.
     expect(boundaryNeedsReview(bare, DEFAULT_RISK_PARAMETERS)).toBe(true);
-    expect(() => boundaryNeedsReview(bare, DEFAULT_RISK_PARAMETERS)).not.toThrow();
+    expect(() =>
+      boundaryNeedsReview(bare, DEFAULT_RISK_PARAMETERS),
+    ).not.toThrow();
   });
 
   it("honours a relaxed threshold from session parameters", () => {
@@ -127,6 +129,27 @@ describe("boundaryNeedsReview", () => {
     expect(
       boundaryNeedsReview(
         clean({ quality: cleanQuality({ stoppedBy: "exhausted" }) }),
+        DEFAULT_RISK_PARAMETERS,
+      ),
+    ).toBe(false);
+  });
+
+  it("never asks again once a human confirmed or drew the boundary", () => {
+    const weak = clean({
+      role: "parcel",
+      confidence: 0.2,
+      quality: cleanQuality({ pointRelation: "outside", sourceAgreement: 0 }),
+    });
+    expect(boundaryNeedsReview(weak, DEFAULT_RISK_PARAMETERS)).toBe(true);
+    expect(
+      boundaryNeedsReview(
+        { ...weak, confirmedAt: "2026-10-04T10:00:00.000Z" },
+        DEFAULT_RISK_PARAMETERS,
+      ),
+    ).toBe(false);
+    expect(
+      boundaryNeedsReview(
+        { ...weak, source: "manual" },
         DEFAULT_RISK_PARAMETERS,
       ),
     ).toBe(false);

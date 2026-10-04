@@ -100,17 +100,26 @@ describe("productLimitBreach", () => {
   });
 
   it("breaches when exposure reaches the limit", () => {
-    const d = make("s", { exposureEur: 12_000_000, productLimitEur: 10_000_000 });
+    const d = make("s", {
+      exposureEur: 12_000_000,
+      productLimitEur: 10_000_000,
+    });
     expect(productLimitBreach(d).severity).toBe("breach");
   });
 
   it("warns when exposure approaches the limit (≥ 70 %)", () => {
-    const d = make("s", { exposureEur: 8_000_000, productLimitEur: 10_000_000 });
+    const d = make("s", {
+      exposureEur: 8_000_000,
+      productLimitEur: 10_000_000,
+    });
     expect(productLimitBreach(d).severity).toBe("warning");
   });
 
   it("stays 'none' comfortably below the limit", () => {
-    const d = make("s", { exposureEur: 3_000_000, productLimitEur: 10_000_000 });
+    const d = make("s", {
+      exposureEur: 3_000_000,
+      productLimitEur: 10_000_000,
+    });
     expect(productLimitBreach(d).severity).toBe("none");
   });
 });

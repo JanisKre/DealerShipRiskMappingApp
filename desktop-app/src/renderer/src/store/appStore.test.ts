@@ -69,8 +69,39 @@ describe("analysis batch controls", () => {
     await useAppStore.getState().analyzeAll([firstInput, secondInput]);
 
     expect(api.analyzeDealership).toHaveBeenCalledTimes(1);
-    expect(useAppStore.getState().progress).toEqual({ done: 1, total: 2 });
+    expect(useAppStore.getState().progress).toMatchObject({
+      done: 1,
+      total: 2,
+    });
     expect(useAppStore.getState().analyzing).toBe(false);
+  });
+
+  it("analyses up to three locations at once and finishes them all", async () => {
+    const inputs = Array.from({ length: 7 }, (_, i) => ({
+      ...firstInput,
+      id: `site-${i}`,
+      name: `Site ${i}`,
+    }));
+    let inFlight = 0;
+    let peak = 0;
+    api.analyzeDealership.mockImplementation(async (input: DealershipInput) => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight--;
+      return { ...input, risk: { overallScore: 10 } } as AnalyzedDealership;
+    });
+    api.saveSession.mockResolvedValue(undefined);
+
+    await useAppStore.getState().analyzeAll(inputs);
+
+    expect(peak).toBe(3);
+    expect(useAppStore.getState().dealerships).toHaveLength(7);
+    expect(useAppStore.getState().progress).toMatchObject({
+      done: 7,
+      total: 7,
+    });
+    expect(useAppStore.getState().analyzingIds).toEqual([]);
   });
 });
 
@@ -78,14 +109,36 @@ describe("re-analysis and manual boundaries", () => {
   const manualBoundary = {
     source: "manual",
     role: "operationalLot",
-    polygon: { type: "Polygon", coordinates: [[[7, 51], [7.001, 51], [7.001, 51.001], [7, 51.001], [7, 51]]] },
+    polygon: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [7, 51],
+          [7.001, 51],
+          [7.001, 51.001],
+          [7, 51.001],
+          [7, 51],
+        ],
+      ],
+    },
     areaSqm: 5_000,
     confidence: 1,
   } as AnalyzedDealership["boundary"];
 
   const priorAutoBoundary = {
     source: "osm",
-    polygon: { type: "Polygon", coordinates: [[[7, 51], [7.002, 51], [7.002, 51.002], [7, 51.002], [7, 51]]] },
+    polygon: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [7, 51],
+          [7.002, 51],
+          [7.002, 51.002],
+          [7, 51.002],
+          [7, 51],
+        ],
+      ],
+    },
     areaSqm: 8_000,
     confidence: 0.6,
   } as AnalyzedDealership["boundary"];

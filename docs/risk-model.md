@@ -30,14 +30,79 @@ licensed providers without persisting raw vendor payloads:
   1–3 are retained as raw attributes and displayed as normalized scores. The
   class-to-score mapping is a screening visualization, not an insurance
   tariff.
-- Swiss Re CatNet is accessed through a customer-configured HTTPS endpoint.
-  The adapter accepts normalized hazard scores and optional annual exceedance
-  probabilities or return periods. The exact endpoint schema must come from
-  the customer's Swiss Re contract/API documentation.
+- Licensed APIs (Swiss Re CatNet, Munich Re Location Risk Intelligence,
+  Moody's RMS and Verisk Location Intelligence, JBA, Fathom, or any other
+  service) are accessed through customer-configured HTTPS endpoints that
+  answer in the app's hazard API contract below
+  (`main/services/hazard-api.service.ts`). The vendors publish their
+  production schemas only to contracted clients, so a vendor's native API is
+  connected through a translation service on the customer side rather than a
+  guessed adapter. The catalog in `shared/natcat-catalog.ts` lists coverage
+  per vendor as publicly described (October 2026); it is informational, the
+  contracted product defines what an endpoint returns.
 
 Provider evidence is attached to each assessment and the resulting risk. If a
 provider supplies only classes or scores without frequency/loss curves, the
 existing EAL remains a screening estimate and is labeled accordingly.
+
+### Hazard API contract
+
+```
+POST <endpoint>            Authorization: Bearer <key>
+{ "latitude": 50.11, "longitude": 8.68, "perils": ["flood"] }   // perils optional
+
+200 OK
+{
+  "hazards": [            // at least one
+    { "peril": "flood", "score": 72,             // score 0–100, required
+      "hazardValue": 0.02, "unit": "AEP",        // optional
+      "rawValue": "class 3",                     // optional, kept as source value
+      "returnPeriodYears": 50,                   // optional
+      "annualExceedanceProbability": 0.02 }      // optional, (0, 1]
+  ],
+  "dataVersion": "2026.1",                       // optional
+  "spatialResolution": "5 m",                    // optional
+  "attributes": { "zone": "B" }                  // optional, string/number/bool
+}
+```
+
+Scored perils are `wind`, `lightning`, `snow`, `flood`, `hail` and `heat`;
+other peril names (e.g. `heavyRain`) are kept and displayed but not scored.
+Only the coordinates leave the device. Endpoints must use HTTPS, may not embed
+credentials, and keys are stored per provider in the OS keychain.
+
+### Source routing per peril
+
+`shared/natcat-routing.ts` decides per scored peril which source supplies the
+value. The settings hold a primary source (default: screening) and optional
+per-peril choices (`primary`, `screening`, or a connected API provider). For
+each peril the first source in this chain that delivers a value wins:
+
+1. the API provider chosen for this peril,
+2. the location's imported data (ZÜRS Geo),
+3. the primary source, if it is an API provider,
+4. otherwise the Open-Meteo screening model.
+
+Choosing `screening` for a peril bypasses the chain. Each hazard records its
+`provider`; an assessment built from more than one source has provider
+`composite`, the minimum confidence of its sources, and the union of their
+limitations. When the responsible API source fails, is not connected, or —
+when chosen explicitly — returns no value for the peril, the fallback is
+written to the limitations (`"flood: … unavailable; … used instead"`) and
+`fallbackUsed` is set. A primary source that does not cover a peril is not a
+fallback; that peril simply stays on screening.
+
+Every analysis re-routes from the current settings. Only the user's import is
+kept between runs (`DealershipInput.natCatImport`; older sessions are read
+from `natCat` when its provider is `zuers-geo`), so API values are never
+re-used after the routing changed. "Reset to default" sets the primary source
+and every peril back to screening and keeps the connectors. A failed source
+never aborts an analysis. Deterministic fixtures: `natcat-routing.test.ts`.
+
+Limitations: the routing combines scores; it does not reconcile different
+vendors' scales, return periods, or vulnerability assumptions. Mixing sources
+per peril is a screening choice and not a substitute for a calibrated
+catastrophe model.
 
 Import reports and scenario impacts follow the same principle: inputs,
 assumptions, versions, and quality warnings are kept next to the result.
@@ -70,3 +135,10 @@ The digging hull only pulls a vertex inward when the point cloud's own
 outline supports it, is validated against self-intersection, and falls back
 to the plain convex hull otherwise — it can enclose less area than a convex
 hull but never more, and never produces an invalid polygon.
+
+A boundary is flagged for review by `shared/boundary-review.ts`. A human can
+clear the flag in two ways: by editing the geometry (source becomes
+`manual`) or by confirming the detected geometry as covering the lot, which
+stores `confirmedAt`. Both mean the user checked it visually; neither is a
+survey. A confirmation is kept in the limitations, and re-analysing the
+location produces a fresh, unconfirmed boundary.

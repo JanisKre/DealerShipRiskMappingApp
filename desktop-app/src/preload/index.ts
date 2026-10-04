@@ -1,11 +1,13 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { IPC } from "@shared/ipc-channels";
 import type {
+  DealerDirectoryChunk,
   IpcRequest,
   IpcResponse,
   LlmStreamChunk,
   LlmStreamRequest,
   ModelDownloadChunk,
+  OllamaPullChunk,
 } from "@shared/ipc-schema";
 
 /**
@@ -23,12 +25,16 @@ const api = {
       base64,
     } satisfies IpcRequest["xlsx:parse"]),
 
-  parseZuersCsv: (content: string): Promise<IpcResponse["natcat:zuers:parseCsv"]> =>
+  parseZuersCsv: (
+    content: string,
+  ): Promise<IpcResponse["natcat:zuers:parseCsv"]> =>
     ipcRenderer.invoke(IPC.parseZuersCsv, {
       content,
     } satisfies IpcRequest["natcat:zuers:parseCsv"]),
 
-  parseZuersXlsx: (base64: string): Promise<IpcResponse["natcat:zuers:parseXlsx"]> =>
+  parseZuersXlsx: (
+    base64: string,
+  ): Promise<IpcResponse["natcat:zuers:parseXlsx"]> =>
     ipcRenderer.invoke(IPC.parseZuersXlsx, {
       base64,
     } satisfies IpcRequest["natcat:zuers:parseXlsx"]),
@@ -40,9 +46,11 @@ const api = {
 
   placesAutocomplete: (
     query: string,
+    near?: IpcRequest["places:autocomplete"]["near"],
   ): Promise<IpcResponse["places:autocomplete"]> =>
     ipcRenderer.invoke(IPC.placesAutocomplete, {
       query,
+      near,
     } satisfies IpcRequest["places:autocomplete"]),
 
   detectBoundary: (
@@ -114,16 +122,24 @@ const api = {
       natCat,
     } satisfies IpcRequest["risk:score"]),
 
-  fetchCatNet: (
+  /** Re-resolves the routed NatCat sources for one location. */
+  resolveNatCat: (
     lat: number,
     lon: number,
-    perils?: IpcRequest["natcat:catnet:lookup"]["perils"],
-  ): Promise<IpcResponse["natcat:catnet:lookup"]> =>
-    ipcRenderer.invoke(IPC.fetchCatNet, {
+    imported?: IpcRequest["natcat:resolve"]["imported"],
+  ): Promise<IpcResponse["natcat:resolve"]> =>
+    ipcRenderer.invoke(IPC.resolveNatCat, {
       lat,
       lon,
-      perils,
-    } satisfies IpcRequest["natcat:catnet:lookup"]),
+      imported,
+    } satisfies IpcRequest["natcat:resolve"]),
+
+  testNatCatConnector: (
+    provider: IpcRequest["natcat:testConnector"]["provider"],
+  ): Promise<IpcResponse["natcat:testConnector"]> =>
+    ipcRenderer.invoke(IPC.testNatCatConnector, {
+      provider,
+    } satisfies IpcRequest["natcat:testConnector"]),
 
   analyzeDealership: (
     dealership: IpcRequest["analyze:dealership"]["dealership"],
@@ -260,6 +276,53 @@ const api = {
     };
   },
 
+  /** Minimal request with the saved LLM configuration. */
+  testLlmConnection: (): Promise<IpcResponse["llm:testConnection"]> =>
+    ipcRenderer.invoke(IPC.llmTestConnection),
+
+  /** Live model list of the configured provider. */
+  listLlmModels: (): Promise<IpcResponse["llm:listModels"]> =>
+    ipcRenderer.invoke(IPC.llmListModels),
+
+  /** Which local runtimes (Ollama, LM Studio, llama.cpp) are running. */
+  detectLocalRuntimes: (): Promise<IpcResponse["llm:detectLocal"]> =>
+    ipcRenderer.invoke(IPC.llmDetectLocal),
+
+  searchHfModels: (
+    query: string,
+    sort: IpcRequest["hf:searchModels"]["sort"],
+  ): Promise<IpcResponse["hf:searchModels"]> =>
+    ipcRenderer.invoke(IPC.hfSearchModels, {
+      query,
+      sort,
+    } satisfies IpcRequest["hf:searchModels"]),
+
+  hfModelFiles: (repoId: string): Promise<IpcResponse["hf:modelFiles"]> =>
+    ipcRenderer.invoke(IPC.hfModelFiles, {
+      repoId,
+    } satisfies IpcRequest["hf:modelFiles"]),
+
+  /**
+   * Installs a Hugging Face GGUF model into the local Ollama. Same streaming
+   * pattern as `downloadModel`: `onChunk` receives progress/result, the
+   * returned function aborts the pull.
+   */
+  pullOllamaModel: (
+    model: string,
+    onChunk: (chunk: OllamaPullChunk) => void,
+  ): (() => void) => {
+    const streamId = globalThis.crypto.randomUUID();
+    const responseChannel = `${IPC.ollamaPull}:${streamId}`;
+    const listener = (_e: unknown, chunk: OllamaPullChunk): void =>
+      onChunk(chunk);
+    ipcRenderer.on(responseChannel, listener);
+    ipcRenderer.send(IPC.ollamaPull, { streamId, model });
+    return () => {
+      ipcRenderer.removeListener(responseChannel, listener);
+      ipcRenderer.send(IPC.ollamaPullCancel, { streamId });
+    };
+  },
+
   getSettings: (): Promise<IpcResponse["settings:get"]> =>
     ipcRenderer.invoke(IPC.getSettings),
 
@@ -280,11 +343,20 @@ const api = {
     } satisfies IpcRequest["settings:setLlmApiKey"]),
 
   setNatCatApiKey: (
+    provider: IpcRequest["settings:setNatCatApiKey"]["provider"],
     apiKey: string,
   ): Promise<IpcResponse["settings:setNatCatApiKey"]> =>
     ipcRenderer.invoke(IPC.setNatCatApiKey, {
+      provider,
       apiKey,
     } satisfies IpcRequest["settings:setNatCatApiKey"]),
+
+  deleteNatCatApiKey: (
+    provider: IpcRequest["settings:deleteNatCatApiKey"]["provider"],
+  ): Promise<IpcResponse["settings:deleteNatCatApiKey"]> =>
+    ipcRenderer.invoke(IPC.deleteNatCatApiKey, {
+      provider,
+    } satisfies IpcRequest["settings:deleteNatCatApiKey"]),
 
   captureMap: (
     rect: IpcRequest["map:capture"]["rect"],
@@ -294,6 +366,17 @@ const api = {
       rect,
       mode,
     } satisfies IpcRequest["map:capture"]),
+
+  selectImagery: (
+    lat: number,
+    lon: number,
+    zoom: number,
+  ): Promise<IpcResponse["imagery:select"]> =>
+    ipcRenderer.invoke(IPC.imagerySelect, {
+      lat,
+      lon,
+      zoom,
+    } satisfies IpcRequest["imagery:select"]),
 
   modelStatus: (): Promise<IpcResponse["model:status"]> =>
     ipcRenderer.invoke(IPC.modelStatus),
@@ -315,6 +398,29 @@ const api = {
     return () => {
       ipcRenderer.removeListener(responseChannel, listener);
       ipcRenderer.send(`${IPC.modelDownload}:cancel`, { streamId });
+    };
+  },
+
+  dealerDirectoryStatus: (): Promise<IpcResponse["dealerDirectory:status"]> =>
+    ipcRenderer.invoke(IPC.dealerDirectoryStatus),
+
+  /**
+   * Downloads the Overture dealer directory. Same streaming pattern as
+   * `downloadModel`: `onChunk` receives progress/result, the returned function
+   * aborts the download.
+   */
+  refreshDealerDirectory: (
+    onChunk: (chunk: DealerDirectoryChunk) => void,
+  ): (() => void) => {
+    const streamId = globalThis.crypto.randomUUID();
+    const responseChannel = `${IPC.dealerDirectoryRefresh}:${streamId}`;
+    const listener = (_e: unknown, chunk: DealerDirectoryChunk): void =>
+      onChunk(chunk);
+    ipcRenderer.on(responseChannel, listener);
+    ipcRenderer.send(IPC.dealerDirectoryRefresh, { streamId });
+    return () => {
+      ipcRenderer.removeListener(responseChannel, listener);
+      ipcRenderer.send(IPC.dealerDirectoryRefreshCancel, { streamId });
     };
   },
 };

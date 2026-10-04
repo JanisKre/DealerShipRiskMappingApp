@@ -73,9 +73,14 @@ export function riskLimitations(
     `Risk model ${RISK_MODEL_VERSION} is a screening model`,
     "Hazard values are location-level proxies and should be validated before underwriting decisions",
   ];
-  if (natCat && natCat.hazards.every((hazard) =>
-    hazard.annualExceedanceProbability == null && hazard.returnPeriodYears == null,
-  )) {
+  if (
+    natCat &&
+    natCat.hazards.every(
+      (hazard) =>
+        hazard.annualExceedanceProbability == null &&
+        hazard.returnPeriodYears == null,
+    )
+  ) {
     limitations.push(
       `${natCat.provider} liefert Hazard-Klassen/Scores; die EAL bleibt ohne Frequenz- oder Verlustdaten ein Screening-Modell`,
     );
@@ -85,10 +90,16 @@ export function riskLimitations(
   if (boundary?.reviewRequired) {
     limitations.push("Boundary requires review before underwriting use");
   }
+  if (boundary?.confirmedAt) {
+    limitations.push(
+      `Boundary confirmed by visual review on ${boundary.confirmedAt.slice(0, 10)}, not a cadastral survey`,
+    );
+  }
   if (
     boundary?.role &&
     boundary.role !== "operationalLot" &&
-    boundary.role !== "synthetic"
+    boundary.role !== "synthetic" &&
+    boundary.confirmedAt == null
   ) {
     limitations.push(
       `Boundary represents ${boundary.role}, not a confirmed operational lot`,

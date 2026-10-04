@@ -5,7 +5,6 @@ import "leaflet.markercluster";
 import type { AnalyzedDealership } from "@shared/types";
 import { effectiveVehicleCount } from "@shared/risk-math";
 import { eur } from "@renderer/lib/format";
-import { perilColor } from "@renderer/lib/perilLabel";
 import { riskColor, riskLevel } from "@renderer/lib/riskColor";
 import { useMap } from "react-leaflet";
 import { riskMarkerIcon } from "./markerIcons";
@@ -16,6 +15,8 @@ interface Props {
   analyzingIds: string[];
   onSelect: (id: string) => void;
   onOpenDetails: (id: string) => void;
+  /** Confirms a boundary flagged for review as covering the lot. */
+  onConfirmBoundary: (id: string) => void;
   /** Right-click on a marker — opens a context menu at the cursor position. */
   onContextMenu: (
     dealership: AnalyzedDealership,
@@ -23,14 +24,16 @@ interface Props {
   ) => void;
 }
 
-/** Top peril of a dealership (highest score). Returns null if there are no perils. */
-function topPeril(
+/** Vehicle count as shown on the map; "—" until detection has run. */
+function vehicleLabel(
   d: AnalyzedDealership,
-): { peril: string; score: number } | null {
-  if (!d.risk?.perils.length) return null;
-  return d.risk.perils.reduce((best, p) =>
-    p.score > best.score ? p : best,
-  ) as { peril: string; score: number };
+  t: (key: string) => string,
+): string {
+  if (!d.detection) return "—";
+  const count = effectiveVehicleCount(d.detection);
+  return d.detection.model === "stub-area-heuristic"
+    ? `~${count} (${t("ui.estimated")})`
+    : String(count);
 }
 
 /** Builds the HTML content for an imperative Leaflet popup. */
@@ -38,9 +41,8 @@ function popupHtml(d: AnalyzedDealership, t: (key: string) => string): string {
   const score = d.risk?.overallScore;
   const color = score != null ? riskColor(score) : "#6b7280";
   const levelLabel = score != null ? t(`risk.${riskLevel(score)}`) : "—";
-  const tp = topPeril(d);
   const eal = d.risk?.eal != null ? eur(d.risk.eal) : "—";
-  const vehicles = d.detection ? effectiveVehicleCount(d.detection) : "—";
+  const vehicles = vehicleLabel(d, t);
 
   const scoreBar =
     score != null
@@ -49,21 +51,17 @@ function popupHtml(d: AnalyzedDealership, t: (key: string) => string): string {
          </div>`
       : "";
 
-  const topPerilHtml = tp
-    ? `<div class="popup-row">
-         <span>${t("ui.topPeril")}</span>
-         <span style="color:${perilColor(tp.peril as never)};font-weight:600">
-           ${t(`dashboard.detailDialog.ealPeril.${tp.peril}`)} ${Math.round(tp.score)}/100
-         </span>
-       </div>`
-    : "";
-
   const boundaryWarningHtml =
     d.boundary?.source === "synthetic"
       ? `<div class="popup-row" style="color:#b45309">
            <span>${t("ui.propertyBoundaryMissing")}</span>
          </div>`
-      : "";
+      : d.boundary?.reviewRequired
+        ? `<div class="popup-row" style="color:#b45309">
+             <span>${t("ui.boundaryReviewNeeded")}</span>
+           </div>
+           <button class="popup-details-btn popup-confirm-boundary-btn" data-id="${d.id}">${t("ui.confirmBoundary")}</button>`
+        : "";
 
   const modelWarningHtml =
     d.detection?.model === "stub-area-heuristic"
@@ -76,13 +74,12 @@ function popupHtml(d: AnalyzedDealership, t: (key: string) => string): string {
     <div class="drm-popup">
       <div class="popup-title">${d.name}</div>
       <div class="popup-row">
-        <span>${t("ui.risk")}</span>
+        <span>${t("ui.hailRisk")}</span>
         <span style="color:${color};font-weight:600">
           ${score != null ? `${Math.round(score)}/100` : t("ui.analyzing")} ${score != null ? `(${levelLabel})` : ""}
         </span>
       </div>
       ${scoreBar}
-      ${topPerilHtml}
       <div class="popup-row">
         <span>${t("ui.ealYear")}</span><span>${eal}</span>
       </div>
@@ -106,6 +103,7 @@ export function ClusteredMarkers({
   analyzingIds,
   onSelect,
   onOpenDetails,
+  onConfirmBoundary,
   onContextMenu,
 }: Props): null {
   const { t } = useTranslation();
@@ -153,13 +151,18 @@ export function ClusteredMarkers({
     if (!group) return;
     group.clearLayers();
 
+    // Collected and added in one `addLayers` call: per-marker `addLayer` on a
+    // live cluster group re-clusters each time, which is far too slow for a
+    // few hundred locations rebuilt on every analysis tick.
+    const markers: L.Marker[] = [];
+    const pendingIds = new Set(analyzingIds);
     for (const d of dealerships) {
-      const pending = !d.risk || analyzingIds.includes(d.id);
+      const pending = !d.risk || pendingIds.has(d.id);
       const isSelected = d.id === selectedId;
       const marker = L.marker([d.lat, d.lon], {
         icon: riskMarkerIcon(d.risk?.overallScore ?? null, isSelected),
         opacity: pending ? 0.6 : 1,
-        alt: `${d.name}${d.risk ? ` – ${t("ui.risk")} ${Math.round(d.risk.overallScore)}/100` : ""}`,
+        alt: `${d.name}${d.risk ? ` – ${t("ui.hailRisk")} ${Math.round(d.risk.overallScore)}/100` : ""}`,
         keyboard: true,
         title: d.name,
         riseOnHover: true,
@@ -169,16 +172,14 @@ export function ClusteredMarkers({
       marker._riskScore = d.risk?.overallScore ?? 0;
       marker._dealershipId = d.id;
 
-      // Hover tooltip: short info.
-      const tp = topPeril(d);
+      // Hover tooltip: hail risk (the map's single score) and vehicle count.
       const tooltipText = [
         `<strong>${d.name}</strong>`,
         d.risk
-          ? `${t("ui.risk")}: ${Math.round(d.risk.overallScore)}/100`
+          ? `${t("ui.hailRisk")}: ${Math.round(d.risk.overallScore)}/100 (${t(`risk.${riskLevel(d.risk.overallScore)}`)})`
           : t("ui.analyzing"),
-        tp
-          ? `${t(`dashboard.detailDialog.ealPeril.${tp.peril}`)}: ${Math.round(tp.score)}/100`
-          : null,
+        d.detection ? `${t("common.vehicles")}: ${vehicleLabel(d, t)}` : null,
+        d.boundary?.reviewRequired ? t("ui.boundaryReviewNeeded") : null,
       ]
         .filter(Boolean)
         .join("<br>");
@@ -203,19 +204,32 @@ export function ClusteredMarkers({
 
       // "View details" button in the popup via event delegation.
       marker.on("popupopen", (e) => {
-        const btn = (e.popup.getElement() as HTMLElement | null)?.querySelector(
-          ".popup-details-btn",
+        const root = e.popup.getElement() as HTMLElement | null;
+        const detailsBtn = root?.querySelector(
+          ".popup-details-btn:not(.popup-confirm-boundary-btn)",
         ) as HTMLButtonElement | null;
-        if (btn) {
-          btn.onclick = () => {
-            const id = btn.dataset.id;
+        if (detailsBtn) {
+          detailsBtn.onclick = () => {
+            const id = detailsBtn.dataset.id;
             if (id) onOpenDetails(id);
+          };
+        }
+        const confirmBtn = root?.querySelector(
+          ".popup-confirm-boundary-btn",
+        ) as HTMLButtonElement | null;
+        if (confirmBtn) {
+          confirmBtn.onclick = () => {
+            const id = confirmBtn.dataset.id;
+            if (!id) return;
+            marker.closePopup();
+            onConfirmBoundary(id);
           };
         }
       });
 
-      group.addLayer(marker);
+      markers.push(marker);
     }
+    group.addLayers(markers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealerships, selectedId, analyzingIds, t]);
 

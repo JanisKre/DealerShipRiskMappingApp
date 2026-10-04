@@ -9,6 +9,59 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Dealer directory from Overture Maps (Settings → "Dealer directory"): a
+  one-time download (about 500 MB, a few minutes, in a background worker)
+  stores about 45,000 car, used-car, motorcycle, truck and RV dealers in
+  Germany locally (about 12 MB, SQLite FTS5). Location search merges them with
+  the live OSM results; a dealer both sources know is listed once, and each
+  suggestion shows its source. Filters: Overture `basic_category`
+  `auto_dealer`/`vehicle_dealer` (road vehicles only), confidence ≥ 0.5, not
+  closed, country DE. Data: Overture Maps Foundation, CDLA Permissive 2.0;
+  contains Foursquare data (Apache 2.0). Methodology: `docs/dealer-directory.md`.
+- Map pin hover now shows the hail risk (spelled out, with level) and the
+  vehicle count; the popup no longer lists a second "top peril" score.
+- Boundary review banner explains how to resolve it and opens boundary
+  editing directly. A flagged boundary can be confirmed from the pin popup
+  ("Confirm boundary"); the confirmation timestamp is stored on the boundary
+  and recorded as a limitation ("confirmed by visual review, not a cadastral
+  survey").
+- Automatic aerial imagery per location: the newest of Esri World Imagery and
+  the official state orthophoto (14 German states, open services) is used for
+  both the map and vehicle detection. A sharper source may be up to 6 months
+  older. The choice, capture date and alternatives are stored with every
+  detection and shown in the detail dialog. Methodology:
+  `docs/imagery-sources.md`.
+- Map legend (expanded) shows the satellite image's metadata at the map
+  centre: capture date (flagged from 2 years), source, sensor, resolution,
+  positional accuracy, zoom range, Esri release, attribution and the
+  selection reason.
+- Natural hazard data sources per peril: a primary source for all perils plus
+  per-peril choices (e.g. flood from a flood specialist), with fallback along
+  chosen source → imported ZÜRS data → primary source → screening, recorded
+  in the evidence. "Reset to default" returns every peril to the Open-Meteo
+  screening. Methodology and deterministic fixtures:
+  `docs/risk-model.md` ("Source routing per peril"), `natcat-routing.test.ts`.
+- Provider catalog in the settings (Swiss Re CatNet, Munich Re, Moody's RMS,
+  Verisk, JBA, Fathom, custom API; ZÜRS Geo import; JRC flood maps planned)
+  with coverage, license and connection status, plus per-provider connectors
+  (HTTPS endpoint, keychain-stored key, connection test).
+- AI setup flow: chat, dashboard assistant, executive summary and underwriting
+  memo show a "Set up AI" prompt that links to the AI settings instead of
+  failing with `LLM 401`. The main process refuses requests before any network
+  call when no model or key is configured (`LLM_NOT_CONFIGURED`).
+- AI settings: "Test connection" (one minimal request over the chat's streaming
+  path, with a specific hint for rejected keys, unknown models and unreachable
+  servers) and "Load models", which reads the model list live from the
+  provider (OpenAI, Anthropic, local runtime), so new models need no app
+  update.
+- Local model provider with Ollama, LM Studio and llama.cpp presets. Restricted
+  to loopback URLs, never sends an API key, and uses a longer timeout for the
+  first request that loads the model.
+- Hugging Face model browser for local models: live search of GGUF
+  text-generation repositories (trending, downloads, likes) and one-click
+  install of a quantization into Ollama (`ollama pull hf.co/<repo>:<quant>`)
+  with progress and cancel.
+
 - Boundary benchmark: `npm run benchmark:boundary` scores lot detection against
   a committed set of 17 real OpenStreetMap dealership areas across nine states
   (`resources/benchmarks/boundary-public-fixtures.json`, ODbL). Results are
@@ -49,6 +102,9 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The CatNet adapter is now the generic hazard API adapter
+  (`hazard-api.service.ts`, contract in `docs/risk-model.md`); CatNet settings
+  and its stored key migrate automatically.
 - Boundary overlap is now measured on a 0.5 m raster. The previous
   `approximatePolygonIoU` clamps to a 200x200 sample grid, which over a 400 m
   site is 2 m per cell — too coarse to resolve the 2 m outline tolerance it was
@@ -93,6 +149,32 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Location search finds more businesses: legal forms ("GmbH & Co. KG") are
+  dropped from the query because OSM names rarely carry them and Photon then
+  returned other dealerships; a second query restricted to car dealerships
+  (`shop=car`) is merged in; results are biased towards the visible map area
+  (or Germany) and up to 8 are shown. Photon is limited to two concurrent
+  requests.
+- CSV/Excel import recognises "Dealership Name" and other common name
+  headers (umlaut aliases such as "Händler"/"Länge" never matched before), no
+  longer names locations after an ID column, and joins split Street / House
+  Number / Postal Code / City columns into the address so the postal-code
+  hail zone is found.
+- Large imports no longer stall the app: vehicle dots are drawn only for the
+  selected location (and every location in view from zoom 15), markers are
+  added in bulk, and pending pins are inserted in one update.
+- Batch analysis runs three locations in parallel, shows a progress bar with
+  a remaining-time estimate, and saves a checkpoint every 25 locations. Main
+  paces Nominatim to 1 request/s and caps Overpass at two concurrent requests
+  per mirror, per the services' fair-use policies.
+- Saving a manual boundary edit now clears the review flag; previously the
+  edited boundary kept `reviewRequired` and the warning never went away.
+- Vehicle detection no longer runs on Esri's grey "Map data not yet
+  available" placeholders where Esri has no z20 imagery; such tiles now count
+  as missing and the capture falls back a zoom level.
+- API natural hazard values (CatNet) were stored like an import and re-used on
+  every re-analysis, so later settings changes never took effect. Imports are
+  now kept separately (`natCatImport`) and API sources are re-queried.
 - The OSM lookup that finds dealership lots never returned anything. Its
   Overpass query ended in `out geom center tags;`, which yields elements with no
   `geometry` array at all, so every element was discarded by the caller's

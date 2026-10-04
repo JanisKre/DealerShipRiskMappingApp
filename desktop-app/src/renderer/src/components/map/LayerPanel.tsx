@@ -23,6 +23,7 @@ import {
 } from "@renderer/components/ui/toggle-group";
 import { useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { ScenarioBuilder } from "./ScenarioBuilder";
+import { PANEL_ACTION_CLASS } from "./panelStyles";
 
 const BASEMAP_ORDER: Basemap[] = [
   "satellite",
@@ -264,7 +265,7 @@ export function LayerPanel({
               <Button
                 variant={editing ? "default" : "outline"}
                 size="sm"
-                className="w-full"
+                className={PANEL_ACTION_CLASS}
                 onClick={() => {
                   if (!editing && detectionEditing) onCancelDetectionEdits();
                   setEditing(!editing);
@@ -292,7 +293,7 @@ export function LayerPanel({
               <Button
                 variant={detectionEditing ? "default" : "outline"}
                 size="sm"
-                className="w-full"
+                className={PANEL_ACTION_CLASS}
                 disabled={!layers.detections || !selectedId}
                 onClick={() => {
                   if (detectionEditing) {

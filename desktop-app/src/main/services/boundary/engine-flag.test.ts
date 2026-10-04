@@ -21,7 +21,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../settings.service", () => ({ getSettings: mocks.getSettings }));
-vi.mock("./evidence-sources", () => ({ collectEvidence: mocks.collectEvidence }));
+vi.mock("./evidence-sources", () => ({
+  collectEvidence: mocks.collectEvidence,
+}));
 vi.mock("../alkis.service", () => ({
   fromAlkis: mocks.fromAlkis,
   fetchParcelsNear: vi.fn(),
@@ -130,7 +132,13 @@ describe("boundaryEngine flag", () => {
       polygon: FUSED_POLYGON,
       areaSqm: 4_800,
       layers: [
-        { layer: "osm-parking", source: "OSM", weight: 0.7, cells: 900, available: true },
+        {
+          layer: "osm-parking",
+          source: "OSM",
+          weight: 0.7,
+          cells: 900,
+          available: true,
+        },
       ],
       stoppedBy: "exhausted",
       confirmed: true,
@@ -255,8 +263,20 @@ describe("source agreement independence", () => {
     const overlapping = rect(35, 28);
     mocks.fetchOsmEvidence.mockResolvedValue({
       areas: [
-        { kind: "parking", ring: overlapping, tags: {}, osmType: "way", osmId: 1 },
-        { kind: "building", ring: overlapping, tags: {}, osmType: "way", osmId: 2 },
+        {
+          kind: "parking",
+          ring: overlapping,
+          tags: {},
+          osmType: "way",
+          osmId: 1,
+        },
+        {
+          kind: "building",
+          ring: overlapping,
+          tags: {},
+          osmType: "way",
+          osmId: 2,
+        },
       ],
       lines: [],
       addressNodes: [],

@@ -1,21 +1,35 @@
 import { z } from "zod";
+import { sourceLabel } from "@shared/natcat-catalog";
 import {
   NatCatAssessmentSchema,
+  type NatCatApiProvider,
   type NatCatAssessment,
   type NatCatHazard,
 } from "@shared/types";
 import type { NatCatProviderAdapter } from "./hazard-provider";
 import { fetchWithResilience, HttpRequestError } from "./http.service";
 
+/**
+ * Adapter for the app's hazard API contract (documented in
+ * `docs/risk-model.md`). Every licensed provider — Swiss Re CatNet, Munich
+ * Re, Moody's, Verisk, JBA, Fathom or any other — is reached through a
+ * customer-configured HTTPS endpoint that answers in this contract, because
+ * the vendors expose their production schemas only to contracted clients.
+ *
+ * Request:  POST { latitude, longitude, perils? }  (Bearer token)
+ * Response: { hazards: [{ peril, score 0–100, ... }], dataVersion?, ... }
+ */
+
 const DEFAULT_TIMEOUT_MS = 15_000;
 
-export interface CatNetConfig {
+export interface HazardApiConfig {
+  provider: NatCatApiProvider;
   endpoint: string;
   apiKey: string;
   timeoutMs?: number;
 }
 
-const CatNetHazardPayloadSchema = z.object({
+const HazardPayloadSchema = z.object({
   peril: z.string().min(1),
   score: z.number().min(0).max(100),
   hazardValue: z.number().optional(),
@@ -25,51 +39,56 @@ const CatNetHazardPayloadSchema = z.object({
   annualExceedanceProbability: z.number().positive().max(1).optional(),
 });
 
-/**
- * Calls a customer-configured CatNet API endpoint. The exact endpoint and
- * payload contract are deliberately configurable because Swiss Re exposes
- * the production schema only to contracted API clients.
- */
-export async function fetchCatNetAssessment(
+/** Looks up one location at a connected hazard API. */
+export async function fetchHazardApiAssessment(
   lat: number,
   lon: number,
-  config: CatNetConfig,
+  config: HazardApiConfig,
   perils?: string[],
 ): Promise<NatCatAssessment> {
   validateCoordinates(lat, lon);
-  const endpoint = validateEndpoint(config.endpoint);
-  if (!config.apiKey.trim()) throw new Error("CatNet API key is not configured");
+  const label = sourceLabel(config.provider);
+  const endpoint = validateEndpoint(config.endpoint, label);
+  if (!config.apiKey.trim())
+    throw new Error(`${label} API key is not configured`);
 
   try {
-    const response = await fetchWithResilience(endpoint, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
+    const response = await fetchWithResilience(
+      endpoint,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({ latitude: lat, longitude: lon, perils }),
       },
-      body: JSON.stringify({ latitude: lat, longitude: lon, perils }),
-    }, {
-      timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-      retries: 0,
-    });
+      {
+        timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        retries: 0,
+      },
+    );
     if (!response.ok) {
-      throw new Error(`CatNet request failed (${response.status})`);
+      throw new Error(`${label} request failed (${response.status})`);
     }
-    return normalizeCatNetResponse(await response.json());
+    return normalizeHazardApiResponse(await response.json(), config.provider);
   } catch (error) {
     if (error instanceof HttpRequestError && error.timedOut) {
-      throw new Error("CatNet request timed out");
+      throw new Error(`${label} request timed out`);
     }
     throw error;
   }
 }
 
-/** Normalizes the documented integration shape without persisting raw vendor payloads. */
-export function normalizeCatNetResponse(payload: unknown): NatCatAssessment {
+/** Normalizes the contract shape without persisting raw vendor payloads. */
+export function normalizeHazardApiResponse(
+  payload: unknown,
+  provider: NatCatApiProvider,
+): NatCatAssessment {
   const object = z
     .object({
-      hazards: z.array(CatNetHazardPayloadSchema).min(1),
+      hazards: z.array(HazardPayloadSchema).min(1),
       dataVersion: z.string().optional(),
       spatialResolution: z.string().optional(),
       attributes: z
@@ -79,6 +98,7 @@ export function normalizeCatNetResponse(payload: unknown): NatCatAssessment {
     .passthrough()
     .parse(payload);
   const retrievedAt = new Date().toISOString();
+  const label = sourceLabel(provider);
   const hazards: NatCatHazard[] = object.hazards.map((hazard) => ({
     peril: hazard.peril,
     score: hazard.score,
@@ -93,20 +113,21 @@ export function normalizeCatNetResponse(payload: unknown): NatCatAssessment {
     ...(hazard.annualExceedanceProbability !== undefined
       ? { annualExceedanceProbability: hazard.annualExceedanceProbability }
       : {}),
+    provider,
   }));
   return NatCatAssessmentSchema.parse({
-    provider: "swissre-catnet",
+    provider,
     retrievedAt,
     dataVersion: object.dataVersion,
     spatialResolution: object.spatialResolution,
     hazards,
     attributes: object.attributes ?? {},
     evidence: {
-      source: "Swiss Re CatNet",
+      source: label,
       retrievedAt,
       dataVersion: object.dataVersion,
       spatialResolution: object.spatialResolution,
-      method: "CatNet API location lookup",
+      method: `${label} API location lookup`,
       confidence: 0.9,
       fallbackUsed: false,
       limitations: [
@@ -125,25 +146,28 @@ function validateCoordinates(lat: number, lon: number): void {
   }
 }
 
-function validateEndpoint(value: string): string {
+function validateEndpoint(value: string, label: string): string {
   let url: URL;
   try {
     url = new URL(value);
   } catch {
-    throw new Error("CatNet endpoint must be a valid URL");
+    throw new Error(`${label} endpoint must be a valid URL`);
   }
   if (url.protocol !== "https:") {
-    throw new Error("CatNet endpoint must use HTTPS");
+    throw new Error(`${label} endpoint must use HTTPS`);
+  }
+  if (url.username || url.password) {
+    throw new Error(`${label} endpoint must not contain embedded credentials`);
   }
   return url.toString();
 }
 
-export function createCatNetProvider(
-  config: CatNetConfig,
+export function createHazardApiProvider(
+  config: HazardApiConfig,
 ): NatCatProviderAdapter {
   return {
-    id: "swissre-catnet",
+    id: config.provider,
     lookup: (lat, lon, perils) =>
-      fetchCatNetAssessment(lat, lon, config, perils),
+      fetchHazardApiAssessment(lat, lon, config, perils),
   };
 }

@@ -184,7 +184,8 @@ export async function resolveNominatimMatch(
   } catch {
     return { status: "transientFailure", result: null };
   }
-  if (!items || items.length === 0) return { status: "successEmpty", result: null };
+  if (!items || items.length === 0)
+    return { status: "successEmpty", result: null };
 
   const match = pickNominatimRing(items, lat, lon);
   if (!match) return { status: "successEmpty", result: null };

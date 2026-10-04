@@ -56,8 +56,14 @@ describe("dedupeDealerships", () => {
   });
 
   it("treats different names as distinct despite an identical address", () => {
-    const a = make("a", { name: "Dealership North", address: "Main St. 1, Cologne" });
-    const b = make("b", { name: "Dealership South", address: "Main St. 1, Cologne" });
+    const a = make("a", {
+      name: "Dealership North",
+      address: "Main St. 1, Cologne",
+    });
+    const b = make("b", {
+      name: "Dealership South",
+      address: "Main St. 1, Cologne",
+    });
     const { unique, duplicates } = dedupeDealerships([a, b]);
     expect(unique.map((d) => d.id)).toEqual(["a", "b"]);
     expect(duplicates).toEqual([]);

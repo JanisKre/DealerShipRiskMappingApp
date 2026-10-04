@@ -150,7 +150,10 @@ function overlapMetrics(
   predicted: BoundaryGeometry,
   resolutionM: number,
 ): { iou: number; coverage: number } {
-  const rings = [...polygonParts(reference).flat(), ...polygonParts(predicted).flat()] as LonLat[][];
+  const rings = [
+    ...polygonParts(reference).flat(),
+    ...polygonParts(predicted).flat(),
+  ] as LonLat[][];
   if (rings.length === 0 || rings.some((ring) => ring.length < 4)) {
     return { iou: 0, coverage: 0 };
   }
@@ -191,13 +194,15 @@ function boundaryF1AtTolerance(
   const precision =
     predPoints.length < 2
       ? 0
-      : predPoints.filter((point) => distanceToAny(point, refRings) <= toleranceM)
-          .length / predPoints.length;
+      : predPoints.filter(
+          (point) => distanceToAny(point, refRings) <= toleranceM,
+        ).length / predPoints.length;
   const recall =
     refPoints.length < 2
       ? 0
-      : refPoints.filter((point) => distanceToAny(point, predRings) <= toleranceM)
-          .length / refPoints.length;
+      : refPoints.filter(
+          (point) => distanceToAny(point, predRings) <= toleranceM,
+        ).length / refPoints.length;
   return precision + recall === 0
     ? 0
     : (2 * precision * recall) / (precision + recall);

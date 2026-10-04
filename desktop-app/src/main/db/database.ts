@@ -8,7 +8,7 @@ import { join } from "path";
  * Tabellen werden über versionierte, transaktionale Migrationen erstellt.
  */
 let db: Database.Database | null = null;
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 export function getDb(): Database.Database {
   if (db) return db;
@@ -92,6 +92,30 @@ const MIGRATIONS: Record<number, Migration> = {
       key        TEXT PRIMARY KEY,
       value      TEXT NOT NULL,
       expires_at INTEGER NOT NULL        -- Unix ms
+    );
+  `),
+  // Local car-dealer directory from Overture Maps places, searched alongside
+  // OSM/Photon. Fully replaced on every refresh; `rowid` links the FTS index.
+  2: (database) =>
+    database.exec(`
+    CREATE TABLE IF NOT EXISTS dealer_directory (
+      id         TEXT PRIMARY KEY,       -- Overture GERS id
+      name       TEXT NOT NULL,
+      category   TEXT NOT NULL,          -- Overture taxonomy primary
+      brand      TEXT,
+      street     TEXT,
+      postcode   TEXT,
+      city       TEXT,
+      lat        REAL NOT NULL,
+      lon        REAL NOT NULL,
+      confidence REAL NOT NULL
+    );
+
+    CREATE VIRTUAL TABLE IF NOT EXISTS dealer_directory_fts USING fts5(
+      name, brand, street, postcode, city,
+      content = 'dealer_directory',
+      content_rowid = 'rowid',
+      tokenize = 'unicode61 remove_diacritics 2'
     );
   `),
 };
