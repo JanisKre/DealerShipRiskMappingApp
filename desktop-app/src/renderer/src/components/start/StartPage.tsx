@@ -11,6 +11,7 @@ import { ConversationSidebar } from "@renderer/components/chat/ConversationSideb
 import { MessageBubble } from "@renderer/components/chat/MessageBubble";
 import { useChat } from "@renderer/components/chat/useChat";
 import { Omnibox, type PlacePick } from "@renderer/components/upload/Omnibox";
+import { nameForPlace } from "@renderer/lib/placeName";
 
 /**
  * Unified landing page (route `/`): conversation history on the left, a
@@ -57,7 +58,7 @@ export function StartPage(): React.JSX.Element {
     void addRows([
       {
         id: crypto.randomUUID(),
-        name: deriveName(p.label),
+        name: nameForPlace(p, useAppStore.getState().dealerships),
         address: p.label,
         lat: p.lat,
         lon: p.lon,
@@ -189,12 +190,6 @@ function ImportQualityNotice({
       ))}
     </div>
   );
-}
-
-/** Derive a location name from an address: first comma segment, else the label. */
-function deriveName(label: string): string {
-  const first = label.split(",")[0]?.trim();
-  return first || label;
 }
 
 /** ArrayBuffer -> base64 (for XLSX transport over IPC). */

@@ -149,6 +149,11 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Locations added from search no longer look identical to an existing branch
+  of the same dealer group: when the name is already in the portfolio at a
+  different site (Overture lists e.g. four "Autohaus Dresden GmbH" branches)
+  or is only a brand ("Opel"), the street — or the town — is appended. The
+  same site picked again keeps its name, so the duplicate check still skips it.
 - Location search finds more businesses: legal forms ("GmbH & Co. KG") are
   dropped from the query because OSM names rarely carry them and Photon then
   returned other dealerships; a second query restricted to car dealerships
