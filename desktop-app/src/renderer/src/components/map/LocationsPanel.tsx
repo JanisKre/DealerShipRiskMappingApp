@@ -37,6 +37,7 @@ import { searchBias } from "@renderer/lib/searchBias";
 import { Link } from "react-router-dom";
 import { useDealerDirectoryStore } from "@renderer/store/dealerDirectoryStore";
 import { PlaceSourceTag } from "./PlaceSourceTag";
+import { nameForPlace } from "@renderer/lib/placeName";
 
 interface Props {
   /** All locations with coordinates (full registry, independent of map text filters). */
@@ -659,7 +660,7 @@ function AddLocationField({
     void useAppStore.getState().addAndAnalyze([
       {
         id: crypto.randomUUID(),
-        name: deriveName(s.label),
+        name: nameForPlace(s, useAppStore.getState().dealerships),
         address: s.label,
         lat: s.lat,
         lon: s.lon,
@@ -720,10 +721,4 @@ function AddLocationField({
       )}
     </div>
   );
-}
-
-/** Derive a location name from an address: the first comma segment, otherwise the label. */
-function deriveName(label: string): string {
-  const first = label.split(",")[0]?.trim();
-  return first || label;
 }

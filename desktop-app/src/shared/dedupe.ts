@@ -10,7 +10,7 @@ import type { DealershipInput } from "./types";
  * as duplicates (`duplicateOf` references the original's ID).
  */
 
-const NEAR_METERS = 150;
+export const NEAR_METERS = 150;
 
 export interface DedupeResult {
   unique: DealershipInput[];
@@ -45,7 +45,7 @@ function normalize(s: string): string {
 }
 
 /** Haversine distance in meters (dependency-free, sufficient for a proximity check). */
-function haversineMeters(
+export function haversineMeters(
   lat1: number,
   lon1: number,
   lat2: number,
