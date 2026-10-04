@@ -93,7 +93,10 @@ export const openMeteoProvider: HazardProvider = {
   }),
 };
 
-export function fetchWeather(lat: number, lon: number): Promise<WeatherMetrics> {
+export function fetchWeather(
+  lat: number,
+  lon: number,
+): Promise<WeatherMetrics> {
   return openMeteoProvider.getWeather(lat, lon);
 }
 

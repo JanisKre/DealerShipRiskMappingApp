@@ -106,11 +106,7 @@ export function lonLatToCell(spec: GridSpec, point: LonLat): CellRef | null {
 }
 
 /** Geographic position of a cell's centre. */
-export function cellToLonLat(
-  spec: GridSpec,
-  col: number,
-  row: number,
-): LonLat {
+export function cellToLonLat(spec: GridSpec, col: number, row: number): LonLat {
   const half = halfSpanM(spec);
   return unprojectPoint(
     [
@@ -145,10 +141,7 @@ export function cornerToOffset(
   cornerY: number,
 ): [number, number] {
   const half = halfSpanM(spec);
-  return [
-    cornerX * spec.resolutionM - half,
-    half - cornerY * spec.resolutionM,
-  ];
+  return [cornerX * spec.resolutionM - half, half - cornerY * spec.resolutionM];
 }
 
 export function maskAreaSqm(spec: GridSpec, mask: Uint8Array): number {

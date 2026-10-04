@@ -57,11 +57,14 @@ typed and Zod-validated over IPC.
 │  │   ├─ llm.service        (memos, chat, NL query)         │
 │  │   └─ export.service     (CSV/PDF/Excel)                 │
 │  ├─ db/         (Drizzle + better-sqlite3 repos)           │
-│  ├─ workers/    (ONNX inference in the utilityProcess)     │
+│  ├─ workers/    (ONNX inference, Overture dealer download) │
 │  └─ config/     (settings, API keys via safeStorage)       │
 └──────────────┬────────────────────────────────────────────┘
                │ direct HTTP calls (no CORS in Main!)
-        External APIs: Overpass, Nominatim, MSFT Buildings, weather
+        External APIs: Overpass, Nominatim, Photon, MSFT Buildings,
+        Overture Maps (STAC + S3), weather, LLM providers,
+        Hugging Face Hub (model discovery);
+        local: Ollama / LM Studio / llama.cpp (loopback only)
 ```
 
 ## `src/shared/` — the bridge
@@ -135,7 +138,7 @@ dealership-risk-desktop/
 │  │  ├─ ipc/                  # *.handlers.ts per domain
 │  │  ├─ services/             # boundary, detection, risk, weather, llm, export
 │  │  ├─ db/                   # database.ts, versioned migrations, *.repo.ts
-│  │  ├─ workers/              # onnx-inference (utilityProcess)
+│  │  ├─ workers/              # onnx-inference, overture-dealers (utilityProcess)
 │  │  └─ config/               # settings, safeStorage keys
 │  ├─ preload/
 │  │  ├─ index.ts              # contextBridge → window.api

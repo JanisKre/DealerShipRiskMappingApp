@@ -108,7 +108,8 @@ export function maskToRings(spec: GridSpec, mask: Uint8Array): Point2D[][] {
 function closeRing(ring: Point2D[]): Point2D[] {
   const first = ring[0];
   const last = ring[ring.length - 1];
-  if (first[0] !== last[0] || first[1] !== last[1]) return [...ring, [...first]];
+  if (first[0] !== last[0] || first[1] !== last[1])
+    return [...ring, [...first]];
   return ring;
 }
 

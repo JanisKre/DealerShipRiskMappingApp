@@ -28,7 +28,9 @@ describe("fetchOverpass", () => {
       .fn()
       .mockResolvedValueOnce(stalledBodyResponse())
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ elements: [{ id: 1 }] }), { status: 200 }),
+        new Response(JSON.stringify({ elements: [{ id: 1 }] }), {
+          status: 200,
+        }),
       );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -43,7 +45,9 @@ describe("fetchOverpass", () => {
     const fetchMock = vi.fn(() => Promise.resolve(stalledBodyResponse()));
     vi.stubGlobal("fetch", fetchMock);
 
-    const pending = fetchOverpass("[out:json];node(1);out;", { budgetMs: 5_000 });
+    const pending = fetchOverpass("[out:json];node(1);out;", {
+      budgetMs: 5_000,
+    });
     await vi.advanceTimersByTimeAsync(5_000);
 
     await expect(pending).resolves.toBeNull();

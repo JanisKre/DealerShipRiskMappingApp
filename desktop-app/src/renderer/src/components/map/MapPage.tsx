@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import "@geoman-io/leaflet-geoman-free";
@@ -8,6 +8,7 @@ import {
   Loader2,
   MapPinned,
   Minus,
+  Pencil,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -29,6 +30,15 @@ import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilt
 import { Button } from "@renderer/components/ui/button";
 import { useAppStore } from "@renderer/store/appStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
+import {
+  useImagerySelection,
+  type MapViewPoint,
+} from "@renderer/lib/useImagerySelection";
+import {
+  STATE_DOP_SERVICES,
+  stateTileTemplate,
+  tileBboxEpsg3857,
+} from "@shared/imagery-sources";
 import { useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { AccumulationClusterLayer } from "./AccumulationClusterLayer";
 import { BoundaryLayer } from "./BoundaryLayer";
@@ -62,6 +72,36 @@ function tileAttributions(t: TFunction): Record<Basemap, string> {
     dark: `&copy; ${osm} &copy; CARTO`,
     terrain: `&copy; ${osm}, SRTM; &copy; OpenTopoMap`,
   };
+}
+
+/**
+ * Leaflet fills template keys from layer options and calls function values
+ * with the tile coords — this resolves the `{bbox-epsg-3857}` placeholder of
+ * WMS templates (state orthophotos, custom WMS) per tile.
+ */
+const BBOX_TEMPLATE_OPTION = {
+  "bbox-epsg-3857": (d: { x: number; y: number; z: number }) =>
+    tileBboxEpsg3857(d.z, d.x, d.y).join(","),
+};
+
+/** Max zoom of the base TileLayer; imagery metadata is resolved at the level actually drawn. */
+const BASEMAP_MAX_ZOOM = 19;
+
+/** Reports the map centre + zoom once on mount and after every pan/zoom. */
+function MapViewReporter({
+  onChange,
+}: Readonly<{ onChange: (view: MapViewPoint) => void }>): null {
+  const map = useMapEvents({ moveend: () => report() });
+  function report(): void {
+    const c = map.getCenter();
+    onChange({
+      lat: c.lat,
+      lon: c.lng,
+      zoom: Math.min(BASEMAP_MAX_ZOOM, Math.round(map.getZoom())),
+    });
+  }
+  useEffect(report, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }
 
 /** Calls map.invalidateSize() when the container changes — fixes white areas on panel resize. */
@@ -203,6 +243,7 @@ export function MapPage(): React.JSX.Element {
     (s) => s.updateDetectionForBoundary,
   );
   const saveBoundaryEdit = useAppStore((s) => s.saveBoundaryEdit);
+  const confirmBoundary = useAppStore((s) => s.confirmBoundary);
   const undoBoundaryEdit = useAppStore((s) => s.undoBoundaryEdit);
   const revertBoundaryToDefault = useAppStore((s) => s.revertBoundaryToDefault);
   const removeDealership = useAppStore((s) => s.removeDealership);
@@ -217,6 +258,7 @@ export function MapPage(): React.JSX.Element {
   const perilOverlay = useMapStore((s) => s.perilOverlay);
   const editing = useMapStore((s) => s.editing);
   const setEditing = useMapStore((s) => s.setEditing);
+  const setLayers = useMapStore((s) => s.setLayers);
   const detectionEditing = useMapStore((s) => s.detectionEditing);
   const setDetectionEditing = useMapStore((s) => s.setDetectionEditing);
   const openDetailDialog = useMapStore((s) => s.openDetailDialog);
@@ -230,6 +272,9 @@ export function MapPage(): React.JSX.Element {
   const [detectionEditId, setDetectionEditId] = useState<string | null>(null);
   const [detectionDraft, setDetectionDraft] =
     useState<DetectionEditDraft | null>(null);
+
+  const [mapView, setMapView] = useState<MapViewPoint | null>(null);
+  const imagery = useImagerySelection(mapView, basemap === "satellite");
 
   // WMS URL from settings (only for the satellite basemap).
   const [wmsUrl, setWmsUrl] = useState<string | null>(null);
@@ -316,6 +361,12 @@ export function MapPage(): React.JSX.Element {
     setDetectionEditing(true);
   }
 
+  function startBoundaryEditing(): void {
+    if (detectionEditing) cancelDetectionEditing();
+    setLayers({ boundaries: true });
+    setEditing(true);
+  }
+
   function cancelDetectionEditing(): void {
     setDetectionEditing(false);
     setDetectionEditId(null);
@@ -388,11 +439,30 @@ export function MapPage(): React.JSX.Element {
     }
   }
 
-  // Tile URL for the active basemap (WMS override for satellite).
-  const tileUrl =
-    basemap === "satellite" && wmsUrl ? wmsUrl : TILE_URLS[basemap];
-  const tileAttribution = tileAttributions(t)[basemap];
+  // Tile URL for the active basemap. Satellite follows the per-location
+  // imagery choice (state orthophoto or Esri); a custom WMS overrides both.
+  let tileUrl = TILE_URLS[basemap];
+  let tileAttribution = tileAttributions(t)[basemap];
+  if (basemap === "satellite") {
+    const chosen = imagery?.chosen;
+    const service =
+      chosen?.kind === "state-dop" && chosen.state
+        ? STATE_DOP_SERVICES[chosen.state]
+        : undefined;
+    if (wmsUrl) {
+      tileUrl = wmsUrl;
+    } else if (service && chosen) {
+      tileUrl = stateTileTemplate(service);
+      tileAttribution = chosen.attribution;
+    } else if (chosen?.kind === "esri") {
+      tileAttribution = `&copy; ${chosen.attribution.replace(/^© /, "")}`;
+    }
+  }
   const tileOpacity = 1;
+  // OpenTopoMap publishes native tiles only through z17. Leaflet may still
+  // zoom farther, but must upscale z17 instead of requesting the provider's
+  // conspicuous "max zoom / layer = 17" error tiles.
+  const tileMaxNativeZoom = basemap === "terrain" ? 17 : undefined;
 
   if (withCoords.length === 0) {
     return (
@@ -416,13 +486,16 @@ export function MapPage(): React.JSX.Element {
         className="h-full w-full"
       >
         <TileLayer
-          key={`${tileUrl}-${tileOpacity}`}
+          key={`${basemap}-${tileUrl}-${tileAttribution}`}
           attribution={tileAttribution}
           url={tileUrl}
-          maxZoom={19}
+          maxZoom={BASEMAP_MAX_ZOOM}
+          maxNativeZoom={tileMaxNativeZoom}
           opacity={tileOpacity}
+          {...BBOX_TEMPLATE_OPTION}
         />
         <MapResizer />
+        <MapViewReporter onChange={setMapView} />
         <ZoomControl />
 
         {layers.accumulationClusters && (
@@ -470,6 +543,7 @@ export function MapPage(): React.JSX.Element {
             select(id);
             openDetailDialog(id);
           }}
+          onConfirmBoundary={(id) => void confirmBoundary(id)}
           onContextMenu={(d, point) =>
             setContextMenu({ dealership: d, x: point.x, y: point.y })
           }
@@ -590,16 +664,34 @@ export function MapPage(): React.JSX.Element {
         })}
 
         {analyzing && progress && progress.total > 0 && (
-          <div className="glass flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm shadow-lg">
-            <Loader2 className="size-4 animate-spin text-primary" />
-            {t("map.page.analyzingProgress", {
-              done: progress.done,
-              total: progress.total,
-            })}
+          <div className="glass flex w-[min(94vw,26rem)] items-center gap-3 rounded-lg border px-3 py-2 text-sm shadow-lg">
+            <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="whitespace-nowrap font-medium tabular-nums">
+                  {t("map.page.analyzingProgress", {
+                    done: progress.done,
+                    total: progress.total,
+                  })}
+                </span>
+                <span className="truncate text-xs text-muted-foreground tabular-nums">
+                  {remainingLabel(t, progress)}
+                </span>
+              </div>
+              <div className="h-1 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width]"
+                  style={{
+                    width: `${(progress.done / progress.total) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
             <Button
               type="button"
               size="sm"
               variant="ghost"
+              className="shrink-0"
               onClick={cancelAnalysis}
               title={t("map.page.cancelAnalysis")}
             >
@@ -619,14 +711,31 @@ export function MapPage(): React.JSX.Element {
         )}
 
         {!analyzing && !boundaryWarningDismissed && boundaryReviewCount > 0 && (
-          <div className="glass flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm shadow-lg">
-            <TriangleAlert className="size-4 shrink-0 text-amber-500" />
-            <span>
-              {t("map.page.boundaryWarning", {
-                count: boundaryReviewCount,
-                total: withCoords.length,
-              })}
-            </span>
+          <div className="glass flex max-w-[min(94vw,36rem)] items-start gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-500" />
+            <div className="min-w-0 space-y-1">
+              <div className="font-medium">
+                {t("map.page.boundaryWarning", {
+                  count: boundaryReviewCount,
+                  total: withCoords.length,
+                })}
+              </div>
+              <p className="text-xs leading-snug text-muted-foreground">
+                {t("map.page.boundaryWarningHint")}
+              </p>
+              {!editing && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={startBoundaryEditing}
+                >
+                  <Pencil className="size-3" />
+                  {t("map.layerPanel.editBoundariesButton")}
+                </Button>
+              )}
+            </div>
             <button
               type="button"
               className="shrink-0 text-muted-foreground hover:text-foreground"
@@ -640,9 +749,9 @@ export function MapPage(): React.JSX.Element {
         )}
 
         {!analyzing && !modelWarningDismissed && stubDetectionCount > 0 && (
-          <div className="glass flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm shadow-lg">
+          <div className="glass flex max-w-[min(82vw,32rem)] items-start gap-2 rounded-lg border px-3 py-2 text-xs leading-snug shadow-lg">
             <TriangleAlert className="size-4 shrink-0 text-amber-500" />
-            <span>
+            <span className="min-w-0">
               {t("map.page.detectionWarning", {
                 count: stubDetectionCount,
                 total: withCoords.length,
@@ -696,7 +805,7 @@ export function MapPage(): React.JSX.Element {
           perilOverlay={perilOverlay}
           showClusters={layers.accumulationClusters}
         />
-        <MapLegend />
+        <MapLegend imagery={imagery} showImagery={basemap === "satellite"} />
       </div>
 
       {contextMenu && (
@@ -709,4 +818,26 @@ export function MapPage(): React.JSX.Element {
       )}
     </div>
   );
+}
+
+/** Remaining-time estimate for a batch analysis, from the average so far. */
+function remainingLabel(
+  t: TFunction,
+  progress: { done: number; total: number; startedAt: number },
+): string {
+  // The first results include warm-up (model load, cold caches); wait for a
+  // few before extrapolating.
+  if (progress.done < 3) return t("map.page.analyzingEstimating");
+  const elapsed = Date.now() - progress.startedAt;
+  const remainingMs =
+    (elapsed / progress.done) * (progress.total - progress.done);
+  const minutes = Math.max(1, Math.round(remainingMs / 60_000));
+  const time =
+    minutes < 60
+      ? t("map.page.durationMinutes", { minutes })
+      : t("map.page.durationHours", {
+          hours: Math.floor(minutes / 60),
+          minutes: minutes % 60,
+        });
+  return t("map.page.analyzingRemaining", { time });
 }

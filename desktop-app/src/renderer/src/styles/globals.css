@@ -348,3 +348,13 @@ body {
 .drm-popup .popup-details-btn:hover {
   background: #2563eb18;
 }
+
+.drm-popup .popup-confirm-boundary-btn {
+  color: #15803d;
+  border-color: #15803d33;
+  background: #15803d0d;
+}
+
+.drm-popup .popup-confirm-boundary-btn:hover {
+  background: #15803d1f;
+}

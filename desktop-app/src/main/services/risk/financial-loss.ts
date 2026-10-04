@@ -15,36 +15,71 @@ export function computeEalBreakdown(
   natCat?: NatCatAssessment,
 ): EalBreakdown {
   if (exposure <= 0) {
-    return { hail: 0, wind: 0, flood: 0, lightning: 0, snow: 0, heat: 0, total: 0 };
+    return {
+      hail: 0,
+      wind: 0,
+      flood: 0,
+      lightning: 0,
+      snow: 0,
+      heat: 0,
+      total: 0,
+    };
   }
 
-  const baseFrequency = hailZone != null
-    ? hailZoneToScore(hailZone) * 2
-    : w.hailProbability * (1 + parameters.climateLoadingFactor);
-  const hail = exposure * exposureRatio * Math.min(2, baseFrequency) *
-    parameters.hailSiteHitProbability * parameters.hailDamageFraction;
+  const baseFrequency =
+    hailZone != null
+      ? hailZoneToScore(hailZone) * 2
+      : w.hailProbability * (1 + parameters.climateLoadingFactor);
+  const hail =
+    exposure *
+    exposureRatio *
+    Math.min(2, baseFrequency) *
+    parameters.hailSiteHitProbability *
+    parameters.hailDamageFraction;
 
-  const stormDays = w.maxWindKmh >= parameters.windStormThresholdKmh
-    ? Math.min(5, w.maxWindKmh / 30)
-    : 0;
-  const wind = exposure * exposureRatio * stormDays *
-    parameters.windSiteHitProbability * parameters.windDamageFraction;
+  const stormDays =
+    w.maxWindKmh >= parameters.windStormThresholdKmh
+      ? Math.min(5, w.maxWindKmh / 30)
+      : 0;
+  const wind =
+    exposure *
+    exposureRatio *
+    stormDays *
+    parameters.windSiteHitProbability *
+    parameters.windDamageFraction;
 
   // Screening proxy: replace this with a hydraulic/flood-hazard adapter when available.
-  const floodHazard = natCat?.hazards.find((hazard) => hazard.peril === "flood");
-  const floodReturnPeriod = floodHazard?.returnPeriodYears ??
+  const floodHazard = natCat?.hazards.find(
+    (hazard) => hazard.peril === "flood",
+  );
+  const floodReturnPeriod =
+    floodHazard?.returnPeriodYears ??
     (w.annualPrecipMm > 1000 ? 20 : w.annualPrecipMm > 700 ? 50 : 100);
-  const floodProbability = floodHazard?.annualExceedanceProbability ??
-    (1 / floodReturnPeriod);
-  const floodFraction = floodReturnPeriod <= 20
-    ? parameters.floodDamageHq10
-    : floodReturnPeriod <= 50
-      ? parameters.floodDamageHq100
-      : parameters.floodDamageHqExtrem;
+  const floodProbability =
+    floodHazard?.annualExceedanceProbability ?? 1 / floodReturnPeriod;
+  const floodFraction =
+    floodReturnPeriod <= 20
+      ? parameters.floodDamageHq10
+      : floodReturnPeriod <= 50
+        ? parameters.floodDamageHq100
+        : parameters.floodDamageHqExtrem;
   const flood = exposure * exposureRatio * floodProbability * floodFraction;
-  const lightning = exposure * exposureRatio * w.lightningDensity * parameters.lightningDensityScale * parameters.lightningDamageFraction;
-  const snow = exposure * exposureRatio * (w.maxSnowDepthCm / 30) * parameters.snowLoadDamageFractionPer30cm;
-  const heat = exposure * exposureRatio * w.hotDays * parameters.heatDamageFractionPerHotday;
+  const lightning =
+    exposure *
+    exposureRatio *
+    w.lightningDensity *
+    parameters.lightningDensityScale *
+    parameters.lightningDamageFraction;
+  const snow =
+    exposure *
+    exposureRatio *
+    (w.maxSnowDepthCm / 30) *
+    parameters.snowLoadDamageFractionPer30cm;
+  const heat =
+    exposure *
+    exposureRatio *
+    w.hotDays *
+    parameters.heatDamageFractionPerHotday;
   const total = hail + wind + flood + lightning + snow + heat;
 
   return {

@@ -68,3 +68,49 @@ describe("fetchWithResilience", () => {
     await assertion;
   });
 });
+
+describe("host fair-use gate", () => {
+  it("spaces Nominatim requests at least one second apart", async () => {
+    vi.useFakeTimers();
+    const starts: number[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      starts.push(Date.now());
+      return new Response("[]", { status: 200 });
+    });
+
+    const url = "https://nominatim.openstreetmap.org/search?q=a";
+    const requests = Promise.all([
+      fetchWithResilience(url),
+      fetchWithResilience(url),
+      fetchWithResilience(url),
+    ]);
+    await vi.runAllTimersAsync();
+    await requests;
+
+    expect(starts).toHaveLength(3);
+    expect(starts[1] - starts[0]).toBeGreaterThanOrEqual(1_000);
+    expect(starts[2] - starts[1]).toBeGreaterThanOrEqual(1_000);
+  });
+
+  it("keeps at most two Overpass requests in flight", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight--;
+      return new Response("{}", { status: 200 });
+    });
+
+    await Promise.all(
+      Array.from({ length: 5 }, () =>
+        fetchWithResilience("https://overpass-api.de/api/interpreter", {
+          method: "POST",
+        }),
+      ),
+    );
+
+    expect(peak).toBe(2);
+  });
+});

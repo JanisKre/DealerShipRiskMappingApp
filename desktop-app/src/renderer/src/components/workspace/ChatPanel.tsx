@@ -3,6 +3,10 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { useAppStore } from "@renderer/store/appStore";
 import { ExecutiveSummary } from "@renderer/components/ai/ExecutiveSummary";
+import {
+  LlmErrorMessage,
+  LlmSetupNotice,
+} from "@renderer/components/ai/LlmSetupNotice";
 import { MessageBubble } from "@renderer/components/chat/MessageBubble";
 import { useChat } from "@renderer/components/chat/useChat";
 import { Button } from "@renderer/components/ui/button";
@@ -13,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@renderer/components/ui/dropdown-menu";
 import { Omnibox } from "@renderer/components/upload/Omnibox";
+import { useLlmReady } from "@renderer/lib/useLlmReady";
 import { cn } from "@renderer/lib/utils";
 import { useConversationStore } from "@renderer/store/conversationStore";
 
@@ -36,6 +41,7 @@ export function ChatPanel(): React.JSX.Element {
   const deleteConversation = useConversationStore((s) => s.deleteConversation);
 
   const { messages, streamingText, streaming, error, send } = useChat();
+  const llmReady = useLlmReady();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load the conversation list on first render.
@@ -120,7 +126,11 @@ export function ChatPanel(): React.JSX.Element {
 
       {/* Transcript + ExecutiveSummary */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        {chatEmpty && !hasData ? (
+        {llmReady === false ? (
+          <div className="flex h-full items-center justify-center px-4">
+            <LlmSetupNotice />
+          </div>
+        ) : chatEmpty && !hasData ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
             <MessageSquare className="size-8 text-muted-foreground/40" />
             <p className="text-xs text-muted-foreground">{t("ui.emptyChat")}</p>
@@ -145,11 +155,7 @@ export function ChatPanel(): React.JSX.Element {
                     pending
                   />
                 )}
-                {error && (
-                  <p className="text-xs text-destructive">
-                    {t("ui.error", { error })}
-                  </p>
-                )}
+                {error && <LlmErrorMessage error={error} />}
               </div>
             )}
           </div>
@@ -164,7 +170,7 @@ export function ChatPanel(): React.JSX.Element {
             /* not active — address mode hidden */
           }}
           onAskQuestion={send}
-          disabled={streaming}
+          disabled={streaming || llmReady === false}
           compact
         />
       </div>

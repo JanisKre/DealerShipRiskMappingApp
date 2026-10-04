@@ -69,12 +69,15 @@ export function DealershipTable({
   const parameters = useAppStore((s) => s.parameters);
 
   const alertIds = useMemo(
-    () => alertIdSet(generateAlerts(dealerships, {
-      extremeScore: parameters.alertExtremeScore,
-      overcapacity: parameters.alertOvercapacity,
-      lowBoundaryConfidence: parameters.alertLowBoundaryConfidence,
-      ealPortfolioShare: parameters.alertEalPortfolioShare,
-    })),
+    () =>
+      alertIdSet(
+        generateAlerts(dealerships, {
+          extremeScore: parameters.alertExtremeScore,
+          overcapacity: parameters.alertOvercapacity,
+          lowBoundaryConfidence: parameters.alertLowBoundaryConfidence,
+          ealPortfolioShare: parameters.alertEalPortfolioShare,
+        }),
+      ),
     [dealerships, parameters],
   );
 
@@ -198,6 +201,13 @@ export function DealershipTable({
                     <TableHead
                       key={header.id}
                       className={numeric ? "text-right" : ""}
+                      aria-sort={
+                        header.column.getIsSorted() === "asc"
+                          ? "ascending"
+                          : header.column.getIsSorted() === "desc"
+                            ? "descending"
+                            : "none"
+                      }
                     >
                       {header.isPlaceholder ? null : (
                         <button
@@ -206,6 +216,13 @@ export function DealershipTable({
                             numeric ? "flex-row-reverse" : ""
                           }`}
                           onClick={header.column.getToggleSortingHandler()}
+                          title={
+                            header.column.getIsSorted() === "asc"
+                              ? t("dashboard.sortAscending")
+                              : header.column.getIsSorted() === "desc"
+                                ? t("dashboard.sortDescending")
+                                : t("dashboard.sortNone")
+                          }
                         >
                           {flexRender(
                             header.column.columnDef.header,

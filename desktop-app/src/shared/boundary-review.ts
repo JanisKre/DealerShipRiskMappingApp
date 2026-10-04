@@ -17,6 +17,9 @@ export function boundaryNeedsReview(
   boundary: BoundaryResult,
   parameters: RiskParameters,
 ): boolean {
+  // A human already looked at it: either drew/edited it or confirmed it as is.
+  if (boundary.source === "manual" || boundary.confirmedAt != null)
+    return false;
   const quality = boundary.quality;
   return (
     boundary.source === "synthetic" ||
@@ -24,7 +27,8 @@ export function boundaryNeedsReview(
     boundary.confidence < parameters.boundaryReviewConfidence ||
     (quality?.top2Margin ?? 1) < parameters.boundaryReviewTop2Margin ||
     quality?.pointRelation === "outside" ||
-    (quality?.sourceAgreement ?? 0) < parameters.boundaryReviewSourceAgreement ||
+    (quality?.sourceAgreement ?? 0) <
+      parameters.boundaryReviewSourceAgreement ||
     (quality?.areaPlausibility ?? 0) < 0.5 ||
     (quality?.barrierSupport !== undefined &&
       quality.barrierSupport < parameters.boundaryBarrierSupportReview) ||

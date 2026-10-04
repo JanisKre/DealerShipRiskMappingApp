@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@renderer/components/ui/card";
+import { LlmErrorMessage } from "@renderer/components/ai/LlmSetupNotice";
 import { buildSessionContext } from "@renderer/lib/sessionContext";
 import { useLlmStream } from "@renderer/lib/useLlmStream";
 import { useAppStore } from "@renderer/store/appStore";
@@ -82,9 +83,7 @@ export function ExecutiveSummary(): React.JSX.Element | null {
         </div>
       </CardHeader>
       <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
-        {error && (
-          <p className="text-sm text-destructive">{t("ui.error", { error })}</p>
-        )}
+        {error && <LlmErrorMessage error={error} className="text-sm" />}
         {!started && !error && (
           <p className="text-sm text-muted-foreground">
             {t("ui.summaryDescription")}

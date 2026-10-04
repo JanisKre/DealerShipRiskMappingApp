@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { importedNatCat } from "@shared/natcat-routing";
 import type {
   AnalyzedDealership,
   BoundaryResult,
@@ -34,7 +35,8 @@ interface AppState {
   parametersUpdating: boolean;
   selectedId: string | null;
   analyzing: boolean;
-  progress: { done: number; total: number } | null;
+  /** Batch progress; `startedAt` (epoch ms) drives the remaining-time estimate. */
+  progress: { done: number; total: number; startedAt: number } | null;
   /** Last error per location from a batch analysis. */
   analysisErrors: Record<string, string>;
   /** Requests that the current batch stop after the active item. */
@@ -115,6 +117,8 @@ interface AppState {
   updateDetectionForBoundary: (id: string) => Promise<void>;
   /** Persists a manual boundary edit and clears its unsaved marker. */
   saveBoundaryEdit: (id: string) => Promise<void>;
+  /** Marks the detected boundary as visually confirmed, clears its review flag and rescores. */
+  confirmBoundary: (id: string) => Promise<void>;
   /** Restores the previous manual boundary state and rescored risk. */
   undoBoundaryEdit: (id: string) => Promise<void>;
   /** Restores the original boundary from before manual editing started. */
@@ -151,8 +155,8 @@ interface AppState {
   removeDealerships: (ids: string[]) => void;
   /** Re-analyzes an existing location (recomputes boundary/detection/risk). */
   reanalyzeDealership: (id: string) => Promise<void>;
-  /** Fetches a configured CatNet assessment and rescores one location. */
-  refreshCatNet: (id: string) => Promise<void>;
+  /** Re-resolves the routed NatCat sources and rescores one location. */
+  refreshNatCat: (id: string) => Promise<void>;
   analyzeAll: (inputs: DealershipInput[]) => Promise<void>;
   cancelAnalysis: () => void;
   /**
@@ -468,6 +472,40 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
     }
   },
+  confirmBoundary: async (id) => {
+    const d = get().dealerships.find((x) => x.id === id);
+    if (!d?.boundary) return;
+    const boundary = {
+      ...d.boundary,
+      confirmedAt: new Date().toISOString(),
+      reviewRequired: false,
+    };
+    get().upsertDealership({ ...d, boundary });
+    // Evidence limitations depend on the review flag, so rescore.
+    try {
+      const risk = await window.api.scoreRisk(
+        d.lat,
+        d.lon,
+        d.assetValue,
+        d.detection,
+        boundary,
+        get().parameters,
+        d.natCat,
+      );
+      const latest = get().dealerships.find((x) => x.id === id);
+      if (latest) get().upsertDealership({ ...latest, risk });
+    } catch (err) {
+      console.error(
+        `Rescoring after boundary confirmation failed (${id}):`,
+        err,
+      );
+    }
+    await get()
+      .saveSession()
+      .catch((err: unknown) => {
+        console.error("Saving boundary confirmation failed:", err);
+      });
+  },
   saveBoundaryEdit: async (id) => {
     if (!get().boundaryEditIds.includes(id)) return;
     await get().saveSession();
@@ -703,11 +741,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  refreshCatNet: async (id) => {
+  refreshNatCat: async (id) => {
     const d = get().dealerships.find((x) => x.id === id);
     if (!d) return;
     try {
-      const natCat = await window.api.fetchCatNet(d.lat, d.lon);
+      const natCat =
+        (await window.api.resolveNatCat(d.lat, d.lon, importedNatCat(d))) ??
+        undefined;
       const risk = await window.api.scoreRisk(
         d.lat,
         d.lon,
@@ -719,11 +759,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       );
       const latest = get().dealerships.find((x) => x.id === id);
       if (latest) {
-        get().upsertDealership({ ...latest, natCat, risk });
+        const natCatImport = importedNatCat(latest);
+        get().upsertDealership({
+          ...latest,
+          natCat,
+          ...(natCatImport ? { natCatImport } : {}),
+          risk,
+        });
         await get().saveSession();
       }
     } catch (err) {
-      console.error(`CatNet refresh failed for ${d.name}:`, err);
+      console.error(`NatCat refresh failed for ${d.name}:`, err);
       throw err;
     }
   },
@@ -731,37 +777,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   analyzeAll: async (inputs) => {
     set({
       analyzing: true,
-      progress: { done: 0, total: inputs.length },
+      progress: { done: 0, total: inputs.length, startedAt: Date.now() },
       dealerships: [],
       analyzingIds: [],
       analysisErrors: {},
       analysisCancelRequested: false,
     });
-    for (let i = 0; i < inputs.length && !get().analysisCancelRequested; i++) {
-      const input = inputs[i];
-      set((s) => ({
-        analyzingIds: [...s.analyzingIds, input.id],
-        analysisErrors: withoutKey(s.analysisErrors, input.id),
-      }));
-      try {
-        const result = await window.api.analyzeDealership(
-          input,
-          get().parameters,
-        );
-        get().upsertDealership(result);
-      } catch (err) {
-        const message = errorMessage(err);
-        console.error(`Analysis failed for ${input.name}:`, err);
-        set((s) => ({
-          analysisErrors: { ...s.analysisErrors, [input.id]: message },
-        }));
-      }
-      set((s) => ({
-        analyzingIds: s.analyzingIds.filter((id) => id !== input.id),
-        progress: { done: i + 1, total: inputs.length },
-      }));
-    }
-    set({ analyzing: false, analyzingIds: [], analysisCancelRequested: false });
+    await runAnalysisQueue(inputs, set, get);
   },
 
   cancelAnalysis: () => set({ analysisCancelRequested: true }),
@@ -775,11 +797,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const fresh = unique.slice(existing.length);
     if (fresh.length === 0) return duplicates.length;
 
-    // Make pending pins with coordinates visible immediately.
-    for (const input of fresh) {
-      if (input.lat != null && input.lon != null) {
-        get().upsertDealership({ ...input } as AnalyzedDealership);
-      }
+    // Make pending pins with coordinates visible immediately — in one update,
+    // not one store write (and map rebuild) per imported row.
+    const pendingPins = fresh.filter(
+      (input) => input.lat != null && input.lon != null,
+    ) as AnalyzedDealership[];
+    if (pendingPins.length > 0) {
+      set((s) => ({ dealerships: [...s.dealerships, ...pendingPins] }));
     }
 
     const freshIds = fresh.map((f) => f.id);
@@ -788,7 +812,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Single address → select directly so the map flies to it.
       selectedId: freshIds.length === 1 ? freshIds[0] : s.selectedId,
       analyzing: true,
-      progress: { done: 0, total: fresh.length },
+      progress: { done: 0, total: fresh.length, startedAt: Date.now() },
       analysisCancelRequested: false,
       analysisErrors: fresh.reduce<Record<string, string>>(
         (errors, input) => {
@@ -799,28 +823,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       ),
     }));
 
-    for (let i = 0; i < fresh.length && !get().analysisCancelRequested; i++) {
-      const input = fresh[i];
-      set((s) => ({ analyzingIds: [...s.analyzingIds, input.id] }));
-      try {
-        const result = await window.api.analyzeDealership(
-          input,
-          get().parameters,
-        );
-        get().upsertDealership(result);
-      } catch (err) {
-        const message = errorMessage(err);
-        console.error(`Analysis failed for ${input.name}:`, err);
-        set((s) => ({
-          analysisErrors: { ...s.analysisErrors, [input.id]: message },
-        }));
-      }
-      set((s) => ({
-        analyzingIds: s.analyzingIds.filter((id) => id !== input.id),
-        progress: { done: i + 1, total: fresh.length },
-      }));
-    }
-    set({ analyzing: false, analyzingIds: [], analysisCancelRequested: false });
+    await runAnalysisQueue(fresh, set, get);
     return duplicates.length;
   },
 
@@ -890,6 +893,83 @@ function withoutKey(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Locations analysed at once. Each analysis is mostly waiting on remote
+ * services (boundary sources, imagery, hazard APIs), so a few in parallel cut
+ * a 500-row import from many hours to a fraction of that; main paces the
+ * shared public services (`http.service.ts` host gates) so this stays within
+ * their fair-use limits.
+ */
+const ANALYSIS_CONCURRENCY = 3;
+
+type StoreSet = (
+  partial: Partial<AppState> | ((s: AppState) => Partial<AppState>),
+) => void;
+/** Persist a running batch every this many finished locations. */
+const ANALYSIS_CHECKPOINT_EVERY = 25;
+
+/**
+ * Runs `analyzeDealership` for every input with bounded concurrency, updating
+ * pins, errors and progress as results arrive. Autosave is paused during a
+ * batch, so it checkpoints the session periodically — a crash hours into a
+ * large import must not lose everything already analysed.
+ */
+async function runAnalysisQueue(
+  inputs: DealershipInput[],
+  set: StoreSet,
+  get: () => AppState,
+): Promise<void> {
+  let next = 0;
+  let done = 0;
+  let checkpoint: Promise<void> | null = null;
+
+  async function worker(): Promise<void> {
+    while (next < inputs.length && !get().analysisCancelRequested) {
+      const input = inputs[next++];
+      set((s) => ({
+        analyzingIds: [...s.analyzingIds, input.id],
+        analysisErrors: withoutKey(s.analysisErrors, input.id),
+      }));
+      try {
+        const result = await window.api.analyzeDealership(
+          input,
+          get().parameters,
+        );
+        get().upsertDealership(result);
+      } catch (err) {
+        const message = errorMessage(err);
+        console.error(`Analysis failed for ${input.name}:`, err);
+        set((s) => ({
+          analysisErrors: { ...s.analysisErrors, [input.id]: message },
+        }));
+      }
+      done++;
+      set((s) => ({
+        analyzingIds: s.analyzingIds.filter((id) => id !== input.id),
+        progress: s.progress ? { ...s.progress, done } : s.progress,
+      }));
+      if (done % ANALYSIS_CHECKPOINT_EVERY === 0 && !checkpoint) {
+        checkpoint = get()
+          .saveSession()
+          .catch((err: unknown) => {
+            console.error("Analysis checkpoint save failed:", err);
+          })
+          .finally(() => {
+            checkpoint = null;
+          });
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(ANALYSIS_CONCURRENCY, inputs.length) }, () =>
+      worker(),
+    ),
+  );
+  if (checkpoint) await checkpoint;
+  set({ analyzing: false, analyzingIds: [], analysisCancelRequested: false });
 }
 
 /**

@@ -1,13 +1,9 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { AlertTriangle, Info, TrendingUp } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
-import {
-  anomalyMetricLabel,
-  detectAnomalies,
-  generateAlerts,
-  type Alert,
-} from "@shared/analytics";
+import { detectAnomalies, generateAlerts, type Alert } from "@shared/analytics";
 import { Badge } from "@renderer/components/ui/badge";
 import {
   Card,
@@ -33,12 +29,13 @@ export function InsightsPanel({
   const { t } = useTranslation();
   const parameters = useAppStore((s) => s.parameters);
   const alerts = useMemo(
-    () => generateAlerts(dealerships, {
-      extremeScore: parameters.alertExtremeScore,
-      overcapacity: parameters.alertOvercapacity,
-      lowBoundaryConfidence: parameters.alertLowBoundaryConfidence,
-      ealPortfolioShare: parameters.alertEalPortfolioShare,
-    }),
+    () =>
+      generateAlerts(dealerships, {
+        extremeScore: parameters.alertExtremeScore,
+        overcapacity: parameters.alertOvercapacity,
+        lowBoundaryConfidence: parameters.alertLowBoundaryConfidence,
+        ealPortfolioShare: parameters.alertEalPortfolioShare,
+      }),
     [dealerships, parameters],
   );
   const anomalies = useMemo(() => detectAnomalies(dealerships), [dealerships]);
@@ -56,9 +53,13 @@ export function InsightsPanel({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <AlertTriangle className="size-4 text-amber-500" /> Anomalies
+          <AlertTriangle className="size-4 text-amber-500" />
+          {t("dashboard.insightsTitle")}
           <span className="text-xs font-normal text-muted-foreground">
-            {alerts.length} alerts · {anomalies.length} outliers
+            {t("dashboard.insightsSummary", {
+              alerts: alerts.length,
+              outliers: anomalies.length,
+            })}
           </span>
         </CardTitle>
       </CardHeader>
@@ -79,7 +80,8 @@ export function InsightsPanel({
                 >
                   <AlertBadge level={a.level} />
                   <span className="flex-1">
-                    <span className="font-medium">{a.name}</span> — {a.message}
+                    <span className="font-medium">{a.name}</span> —{" "}
+                    {alertMessage(a, t)}
                   </span>
                 </button>
               </li>
@@ -90,7 +92,8 @@ export function InsightsPanel({
         {anomalies.length > 0 && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-              <TrendingUp className="size-3.5" /> Statistical Outliers
+              <TrendingUp className="size-3.5" />
+              {t("dashboard.statisticalOutliers")}
             </div>
             <ul className="space-y-1">
               {anomalies.slice(0, 6).map((an, i) => (
@@ -103,7 +106,7 @@ export function InsightsPanel({
                     <Info className="size-3.5 shrink-0 text-sky-500" />
                     <span className="flex-1">
                       <span className="font-medium">{an.name}</span>:{" "}
-                      {anomalyMetricLabel(an.metric)}{" "}
+                      {t(`dashboard.anomalyMetric.${an.metric}`)}{" "}
                       {an.metric === "eal"
                         ? eur(an.value)
                         : an.value.toFixed(an.metric === "utilisation" ? 2 : 0)}
@@ -132,13 +135,37 @@ export function InsightsPanel({
 function AlertBadge({
   level,
 }: Readonly<{ level: Alert["level"] }>): React.JSX.Element {
+  const { t } = useTranslation();
   return level === "critical" ? (
     <Badge variant="destructive" className="shrink-0">
-      Critical
+      {t("dashboard.alertLevel.critical")}
     </Badge>
   ) : (
     <Badge variant="secondary" className="shrink-0">
-      Warning
+      {t("dashboard.alertLevel.warning")}
     </Badge>
   );
+}
+
+function alertMessage(alert: Alert, t: TFunction): string {
+  switch (alert.kind) {
+    case "extreme-risk":
+      return t("dashboard.alert.extremeRisk", {
+        score: (alert.value ?? 0).toFixed(0),
+      });
+    case "high-eal":
+      return t("dashboard.alert.highEal", {
+        share: (alert.value ?? 0).toFixed(0),
+      });
+    case "overcapacity":
+      return t("dashboard.alert.overcapacity", {
+        utilisation: (alert.value ?? 0).toFixed(0),
+      });
+    case "low-boundary-confidence":
+      return t("dashboard.alert.lowBoundaryConfidence", {
+        source: alert.source ?? "–",
+      });
+    case "no-detection":
+      return t("dashboard.alert.noDetection");
+  }
 }

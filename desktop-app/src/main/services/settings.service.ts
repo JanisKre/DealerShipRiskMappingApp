@@ -1,5 +1,5 @@
 import { safeStorage } from "electron";
-import type { LlmProvider, Settings } from "@shared/types";
+import type { LlmProvider, NatCatApiProvider, Settings } from "@shared/types";
 import { SettingsSchema } from "@shared/types";
 import { getDb } from "../db/database";
 
@@ -11,9 +11,8 @@ import { getDb } from "../db/database";
 
 const SETTINGS_KEY = "app.settings";
 
-// The fusion engine is the supported operational detector. Keeping legacy as
-// an explicit setting still makes comparison/replay possible without silently
-// shipping its weaker candidate-only path to new installations.
+// The fusion engine is the supported operational detector. Legacy stays in the
+// schema so benchmarks and tests can still compare both engines.
 const DEFAULTS: Settings = { language: "en", boundaryEngine: "fused" };
 
 export function getSettings(): Settings {
@@ -30,16 +29,9 @@ export function getSettings(): Settings {
   }
   const parsed = SettingsSchema.safeParse(raw);
   if (!parsed.success) return DEFAULTS;
-  const settings = parsed.data;
-  // Only inspect presence here. Decrypting during startup accesses the
-  // macOS Keychain before the user actually needs an API.
-  if (settings.llm) {
-    settings.llm.hasApiKey = hasLlmApiKey(settings.llm.provider);
-  }
-  if (settings.natCat) {
-    settings.natCat.catnetHasApiKey = hasNatCatApiKey();
-  }
-  return settings;
+  // The engine is no longer user-selectable; a "legacy" value saved by an
+  // older build must not pin the weaker detector with no way to undo it.
+  return withKeyPresence({ ...parsed.data, boundaryEngine: "fused" });
 }
 
 export function setSettings(partial: Partial<Settings>): Settings {
@@ -48,7 +40,28 @@ export function setSettings(partial: Partial<Settings>): Settings {
   getDb()
     .prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)")
     .run(SETTINGS_KEY, JSON.stringify(validated));
-  return validated;
+  // Recompute key presence: after a provider switch the merged flag still
+  // describes the previous provider's key.
+  return withKeyPresence(validated);
+}
+
+/**
+ * Fills the `has*ApiKey` flags. Only inspects presence: decrypting during
+ * startup accesses the macOS Keychain before the user actually needs an API.
+ */
+function withKeyPresence(settings: Settings): Settings {
+  if (settings.llm) {
+    settings.llm.hasApiKey = hasLlmApiKey(settings.llm.provider);
+  }
+  if (settings.natCat) {
+    settings.natCat.catnetHasApiKey = hasNatCatApiKey("swissre-catnet");
+    for (const [provider, connector] of Object.entries(
+      settings.natCat.connectors ?? {},
+    )) {
+      connector.hasApiKey = hasNatCatApiKey(provider as NatCatApiProvider);
+    }
+  }
+  return settings;
 }
 
 // --- API-Keys via safeStorage --------------------------------------------
@@ -88,23 +101,42 @@ function hasLlmApiKey(provider: LlmProvider): boolean {
   return row != null || envApiKey(provider) != null;
 }
 
-const NAT_CAT_KEY = "natcat.apikey.swissre-catnet";
+// One key per hazard API provider. The CatNet name predates the generic
+// connectors and is kept so existing installations keep their key.
+function natCatKeyName(provider: NatCatApiProvider): string {
+  return `natcat.apikey.${provider}`;
+}
 
-export function setNatCatApiKey(apiKey: string): void {
-  if (!apiKey.trim()) throw new Error("CatNet API key cannot be empty");
+/** Environment fallback for managed deployments (CatNet only, as before). */
+function natCatEnvKey(provider: NatCatApiProvider): string | null {
+  if (provider !== "swissre-catnet") return null;
+  return process.env.SWISSRE_CATNET_API_KEY?.trim() || null;
+}
+
+export function setNatCatApiKey(
+  provider: NatCatApiProvider,
+  apiKey: string,
+): void {
+  if (!apiKey.trim()) throw new Error("NatCat API key cannot be empty");
   if (!safeStorage.isEncryptionAvailable()) {
     throw new Error("safeStorage (OS keychain) not available");
   }
   const enc = safeStorage.encryptString(apiKey).toString("base64");
   getDb()
     .prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)")
-    .run(NAT_CAT_KEY, enc);
+    .run(natCatKeyName(provider), enc);
 }
 
-export function getNatCatApiKey(): string | null {
+export function deleteNatCatApiKey(provider: NatCatApiProvider): void {
+  getDb()
+    .prepare("DELETE FROM settings WHERE key = ?")
+    .run(natCatKeyName(provider));
+}
+
+export function getNatCatApiKey(provider: NatCatApiProvider): string | null {
   const row = getDb()
     .prepare("SELECT value FROM settings WHERE key = ?")
-    .get(NAT_CAT_KEY) as { value: string } | undefined;
+    .get(natCatKeyName(provider)) as { value: string } | undefined;
   if (row) {
     try {
       return safeStorage.decryptString(Buffer.from(row.value, "base64"));
@@ -112,14 +144,14 @@ export function getNatCatApiKey(): string | null {
       // Fall back to the environment for managed deployments.
     }
   }
-  return process.env.SWISSRE_CATNET_API_KEY?.trim() || null;
+  return natCatEnvKey(provider);
 }
 
-function hasNatCatApiKey(): boolean {
+function hasNatCatApiKey(provider: NatCatApiProvider): boolean {
   const row = getDb()
     .prepare("SELECT 1 as present FROM settings WHERE key = ?")
-    .get(NAT_CAT_KEY) as { present: number } | undefined;
-  return row != null || Boolean(process.env.SWISSRE_CATNET_API_KEY?.trim());
+    .get(natCatKeyName(provider)) as { present: number } | undefined;
+  return row != null || natCatEnvKey(provider) != null;
 }
 
 /**
@@ -129,7 +161,10 @@ function hasNatCatApiKey(): boolean {
  * first, then the provider-specific variables.
  */
 function envApiKey(provider: LlmProvider): string | null {
-  const candidates: Record<LlmProvider, string[]> = {
+  // Local runtimes never get a key: a cloud token must not be sent to
+  // whatever listens on a local port.
+  if (provider === "local") return null;
+  const candidates: Record<Exclude<LlmProvider, "local">, string[]> = {
     openai: ["OPENAI_API_KEY"],
     claude: ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"],
     custom: ["ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY"],

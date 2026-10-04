@@ -91,9 +91,9 @@ describe("maskToRings", () => {
   });
 
   it("returns nothing for an empty mask", () => {
-    expect(maskToRings(SPEC, new Uint8Array(SPEC.cols * SPEC.rows))).toHaveLength(
-      0,
-    );
+    expect(
+      maskToRings(SPEC, new Uint8Array(SPEC.cols * SPEC.rows)),
+    ).toHaveLength(0);
   });
 });
 
@@ -143,17 +143,25 @@ describe("dominantAngleRad", () => {
   it("describes the same grid whichever way the rectangle is rotated", () => {
     // 30 and 120 degrees are the same rectilinear grid.
     const a = deg(
-      dominantAngleRad(simplifyRing(maskToRings(SPEC, maskOf([rect(50, 30, 30)]))[0], 2)),
+      dominantAngleRad(
+        simplifyRing(maskToRings(SPEC, maskOf([rect(50, 30, 30)]))[0], 2),
+      ),
     );
     const b = deg(
-      dominantAngleRad(simplifyRing(maskToRings(SPEC, maskOf([rect(50, 30, 120)]))[0], 2)),
+      dominantAngleRad(
+        simplifyRing(maskToRings(SPEC, maskOf([rect(50, 30, 120)]))[0], 2),
+      ),
     );
     expect(Math.abs(a - b)).toBeLessThan(3);
   });
 
   it("is not swayed by many short jagged segments", () => {
     // Two long axis-aligned sides must outvote a noisy end.
-    const ring: Point2D[] = [[0, 0], [200, 0], [200, 40]];
+    const ring: Point2D[] = [
+      [0, 0],
+      [200, 0],
+      [200, 40],
+    ];
     for (let i = 0; i < 20; i += 1) {
       ring.push([200 - i * 2, 40 + (i % 2 === 0 ? 1 : -1)]);
     }
@@ -308,8 +316,9 @@ describe("masksToGeometry", () => {
     const secondary = maskOf([offsetRing(100, 0, 15, 15)]);
     const result = masksToGeometry(SPEC, [primary, secondary]);
     expect(result?.geometry.type).toBe("MultiPolygon");
-    expect(result?.geometry.type === "MultiPolygon" && result.geometry.coordinates)
-      .toHaveLength(2);
+    expect(
+      result?.geometry.type === "MultiPolygon" && result.geometry.coordinates,
+    ).toHaveLength(2);
   });
 
   it("drops a mask that fails to vectorize and keeps the rest", () => {

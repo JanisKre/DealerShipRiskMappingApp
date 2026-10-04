@@ -341,7 +341,10 @@ export async function fetchParcelsNear(
         // the one that populated this entry can sit on the other side of a
         // parcel line. The parcel geometry is safe to reuse; whether *this*
         // point falls inside it is not.
-        return { ...hit, containsAnchor: parcelContainsPoint(hit.parcels, lat, lon) };
+        return {
+          ...hit,
+          containsAnchor: parcelContainsPoint(hit.parcels, lat, lon),
+        };
       }
       continue;
     }
@@ -360,19 +363,29 @@ export async function fetchParcelsNear(
     const parcels: ParcelFeature[] = [];
     if (fetched) {
       for (const ring of parseExteriorRings(fetched)) {
-        const check = checkRing(ring, { minAreaSqm: 25, maxAreaSqm: 2_000_000 });
+        const check = checkRing(ring, {
+          minAreaSqm: 25,
+          maxAreaSqm: 2_000_000,
+        });
         if (!check.valid) continue;
         parcels.push({ ring, areaSqm: check.areaSqm, state });
       }
     }
-    const truncated = fetched ? isTruncated(fetched, PARCEL_REQUEST_LIMIT) : false;
+    const truncated = fetched
+      ? isTruncated(fetched, PARCEL_REQUEST_LIMIT)
+      : false;
     const result: ParcelLookup = {
       parcels,
       state,
       truncated,
       reachable: true,
       containsAnchor: parcelContainsPoint(parcels, lat, lon),
-      status: parcels.length === 0 ? "successEmpty" : truncated ? "partial" : "success",
+      status:
+        parcels.length === 0
+          ? "successEmpty"
+          : truncated
+            ? "partial"
+            : "success",
     };
     cacheSet(key, result, TTL.cadastre);
 

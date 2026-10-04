@@ -102,6 +102,9 @@ export interface Alert {
   level: "critical" | "warning";
   kind: AlertKind;
   message: string;
+  /** Structured values let renderers localize the message themselves. */
+  value?: number;
+  source?: string;
 }
 
 /** Thresholds for the alert rules (deliberately centralized, easy to tune). */
@@ -138,32 +141,29 @@ export function generateAlerts(
         level: "critical",
         kind: "extreme-risk",
         message: `Extreme risk (score ${r.overallScore.toFixed(0)}/100).`,
+        value: r.overallScore,
       });
     }
 
-    if (
-      totalEal > 0 &&
-      r.eal / totalEal >= thresholds.ealPortfolioShare
-    ) {
+    if (totalEal > 0 && r.eal / totalEal >= thresholds.ealPortfolioShare) {
       out.push({
         dealershipId: d.id,
         name: d.name,
         level: "critical",
         kind: "high-eal",
         message: `Contributes ${((r.eal / totalEal) * 100).toFixed(0)}% of the portfolio EAL.`,
+        value: (r.eal / totalEal) * 100,
       });
     }
 
-    if (
-      r.utilisation != null &&
-      r.utilisation > thresholds.overcapacity
-    ) {
+    if (r.utilisation != null && r.utilisation > thresholds.overcapacity) {
       out.push({
         dealershipId: d.id,
         name: d.name,
         level: "warning",
         kind: "overcapacity",
         message: `Overcapacity (${(r.utilisation * 100).toFixed(0)}% of capacity).`,
+        value: r.utilisation * 100,
       });
     }
 
@@ -177,6 +177,7 @@ export function generateAlerts(
         level: "warning",
         kind: "low-boundary-confidence",
         message: `Uncertain lot boundary (source ${d.boundary.source}).`,
+        source: d.boundary.source,
       });
     }
 

@@ -73,7 +73,9 @@ describe("classifyArea", () => {
   it("prefers the dealership reading over the building reading", () => {
     // A showroom tagged as both should count as dealer area, which carries far
     // more weight than a generic building.
-    expect(classifyArea({ shop: "car", building: "retail" })).toBe("dealerArea");
+    expect(classifyArea({ shop: "car", building: "retail" })).toBe(
+      "dealerArea",
+    );
   });
 
   it("treats a grassed area inside a retail zone as vegetation", () => {
@@ -293,6 +295,36 @@ describe("parseOsmEvidence", () => {
     });
     expect(evidence.addressNodes).toHaveLength(1);
     expect(evidence.addressNodes[0].point).toEqual([13.4, 52.5]);
+  });
+
+  it("collects named business points, but not unnamed or non-business nodes", () => {
+    const evidence = parseOsmEvidence({
+      elements: [
+        {
+          type: "node",
+          id: 5,
+          lat: 52.5,
+          lon: 13.4,
+          tags: { amenity: "fuel", name: "LPG-Tankstelle" },
+        },
+        {
+          type: "node",
+          id: 6,
+          lat: 52.5,
+          lon: 13.4,
+          tags: { amenity: "fuel" },
+        },
+        {
+          type: "node",
+          id: 7,
+          lat: 52.5,
+          lon: 13.4,
+          tags: { name: "Wetterwarte" },
+        },
+      ] as OverpassElement[],
+    });
+    expect(evidence.namedPlaces).toHaveLength(1);
+    expect(evidence.namedPlaces![0].tags.name).toBe("LPG-Tankstelle");
   });
 
   it("resolves a building mapped as a relation", () => {

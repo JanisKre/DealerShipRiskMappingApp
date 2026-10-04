@@ -33,6 +33,10 @@ import { Input } from "@renderer/components/ui/input";
 import { cn } from "@renderer/lib/utils";
 import { riskLevel, riskLevelColor } from "@renderer/lib/riskColor";
 import { useAppStore } from "@renderer/store/appStore";
+import { searchBias } from "@renderer/lib/searchBias";
+import { Link } from "react-router-dom";
+import { useDealerDirectoryStore } from "@renderer/store/dealerDirectoryStore";
+import { PlaceSourceTag } from "./PlaceSourceTag";
 
 interface Props {
   /** All locations with coordinates (full registry, independent of map text filters). */
@@ -588,6 +592,7 @@ interface Suggestion {
   label: string;
   lat: number;
   lon: number;
+  source?: "osm" | "overture";
 }
 
 /**
@@ -604,10 +609,16 @@ function AddLocationField({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const directoryStatus = useDealerDirectoryStore((s) => s.status);
+  const loadDirectoryStatus = useDealerDirectoryStore((s) => s.loadStatus);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (directoryStatus === undefined) void loadDirectoryStatus();
+  }, [directoryStatus, loadDirectoryStatus]);
 
   const trimmed = value.trim();
 
@@ -623,7 +634,7 @@ function AddLocationField({
       setLoading(true);
       setError(null);
       try {
-        const hits = await window.api.placesAutocomplete(trimmed);
+        const hits = await window.api.placesAutocomplete(trimmed, searchBias());
         if (!cancelled) setSuggestions(hits);
       } catch (e) {
         if (!cancelled) {
@@ -682,6 +693,14 @@ function AddLocationField({
         )}
       </div>
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+      {directoryStatus === null && trimmed.length >= MIN_CHARS && (
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {t("map.locationsPanel.directoryHintPrefix")}{" "}
+          <Link to="/settings" className="underline underline-offset-2">
+            {t("map.locationsPanel.directoryHintLink")}
+          </Link>
+        </p>
+      )}
       {suggestions.length > 0 && (
         <ul className="mt-1 max-h-48 overflow-auto rounded-md border bg-popover py-1">
           {suggestions.map((s, i) => (
@@ -693,6 +712,7 @@ function AddLocationField({
               >
                 <MapPin className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
                 <span className="min-w-0">{s.label}</span>
+                <PlaceSourceTag source={s.source} />
               </button>
             </li>
           ))}

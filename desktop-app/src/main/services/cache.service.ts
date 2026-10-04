@@ -88,4 +88,6 @@ export const TTL = {
   osmVector: 7 * 24 * 60 * 60 * 1000, // 7 d
   /** Cadastral parcels change on the order of years. */
   cadastre: 30 * 24 * 60 * 60 * 1000, // 30 d
+  /** Esri republishes World Imagery roughly monthly; a week keeps new scenes visible. */
+  imageryMetadata: 7 * 24 * 60 * 60 * 1000, // 7 d
 } as const;

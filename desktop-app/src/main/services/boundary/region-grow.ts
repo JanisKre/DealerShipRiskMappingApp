@@ -270,10 +270,7 @@ export function reclaimBarrierCells(
 }
 
 /** Keeps only the largest 4-connected component. Defensive, after closing. */
-export function largestComponent(
-  spec: GridSpec,
-  mask: Uint8Array,
-): Uint8Array {
+export function largestComponent(spec: GridSpec, mask: Uint8Array): Uint8Array {
   const total = spec.cols * spec.rows;
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);

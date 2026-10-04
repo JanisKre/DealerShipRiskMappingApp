@@ -43,7 +43,9 @@ export async function parseXlsx(base64: string): Promise<DealershipInput[]> {
 }
 
 /** XLSX import with the same diagnostics as CSV/TSV. */
-export async function parseXlsxWithReport(base64: string): Promise<ImportResult> {
+export async function parseXlsxWithReport(
+  base64: string,
+): Promise<ImportResult> {
   const wb = new ExcelJS.Workbook();
   // exceljs typings expect an older Buffer type → cast at the boundary.
   await wb.xlsx.load(Buffer.from(base64, "base64") as unknown as ArrayBuffer);
@@ -63,7 +65,9 @@ export async function parseXlsxWithReport(base64: string): Promise<ImportResult>
   return rowsFromMatrix(matrix, "xlsx");
 }
 
-export async function parseZuersXlsxWithReport(base64: string): Promise<ImportResult> {
+export async function parseZuersXlsxWithReport(
+  base64: string,
+): Promise<ImportResult> {
   return parseXlsxWithReport(base64);
 }
 
@@ -97,13 +101,81 @@ function rowsFromMatrix(
     header.findIndex((h) => names.includes(h));
 
   // NOTE: the alias lists below intentionally include German column-header
-  // variants (e.g. "händler", "länge") as recognized input data, so that
+  // variants (e.g. "haendler", "laenge") as recognized input data, so that
   // German-language spreadsheets can still be imported. These are data
   // values, not descriptive text, and are left untranslated on purpose.
-  const nameIdx = idx(["name", "dealership", "händler", "site"]);
-  const addrIdx = idx(["address", "adresse", "location"]);
-  const latIdx = idx(["lat", "latitude", "breite"]);
-  const lonIdx = idx(["lon", "lng", "longitude", "länge"]);
+  // Aliases are compared after `normaliseHeader`, so they must be written in
+  // that form: lower-case ASCII, umlauts transliterated, no spaces.
+  const nameIdx = idx([
+    "name",
+    "dealership",
+    "dealershipname",
+    "dealername",
+    "haendler",
+    "haendlername",
+    "autohaus",
+    "firma",
+    "firmenname",
+    "company",
+    "companyname",
+    "site",
+    "sitename",
+    "standort",
+    "standortname",
+    "bezeichnung",
+  ]);
+  const addrIdx = idx(["address", "adresse", "anschrift", "location"]);
+  // Split address columns, combined when there is no single address column.
+  const streetIdx = idx(["street", "strasse", "streetname"]);
+  const houseNumberIdx = idx([
+    "housenumber",
+    "hausnummer",
+    "hausnr",
+    "streetnumber",
+  ]);
+  const postalCodeIdx = idx([
+    "postalcode",
+    "postcode",
+    "zip",
+    "zipcode",
+    "plz",
+  ]);
+  const cityIdx = idx(["city", "ort", "stadt", "town", "gemeinde"]);
+  const latIdx = idx(["lat", "latitude", "breite", "breitengrad"]);
+  const lonIdx = idx(["lon", "lng", "longitude", "laenge", "laengengrad"]);
+  // Without a name column, use the first column that is not a row id —
+  // otherwise every location would be called "1", "2", "3", ….
+  const fallbackNameIdx = header.findIndex(
+    (h, i) =>
+      !ID_HEADERS.has(h) &&
+      ![
+        latIdx,
+        lonIdx,
+        addrIdx,
+        streetIdx,
+        houseNumberIdx,
+        postalCodeIdx,
+        cityIdx,
+      ].includes(i),
+  );
+  const nameCol = nameIdx >= 0 ? nameIdx : fallbackNameIdx;
+  const composeAddress = (cols: string[]): string | undefined => {
+    if (addrIdx >= 0) return cols[addrIdx]?.trim() || undefined;
+    const cell = (i: number): string => (i >= 0 ? (cols[i]?.trim() ?? "") : "");
+    const street = [cell(streetIdx), cell(houseNumberIdx)]
+      .filter(Boolean)
+      .join(" ");
+    const place = [cell(postalCodeIdx), cell(cityIdx)]
+      .filter(Boolean)
+      .join(" ");
+    return [street, place].filter(Boolean).join(", ") || undefined;
+  };
+  const addressColumns =
+    addrIdx >= 0
+      ? [addrIdx]
+      : [streetIdx, houseNumberIdx, postalCodeIdx, cityIdx].filter(
+          (i) => i >= 0,
+        );
   const valIdx = idx(["value", "assetvalue", "wert", "suminsured"]);
   const insuredIdx = idx(["insured", "versichert", "policy", "status"]);
   const partnerIdx = idx([
@@ -142,7 +214,8 @@ function rowsFromMatrix(
     "gewaesserzone",
   ]);
   const zuersVersionIdx = idx(["zuersversion", "zuersdataversion"]);
-  const detectedProvider = provider ??
+  const detectedProvider =
+    provider ??
     (zuersFloodIdx >= 0 || zuersHeavyRainIdx >= 0 || zuersWatercourseIdx >= 0
       ? "zuers-geo"
       : undefined);
@@ -153,48 +226,74 @@ function rowsFromMatrix(
   let duplicateRows = 0;
   for (let i = 1; i < matrix.length; i++) {
     const cols = matrix[i];
-    const name = (nameIdx >= 0 ? cols[nameIdx] : cols[0])?.trim();
+    const name = (nameCol >= 0 ? cols[nameCol] : cols[0])?.trim();
+    const address = composeAddress(cols);
     const rowNumber = i + 1;
     if (!name) {
-      issues.push({ row: rowNumber, field: "name", severity: "error", message: "Missing dealership name" });
+      issues.push({
+        row: rowNumber,
+        field: "name",
+        severity: "error",
+        message: "Missing dealership name",
+      });
       continue;
     }
 
     const latCell = readNumber(cols[latIdx], "lat", rowNumber, issues);
     const lonCell = readNumber(cols[lonIdx], "lon", rowNumber, issues);
     const valueCell = readNumber(cols[valIdx], "assetValue", rowNumber, issues);
-    const limitCell = readNumber(cols[limitIdx], "productLimitEur", rowNumber, issues);
+    const limitCell = readNumber(
+      cols[limitIdx],
+      "productLimitEur",
+      rowNumber,
+      issues,
+    );
     const lat = latCell.value;
     const lon = lonCell.value;
     const assetValue = valueCell.value;
     const productLimitEur = limitCell.value;
-    const natCat = detectedProvider === "zuers-geo"
-      ? parseZuersAssessment(
-          cols,
-          {
-            flood: zuersFloodIdx,
-            heavyRain: zuersHeavyRainIdx,
-            watercourse: zuersWatercourseIdx,
-            version: zuersVersionIdx,
-          },
-          rowNumber,
-          issues,
-        )
-      : undefined;
+    const natCat =
+      detectedProvider === "zuers-geo"
+        ? parseZuersAssessment(
+            cols,
+            {
+              flood: zuersFloodIdx,
+              heavyRain: zuersHeavyRainIdx,
+              watercourse: zuersWatercourseIdx,
+              version: zuersVersionIdx,
+            },
+            rowNumber,
+            issues,
+          )
+        : undefined;
 
     if (lat != null && (lat < -90 || lat > 90)) {
-      issues.push({ row: rowNumber, field: "lat", severity: "error", message: "Latitude must be between -90 and 90" });
+      issues.push({
+        row: rowNumber,
+        field: "lat",
+        severity: "error",
+        message: "Latitude must be between -90 and 90",
+      });
     }
     if (lon != null && (lon < -180 || lon > 180)) {
-      issues.push({ row: rowNumber, field: "lon", severity: "error", message: "Longitude must be between -180 and 180" });
+      issues.push({
+        row: rowNumber,
+        field: "lon",
+        severity: "error",
+        message: "Longitude must be between -180 and 180",
+      });
     }
     const validLat = lat != null && lat >= -90 && lat <= 90 ? lat : undefined;
     const validLon = lon != null && lon >= -180 && lon <= 180 ? lon : undefined;
 
-    const key = `${normalise(name)}|${normalise(cols[addrIdx] ?? "")}`;
+    const key = `${normalise(name)}|${normalise(address ?? "")}`;
     if (seen.has(key)) {
       duplicateRows++;
-      issues.push({ row: rowNumber, severity: "warning", message: "Duplicate dealership row skipped" });
+      issues.push({
+        row: rowNumber,
+        severity: "warning",
+        message: "Duplicate dealership row skipped",
+      });
       continue;
     }
     seen.add(key);
@@ -202,7 +301,7 @@ function rowsFromMatrix(
     rows.push({
       id: randomUUID(),
       name,
-      address: addrIdx >= 0 ? cols[addrIdx]?.trim() || undefined : undefined,
+      address,
       lat: validLat,
       lon: validLon,
       assetValue: assetValue != null ? assetValue : undefined,
@@ -215,14 +314,20 @@ function rowsFromMatrix(
           : undefined,
       group: groupIdx >= 0 ? cols[groupIdx]?.trim() || undefined : undefined,
       productLimitEur: productLimitEur != null ? productLimitEur : undefined,
-      ...(natCat ? { natCat } : {}),
+      // `natCatImport` keeps the import apart from routed API sources.
+      ...(natCat ? { natCat, natCatImport: natCat } : {}),
     });
   }
 
-  const missingCoordinates = rows.filter((r) => r.lat == null || r.lon == null).length;
-  const warnings = missingCoordinates > 0
-    ? [`${missingCoordinates} row(s) require address geocoding because coordinates are incomplete.`]
-    : [];
+  const missingCoordinates = rows.filter(
+    (r) => r.lat == null || r.lon == null,
+  ).length;
+  const warnings =
+    missingCoordinates > 0
+      ? [
+          `${missingCoordinates} row(s) require address geocoding because coordinates are incomplete.`,
+        ]
+      : [];
   return {
     rows,
     report: {
@@ -232,8 +337,11 @@ function rowsFromMatrix(
       skippedRows: Math.max(0, matrix.length - 1 - rows.length),
       duplicateRows,
       columnMapping: {
-        name: rawHeader[nameIdx] ?? null,
-        address: rawHeader[addrIdx] ?? null,
+        name: rawHeader[nameCol] ?? null,
+        address:
+          addressColumns.length > 0
+            ? addressColumns.map((i) => rawHeader[i]).join(" + ")
+            : null,
         lat: rawHeader[latIdx] ?? null,
         lon: rawHeader[lonIdx] ?? null,
         assetValue: rawHeader[valIdx] ?? null,
@@ -256,11 +364,22 @@ function rowsFromMatrix(
 
 function parseZuersAssessment(
   cols: string[],
-  indexes: { flood: number; heavyRain: number; watercourse: number; version: number },
+  indexes: {
+    flood: number;
+    heavyRain: number;
+    watercourse: number;
+    version: number;
+  },
   row: number,
   issues: ImportReport["issues"],
 ): NatCatAssessment | undefined {
-  const floodClass = readClass(cols[indexes.flood], "zuersFloodClass", row, issues, 4);
+  const floodClass = readClass(
+    cols[indexes.flood],
+    "zuersFloodClass",
+    row,
+    issues,
+    4,
+  );
   const heavyRainClass = readClass(
     cols[indexes.heavyRain],
     "zuersHeavyRainClass",
@@ -382,7 +501,12 @@ function readNumber(
   if (!s?.trim()) return { value: undefined };
   const n = Number(s.trim().replace(",", "."));
   if (Number.isNaN(n)) {
-    issues.push({ row, field, severity: "warning", message: `Invalid number '${s.trim()}' ignored` });
+    issues.push({
+      row,
+      field,
+      severity: "warning",
+      message: `Invalid number '${s.trim()}' ignored`,
+    });
     return { value: undefined };
   }
   return { value: n };
@@ -391,6 +515,17 @@ function readNumber(
 function normalise(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
+
+/** Row-number columns that must never become the location name. */
+const ID_HEADERS = new Set([
+  "id",
+  "nr",
+  "no",
+  "lfdnr",
+  "nummer",
+  "index",
+  "rowid",
+]);
 
 function normaliseHeader(value: string): string {
   return value
@@ -427,7 +562,14 @@ function emptyResult(format: ImportReport["format"]): ImportResult {
 function parseBool(s: string | undefined): boolean | undefined {
   const v = s?.trim().toLowerCase();
   if (!v) return undefined;
-  return ["yes", "ja", "true", "1", "insured", "versichert", "x", "policy"].includes(
-    v,
-  );
+  return [
+    "yes",
+    "ja",
+    "true",
+    "1",
+    "insured",
+    "versichert",
+    "x",
+    "policy",
+  ].includes(v);
 }

@@ -1,21 +1,23 @@
 import sharp from "sharp";
 import type { BoundaryResult } from "@shared/types";
 import { geometryBbox } from "@shared/boundary-geometry-utils";
-import {
-  buildTileUrl,
-  DETECTION_ZOOM,
-  TILE_SIZE,
-  type SatelliteProvider,
-} from "@shared/constants";
-import { cacheGet, cacheKeyFragment, cacheSet } from "./cache.service";
-import { getSettings } from "./settings.service";
+import { DETECTION_ZOOM, TILE_SIZE } from "@shared/constants";
+import type { ImagerySelection } from "@shared/imagery-sources";
+import { cacheGet, cacheSet } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
+import {
+  ESRI_TILE_SOURCE,
+  selectImageryForDetection,
+  tileSourceForCandidate,
+  type TileSource,
+} from "./imagery-source.service";
 import type { AerialImage } from "./detection.service";
 
 /**
- * Aerial imagery acquisition in the main process: loads Esri World Imagery tiles
- * over the boundary bbox, decodes them with `sharp`, and stitches them into a single
- * RGBA buffer. Georeference metadata (origin + spans) allow
+ * Aerial imagery acquisition in the main process: picks the imagery source
+ * for the location (Esri or a state orthophoto, imagery-source.service),
+ * loads its tiles over the bbox, decodes them with `sharp`, and stitches them
+ * into a single RGBA buffer. Georeference metadata (origin + spans) allow
  * the detector to convert pixel boxes back to lon/lat.
  *
  * Ported from `src/lib/satelliteCapture.ts` (browser canvas → sharp/Node).
@@ -46,21 +48,25 @@ function tile2lat(y: number, zoom: number): number {
 }
 
 const TILE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days — orthophotos rarely change
+/**
+ * Bumped when cached tile bytes become invalid. v2: Esri placeholder tiles
+ * ("Map data not yet available") were cached as imagery before
+ * `blankTile=false`.
+ */
+const TILE_CACHE_VERSION = 2;
 
 /** Loads a single tile as a raw RGB buffer (persistent cache as base64). */
 async function loadTileRgb(
   z: number,
   y: number,
   x: number,
-  provider: SatelliteProvider,
-  wmsTemplate?: string,
+  source: TileSource,
   time?: string,
 ): Promise<{ data: Buffer; ok: boolean }> {
-  // `wmsTemplate` determines the actual endpoint for provider "wms"; without
-  // it in the key, switching custom WMS URLs would keep serving tiles cached
-  // from the previous endpoint.
-  const endpointKey = wmsTemplate ? `:${cacheKeyFragment(wmsTemplate)}` : "";
-  const cacheKey = `tile:${provider}${endpointKey}:${time ?? "live"}:${z}/${y}/${x}`;
+  // `cacheId` encodes the actual endpoint (state service, custom template);
+  // without it, switching sources would keep serving tiles cached from the
+  // previous one.
+  const cacheKey = `tile:v${TILE_CACHE_VERSION}:${source.cacheId}:${time ?? "live"}:${z}/${y}/${x}`;
   const cachedB64 = cacheGet<string>(cacheKey);
   let bytes: Buffer | null = cachedB64
     ? Buffer.from(cachedB64, "base64")
@@ -69,7 +75,7 @@ async function loadTileRgb(
   if (!bytes) {
     try {
       const res = await fetchWithResilience(
-        buildTileUrl(provider, z, y, x, { wmsTemplate, time }),
+        source.url(z, y, x, time),
         {
           headers: { "User-Agent": "DealershipRiskMapping/1.0 (desktop)" },
         },
@@ -110,6 +116,8 @@ export interface AerialCapture extends AerialImage {
   /** Number of tiles with valid imagery versus requested tiles. */
   validTileCount: number;
   tileCount: number;
+  /** Which source was used and why — provenance for the detection result. */
+  imagery?: ImagerySelection;
 }
 
 function boundingBox(b: BoundaryResult): [number, number, number, number] {
@@ -133,14 +141,7 @@ export async function aerialImageForBoundary(
 
   // No mosaic-level cache: the large RGBA buffer isn't JSON-friendly and
   // the individual tiles are already cached persistently (loadTileRgb).
-  const settings = getSettings();
-  return captureMosaic(
-    bbox,
-    zoom,
-    settings.satelliteProvider ?? "esri",
-    settings.wmsTileUrl,
-    time,
-  );
+  return captureWithSelectedSource(bbox, zoom, time);
 }
 
 /** Public bbox capture used by boundary surface segmentation and diagnostics. */
@@ -149,14 +150,35 @@ export async function aerialImageForBbox(
   zoom = DETECTION_ZOOM,
   time?: string,
 ): Promise<AerialCapture> {
-  const settings = getSettings();
-  return captureMosaic(
-    bbox,
-    zoom,
-    settings.satelliteProvider ?? "esri",
-    settings.wmsTileUrl,
-    time,
-  );
+  return captureWithSelectedSource(bbox, zoom, time);
+}
+
+/**
+ * Resolves the imagery source at the bbox centre, then captures from it. An
+ * Esri candidate carries the zoom its image lives at (z19 and z20 are often
+ * different scenes), so the capture never exceeds it.
+ */
+async function captureWithSelectedSource(
+  bbox: [number, number, number, number],
+  zoom: number,
+  time?: string,
+): Promise<AerialCapture> {
+  const [west, south, east, north] = bbox;
+  let imagery: ImagerySelection | undefined;
+  try {
+    imagery = await selectImageryForDetection(
+      (south + north) / 2,
+      (west + east) / 2,
+    );
+  } catch {
+    imagery = undefined;
+  }
+  const source = imagery
+    ? tileSourceForCandidate(imagery.chosen)
+    : ESRI_TILE_SOURCE;
+  const captureZoom = imagery ? Math.min(zoom, imagery.chosen.zoom) : zoom;
+  const capture = await captureMosaic(bbox, captureZoom, source, time);
+  return imagery ? { ...capture, imagery } : capture;
 }
 
 /**
@@ -232,21 +254,14 @@ async function mapWithConcurrency<T>(
 async function captureMosaic(
   bbox: [number, number, number, number],
   zoom: number,
-  provider: SatelliteProvider,
-  wmsTemplate?: string,
+  source: TileSource,
   time?: string,
 ): Promise<AerialCapture> {
-  const capture = await captureMosaicOnce(
-    bbox,
-    zoom,
-    provider,
-    wmsTemplate,
-    time,
-  );
+  const capture = await captureMosaicOnce(bbox, zoom, source, time);
   const ratio =
     capture.tileCount === 0 ? 1 : capture.validTileCount / capture.tileCount;
   if (ratio < MIN_VALID_TILE_RATIO && zoom > MIN_FALLBACK_ZOOM) {
-    return captureMosaic(bbox, zoom - 1, provider, wmsTemplate, time);
+    return captureMosaic(bbox, zoom - 1, source, time);
   }
   return capture;
 }
@@ -254,8 +269,7 @@ async function captureMosaic(
 async function captureMosaicOnce(
   bbox: [number, number, number, number],
   zoom: number,
-  provider: SatelliteProvider,
-  wmsTemplate?: string,
+  source: TileSource,
   time?: string,
 ): Promise<AerialCapture> {
   const [minLon, minLat, maxLon, maxLat] = bbox;
@@ -282,29 +296,26 @@ async function captureMosaicOnce(
   }
 
   let validTileCount = 0;
-  await mapWithConcurrency(tiles, TILE_FETCH_CONCURRENCY, async ({ tx, ty }) => {
-    const { data, ok } = await loadTileRgb(
-      zoom,
-      ty,
-      tx,
-      provider,
-      wmsTemplate,
-      time,
-    );
-    if (ok) validTileCount += 1;
-    const px0 = (tx - xMin) * TILE_SIZE;
-    const py0 = (ty - yMin) * TILE_SIZE;
-    for (let row = 0; row < TILE_SIZE; row++) {
-      for (let col = 0; col < TILE_SIZE; col++) {
-        const src = (row * TILE_SIZE + col) * 3;
-        const dst = ((py0 + row) * width + (px0 + col)) * 4;
-        rgba[dst] = data[src];
-        rgba[dst + 1] = data[src + 1];
-        rgba[dst + 2] = data[src + 2];
-        rgba[dst + 3] = 255;
+  await mapWithConcurrency(
+    tiles,
+    TILE_FETCH_CONCURRENCY,
+    async ({ tx, ty }) => {
+      const { data, ok } = await loadTileRgb(zoom, ty, tx, source, time);
+      if (ok) validTileCount += 1;
+      const px0 = (tx - xMin) * TILE_SIZE;
+      const py0 = (ty - yMin) * TILE_SIZE;
+      for (let row = 0; row < TILE_SIZE; row++) {
+        for (let col = 0; col < TILE_SIZE; col++) {
+          const src = (row * TILE_SIZE + col) * 3;
+          const dst = ((py0 + row) * width + (px0 + col)) * 4;
+          rgba[dst] = data[src];
+          rgba[dst + 1] = data[src + 1];
+          rgba[dst + 2] = data[src + 2];
+          rgba[dst + 3] = 255;
+        }
       }
-    }
-  });
+    },
+  );
 
   const originLon = tile2lon(xMin, zoom);
   const originLat = tile2lat(yMin, zoom);

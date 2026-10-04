@@ -10,6 +10,10 @@ import type {
   VehicleClass,
 } from "@shared/types";
 import { DETECTION_STRIDE, DETECTION_WINDOW_SIZE } from "@shared/constants";
+import {
+  describeImagerySelection,
+  type ImagerySelection,
+} from "@shared/imagery-sources";
 import type { AerialCapture } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type { RiskParameters } from "@shared/types";
@@ -503,6 +507,34 @@ export function resetDetector(): void {
 /** Whether a real ONNX model is currently available (for the installation wizard). */
 export function isModelAvailable(): boolean {
   return resolveModelPath() !== null;
+}
+
+/**
+ * Records which image a detection was made on. The selection goes onto the
+ * result for the UI, and a one-line summary onto the evidence limitations so
+ * reports and memos that only read `evidence` still carry the capture date.
+ */
+export function attachImageryProvenance(
+  detection: DetectionResult,
+  imagery: ImagerySelection | undefined,
+): DetectionResult {
+  if (!imagery) return detection;
+  const line = describeImagerySelection(imagery);
+  return {
+    ...detection,
+    imagery,
+    evidence: detection.evidence
+      ? {
+          ...detection.evidence,
+          limitations: [
+            ...detection.evidence.limitations.filter(
+              (l) => !l.startsWith("Vehicles counted on "),
+            ),
+            line,
+          ],
+        }
+      : undefined,
+  };
 }
 
 export async function detectVehicles(

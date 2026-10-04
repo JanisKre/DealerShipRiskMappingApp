@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { CircleMarker, useMapEvents } from "react-leaflet";
+import type { LatLngBounds } from "leaflet";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { point as turfPoint } from "@turf/helpers";
 import type { AnalyzedDealership, ManualVehiclePoint } from "@shared/types";
@@ -9,6 +11,13 @@ export interface DetectionEditDraft {
   manualVehiclePoints: ManualVehiclePoint[];
   manualVehicleRemovedPoints: ManualVehiclePoint[];
 }
+
+/**
+ * Below this zoom only the selected location's vehicles are drawn. Dots are
+ * illegible further out anyway, and a large portfolio has tens of thousands
+ * of them — drawing every one as an SVG circle freezes the renderer.
+ */
+const ALL_DETECTIONS_MIN_ZOOM = 15;
 
 function samePoint(a: ManualVehiclePoint, b: ManualVehiclePoint): boolean {
   return (
@@ -45,9 +54,54 @@ export function DetectionOverlay({
     selected?.detection?.manualVehicleRemovedPoints ??
     [];
 
-  useMapEvents({
+  const map = useMapEvents({
     click: (event) => {
       if (!activeDraft || !selected?.boundary) return;
+
+      // Marker hit areas are deliberately larger than the visible dots. Dense
+      // detections otherwise make it almost impossible to hit a 2.5 px circle
+      // precisely, and a near miss used to add a new point instead. Handling
+      // every review click here also avoids marker/map bubbling races.
+      const machinePoints = (selected.detection?.boxes ?? [])
+        .filter(
+          (box): box is typeof box & { lat: number; lon: number } =>
+            box.lat != null && box.lon != null,
+        )
+        .map((box) => ({
+          point: { lat: box.lat, lon: box.lon },
+          mode: "remove-machine" as const,
+        }))
+        .filter(
+          ({ point }) =>
+            !removedPoints.some((removed) => samePoint(removed, point)),
+        );
+      const editablePoints = [
+        ...manualPoints.map((point) => ({
+          point,
+          mode: "remove-manual" as const,
+        })),
+        ...removedPoints.map((point) => ({
+          point,
+          mode: "restore-machine" as const,
+        })),
+        ...machinePoints,
+      ];
+      const closest = editablePoints
+        .map((candidate) => ({
+          ...candidate,
+          distance: event.containerPoint.distanceTo(
+            map.latLngToContainerPoint([
+              candidate.point.lat,
+              candidate.point.lon,
+            ]),
+          ),
+        }))
+        .sort((a, b) => a.distance - b.distance)[0];
+      if (closest && closest.distance <= 12) {
+        removePoint(closest.point, closest.mode);
+        return;
+      }
+
       const candidate = turfPoint([event.latlng.lng, event.latlng.lat]);
       if (!booleanPointInPolygon(candidate, selected.boundary.polygon)) return;
       onDraftChange({
@@ -59,7 +113,19 @@ export function DetectionOverlay({
         ],
       });
     },
+    moveend: () => setView({ zoom: map.getZoom(), bounds: map.getBounds() }),
   });
+  const [view, setView] = useState<{ zoom: number; bounds: LatLngBounds }>(
+    () => ({ zoom: map.getZoom(), bounds: map.getBounds() }),
+  );
+  const drawn = dealerships.filter(
+    (d) =>
+      d.id === selected?.id ||
+      (view.zoom >= ALL_DETECTIONS_MIN_ZOOM &&
+        d.lat != null &&
+        d.lon != null &&
+        view.bounds.pad(0.2).contains([d.lat, d.lon])),
+  );
 
   function removePoint(
     point: ManualVehiclePoint,
@@ -106,7 +172,7 @@ export function DetectionOverlay({
 
   return (
     <>
-      {dealerships.flatMap((d) => {
+      {drawn.flatMap((d) => {
         const dRemoved =
           d.id === selected?.id && activeDraft
             ? removedPoints
@@ -125,25 +191,13 @@ export function DetectionOverlay({
             <CircleMarker
               key={`${d.id}-${i}`}
               center={[b.lat as number, b.lon as number]}
-              radius={2.5}
+              radius={d.id === selected?.id && activeDraft ? 5 : 2.5}
+              interactive={!activeDraft}
               pathOptions={{
                 color: "#2563eb",
                 weight: 1,
                 fillOpacity: 0.8,
               }}
-              eventHandlers={
-                d.id === selected?.id && activeDraft
-                  ? {
-                      click: (event) => {
-                        event.originalEvent.stopPropagation();
-                        removePoint(
-                          { lat: b.lat as number, lon: b.lon as number },
-                          "remove-machine",
-                        );
-                      },
-                    }
-                  : undefined
-              }
             />
           ));
       })}
@@ -154,21 +208,12 @@ export function DetectionOverlay({
             key={`${selected.id}-manual-${i}`}
             center={[p.lat, p.lon]}
             radius={editable ? 4 : 2.5}
+            interactive={!activeDraft}
             pathOptions={{
               color: editable ? "#16a34a" : "#2563eb",
               weight: 1,
               fillOpacity: 0.95,
             }}
-            eventHandlers={
-              activeDraft
-                ? {
-                    click: (event) => {
-                      event.originalEvent.stopPropagation();
-                      removePoint(p, "remove-manual");
-                    },
-                  }
-                : undefined
-            }
           />
         ))}
 
@@ -179,16 +224,11 @@ export function DetectionOverlay({
             key={`${selected.id}-removed-${i}`}
             center={[p.lat, p.lon]}
             radius={3}
+            interactive={false}
             pathOptions={{
               color: "#dc2626",
               weight: 1.5,
               fillOpacity: 0.2,
-            }}
-            eventHandlers={{
-              click: (event) => {
-                event.originalEvent.stopPropagation();
-                removePoint(p, "restore-machine");
-              },
             }}
           />
         ))}

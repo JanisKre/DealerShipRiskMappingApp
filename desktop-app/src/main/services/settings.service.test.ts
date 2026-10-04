@@ -67,11 +67,49 @@ describe("settings persistence", () => {
       value: JSON.stringify({ language: "en" }),
     });
 
-    expect(setSettings({ language: "de" })).toEqual({ language: "de" });
+    expect(setSettings({ language: "de" })).toEqual({
+      language: "de",
+      boundaryEngine: "fused",
+    });
     expect(mocks.statement.run).toHaveBeenCalledWith(
       "app.settings",
-      JSON.stringify({ language: "de" }),
+      JSON.stringify({ language: "de", boundaryEngine: "fused" }),
     );
+  });
+
+  it("migrates a stored legacy boundary engine to fusion", () => {
+    mocks.statement.get.mockReturnValueOnce({
+      value: JSON.stringify({ language: "de", boundaryEngine: "legacy" }),
+    });
+
+    expect(getSettings().boundaryEngine).toBe("fused");
+  });
+
+  it("reports key presence for the newly selected provider", () => {
+    for (const name of [
+      "LLM_API_KEY",
+      "OPENAI_API_KEY",
+      "ANTHROPIC_API_KEY",
+      "ANTHROPIC_AUTH_TOKEN",
+    ])
+      vi.stubEnv(name, "");
+    mocks.statement.get
+      .mockReturnValueOnce({
+        value: JSON.stringify({
+          language: "en",
+          llm: { provider: "openai", model: "gpt-4.1-mini" },
+        }),
+      })
+      // getSettings: an OpenAI key is stored
+      .mockReturnValueOnce({ present: 1 })
+      // setSettings: no Claude key is stored
+      .mockReturnValueOnce(undefined);
+
+    const next = setSettings({
+      llm: { provider: "claude", model: "claude-sonnet-4-6", hasApiKey: true },
+    });
+
+    expect(next.llm?.hasApiKey).toBe(false);
   });
 
   it("encrypts and decrypts LLM keys only on explicit use", () => {
@@ -97,11 +135,28 @@ describe("settings persistence", () => {
   });
 
   it("validates CatNet keys and persists encrypted values", () => {
-    expect(() => setNatCatApiKey("  ")).toThrow("cannot be empty");
+    expect(() => setNatCatApiKey("swissre-catnet", "  ")).toThrow(
+      "cannot be empty",
+    );
 
     mocks.safeStorage.encryptString.mockReturnValue(Buffer.from("catnet"));
-    setNatCatApiKey("catnet-key");
+    setNatCatApiKey("swissre-catnet", "catnet-key");
     expect(mocks.safeStorage.encryptString).toHaveBeenCalledWith("catnet-key");
+  });
+
+  it("stores one key per hazard API provider", () => {
+    mocks.safeStorage.encryptString.mockReturnValue(Buffer.from("jba"));
+    setNatCatApiKey("jba-flood", "jba-key");
+    expect(mocks.statement.run).toHaveBeenCalledWith(
+      "natcat.apikey.jba-flood",
+      Buffer.from("jba").toString("base64"),
+    );
+  });
+
+  it("uses the CatNet environment fallback only for CatNet", () => {
+    vi.stubEnv("SWISSRE_CATNET_API_KEY", "env-catnet");
+    mocks.statement.get.mockReturnValue(undefined);
+    expect(getNatCatApiKey("jba-flood")).toBeNull();
   });
 
   it("uses the environment fallback for CatNet when the keychain is unavailable", () => {
@@ -111,6 +166,6 @@ describe("settings persistence", () => {
       throw new Error("keychain unavailable");
     });
 
-    expect(getNatCatApiKey()).toBe("env-catnet");
+    expect(getNatCatApiKey("swissre-catnet")).toBe("env-catnet");
   });
 });

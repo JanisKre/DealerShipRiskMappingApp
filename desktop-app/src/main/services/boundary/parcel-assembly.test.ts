@@ -44,39 +44,32 @@ const parcel = (ring: LonLat[]): ParcelFeature => ({
   state: "Berlin",
 });
 
-
 describe("sharesEdge", () => {
   it("accepts parcels that abut along a long boundary", () => {
-    expect(sharesEdge(rect(-40, -20, 0, 20), rect(0, -20, 40, 20))).toBe(
-      true,
-    );
+    expect(sharesEdge(rect(-40, -20, 0, 20), rect(0, -20, 40, 20))).toBe(true);
   });
 
   it("rejects parcels separated by a street", () => {
     // 12 m gap: close, but a different site.
-    expect(
-      sharesEdge(rect(-40, -20, -6, 20), rect(6, -20, 40, 20)),
-    ).toBe(false);
+    expect(sharesEdge(rect(-40, -20, -6, 20), rect(6, -20, 40, 20))).toBe(
+      false,
+    );
   });
 
   it("rejects parcels touching only at a corner", () => {
-    expect(
-      sharesEdge(rect(-40, -40, 0, 0), rect(0, 0, 40, 40)),
-    ).toBe(false);
+    expect(sharesEdge(rect(-40, -40, 0, 0), rect(0, 0, 40, 40))).toBe(false);
   });
 
   it("rejects a shared edge shorter than the minimum", () => {
     // 3 m of contact, below the 5 m floor.
-    expect(
-      sharesEdge(rect(-40, -20, 0, 20), rect(0, 17, 40, 20)),
-    ).toBe(false);
+    expect(sharesEdge(rect(-40, -20, 0, 20), rect(0, 17, 40, 20))).toBe(false);
     expect(MIN_SHARED_EDGE_M).toBe(5);
   });
 
   it("accepts genuinely overlapping parcels", () => {
-    expect(
-      sharesEdge(rect(-40, -20, 10, 20), rect(-10, -20, 40, 20)),
-    ).toBe(true);
+    expect(sharesEdge(rect(-40, -20, 10, 20), rect(-10, -20, 40, 20))).toBe(
+      true,
+    );
   });
 });
 
@@ -98,7 +91,10 @@ describe("assembleSiteFromParcels", () => {
   const anchor = unprojectPoint([-20, 0], ORIGIN);
 
   it("returns the single parcel containing the point when nothing else applies", () => {
-    const result = assembleSiteFromParcels([parcel(rect(-40, -20, 0, 20))], anchor);
+    const result = assembleSiteFromParcels(
+      [parcel(rect(-40, -20, 0, 20))],
+      anchor,
+    );
     expect(result).not.toBeNull();
     expect(result!.parcelCount).toBe(1);
     expect(result!.anchorContainsPoint).toBe(true);
@@ -206,7 +202,10 @@ describe("assembleSiteFromParcels", () => {
   });
 
   it("is deterministic", () => {
-    const parcels = [parcel(rect(-40, -20, 0, 20)), parcel(rect(0, -20, 40, 20))];
+    const parcels = [
+      parcel(rect(-40, -20, 0, 20)),
+      parcel(rect(0, -20, 40, 20)),
+    ];
     const evidence = { supporting: [poly(rect(5, -15, 35, 15))] };
     expect(assembleSiteFromParcels(parcels, anchor, evidence)).toEqual(
       assembleSiteFromParcels(parcels, anchor, evidence),

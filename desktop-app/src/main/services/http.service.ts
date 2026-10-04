@@ -33,6 +33,84 @@ const DEFAULT_RETRIES = 2;
 const DEFAULT_BACKOFF_MS = 250;
 const DEFAULT_RETRY_STATUSES = [408, 425, 429, 500, 502, 503, 504];
 
+interface HostPolicy {
+  /** Minimum gap between request starts. */
+  minIntervalMs?: number;
+  /** Maximum requests in flight at once. */
+  maxConcurrent?: number;
+}
+
+/**
+ * Fair-use limits of shared public services. A portfolio import analyses
+ * several locations in parallel; without a shared gate those requests would
+ * add up past the providers' usage policies and get the app rate-limited.
+ */
+const HOST_POLICIES: Record<string, HostPolicy> = {
+  // Nominatim usage policy: an absolute maximum of 1 request per second.
+  "nominatim.openstreetmap.org": { minIntervalMs: 1_100, maxConcurrent: 1 },
+  // Public Overpass instances grant about two concurrent slots per client.
+  "overpass-api.de": { maxConcurrent: 2 },
+  "lz4.overpass-api.de": { maxConcurrent: 2 },
+  "overpass.kumi.systems": { maxConcurrent: 2 },
+  "overpass.private.coffee": { maxConcurrent: 2 },
+  // Photon's public instance asks for moderate use; search sends two queries
+  // per keystroke pause (all places + dealerships only).
+  "photon.komoot.io": { maxConcurrent: 2 },
+};
+
+class HostGate {
+  private active = 0;
+  private nextStartAt = 0;
+  private readonly waiting: Array<() => void> = [];
+
+  constructor(private readonly policy: HostPolicy) {}
+
+  /** Resolves with a release function once a slot is free and paced. */
+  async acquire(): Promise<() => void> {
+    const max = this.policy.maxConcurrent ?? Number.POSITIVE_INFINITY;
+    if (this.active < max) this.active++;
+    // A released slot is handed over directly, so `active` stays counted.
+    else await new Promise<void>((resolve) => this.waiting.push(resolve));
+
+    const interval = this.policy.minIntervalMs ?? 0;
+    if (interval > 0) {
+      const now = Date.now();
+      const startAt = Math.max(now, this.nextStartAt);
+      this.nextStartAt = startAt + interval;
+      if (startAt > now) await delay(startAt - now);
+    }
+
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const next = this.waiting.shift();
+      if (next) next();
+      else this.active--;
+    };
+  }
+}
+
+const hostGates = new Map<string, HostGate>();
+
+function hostGateFor(input: RequestInfo | URL): HostGate | null {
+  let host: string;
+  try {
+    host = new URL(input instanceof Request ? input.url : String(input))
+      .hostname;
+  } catch {
+    return null;
+  }
+  const policy = HOST_POLICIES[host];
+  if (!policy) return null;
+  let gate = hostGates.get(host);
+  if (!gate) {
+    gate = new HostGate(policy);
+    hostGates.set(host, gate);
+  }
+  return gate;
+}
+
 export async function fetchWithResilience(
   input: RequestInfo | URL,
   init: RequestInit = {},
@@ -46,9 +124,13 @@ export async function fetchWithResilience(
   );
   let lastError: unknown;
 
+  const gate = hostGateFor(input);
+
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const release = gate ? await gate.acquire() : null;
     try {
       const response = await fetchOnce(input, init, options.timeoutMs);
+      release?.();
       if (!retryStatuses.has(response.status) || attempt === retries) {
         return response;
       }
@@ -57,6 +139,7 @@ export async function fetchWithResilience(
         { status: response.status },
       );
     } catch (error) {
+      release?.();
       if (isAbortFromCaller(error, init.signal ?? undefined)) throw error;
       lastError = error;
       if (attempt === retries) throw error;

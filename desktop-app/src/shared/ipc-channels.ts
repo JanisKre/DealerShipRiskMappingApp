@@ -27,7 +27,9 @@ export const IPC = {
   // Weather / Risk
   fetchWeather: "weather:fetch",
   scoreRisk: "risk:score",
-  fetchCatNet: "natcat:catnet:lookup",
+  // Resolves the routed NatCat sources for one location (refresh button)
+  resolveNatCat: "natcat:resolve",
+  testNatCatConnector: "natcat:testConnector",
 
   // Complete analysis pipeline run for one dataset
   analyzeDealership: "analyze:dealership",
@@ -60,6 +62,17 @@ export const IPC = {
   // LLM — invoke-based (non-streaming, structured)
   llmMemo: "llm:memo", // structured underwriting memo (StructuredMemo)
 
+  llmTestConnection: "llm:testConnection", // minimal request with the saved config
+  llmListModels: "llm:listModels", // live model list of the configured provider
+  llmDetectLocal: "llm:detectLocal", // which local runtimes answer on default ports
+
+  // Local models: Hugging Face GGUF discovery + install via Ollama
+  hfSearchModels: "hf:searchModels",
+  hfModelFiles: "hf:modelFiles",
+  // Streaming like model:download (send/receive) — multi-GB pulls with progress.
+  ollamaPull: "ollama:pull", // renderer -> main (start)
+  ollamaPullCancel: "ollama:pull:cancel",
+
   // LLM — streaming (not via invoke; see streaming pattern in ipc/index.ts)
   llmStream: "llm:stream", // generic start channel (renderer -> main)
   // Sub-actions of the streaming channel (payload.kind)
@@ -71,16 +84,26 @@ export const IPC = {
   getSettings: "settings:get",
   setSettings: "settings:set",
   setLlmApiKey: "settings:setLlmApiKey", // -> safeStorage
-  setNatCatApiKey: "settings:setNatCatApiKey", // -> safeStorage
+  setNatCatApiKey: "settings:setNatCatApiKey", // -> safeStorage, per provider
+  deleteNatCatApiKey: "settings:deleteNatCatApiKey",
 
   // Map screenshot (Electron capturePage)
   mapCapture: "map:capture",
+
+  // Imagery source for the map view (Esri vs. state orthophoto) incl. capture dates
+  imagerySelect: "imagery:select",
 
   // Vehicle detection model: status + install wizard download
   modelStatus: "model:status", // invoke -> { available: boolean }
   // Streaming like llm:stream (send/receive), not invoke — long downloads with progress.
   modelDownload: "model:download", // renderer -> main (start)
   modelDownloadCancel: "model:download:cancel",
+
+  // Local Overture Maps car-dealer directory (searched next to OSM/Photon)
+  dealerDirectoryStatus: "dealerDirectory:status", // invoke -> status | null
+  // Streaming like model:download — a multi-minute download with progress.
+  dealerDirectoryRefresh: "dealerDirectory:refresh", // renderer -> main (start)
+  dealerDirectoryRefreshCancel: "dealerDirectory:refresh:cancel",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];

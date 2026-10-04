@@ -19,7 +19,9 @@ export function scorePerils(
     },
     {
       peril: "lightning",
-      score: clamp((w.lightningDensity / parameters.lightningScoreMaxDensity) * 100),
+      score: clamp(
+        (w.lightningDensity / parameters.lightningScoreMaxDensity) * 100,
+      ),
       hazardValue: round(w.lightningDensity),
       unit: "strikes/km²/yr",
     },
@@ -31,7 +33,9 @@ export function scorePerils(
     },
     {
       peril: "flood",
-      score: clamp((w.annualPrecipMm / parameters.floodScoreMaxAnnualPrecipMm) * 100),
+      score: clamp(
+        (w.annualPrecipMm / parameters.floodScoreMaxAnnualPrecipMm) * 100,
+      ),
       hazardValue: round(w.annualPrecipMm),
       unit: "mm/a",
     },
@@ -60,7 +64,9 @@ export function scorePerils(
   // indicator it covers. Keep the source observation in RiskAssessment.natCat;
   // this array only carries the normalized score used by the existing UI.
   for (const score of scores) {
-    const override = natCat?.hazards.find((hazard) => hazard.peril === score.peril);
+    const override = natCat?.hazards.find(
+      (hazard) => hazard.peril === score.peril,
+    );
     if (!override) continue;
     score.score = override.score;
     score.hazardValue = override.hazardValue ?? override.score;

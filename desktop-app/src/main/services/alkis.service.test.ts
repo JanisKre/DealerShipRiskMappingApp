@@ -129,7 +129,8 @@ describe("WFS feature counts", () => {
   it("flags a response the service could not fit in one page", () => {
     // A truncated set must not be used to assemble a multi-parcel site: which
     // parcels are missing is arbitrary, so the union would be arbitrary too.
-    const xml = '<wfs:FeatureCollection numberMatched="500" numberReturned="250"/>';
+    const xml =
+      '<wfs:FeatureCollection numberMatched="500" numberReturned="250"/>';
     expect(isTruncated(xml, 250)).toBe(true);
   });
 
@@ -140,13 +141,15 @@ describe("WFS feature counts", () => {
 
   it("treats a full page as possibly truncated when matched is unknown", () => {
     // Several state services stream without counting first.
-    const xml = '<wfs:FeatureCollection numberMatched="unknown" numberReturned="250"/>';
+    const xml =
+      '<wfs:FeatureCollection numberMatched="unknown" numberReturned="250"/>';
     expect(parseWfsCounts(xml).matched).toBeNull();
     expect(isTruncated(xml, 250)).toBe(true);
   });
 
   it("is not fooled by a partial page with an unknown match count", () => {
-    const xml = '<wfs:FeatureCollection numberMatched="unknown" numberReturned="12"/>';
+    const xml =
+      '<wfs:FeatureCollection numberMatched="unknown" numberReturned="12"/>';
     expect(isTruncated(xml, 250)).toBe(false);
   });
 

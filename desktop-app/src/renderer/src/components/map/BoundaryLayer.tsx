@@ -185,6 +185,7 @@ function rebuildBoundary(
     polygon,
     areaSqm,
     confidence: 1,
+    reviewRequired: false,
     quality: {
       geometryValid: true,
       pointRelation: "unknown",

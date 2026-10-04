@@ -6,14 +6,23 @@ import {
   ipcRequest,
   LlmStreamEnvelopeSchema,
   LlmStreamRequestSchema,
+  DealerDirectoryRefreshEnvelopeSchema,
   ModelDownloadEnvelopeSchema,
+  OllamaPullEnvelopeSchema,
   StreamCancelSchema,
+  type DealerDirectoryChunk,
   type LlmStreamChunk,
   type ModelDownloadChunk,
+  type OllamaPullChunk,
 } from "@shared/ipc-schema";
 import { analyzeDealership } from "../services/analyze.service";
+import {
+  dealerDirectoryStatus,
+  refreshDealerDirectory,
+} from "../services/dealer-directory.service";
 import { detectBoundary } from "../services/boundary.service";
 import {
+  attachImageryProvenance,
   detectVehicles,
   isModelAvailable,
   modelsDir,
@@ -40,25 +49,37 @@ import {
   parseZuersXlsxWithReport,
   parseXlsxWithReport,
 } from "../services/csv.service";
-import { createCatNetProvider } from "../services/catnet.service";
+import { resolveNatCat, testNatCatConnector } from "../services/natcat.service";
 import {
   executiveSummaryStream,
   generateDashboardSpec,
+  detectLocalRuntimes,
   generateMemo,
+  listLlmModels,
   nlQueryFilter,
   nlQuerySummaryStream,
   portfolioChatStream,
+  testLlmConnection,
 } from "../services/llm.service";
+import {
+  getGgufFiles,
+  searchGgufModels,
+} from "../services/huggingface.service";
+import {
+  OllamaUnreachableError,
+  pullOllamaModel,
+} from "../services/ollama.service";
 import { scoreRisk } from "../services/risk.service";
 import {
   getSettings,
-  getNatCatApiKey,
+  deleteNatCatApiKey,
   setLlmApiKey,
   setNatCatApiKey,
   setSettings,
 } from "../services/settings.service";
 import { aerialImageForBoundary } from "../services/tiles.service";
 import { fetchWeather } from "../services/weather.service";
+import { selectImageryForView } from "../services/imagery-source.service";
 import {
   deleteSession,
   listSessions,
@@ -112,7 +133,9 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.parseZuersCsv, ({ content }) => parseZuersCsvWithReport(content));
   handle(IPC.parseZuersXlsx, ({ base64 }) => parseZuersXlsxWithReport(base64));
   handle(IPC.geocode, ({ query }) => geocode(query));
-  handle(IPC.placesAutocomplete, ({ query }) => placesAutocomplete(query));
+  handle(IPC.placesAutocomplete, ({ query, near }) =>
+    placesAutocomplete(query, near),
+  );
   handle(IPC.detectBoundary, ({ lat, lon, name, address, parameters }) =>
     detectBoundary(lat, lon, name, address, parameters),
   );
@@ -121,24 +144,34 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   );
   handle(IPC.detectVehicles, async ({ lat, lon, boundary, parameters }) => {
     const image = await aerialImageForBoundary(lat, lon, boundary);
-    return detectVehicles(image, boundary, parameters);
+    return attachImageryProvenance(
+      await detectVehicles(image, boundary, parameters),
+      image.imagery,
+    );
   });
   handle(IPC.fetchWeather, ({ lat, lon }) => fetchWeather(lat, lon));
-  handle(IPC.scoreRisk, ({ lat, lon, assetValue, detection, boundary, parameters, natCat }) =>
-    scoreRisk(lat, lon, assetValue, detection, boundary, undefined, parameters, natCat),
+  handle(
+    IPC.scoreRisk,
+    ({ lat, lon, assetValue, detection, boundary, parameters, natCat }) =>
+      scoreRisk(
+        lat,
+        lon,
+        assetValue,
+        detection,
+        boundary,
+        undefined,
+        parameters,
+        natCat,
+      ),
   );
-  handle(IPC.fetchCatNet, async ({ lat, lon, perils }) => {
-    const settings = getSettings().natCat;
-    if (!settings?.catnetEndpoint) {
-      throw new Error("CatNet endpoint is not configured");
-    }
-    const apiKey = getNatCatApiKey();
-    if (!apiKey) throw new Error("CatNet API key is not configured");
-    return createCatNetProvider({
-      endpoint: settings.catnetEndpoint,
-      apiKey,
-    }).lookup(lat, lon, perils);
-  });
+  handle(
+    IPC.resolveNatCat,
+    async ({ lat, lon, imported }) =>
+      (await resolveNatCat(lat, lon, imported)) ?? null,
+  );
+  handle(IPC.testNatCatConnector, ({ provider }) =>
+    testNatCatConnector(provider),
+  );
   handle(IPC.analyzeDealership, ({ dealership, parameters }) =>
     analyzeDealership(dealership, parameters),
   );
@@ -191,6 +224,13 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   }));
 
   handle(IPC.llmMemo, ({ dealership }) => generateMemo(dealership));
+  handle(IPC.llmTestConnection, () => testLlmConnection());
+  handle(IPC.llmListModels, () => listLlmModels());
+  handle(IPC.llmDetectLocal, () => detectLocalRuntimes());
+  handle(IPC.hfSearchModels, ({ query, sort }) =>
+    searchGgufModels(query, sort),
+  );
+  handle(IPC.hfModelFiles, ({ repoId }) => getGgufFiles(repoId));
 
   handle(IPC.getSettings, () => getSettings());
   handle(IPC.setSettings, ({ settings }) => setSettings(settings));
@@ -198,12 +238,19 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     setLlmApiKey(provider, apiKey);
     return { ok: true };
   });
-  handle(IPC.setNatCatApiKey, ({ apiKey }) => {
-    setNatCatApiKey(apiKey);
+  handle(IPC.setNatCatApiKey, ({ provider, apiKey }) => {
+    setNatCatApiKey(provider, apiKey);
+    return { ok: true };
+  });
+  handle(IPC.deleteNatCatApiKey, ({ provider }) => {
+    deleteNatCatApiKey(provider);
     return { ok: true };
   });
 
   handle(IPC.mapCapture, ({ rect, mode }) => captureMap(rect, mode));
+  handle(IPC.imagerySelect, ({ lat, lon, zoom }) =>
+    selectImageryForView(lat, lon, zoom),
+  );
 
   handle(IPC.modelStatus, () => ({
     available: isModelAvailable(),
@@ -211,8 +258,104 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     downloadConfigured: MODEL_DOWNLOAD_URL !== null,
   }));
 
+  handle(IPC.dealerDirectoryStatus, () => dealerDirectoryStatus());
+
   registerLlmStreaming();
   registerModelDownload();
+  registerOllamaPull();
+  registerDealerDirectoryRefresh();
+}
+
+/**
+ * Overture dealer directory download — same send/receive pattern as
+ * `model:download`: `dealerDirectory:refresh` starts, progress/result come
+ * over `dealerDirectory:refresh:<streamId>`, `…:cancel` aborts it.
+ */
+function registerDealerDirectoryRefresh(): void {
+  const active = new Map<string, AbortController>();
+
+  ipcMain.on(IPC.dealerDirectoryRefresh, (event, raw: unknown) => {
+    if (!isTrustedSender(event)) return;
+    const parsed = DealerDirectoryRefreshEnvelopeSchema.safeParse(raw);
+    if (!parsed.success) return;
+    const { streamId } = parsed.data;
+    const channel = `${IPC.dealerDirectoryRefresh}:${streamId}`;
+    const controller = new AbortController();
+    active.set(streamId, controller);
+
+    const send = (chunk: DealerDirectoryChunk): void => {
+      if (!event.sender.isDestroyed()) event.sender.send(channel, chunk);
+    };
+
+    refreshDealerDirectory(
+      (progress) => send({ type: "progress", ...progress }),
+      controller.signal,
+    )
+      .then((status) => send({ type: "done", status }))
+      .catch((err: unknown) =>
+        send({
+          type: "error",
+          message: err instanceof Error ? err.message : String(err),
+        }),
+      )
+      .finally(() => {
+        active.delete(streamId);
+      });
+  });
+
+  ipcMain.on(IPC.dealerDirectoryRefreshCancel, (event, raw: unknown) => {
+    if (!isTrustedSender(event)) return;
+    const parsed = StreamCancelSchema.safeParse(raw);
+    if (!parsed.success) return;
+    active.get(parsed.data.streamId)?.abort();
+    active.delete(parsed.data.streamId);
+  });
+}
+
+/**
+ * Local model install — same send/receive pattern as `model:download`:
+ * `ollama:pull` starts, progress/result come over `ollama:pull:<streamId>`,
+ * `ollama:pull:cancel` aborts it. The model reference is validated against
+ * the `hf.co/<owner>/<repo>:<quant>` pattern before anything is sent.
+ */
+function registerOllamaPull(): void {
+  const active = new Map<string, AbortController>();
+
+  ipcMain.on(IPC.ollamaPull, (event, raw: unknown) => {
+    if (!isTrustedSender(event)) return;
+    const parsed = OllamaPullEnvelopeSchema.safeParse(raw);
+    if (!parsed.success) return;
+    const { streamId, model } = parsed.data;
+    const channel = `${IPC.ollamaPull}:${streamId}`;
+    const controller = new AbortController();
+    active.set(streamId, controller);
+
+    const send = (chunk: OllamaPullChunk): void => {
+      if (!event.sender.isDestroyed()) event.sender.send(channel, chunk);
+    };
+
+    pullOllamaModel(model, send, controller.signal)
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        send({
+          type: "error",
+          message: err instanceof Error ? err.message : String(err),
+          code: err instanceof OllamaUnreachableError ? "unreachable" : "error",
+        });
+      })
+      .finally(() => {
+        active.delete(streamId);
+      });
+  });
+
+  ipcMain.on(IPC.ollamaPullCancel, (event, raw: unknown) => {
+    if (!isTrustedSender(event)) return;
+    const parsed = StreamCancelSchema.safeParse(raw);
+    if (!parsed.success) return;
+    const { streamId } = parsed.data;
+    active.get(streamId)?.abort();
+    active.delete(streamId);
+  });
 }
 
 /**

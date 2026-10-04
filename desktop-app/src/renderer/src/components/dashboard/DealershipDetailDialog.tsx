@@ -24,6 +24,8 @@ import type {
   StructuredMemo,
 } from "@shared/types";
 import { asPolygon, outerRings } from "@shared/boundary-geometry-utils";
+import { sourceLabel } from "@shared/natcat-catalog";
+import { LlmErrorMessage } from "@renderer/components/ai/LlmSetupNotice";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import {
@@ -41,6 +43,7 @@ import { useAppStore } from "@renderer/store/appStore";
 import { eur, num, pct } from "@renderer/lib/format";
 import { riskColor } from "@renderer/lib/riskColor";
 import { UnderwritingMessages } from "./UnderwritingMessages";
+import { DetectionImageryNote } from "./DetectionImageryNote";
 
 /**
  * Detail dialog for a location: area/capacity/utilisation, EAL breakdown
@@ -132,6 +135,8 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
         />
       </div>
 
+      <DetectionImageryNote detection={d.detection} />
+
       <Separator />
 
       <div className="space-y-2">
@@ -165,7 +170,7 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
               .filter((peril) => peril.peril !== "hail")
               .map((p) => (
                 <Badge key={p.peril} variant="outline" className="gap-1">
-                  <span className="capitalize">{p.peril}</span>
+                  <span>{t(`dashboard.detailDialog.ealPeril.${p.peril}`)}</span>
                   <span
                     className="font-mono"
                     style={{ color: riskColor(p.score) }}
@@ -366,17 +371,23 @@ function BoundarySummary({ d }: { d: AnalyzedDealership }): React.JSX.Element {
                   ),
                 })}
                 {boundary.quality.requestedEngine &&
-                  boundary.quality.requestedEngine !== boundary.quality.usedEngine && (
+                  boundary.quality.requestedEngine !==
+                    boundary.quality.usedEngine && (
                     <span>
                       {" "}
-                      {t("dashboard.detailDialog.boundaryEngineFallbackSuffix", {
-                        requested: t(
-                          `dashboard.detailDialog.boundaryEngine.${boundary.quality.requestedEngine}`,
-                        ),
-                        reason:
-                          boundary.quality.fallbackReason ??
-                          t("dashboard.detailDialog.boundaryEngineUnknownReason"),
-                      })}
+                      {t(
+                        "dashboard.detailDialog.boundaryEngineFallbackSuffix",
+                        {
+                          requested: t(
+                            `dashboard.detailDialog.boundaryEngine.${boundary.quality.requestedEngine}`,
+                          ),
+                          reason:
+                            boundary.quality.fallbackReason ??
+                            t(
+                              "dashboard.detailDialog.boundaryEngineUnknownReason",
+                            ),
+                        },
+                      )}
                     </span>
                   )}
               </div>
@@ -476,7 +487,7 @@ function ModelConfidenceSummary({
             {limitations.length > 0 && (
               <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
                 {limitations.map((limitation) => (
-                  <li key={limitation}>{limitation}</li>
+                  <li key={limitation}>{localizedRiskText(t, limitation)}</li>
                 ))}
               </ul>
             )}
@@ -484,7 +495,8 @@ function ModelConfidenceSummary({
               <div className="space-y-1 border-t pt-1.5 text-muted-foreground">
                 {evidence.map((item) => (
                   <div key={`${item.source}-${item.method}`}>
-                    {item.source} · {item.method} · {pct(item.confidence, 0)}
+                    {item.source} · {localizedRiskText(t, item.method)} ·{" "}
+                    {pct(item.confidence, 0)}
                     {item.fallbackUsed
                       ? t("dashboard.detailDialog.evidenceFallbackSuffix")
                       : ""}
@@ -499,16 +511,62 @@ function ModelConfidenceSummary({
   );
 }
 
+/** Localizes persisted provenance text while keeping unknown provider text intact. */
+function localizedRiskText(t: TFunction, text: string): string {
+  const exact: Record<string, string> = {
+    "Hazard values are location-level proxies and should be validated before underwriting decisions":
+      "dashboard.detailDialog.riskText.hazardProxy",
+    "Not a catastrophe-model or engineering assessment":
+      "dashboard.detailDialog.riskText.notEngineeringAssessment",
+    "92-day weather window with screening proxies":
+      "dashboard.detailDialog.riskText.weatherWindow",
+    "synthetic radius fallback":
+      "dashboard.detailDialog.riskText.syntheticBoundaryMethod",
+    "geospatial boundary lookup":
+      "dashboard.detailDialog.riskText.boundaryLookupMethod",
+    "Manual boundary review recommended":
+      "dashboard.detailDialog.riskText.manualBoundaryReview",
+    "area-based estimate": "dashboard.detailDialog.riskText.areaEstimateMethod",
+    "aerial object detection":
+      "dashboard.detailDialog.riskText.aerialDetectionMethod",
+    "Vehicle count is estimated; install the detector model":
+      "dashboard.detailDialog.riskText.vehicleEstimate",
+    "Synthetic lot boundary used":
+      "dashboard.detailDialog.riskText.syntheticBoundary",
+    "Boundary requires review before underwriting use":
+      "dashboard.detailDialog.riskText.boundaryReviewRequired",
+    "Boundary sources do not sufficiently agree":
+      "dashboard.detailDialog.riskText.boundaryDisagreement",
+    "Vehicle exposure is estimated because no ML model is installed":
+      "dashboard.detailDialog.riskText.noMlModel",
+  };
+  const key = exact[text];
+  if (key) return t(key);
+  const screening = text.match(/^Risk model (.+) is a screening model$/);
+  if (screening)
+    return t("dashboard.detailDialog.riskText.screeningModel", {
+      version: screening[1],
+    });
+  const role = text.match(
+    /^Boundary represents (.+), not a confirmed operational lot$/,
+  );
+  if (role)
+    return t("dashboard.detailDialog.riskText.boundaryRole", {
+      role: boundaryRoleLabel(t, role[1]),
+    });
+  return text;
+}
+
 function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   const { t } = useTranslation();
-  const refreshCatNet = useAppStore((state) => state.refreshCatNet);
+  const refreshNatCat = useAppStore((state) => state.refreshNatCat);
   const [refreshing, setRefreshing] = useState(false);
   const assessment = d.natCat ?? d.risk?.natCat;
 
   async function refresh(): Promise<void> {
     setRefreshing(true);
     try {
-      await refreshCatNet(d.id);
+      await refreshNatCat(d.id);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -542,7 +600,7 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
       ) : (
         <>
           <div className="text-xs text-muted-foreground">
-            {assessment.provider} · {assessment.dataVersion ?? "unknown"}
+            {assessment.evidence.source} · {assessment.dataVersion ?? "unknown"}
           </div>
           <div className="grid gap-1 text-xs sm:grid-cols-2">
             {assessment.hazards.map((hazard) => (
@@ -552,9 +610,25 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
                   score: hazard.score.toFixed(0),
                   unit: hazard.unit,
                 })}
+                {/* Per-peril source when several providers are combined. */}
+                {assessment.provider === "composite" && hazard.provider && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {sourceLabel(hazard.provider)}
+                  </span>
+                )}
               </div>
             ))}
           </div>
+          {assessment.evidence.fallbackUsed && (
+            <ul className="list-inside list-disc text-xs text-amber-700 dark:text-amber-400">
+              {assessment.evidence.limitations
+                .filter((note) => note.includes(" used instead"))
+                .map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+            </ul>
+          )}
           {Object.entries(assessment.attributes).map(([name, value]) => (
             <div key={name} className="text-xs text-muted-foreground">
               {t("dashboard.detailDialog.natCatAttribute", {
@@ -914,9 +988,11 @@ function AiSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
       </div>
 
       {error && (
-        <p className="text-sm text-destructive">
-          {t("dashboard.detailDialog.errorPrefix", { error })}
-        </p>
+        <LlmErrorMessage
+          error={error}
+          className="text-sm"
+          format={(e) => t("dashboard.detailDialog.errorPrefix", { error: e })}
+        />
       )}
 
       {memo && (

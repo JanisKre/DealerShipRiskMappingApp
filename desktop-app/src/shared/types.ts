@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ImagerySelectionSchema } from "./imagery-sources";
 
 /**
  * Domain types + Zod schemas, shared between main and renderer.
@@ -36,9 +37,26 @@ export type RiskEvidence = z.infer<typeof RiskEvidenceSchema>;
 
 // --- Natural-catastrophe provider data -------------------------------------
 
+/**
+ * Providers queried through the app's hazard API contract (see
+ * `docs/risk-model.md`). Vendor APIs are reached through a customer endpoint
+ * that answers in that contract; `custom-api` is any other such endpoint.
+ */
+export const NAT_CAT_API_PROVIDERS = [
+  "swissre-catnet",
+  "munichre-lri",
+  "moodys-li",
+  "verisk-li",
+  "jba-flood",
+  "fathom-flood",
+  "custom-api",
+] as const;
+export const NatCatApiProviderSchema = z.enum(NAT_CAT_API_PROVIDERS);
+export type NatCatApiProvider = z.infer<typeof NatCatApiProviderSchema>;
+
 export const NAT_CAT_PROVIDERS = [
   "zuers-geo",
-  "swissre-catnet",
+  ...NAT_CAT_API_PROVIDERS,
 ] as const;
 export const NatCatProviderSchema = z.enum(NAT_CAT_PROVIDERS);
 export type NatCatProvider = z.infer<typeof NatCatProviderSchema>;
@@ -53,17 +71,22 @@ export const NatCatHazardSchema = z.object({
   rawValue: z.union([z.string(), z.number(), z.boolean()]).optional(),
   returnPeriodYears: z.number().positive().optional(),
   annualExceedanceProbability: z.number().positive().max(1).optional(),
+  /** Source of this value; set when an assessment combines several providers. */
+  provider: NatCatProviderSchema.optional(),
 });
 export type NatCatHazard = z.infer<typeof NatCatHazardSchema>;
 
 export const NatCatAssessmentSchema = z.object({
-  provider: NatCatProviderSchema,
+  /** `composite` = hazards routed per peril from several providers. */
+  provider: z.enum([...NAT_CAT_PROVIDERS, "composite"]),
   retrievedAt: z.string(),
   dataVersion: z.string().optional(),
   spatialResolution: z.string().optional(),
   hazards: z.array(NatCatHazardSchema),
   /** Provider-specific classifications that are not directly scoreable. */
-  attributes: z.record(z.union([z.string(), z.number(), z.boolean()])).default({}),
+  attributes: z
+    .record(z.union([z.string(), z.number(), z.boolean()]))
+    .default({}),
   evidence: RiskEvidenceSchema,
 });
 export type NatCatAssessment = z.infer<typeof NatCatAssessmentSchema>;
@@ -88,8 +111,16 @@ export const DealershipInputSchema = z.object({
   group: z.string().optional(),
   /** Product limit / sum insured (EUR) — hard coverage cap. */
   productLimitEur: z.number().nonnegative().optional(),
-  /** Optional imported or API-fetched natural-catastrophe assessment. */
+  /**
+   * Natural-catastrophe assessment used for scoring: imported data plus the
+   * providers routed in the settings, combined per peril.
+   */
   natCat: NatCatAssessmentSchema.optional(),
+  /**
+   * User-supplied import (ZÜRS Geo) kept separately, so a re-analysis can
+   * re-route API sources without losing or re-using stale API values.
+   */
+  natCatImport: NatCatAssessmentSchema.optional(),
 });
 export type DealershipInput = z.infer<typeof DealershipInputSchema>;
 
@@ -238,11 +269,7 @@ export type Polygon = z.infer<typeof PolygonSchema>;
 export const MultiPolygonSchema = z.object({
   type: z.literal("MultiPolygon"),
   coordinates: z
-    .array(
-      z
-        .array(z.array(z.tuple([z.number(), z.number()])).min(4))
-        .min(1),
-    )
+    .array(z.array(z.array(z.tuple([z.number(), z.number()])).min(4)).min(1))
     .min(1),
 });
 export type MultiPolygon = z.infer<typeof MultiPolygonSchema>;
@@ -282,6 +309,8 @@ export const BoundaryResultSchema = z.object({
   candidates: z.array(BoundaryCandidateSchema).max(10).optional(),
   /** True when the result should be checked before it is used for underwriting. */
   reviewRequired: z.boolean().optional(),
+  /** ISO timestamp of the user's visual confirmation that the geometry covers the lot. */
+  confirmedAt: z.string().datetime().optional(),
 });
 export type BoundaryResult = z.infer<typeof BoundaryResultSchema>;
 
@@ -373,6 +402,8 @@ export const DetectionResultSchema = z.object({
   manualVehicleRemovedPoints: z.array(ManualVehiclePointSchema).optional(),
   evidence: RiskEvidenceSchema.optional(),
   evaluation: DetectionEvaluationSchema.optional(),
+  /** Imagery the vehicles were counted on: source, capture date, alternatives. */
+  imagery: ImagerySelectionSchema.optional(),
 });
 export type DetectionResult = z.infer<typeof DetectionResultSchema>;
 
@@ -538,7 +569,12 @@ export type Session = z.infer<typeof SessionSchema>;
 
 // --- LLM --------------------------------------------------------------------
 
-export const LlmProviderSchema = z.enum(["openai", "claude", "custom"]);
+export const LlmProviderSchema = z.enum([
+  "openai",
+  "claude",
+  "custom",
+  "local",
+]);
 export type LlmProvider = z.infer<typeof LlmProviderSchema>;
 
 export const LlmSettingsSchema = z.object({
@@ -549,17 +585,42 @@ export const LlmSettingsSchema = z.object({
 });
 export type LlmSettings = z.infer<typeof LlmSettingsSchema>;
 
+const HttpsUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => new URL(value).protocol === "https:", {
+    message: "Endpoint must use HTTPS",
+  });
+
+/** A connected hazard API; the key lives in safeStorage, not here. */
+export const NatCatConnectorSchema = z.object({
+  /** Exact contracted endpoint; no vendor URL is assumed by the app. */
+  endpoint: HttpsUrlSchema,
+  hasApiKey: z.boolean().optional(),
+});
+export type NatCatConnector = z.infer<typeof NatCatConnectorSchema>;
+
+/** Source choice for one peril: follow the primary source, screening, or an API. */
+export const NatCatPerilSourceSchema = z.enum([
+  "primary",
+  "screening",
+  ...NAT_CAT_API_PROVIDERS,
+]);
+export type NatCatPerilSource = z.infer<typeof NatCatPerilSourceSchema>;
+
 export const NatCatSettingsSchema = z.object({
+  /** Legacy single-provider switch; read only when `primary` is unset. */
   provider: z.enum(["screening", ...NAT_CAT_PROVIDERS]).default("screening"),
-  /** Exact contracted CatNet endpoint; no vendor URL is assumed by the app. */
-  catnetEndpoint: z
-    .string()
-    .url()
-    .refine((value) => new URL(value).protocol === "https:", {
-      message: "CatNet endpoint must use HTTPS",
-    })
-    .optional(),
+  /** Legacy CatNet endpoint; superseded by `connectors["swissre-catnet"]`. */
+  catnetEndpoint: HttpsUrlSchema.optional(),
   catnetHasApiKey: z.boolean().optional(),
+  /** Source for every peril without its own choice. Default: screening. */
+  primary: z.enum(["screening", ...NAT_CAT_API_PROVIDERS]).optional(),
+  /** Per-peril overrides, e.g. flood from a flood specialist. */
+  perilSources: z.record(PerilSchema, NatCatPerilSourceSchema).optional(),
+  connectors: z
+    .record(NatCatApiProviderSchema, NatCatConnectorSchema)
+    .optional(),
 });
 export type NatCatSettings = z.infer<typeof NatCatSettingsSchema>;
 
@@ -569,8 +630,12 @@ export const SettingsSchema = z.object({
   language: z.enum(["en", "de", "fr"]).default("en"),
   llm: LlmSettingsSchema.optional(),
   natCat: NatCatSettingsSchema.optional(),
-  /** Satellite/aerial imagery tile source for the map & detection. */
-  satelliteProvider: z.enum(["esri", "wms"]).optional(),
+  /**
+   * Satellite/aerial imagery tile source for the map & detection. "auto"
+   * (the default when unset) picks Esri or the state orthophoto per location;
+   * see shared/imagery-sources.ts.
+   */
+  satelliteProvider: z.enum(["auto", "esri", "wms"]).optional(),
   /** XYZ/WMS tile template with {z}/{x}/{y} placeholders (for provider 'wms'). */
   wmsTileUrl: z.string().optional(),
   /**

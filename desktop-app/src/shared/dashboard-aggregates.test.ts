@@ -115,7 +115,9 @@ describe("DashboardSpec validation", () => {
   it("accepts a well-formed spec", () => {
     const valid = {
       title: "Test",
-      widgets: [{ id: "a", type: "kpi", title: "Locations", source: "kpi.count" }],
+      widgets: [
+        { id: "a", type: "kpi", title: "Locations", source: "kpi.count" },
+      ],
     };
     expect(() => DashboardSpecSchema.parse(valid)).not.toThrow();
   });

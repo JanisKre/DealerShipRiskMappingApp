@@ -95,7 +95,10 @@ const FIXTURES = resolve(
   __dirname,
   "../../../../resources/benchmarks/boundary-public-fixtures.json",
 );
-const OUTPUT = resolve(__dirname, "../../../../coverage/boundary-benchmark.json");
+const OUTPUT = resolve(
+  __dirname,
+  "../../../../coverage/boundary-benchmark.json",
+);
 
 const enabled = Boolean(process.env.BOUNDARY_BENCHMARK);
 
@@ -156,7 +159,9 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
         // in which Overpass was unreachable looks identical to one in which OSM
         // was consulted and lost — and those demand opposite conclusions.
         const candidateSources = [
-          ...new Set((boundary.candidates ?? []).map((c) => c.provider ?? c.source)),
+          ...new Set(
+            (boundary.candidates ?? []).map((c) => c.provider ?? c.source),
+          ),
         ].sort();
         rows.push({
           fixture,
@@ -231,10 +236,12 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
             tuning,
             holdout,
             providerContribution: Object.fromEntries(
-              [...contributed].sort().map(([source, count]) => [
-                source,
-                { sites: count, of: rows.length },
-              ]),
+              [...contributed]
+                .sort()
+                .map(([source, count]) => [
+                  source,
+                  { sites: count, of: rows.length },
+                ]),
             ),
             perSample: rows.map((r) => ({
               id: r.fixture.id,

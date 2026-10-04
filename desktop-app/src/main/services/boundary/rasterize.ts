@@ -158,12 +158,18 @@ function forEachCellNearSegment(
   radiusCells: number,
   visit: (col: number, row: number) => void,
 ): void {
-  const minCol = Math.max(0, Math.floor(Math.min(a.col, b.col) - radiusCells - 1));
+  const minCol = Math.max(
+    0,
+    Math.floor(Math.min(a.col, b.col) - radiusCells - 1),
+  );
   const maxCol = Math.min(
     spec.cols - 1,
     Math.ceil(Math.max(a.col, b.col) + radiusCells + 1),
   );
-  const minRow = Math.max(0, Math.floor(Math.min(a.row, b.row) - radiusCells - 1));
+  const minRow = Math.max(
+    0,
+    Math.floor(Math.min(a.row, b.row) - radiusCells - 1),
+  );
   const maxRow = Math.min(
     spec.rows - 1,
     Math.ceil(Math.max(a.row, b.row) + radiusCells + 1),
@@ -176,7 +182,8 @@ function forEachCellNearSegment(
     for (let col = minCol; col <= maxCol; col += 1) {
       const px = col + 0.5 - a.col;
       const py = row + 0.5 - a.row;
-      const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, (px * dx + py * dy) / lenSq));
+      const t =
+        lenSq === 0 ? 0 : Math.max(0, Math.min(1, (px * dx + py * dy) / lenSq));
       const ox = px - t * dx;
       const oy = py - t * dy;
       if (ox * ox + oy * oy <= radiusSq) visit(col, row);
@@ -201,9 +208,15 @@ export function rasterizePolyline(
   const radiusCells = halfWidthM / spec.resolutionM;
   const seen = new Set<number>();
   for (let i = 0; i < points.length - 1; i += 1) {
-    forEachCellNearSegment(spec, points[i], points[i + 1], radiusCells, (col, row) => {
-      seen.add(cellIndex(spec, col, row));
-    });
+    forEachCellNearSegment(
+      spec,
+      points[i],
+      points[i + 1],
+      radiusCells,
+      (col, row) => {
+        seen.add(cellIndex(spec, col, row));
+      },
+    );
   }
   for (const index of seen) out[index] += weight;
   return seen.size;
@@ -239,10 +252,7 @@ export function rasterizeDisk(
       const dy = row + 0.5 - c.row;
       const distSq = dx * dx + dy * dy;
       if (distSq > radiusSq) continue;
-      const scale =
-        falloff === "flat"
-          ? 1
-          : Math.exp(-2 * (distSq / radiusSq));
+      const scale = falloff === "flat" ? 1 : Math.exp(-2 * (distSq / radiusSq));
       out[cellIndex(spec, col, row)] += weight * scale;
       touched += 1;
     }
@@ -291,11 +301,13 @@ export function rasterizeBarrier(
     let tMaxCol =
       stepCol === 0
         ? Infinity
-        : ((stepCol > 0 ? col + 1 - a.col : a.col - col) || 1e-12) / Math.abs(dCol);
+        : ((stepCol > 0 ? col + 1 - a.col : a.col - col) || 1e-12) /
+          Math.abs(dCol);
     let tMaxRow =
       stepRow === 0
         ? Infinity
-        : ((stepRow > 0 ? row + 1 - a.row : a.row - row) || 1e-12) / Math.abs(dRow);
+        : ((stepRow > 0 ? row + 1 - a.row : a.row - row) || 1e-12) /
+          Math.abs(dRow);
     const tDeltaCol = stepCol === 0 ? Infinity : 1 / Math.abs(dCol);
     const tDeltaRow = stepRow === 0 ? Infinity : 1 / Math.abs(dRow);
 
@@ -443,7 +455,10 @@ export function polygonRasterIoU(
   b: BoundaryGeometry,
   resolutionM = 0.5,
 ): number {
-  const rings = [...polygonParts(a).flat(), ...polygonParts(b).flat()] as LonLat[][];
+  const rings = [
+    ...polygonParts(a).flat(),
+    ...polygonParts(b).flat(),
+  ] as LonLat[][];
   if (rings.length === 0 || rings.some((ring) => ring.length < 4)) return 0;
   const { spec } = coveringGrid(rings, resolutionM);
   const maskA = new Uint8Array(spec.cols * spec.rows);

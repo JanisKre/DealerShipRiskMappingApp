@@ -311,29 +311,89 @@
     "apiKeySetPlaceholder": "•••••••• (stored) — enter a new key to replace",
     "apiKeyUnsetPlaceholder": "Stored encrypted (OS keychain)",
     "natCat": {
-      "title": "Natural catastrophe data source",
-      "description": "ZÜRS files are detected automatically during CSV/Excel import. CatNet is queried only through a licensed HTTPS endpoint.",
-      "screening": "Open-Meteo screening",
-      "zuers": "ZÜRS Geo (import)",
-      "catnet": "Swiss Re CatNet (API)",
-      "endpoint": "CatNet endpoint",
-      "endpointHint": "Enter the exact URL from the Swiss Re API documentation (HTTPS required).",
-      "key": "CatNet API key",
-      "keySet": "•••••••• (stored)",
+      "title": "Natural hazard data sources",
+      "statusDefault": "Default: screening",
+      "statusLicensed": "Licensed data active",
+      "reset": "Reset to default",
+      "resetHint": "Score all perils with the Open-Meteo screening again. Connected providers stay saved.",
+      "intro": "Choose where each peril gets its values: a primary source for all perils and, if needed, specialists for single perils (e.g. flood). Without a choice, the Open-Meteo screening applies.",
+      "screening": "Screening (Open-Meteo)",
+      "screeningDefault": "Screening (Open-Meteo) – default",
+      "notConnected": "not connected",
+      "keySet": "•••••••• (stored) – enter a new key to replace",
       "keyUnset": "Stored encrypted (OS keychain)",
-      "save": "Save CatNet access"
+      "routing": {
+        "title": "Source per peril",
+        "primary": "Primary source",
+        "followPrimary": "Same as primary ({{source}})",
+        "order": "Order per peril: chosen source → the location's imported ZÜRS data → primary source → screening. If a source returns no value, the next one applies; this is noted on the location.",
+        "applies": "Changes apply to new analyses. Update existing locations via “Re-analyze” or “Re-query sources” in the location details."
+      },
+      "perils": {
+        "wind": "Storm",
+        "lightning": "Lightning",
+        "snow": "Snow",
+        "flood": "Flood",
+        "hail": "Hail",
+        "heat": "Heat",
+        "heavyRain": "Heavy rain"
+      },
+      "catalog": {
+        "title": "Providers",
+        "showAll": "Show more providers ({{count}})",
+        "hideAll": "Collapse provider list",
+        "description": "Common natural hazard data sources. Commercial providers connect through an HTTPS endpoint in the app's hazard API format (a contract and, if needed, a translation service at the provider are required). Coverage per vendor information, October 2026.",
+        "customName": "Custom hazard API",
+        "website": "Provider website",
+        "allPerils": "All perils",
+        "license": {
+          "free": "Free",
+          "commercial": "License required"
+        },
+        "status": {
+          "builtin": "Default · always on",
+          "import": "Via CSV/Excel import",
+          "planned": "Planned",
+          "connected": "Connected",
+          "available": "Not connected"
+        },
+        "notes": {
+          "screening": "Weather-based approximation from Open-Meteo climate data plus GDV hail zones. Not a catastrophe model.",
+          "zuers": "GDV zoning for flood and heavy rain. Detected automatically in the regular location import.",
+          "catnet": "Multi-peril data from Swiss Re for locations worldwide.",
+          "munichre": "Scores incl. hail, lightning, river flood, storm surge and earthquake (formerly NATHAN).",
+          "moodys": "Risk scores and average annual loss (AAL) for more than 100 countries.",
+          "verisk": "Europe: windstorm and severe thunderstorm/hail (22 countries), inland flood for Central Europe incl. Germany.",
+          "jba": "Flood specialist; Germany map at 5 m resolution for river and surface water.",
+          "fathom": "Global flood maps for river, pluvial and coastal flooding.",
+          "custom": "Any other service that answers in the app's hazard API format – e.g. your own translation service.",
+          "jrc": "Free EU flood hazard maps (100 m, return periods 10–500 years). Not integrated yet."
+        }
+      },
+      "connector": {
+        "edit": "Edit",
+        "connect": "Connect",
+        "contract": "The endpoint receives POST {latitude, longitude, perils} with a bearer token and must return {hazards: [{peril, score 0–100, …}]}. Only the location's coordinates are sent.",
+        "endpoint": "Endpoint (HTTPS)",
+        "key": "API key",
+        "save": "Save",
+        "test": "Test connection",
+        "disconnect": "Disconnect",
+        "testOk": "Connected – answered in {{ms}} ms with: {{perils}}",
+        "testFailed": "Test failed: {{error}}"
+      }
     },
     "satelliteSource": {
       "title": "Aerial Imagery Source",
       "customOption": "WMS/XYZ (custom)",
+      "customShort": "Use a custom tile URL",
+      "esriOption": "Esri World Imagery",
+      "esriShort": "Use Esri only",
       "tileTemplateLabel": "Tile Template",
-      "tileTemplateHint": "XYZ/WMS URL with {z}/{x}/{y} placeholders. Falls back to Esri without a valid template."
-    },
-    "boundaryEngine": {
-      "title": "Boundary Detection Engine",
-      "description": "\"Multi-source fusion\" combines cadastre, OpenStreetMap and imagery into one evidence-backed lot shape; \"Candidate ranking\" scores each source's polygon separately and keeps the best one. Every boundary result records which engine actually produced it.",
-      "legacy": "Candidate ranking",
-      "fused": "Multi-source fusion"
+      "tileTemplateHint": "XYZ URL with {z}/{x}/{y} or WMS GetMap URL with {bbox-epsg-3857}. Falls back to Esri without a valid template.",
+      "autoOption": "Automatic (recommended)",
+      "autoShort": "Best available source per location",
+      "autoHint": "Picks the newest source per location: Esri World Imagery or the official state orthophoto (14 German states with an open service). Map view and vehicle detection use the same source; the choice is stored with every detection."
     },
     "appearance": {
       "title": "Appearance",
@@ -341,6 +401,104 @@
       "light": "Light",
       "dark": "Dark",
       "system": "System"
+    },
+    "llmReady": "Set up",
+    "llmNotReady": "Not set up",
+    "llmSetupHint": "Needed for chat, executive summary and underwriting memo: pick a provider, enter a model and – for OpenAI/Claude – save an API key. A local model needs no key.",
+    "local": {
+      "description": "The app looks for running runtimes on this computer automatically. Portfolio data never leaves the device.",
+      "checking": "Checking …",
+      "running": "Running · {{count}} models",
+      "notFound": "Not found",
+      "detect": "Search again",
+      "noneRunning": "No local runtime found. Install and start Ollama:",
+      "baseUrlHint": "Only addresses on this computer (localhost). Leave empty for Ollama (http://localhost:11434/v1)."
+    },
+    "models": {
+      "pick": "Choose a model ({{count}} available)",
+      "none": "The provider reported no chat models – enter the model ID manually.",
+      "noneLocal": "No models installed yet – install one from Hugging Face below.",
+      "failed": "Could not load the model list: {{error}}",
+      "needKey": "Save an API key – the available models then appear here automatically.",
+      "needBaseUrl": "Enter the base URL – the available models then appear here automatically.",
+      "loading": "Loading models …",
+      "manualPlaceholder": "Enter a model ID, e.g. gpt-4.1-mini",
+      "reload": "Reload model list",
+      "enterManually": "Enter model ID manually",
+      "backToList": "Back to the list"
+    },
+    "test": {
+      "button": "Test connection",
+      "localSlow": "Local models are loaded on first use – this can take up to a minute.",
+      "ok": "Connection works – answered in {{ms}} ms.",
+      "not_configured": "Not fully set up yet: model and (for OpenAI/Claude) API key are missing.",
+      "auth": "API key rejected (401/403). Check the key and save it again.",
+      "not_found": "Model or endpoint not found (404). Check the model name and base URL – “Load models” shows the available names.",
+      "unreachable": "Server not reachable. Is the local runtime running, and is the base URL correct?",
+      "error": "The provider reported an error."
+    },
+    "hf": {
+      "title": "Install a model from Hugging Face",
+      "description": "Live list of GGUF models on Hugging Face. “Install” downloads the chosen variant through Ollama. Only the search term is sent to huggingface.co.",
+      "otherRuntime": "Installing from the app works with Ollama. For LM Studio or llama.cpp, load the model there – this list is for orientation.",
+      "searchPlaceholder": "e.g. qwen, llama, mistral …",
+      "search": "Search",
+      "sort": {
+        "trending": "Trending",
+        "downloads": "Most downloads",
+        "likes": "Most likes"
+      },
+      "searchFailed": "Search failed: {{error}}",
+      "noResults": "No matching GGUF models found.",
+      "filesFailed": "Could not load files: {{error}}",
+      "parameters": "{{value}} parameters",
+      "context": "{{value}} context",
+      "gated": "Hugging Face access required",
+      "noQuants": "No individually installable GGUF files in this repository.",
+      "recommended": "Recommended",
+      "install": "Install",
+      "ollamaUnreachable": "Ollama is not reachable. Install and start Ollama, then try again.",
+      "pullFailed": "Installation failed: {{error}}",
+      "starting": "Starting download …"
+    },
+    "steps": {
+      "provider": "Choose provider",
+      "access": "Access",
+      "model": "Model"
+    },
+    "providers": {
+      "openai": {
+        "title": "OpenAI",
+        "description": "GPT models via the OpenAI API – API key required."
+      },
+      "claude": {
+        "title": "Anthropic Claude",
+        "description": "Claude models via the Anthropic API – API key required."
+      },
+      "local": {
+        "title": "Local model",
+        "description": "Runs on this computer (Ollama, LM Studio, llama.cpp) – no key, data stays local."
+      },
+      "custom": {
+        "title": "Custom endpoint",
+        "description": "Any OpenAI-compatible server: enter the base URL and a key if needed."
+      }
+    },
+    "customBaseUrlHint": "OpenAI-compatible address, usually ending in /v1. The available models load automatically afterwards.",
+    "optional": "optional",
+    "advanced": "Advanced: custom base URL / proxy",
+    "dealerDirectory": {
+      "title": "Dealer directory (Overture Maps)",
+      "description": "Adds about 44,000 car, motorcycle, truck and RV dealers in Germany from Overture Maps (Meta, Microsoft, Foursquare and others) to the location search — many are missing from OpenStreetMap. One-time download of about 500 MB that takes a few minutes; only the dealers are stored locally.",
+      "notLoaded": "Not loaded yet — search uses OpenStreetMap only.",
+      "loaded": "{{total}} dealers loaded · Overture release {{release}} · as of {{date}}",
+      "download": "Download dealer directory",
+      "refresh": "Refresh",
+      "cancel": "Cancel",
+      "discovering": "Finding the current Overture release…",
+      "reading": "Loading data… {{pct}}% · {{found}} dealers found",
+      "backgroundHint": "Keeps running in the background — you can keep using the app.",
+      "attribution": "Data: Overture Maps Foundation, CDLA Permissive 2.0. Contains data from Foursquare: Copyright 2024 Foursquare Labs, Inc. All rights reserved."
     }
   },
   "model": {
@@ -367,6 +525,28 @@
     "riskDistribution": "Risk Distribution",
     "topRisks": "Top Risk Locations",
     "noAnomalies": "No anomalies or outliers detected.",
+    "insightsTitle": "Anomalies",
+    "insightsSummary": "{{alerts}} alerts · {{outliers}} outliers",
+    "statisticalOutliers": "Statistical outliers",
+    "alertLevel": {
+      "critical": "Critical",
+      "warning": "Warning"
+    },
+    "alert": {
+      "extremeRisk": "Extreme risk (score {{score}}/100).",
+      "highEal": "Contributes {{share}}% of the portfolio EAL.",
+      "overcapacity": "Overcapacity ({{utilisation}}% of capacity).",
+      "lowBoundaryConfidence": "Uncertain lot boundary (source {{source}}).",
+      "noDetection": "No vehicles detected — check boundary and aerial imagery."
+    },
+    "anomalyMetric": {
+      "score": "Risk score",
+      "eal": "EAL",
+      "utilisation": "Utilisation"
+    },
+    "sortAscending": "Sorted ascending; click to change",
+    "sortDescending": "Sorted descending; click to change",
+    "sortNone": "Not sorted; click to sort",
     "seasonalTitle": "Seasonal Risk Profile",
     "seasonalDescription": "Typical annual distribution of portfolio risk by peril",
     "coverageTitle": "Peril Coverage & Concentration",
@@ -411,6 +591,8 @@
       "table": "Location table"
     },
     "detailDialog": {
+      "imageryCountedOn": "Vehicles counted on",
+      "imageryUnrecorded": "Image source of the vehicle count not recorded (analysis predates automatic source selection) – re-analyse to get the capture date.",
       "machineVehicleCount": "Machine-detected vehicles",
       "manualVehicleCount": "Human-adjusted vehicle count",
       "manualVehicleCountPlaceholder": "Enter count…",
@@ -471,6 +653,23 @@
       "showDetails": "Show details",
       "modelVersionLabel": "Model: {{version}}",
       "evidenceFallbackSuffix": " · fallback",
+      "riskText": {
+        "screeningModel": "Risk model {{version}} is a screening model",
+        "hazardProxy": "Hazard values are location-level proxies and should be validated before underwriting decisions",
+        "notEngineeringAssessment": "Not a catastrophe-model or engineering assessment",
+        "weatherWindow": "92-day weather window with screening proxies",
+        "syntheticBoundaryMethod": "Synthetic radius fallback",
+        "boundaryLookupMethod": "Geospatial boundary lookup",
+        "manualBoundaryReview": "Manual boundary review recommended",
+        "areaEstimateMethod": "Area-based estimate",
+        "aerialDetectionMethod": "Aerial object detection",
+        "vehicleEstimate": "Vehicle count is estimated; install the detector model",
+        "syntheticBoundary": "Synthetic lot boundary used",
+        "boundaryReviewRequired": "Boundary requires review before underwriting use",
+        "boundaryDisagreement": "Boundary sources do not sufficiently agree",
+        "noMlModel": "Vehicle exposure is estimated because no ML model is installed",
+        "boundaryRole": "Boundary represents {{role}}, not a confirmed operational lot"
+      },
       "osmLoading": "Loading OSM info…",
       "osmHeading": "From OpenStreetMap",
       "insuredLabel": "Insured / Part of the Book",
@@ -481,8 +680,8 @@
       "groupLabel": "Group",
       "productLimitLabel": "Product Limit (EUR)",
       "natCatTitle": "Natural catastrophe source",
-      "natCatRefresh": "Refresh CatNet",
-      "natCatRefreshing": "Querying CatNet…",
+      "natCatRefresh": "Re-query sources",
+      "natCatRefreshing": "Querying sources…",
       "natCatHazard": "{{peril}}: {{score}}/100 ({{unit}})",
       "natCatAttribute": "{{name}}: {{value}}",
       "errorPrefix": "Error: {{error}}",
@@ -504,7 +703,43 @@
       "vehicles": "Vehicles",
       "carCategory": "Vehicle / Car",
       "estimated": "Fallback boundary",
-      "manual": "Manual"
+      "manual": "Manual",
+      "imageryTitle": "Satellite image (map centre)",
+      "imageryLoading": "Loading metadata…",
+      "imageryNoMetadataWms": "The custom WMS source provides no image metadata; the capture date is unknown.",
+      "imageryDate": "Captured",
+      "imageryUnknown": "date unknown",
+      "imageryAge_one": "{{count}} year old",
+      "imageryAge_other": "{{count}} years old",
+      "imagerySource": "Provider",
+      "imagerySensor": "Sensor",
+      "imageryDescription": "Description",
+      "imageryResolution": "Resolution",
+      "imageryResolutionMosaic": "{{native}} ({{mosaic}} in mosaic)",
+      "imageryAccuracy": "Positional accuracy",
+      "imageryZoom": "Zoom level",
+      "imageryZoomRange": "{{zoom}} (source for z{{min}}–{{max}})",
+      "imageryRelease": "Esri release",
+      "imageryHint": "Applies to the map centre at this zoom level only. In “Automatic” mode the newest source is chosen per location; a sharper source wins if it is at most 6 months older.",
+      "imageryMoreDetails": "More image details",
+      "imagerySourceLabel": "Image source",
+      "imageryDateSource": "Date source",
+      "imageryDateSources": {
+        "esri-metadata": "Esri image metadata",
+        "bkg-flight-index": "flight date per BKG",
+        "none": "–"
+      },
+      "imageryAttribution": "Attribution",
+      "imagerySelection": "Selection",
+      "imageryReasons": {
+        "newest": "newest available source",
+        "sharper-within-tolerance": "sharper, at most 6 months older than the newest",
+        "only-option": "only dated source",
+        "no-dated-source": "no dated source – Esri as fallback",
+        "fixed-provider": "fixed in settings",
+        "overview-zoom": "overview zoom – Esri mosaic"
+      },
+      "imageryAlternatives": "Alternatives checked"
     },
     "editBoundary": "Edit Boundary",
     "locationsPanel": {
@@ -536,7 +771,9 @@
       "markInsured": "Mark selected as insured",
       "markNotInsured": "Mark selected as not insured",
       "markInsuredToast": "Marked {{count}} location(s) as insured",
-      "markNotInsuredToast": "Marked {{count}} location(s) as not insured"
+      "markNotInsuredToast": "Marked {{count}} location(s) as not insured",
+      "directoryHintPrefix": "Dealer missing?",
+      "directoryHintLink": "Load the dealer directory"
     },
     "layerPanel": {
       "title": "Layers",
@@ -577,7 +814,11 @@
       "zoomOut": "Zoom out",
       "emptyTitle": "No locations yet",
       "emptyDescription": "Add an address in the locations dock on the left, or import a CSV/Excel file.",
-      "analyzingProgress": "Analyzing {{done}}/{{total}}…",
+      "analyzingProgress": "Analyzing {{done}}/{{total}}",
+      "analyzingEstimating": "Estimating time left…",
+      "analyzingRemaining": "about {{time}} left",
+      "durationMinutes": "{{minutes}} min",
+      "durationHours": "{{hours}} h {{minutes}} min",
       "cancelAnalysis": "Stop analysis",
       "analysisErrors": "{{count}} locations could not be analyzed",
       "boundaryDetectionPrompt": "Boundary changed for {{name}}.",
@@ -586,7 +827,8 @@
       "undoBoundaryEdit": "Undo",
       "revertBoundaryDefault": "Revert to default",
       "updateCarDetection": "Update car detection",
-      "boundaryWarning": "{{count}} of {{total}} boundaries need review — verify coverage or edit them before using the result",
+      "boundaryWarning": "Review {{count}}/{{total}} property boundaries",
+      "boundaryWarningHint": "Does the coloured area cover the dealership lot? Click the pin → “Confirm boundary”. Otherwise use “Edit boundaries” and drag the corner points.",
       "dismissHint": "Dismiss hint",
       "detectionWarning": "{{count}} of {{total}} vehicle counts are estimated only — no AI model loaded",
       "detectionReviewSummary": "Machine: {{machine}} · Added: +{{added}} · Removed: −{{removed}} · Reviewed total: {{total}}",
@@ -728,6 +970,7 @@
     "viewExported": "View exported: {{path}}",
     "exportFailed": "Export failed: {{error}}",
     "pdfReport": "PDF Report",
+    "portfolioFile": "Portfolio file (.drm)",
     "excelReport": "Excel Report",
     "csvReport": "CSV Report",
     "readonlyView": "Read-Only HTML View",
@@ -739,6 +982,10 @@
     "compareDescription": "Compare the active portfolio against a saved session.",
     "selectBaseline": "Select baseline session…",
     "generatingDashboard": "Generating dashboard…",
+    "hailRisk": "Hail risk",
+    "estimated": "estimated",
+    "boundaryReviewNeeded": "⚠ Review property boundary",
+    "confirmBoundary": "✓ Confirm boundary",
     "topPeril": "Top peril",
     "risk": "Risk",
     "ealYear": "EAL / year",
@@ -776,5 +1023,12 @@
     "boundarySource": "Boundary source",
     "allBoundaries": "All boundaries",
     "fallbackBoundary": "Fallback boundary"
+  },
+  "aiSetup": {
+    "missingTitle": "AI assistant not set up yet",
+    "missingDescription": "Choose a provider (OpenAI, Claude, a local model or a custom endpoint) and a model in the settings to use the chat.",
+    "rejectedTitle": "Credentials rejected",
+    "rejectedDescription": "The AI endpoint did not accept the API key (401/403). Check the key, model and endpoint in the settings.",
+    "openSettings": "Set up AI"
   }
 }

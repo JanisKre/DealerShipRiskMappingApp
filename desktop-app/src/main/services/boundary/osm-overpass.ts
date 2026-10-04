@@ -61,12 +61,20 @@ export interface OsmEvidence {
   lines: EvidenceLine[];
   /** Address nodes, used to confirm which candidate carries the right number. */
   addressNodes: Array<{ point: LonLat; tags: OsmTags }>;
+  /**
+   * Named business points (shops, offices, fuel stations, …). Used only as
+   * counter-evidence: a *different* business inside a candidate site is a
+   * reason against it (docs/boundary-model.md, "Foreign businesses").
+   * Optional because evidence cached before this field existed lacks it.
+   */
+  namedPlaces?: Array<{ point: LonLat; tags: OsmTags }>;
 }
 
 export const EMPTY_OSM_EVIDENCE: OsmEvidence = {
   areas: [],
   lines: [],
   addressNodes: [],
+  namedPlaces: [],
 };
 
 // --- Query -------------------------------------------------------------
@@ -113,6 +121,10 @@ export function buildOsmEvidenceQuery(
     `  way(around:${at})["railway"];`,
     `  way(around:${at})["waterway"];`,
     `  node(around:120,${lat},${lon})["addr:housenumber"];`,
+    `  node(around:${at})["name"]["shop"];`,
+    `  node(around:${at})["name"]["office"];`,
+    `  node(around:${at})["name"]["craft"];`,
+    `  node(around:${at})["name"]["amenity"];`,
     ");",
     "out geom;",
   ].join("\n");
@@ -143,12 +155,7 @@ const VEGETATION_LANDUSE = new Set([
   "farmland",
   "village_green",
 ]);
-const VEGETATION_LEISURE = new Set([
-  "park",
-  "garden",
-  "pitch",
-  "golf_course",
-]);
+const VEGETATION_LEISURE = new Set(["park", "garden", "pitch", "golf_course"]);
 const SITE_LANDUSE = new Set(["retail", "commercial", "industrial"]);
 
 /** Which evidence layer an area belongs to, or null if it is irrelevant. */
@@ -322,7 +329,10 @@ function isClosed(points: OverpassGeometryPoint[]): boolean {
 
 const RING_TOLERANCE_DEG = 1e-7;
 
-function samePoint(a: OverpassGeometryPoint, b: OverpassGeometryPoint): boolean {
+function samePoint(
+  a: OverpassGeometryPoint,
+  b: OverpassGeometryPoint,
+): boolean {
   return (
     Math.abs(a.lat - b.lat) <= RING_TOLERANCE_DEG &&
     Math.abs(a.lon - b.lon) <= RING_TOLERANCE_DEG
@@ -396,13 +406,20 @@ export function parseOsmEvidence(data: {
   const areas: EvidenceArea[] = [];
   const lines: EvidenceLine[] = [];
   const addressNodes: OsmEvidence["addressNodes"] = [];
+  const namedPlaces: NonNullable<OsmEvidence["namedPlaces"]> = [];
 
   for (const element of data.elements ?? []) {
     const tags = element.tags ?? {};
 
     if (element.type === "node") {
-      if (tags["addr:housenumber"] && element.lat != null && element.lon != null) {
-        addressNodes.push({ point: [element.lon, element.lat], tags });
+      if (element.lat == null || element.lon == null) continue;
+      const point: LonLat = [element.lon, element.lat];
+      if (tags["addr:housenumber"]) addressNodes.push({ point, tags });
+      if (
+        tags.name &&
+        (tags.shop || tags.office || tags.craft || tags.amenity)
+      ) {
+        namedPlaces.push({ point, tags });
       }
       continue;
     }
@@ -411,7 +428,13 @@ export function parseOsmEvidence(data: {
       const kind = classifyArea(tags);
       if (!kind) continue;
       for (const ring of assembleRelationRings(element.members)) {
-        areas.push({ kind, ring, tags, osmType: "relation", osmId: element.id });
+        areas.push({
+          kind,
+          ring,
+          tags,
+          osmType: "relation",
+          osmId: element.id,
+        });
       }
       continue;
     }
@@ -446,5 +469,5 @@ export function parseOsmEvidence(data: {
     }
   }
 
-  return { areas, lines, addressNodes };
+  return { areas, lines, addressNodes, namedPlaces };
 }

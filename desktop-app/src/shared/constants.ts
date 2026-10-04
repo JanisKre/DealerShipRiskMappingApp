@@ -3,6 +3,8 @@
  * (`src/lib/constants.ts`), reduced to what this app uses.
  */
 
+import { fillTileTemplate } from "./imagery-sources";
+
 // --- Vehicle exposure -------------------------------------------------------
 
 /**
@@ -111,18 +113,26 @@ export const VEHICLE_MIN_WIDTH_M = 1.2;
 export const VEHICLE_MAX_LENGTH_M = 16;
 export const VEHICLE_MAX_ASPECT_RATIO = 5;
 
-/** Esri World Imagery — tile order is z/y/x. */
+/**
+ * Esri World Imagery — tile order is z/y/x. `blankTile=false` makes Esri
+ * answer 404 where a zoom level has no imagery; by default it serves a gray
+ * "Map data not yet available" JPEG with status 200, which the mosaic would
+ * count as valid imagery and the detector would run on. Large parts of
+ * Germany have no z20 (DETECTION_ZOOM) coverage, so this matters.
+ */
 export function buildEsriTileUrl(z: number, y: number, x: number): string {
-  return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}?blankTile=false`;
 }
 
 /** Available satellite/aerial imagery tile sources. */
-export type SatelliteProvider = "esri" | "wms";
+export type SatelliteProvider = "auto" | "esri" | "wms";
 
 /**
- * Builds the tile URL depending on the provider. `esri` is the keyless
- * default; `wms` uses a user-defined XYZ/WMS template with {z}/{x}/{y} (e.g.
- * a national aerial imagery service). An optional {time} placeholder allows a
+ * Builds the tile URL for a fixed provider. `esri` is keyless; `wms` uses a
+ * user-defined template with {z}/{x}/{y} or, for plain WMS GetMap URLs,
+ * {bbox-epsg-3857} (JOSM/iD convention). `auto` is resolved per location in
+ * the main process (imagery-source.service) and lands here as Esri only when
+ * no state source is chosen. An optional {time} placeholder allows a
  * time dimension (e.g. Sentinel-2/aerial imagery history) for temporal change
  * detection. Falls back to Esri if the template is missing/invalid.
  */
@@ -138,11 +148,10 @@ export function buildTileUrl(
     opts.wmsTemplate &&
     opts.wmsTemplate.includes("{")
   ) {
-    return opts.wmsTemplate
-      .replaceAll("{z}", String(z))
-      .replaceAll("{x}", String(x))
-      .replaceAll("{y}", String(y))
-      .replaceAll("{time}", opts.time ?? "");
+    return fillTileTemplate(opts.wmsTemplate, z, x, y).replaceAll(
+      "{time}",
+      opts.time ?? "",
+    );
   }
   return buildEsriTileUrl(z, y, x);
 }

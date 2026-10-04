@@ -42,13 +42,18 @@ describe("extractNominatimRing", () => {
       },
     });
     expect(ring).not.toBeNull();
-    const spanM = Math.abs(ring![1][0] - ring![0][0]) * 111_320 * Math.cos((52.5 * Math.PI) / 180);
+    const spanM =
+      Math.abs(ring![1][0] - ring![0][0]) *
+      111_320 *
+      Math.cos((52.5 * Math.PI) / 180);
     expect(spanM).toBeGreaterThan(100);
   });
 
   it("returns null for a Point match", () => {
     expect(
-      extractNominatimRing({ geojson: { type: "Point", coordinates: [13.4, 52.5] } }),
+      extractNominatimRing({
+        geojson: { type: "Point", coordinates: [13.4, 52.5] },
+      }),
     ).toBeNull();
   });
 
@@ -59,11 +64,23 @@ describe("extractNominatimRing", () => {
   it("rejects malformed coordinates instead of throwing", () => {
     expect(
       extractNominatimRing({
-        geojson: { type: "Polygon", coordinates: [[["a", "b"], [1, 2], [3, 4], [5, 6]]] },
+        geojson: {
+          type: "Polygon",
+          coordinates: [
+            [
+              ["a", "b"],
+              [1, 2],
+              [3, 4],
+              [5, 6],
+            ],
+          ],
+        },
       }),
     ).toBeNull();
     expect(
-      extractNominatimRing({ geojson: { type: "Polygon", coordinates: [[[1, 2]]] } }),
+      extractNominatimRing({
+        geojson: { type: "Polygon", coordinates: [[[1, 2]]] },
+      }),
     ).toBeNull();
   });
 });
@@ -85,7 +102,11 @@ describe("pickNominatimRing", () => {
   });
 
   it("accepts a nearby polygon that does not contain the anchor", () => {
-    const match = pickNominatimRing([item(square(30, 60, 0))], ANCHOR[1], ANCHOR[0]);
+    const match = pickNominatimRing(
+      [item(square(30, 60, 0))],
+      ANCHOR[1],
+      ANCHOR[0],
+    );
     expect(match).not.toBeNull();
     expect(match?.contains).toBe(false);
   });
@@ -99,18 +120,26 @@ describe("pickNominatimRing", () => {
 
   it("honours the distance gate exactly", () => {
     const justOutside = square(10, MAX_MATCH_DISTANCE_M + 60, 0);
-    expect(pickNominatimRing([item(justOutside)], ANCHOR[1], ANCHOR[0])).toBeNull();
+    expect(
+      pickNominatimRing([item(justOutside)], ANCHOR[1], ANCHOR[0]),
+    ).toBeNull();
     const justInside = square(10, MAX_MATCH_DISTANCE_M - 60, 0);
-    expect(pickNominatimRing([item(justInside)], ANCHOR[1], ANCHOR[0])).not.toBeNull();
+    expect(
+      pickNominatimRing([item(justInside)], ANCHOR[1], ANCHOR[0]),
+    ).not.toBeNull();
   });
 
   it("skips geometry that fails the ring check", () => {
     // 2 m square: far below the 100 m² floor.
-    expect(pickNominatimRing([item(square(1))], ANCHOR[1], ANCHOR[0])).toBeNull();
+    expect(
+      pickNominatimRing([item(square(1))], ANCHOR[1], ANCHOR[0]),
+    ).toBeNull();
   });
 
   it("skips an implausibly large match such as a whole municipality", () => {
-    expect(pickNominatimRing([item(square(2_000))], ANCHOR[1], ANCHOR[0])).toBeNull();
+    expect(
+      pickNominatimRing([item(square(2_000))], ANCHOR[1], ANCHOR[0]),
+    ).toBeNull();
   });
 
   it("returns null for an empty result set", () => {

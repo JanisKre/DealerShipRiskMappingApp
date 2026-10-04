@@ -130,7 +130,7 @@ describe("fetchOsmEvidence", () => {
     mocks.fetchOverpass.mockResolvedValue({ elements: [] });
     await fetchOsmEvidence(52.5, 13.4, 300);
     expect(mocks.cacheSet.mock.calls[0][0]).toBe(
-      "osm-evidence:v1:300:52.50000,13.40000",
+      "osm-evidence:v2:300:52.50000,13.40000",
     );
   });
 });
