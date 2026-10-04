@@ -41,8 +41,11 @@ with `package.json` and run `npm audit` for dependency changes.
 ## Pull requests and releases
 
 - Keep changes focused and update tests and documentation together.
-- Do not bypass the protected `main` branch or modify security controls to make
-  a check pass.
+- The repository owner (Janis Kretschmann) is an admin and has explicitly
+  authorised pushing directly to `main`. When working for the owner, commit
+  and push straight to `main` instead of creating a feature branch or PR,
+  after typecheck, lint, tests, and build pass. Do not modify security
+  controls or branch-protection settings to make a check pass.
 - Use the PR template and explain user impact, risk, and verification.
 - Releases are tag-driven. Generate checksums, the SBOM, and build provenance;
   code signing is optional until certificates are available.
