@@ -1,3 +1,4 @@
+import type { BoundaryGeometry } from "@shared/types";
 import {
   isSimpleRing,
   unprojectPoint,
@@ -360,4 +361,44 @@ export function maskToPolygon(
 
   const ring = ringToLonLat(spec, squared);
   return ring.length >= 4 ? { ring, angleRad, regularized } : null;
+}
+
+export interface MultiComponentVectorizeResult {
+  geometry: BoundaryGeometry;
+  /** False when any component's regularization was rejected by its own safety checks. */
+  regularized: boolean;
+}
+
+/**
+ * Vectorizes several already-isolated masks (e.g. the primary grown site plus
+ * a separately-confirmed component such as a storage yard across the road,
+ * docs/boundary-improvement-plan.de.md P3/P4) into one `Polygon` or, when more
+ * than one mask yields a ring, a `MultiPolygon`.
+ *
+ * Each mask is regularized against its own dominant axis rather than a shared
+ * one — two genuinely separate structures are not expected to share an
+ * orientation.
+ */
+export function masksToGeometry(
+  spec: GridSpec,
+  masks: Uint8Array[],
+  options: VectorizeOptions = {},
+): MultiComponentVectorizeResult | null {
+  const components = masks
+    .map((mask) => maskToPolygon(spec, mask, options))
+    .filter((component): component is VectorizeResult => component !== null);
+  if (components.length === 0) return null;
+  if (components.length === 1) {
+    return {
+      geometry: { type: "Polygon", coordinates: [components[0].ring] },
+      regularized: components[0].regularized,
+    };
+  }
+  return {
+    geometry: {
+      type: "MultiPolygon",
+      coordinates: components.map((component) => [component.ring]),
+    },
+    regularized: components.every((component) => component.regularized),
+  };
 }

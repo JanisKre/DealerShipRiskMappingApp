@@ -97,6 +97,23 @@ export function fetchWeather(lat: number, lon: number): Promise<WeatherMetrics> 
   return openMeteoProvider.getWeather(lat, lon);
 }
 
+/**
+ * Conservative stand-in for a failed weather lookup (Open-Meteo outage, rate
+ * limit, timeout). Every value sits at or near the low end of its clamped
+ * range, so a transient provider failure degrades the weather-driven score
+ * rather than silently inventing elevated risk — `scoreRisk` pairs this with
+ * `fallbackUsed: true` evidence rather than treating it as a real reading.
+ */
+export const NEUTRAL_WEATHER_METRICS: WeatherMetrics = {
+  maxWindKmh: 0,
+  annualPrecipMm: 0,
+  maxSnowDepthCm: 0,
+  lightningDensity: 0.3,
+  hailProbability: 0.05,
+  maxTempC: 0,
+  hotDays: 0,
+};
+
 /** Reduces hourly CAPE values to a daily maximum per calendar day. */
 function dailyMaxCape(times?: string[], cape?: number[]): number[] {
   if (!times || !cape) return [];

@@ -512,3 +512,65 @@ export async function detectVehicles(
 ): Promise<DetectionResult> {
   return getDetector().detect(image, boundary, parameters);
 }
+
+/**
+ * Detects every vehicle in `image` without clipping to any boundary
+ * (docs/boundary-improvement-plan.de.md P5: run detection on the wider
+ * context *before* the final boundary is chosen, so a too-tight boundary
+ * cannot hide vehicles the imagery already shows). Reuse the result with
+ * `filterDetectionToBoundary` once a boundary is settled, rather than
+ * re-running the model.
+ */
+export async function detectVehiclesInContext(
+  image: AerialImage,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
+): Promise<DetectionResult> {
+  return getDetector().detect(image, undefined, parameters);
+}
+
+/**
+ * Re-clips an already-computed detection to a (possibly different) boundary
+ * using each box's stored lon/lat — no re-capture, no re-inference. This is
+ * what lets a manual boundary edit or a P3 site-membership expansion update
+ * the vehicle count instantly.
+ *
+ * Returns `null` when the source detection carries no per-vehicle geometry
+ * to re-clip — the area-based `StubVehicleDetector` fallback has no real
+ * boxes, and its area estimate must instead be recomputed directly against
+ * the new boundary via `detectVehicles`.
+ */
+export function filterDetectionToBoundary(
+  detection: DetectionResult,
+  boundary: BoundaryResult,
+): DetectionResult | null {
+  if (!detection.boxes) return null;
+
+  const counts = emptyCounts();
+  const filtered: DetectionBox[] = [];
+  let confSum = 0;
+  for (const box of detection.boxes) {
+    if (box.lon == null || box.lat == null) continue;
+    const inside = booleanPointInPolygon(turfPoint([box.lon, box.lat]), {
+      type: "Feature",
+      properties: {},
+      geometry: boundary.polygon,
+    });
+    if (!inside) continue;
+    counts.car += 1;
+    confSum += box.score;
+    filtered.push(box);
+  }
+
+  const vehicleCount = filtered.length;
+  const confidence = vehicleCount > 0 ? confSum / vehicleCount : 0;
+  return {
+    ...detection,
+    vehicleCount,
+    confidence,
+    classCounts: counts,
+    boxes: filtered,
+    evidence: detection.evidence
+      ? { ...detection.evidence, confidence }
+      : undefined,
+  };
+}

@@ -479,6 +479,59 @@ describe("buildResultFromFusion", () => {
   });
 });
 
+describe("separately-confirmed components (P3)", () => {
+  const road = [unprojectPoint([-150, 6], ANCHOR), unprojectPoint([150, 6], ANCHOR)];
+
+  it("adds a same-named lot across the road as a MultiPolygon part", () => {
+    const result = fuseBoundary(
+      bundle({
+        osm: {
+          areas: [
+            { kind: "dealerArea", ring: rect(0, -30, 40, 25), tags: { name: "Autohaus Brinkmann" }, osmType: "way", osmId: 1 },
+            // A same-named storage yard the site's own name confirms as theirs.
+            { kind: "dealerArea", ring: rect(0, 40, 30, 20), tags: { name: "Autohaus Brinkmann" }, osmType: "way", osmId: 2 },
+          ],
+          lines: [
+            { kind: "publicRoad", line: road, halfWidthM: 5, tags: { highway: "primary" }, osmId: 3 },
+          ],
+          addressNodes: [],
+        },
+        anchor: unprojectPoint([0, -30], ANCHOR),
+        name: "Autohaus Brinkmann",
+      }),
+      PARAMS,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.polygon.type).toBe("MultiPolygon");
+    expect(result!.additionalComponents).toBe(1);
+    expect(result!.reasons.join(" ")).toMatch(/separately-confirmed component/);
+    // Both lots should be counted now, not just the southern one.
+    expect(result!.areaSqm).toBeGreaterThan(6_000);
+  });
+
+  it("keeps a single Polygon when the second lot has no name/address match", () => {
+    const result = fuseBoundary(
+      bundle({
+        osm: {
+          areas: [
+            { kind: "dealerArea", ring: rect(0, -30, 40, 25), tags: {}, osmType: "way", osmId: 1 },
+            { kind: "dealerArea", ring: rect(0, 40, 40, 25), tags: {}, osmType: "way", osmId: 2 },
+          ],
+          lines: [
+            { kind: "publicRoad", line: road, halfWidthM: 5, tags: { highway: "primary" }, osmId: 3 },
+          ],
+          addressNodes: [],
+        },
+        anchor: unprojectPoint([0, -30], ANCHOR),
+      }),
+      PARAMS,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.polygon.type).toBe("Polygon");
+    expect(result!.additionalComponents).toBe(0);
+  });
+});
+
 describe("cadastral snapping", () => {
   const dealerOsm = (ring: LonLat[]): OsmEvidence => ({
     areas: [

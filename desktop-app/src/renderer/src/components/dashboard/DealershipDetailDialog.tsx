@@ -16,11 +16,14 @@ import {
   Save,
   Tag,
 } from "lucide-react";
+import area from "@turf/area";
 import type {
   AnalyzedDealership,
+  BoundaryResult,
   OsmDetails,
   StructuredMemo,
 } from "@shared/types";
+import { asPolygon, outerRings } from "@shared/boundary-geometry-utils";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import {
@@ -278,6 +281,31 @@ function boundaryRoleLabel(t: TFunction, role: string | undefined): string {
 }
 
 /**
+ * Drops every extra `MultiPolygon` part except the largest, producing a
+ * plain `Polygon` (docs/boundary-improvement-plan.de.md P6 — a reviewer
+ * rejecting a separately-confirmed component, P3, should not have to
+ * redraw the whole site by hand).
+ */
+function withoutExtraComponents(boundary: BoundaryResult): BoundaryResult {
+  if (boundary.polygon.type !== "MultiPolygon") return boundary;
+  const rings = outerRings(boundary.polygon);
+  const largest = rings.reduce((best, ring) =>
+    Math.abs(area(asPolygon(ring) as never)) >
+    Math.abs(area(asPolygon(best) as never))
+      ? ring
+      : best,
+  );
+  const polygon = asPolygon(largest);
+  let areaSqm = boundary.areaSqm;
+  try {
+    areaSqm = area(polygon as never);
+  } catch {
+    // Area stays unchanged on error.
+  }
+  return { ...boundary, source: "manual", polygon, areaSqm };
+}
+
+/**
  * Boundary provenance: one always-visible summary line (source, confidence,
  * a review badge when needed) plus every other technical detail — role,
  * source agreement, alternative candidates — behind a single "Show details"
@@ -289,6 +317,7 @@ function BoundarySummary({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   const hasDetails =
     !!boundary?.role ||
     !!boundary?.quality ||
+    boundary?.polygon.type === "MultiPolygon" ||
     (boundary?.candidates?.length ?? 0) > 1;
 
   return (
@@ -350,6 +379,30 @@ function BoundarySummary({ d }: { d: AnalyzedDealership }): React.JSX.Element {
                       })}
                     </span>
                   )}
+              </div>
+            )}
+            {boundary?.polygon.type === "MultiPolygon" && (
+              <div className="flex items-center justify-between gap-2 border-t pt-1.5">
+                <span>
+                  {t("dashboard.detailDialog.boundaryMultiPartLabel", {
+                    count: boundary.polygon.coordinates.length,
+                  })}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 shrink-0 px-2 text-xs"
+                  onClick={() =>
+                    void useAppStore
+                      .getState()
+                      .updateBoundaryAndRescore(
+                        d.id,
+                        withoutExtraComponents(boundary),
+                      )
+                  }
+                >
+                  {t("dashboard.detailDialog.boundaryExcludePartAction")}
+                </Button>
               </div>
             )}
             {boundary?.candidates && boundary.candidates.length > 1 && (

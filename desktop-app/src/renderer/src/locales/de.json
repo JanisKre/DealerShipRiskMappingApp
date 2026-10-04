@@ -450,6 +450,8 @@
       },
       "boundaryReviewLabel": "Prüfung erforderlich",
       "boundaryCandidatesTitle": "{{count}} Grenzkandidaten",
+      "boundaryMultiPartLabel": "Standort hat {{count}} getrennte Teile",
+      "boundaryExcludePartAction": "Zusatzteil ausschließen",
       "boundarySource": {
         "alkis": "ALKIS-Kataster",
         "osm": "OpenStreetMap",

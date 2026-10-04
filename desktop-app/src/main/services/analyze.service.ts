@@ -2,10 +2,14 @@ import type { AnalyzedDealership, DealershipInput } from "@shared/types";
 import { hailZoneToRiskTier } from "@shared/risk-math";
 import { lookupHailZone } from "@shared/hail-zones";
 import { detectBoundary } from "./boundary.service";
-import { detectVehicles } from "./detection.service";
+import {
+  detectVehicles,
+  detectVehiclesInContext,
+  filterDetectionToBoundary,
+} from "./detection.service";
 import { geocode } from "./geocoding.service";
 import { scoreRisk } from "./risk.service";
-import { aerialImageForBoundary } from "./tiles.service";
+import { aerialImageForContext } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type { RiskParameters } from "@shared/types";
 import { createCatNetProvider } from "./catnet.service";
@@ -46,8 +50,15 @@ export async function analyzeDealership(
   const hailZone = postalCode ? lookupHailZone(postalCode) : null;
 
   const boundary = await detectBoundary(lat, lon, input.name, input.address, parameters);
-  const image = await aerialImageForBoundary(lat, lon, boundary);
-  const detection = await detectVehicles(image, boundary, parameters);
+  // Context image and first detection pass are deliberately independent of
+  // the boundary just chosen (P5): a too-tight boundary must not also hide
+  // vehicles from the model. The boundary is applied only as a spatial
+  // filter afterwards, reusing the same detection rather than re-running it.
+  const contextImage = await aerialImageForContext(lat, lon);
+  const rawDetection = await detectVehiclesInContext(contextImage, parameters);
+  const detection =
+    filterDetectionToBoundary(rawDetection, boundary) ??
+    (await detectVehicles(contextImage, boundary, parameters));
   let natCat = input.natCat;
   const natCatSettings = getSettings().natCat;
   if (

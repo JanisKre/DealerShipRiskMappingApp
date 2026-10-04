@@ -315,6 +315,48 @@ export function rasterizeBarrier(
   return touched;
 }
 
+const NEIGHBOURS_4: ReadonlyArray<readonly [number, number]> = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
+
+/**
+ * Share of a mask's outline that runs along a physical barrier cell (fence,
+ * road, railway, waterway) rather than simply being where the evidence
+ * stopped (docs/boundary-improvement-plan.de.md, P4 — `barrierSupport` must
+ * measure the actually-supported perimeter, not stand in for layer count).
+ *
+ * Every mask cell's outward-facing side (a neighbour that is not part of the
+ * mask) is one unit of outline; it counts as supported when that neighbour is
+ * blocked. A side facing outside the grid is not counted either way — the
+ * grid edge is a computation limit, not evidence.
+ */
+export function boundarySupportedByBarrier(
+  spec: GridSpec,
+  mask: Uint8Array,
+  blocked: Uint8Array,
+): number {
+  let outline = 0;
+  let supported = 0;
+  for (let row = 0; row < spec.rows; row += 1) {
+    for (let col = 0; col < spec.cols; col += 1) {
+      if (!mask[cellIndex(spec, col, row)]) continue;
+      for (const [dc, dr] of NEIGHBOURS_4) {
+        const nextCol = col + dc;
+        const nextRow = row + dr;
+        if (!isInside(spec, nextCol, nextRow)) continue;
+        const nextIndex = cellIndex(spec, nextCol, nextRow);
+        if (mask[nextIndex]) continue;
+        outline += 1;
+        if (blocked[nextIndex]) supported += 1;
+      }
+    }
+  }
+  return outline === 0 ? 0 : supported / outline;
+}
+
 /** Separable max filter — a square structuring element of radius `radiusCells`. */
 export function dilate(
   spec: GridSpec,

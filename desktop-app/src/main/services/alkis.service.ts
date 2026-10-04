@@ -44,15 +44,47 @@ import { createCircuitBreaker } from "./boundary/circuit-breaker";
  * originally configured service, left unchanged.
  *
  * IMPORTANT — only live-verified endpoints are listed here. Of the
- * 16 German federal states, only these 7 actually return parcel
- * geometries for unauthenticated requests when tested (Sept. 2026); the rest
- * have open INSPIRE metadata, but their WFS endpoints return
- * `numberReturned="0"` (Hesse, Hamburg, Saarland, Bremen, Baden-Württemberg)
- * or are dead by now (Thuringia, Mecklenburg-Western Pomerania,
- * Rhineland-Palatinate) or paid/access-restricted (Bavaria, Art. 13
- * INSPIRE Directive). For these states, the chain automatically falls back to
- * OSM/Overture or the synthetic circle — not an error case, just
- * no official source (yet).
+ * 16 German federal states, these 9 now confirmed return parcel
+ * geometries for unauthenticated requests (NRW, Sachsen, Niedersachsen,
+ * Schleswig-Holstein, Sachsen-Anhalt, Brandenburg, Berlin — Sept. 2026; Hessen
+ * and Baden-Württemberg added 14 Sep 2026, see below). The remaining 7 have
+ * open INSPIRE metadata but were still unreachable, dead, or
+ * access-restricted the last time each was tried (Hamburg, Saarland, Bremen —
+ * the `numberReturned` and non-geographic-CRS caveats below apply to any
+ * future retest of these too; Thuringia, Mecklenburg-Western Pomerania,
+ * Rhineland-Palatinate dead; Bavaria paid/access-restricted, Art. 13 INSPIRE
+ * Directive). For these states, the chain automatically falls back to
+ * OSM/Overture or the synthetic circle — not an error case, just no official
+ * source (yet). Per the plan's own instruction not to carry forward a stale
+ * negative finding unquestioned (docs/boundary-improvement-plan.de.md P8),
+ * these are due for the same live retest that found Hessen and
+ * Baden-Württemberg, not a permanent verdict.
+ *
+ * 4. Baden-Württemberg (added 14 Sep 2026, live-verified against Stuttgart and
+ *    Freiburg, BBOX spatial filtering confirmed honoured): its default
+ *    response CRS is a **projected** EPSG:25832 (UTM zone 32N) — plain metres,
+ *    not the lat/lon this module parses. Rather than add UTM↔lat/lon
+ *    projection math here, the request explicitly asks for the EPSG:4258
+ *    (ETRS89 geographic) alternate its capabilities document also advertises,
+ *    which the service honours and which needs no new parsing at all. Any
+ *    other state whose `DefaultCRS` turns out to be projected is worth the
+ *    same check before assuming it needs new code.
+ *
+ * 3. Hessen (added 14 Sep 2026, live-verified against Frankfurt and Kassel,
+ *    BBOX spatial filtering confirmed honoured): its `numberReturned="0"` on
+ *    every response is **not** an absence of data — the service's own inline
+ *    XML comment documents it as a placeholder forced by a WFS 2.0 schema
+ *    validation constraint (the real value would be "unknown", like
+ *    `numberMatched`, but that fails schema validation). The actual features
+ *    ride in `<wfs:member>` regardless. Its geometry is also encoded as
+ *    `gml:Surface`/`gml:PolygonPatch`, not a bare `gml:Polygon` — a
+ *    perfectly valid alternative GML3.2 surface encoding that the original
+ *    16-state table's parser (and, it turns out, no code in this file until
+ *    now) ever looked for, which is the more likely reason Hessen was
+ *    recorded as returning nothing in the first place. Both gaps — reading
+ *    `numberReturned` as an absence signal, and matching only bare
+ *    `gml:Polygon` — are worth checking again on any state still marked
+ *    unavailable above.
  */
 
 const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
@@ -99,6 +131,20 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
     url: "https://gdi.berlin.de/services/wfs/alkis_flurstuecke",
     typeName: "alkis_flurstuecke:flurstuecke",
     crs: 4326,
+  },
+  Hessen: {
+    url: "https://inspire-hessen.de/ows/services/org.2.07247d95-adc7-4c7d-9c7a-ed17af855317_wfs",
+    typeName: "cp:CadastralParcel",
+    crs: 4258,
+  },
+  // Its default response CRS is a projected EPSG:25832 (UTM 32N), which this
+  // module does not transform — but EPSG:4258 is offered as an alternate and
+  // the service honours `srsName`, so requesting that directly needs no
+  // projection math here at all.
+  "Baden-Württemberg": {
+    url: "https://owsproxy.lgl-bw.de/owsproxy/wfs/WFS_INSP_BW_Flst_ALKIS",
+    typeName: "cp:CadastralParcel",
+    crs: 4258,
   },
 };
 
@@ -155,6 +201,20 @@ const STATE_BBOXES: StateBbox[] = [
     maxLon: 11.6,
   },
   { state: "NRW", minLat: 50.32, maxLat: 52.53, minLon: 5.87, maxLon: 9.46 },
+  {
+    state: "Hessen",
+    minLat: 49.39,
+    maxLat: 51.66,
+    minLon: 7.77,
+    maxLon: 10.24,
+  },
+  {
+    state: "Baden-Württemberg",
+    minLat: 47.53,
+    maxLat: 49.79,
+    minLon: 7.51,
+    maxLon: 10.5,
+  },
 ];
 
 /** Candidate states for a coordinate, smallest (enclaves) first — bboxes deliberately overlap. */
@@ -407,7 +467,13 @@ async function fetchAlkisXml(
 }
 
 /**
- * Extracts the exterior rings (`gml:exterior`) of all `gml:Polygon` elements in the GML.
+ * Extracts the exterior rings (`gml:exterior`) of all `gml:Polygon` and
+ * `gml:PolygonPatch` elements in the GML. The latter appears wrapped in a
+ * `gml:Surface`/`gml:patches` (e.g. Hesse's INSPIRE download service) rather
+ * than a bare `gml:Polygon` — GML3.2's more general surface encoding of the
+ * exact same exterior/interior ring structure, so no separate handling is
+ * needed once the element name is matched too.
+ *
  * Coordinates arrive as "lat lon lat lon …" (EPSG:4258/4326, both with
  * geographic axis order lat,lon) and are flipped to [lon, lat]
  * (GeoJSON convention). Works independently of the surrounding schema
@@ -416,7 +482,8 @@ async function fetchAlkisXml(
  */
 export function parseExteriorRings(xml: string): [number, number][][] {
   const rings: [number, number][][] = [];
-  const polygonRe = /<(?:[\w.-]+:)?Polygon\b[\s\S]*?<\/(?:[\w.-]+:)?Polygon>/g;
+  const polygonRe =
+    /<(?:[\w.-]+:)?(?:PolygonPatch|Polygon)\b[\s\S]*?<\/(?:[\w.-]+:)?(?:PolygonPatch|Polygon)>/g;
   for (const match of xml.matchAll(polygonRe)) {
     const exterior = match[0].match(
       /<(?:[\w.-]+:)?exterior>[\s\S]*?<(?:[\w.-]+:)?posList[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?posList>/,

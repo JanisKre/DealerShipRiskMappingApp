@@ -313,3 +313,97 @@ export function largestComponent(
 export function areaOf(spec: GridSpec, mask: Uint8Array): number {
   return maskAreaSqm(spec, mask);
 }
+
+export interface ConfirmedComponent {
+  cells: number[];
+  areaSqm: number;
+  /** Highest-scoring cell — a reasonable seed for growing this component properly. */
+  seed: CellRef;
+}
+
+/**
+ * Finds every well-supported region the primary growth from the anchor could
+ * not reach — usually because a road or fence separates it (P3: separate,
+ * confirmed site parts such as a storage yard across the street).
+ *
+ * Deliberately independent of `growRegion`: this only *locates* candidates,
+ * each of which still needs its own membership evidence (see
+ * `site-membership.ts`) before it may be added to a result, and its own
+ * bounded growth from its own seed once accepted.
+ */
+export function findConfirmedComponents(
+  grid: EvidenceGrid,
+  exclude: Uint8Array,
+  options: {
+    highThreshold: number;
+    minAreaSqm: number;
+    maxAreaSqm: number;
+  },
+): ConfirmedComponent[] {
+  const { spec, score, blocked } = grid;
+  const total = spec.cols * spec.rows;
+  const cellAreaSqm = spec.resolutionM * spec.resolutionM;
+  const maxCells = Math.max(1, Math.floor(options.maxAreaSqm / cellAreaSqm));
+  const minCells = Math.max(1, Math.ceil(options.minAreaSqm / cellAreaSqm));
+  const visited = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  const components: ConfirmedComponent[] = [];
+
+  for (let start = 0; start < total; start += 1) {
+    if (
+      visited[start] ||
+      exclude[start] ||
+      blocked[start] ||
+      score[start] < options.highThreshold
+    ) {
+      continue;
+    }
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = start;
+    visited[start] = 1;
+    const cells: number[] = [];
+    let seedIndex = start;
+    let seedScore = score[start];
+
+    while (head < tail) {
+      const index = queue[head++];
+      cells.push(index);
+      if (score[index] > seedScore) {
+        seedScore = score[index];
+        seedIndex = index;
+      }
+      const col = index % spec.cols;
+      const row = (index - col) / spec.cols;
+      for (const [dc, dr] of NEIGHBOURS_4) {
+        const nextCol = col + dc;
+        const nextRow = row + dr;
+        if (!isInside(spec, nextCol, nextRow)) continue;
+        const nextIndex = cellIndex(spec, nextCol, nextRow);
+        if (
+          visited[nextIndex] ||
+          exclude[nextIndex] ||
+          blocked[nextIndex] ||
+          score[nextIndex] < options.highThreshold
+        ) {
+          continue;
+        }
+        visited[nextIndex] = 1;
+        queue[tail++] = nextIndex;
+      }
+    }
+
+    if (cells.length < minCells || cells.length > maxCells) continue;
+    const seedCol = seedIndex % spec.cols;
+    const seedRow = (seedIndex - seedCol) / spec.cols;
+    components.push({
+      cells,
+      areaSqm: cells.length * cellAreaSqm,
+      seed: { col: seedCol, row: seedRow },
+    });
+  }
+
+  // Largest first: when a total budget limits how many can be added, the
+  // most substantial candidate should be considered first.
+  return components.sort((a, b) => b.cells.length - a.cells.length);
+}

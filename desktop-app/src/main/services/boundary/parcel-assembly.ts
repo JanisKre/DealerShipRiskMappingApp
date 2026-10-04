@@ -55,8 +55,12 @@ export const HARD_REJECT_RATIO = 25;
 export const SHOWROOM_FOOTPRINT_SQM = 1_000;
 
 export interface ParcelEvidence {
-  /** Geometry the site is known to occupy, e.g. a mapped dealer area. */
-  footprint?: Polygon;
+  /**
+   * Geometry the site is known to occupy, e.g. a mapped dealer area or the
+   * fused result — a `MultiPolygon` when a separately-confirmed component
+   * (docs/boundary-improvement-plan.de.md P3) was added.
+   */
+  footprint?: BoundaryGeometry;
   /** Parking or dealer polygons that vouch for an otherwise unevidenced parcel. */
   supporting: Polygon[];
 }

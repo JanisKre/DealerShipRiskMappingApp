@@ -181,10 +181,20 @@ function aggregatePavedSite(
           }
         }
       }
-      const minX = Math.min(...component.map(([pointX]) => pointX));
-      const minY = Math.min(...component.map(([, pointY]) => pointY));
-      const maxX = Math.max(...component.map(([pointX]) => pointX));
-      const maxY = Math.max(...component.map(([, pointY]) => pointY));
+      // Reduced, not spread: a large paved component can hold tens of
+      // thousands of points, and `Math.min(...array)` blows the call stack
+      // at exactly that size — it was silently turning every big site into
+      // "no aerial refinement" via the caller's catch-all.
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const [pointX, pointY] of component) {
+        if (pointX < minX) minX = pointX;
+        if (pointX > maxX) maxX = pointX;
+        if (pointY < minY) minY = pointY;
+        if (pointY > maxY) maxY = pointY;
+      }
       const meanX =
         component.reduce((sum, [pointX]) => sum + pointX, 0) / component.length;
       const meanY =
