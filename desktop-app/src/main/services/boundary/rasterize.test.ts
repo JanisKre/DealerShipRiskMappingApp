@@ -6,6 +6,7 @@ import {
   type GridSpec,
 } from "./grid";
 import {
+  boundarySupportedByBarrier,
   dilate,
   erode,
   polygonRasterIoU,
@@ -321,5 +322,50 @@ describe("polygonRasterIoU", () => {
     expect(
       polygonRasterIoU(degenerate as never, poly(rect(10, 10))),
     ).toBe(0);
+  });
+});
+
+describe("boundarySupportedByBarrier", () => {
+  it("reports the fraction of the outline touching a blocked cell", () => {
+    const spec = createGridSpec(ORIGIN, 1, 40);
+    const mask = new Uint8Array(spec.cols * spec.rows);
+    const blocked = new Uint8Array(spec.cols * spec.rows);
+    const base = 10;
+    // 10x10 solid square: 40 outward-facing unit edges in total.
+    for (let row = base; row < base + 10; row += 1) {
+      for (let col = base; col < base + 10; col += 1) {
+        mask[cellIndex(spec, col, row)] = 1;
+      }
+    }
+    // Block the column immediately east of the square: 10 of those 40 edges.
+    for (let row = base; row < base + 10; row += 1) {
+      blocked[cellIndex(spec, base + 10, row)] = 1;
+    }
+    expect(boundarySupportedByBarrier(spec, mask, blocked)).toBeCloseTo(
+      10 / 40,
+      6,
+    );
+  });
+
+  it("is 0 with no barrier and 0 for an empty mask", () => {
+    const spec = createGridSpec(ORIGIN, 1, 20);
+    const mask = new Uint8Array(spec.cols * spec.rows);
+    mask[cellIndex(spec, 5, 5)] = 1;
+    const blocked = new Uint8Array(spec.cols * spec.rows);
+    expect(boundarySupportedByBarrier(spec, mask, blocked)).toBe(0);
+    expect(
+      boundarySupportedByBarrier(spec, new Uint8Array(spec.cols * spec.rows), blocked),
+    ).toBe(0);
+  });
+
+  it("does not count the grid edge itself as supported or unsupported", () => {
+    const spec = createGridSpec(ORIGIN, 1, 10);
+    const mask = new Uint8Array(spec.cols * spec.rows);
+    // Mark the entire first row: every north-facing side falls outside the grid.
+    for (let col = 0; col < spec.cols; col += 1) mask[cellIndex(spec, col, 0)] = 1;
+    const blocked = new Uint8Array(spec.cols * spec.rows);
+    // Only the outline facing south (into the grid) can be measured; none of
+    // it is blocked, so the result is 0, not skewed by the missing north side.
+    expect(boundarySupportedByBarrier(spec, mask, blocked)).toBe(0);
   });
 });

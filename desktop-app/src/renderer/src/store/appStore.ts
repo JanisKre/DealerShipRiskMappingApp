@@ -655,6 +655,46 @@ export const useAppStore = create<AppState>((set, get) => ({
           manualVehicleRemovedPoints: d.detection.manualVehicleRemovedPoints,
         };
       }
+      // A manually-confirmed boundary must survive re-analysis
+      // (docs/boundary-improvement-plan.de.md P7): re-running detection is
+      // useful, but it must never silently discard a human's correction.
+      // Vehicles and risk are recomputed against the *preserved* boundary
+      // rather than the freshly (re-)detected one that `result` carries.
+      if (d.boundary?.source === "manual") {
+        result.boundary = d.boundary;
+        result.boundaryBeforeManualEdit = d.boundaryBeforeManualEdit;
+        try {
+          const detection = await window.api.detectVehicles(
+            d.lat,
+            d.lon,
+            d.boundary,
+            get().parameters,
+          );
+          result.detection = d.detection
+            ? {
+                ...detection,
+                manualVehicleCount: d.detection.manualVehicleCount,
+                manualVehiclePoints: d.detection.manualVehiclePoints,
+                manualVehicleRemovedPoints:
+                  d.detection.manualVehicleRemovedPoints,
+              }
+            : detection;
+          result.risk = await window.api.scoreRisk(
+            d.lat,
+            d.lon,
+            d.assetValue,
+            result.detection,
+            d.boundary,
+            get().parameters,
+            result.natCat,
+          );
+        } catch (err) {
+          console.error(
+            `Re-detecting vehicles for the preserved manual boundary failed (${id}):`,
+            err,
+          );
+        }
+      }
       get().upsertDealership(result);
     } catch (err) {
       console.error(`Re-analysis failed for ${d.name}:`, err);

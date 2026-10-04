@@ -67,6 +67,25 @@ function rect(halfW: number, halfH: number): LonLat[] {
 
 const FUSED_POLYGON: Polygon = { type: "Polygon", coordinates: [rect(40, 30)] };
 
+function fusionOutcome(
+  overrides: Partial<ReturnType<typeof fusion.fuseBoundary>>,
+): NonNullable<ReturnType<typeof fusion.fuseBoundary>> {
+  return {
+    polygon: FUSED_POLYGON,
+    areaSqm: 4_800,
+    layers: [],
+    stoppedBy: "exhausted",
+    confirmed: true,
+    anchorShiftM: 3,
+    reasons: [],
+    mask: new Uint8Array(1),
+    grid: {} as never,
+    barrierSupport: 0.4,
+    additionalComponents: 0,
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   vi.restoreAllMocks();
   mocks.getSettings.mockReturnValue({});
@@ -119,6 +138,8 @@ describe("boundaryEngine flag", () => {
       reasons: [],
       mask: new Uint8Array(1),
       grid: {} as never,
+      barrierSupport: 0.4,
+      additionalComponents: 0,
     });
 
     const result = await detectBoundary(LAT, LON);
@@ -185,6 +206,8 @@ describe("boundaryEngine flag", () => {
       reasons: ["growth stopped by the areaCap"],
       mask: new Uint8Array(1),
       grid: {} as never,
+      barrierSupport: 0,
+      additionalComponents: 0,
     });
 
     const result = await detectBoundary(LAT, LON);
@@ -192,6 +215,35 @@ describe("boundaryEngine flag", () => {
     // A truncated, unconfirmed site must be flagged however it was produced.
     expect(result.reviewRequired).toBe(true);
     expect(result.quality?.stoppedBy).toBe("areaCap");
+  });
+
+  it("widens the search space when growth is capped by its radius, then succeeds", async () => {
+    mocks.getSettings.mockReturnValue({ boundaryEngine: "fused" });
+    vi.spyOn(fusion, "fuseBoundary")
+      .mockReturnValueOnce(fusionOutcome({ stoppedBy: "radiusCap" }))
+      .mockReturnValueOnce(fusionOutcome({ stoppedBy: "exhausted" }));
+
+    const result = await detectBoundary(LAT, LON);
+    expect(result.source).toBe("fused");
+    expect(result.quality?.possiblyIncomplete).toBeUndefined();
+    expect(mocks.collectEvidence).toHaveBeenCalledTimes(2);
+    const extents = mocks.collectEvidence.mock.calls.map(
+      (call) => call[2].parameters.boundaryGridExtentM,
+    );
+    expect(extents[1]).toBeGreaterThan(extents[0]);
+  });
+
+  it("stops after two expansions and flags the result as possibly incomplete", async () => {
+    mocks.getSettings.mockReturnValue({ boundaryEngine: "fused" });
+    vi.spyOn(fusion, "fuseBoundary").mockReturnValue(
+      fusionOutcome({ stoppedBy: "radiusCap" }),
+    );
+
+    const result = await detectBoundary(LAT, LON);
+    expect(result.source).toBe("fused");
+    expect(result.quality?.possiblyIncomplete).toBe(true);
+    // Initial attempt plus at most two expansions — never unbounded.
+    expect(mocks.collectEvidence).toHaveBeenCalledTimes(3);
   });
 });
 

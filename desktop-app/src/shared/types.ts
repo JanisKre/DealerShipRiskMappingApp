@@ -216,6 +216,11 @@ export const BoundaryQualitySchema = z.object({
   fallbackReason: z.string().max(200).optional(),
   /** Version of whichever pipeline (`usedEngine`) produced this result, for rollback/diagnosis. */
   resultVersion: z.number().int().nonnegative().optional(),
+  /**
+   * The search space was expanded (P3) up to its budget and still hit the
+   * radius cap — there may be supported evidence this result did not reach.
+   */
+  possiblyIncomplete: z.boolean().optional(),
 });
 export type BoundaryQuality = z.infer<typeof BoundaryQualitySchema>;
 

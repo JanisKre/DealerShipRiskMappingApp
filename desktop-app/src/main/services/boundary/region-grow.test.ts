@@ -3,6 +3,7 @@ import { cellIndex, createGrid, maskAreaSqm, type EvidenceGrid } from "./grid";
 import {
   closeMask,
   fillHoles,
+  findConfirmedComponents,
   growRegion,
   largestComponent,
   pickSeed,
@@ -269,5 +270,52 @@ describe("largestComponent", () => {
     const g = grid();
     const empty = largestComponent(g.spec, new Uint8Array(g.spec.cols * g.spec.rows));
     expect(maskAreaSqm(g.spec, empty)).toBe(0);
+  });
+});
+
+describe("findConfirmedComponents", () => {
+  const COMPONENT_OPTIONS = { highThreshold: 0.6, minAreaSqm: 30, maxAreaSqm: 50_000 };
+
+  it("finds a well-supported island the primary growth never reached", () => {
+    const g = grid();
+    rasterizePolygon(g.spec, rect(80, 0, 10, 10), g.score, 1);
+    const exclude = new Uint8Array(g.spec.cols * g.spec.rows);
+    const found = findConfirmedComponents(g, exclude, COMPONENT_OPTIONS);
+    expect(found).toHaveLength(1);
+    expect(found[0].areaSqm).toBeGreaterThan(300);
+  });
+
+  it("ignores cells already claimed by the primary mask", () => {
+    const g = grid();
+    rasterizePolygon(g.spec, rect(0, 0, 10, 10), g.score, 1);
+    const exclude = new Uint8Array(g.spec.cols * g.spec.rows);
+    for (let i = 0; i < exclude.length; i += 1) exclude[i] = g.score[i] > 0 ? 1 : 0;
+    expect(findConfirmedComponents(g, exclude, COMPONENT_OPTIONS)).toHaveLength(0);
+  });
+
+  it("drops a component below the minimum area (raster noise, not a site)", () => {
+    const g = grid();
+    rasterizePolygon(g.spec, rect(80, 0, 2, 2), g.score, 1);
+    const exclude = new Uint8Array(g.spec.cols * g.spec.rows);
+    expect(findConfirmedComponents(g, exclude, COMPONENT_OPTIONS)).toHaveLength(0);
+  });
+
+  it("does not cross a barrier when searching (respects blocked cells)", () => {
+    const g = grid();
+    rasterizePolygon(g.spec, rect(-40, 0, 30, 30), g.score, 1);
+    rasterizeBarrier(g.spec, rect(0, 0, 10, 200), g.blocked);
+    const exclude = new Uint8Array(g.spec.cols * g.spec.rows);
+    const found = findConfirmedComponents(g, exclude, COMPONENT_OPTIONS);
+    // One component only — the barrier does not itself create a second one.
+    expect(found).toHaveLength(1);
+  });
+
+  it("reports the highest-scoring cell in each component as its seed", () => {
+    const g = grid();
+    rasterizePolygon(g.spec, rect(80, 0, 10, 10), g.score, 0.7);
+    g.score[cellIndex(g.spec, 560, 400)] = 1; // centre of that rectangle, boosted
+    const exclude = new Uint8Array(g.spec.cols * g.spec.rows);
+    const [component] = findConfirmedComponents(g, exclude, COMPONENT_OPTIONS);
+    expect(component.seed).toEqual({ col: 560, row: 400 });
   });
 });

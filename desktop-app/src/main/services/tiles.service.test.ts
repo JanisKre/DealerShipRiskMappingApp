@@ -31,7 +31,7 @@ vi.mock("./http.service", () => ({
 }));
 
 import { TILE_SIZE } from "@shared/constants";
-import { aerialImageForBbox } from "./tiles.service";
+import { aerialImageForBbox, aerialImageForContext } from "./tiles.service";
 
 describe("aerial tile mosaics", () => {
   beforeEach(() => {
@@ -132,5 +132,41 @@ describe("aerial tile mosaics", () => {
 
     expect(capture.zoom).toBe(20);
     expect(capture.validTileCount).toBe(capture.tileCount);
+  });
+});
+
+describe("aerialImageForContext", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getSettings.mockReturnValue({ satelliteProvider: "esri" });
+    mocks.cacheGet.mockReturnValue(null);
+    mocks.fetchWithResilience.mockResolvedValue({
+      ok: true,
+      arrayBuffer: vi.fn().mockResolvedValue(Buffer.from("tile")),
+    });
+    mocks.sharpChain.toBuffer.mockResolvedValue(
+      Buffer.alloc(TILE_SIZE * TILE_SIZE * 3, 96),
+    );
+  });
+
+  it("captures a fixed, modest radius independent of any boundary", async () => {
+    const capture = await aerialImageForContext(52.5, 13.4);
+    const [west, south, east, north] = capture.bbox;
+    const widthM = (east - west) * 111_320 * Math.cos((52.5 * Math.PI) / 180);
+    const heightM = (north - south) * 111_320;
+    // 100 m radius on every side (200 m across) — modest on purpose: this
+    // capture runs on every analysis, unlike the occasional wide refinement
+    // captures elsewhere, so it must not blow up tile/inference cost.
+    expect(widthM).toBeGreaterThan(190);
+    expect(widthM).toBeLessThan(400);
+    expect(heightM).toBeGreaterThan(190);
+  });
+
+  it("does not vary with the coordinates given (no hidden scaling)", async () => {
+    const a = await aerialImageForContext(52.5, 13.4);
+    const b = await aerialImageForContext(48.1, 11.6);
+    const spanM = (capture: typeof a, lat: number): number =>
+      (capture.bbox[2] - capture.bbox[0]) * 111_320 * Math.cos((lat * Math.PI) / 180);
+    expect(spanM(a, 52.5)).toBeCloseTo(spanM(b, 48.1), 0);
   });
 });

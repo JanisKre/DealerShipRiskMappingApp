@@ -229,6 +229,8 @@
       },
       "boundaryReviewLabel": "Vérification requise",
       "boundaryCandidatesTitle": "{{count}} limites candidates",
+      "boundaryMultiPartLabel": "Le site a {{count}} parties séparées",
+      "boundaryExcludePartAction": "Exclure la partie supplémentaire",
       "boundarySource": {
         "alkis": "Cadastre ALKIS",
         "osm": "OpenStreetMap",

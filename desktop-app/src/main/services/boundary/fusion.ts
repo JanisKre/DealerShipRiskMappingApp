@@ -8,8 +8,9 @@ import type {
   SourceStatus,
 } from "@shared/types";
 import { checkRing, type LonLat } from "../boundary-geometry";
-import { createGrid, maskAreaSqm, type EvidenceGrid } from "./grid";
+import { cellToLonLat, createGrid, maskAreaSqm, type EvidenceGrid } from "./grid";
 import {
+  boundarySupportedByBarrier,
   polygonRasterIoU,
   rasterizeBarrier,
   rasterizeDisk,
@@ -20,14 +21,20 @@ import {
 import {
   closeMask,
   fillHoles,
+  findConfirmedComponents,
   growRegion,
   largestComponent,
   pickSeed,
   reclaimBarrierCells,
 } from "./region-grow";
-import { maskToPolygon } from "./vectorize";
+import { maskToPolygon, masksToGeometry } from "./vectorize";
 import type { EvidenceArea, EvidenceLine, OsmEvidence } from "./osm-overpass";
 import type { ParcelFeature } from "../alkis.service";
+import {
+  evaluateComponentMembership,
+  isAdjacentParcel,
+  matchesSite,
+} from "./site-membership";
 import {
   assembleSiteFromParcels,
   type AssemblyResult,
@@ -50,6 +57,11 @@ import {
 
 /** Bumped whenever scoring changes, so cached results can be retired. */
 export const FUSION_VERSION = 1;
+
+/** Below this, a separately-confirmed component reads as raster noise, not a site part. */
+const MIN_SECONDARY_COMPONENT_SQM = 100;
+/** At most this many additional components beyond the primary site (P3). */
+const MAX_ADDITIONAL_COMPONENTS = 1;
 
 /** Cell weights per evidence layer. See docs/boundary-model.md. */
 export const LAYER_WEIGHTS = {
@@ -103,6 +115,14 @@ export interface FusionOutcome {
   reasons: string[];
   mask: Uint8Array;
   grid: EvidenceGrid;
+  /** Share of the final outline running along a physical barrier cell (P4). */
+  barrierSupport: number;
+  /**
+   * Number of separately-grown components beyond the primary site (P3) —
+   * present in `polygon` as extra `MultiPolygon` parts, each individually
+   * membership-checked before being added.
+   */
+  additionalComponents: number;
 }
 
 interface LayerAccumulator {
@@ -115,52 +135,10 @@ function accumulator(): LayerAccumulator {
   return { layers, add: (layer) => layers.push(layer) };
 }
 
-function normalize(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-const NAME_STOPWORDS = new Set([
-  "auto",
-  "autohaus",
-  "gmbh",
-  "co",
-  "kg",
-  "ag",
-  "strasse",
-  "deutschland",
-  "filiale",
-]);
-
-/**
- * Whether an area's own tags identify it as *this* dealership rather than
- * merely as *a* dealership nearby. Used only to raise its weight.
- */
-export function matchesSite(
-  tags: Record<string, string>,
-  name?: string,
-  address?: string,
-): boolean {
-  const haystack = normalize(
-    `${tags.name ?? ""} ${tags.brand ?? ""} ${tags.operator ?? ""}`,
-  ).split(" ");
-  const tokens = normalize(`${name ?? ""}`)
-    .split(" ")
-    .filter((token) => token.length >= 4 && !NAME_STOPWORDS.has(token));
-  if (tokens.some((token) => haystack.includes(token))) return true;
-
-  const postcode = address?.match(/\b\d{5}\b/)?.[0];
-  if (postcode && tags["addr:postcode"] === postcode) {
-    const houseNumber = address?.match(/\b\d+\s*[a-z]?\b/i)?.[0]?.trim().toLowerCase();
-    if (!houseNumber) return true;
-    return tags["addr:housenumber"]?.toLowerCase() === houseNumber;
-  }
-  return false;
-}
+// Re-exported for existing call sites/tests that import it from here; the
+// implementation moved to `site-membership.ts` so it can also be reused when
+// deciding whether a separately-grown component belongs to the site (P3).
+export { matchesSite } from "./site-membership";
 
 function areaWeight(
   area: EvidenceArea,
@@ -344,6 +322,17 @@ export function buildEvidenceGrid(
   return { grid, layers: acc.layers };
 }
 
+/** Union of several equally-sized masks, cell by cell. */
+function orMasks(masks: Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(masks[0].length);
+  for (const mask of masks) {
+    for (let i = 0; i < out.length; i += 1) {
+      if (mask[i]) out[i] = 1;
+    }
+  }
+  return out;
+}
+
 function ringContains(ring: LonLat[], point: LonLat): boolean {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -422,6 +411,87 @@ export function fuseBoundary(
     (seed.row - grid.spec.rows / 2) * grid.spec.resolutionM,
   );
 
+  const primaryAreaSqm = maskAreaSqm(grid.spec, mask);
+  const anchorParcel = bundle.parcels.find((parcel) =>
+    ringContains(parcel.ring, bundle.anchor),
+  );
+
+  // Separately-confirmed components (P3): the primary region grow cannot
+  // cross a road or fence even when a genuine part of the same operational
+  // site — a storage yard directly across the street, say — sits on the
+  // other side. Each candidate needs its own positive membership evidence;
+  // being nearby, or merely well-scored, is not that evidence (§2 of the
+  // plan: an unsupported gap is not closed by a bigger hull).
+  const additionalMasks: Uint8Array[] = [];
+  const remainingBudget = parameters.boundaryMaxAreaSqm - primaryAreaSqm;
+  if (remainingBudget >= MIN_SECONDARY_COMPONENT_SQM) {
+    const candidates = findConfirmedComponents(grid, mask, {
+      highThreshold: growOptions.highThreshold,
+      minAreaSqm: MIN_SECONDARY_COMPONENT_SQM,
+      maxAreaSqm: remainingBudget,
+    });
+    for (const candidate of candidates) {
+      if (additionalMasks.length >= MAX_ADDITIONAL_COMPONENTS) break;
+      const seedPoint = cellToLonLat(grid.spec, candidate.seed.col, candidate.seed.row);
+      const overlappingAreaTags = (bundle.osm?.areas ?? [])
+        .filter((area) => ringContains(area.ring, seedPoint))
+        .map((area) => ({ kind: area.kind, tags: area.tags }));
+      const parcelHere = bundle.parcels.find((parcel) =>
+        ringContains(parcel.ring, seedPoint),
+      );
+      const onAdjacentParcel =
+        anchorParcel != null &&
+        parcelHere != null &&
+        parcelHere !== anchorParcel &&
+        isAdjacentParcel(parcelHere, anchorParcel);
+      const evaluation = evaluateComponentMembership({
+        name: bundle.name,
+        address: bundle.address,
+        overlappingAreaTags,
+        onAdjacentParcel,
+      });
+      if (!evaluation.accepted) {
+        reasons.push(`separate component excluded: ${evaluation.reasons[0]}`);
+        continue;
+      }
+
+      const grownComponent = growRegion(grid, candidate.seed, {
+        ...growOptions,
+        maxAreaSqm: remainingBudget,
+      });
+      if (grownComponent.areaSqm === 0) continue;
+      let componentMask = closeMask(grid.spec, grownComponent.mask, closingCells);
+      componentMask = largestComponent(grid.spec, componentMask);
+      componentMask = fillHoles(grid.spec, componentMask, 2_500);
+      componentMask = reclaimBarrierCells(grid.spec, componentMask, grid.blocked);
+      const componentVector = maskToPolygon(grid.spec, componentMask, {
+        simplifyToleranceM: 1,
+        regularizeAngleToleranceDeg: parameters.boundaryRegularizeAngleToleranceDeg,
+      });
+      if (
+        !componentVector ||
+        !checkRing(componentVector.ring, {
+          minAreaSqm: MIN_SECONDARY_COMPONENT_SQM,
+          maxAreaSqm: remainingBudget,
+        }).valid
+      ) {
+        continue;
+      }
+      additionalMasks.push(componentMask);
+      reasons.push(
+        `added a separately-confirmed component: ${evaluation.reasons[0]}`,
+      );
+    }
+  }
+
+  const combinedMask =
+    additionalMasks.length === 0 ? mask : orMasks([mask, ...additionalMasks]);
+  const barrierSupport = boundarySupportedByBarrier(
+    grid.spec,
+    combinedMask,
+    grid.blocked,
+  );
+
   // Snap to the cadastre when it agrees. The grown region knows where the
   // *operational* site is; the cadastre knows where the *legal* edges are.
   // Taking the parcel union gives surveyed edges instead of a 0.5 m raster
@@ -431,13 +501,20 @@ export function fuseBoundary(
     type: "Polygon",
     coordinates: [vector.ring],
   };
-  let polygon: BoundaryGeometry = fusedPolygon;
-  let areaSqm = maskAreaSqm(grid.spec, mask);
+  const fusedGeometry: BoundaryGeometry =
+    additionalMasks.length === 0
+      ? fusedPolygon
+      : (masksToGeometry(grid.spec, [mask, ...additionalMasks], {
+          simplifyToleranceM: 1,
+          regularizeAngleToleranceDeg: parameters.boundaryRegularizeAngleToleranceDeg,
+        })?.geometry ?? fusedPolygon);
+  let polygon: BoundaryGeometry = fusedGeometry;
+  let areaSqm = maskAreaSqm(grid.spec, combinedMask);
   let cadastre: AssemblyResult | undefined;
 
   if (!bundle.parcelsTruncated && bundle.parcels.length > 0) {
     const assembled = assembleSiteFromParcels(bundle.parcels, bundle.anchor, {
-      footprint: fusedPolygon,
+      footprint: fusedGeometry,
       supporting: (bundle.osm?.areas ?? [])
         .filter((a) => a.kind === "dealerArea" || a.kind === "parking")
         .map((a) => ({ type: "Polygon", coordinates: [a.ring] }) as Polygon),
@@ -445,7 +522,7 @@ export function fuseBoundary(
     if (assembled) {
       const agreement = polygonRasterIoU(
         assembled.polygon,
-        fusedPolygon,
+        fusedGeometry,
         parameters.boundaryGridResolutionM,
       );
       if (agreement >= parameters.boundaryParcelSnapOverlap) {
@@ -472,8 +549,10 @@ export function fuseBoundary(
     confirmed: grown.confirmed,
     anchorShiftM,
     reasons,
-    mask,
+    mask: combinedMask,
     grid,
+    barrierSupport,
+    additionalComponents: additionalMasks.length,
   };
 }
 

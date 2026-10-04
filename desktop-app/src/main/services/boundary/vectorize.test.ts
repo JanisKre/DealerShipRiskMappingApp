@@ -6,6 +6,7 @@ import {
   dominantAngleRad,
   maskToPolygon,
   maskToRings,
+  masksToGeometry,
   regularizeRectilinear,
   simplifyRing,
 } from "./vectorize";
@@ -275,5 +276,50 @@ describe("maskToPolygon", () => {
   it("is deterministic", () => {
     const mask = maskOf([rect(37, 23, 18)]);
     expect(maskToPolygon(SPEC, mask)).toEqual(maskToPolygon(SPEC, mask));
+  });
+});
+
+describe("masksToGeometry", () => {
+  function offsetRing(
+    centreE: number,
+    centreN: number,
+    halfW: number,
+    halfH: number,
+  ): LonLat[] {
+    const ring = (
+      [
+        [centreE - halfW, centreN - halfH],
+        [centreE + halfW, centreN - halfH],
+        [centreE + halfW, centreN + halfH],
+        [centreE - halfW, centreN + halfH],
+      ] as Array<[number, number]>
+    ).map((c) => unprojectPoint(c, ORIGIN));
+    ring.push(ring[0]);
+    return ring;
+  }
+
+  it("returns a plain Polygon for a single mask", () => {
+    const result = masksToGeometry(SPEC, [maskOf([rect(40, 25)])]);
+    expect(result?.geometry.type).toBe("Polygon");
+  });
+
+  it("returns a MultiPolygon with one part per disjoint mask", () => {
+    const primary = maskOf([offsetRing(-100, 0, 30, 25)]);
+    const secondary = maskOf([offsetRing(100, 0, 15, 15)]);
+    const result = masksToGeometry(SPEC, [primary, secondary]);
+    expect(result?.geometry.type).toBe("MultiPolygon");
+    expect(result?.geometry.type === "MultiPolygon" && result.geometry.coordinates)
+      .toHaveLength(2);
+  });
+
+  it("drops a mask that fails to vectorize and keeps the rest", () => {
+    const empty = new Uint8Array(SPEC.cols * SPEC.rows);
+    const result = masksToGeometry(SPEC, [maskOf([rect(40, 25)]), empty]);
+    expect(result?.geometry.type).toBe("Polygon");
+  });
+
+  it("returns null when every mask is empty", () => {
+    const empty = new Uint8Array(SPEC.cols * SPEC.rows);
+    expect(masksToGeometry(SPEC, [empty, empty])).toBeNull();
   });
 });

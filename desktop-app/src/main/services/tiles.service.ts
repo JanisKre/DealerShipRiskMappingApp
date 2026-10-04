@@ -159,6 +159,39 @@ export async function aerialImageForBbox(
   );
 }
 
+/**
+ * Radius, independent of any boundary result. Real detected lots are
+ * typically well under 150 m across, so this only needs to be modestly
+ * wider than that to catch a vehicle just outside an underestimated
+ * boundary — not `parameters.boundaryGridExtentM`-sized: at zoom
+ * `DETECTION_ZOOM` a 400+ m capture is several hundred tiles, and doing
+ * that unconditionally on every analysis (this used to be an occasional
+ * refinement step, not a per-analysis one) made a normal run visibly stall.
+ */
+const CONTEXT_CAPTURE_RADIUS_M = 100;
+
+/**
+ * Captures around the geocoded point with a fixed, boundary-independent
+ * radius — deliberately not sized from a detected boundary
+ * (docs/boundary-improvement-plan.de.md P5). Vehicle detection run on this
+ * image sees the full context; a too-tight boundary can then be caught by
+ * vehicles it would otherwise have hidden from the model entirely.
+ */
+export async function aerialImageForContext(
+  lat: number,
+  lon: number,
+  time?: string,
+): Promise<AerialCapture> {
+  const radiusM = CONTEXT_CAPTURE_RADIUS_M;
+  const dLat = radiusM / 111_320;
+  const dLon = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
+  return aerialImageForBbox(
+    [lon - dLon, lat - dLat, lon + dLon, lat + dLat],
+    DETECTION_ZOOM,
+    time,
+  );
+}
+
 // Below this fraction of valid tiles, retry one zoom level down. Some
 // orthophoto providers don't publish their sharpest imagery everywhere, and
 // that failure mode (a region capped at a lower max zoom) is indistinguishable

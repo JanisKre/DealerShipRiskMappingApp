@@ -26,6 +26,36 @@ const INSPIRE_CP_SAMPLE = `<?xml version="1.0" encoding="utf-8"?>
 </wfs:member>
 </wfs:FeatureCollection>`;
 
+/**
+ * Real GML structure of Hesse's INSPIRE `cp:CadastralParcel` download service
+ * (live-verified 14 Sep 2026 against
+ * https://inspire-hessen.de/ows/services/org.2.07247d95-adc7-4c7d-9c7a-ed17af855317_wfs):
+ * geometry is a `gml:Surface`/`gml:PolygonPatch`, not a bare `gml:Polygon` —
+ * the encoding the older 16-state table never tried, which is why Hesse was
+ * recorded as returning nothing.
+ */
+const HESSEN_CP_SAMPLE = `<?xml version='1.0' encoding='UTF-8'?>
+<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:cp="http://inspire.ec.europa.eu/schemas/cp/4.0" numberMatched="unknown" numberReturned="0">
+<wfs:member>
+<cp:CadastralParcel gml:id="CadastralParcel_060460043000150010__">
+<cp:areaValue uom="m2">26.0</cp:areaValue>
+<cp:geometry>
+<gml:Surface gml:id="GEOMETRY_9eca7a4b" srsName="urn:ogc:def:crs:EPSG::4258">
+<gml:patches>
+<gml:PolygonPatch>
+<gml:exterior>
+<gml:LinearRing>
+<gml:posList>50.112922 8.679600 50.112932 8.679645 50.113020 8.679576 50.113016 8.679559 50.112922 8.679600</gml:posList>
+</gml:LinearRing>
+</gml:exterior>
+</gml:PolygonPatch>
+</gml:patches>
+</gml:Surface>
+</cp:geometry>
+</cp:CadastralParcel>
+</wfs:member>
+</wfs:FeatureCollection>`;
+
 /** Real GML structure of the NRW feature type `ave:Flurstueck` (ALKIS simplified). */
 const NRW_ALKIS_SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
 <wfs:FeatureCollection xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:ave="http://www.adv-online.de/ave">
@@ -58,6 +88,13 @@ describe("parseExteriorRings", () => {
     const rings = parseExteriorRings(NRW_ALKIS_SAMPLE);
     expect(rings).toHaveLength(1);
     expect(rings[0][0]).toEqual([6.9603, 50.9375]);
+  });
+
+  it("parses Hesse's gml:Surface/PolygonPatch encoding", () => {
+    const rings = parseExteriorRings(HESSEN_CP_SAMPLE);
+    expect(rings).toHaveLength(1);
+    expect(rings[0][0]).toEqual([8.6796, 50.112922]);
+    expect(rings[0][0]).toEqual(rings[0][rings[0].length - 1]);
   });
 
   it("returns an empty list without gml:Polygon elements", () => {

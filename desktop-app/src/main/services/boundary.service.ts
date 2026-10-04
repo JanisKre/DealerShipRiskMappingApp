@@ -26,7 +26,6 @@ import {
   buildResultFromFusion,
   FUSION_VERSION,
   fuseBoundary,
-  layerDiversity,
 } from "./boundary/fusion";
 import { getSettings } from "./settings.service";
 import { fromOverture } from "./overture.service";
@@ -167,6 +166,7 @@ export async function detectBoundary(
             : {}),
           resultVersion:
             attempt.usedEngine === "fused" ? FUSION_VERSION : LEGACY_RANKING_VERSION,
+          ...(attempt.possiblyIncomplete ? { possiblyIncomplete: true } : {}),
         }
       : undefined,
   };
@@ -210,7 +210,19 @@ interface FusionAttempt {
   usedEngine: BoundaryEngine;
   fallbackReason?: string;
   result: BoundaryResult | null;
+  /** True when even the widest attempted search space still hit the radius cap. */
+  possiblyIncomplete?: boolean;
 }
+
+/**
+ * How many times the search space may widen when growth was capped by its
+ * radius while evidence continued past it (P3: "expand the search space when
+ * there are supported hints at the edge, at most twice, within an overall
+ * budget"). Two steps of this factor doubles the original grid extent —
+ * `boundaryMaxAreaSqm` remains the actual area budget regardless.
+ */
+const MAX_SEARCH_EXPANSIONS = 2;
+const SEARCH_EXPANSION_FACTOR = Math.SQRT2;
 
 /**
  * Runs the evidence-fusion engine, when it is enabled and has something to work
@@ -249,12 +261,37 @@ async function tryFusedBoundary(
   }
 
   try {
-    const bundle = await collectEvidence(lat, lon, {
+    let attemptParameters = parameters;
+    let bundle = await collectEvidence(lat, lon, {
       name: context.name,
       address: context.address,
-      parameters,
+      parameters: attemptParameters,
     });
-    const outcome = fuseBoundary(bundle, parameters);
+    let outcome = fuseBoundary(bundle, attemptParameters);
+
+    // Widen the search space when growth was capped by its radius while
+    // evidence continued past it — that is a real hint the site extends
+    // further, not merely a large `boundaryMaxAreaSqm`. A wider grid also
+    // needs a wider evidence query, so both are re-collected together.
+    let expansions = 0;
+    while (
+      outcome?.stoppedBy === "radiusCap" &&
+      expansions < MAX_SEARCH_EXPANSIONS
+    ) {
+      expansions += 1;
+      attemptParameters = {
+        ...attemptParameters,
+        boundaryGridExtentM:
+          attemptParameters.boundaryGridExtentM * SEARCH_EXPANSION_FACTOR,
+      };
+      bundle = await collectEvidence(lat, lon, {
+        name: context.name,
+        address: context.address,
+        parameters: attemptParameters,
+      });
+      outcome = fuseBoundary(bundle, attemptParameters);
+    }
+
     if (!outcome) {
       return {
         requestedEngine,
@@ -263,6 +300,7 @@ async function tryFusedBoundary(
         result: null,
       };
     }
+    const possiblyIncomplete = outcome.stoppedBy === "radiusCap";
 
     // Agreement against the independently-derived candidates, not against the
     // sources fusion already consumed — otherwise it would be corroborating
@@ -278,16 +316,14 @@ async function tryFusedBoundary(
       0,
     );
 
-    const result = buildResultFromFusion(outcome, parameters, {
-      // Until perimeter support is computed from the barrier lines themselves,
-      // report layer diversity in its place rather than an invented number.
-      barrierSupport: layerDiversity(outcome.layers),
+    const result = buildResultFromFusion(outcome, attemptParameters, {
+      barrierSupport: outcome.barrierSupport,
       cadastreSnapped: outcome.cadastre != null,
       parcelCount: outcome.cadastre?.parcelCount ?? bundle.parcels.length,
       areaPlausibility: areaPlausibilityScore("operationalLot", outcome.areaSqm),
       sourceAgreement,
     });
-    return { requestedEngine, usedEngine: "fused", result };
+    return { requestedEngine, usedEngine: "fused", result, possiblyIncomplete };
   } catch (error) {
     return {
       requestedEngine,

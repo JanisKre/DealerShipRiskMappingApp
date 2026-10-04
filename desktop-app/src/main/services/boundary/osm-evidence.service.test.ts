@@ -95,6 +95,37 @@ describe("fetchOsmEvidence", () => {
     expect(mocks.fetchOverpass).not.toHaveBeenCalled();
   });
 
+  it("shares one Overpass request between concurrent callers for the same point", async () => {
+    // `fromOsm` and `fromOsmBuildings` both call this for the same point and
+    // run concurrently — without de-duplication, both see the same cache
+    // miss and each fires its own Overpass query.
+    let resolveFetch!: (value: unknown) => void;
+    mocks.fetchOverpass.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+
+    const first = fetchOsmEvidence(52.5, 13.4);
+    const second = fetchOsmEvidence(52.5, 13.4);
+    resolveFetch({ elements: [] });
+
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    expect(mocks.fetchOverpass).toHaveBeenCalledTimes(1);
+    expect(firstResult).toEqual(secondResult);
+  });
+
+  it("allows a fresh request once the in-flight one has settled", async () => {
+    mocks.fetchOverpass.mockResolvedValueOnce({ elements: [] });
+    await fetchOsmEvidence(52.5, 13.4);
+
+    mocks.cacheGet.mockReturnValueOnce(null); // simulate a fresh cache miss
+    mocks.fetchOverpass.mockResolvedValueOnce({ elements: [] });
+    await fetchOsmEvidence(52.5, 13.4);
+
+    expect(mocks.fetchOverpass).toHaveBeenCalledTimes(2);
+  });
+
   it("keys the cache by rounded coordinates and radius", async () => {
     mocks.fetchOverpass.mockResolvedValue({ elements: [] });
     await fetchOsmEvidence(52.5, 13.4, 300);

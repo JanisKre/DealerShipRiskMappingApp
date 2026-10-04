@@ -450,6 +450,8 @@
       },
       "boundaryReviewLabel": "Review required",
       "boundaryCandidatesTitle": "{{count}} boundary candidates",
+      "boundaryMultiPartLabel": "Site has {{count}} separate parts",
+      "boundaryExcludePartAction": "Exclude extra part",
       "boundarySource": {
         "alkis": "ALKIS cadastre",
         "osm": "OpenStreetMap",

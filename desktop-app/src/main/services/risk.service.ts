@@ -6,7 +6,11 @@ import type {
   RiskAssessment,
 } from "@shared/types";
 import { exposureRatioForBoundary } from "./roof.service";
-import { fetchWeather, openMeteoProvider } from "./weather.service";
+import {
+  fetchWeather,
+  NEUTRAL_WEATHER_METRICS,
+  openMeteoProvider,
+} from "./weather.service";
 import { capacityForArea, estimatedExposureEur } from "./risk/exposure";
 import { riskEvidence, riskLimitations } from "./risk/evidence";
 import { computeEalBreakdown, RISK_MODEL_VERSION } from "./risk/financial-loss";
@@ -31,8 +35,16 @@ export async function scoreRisk(
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
   natCat?: NatCatAssessment,
 ): Promise<RiskAssessment> {
+  let weatherFallbackUsed = false;
   const [weather, exposureRatio] = await Promise.all([
-    fetchWeather(lat, lon),
+    fetchWeather(lat, lon).catch((error: unknown) => {
+      // A transient Open-Meteo failure (outage, rate limit, timeout) must
+      // degrade the weather-driven score, not abort the whole analysis —
+      // boundary detection and vehicle counting already succeeded by now.
+      console.warn("Weather lookup failed; using a neutral fallback", error);
+      weatherFallbackUsed = true;
+      return NEUTRAL_WEATHER_METRICS;
+    }),
     boundary ? exposureRatioForBoundary(boundary) : Promise.resolve(1),
   ]);
 
@@ -56,11 +68,19 @@ export async function scoreRisk(
     natCat,
   );
 
-  const evidence = riskEvidence(
-    boundary,
-    detection,
-    natCat?.evidence ?? openMeteoProvider.evidence(),
-  );
+  const hazardEvidence =
+    natCat?.evidence ??
+    (weatherFallbackUsed
+      ? {
+          ...openMeteoProvider.evidence(),
+          confidence: 0.15,
+          fallbackUsed: true,
+          limitations: [
+            "Live weather lookup failed; using conservative neutral defaults",
+          ],
+        }
+      : openMeteoProvider.evidence());
+  const evidence = riskEvidence(boundary, detection, hazardEvidence);
   const confidence = round(
     evidence.reduce((sum, item) => sum + item.confidence, 0) / evidence.length,
   );

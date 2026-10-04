@@ -8,6 +8,8 @@ const api = {
   saveSession: vi.fn(),
   loadSession: vi.fn(),
   deleteSession: vi.fn(),
+  detectVehicles: vi.fn(),
+  scoreRisk: vi.fn(),
 };
 
 const firstInput: DealershipInput = {
@@ -69,6 +71,88 @@ describe("analysis batch controls", () => {
     expect(api.analyzeDealership).toHaveBeenCalledTimes(1);
     expect(useAppStore.getState().progress).toEqual({ done: 1, total: 2 });
     expect(useAppStore.getState().analyzing).toBe(false);
+  });
+});
+
+describe("re-analysis and manual boundaries", () => {
+  const manualBoundary = {
+    source: "manual",
+    role: "operationalLot",
+    polygon: { type: "Polygon", coordinates: [[[7, 51], [7.001, 51], [7.001, 51.001], [7, 51.001], [7, 51]]] },
+    areaSqm: 5_000,
+    confidence: 1,
+  } as AnalyzedDealership["boundary"];
+
+  const priorAutoBoundary = {
+    source: "osm",
+    polygon: { type: "Polygon", coordinates: [[[7, 51], [7.002, 51], [7.002, 51.002], [7, 51.002], [7, 51]]] },
+    areaSqm: 8_000,
+    confidence: 0.6,
+  } as AnalyzedDealership["boundary"];
+
+  it("keeps a manually-confirmed boundary through re-analysis instead of overwriting it", async () => {
+    const existing = {
+      ...firstInput,
+      boundary: manualBoundary,
+      boundaryBeforeManualEdit: priorAutoBoundary,
+      detection: { vehicleCount: 3, confidence: 0.5, model: "test" },
+      risk: { overallScore: 20 } as AnalyzedDealership["risk"],
+    } as AnalyzedDealership;
+    useAppStore.setState({ dealerships: [existing] });
+
+    // The re-run would otherwise replace the boundary with a fresh detection.
+    api.analyzeDealership.mockResolvedValueOnce({
+      ...existing,
+      boundary: priorAutoBoundary,
+      detection: { vehicleCount: 7, confidence: 0.8, model: "test" },
+    } as AnalyzedDealership);
+    api.detectVehicles.mockResolvedValueOnce({
+      vehicleCount: 4,
+      confidence: 0.7,
+      model: "test",
+    });
+    api.scoreRisk.mockResolvedValueOnce({ overallScore: 25 });
+
+    await useAppStore.getState().reanalyzeDealership("one");
+
+    const updated = useAppStore
+      .getState()
+      .dealerships.find((d) => d.id === "one")!;
+    expect(updated.boundary).toEqual(manualBoundary);
+    expect(updated.boundaryBeforeManualEdit).toEqual(priorAutoBoundary);
+    // Vehicles/risk are recomputed against the preserved boundary, not discarded.
+    expect(api.detectVehicles).toHaveBeenCalledWith(
+      existing.lat,
+      existing.lon,
+      manualBoundary,
+      expect.anything(),
+    );
+    expect(updated.detection?.vehicleCount).toBe(4);
+    expect(updated.risk?.overallScore).toBe(25);
+  });
+
+  it("accepts the fresh boundary as usual when the prior one was not manual", async () => {
+    const existing = {
+      ...firstInput,
+      boundary: priorAutoBoundary,
+      detection: { vehicleCount: 3, confidence: 0.5, model: "test" },
+    } as AnalyzedDealership;
+    useAppStore.setState({ dealerships: [existing] });
+
+    api.analyzeDealership.mockResolvedValueOnce({
+      ...existing,
+      boundary: manualBoundary, // stands in for "a different auto result"
+      detection: { vehicleCount: 9, confidence: 0.9, model: "test" },
+    } as AnalyzedDealership);
+
+    await useAppStore.getState().reanalyzeDealership("one");
+
+    const updated = useAppStore
+      .getState()
+      .dealerships.find((d) => d.id === "one")!;
+    expect(updated.boundary).toEqual(manualBoundary);
+    expect(updated.detection?.vehicleCount).toBe(9);
+    expect(api.detectVehicles).not.toHaveBeenCalled();
   });
 });
 
