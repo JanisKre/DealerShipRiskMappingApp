@@ -55,7 +55,7 @@ describe("NatCat source resolution", () => {
         latitude: 50,
         longitude: 8,
       });
-      if (url.startsWith("https://catnet.example"))
+      if (new URL(url).host === "catnet.example")
         return Promise.resolve(
           json({
             hazards: [
