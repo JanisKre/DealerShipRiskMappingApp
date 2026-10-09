@@ -1,0 +1,11 @@
+# Imagery, labels and datasets (may contain dealership locations) — never commit
+data/
+dataset.yaml
+# Training runs, weights and exported models
+runs/
+export/
+*.pt
+*.onnx
+*.cache
+.venv/
+__pycache__/
