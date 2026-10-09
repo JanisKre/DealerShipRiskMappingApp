@@ -58,7 +58,7 @@ def main() -> None:
     args = ap.parse_args()
 
     src, out = Path(args.src), Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
+    (out / "images").mkdir(parents=True, exist_ok=True)
     scale = SOURCE_GSD_M / TARGET_GSD_M
     warnings: list[str] = []
     n_tiles = n_boxes = 0
@@ -87,8 +87,8 @@ def main() -> None:
                     if all(-m <= x <= TILE_PX + m and -m <= y <= TILE_PX + m for x, y in corners):
                         rows.append((cls, corners))
                 name = f"DLR-{img_path.stem}__{r}_{c}"
-                img.crop((x0, y0, x0 + TILE_PX, y0 + TILE_PX)).save(out / f"{name}.jpg", quality=95)
-                write_obb_labels(out / f"{name}.txt", rows)
+                img.crop((x0, y0, x0 + TILE_PX, y0 + TILE_PX)).save(out / "images" / f"{name}.jpg", quality=95)
+                write_obb_labels(out / "labels" / f"{name}.txt", rows)
                 n_tiles += 1
                 n_boxes += len(rows)
 
