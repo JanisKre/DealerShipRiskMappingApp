@@ -72,8 +72,29 @@ def reviewed_sites() -> set[str]:
     return {site for site, tiles in tiles_by_site().items() if all(tile_checked(t) for t in tiles)}
 
 
+def corrected_labels(image: Path) -> list[tuple[int, list[tuple[float, float]]]]:
+    """Your corrections for a tile, read from X-AnyLabeling's JSON: (class id, 4 pixel corners).
+
+    Replaces the tool's `xlabel2yolo` converter, which silently drops every box whose
+    corners reach outside the tile (vehicles cut off at the tile edge). Out-of-bounds
+    corners are kept here; write_obb_labels clips them to the tile.
+    """
+    shapes = json.loads(image.with_suffix(".json").read_text()).get("shapes", [])
+    ids = {name: i for i, name in CLASS_NAMES.items()}
+    rows = []
+    for shape in shapes:
+        points = shape.get("points", [])
+        if shape.get("shape_type") != "rotation" or len(points) != 4:
+            raise SystemExit(f"{image.name}: a '{shape.get('label')}' shape is not a rotated box — draw boxes with O (rotation)")
+        if shape.get("label") not in ids:
+            raise SystemExit(f"{image.name}: unknown class '{shape.get('label')}' (expected {', '.join(ids)})")
+        rows.append((ids[shape["label"]], [(float(x), float(y)) for x, y in points]))
+    return rows
+
+
 def xanylabeling_convert(task: str, labels: Path, output: Path) -> None:
-    """Runs X-AnyLabeling's own converter (`yolo2xlabel` / `xlabel2yolo`, OBB) over data/raw."""
+    """Runs X-AnyLabeling's own converter over data/raw. Only `yolo2xlabel` (suggestions → tool JSON)
+    is used; the way back is corrected_labels, because `xlabel2yolo` drops edge-cut boxes."""
     if not XANYLABELING.exists():
         raise SystemExit(f"X-AnyLabeling missing — see README setup ({XANYLABELING})")
     output.mkdir(parents=True, exist_ok=True)
