@@ -33,7 +33,7 @@ def main() -> None:
     ap.add_argument("--model", default="yolo11s-obb.pt", help="DOTA-pretrained weights, downloaded on first use")
     ap.add_argument("--classes", choices=["dota", "own"], default="dota", help="'own' for a model trained by train.py")
     ap.add_argument("--imgsz", type=int, default=448)
-    ap.add_argument("--conf", type=float, default=0.25)
+    ap.add_argument("--conf", type=float, default=0.15)
     ap.add_argument("--overwrite", action="store_true", help="replace existing (possibly corrected) labels")
     ap.add_argument("--device", default="mps")
     args = ap.parse_args()
