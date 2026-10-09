@@ -1,4 +1,4 @@
-import { Circle, CircleMarker, Tooltip } from "react-leaflet";
+import { Circle, CircleMarker, Tooltip } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
 import type { AnalyzedDealership } from "@shared/types";
 import { nearbyInsured } from "@shared/risk-math";

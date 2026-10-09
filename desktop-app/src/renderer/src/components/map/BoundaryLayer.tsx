@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Polygon, useMap } from "react-leaflet";
+import { Polygon, useMap } from "./leaflet-react";
 import type { Layer, LeafletEventHandlerFnMap } from "leaflet";
 import area from "@turf/area";
 import type {
@@ -115,7 +115,7 @@ interface EditableLayer extends Layer {
 
 /**
  * Geoman 2.20 exposes `layer` on its edit event, while older versions and
- * React Leaflet's generic event map expose the edited layer as `target`.
+ * Leaflet's generic event object expose the edited layer as `target`.
  */
 interface BoundaryEditEvent {
   layer?: Layer;

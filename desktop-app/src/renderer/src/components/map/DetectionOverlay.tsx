@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CircleMarker, useMapEvents } from "react-leaflet";
+import { CircleMarker, useMapEvents } from "./leaflet-react";
 import type { LatLngBounds } from "leaflet";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { point as turfPoint } from "@turf/helpers";

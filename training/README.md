@@ -163,8 +163,9 @@ anyway. Instead of drawing those by hand:
 
 - **Ultralytics** code and weights are AGPL-3.0. This applies to the
   existing model too. Check the terms before commercial distribution.
-- **DOTA** (pretrained weights) and **DLR 3K Munich** are released for
-  research. Check their terms before commercial use.
+- **VisDrone** (default downloaded model), **DOTA** (pretrained weights) and
+  **DLR 3K Munich** are released for research. Check their terms before
+  commercial use or before bundling a model trained on them with a release.
 - **State orthophotos** in `fetch_tiles.py` are open data (dl-de/by-2-0,
   dl-de/zero-2-0, CC BY 4.0). Keep the attribution.
 - **Esri World Imagery** tiles are deliberately not used for training data.
