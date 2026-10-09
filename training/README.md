@@ -83,8 +83,9 @@ open tile.
    - add missing vehicles
    - delete wrong boxes
    - straighten boxes that are off
-2. Tick the tile as done: click its checkbox in the file list, or press
-   `Ctrl+Alt+K`.
+2. Mark the tile as done with `Ctrl+Alt+K` (menu: *Mark as Checked*). The
+   title bar then shows `[Checked]` and the circle in the file list turns
+   green. The blue box in the file list only means "has a label file".
 3. Press `D` for the next tile.
 
 A site counts as done when all 9 of its tiles are ticked. Close the window
@@ -99,14 +100,16 @@ sites.
 | `Ctrl+D` | Duplicate the selected box. Turn the first car of a row once, then duplicate it and move it with the arrow keys |
 | `Del` | Delete a wrong box |
 | `Ctrl+Z` | Undo |
-| `Ctrl+Alt+K` | Tick / untick the tile as done |
+| `Ctrl+Alt+K` | Mark the tile as done (again to undo) |
+| `Ctrl+M` | Show / hide the box fill |
 
 Rules:
 
 - Draw one rotated box per vehicle, tight around the body.
 - Use class `car` for cars, vans and pickups, and `large_vehicle` for trucks,
   buses, campers and trailers.
-- New boxes reuse the last class. Change a box's class with `Ctrl+E`.
+- The class matters little: the app counts every box as one vehicle. Fix
+  it only when it is clearly wrong (`Ctrl+E`). New boxes reuse the last class.
 - Label vehicles that are partly hidden or cut off at the tile edge.
 - Leave out vehicles you cannot see, for example in garages, under roofs or
   carports, or completely under trees.
