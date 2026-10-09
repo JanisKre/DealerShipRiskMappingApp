@@ -1,6 +1,7 @@
-import { join } from "path";
+import { basename, join } from "path";
 import { app, utilityProcess, type UtilityProcess } from "electron";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
+import sharp from "sharp";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { point as turfPoint } from "@turf/helpers";
 import type {
@@ -9,18 +10,33 @@ import type {
   DetectionResult,
   VehicleClass,
 } from "@shared/types";
-import { DETECTION_STRIDE, DETECTION_WINDOW_SIZE } from "@shared/constants";
+import { DETECTION_WINDOW_OVERLAP } from "@shared/constants";
 import {
   describeImagerySelection,
   type ImagerySelection,
 } from "@shared/imagery-sources";
+import {
+  LEGACY_VISDRONE_MANIFEST,
+  parseVehicleModelManifest,
+  type VehicleModelManifest,
+} from "@shared/model-manifest";
 import type { AerialCapture } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type { RiskParameters } from "@shared/types";
+import {
+  hullSize,
+  mosaicMetersPerPixel,
+  nms,
+  nmsOptionsFor,
+  planCrops,
+  resampleFactor,
+  type VehicleCandidate,
+} from "./detection/yolo";
 
 /**
- * Swappable detector interface. Allows the current YOLOv8-ONNX to be
- * replaced later with other models without changing calling code.
+ * Swappable detector interface. The ONNX model itself is described by a
+ * sidecar manifest (see @shared/model-manifest), so retrained models swap in
+ * without changing calling code.
  */
 export interface VehicleDetector {
   readonly modelName: string;
@@ -39,105 +55,111 @@ export interface AerialImage {
   bbox: [number, number, number, number];
 }
 
-const WINDOW_SIZE = DETECTION_WINDOW_SIZE;
-const STRIDE = DETECTION_STRIDE;
-
 // --- Raw worker types --------------------------------------------------------
-
-interface WorkerDetection {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  confidence: number;
-  classId: number;
-  classLabel: VehicleClass;
-}
 
 interface WorkerResult {
   type: "result";
   id: string;
-  detections?: WorkerDetection[];
+  /** Candidates in crop pixels. */
+  detections?: VehicleCandidate[];
   inferenceMs?: number;
   error?: string;
 }
 
 // --- Model path --------------------------------------------------------------
 
-/** Filename of the ONNX model — also used by the installation wizard when downloading. */
+/** Filename of the downloadable ONNX model — used by the installation wizard. */
 export const MODEL_FILENAME = "yolov26s_aerial_vehicles.onnx";
+
+/**
+ * Filename `training/export.py --install` gives a locally fine-tuned model.
+ * Preferred over the downloadable model when present; it must ship with a
+ * `<name>.json` manifest.
+ */
+export const TRAINED_MODEL_FILENAME = "dealer_vehicles.onnx";
 
 /** Directory the installation wizard downloads the model into (survives updates). */
 export function modelsDir(): string {
   return join(app.getPath("userData"), "models");
 }
 
-function resolveModelPath(): string | null {
-  // Packaged: extraResources → resources/models; Dev: repo-local resources/;
-  // plus userData/models — where the installation wizard places the model.
-  const candidates = [
-    join(process.resourcesPath ?? "", "models", MODEL_FILENAME),
-    join(app.getAppPath(), "resources", "models", MODEL_FILENAME),
-    join(app.getAppPath(), "..", "resources", "models", MODEL_FILENAME),
-    join(modelsDir(), MODEL_FILENAME),
+function manifestPathFor(modelPath: string): string {
+  return modelPath.replace(/\.onnx$/i, ".json");
+}
+
+/**
+ * Reads the sidecar manifest for a model. The legacy VisDrone model may lack
+ * one and gets the built-in description; any other model without a valid
+ * manifest is unusable because its output layout is unknown.
+ */
+export function loadModelManifest(
+  modelPath: string,
+): VehicleModelManifest | null {
+  const manifestPath = manifestPathFor(modelPath);
+  if (existsSync(manifestPath)) {
+    try {
+      return parseVehicleModelManifest(
+        JSON.parse(readFileSync(manifestPath, "utf8")),
+      );
+    } catch {
+      return null;
+    }
+  }
+  return basename(modelPath) === MODEL_FILENAME
+    ? LEGACY_VISDRONE_MANIFEST
+    : null;
+}
+
+interface ResolvedModel {
+  path: string;
+  manifest: VehicleModelManifest;
+}
+
+function resolveModel(): ResolvedModel | null {
+  // userData/models first: that's where the installation wizard and
+  // `training/export.py --install` place models. Then packaged
+  // extraResources (resources/models) and the repo-local dev copy.
+  const dirs = [
+    modelsDir(),
+    join(process.resourcesPath ?? "", "models"),
+    join(app.getAppPath(), "resources", "models"),
+    join(app.getAppPath(), "..", "resources", "models"),
   ];
-  return candidates.find((p) => p && existsSync(p)) ?? null;
+  for (const filename of [TRAINED_MODEL_FILENAME, MODEL_FILENAME]) {
+    for (const dir of dirs) {
+      const path = join(dir, filename);
+      if (!existsSync(path)) continue;
+      const manifest = loadModelManifest(path);
+      if (manifest) return { path, manifest };
+    }
+  }
+  return null;
 }
 
 function resolveWorkerPath(): string {
   return join(__dirname, "onnx-inference.worker.cjs");
 }
 
-// --- Geometry helpers --------------------------------------------------------
+// --- Helpers -----------------------------------------------------------------
 
-interface Box {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  confidence: number;
-  classLabel: VehicleClass;
-}
-
-function computeIoU(a: Box, b: Box): number {
-  const ix1 = Math.max(a.x, b.x);
-  const iy1 = Math.max(a.y, b.y);
-  const ix2 = Math.min(a.x + a.w, b.x + b.w);
-  const iy2 = Math.min(a.y + a.h, b.y + b.h);
-  const inter = Math.max(0, ix2 - ix1) * Math.max(0, iy2 - iy1);
-  const union = a.w * a.h + b.w * b.h - inter;
-  return union === 0 ? 0 : inter / union;
-}
-
-const SOFT_NMS_SIGMA = 0.5;
-const SOFT_NMS_SCORE_THRESHOLD = 0.15;
-
-/** Global soft-NMS across all crops (Gaussian decay, removes seam duplicates). */
-function globalNMS(boxes: Box[]): Box[] {
-  const scored = boxes.map((b) => ({ ...b }));
-  const keep: Box[] = [];
-  while (scored.length > 0) {
-    scored.sort((a, b) => b.confidence - a.confidence);
-    const best = scored.shift()!;
-    keep.push(best);
-    for (const box of scored) {
-      const iou = computeIoU(best, box);
-      box.confidence *= Math.exp(-(iou * iou) / SOFT_NMS_SIGMA);
-    }
-    const survivors = scored.filter(
-      (b) => b.confidence >= SOFT_NMS_SCORE_THRESHOLD,
-    );
-    scored.splice(0, scored.length, ...survivors);
-  }
-  return keep;
-}
-
-function inverseLetterbox(
-  normCoord: number,
-  pad: number,
-  scale: number,
-): number {
-  return (normCoord * WINDOW_SIZE - pad) / scale;
+/** Brings the mosaic to the model's training resolution (see resampleFactor). */
+async function resampleRgba(
+  rgba: Uint8Array,
+  width: number,
+  height: number,
+  factor: number,
+): Promise<{ rgba: Uint8Array; width: number; height: number }> {
+  if (factor === 1) return { rgba, width, height };
+  const newW = Math.max(1, Math.round(width * factor));
+  const newH = Math.max(1, Math.round(height * factor));
+  const buf = await sharp(rgba, { raw: { width, height, channels: 4 } })
+    .resize(newW, newH, {
+      fit: "fill",
+      kernel: factor > 1 ? "cubic" : "lanczos3",
+    })
+    .raw()
+    .toBuffer();
+  return { rgba: new Uint8Array(buf), width: newW, height: newH };
 }
 
 function emptyCounts(): Record<VehicleClass, number> {
@@ -147,24 +169,28 @@ function emptyCounts(): Record<VehicleClass, number> {
 // --- ONNX detector -------------------------------------------------------
 
 /**
- * Real YOLOv8-ONNX detector. Spawns a persistent utilityProcess, slices the
- * RGBA mosaic into overlapping 640-pixel windows, runs inference,
- * maps boxes back onto the canvas, deduplicates via soft-NMS, clips to the
- * boundary polygon, and converts the centers to lon/lat.
+ * YOLO ONNX detector (axis-aligned or oriented boxes, per manifest). Spawns a
+ * persistent utilityProcess, resamples the RGBA mosaic to the model's
+ * training resolution, slices it into overlapping full-size windows, runs
+ * inference, deduplicates with hard NMS, clips to the boundary polygon, and
+ * converts the centers to lon/lat.
  */
 export class OnnxYoloDetector implements VehicleDetector {
-  readonly modelName = "yolov26s_aerial_vehicles";
+  readonly modelName: string;
   private proc: UtilityProcess | null = null;
   private ready: Promise<void> | null = null;
   private readonly modelPath: string;
+  private readonly manifest: VehicleModelManifest;
   private seq = 0;
   private readonly pending = new Map<
     string,
     { resolve: (r: WorkerResult) => void; reject: (e: Error) => void }
   >();
 
-  constructor(modelPath: string) {
+  constructor(modelPath: string, manifest: VehicleModelManifest) {
     this.modelPath = modelPath;
+    this.manifest = manifest;
+    this.modelName = manifest.name;
   }
 
   private ensureStarted(): Promise<void> {
@@ -205,7 +231,11 @@ export class OnnxYoloDetector implements VehicleDetector {
         this.pending.clear();
       });
 
-      proc.postMessage({ type: "init", modelPath: this.modelPath });
+      proc.postMessage({
+        type: "init",
+        modelPath: this.modelPath,
+        manifest: this.manifest,
+      });
     });
     return this.ready;
   }
@@ -215,7 +245,7 @@ export class OnnxYoloDetector implements VehicleDetector {
     width: number,
     height: number,
     confidenceThreshold: number,
-    metersPerModelPixel: number,
+    metersPerPixel: number,
   ): Promise<WorkerResult> {
     const id = `${this.seq++}`;
     return new Promise<WorkerResult>((resolve, reject) => {
@@ -227,7 +257,7 @@ export class OnnxYoloDetector implements VehicleDetector {
         width,
         height,
         confidenceThreshold,
-        metersPerModelPixel,
+        metersPerPixel,
       });
     });
   }
@@ -255,98 +285,55 @@ export class OnnxYoloDetector implements VehicleDetector {
     }
     await this.ensureStarted();
 
-    const { rgba, width, height } = image;
-    const crops = this.planCrops(width, height);
+    // Bring the imagery to the model's training resolution, so vehicles have
+    // the pixel size the model learned regardless of zoom 19/20 or DOP source.
+    // Boxes stay in normalized mosaic coordinates, so georeferencing below is
+    // unaffected by the resample.
+    const sourceMpp = mosaicMetersPerPixel(image as AerialCapture);
+    const factor = resampleFactor(sourceMpp, this.manifest.gsdM);
+    const { rgba, width, height } = await resampleRgba(
+      image.rgba,
+      image.width,
+      image.height,
+      factor,
+    );
+    const metersPerPixel = (sourceMpp * image.width) / width;
 
-    // Ground resolution of the source capture (meters/pixel). Vehicle
-    // size sanity-checking happens in the worker in real-world units so it
-    // stays correct regardless of capture zoom — see VEHICLE_MIN_WIDTH_M.
-    const [west, south, east, north] = image.bbox;
-    const metersPerPixel =
-      ((east - west) *
-        111_320 *
-        Math.cos(((north + south) / 2) * (Math.PI / 180))) /
-      width;
-
-    const allBoxes: Box[] = [];
+    const window = this.manifest.imgsz;
+    const stride = Math.round(window * (1 - DETECTION_WINDOW_OVERLAP));
+    const allCandidates: VehicleCandidate[] = [];
     let totalInferenceMs = 0;
 
     // Windows sequentially (single-session worker); inference itself is the
     // bottleneck, not the JS slicing.
-    for (const c of crops) {
+    for (const c of planCrops(width, height, window, stride)) {
       const cropBuf = this.extractCrop(rgba, width, c.cropX, c.cropY, c.w, c.h);
-      const scale = Math.min(WINDOW_SIZE / c.w, WINDOW_SIZE / c.h);
       const res = await this.runWindow(
         cropBuf,
         c.w,
         c.h,
         parameters.detectionConfidence,
-        metersPerPixel / scale,
+        metersPerPixel,
       );
       if (res.error || !res.detections) continue;
       totalInferenceMs += res.inferenceMs ?? 0;
-
-      const scaledW = Math.round(c.w * scale);
-      const scaledH = Math.round(c.h * scale);
-      const padLeft = Math.floor((WINDOW_SIZE - scaledW) / 2);
-      const padTop = Math.floor((WINDOW_SIZE - scaledH) / 2);
-
       for (const d of res.detections) {
-        const xPx = inverseLetterbox(d.x, padLeft, scale);
-        const yPx = inverseLetterbox(d.y, padTop, scale);
-        const wPx = (d.w * WINDOW_SIZE) / scale;
-        const hPx = (d.h * WINDOW_SIZE) / scale;
-        allBoxes.push({
-          x: (c.cropX + xPx) / width,
-          y: (c.cropY + yPx) / height,
-          w: wPx / width,
-          h: hPx / height,
-          confidence: d.confidence,
-          classLabel: d.classLabel,
-        });
+        allCandidates.push({ ...d, cx: d.cx + c.cropX, cy: d.cy + c.cropY });
       }
     }
 
-    const deduped = globalNMS(allBoxes);
+    // Overlapping windows see the same vehicle twice; dedupe in mosaic pixels
+    // (not normalized coordinates, which would distort rotated boxes).
+    const deduped = nms(allCandidates, nmsOptionsFor(this.manifest.task));
     return this.finalize(
       deduped,
+      width,
+      height,
       image as AerialCapture,
       boundary,
       totalInferenceMs,
+      factor,
     );
-  }
-
-  /** Sliding-window plan with half-stride row jitter (from slidingWindowDetect.ts). */
-  private planCrops(
-    width: number,
-    height: number,
-  ): { cropX: number; cropY: number; w: number; h: number }[] {
-    if (width <= WINDOW_SIZE && height <= WINDOW_SIZE) {
-      return [{ cropX: 0, cropY: 0, w: width, h: height }];
-    }
-    const crops: { cropX: number; cropY: number; w: number; h: number }[] = [];
-    let rowIdx = 0;
-    for (let y = 0; y < height; y += STRIDE) {
-      const xOffset = (rowIdx % 2) * (STRIDE / 2);
-      rowIdx++;
-      for (let x = xOffset; x < width; x += STRIDE) {
-        crops.push({
-          cropX: x,
-          cropY: y,
-          w: Math.min(WINDOW_SIZE, width - x),
-          h: Math.min(WINDOW_SIZE, height - y),
-        });
-      }
-      if (xOffset > 0) {
-        crops.push({
-          cropX: 0,
-          cropY: y,
-          w: Math.min(WINDOW_SIZE, width),
-          h: Math.min(WINDOW_SIZE, height - y),
-        });
-      }
-    }
-    return crops;
   }
 
   /** Copies a rectangular RGBA window out of the mosaic into a dense buffer. */
@@ -375,11 +362,26 @@ export class OnnxYoloDetector implements VehicleDetector {
    * every detected road vehicle is a `car`.
    */
   private finalize(
-    boxes: Box[],
+    candidates: VehicleCandidate[],
+    width: number,
+    height: number,
     image: AerialCapture,
     boundary: BoundaryResult | undefined,
     inferenceMs: number,
+    resample: number,
   ): DetectionResult {
+    // Normalized axis-aligned hulls: consumers only need the extent and the
+    // geographic center, and stay independent of the model's box type.
+    const boxes = candidates.map((c) => {
+      const hull = hullSize(c);
+      return {
+        x: (c.cx - hull.w / 2) / width,
+        y: (c.cy - hull.h / 2) / height,
+        w: hull.w / width,
+        h: hull.h / height,
+        confidence: c.score,
+      };
+    });
     const hasGeo =
       typeof image.originLon === "number" &&
       typeof image.lonSpan === "number" &&
@@ -423,6 +425,9 @@ export class OnnxYoloDetector implements VehicleDetector {
     }
 
     const vehicleCount = outBoxes.length;
+    const m = this.manifest;
+    const resampleNote =
+      resample === 1 ? "" : `, imagery resampled ×${resample.toFixed(2)}`;
     return {
       vehicleCount,
       confidence: vehicleCount > 0 ? confSum / vehicleCount : 0,
@@ -431,14 +436,18 @@ export class OnnxYoloDetector implements VehicleDetector {
       inferenceMs,
       boxes: outBoxes,
       evidence: {
-        source: "YOLOv26 ONNX",
+        source: `${m.name} ONNX`,
         retrievedAt: new Date().toISOString(),
-        dataVersion: this.modelName,
-        method: "sliding-window aerial object detection with soft-NMS",
+        dataVersion: m.version,
+        method:
+          `sliding-window ${m.task === "obb" ? "oriented " : ""}aerial vehicle ` +
+          `detection at ${m.gsdM} m/px${resampleNote}, hard NMS`,
         confidence: vehicleCount > 0 ? confSum / vehicleCount : 0,
         fallbackUsed: false,
         limitations: [
           "Accuracy depends on imagery resolution and capture date",
+          "Screening estimate of vehicles visible on the capture date, not a current stock count",
+          ...m.limitations,
         ],
       },
     };
@@ -478,10 +487,10 @@ export class StubVehicleDetector implements VehicleDetector {
 
 /** Automatically selects the ONNX detector if the model is present, otherwise the stub. */
 function createDetector(): VehicleDetector {
-  const modelPath = resolveModelPath();
-  if (modelPath) {
+  const model = resolveModel();
+  if (model) {
     try {
-      return new OnnxYoloDetector(modelPath);
+      return new OnnxYoloDetector(model.path, model.manifest);
     } catch {
       return new StubVehicleDetector();
     }
@@ -506,7 +515,7 @@ export function resetDetector(): void {
 
 /** Whether a real ONNX model is currently available (for the installation wizard). */
 export function isModelAvailable(): boolean {
-  return resolveModelPath() !== null;
+  return resolveModel() !== null;
 }
 
 /**

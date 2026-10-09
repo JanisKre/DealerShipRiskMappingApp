@@ -86,12 +86,10 @@ export const SCENARIO_INTENSITY_DAMAGE = {
 
 // --- Detection / tiles (main process only, but centralized here) ----------
 
-export const MODEL_INPUT_SIZE = 640;
-export const DETECTION_WINDOW_SIZE = 640;
-// 320 = 50% overlap (standard for sliding-window detection) — enough for
-// soft-NMS to reliably merge edge vehicles from neighboring windows, but
-// ~4x fewer inferences than the previous 75% overlap (stride 160).
-export const DETECTION_STRIDE = 320;
+// Sliding windows are the model's input size (from its manifest); 50% overlap
+// is standard — every vehicle is fully inside at least one window, and the
+// seam duplicates are merged by NMS.
+export const DETECTION_WINDOW_OVERLAP = 0.5;
 // 20 ≈ 0.09–0.11 m/pixel at German dealership latitudes (was 19, ≈0.19m).
 // Densely parked rows in industrial/dealership lots put vehicles only 1-2
 // pixels apart at zoom 19, which starves the model of separable edges and

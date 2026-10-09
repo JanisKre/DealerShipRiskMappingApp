@@ -1,8 +1,13 @@
-import { createWriteStream } from "fs";
-import { mkdir, rename, unlink } from "fs/promises";
+import { createHash } from "crypto";
+import { createReadStream, createWriteStream } from "fs";
+import { mkdir, rename, unlink, writeFile } from "fs/promises";
 import { join } from "path";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
+import {
+  parseVehicleModelManifest,
+  type VehicleModelManifest,
+} from "@shared/model-manifest";
 import { MODEL_FILENAME, modelsDir, resetDetector } from "./detection.service";
 import { fetchWithResilience } from "./http.service";
 
@@ -60,6 +65,16 @@ export async function downloadModel(
 
   try {
     await pipeline(nodeStream, createWriteStream(tmpPath), { signal });
+    const manifest = await fetchManifest(signal);
+    if (manifest?.sha256 && (await sha256File(tmpPath)) !== manifest.sha256) {
+      throw new Error("Downloaded model does not match its manifest checksum");
+    }
+    if (manifest) {
+      await writeFile(
+        finalPath.replace(/\.onnx$/, ".json"),
+        JSON.stringify(manifest, null, 2),
+      );
+    }
     await rename(tmpPath, finalPath);
     resetDetector();
   } catch (err) {
@@ -68,4 +83,30 @@ export async function downloadModel(
     });
     throw err;
   }
+}
+
+/**
+ * The release may publish a sidecar manifest next to the model. It is
+ * optional for the legacy model (which has a built-in description), so a
+ * missing or invalid manifest is not an error.
+ */
+async function fetchManifest(
+  signal: AbortSignal,
+): Promise<VehicleModelManifest | null> {
+  try {
+    const res = await fetchWithResilience(
+      MODEL_DOWNLOAD_URL.replace(/\.onnx$/, ".json"),
+      { signal },
+      { retries: 0, timeoutMs: 30_000 },
+    );
+    return res.ok ? parseVehicleModelManifest(await res.json()) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function sha256File(path: string): Promise<string> {
+  const hash = createHash("sha256");
+  await pipeline(createReadStream(path), hash);
+  return hash.digest("hex");
 }
