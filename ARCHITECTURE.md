@@ -15,7 +15,7 @@ For feature scope, see [CORE_FUNCTIONALITIES.md](./CORE_FUNCTIONALITIES.md).
 | UI components      | **shadcn/ui + Tailwind CSS 4** (Radix primitives)         |
 | State              | Zustand 5                                                 |
 | DB (local)         | better-sqlite3 + Drizzle ORM (in the `userData` path)     |
-| Maps               | Leaflet + react-leaflet + Geoman (polygon editing)        |
+| Maps               | Leaflet + own React bindings + Geoman (polygon editing)   |
 | ML inference       | onnxruntime-node (YOLOv26) in a `utilityProcess`           |
 | LLM                | provider-agnostic (Ollama/OpenAI/Claude/Gemini)           |
 | i18n               | i18next + react-i18next (de/en/fr)                        |
