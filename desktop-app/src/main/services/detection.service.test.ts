@@ -9,12 +9,50 @@ vi.mock("electron", () => ({
   utilityProcess: { fork: vi.fn() },
 }));
 
+import { mkdtempSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+import { LEGACY_VISDRONE_MANIFEST } from "@shared/model-manifest";
 import {
   attachImageryProvenance,
   detectVehiclesInContext,
   filterDetectionToBoundary,
+  loadModelManifest,
+  MODEL_FILENAME,
   StubVehicleDetector,
+  TRAINED_MODEL_FILENAME,
 } from "./detection.service";
+
+describe("loadModelManifest", () => {
+  const dir = mkdtempSync(join(tmpdir(), "vehicle-model-"));
+
+  it("falls back to the built-in description for the legacy model", () => {
+    expect(loadModelManifest(join(dir, MODEL_FILENAME))).toBe(
+      LEGACY_VISDRONE_MANIFEST,
+    );
+  });
+
+  it("refuses an unknown model without a manifest", () => {
+    expect(loadModelManifest(join(dir, TRAINED_MODEL_FILENAME))).toBeNull();
+  });
+
+  it("reads a valid sidecar manifest and rejects an invalid one", () => {
+    const modelPath = join(dir, TRAINED_MODEL_FILENAME);
+    const manifest = {
+      ...LEGACY_VISDRONE_MANIFEST,
+      name: "dealer_vehicles",
+      task: "obb",
+    };
+    writeFileSync(
+      modelPath.replace(".onnx", ".json"),
+      JSON.stringify(manifest),
+    );
+    expect(loadModelManifest(modelPath)?.task).toBe("obb");
+
+    writeFileSync(modelPath.replace(".onnx", ".json"), "{ not json");
+    expect(loadModelManifest(modelPath)).toBeNull();
+  });
+});
 
 describe("StubVehicleDetector", () => {
   it("returns an area-based fallback with low confidence", async () => {
@@ -201,7 +239,9 @@ describe("attachImageryProvenance", () => {
       imagery,
     );
     expect(
-      twice.evidence?.limitations.filter((l) => l.startsWith("Vehicles counted on")),
+      twice.evidence?.limitations.filter((l) =>
+        l.startsWith("Vehicles counted on"),
+      ),
     ).toHaveLength(1);
   });
 

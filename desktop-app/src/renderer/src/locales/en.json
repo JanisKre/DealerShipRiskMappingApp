@@ -293,7 +293,7 @@
       },
       "detectionConfidence": {
         "label": "Detection confidence",
-        "description": "Minimum confidence required from the vehicle model.",
+        "description": "Base confidence required from the vehicle model; large vehicles need slightly more.",
         "tip": "Lower detects more vehicles but may introduce more false positives; higher is more conservative."
       }
     }

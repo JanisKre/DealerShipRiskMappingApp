@@ -293,7 +293,7 @@
       },
       "detectionConfidence": {
         "label": "Erkennungs-Konfidenz",
-        "description": "Mindestkonfidenz des Fahrzeugmodells.",
+        "description": "Basis-Mindestkonfidenz des Fahrzeugmodells; große Fahrzeuge brauchen etwas mehr.",
         "tip": "Niedriger findet mehr Fahrzeuge, kann aber mehr Fehlalarme erzeugen; höher ist konservativer."
       }
     }

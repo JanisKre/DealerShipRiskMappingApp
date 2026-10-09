@@ -10,6 +10,7 @@ import {
   type Point2D,
 } from "./boundary-geometry";
 import { aerialImageForBbox } from "./tiles.service";
+import { mosaicMetersPerPixel } from "./detection/yolo";
 import { getSettings } from "./settings.service";
 
 /**
@@ -53,8 +54,7 @@ export async function fromAerialSurface(
     ];
     const image = await aerialImageForBbox(bbox);
     if (!image.rgba || image.validTileCount === 0) return null;
-    const metersPerPixel =
-      (image.lonSpan * 111_320 * Math.cos((lat * Math.PI) / 180)) / image.width;
+    const metersPerPixel = mosaicMetersPerPixel(image);
     const component = aggregatePavedSite(
       image.rgba,
       image.width,
