@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { BoundaryResult } from "@shared/types";
-import { riskLimitations } from "./evidence";
+import {
+  HAIL_EAL_PLACEHOLDERS,
+  HAIL_VEHICLES_FROM_ASSET_VALUE,
+  HAIL_ZONE_ESTIMATED,
+  riskEvidence,
+  riskLimitations,
+} from "./evidence";
 
 const PARCEL: BoundaryResult = {
   source: "alkis",
@@ -45,5 +51,51 @@ describe("riskLimitations boundary review", () => {
       "Boundary confirmed by visual review on 2026-10-04, not a cadastral survey",
     );
     expect(limitations.join("\n")).not.toMatch(/requires review|parcel/);
+  });
+});
+
+describe("hail EAL provenance", () => {
+  const detail = {
+    vehicles: 10,
+    exposedVehicles: 10,
+    zone: 3 as const,
+    frequency: 0.04,
+    meanSeverityEur: 2_080,
+  };
+
+  it("always marks the hail EAL parameters as placeholders", () => {
+    expect(riskLimitations(undefined, undefined)).toContain(
+      HAIL_EAL_PLACEHOLDERS,
+    );
+  });
+
+  it("flags an estimated hail zone and an asset-value vehicle count", () => {
+    const limitations = riskLimitations(undefined, undefined, undefined, {
+      ...detail,
+      vehicleSource: "assetValue",
+      zoneSource: "estimated",
+    });
+    expect(limitations).toContain(HAIL_ZONE_ESTIMATED);
+    expect(limitations).toContain(HAIL_VEHICLES_FROM_ASSET_VALUE);
+  });
+
+  it("adds hail-zone evidence with lower confidence when the zone is estimated", () => {
+    const postcode = riskEvidence(undefined, undefined, undefined, {
+      ...detail,
+      vehicleSource: "detected",
+      zoneSource: "postcode",
+    });
+    const estimated = riskEvidence(undefined, undefined, undefined, {
+      ...detail,
+      vehicleSource: "detected",
+      zoneSource: "estimated",
+    });
+    // [0] is the hazard evidence; [1] the hail-zone evidence.
+    expect(postcode[1]).toMatchObject({
+      source: "Postcode hail zones",
+      fallbackUsed: false,
+    });
+    expect(estimated[1]).toMatchObject({ fallbackUsed: true });
+    expect(estimated[1].confidence).toBeLessThan(postcode[1].confidence);
   });
 });

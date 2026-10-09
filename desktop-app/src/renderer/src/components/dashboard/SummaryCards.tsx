@@ -1,26 +1,38 @@
+import { useMemo } from "react";
 import {
   AlertTriangle,
   Building2,
   Car,
+  CloudHail,
   Coins,
-  Gauge,
-  ShieldAlert,
+  Layers,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
-import { effectiveVehicleCount } from "@shared/risk-math";
+import {
+  computeAccumulationClusters,
+  dealershipHailZone,
+  effectiveVehicleCount,
+} from "@shared/risk-math";
 import { Card, CardContent } from "@renderer/components/ui/card";
-import { eur, num } from "@renderer/lib/format";
+import { eur, num, pct } from "@renderer/lib/format";
 import { cn } from "@renderer/lib/utils";
+import { useAppStore } from "@renderer/store/appStore";
+import { TileInfo } from "./TileInfo";
+
+/** Hail zones from which a location counts as "elevated" in the KPI row. */
+const ELEVATED_HAIL_ZONE = 4;
 
 type Stat = {
   label: string;
   value: string;
-  suffix?: string;
+  /** Muted second line with context for the value. */
+  hint?: string;
   icon: LucideIcon;
+  info?: { topic: string; values?: Record<string, string | number> };
   /** Color accent for icon + value (semantic). */
-  tone?: "default" | "warn" | "danger";
+  tone?: "default" | "warn";
 };
 
 const toneClasses: Record<
@@ -32,12 +44,12 @@ const toneClasses: Record<
     icon: "text-amber-600 dark:text-amber-400",
     value: "text-amber-600 dark:text-amber-400",
   },
-  danger: { icon: "text-destructive", value: "text-destructive" },
 };
 
 /**
- * KPI tiles for the dashboard: locations, vehicles, avg. score,
- * total exposure, total EAL, and extreme risks.
+ * KPI row for the hail underwriting view: locations, vehicles (and how many
+ * park in the open), exposure, hail EAL, the largest accumulation, and the
+ * locations in elevated hail zones.
  */
 export function SummaryCards({
   dealerships,
@@ -45,61 +57,119 @@ export function SummaryCards({
   dealerships: AnalyzedDealership[];
 }): React.JSX.Element {
   const { t } = useTranslation();
-  const count = dealerships.length;
-  const scored = dealerships.filter((d) => d.risk);
-  const avgScore =
-    scored.length > 0
-      ? scored.reduce((a, d) => a + (d.risk?.overallScore ?? 0), 0) /
-        scored.length
-      : 0;
+  const parameters = useAppStore((s) => s.parameters);
+
   const totalVehicles = dealerships.reduce(
     (a, d) => a + effectiveVehicleCount(d.detection),
     0,
+  );
+  const exposedVehicles = dealerships.reduce(
+    (a, d) => a + (d.risk?.ealBreakdown?.hailDetail?.exposedVehicles ?? 0),
+    0,
+  );
+  const hasExposedVehicles = dealerships.some(
+    (d) => d.risk?.ealBreakdown?.hailDetail != null,
   );
   const totalExposure = dealerships.reduce(
     (a, d) => a + (d.risk?.exposureEur ?? 0),
     0,
   );
   const totalEal = dealerships.reduce((a, d) => a + (d.risk?.eal ?? 0), 0);
-  const extreme = dealerships.filter(
-    (d) => (d.risk?.overallScore ?? 0) >= 75,
-  ).length;
+
+  const elevated = dealerships.filter(
+    (d) => (dealershipHailZone(d)?.zone ?? 0) >= ELEVATED_HAIL_ZONE,
+  );
+  const elevatedExposure = elevated.reduce(
+    (a, d) => a + (d.risk?.exposureEur ?? 0),
+    0,
+  );
+
+  const largest = useMemo(() => {
+    const located = dealerships.filter((d) => d.lat != null && d.lon != null);
+    return computeAccumulationClusters(
+      located,
+      parameters.accumulationRadiusKm,
+      parameters,
+    )
+      .filter((c) => c.count > 1)
+      .sort((a, b) => b.totalExposureEur - a.totalExposureEur)[0];
+  }, [dealerships, parameters]);
 
   const stats: Stat[] = [
-    { label: t("dashboard.locations"), value: num(count), icon: Building2 },
     {
-      label: t("dashboard.avgScore"),
-      value: avgScore.toFixed(0),
-      suffix: "/100",
-      icon: Gauge,
-      tone: avgScore >= 75 ? "danger" : avgScore >= 50 ? "warn" : "default",
+      label: t("dashboard.locations"),
+      value: num(dealerships.length),
+      icon: Building2,
     },
-    { label: t("common.vehicles"), value: num(totalVehicles), icon: Car },
+    {
+      label: t("common.vehicles"),
+      value: num(totalVehicles),
+      hint: hasExposedVehicles
+        ? t("dashboard.kpi.exposedVehicles", {
+            count: Math.round(exposedVehicles),
+          })
+        : undefined,
+      icon: Car,
+    },
     {
       label: t("dashboard.totalExposure"),
       value: eur(totalExposure),
       icon: Coins,
     },
-    { label: t("dashboard.totalEal"), value: eur(totalEal), icon: ShieldAlert },
     {
-      label: t("dashboard.extreme"),
-      value: num(extreme),
+      label: t("dashboard.hailEal"),
+      value: eur(totalEal),
+      hint: t("dashboard.kpi.perYear"),
+      icon: CloudHail,
+      info: { topic: "hailEal" },
+    },
+    {
+      label: t("dashboard.kpi.largestAccumulation"),
+      value: largest ? eur(largest.totalExposureEur) : "–",
+      hint: largest
+        ? t("dashboard.kpi.accumulationHint", {
+            count: largest.count,
+            radius: parameters.accumulationRadiusKm,
+          })
+        : t("dashboard.kpi.noAccumulation", {
+            radius: parameters.accumulationRadiusKm,
+          }),
+      icon: Layers,
+      info: {
+        topic: "accumulations",
+        values: { radius: parameters.accumulationRadiusKm },
+      },
+    },
+    {
+      label: t("dashboard.kpi.elevatedZones", { zone: ELEVATED_HAIL_ZONE }),
+      value: num(elevated.length),
+      hint:
+        totalExposure > 0
+          ? t("dashboard.kpi.exposureShare", {
+              share: pct(elevatedExposure / totalExposure),
+            })
+          : undefined,
       icon: AlertTriangle,
-      tone: extreme > 0 ? "danger" : "default",
+      tone: elevated.length > 0 ? "warn" : "default",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
       {stats.map((s) => {
         const tone = toneClasses[s.tone ?? "default"];
         const Icon = s.icon;
         return (
           <Card key={s.label} className="hover:shadow-md">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="text-muted-foreground text-xs">{s.label}</div>
-                <Icon className={cn("size-4", tone.icon)} />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                  <span className="truncate">{s.label}</span>
+                  {s.info && (
+                    <TileInfo topic={s.info.topic} values={s.info.values} />
+                  )}
+                </div>
+                <Icon className={cn("size-4 shrink-0", tone.icon)} />
               </div>
               <div
                 className={cn(
@@ -108,12 +178,12 @@ export function SummaryCards({
                 )}
               >
                 {s.value}
-                {s.suffix && (
-                  <span className="text-muted-foreground text-sm">
-                    {s.suffix}
-                  </span>
-                )}
               </div>
+              {s.hint && (
+                <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {s.hint}
+                </div>
+              )}
             </CardContent>
           </Card>
         );

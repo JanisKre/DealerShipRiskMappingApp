@@ -6,8 +6,9 @@ import fr from "./locales/fr.json";
 
 /**
  * i18next setup (de/en/fr). Resources are bundled statically (no backend).
- * The language is set at startup from the app settings (see App.tsx);
- * `en` is the default and fallback.
+ * The language is set at startup from the app settings (see App.tsx).
+ * German is the default (the underwriting team works in German); English
+ * stays the fallback for keys missing in a translation (e.g. fr).
  */
 export const SUPPORTED_LANGUAGES = ["de", "en", "fr"] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
@@ -18,7 +19,7 @@ void i18n.use(initReactI18next).init({
     en: { translation: en },
     fr: { translation: fr },
   },
-  lng: "en",
+  lng: "de",
   fallbackLng: "en",
   interpolation: { escapeValue: false },
   returnNull: false,

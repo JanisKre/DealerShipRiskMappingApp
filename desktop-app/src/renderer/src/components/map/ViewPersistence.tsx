@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
-import type { Map as LeafletMap } from "leaflet";
+import { latLng, latLngBounds, type Map as LeafletMap } from "leaflet";
 import { useMap } from "react-leaflet";
 import type { AnalyzedDealership } from "@shared/types";
+import { useAppStore } from "@renderer/store/appStore";
 import { useMapStore } from "@renderer/store/mapStore";
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
  * - On mount: restore the persisted view from mapStore -> `setView`, else fit-all.
  * - On `selectedId` change: fly to the location.
  * - On `lastAddedIds` change: fit newly added locations into view.
+ * - On `mapFocusIds` (store): fit those locations once, then clear the request.
  * - On `moveend`: save the viewport to mapStore.
  * - Arrow keys (up/down) on the map container: cycle through the filtered list.
  */
@@ -28,6 +30,9 @@ export function ViewPersistence({
   const map = useMap();
   const saveView = useMapStore((s) => s.saveView);
   const storedView = useMapStore((s) => s.view);
+  const mapFocusIds = useAppStore((s) => s.mapFocusIds);
+  const mapFocusRadiusKm = useAppStore((s) => s.mapFocusRadiusKm);
+  const clearMapFocus = useAppStore((s) => s.clearMapFocus);
   const mountedRef = useRef(false);
 
   // One-time mount effect: restore the view or fit-all.
@@ -42,7 +47,8 @@ export function ViewPersistence({
         return;
       }
     }
-    if (lastAddedIds.length > 0) return; // lastAddedIds effect takes over
+    // The lastAddedIds / mapFocusIds effects take over.
+    if (lastAddedIds.length > 0 || mapFocusIds) return;
     if (storedView) {
       map.setView(storedView.center, storedView.zoom);
     } else {
@@ -70,6 +76,30 @@ export function ViewPersistence({
     else if (pts.length > 1) map.fitBounds(pts, { padding: [50, 50] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastAddedIds]);
+
+  // Fit a requested set of locations (e.g. an accumulation from the dashboard).
+  useEffect(() => {
+    if (!mapFocusIds) return;
+    const ids = new Set(mapFocusIds);
+    const pts = dealerships
+      .filter((d) => ids.has(d.id))
+      .map((d) => [d.lat, d.lon] as [number, number]);
+    if (pts.length > 0 && mapFocusRadiusKm) {
+      // Keep the whole accumulation circle (drawn around the members' mean
+      // position, as in AccumulationClusterLayer) in view.
+      const center = latLng(
+        pts.reduce((sum, p) => sum + p[0], 0) / pts.length,
+        pts.reduce((sum, p) => sum + p[1], 0) / pts.length,
+      );
+      const bounds = latLngBounds(pts).extend(
+        center.toBounds(mapFocusRadiusKm * 2000),
+      );
+      map.fitBounds(bounds, { padding: [30, 30] });
+    } else if (pts.length === 1) map.setView(pts[0], 15);
+    else if (pts.length > 1) map.fitBounds(pts, { padding: [60, 60] });
+    clearMapFocus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapFocusIds]);
 
   // Save the view on map interaction.
   useEffect(() => {

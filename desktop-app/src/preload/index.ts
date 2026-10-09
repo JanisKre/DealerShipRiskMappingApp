@@ -111,6 +111,7 @@ const api = {
     boundary?: IpcRequest["risk:score"]["boundary"],
     parameters?: IpcRequest["risk:score"]["parameters"],
     natCat?: IpcRequest["risk:score"]["natCat"],
+    hailZone?: IpcRequest["risk:score"]["hailZone"],
   ): Promise<IpcResponse["risk:score"]> =>
     ipcRenderer.invoke(IPC.scoreRisk, {
       lat,
@@ -120,6 +121,7 @@ const api = {
       boundary,
       parameters,
       natCat,
+      hailZone,
     } satisfies IpcRequest["risk:score"]),
 
   /** Re-resolves the routed NatCat sources for one location. */

@@ -1,21 +1,17 @@
 export type DashboardTileId =
   | "summary"
-  | "risk"
-  | "pml"
-  | "insights"
-  | "coverage"
-  | "seasonal"
   | "clusters"
+  | "zones"
+  | "topLocations"
+  | "insights"
   | "table";
 
 export const DEFAULT_TILE_ORDER: DashboardTileId[] = [
   "summary",
-  "risk",
-  "pml",
-  "insights",
-  "coverage",
-  "seasonal",
   "clusters",
+  "zones",
+  "topLocations",
+  "insights",
   "table",
 ];
 
@@ -24,12 +20,10 @@ export const TILE_DEFINITIONS: Array<{
   labelKey: string;
 }> = [
   { id: "summary", labelKey: "dashboard.tiles.summary" },
-  { id: "risk", labelKey: "dashboard.tiles.risk" },
-  { id: "pml", labelKey: "dashboard.tiles.pml" },
-  { id: "insights", labelKey: "dashboard.tiles.insights" },
-  { id: "coverage", labelKey: "dashboard.tiles.coverage" },
-  { id: "seasonal", labelKey: "dashboard.tiles.seasonal" },
   { id: "clusters", labelKey: "dashboard.tiles.clusters" },
+  { id: "zones", labelKey: "dashboard.tiles.zones" },
+  { id: "topLocations", labelKey: "dashboard.tiles.topLocations" },
+  { id: "insights", labelKey: "dashboard.tiles.insights" },
   { id: "table", labelKey: "dashboard.tiles.table" },
 ];
 
@@ -78,44 +72,32 @@ const TILE_ALIASES: Array<{ id: DashboardTileId; words: string[] }> = [
     words: ["kpi", "kpis", "summary", "zusammenfassung", "kennzahlen"],
   },
   {
-    id: "risk",
-    words: [
-      "risk",
-      "risiko",
-      "risks",
-      "risiken",
-      "distribution",
-      "verteilung",
-      "repartition",
-    ],
+    id: "clusters",
+    words: ["cluster", "kumul", "akkumulation", "accumulation"],
   },
   {
-    id: "pml",
-    words: ["pml", "maximum loss", "höchstschaden", "hochstschaden"],
+    id: "zones",
+    words: ["zone", "distribution", "verteilung", "repartition"],
+  },
+  {
+    id: "topLocations",
+    words: ["top", "ranking", "rangliste", "classement"],
   },
   {
     id: "insights",
-    words: ["anomal", "alert", "warnung", "outlier", "ausreißer", "ausreisser"],
-  },
-  {
-    id: "coverage",
     words: [
-      "coverage",
-      "abdeckung",
-      "concentration",
-      "konzentration",
-      "peril",
-      "gefahr",
+      "prüfhinweis",
+      "pruefhinweis",
+      "hinweis",
+      "review",
+      "anomal",
+      "alert",
+      "warnung",
     ],
   },
   {
-    id: "seasonal",
-    words: ["season", "saison", "seasonal", "saisonal", "saisonnier"],
-  },
-  { id: "clusters", words: ["cluster", "akkumulation", "accumulation"] },
-  {
     id: "table",
-    words: ["table", "tabelle", "locations", "standorte", "sites"],
+    words: ["table", "tabelle", "tableau", "location list", "standortliste"],
   },
 ];
 

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { AnalyzedDealership, PerilScore } from "./types";
+import type { AnalyzedDealership, HailZone, PerilScore } from "./types";
 import { PERILS } from "./types";
 import {
+  alertIdSet,
   computeCoverage,
   computeSeasonalProfile,
-  detectAnomalies,
   generateAlerts,
 } from "./analytics";
+import { DEFAULT_RISK_PARAMETERS } from "./parameters";
 
 /** Builds a minimal analyzed dataset for the tests. */
 function make(
@@ -20,6 +21,8 @@ function make(
     perilScores?: Partial<Record<(typeof PERILS)[number], number>>;
     vehicleCount?: number;
     boundaryConfidence?: number;
+    hailZone?: HailZone;
+    exposure?: number;
   } = {},
 ): AnalyzedDealership {
   const perils: PerilScore[] = PERILS.map((peril) => ({
@@ -33,6 +36,7 @@ function make(
     name: `D-${id}`,
     lat: opts.lat ?? 51,
     lon: opts.lon ?? 10,
+    hailZone: opts.hailZone,
     risk:
       opts.score != null || opts.eal != null || opts.utilisation != null
         ? {
@@ -40,7 +44,7 @@ function make(
             perils,
             eal: opts.eal ?? 0,
             utilisation: opts.utilisation,
-            exposureEur: opts.eal ?? 0,
+            exposureEur: opts.exposure ?? opts.eal ?? 0,
             computedAt: "2026-01-01T00:00:00.000Z",
           }
         : undefined,
@@ -69,43 +73,40 @@ function make(
   };
 }
 
-describe("detectAnomalies", () => {
-  it("flags a high-score outlier as an anomaly", () => {
-    const ds = [
-      ...Array.from({ length: 9 }, (_, i) => make(`n${i}`, { score: 10 })),
-      make("out", { score: 90 }), // clear outlier
-    ];
-    const anomalies = detectAnomalies(ds);
-    expect(
-      anomalies.some((a) => a.dealershipId === "out" && a.metric === "score"),
-    ).toBe(true);
-  });
-
-  it("returns nothing when fewer than 3 samples", () => {
-    expect(
-      detectAnomalies([make("1", { score: 10 }), make("2", { score: 90 })]),
-    ).toEqual([]);
-  });
-});
-
 describe("generateAlerts", () => {
-  it("raises extreme-risk and high-eal alerts", () => {
+  it("raises high-hail-zone and high-eal alerts", () => {
     const ds = [
-      make("1", { score: 90, eal: 900 }),
-      make("2", { score: 10, eal: 100 }),
+      make("1", { hailZone: 5, eal: 900 }),
+      make("2", { hailZone: 2, eal: 100, lat: 53 }),
     ];
     const alerts = generateAlerts(ds);
     expect(
-      alerts.some((a) => a.kind === "extreme-risk" && a.dealershipId === "1"),
+      alerts.some((a) => a.kind === "high-hail-zone" && a.dealershipId === "1"),
     ).toBe(true);
+    expect(
+      alerts.some((a) => a.kind === "high-hail-zone" && a.dealershipId === "2"),
+    ).toBe(false);
     expect(
       alerts.some((a) => a.kind === "high-eal" && a.dealershipId === "1"),
     ).toBe(true);
   });
 
+  it("uses the configured hail-zone threshold", () => {
+    const ds = [make("1", { hailZone: 4, eal: 1 })];
+    expect(generateAlerts(ds).map((a) => a.kind)).not.toContain(
+      "high-hail-zone",
+    );
+    expect(
+      generateAlerts(ds, { ...DEFAULT_RISK_PARAMETERS, alertHailZone: 4 }).map(
+        (a) => a.kind,
+      ),
+    ).toContain("high-hail-zone");
+  });
+
   it("warns on overcapacity, low boundary confidence and no detection", () => {
     const ds = [
       make("1", {
+        hailZone: 1,
         score: 10,
         utilisation: 1.5,
         boundaryConfidence: 0.1,
@@ -116,6 +117,56 @@ describe("generateAlerts", () => {
     expect(kinds.has("overcapacity")).toBe(true);
     expect(kinds.has("low-boundary-confidence")).toBe(true);
     expect(kinds.has("no-detection")).toBe(true);
+    expect(kinds.has("estimated-hail-zone")).toBe(false);
+  });
+
+  it("flags a hail zone that is only estimated from the score", () => {
+    const alerts = generateAlerts([make("1", { score: 60 })]);
+    const estimated = alerts.find((a) => a.kind === "estimated-hail-zone");
+    expect(estimated?.level).toBe("warning");
+    expect(estimated?.value).toBe(4);
+  });
+
+  it("raises one accumulation alert per accumulation above the threshold", () => {
+    const parameters = {
+      ...DEFAULT_RISK_PARAMETERS,
+      accumulationRadiusKm: 10,
+      accumulationReinsureThresholdEur: 1_000_000,
+    };
+    const ds = [
+      make("a", { hailZone: 1, eal: 1, exposure: 400_000, lat: 51, lon: 10 }),
+      make("b", {
+        hailZone: 1,
+        eal: 1,
+        exposure: 700_000,
+        lat: 51.01,
+        lon: 10,
+      }),
+      // Far away and alone: no accumulation.
+      make("c", { hailZone: 1, eal: 1, exposure: 5_000_000, lat: 53, lon: 13 }),
+    ];
+    const alerts = generateAlerts(ds, parameters).filter(
+      (a) => a.kind === "accumulation",
+    );
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].dealershipId).toBe("b"); // largest exposure anchors it
+    expect(alerts[0].memberIds).toEqual(["a", "b"]);
+    expect(alerts[0].value).toBe(1_100_000);
+    expect(alertIdSet(alerts)).toEqual(new Set(["a", "b"]));
+
+    const below = generateAlerts(ds, {
+      ...parameters,
+      accumulationReinsureThresholdEur: 2_000_000,
+    });
+    expect(below.some((a) => a.kind === "accumulation")).toBe(false);
+  });
+
+  it("lists critical alerts before warnings", () => {
+    const ds = [make("1", { hailZone: 6, eal: 1, utilisation: 2 })];
+    const levels = generateAlerts(ds).map((a) => a.level);
+    expect(levels.indexOf("warning")).toBeGreaterThan(
+      levels.lastIndexOf("critical"),
+    );
   });
 });
 

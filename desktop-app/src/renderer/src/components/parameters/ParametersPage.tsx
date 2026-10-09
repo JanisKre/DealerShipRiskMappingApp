@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { RiskParameters } from "@shared/types";
+import { meanHailSeverityEur } from "@shared/risk-math";
+import { eur } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
@@ -37,7 +39,9 @@ type UnitKey =
   | "centimeters"
   | "millimetersPerYear"
   | "kilometers"
-  | "outOf100"
+  | "eventsPerYear"
+  | "eurPerVehicle"
+  | "hailZone"
   | "meters";
 type ParameterField = {
   key: ParameterKey;
@@ -83,87 +87,91 @@ const GROUPS: ParameterGroup[] = [
     defaultOpen: true,
     fields: [
       {
-        key: "hailDamageFraction",
-        unit: "fraction",
-        min: 0,
-        max: 1,
-        step: 0.01,
-        recommended: true,
-        tip: true,
-      },
-      {
-        key: "hailSiteHitProbability",
-        unit: "fraction",
-        min: 0,
-        max: 1,
-        step: 0.01,
-        recommended: true,
-        tip: true,
-      },
-      {
-        key: "climateLoadingFactor",
-        unit: "fraction",
+        key: "hailFrequencyZone1",
+        unit: "eventsPerYear",
         min: 0,
         step: 0.01,
         recommended: true,
-        tip: true,
       },
-      { key: "windStormThresholdKmh", unit: "kmh", min: 0, step: 1 },
       {
-        key: "windDamageFraction",
-        unit: "fraction",
+        key: "hailFrequencyZone2",
+        unit: "eventsPerYear",
         min: 0,
-        max: 1,
         step: 0.01,
         recommended: true,
-        tip: true,
       },
       {
-        key: "windSiteHitProbability",
-        unit: "fraction",
+        key: "hailFrequencyZone3",
+        unit: "eventsPerYear",
         min: 0,
-        max: 1,
-        step: 0.01,
-      },
-      {
-        key: "lightningDamageFraction",
-        unit: "fraction",
-        min: 0,
-        max: 1,
-        step: 0.001,
-      },
-      { key: "lightningDensityScale", unit: "factor", min: 0, step: 0.0001 },
-      {
-        key: "snowLoadDamageFractionPer30cm",
-        unit: "fraction",
-        min: 0,
-        max: 1,
-        step: 0.001,
-      },
-      { key: "floodDamageHq10", unit: "fraction", min: 0, max: 1, step: 0.01 },
-      {
-        key: "floodDamageHq100",
-        unit: "fraction",
-        min: 0,
-        max: 1,
         step: 0.01,
         recommended: true,
-        tip: true,
       },
       {
-        key: "floodDamageHqExtrem",
-        unit: "fraction",
+        key: "hailFrequencyZone4",
+        unit: "eventsPerYear",
         min: 0,
-        max: 1,
         step: 0.01,
+        recommended: true,
       },
-      { key: "heatHotdaysScoreMax", unit: "daysPerYear", min: 1, step: 1 },
       {
-        key: "heatDamageFractionPerHotday",
+        key: "hailFrequencyZone5",
+        unit: "eventsPerYear",
+        min: 0,
+        step: 0.01,
+        recommended: true,
+      },
+      {
+        key: "hailFrequencyZone6",
+        unit: "eventsPerYear",
+        min: 0,
+        step: 0.01,
+        recommended: true,
+      },
+      {
+        key: "hailShareSmall",
         unit: "fraction",
         min: 0,
         max: 1,
-        step: 0.0001,
+        step: 0.05,
+        recommended: true,
+      },
+      {
+        key: "hailShareMedium",
+        unit: "fraction",
+        min: 0,
+        max: 1,
+        step: 0.05,
+        recommended: true,
+      },
+      {
+        key: "hailShareLarge",
+        unit: "fraction",
+        min: 0,
+        max: 1,
+        step: 0.05,
+        recommended: true,
+      },
+      {
+        key: "hailSeveritySmallEur",
+        unit: "eurPerVehicle",
+        min: 0,
+        step: 100,
+        recommended: true,
+      },
+      {
+        key: "hailSeverityMediumEur",
+        unit: "eurPerVehicle",
+        min: 0,
+        step: 100,
+        recommended: true,
+      },
+      {
+        key: "hailSeverityLargeEur",
+        unit: "eurPerVehicle",
+        min: 0,
+        step: 100,
+        recommended: true,
       },
     ],
   },
@@ -185,6 +193,7 @@ const GROUPS: ParameterGroup[] = [
         step: 0.1,
       },
       { key: "snowScoreMaxCm", unit: "centimeters", min: 1, step: 1 },
+      { key: "heatHotdaysScoreMax", unit: "daysPerYear", min: 1, step: 1 },
       {
         key: "floodScoreMaxAnnualPrecipMm",
         unit: "millimetersPerYear",
@@ -272,10 +281,10 @@ const GROUPS: ParameterGroup[] = [
     id: "quality",
     fields: [
       {
-        key: "alertExtremeScore",
-        unit: "outOf100",
-        min: 0,
-        max: 100,
+        key: "alertHailZone",
+        unit: "hailZone",
+        min: 1,
+        max: 6,
         step: 1,
         recommended: true,
         tip: true,
@@ -337,6 +346,40 @@ const GROUPS: ParameterGroup[] = [
     ],
   },
 ];
+
+/** Formula, placeholder status, and the class-share sum of the hail EAL. */
+function HailEalNotice({
+  parameters,
+}: Readonly<{ parameters: RiskParameters }>): React.JSX.Element {
+  const { t } = useTranslation();
+  const shareSum =
+    parameters.hailShareSmall +
+    parameters.hailShareMedium +
+    parameters.hailShareLarge;
+  const mean = meanHailSeverityEur(parameters);
+  return (
+    <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+      <p className="font-mono text-xs">
+        EAL = N × λ<sub>z</sub> × (p<sub>S</sub>·S<sub>S</sub> + p<sub>M</sub>·S
+        <sub>M</sub> + p<sub>L</sub>·S<sub>L</sub>)
+      </p>
+      <p className="text-muted-foreground">{t("parameters.hailEal.formula")}</p>
+      <p className="font-medium text-amber-700 dark:text-amber-400">
+        {t("parameters.hailEal.placeholders")}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {t("parameters.hailEal.meanSeverity", { value: eur(mean) })}
+      </p>
+      {Math.abs(shareSum - 1) > 0.001 && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          {t("parameters.hailEal.shareSum", {
+            sum: shareSum.toFixed(2).replace(".", ","),
+          })}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function displayValue(value: number): string {
   return String(value);
@@ -627,6 +670,9 @@ function ParametersContent(): React.JSX.Element {
                   </span>
                 </summary>
                 <div className="space-y-4 px-5 pb-5">
+                  {group.id === "risk" && (
+                    <HailEalNotice parameters={parameters} />
+                  )}
                   <div className="grid gap-3 lg:grid-cols-2">
                     {recommendedFields.map((field) => (
                       <div

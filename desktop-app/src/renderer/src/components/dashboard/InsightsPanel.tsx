@@ -1,135 +1,145 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { AlertTriangle, Info, TrendingUp } from "lucide-react";
-import type { AnalyzedDealership } from "@shared/types";
-import { detectAnomalies, generateAlerts, type Alert } from "@shared/analytics";
+import { ClipboardCheck } from "lucide-react";
+import type { AnalyzedDealership, RiskParameters } from "@shared/types";
+import { generateAlerts, type Alert } from "@shared/analytics";
 import { Badge } from "@renderer/components/ui/badge";
+import { Button } from "@renderer/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@renderer/components/ui/card";
-import { eur } from "@renderer/lib/format";
+import { boundarySourceLabel } from "@renderer/lib/boundarySource";
+import { eur, num, pct } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
+import { TileInfo } from "./TileInfo";
+
+const INITIAL_ROWS = 8;
 
 /**
- * Insights tile: rule-based alerts (extreme risk, EAL concentration,
- * over-utilisation, uncertain boundary, zero detection) plus statistical
- * outliers (z-score ≥ 2). Clicking an entry opens the detail dialog.
+ * Review notes ("Prüfhinweise"): fixed, named rules from `generateAlerts`.
+ * Every hit shows the rule that fired, so the list is explainable. An
+ * accumulation note opens the accumulation on the map; every other note
+ * opens the location's detail dialog.
  */
 export function InsightsPanel({
   dealerships,
   onSelect,
+  onShowAccumulation,
 }: Readonly<{
   dealerships: AnalyzedDealership[];
   onSelect: (d: AnalyzedDealership) => void;
-}>): React.JSX.Element | null {
+  onShowAccumulation: (memberIds: string[]) => void;
+}>): React.JSX.Element {
   const { t } = useTranslation();
   const parameters = useAppStore((s) => s.parameters);
+  const [showAll, setShowAll] = useState(false);
   const alerts = useMemo(
-    () =>
-      generateAlerts(dealerships, {
-        extremeScore: parameters.alertExtremeScore,
-        overcapacity: parameters.alertOvercapacity,
-        lowBoundaryConfidence: parameters.alertLowBoundaryConfidence,
-        ealPortfolioShare: parameters.alertEalPortfolioShare,
-      }),
+    () => generateAlerts(dealerships, parameters),
     [dealerships, parameters],
   );
-  const anomalies = useMemo(() => detectAnomalies(dealerships), [dealerships]);
   const byId = useMemo(
     () => new Map(dealerships.map((d) => [d.id, d])),
     [dealerships],
   );
+  const critical = alerts.filter((a) => a.level === "critical").length;
+  const visible = showAll ? alerts : alerts.slice(0, INITIAL_ROWS);
 
-  function open(id: string): void {
-    const d = byId.get(id);
+  function open(alert: Alert): void {
+    if (alert.memberIds) {
+      onShowAccumulation(alert.memberIds);
+      return;
+    }
+    const d = byId.get(alert.dealershipId);
     if (d) onSelect(d);
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <AlertTriangle className="size-4 text-amber-500" />
-          {t("dashboard.insightsTitle")}
-          <span className="text-xs font-normal text-muted-foreground">
-            {t("dashboard.insightsSummary", {
-              alerts: alerts.length,
-              outliers: anomalies.length,
-            })}
-          </span>
+        <CardTitle className="flex items-center gap-1.5 text-base">
+          <ClipboardCheck className="size-4 text-amber-500" />
+          {t("dashboard.review.title")}
+          <TileInfo topic="review" values={ruleValues(parameters)} />
         </CardTitle>
+        <CardDescription>
+          {t("dashboard.review.summary", {
+            critical,
+            warnings: alerts.length - critical,
+          })}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {alerts.length === 0 && anomalies.length === 0 && (
+        {alerts.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {t("dashboard.noAnomalies")}
+            {t("dashboard.review.none")}
           </p>
-        )}
-        {alerts.length > 0 && (
-          <ul className="space-y-1.5">
-            {alerts.slice(0, 8).map((a, i) => (
+        ) : (
+          <ul className="space-y-1">
+            {visible.map((a, i) => (
               <li key={`${a.dealershipId}-${a.kind}-${i}`}>
                 <button
                   type="button"
-                  onClick={() => open(a.dealershipId)}
+                  onClick={() => open(a)}
                   className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
                 >
                   <AlertBadge level={a.level} />
-                  <span className="flex-1">
-                    <span className="font-medium">{a.name}</span> —{" "}
-                    {alertMessage(a, t)}
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium">{a.name}</span>
+                    {a.memberIds && a.memberIds.length > 1 && (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        {t("dashboard.accumulations.more", {
+                          count: a.memberIds.length - 1,
+                        })}
+                      </span>
+                    )}{" "}
+                    — {alertMessage(a, t)}
+                    <span className="block text-xs text-muted-foreground">
+                      {t("dashboard.review.ruleLabel")}{" "}
+                      {t(
+                        `dashboard.review.rules.${a.kind}`,
+                        ruleValues(parameters),
+                      )}
+                    </span>
                   </span>
                 </button>
               </li>
             ))}
           </ul>
         )}
-
-        {anomalies.length > 0 && (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-              <TrendingUp className="size-3.5" />
-              {t("dashboard.statisticalOutliers")}
-            </div>
-            <ul className="space-y-1">
-              {anomalies.slice(0, 6).map((an, i) => (
-                <li key={`${an.dealershipId}-${an.metric}-${i}`}>
-                  <button
-                    type="button"
-                    onClick={() => open(an.dealershipId)}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-accent"
-                  >
-                    <Info className="size-3.5 shrink-0 text-sky-500" />
-                    <span className="flex-1">
-                      <span className="font-medium">{an.name}</span>:{" "}
-                      {t(`dashboard.anomalyMetric.${an.metric}`)}{" "}
-                      {an.metric === "eal"
-                        ? eur(an.value)
-                        : an.value.toFixed(an.metric === "utilisation" ? 2 : 0)}
-                    </span>
-                    <span
-                      className={`text-xs tabular-nums ${
-                        an.severity === "high"
-                          ? "text-destructive"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {an.zScore > 0 ? "+" : ""}
-                      {an.zScore.toFixed(1)}σ
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+        {alerts.length > INITIAL_ROWS && (
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAll((value) => !value)}
+            >
+              {showAll
+                ? t("dashboard.showLess")
+                : t("dashboard.showAll", { count: alerts.length })}
+            </Button>
           </div>
         )}
       </CardContent>
     </Card>
   );
+}
+
+/** Thresholds interpolated into the rule texts. */
+function ruleValues(p: RiskParameters): Record<string, string | number> {
+  return {
+    zone: p.alertHailZone,
+    share: pct(p.alertEalPortfolioShare),
+    radius: p.accumulationRadiusKm,
+    threshold: eur(p.accumulationReinsureThresholdEur),
+    utilisation: pct(p.alertOvercapacity),
+    confidence: pct(p.alertLowBoundaryConfidence),
+  };
 }
 
 function AlertBadge({
@@ -149,23 +159,30 @@ function AlertBadge({
 
 function alertMessage(alert: Alert, t: TFunction): string {
   switch (alert.kind) {
-    case "extreme-risk":
-      return t("dashboard.alert.extremeRisk", {
-        score: (alert.value ?? 0).toFixed(0),
-      });
+    case "high-hail-zone":
+      return t("dashboard.alert.highHailZone", { zone: alert.value ?? "–" });
     case "high-eal":
       return t("dashboard.alert.highEal", {
         share: (alert.value ?? 0).toFixed(0),
       });
+    case "accumulation":
+      return t("dashboard.alert.accumulation", {
+        count: alert.memberIds?.length ?? 0,
+        exposure: eur(alert.value),
+      });
     case "overcapacity":
       return t("dashboard.alert.overcapacity", {
-        utilisation: (alert.value ?? 0).toFixed(0),
+        utilisation: num(alert.value),
       });
     case "low-boundary-confidence":
       return t("dashboard.alert.lowBoundaryConfidence", {
-        source: alert.source ?? "–",
+        source: alert.source ? boundarySourceLabel(t, alert.source) : "–",
       });
     case "no-detection":
       return t("dashboard.alert.noDetection");
+    case "estimated-hail-zone":
+      return t("dashboard.alert.estimatedHailZone", {
+        zone: alert.value ?? "–",
+      });
   }
 }

@@ -19,38 +19,37 @@ export const VEHICLE_VALUE_DEFAULT_EUR = 25_000;
 /** Assumed parking area per vehicle (sqm) — for capacity/utilisation. */
 export const CAPACITY_SQM_PER_VEHICLE = 25;
 
-// --- EAL damage parameters (per peril) -------------------------------------
+/**
+ * Version of the risk model that produced a RiskAssessment. The dashboard
+ * offers a recalculation for results stored with an older version.
+ */
+export const RISK_MODEL_VERSION = "screening-0.4.0";
 
-/** Hail: base damage fraction + location-based hit probability. */
-export const HAIL_DAMAGE_FRACTION_BASE = 0.15;
-export const SITE_HIT_PROBABILITY = 0.2;
-/** Climate loading on the event frequency (+15% 10-year projection). */
-export const CLIMATE_LOADING_FACTOR = 0.15;
+// --- Hail EAL: EAL = N × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L) -------------
+//
+// Uncalibrated screening placeholders, agreed as starting values until the
+// underwriting team supplies calibrated figures. All are editable on the
+// parameters page; see docs/risk-model.md for the methodology.
 
-/** Storm/wind. */
-export const WIND_STORM_THRESHOLD_KMH = 90;
-export const WIND_DAMAGE_FRACTION = 0.05;
-export const WIND_SITE_HIT_PROBABILITY = 0.4;
+/** λ_z: damaging hail events per year at a single site, by hail zone 1–6. */
+export const HAIL_FREQUENCY_BY_ZONE: Record<1 | 2 | 3 | 4 | 5 | 6, number> = {
+  1: 0.01,
+  2: 0.02,
+  3: 0.04,
+  4: 0.07,
+  5: 0.1,
+  6: 0.15,
+};
 
-/** Lightning: damage fraction per triggered event. */
-export const LIGHTNING_DAMAGE_FRACTION = 0.03;
-
-/** Snow load: damage fraction per 30cm of snow depth. */
-export const SNOW_LOAD_DAMAGE_FRACTION_PER_30CM = 0.02;
-
-/** Flood damage fractions by return period (ZUERS-like). */
-export const FLOOD_DAMAGE_CURVE = {
-  HQ10: 0.05,
-  HQ100: 0.15,
-  HQextrem: 0.3,
+/** p_k (share of events) and S_k (EUR loss per exposed vehicle) per class. */
+export const HAIL_SEVERITY_CLASSES = {
+  small: { share: 0.6, lossEur: 800 },
+  medium: { share: 0.3, lossEur: 3_000 },
+  large: { share: 0.1, lossEur: 7_000 },
 } as const;
 
-/**
- * Heat: from this number of hot days/year (Tmax >= 30 C) the score reaches
- * its maximum; damage fraction per hot day (battery/interior/paint — moderate).
- */
+/** Heat: number of hot days/year (Tmax >= 30 C) at which the score peaks. */
 export const HEAT_HOTDAYS_SCORE_MAX = 40;
-export const HEAT_DAMAGE_FRACTION_PER_HOTDAY = 0.0008;
 
 // --- PML / cluster / scenario -----------------------------------------------
 

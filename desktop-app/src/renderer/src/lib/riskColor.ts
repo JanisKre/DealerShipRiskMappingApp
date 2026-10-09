@@ -6,6 +6,11 @@ export function riskColor(score: number): string {
   return "#dc2626"; // red
 }
 
+/** Traffic-light color for a hail zone (1 = green … 5–6 = red). */
+export function hailZoneColor(zone: number): string {
+  return riskColor(((zone - 1) / 5) * 100);
+}
+
 /** Discrete risk level per score (analogous to RiskLevel in the original). */
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "EXTREME";
 

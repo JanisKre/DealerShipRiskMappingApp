@@ -60,9 +60,10 @@ export async function scoreRisk(
   const carCount = effectiveVehicleCount(detection);
   const utilisation = capacityEstimate > 0 ? carCount / capacityEstimate : 0;
   const ealBreakdown = computeEalBreakdown(
-    weather,
-    exposureEur,
+    detection,
+    assetValue,
     exposureRatio,
+    perils,
     hailZone,
     parameters,
     natCat,
@@ -80,7 +81,12 @@ export async function scoreRisk(
           ],
         }
       : openMeteoProvider.evidence());
-  const evidence = riskEvidence(boundary, detection, hazardEvidence);
+  const evidence = riskEvidence(
+    boundary,
+    detection,
+    hazardEvidence,
+    ealBreakdown.hailDetail,
+  );
   const confidence = round(
     evidence.reduce((sum, item) => sum + item.confidence, 0) / evidence.length,
   );
@@ -97,7 +103,12 @@ export async function scoreRisk(
     modelVersion: RISK_MODEL_VERSION,
     evidence,
     ...(natCat ? { natCat } : {}),
-    limitations: riskLimitations(boundary, detection, natCat),
+    limitations: riskLimitations(
+      boundary,
+      detection,
+      natCat,
+      ealBreakdown.hailDetail,
+    ),
     computedAt: new Date().toISOString(),
   };
 }

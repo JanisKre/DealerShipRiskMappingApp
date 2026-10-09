@@ -9,6 +9,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Hail-focused dashboard, based on underwriter feedback: KPI row (locations,
+  vehicles parked in the open, exposure, hail EAL, largest accumulation,
+  locations in hail zone ≥ 4), a "Largest accumulations" list whose rows
+  expand into their locations and open on the map, a hail-zone distribution,
+  top locations by hail EAL, and rule-based "Review notes" that show the rule
+  behind every note. Every tile has an ⓘ explanation of what it shows, how it
+  is calculated, and its limits.
+- Dashboard banner to recalculate locations scored with an older risk model.
+
 - Dealer directory from Overture Maps (Settings → "Dealer directory"): a
   one-time download (about 500 MB, a few minutes, in a background worker)
   stores about 45,000 car, used-car, motorcycle, truck and RV dealers in
@@ -101,6 +110,24 @@ the project follows [Semantic Versioning](https://semver.org/).
   model's limitations.
 
 ### Changed
+
+- **Risk model `screening-0.4.0`: hail-only EAL** —
+  `EAL = N × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L)` with the vehicles parked in
+  the open (N), damaging hail events per year by hail zone (λ_z), and the
+  share (p) and per-vehicle loss (S) of small, medium, and large events. The
+  defaults are uncalibrated placeholders and editable under Parameters → Hail
+  EAL. Wind, flood, lightning, snow, and heat no longer contribute to the EAL;
+  their scores remain in the detail view. Methodology: `docs/risk-model.md`.
+- The critical review note now fires from hail zone 5 (`alertHailZone`)
+  instead of a 0–100 score of 75.
+- German is the default language for new installations; the dashboard no
+  longer mixes German and English.
+
+### Removed
+
+- Dashboard tiles for the PML, peril coverage and concentration, the seasonal
+  risk profile, the risk-level donut, "extreme risks", and the statistical
+  outlier list (z-scores). The PML is still available to the AI assistant.
 
 - The CatNet adapter is now the generic hazard API adapter
   (`hazard-api.service.ts`, contract in `docs/risk-model.md`); CatNet settings
