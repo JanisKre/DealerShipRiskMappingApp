@@ -8,12 +8,17 @@ Conventions used by every script:
   can be made per site, never per tile (neighbouring tiles share vehicles).
 * Labels use the Ultralytics YOLO-OBB text format:
   `class x1 y1 x2 y2 x3 y3 x4 y4` with corners normalised to [0, 1], stored
-  in `<image dir>/../labels/` (see label_path).
+  in `<image dir>/../labels/` (see label_path). For dealership tiles these
+  are machine suggestions; your corrections live in X-AnyLabeling's JSON next
+  to each tile (data/raw/*.json) and are converted back by make_dataset.py.
 """
 
 from __future__ import annotations
 
+import json
 import math
+import subprocess
+from collections import defaultdict
 from pathlib import Path
 
 TILE_PX = 640
@@ -40,16 +45,41 @@ def write_classes_file(folder: Path) -> Path:
     return path
 
 
-REVIEWED_SITES = DATA / "reviewed_sites.txt"
+RAW = DATA / "raw"
+SUGGESTIONS = DATA / "labels"
+CLASSES_FILE = SUGGESTIONS / "classes.txt"
+XANYLABELING = ROOT / ".venv-label" / "bin" / "xanylabeling"
+
+
+def tile_checked(image: Path) -> bool:
+    """Whether the tile was ticked as done in X-AnyLabeling (`"checked": true` in its JSON)."""
+    try:
+        return json.loads(image.with_suffix(".json").read_text()).get("checked") is True
+    except (FileNotFoundError, ValueError):
+        return False
+
+
+def tiles_by_site() -> dict[str, list[Path]]:
+    sites: dict[str, list[Path]] = defaultdict(list)
+    for image in sorted(RAW.glob("*.jpg")):
+        sites[site_of(image)].append(image)
+    return sites
 
 
 def reviewed_sites() -> set[str]:
-    """Site ids whose 9 tiles have been fully corrected (one per line, `#` comments)."""
-    if not REVIEWED_SITES.exists():
-        return set()
-    # First word of each non-comment line; the rest (counts, names) is free text.
-    words = (line.split("#", 1)[0].split() for line in REVIEWED_SITES.read_text().splitlines())
-    return {w[0] for w in words if w}
+    """Sites whose tiles are all ticked as done. Only these enter the dataset, and
+    pre-labelling never touches them."""
+    return {site for site, tiles in tiles_by_site().items() if all(tile_checked(t) for t in tiles)}
+
+
+def xanylabeling_convert(task: str, labels: Path, output: Path) -> None:
+    """Runs X-AnyLabeling's own converter (`yolo2xlabel` / `xlabel2yolo`, OBB) over data/raw."""
+    if not XANYLABELING.exists():
+        raise SystemExit(f"X-AnyLabeling missing — see README setup ({XANYLABELING})")
+    output.mkdir(parents=True, exist_ok=True)
+    cmd = [str(XANYLABELING), "convert", "--task", task, "--mode", "obb", "--images", str(RAW),
+           "--labels", str(labels), "--output", str(output), "--classes", str(CLASSES_FILE)]
+    subprocess.run(cmd, check=True, capture_output=True)
 
 
 def site_of(path: Path) -> str:

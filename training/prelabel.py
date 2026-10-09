@@ -8,7 +8,7 @@ X-AnyLabeling, which reads and writes this format).
     # round 2: re-label the not-yet-reviewed sites with your own first model
     python prelabel.py --model runs/dealer-obb/weights/best.pt --classes own --overwrite
 
-Sites listed in data/reviewed_sites.txt are never touched, even with --overwrite.
+Sites whose tiles are all ticked as done in X-AnyLabeling are never touched, even with --overwrite.
 
 DOTA imagery is coarser than our 0.10 m/px tiles; `--imgsz 448` shrinks each
 tile on the fly so cars appear at roughly the scale the DOTA model learned.
