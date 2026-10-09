@@ -6,8 +6,9 @@ auto_save: true
 auto_use_last_label: true      # new boxes reuse the last class without asking
 store_data: false              # don't embed the image in each JSON
 show_scores: false
+show_masks: false              # outlines only, so the vehicle stays visible (Ctrl+M toggles)
 show_degrees: false
-file_list_checkbox_editable: true   # tick finished tiles directly in the file list
+file_list_checkbox_editable: false  # the file-list box only means "has a label file"
 shape_color: manual
 label_colors:
   car: [0, 255, 102]

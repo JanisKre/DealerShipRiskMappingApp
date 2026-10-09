@@ -10,8 +10,8 @@ X-AnyLabeling's own converter into its JSON next to each tile
 exactly as generated is refreshed when the suggestions change, e.g. after
 re-labelling with your own model in round 2.
 
-In the tool: fix the boxes of a tile, tick it (checkbox in the file list or
-Ctrl+Alt+K), next tile with D. A site counts as done when all its tiles are
+In the tool: fix the boxes of a tile, mark it checked (Ctrl+Alt+K — the
+circle in the file list turns green), next tile with D. A site counts as done when all its tiles are
 ticked. make_dataset.py reads the corrections directly, no export needed.
 """
 
