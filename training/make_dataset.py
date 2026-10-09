@@ -1,14 +1,14 @@
-"""Assemble the Ultralytics dataset from labelled tiles, split by site.
+"""Assemble the Ultralytics dataset from your corrected tiles, split by site.
 
-Own dealership tiles (`data/raw`, labels corrected in X-AnyLabeling) are split
-per site into train/val — never per tile, since neighbouring tiles overlap and
-share vehicles. Public tiles (`data/public/images`) only go into train, so the
-validation score reflects dealership imagery.
+Only sites whose tiles are all ticked as done in X-AnyLabeling are used; their
+labels are converted straight from the tool's JSON (no export step). Unticked
+tiles still hold raw suggestions, which miss about half of the vehicles and
+would teach the model to miss them too.
 
-Only sites listed in `data/reviewed_sites.txt` (one site id per line, e.g.
-`BB-osm9756873271`) are used. X-AnyLabeling exports labels for every tile,
-including ones still holding uncorrected pre-labels; those miss about half
-the vehicles and would teach the model to miss them too.
+Dealership sites are split into train/val per site — never per tile, since
+neighbouring tiles overlap and share vehicles. Public tiles
+(`data/public/images`) only go into train, so the validation score reflects
+dealership imagery.
 
     python make_dataset.py --val-share 0.2 --seed 7
 """
@@ -20,18 +20,14 @@ import random
 import shutil
 from pathlib import Path
 
-from common import CLASS_NAMES, DATA, REVIEWED_SITES, label_path, reviewed_sites, site_of
+from common import CLASS_NAMES, DATA, RAW, label_path, reviewed_sites, site_of, xanylabeling_convert
 
 DATASET = DATA / "dataset"
+CORRECTED = DATA / ".corrected"
 
 
-def labelled(folder: Path) -> list[Path]:
-    return sorted(p for p in folder.glob("*.jpg") if label_path(p).exists())
-
-
-def place(img: Path, split: str) -> None:
-    for src, sub in ((img, "images"), (label_path(img), "labels")):
-        dst = DATASET / sub / split / src.name
+def place(img: Path, label: Path, split: str) -> None:
+    for src, dst in ((img, DATASET / "images" / split / img.name), (label, DATASET / "labels" / split / f"{img.stem}.txt")):
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
 
@@ -44,31 +40,27 @@ def main() -> None:
     args = ap.parse_args()
 
     reviewed = reviewed_sites()
-    if not reviewed:
-        raise SystemExit(f"no reviewed sites — add each fully corrected site id to {REVIEWED_SITES}")
-
-    tiles = sorted(p for p in (DATA / "raw").glob("*.jpg") if site_of(p) in reviewed)
-    unlabelled = [p.name for p in tiles if not label_path(p).exists()]
-    if unlabelled:
-        raise SystemExit(f"reviewed tiles without a label file (export from X-AnyLabeling first): {unlabelled[:5]}")
-    unknown = reviewed - {site_of(p) for p in tiles}
-    if unknown:
-        print(f"warning: reviewed sites without tiles in data/raw: {sorted(unknown)[:5]}")
-    own = tiles
-    public = [] if args.no_public else labelled(DATA / "public" / "images")
-
-    sites = sorted({site_of(p) for p in own})
+    sites = sorted(reviewed)
     if len(sites) < 5:
-        raise SystemExit(f"only {len(sites)} reviewed sites — review at least 5 (better 60+) before training")
+        raise SystemExit(f"only {len(sites)} sites fully ticked — finish at least 5 (better 40+) in label.py first")
+
+    # Your corrections: X-AnyLabeling JSON → YOLO-OBB, with the tool's own converter.
+    shutil.rmtree(CORRECTED, ignore_errors=True)
+    xanylabeling_convert("xlabel2yolo", RAW, CORRECTED)
+    own = sorted(p for p in RAW.glob("*.jpg") if site_of(p) in reviewed)
+    public_dir = DATA / "public" / "images"
+    public = [] if args.no_public else sorted(p for p in public_dir.glob("*.jpg") if label_path(p).exists())
+
     random.Random(args.seed).shuffle(sites)
     n_val = max(1, round(len(sites) * args.val_share))
     val_sites = set(sites[:n_val])
 
     shutil.rmtree(DATASET, ignore_errors=True)
     for img in own:
-        place(img, "val" if site_of(img) in val_sites else "train")
+        place(img, CORRECTED / f"{img.stem}.txt", "val" if site_of(img) in val_sites else "train")
     for img in public:
-        place(img, "train")
+        place(img, label_path(img), "train")
+    shutil.rmtree(CORRECTED, ignore_errors=True)
 
     yaml = DATA.parent / "dataset.yaml"
     names = "\n".join(f"  {i}: {n}" for i, n in CLASS_NAMES.items())
@@ -76,8 +68,9 @@ def main() -> None:
     (DATASET / "val_sites.txt").write_text("\n".join(sorted(val_sites)) + "\n")
     n_train = len(list((DATASET / "images" / "train").glob("*.jpg")))
     n_val_tiles = len(list((DATASET / "images" / "val").glob("*.jpg")))
+    boxes = sum(len(p.read_text().splitlines()) for p in (DATASET / "labels").rglob("*.txt"))
     print(f"{len(sites)} sites → {len(sites) - n_val} train / {n_val} val")
-    print(f"tiles: {n_train} train ({len(public)} public), {n_val_tiles} val → {yaml}")
+    print(f"tiles: {n_train} train ({len(public)} public), {n_val_tiles} val, {boxes} vehicles → {yaml}")
 
 
 if __name__ == "__main__":

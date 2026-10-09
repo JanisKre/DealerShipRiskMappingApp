@@ -1,0 +1,19 @@
+# X-AnyLabeling settings for correcting vehicle boxes; label.py starts the tool
+# with these (overlaid on the tool's defaults, kept in data/.xanylabeling/).
+labels: [car, large_vehicle]
+validate_label: exact          # no typos in class names
+auto_save: true
+auto_use_last_label: true      # new boxes reuse the last class without asking
+store_data: false              # don't embed the image in each JSON
+show_scores: false
+show_degrees: false
+file_list_checkbox_editable: true   # tick finished tiles directly in the file list
+shape_color: manual
+label_colors:
+  car: [0, 255, 102]
+  large_vehicle: [255, 150, 0]
+shape:
+  line_width: 2                # cars are only ~45 px long
+  point_size: 6
+  fill_color: [220, 220, 220, 25]
+  select_fill_color: [0, 255, 0, 60]

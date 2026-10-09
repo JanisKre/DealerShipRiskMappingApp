@@ -29,10 +29,10 @@ python3.12 -m venv .venv-label
 | 0. Sites | `python select_sites.py dealers.csv --count 80` | `data/sites.csv`, spread over all states |
 | 1. Tiles | `python fetch_tiles.py data/sites.csv` | 640 px tiles at 0.10 m/px in `data/raw/` |
 | 2. Public data (optional) | `python convert_public.py --src <DLR 3K folder>` | `data/public/images` and `data/public/labels` |
-| 3. Pre-label | `python prelabel.py` | YOLO-OBB `.txt` per tile in `data/labels/`, plus `classes.txt` |
+| 3. Pre-label | `python prelabel.py` | Suggestions per tile in `data/labels/` |
 | 3b. Check | `python preview.py data/raw` | Labels drawn into `data/preview/` |
-| 4. Correct | X-AnyLabeling, see below | Corrected labels in `data/labels/`, finished sites in `data/reviewed_sites.txt` |
-| 5. Dataset | `python make_dataset.py` | `data/dataset/` from reviewed sites, split **by site** |
+| 4. Correct | `python label.py` | Corrections in `data/raw/*.json`; finished tiles ticked in the tool |
+| 5. Dataset | `python make_dataset.py` | `data/dataset/` from finished sites, split **by site** |
 | 6. Baseline | `python evaluate.py --weights yolo11s-obb.pt --dota` | Pretrained model, unchanged |
 | 7. Train | `caffeinate -i python train.py` | `runs/dealer-obb/weights/best.pt` |
 | 8. Evaluate | `python evaluate.py` | mAP50 and per-site count MAE, bias, within-10 % |
@@ -61,29 +61,32 @@ vehicles, mostly missing dark cars in shadow, vans and vehicles at tile
 edges. Labelling therefore mostly means **adding** missed vehicles, not
 deleting wrong ones.
 
-## Labelling in X-AnyLabeling
+## Correcting the suggestions
 
-Rules:
+```bash
+python label.py            # opens X-AnyLabeling with the suggestions already loaded
+python label.py --status   # progress only
+```
 
-- Draw one rotated box per vehicle, tight around the body.
-- Use class `car` for cars, vans and pickups, and `large_vehicle` for trucks,
-  buses, campers and trailers.
-- Label vehicles that are partly hidden or cut off at the tile edge.
-- Leave out vehicles you cannot see, for example in garages, under roofs or
-  carports, or completely under trees.
-- A tile with no vehicles is valid. Just leave it empty.
+`label.py` converts the suggestions into the tool's own format, using the
+tool's converter. It then opens the tool on the tiles of **unfinished sites
+only**. There is no import, export or text file to maintain. Your
+corrections are saved automatically next to each tile (`data/raw/*.json`)
+and are never overwritten.
 
-**Once, at the start:**
+**Per tile:**
 
-1. Start the tool with `.venv-label/bin/xanylabeling`. Then choose
-   *File → Open Dir* and select `data/raw`.
-2. Choose *Upload → YOLO OBB*. Select `data/labels/classes.txt` and then the
-   folder `data/labels`. Leave "preserve existing" unticked.
-   - This imports the pre-labels.
-   - Do this **only once**. Importing again overwrites your corrections.
+1. Fix the boxes:
+   - add missing vehicles
+   - delete wrong boxes
+   - straighten boxes that are off
+2. Tick the tile as done: click its checkbox in the file list, or press
+   `Ctrl+Alt+K`.
+3. Press `D` for the next tile.
 
-**Per site:** Tiles are sorted by name, so a site's 9 tiles come one after
-another. Work through all 9 of them:
+A site counts as done when all 9 of its tiles are ticked. Close the window
+whenever you want; the next `python label.py` starts with the remaining
+sites.
 
 | Key | Action |
 |---|---|
@@ -93,42 +96,40 @@ another. Work through all 9 of them:
 | `Ctrl+D` | Duplicate the selected box. Turn the first car of a row once, then duplicate it and move it with the arrow keys |
 | `Del` | Delete a wrong box |
 | `Ctrl+Z` | Undo |
+| `Ctrl+Alt+K` | Tick / untick the tile as done |
 
-Changes are saved automatically. When all 9 tiles of a site are correct, add
-the site ID (for example `BB-osm9756873271`) as a new line in
-`data/reviewed_sites.txt`. Only listed sites are used for training.
+Rules:
 
-**Export** (after each session, and before `make_dataset.py`):
+- Draw one rotated box per vehicle, tight around the body.
+- Use class `car` for cars, vans and pickups, and `large_vehicle` for trucks,
+  buses, campers and trailers.
+- New boxes reuse the last class. Change a box's class with `Ctrl+E`.
+- Label vehicles that are partly hidden or cut off at the tile edge.
+- Leave out vehicles you cannot see, for example in garages, under roofs or
+  carports, or completely under trees.
+- A tile with no vehicles is valid. Just tick it.
 
-1. Choose *Export → YOLO OBB*.
-2. Select `data/labels/classes.txt`.
-3. Keep the suggested target folder `data/labels`.
-4. Answer **Yes (merge)** to "Directory already exists".
-
-Effort: with pre-labels, expect about 1–2 minutes for a tile with a car lot
-and a few seconds for empty field or roof tiles. You can train with 40–50
-reviewed sites and add more later.
+Effort: with suggestions, expect about 1–2 minutes for a tile with a car lot
+and a few seconds for an empty field or roof tile. You can train with 40–50
+finished sites and add more later.
 
 ## Two rounds (bootstrapping)
 
-The DOTA pre-labels are good on most state orthophotos. On some they are
+The DOTA suggestions are good on most state orthophotos. On some they are
 weak: in a test on 80 sites, Bavaria, Schleswig-Holstein, Saxony and
 Thuringia gave few or no suggestions, for example on spring imagery with
-hard shadows and on dense rows of vans. Instead of drawing those by hand:
+hard shadows and on dense rows of vans. `label.py` holds back any state
+whose sites get a median of fewer than 80 suggestions; `--all` shows them
+anyway. Instead of drawing those by hand:
 
-1. **Round 1:** Correct the sites with good suggestions and list them in
-   `data/reviewed_sites.txt`.
-   - The file contains every site as a commented line. Remove the `#` once a
-     site is done.
-   - Round 1 sites come first, busiest first.
-2. **Train** once: export, run `make_dataset.py`, then `train.py`.
+1. **Round 1:** Correct the sites that `label.py` shows.
+2. **Train** once: run `make_dataset.py`, then `train.py`.
 3. **Re-label the rest** with your own model:
    `python prelabel.py --model runs/dealer-obb/weights/best.pt --classes own --overwrite`.
-   - Sites listed as reviewed are never overwritten.
-4. **Import again** in X-AnyLabeling: *Upload → YOLO OBB* from `data/labels`.
-   - Export first, so your round 1 corrections are in `data/labels` and are
-     imported back unchanged.
-   - Then correct the round 2 sites and train again.
+   - Finished sites, and tiles you have edited, are never overwritten.
+4. Run `python label.py` again. The new suggestions are loaded, and the
+   formerly weak states now show up because they get enough suggestions.
+   Correct them, then train again.
 
 ## Training on the MacBook Air M4 (16 GB)
 
