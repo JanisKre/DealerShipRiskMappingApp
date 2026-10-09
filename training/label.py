@@ -91,6 +91,17 @@ def weak_states(sites: dict) -> set[str]:
     return {state for state, counts in per_state.items() if statistics.median(counts) < WEAK_MEDIAN}
 
 
+def write_session_config(todo: list[str]):
+    """Our settings plus a file-list filter that shows only the tiles of
+    unfinished sites. The tool matches the filter against the full path,
+    so it is anchored on the last "/"."""
+    WORK_DIR.mkdir(parents=True, exist_ok=True)
+    session = WORK_DIR / "session.yaml"
+    pattern = "|".join(todo)
+    session.write_text((ROOT / "labeling.yaml").read_text() + f"file_search: '</({pattern})__[0-9]+_[0-9]+\\.jpg$>'\n")
+    return session
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--all", action="store_true", help="include sites with weak suggestions")
@@ -130,13 +141,8 @@ def main() -> None:
     if not XANYLABELING.exists():
         raise SystemExit(f"X-AnyLabeling missing — see README setup ({XANYLABELING})")
 
-    # Session config: our settings plus a file-list filter showing only the
-    # tiles of unfinished sites, so the tool opens on the next tile to correct.
-    WORK_DIR.mkdir(parents=True, exist_ok=True)
-    session = WORK_DIR / "session.yaml"
-    pattern = "|".join(todo)
-    session.write_text((ROOT / "labeling.yaml").read_text() + f"file_search: '<^({pattern})__>'\n")
-    print("opening X-AnyLabeling — close the window when you're done for today")
+    session = write_session_config(todo)
+    print("opening X-AnyLabeling — press D once to show the first tile; close the window when you're done")
     subprocess.run(
         [str(XANYLABELING), "--work-dir", str(WORK_DIR), "--config", str(session),
          "--filename", str(RAW), "--no-auto-update-check", "--logger-level", "warning"],
