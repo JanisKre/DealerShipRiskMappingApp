@@ -23,9 +23,11 @@ pip install x-anylabeling   # optional: labelling GUI with OBB support
 
 | Step | Command | Result |
 |---|---|---|
-| 1. Tiles | `python fetch_tiles.py sites.csv --service NW` | 640 px tiles at 0.10 m/px in `data/raw/` |
+| 0. Sites | `python select_sites.py dealers.csv --count 80` | `data/sites.csv`, spread over all states |
+| 1. Tiles | `python fetch_tiles.py data/sites.csv` | 640 px tiles at 0.10 m/px in `data/raw/` |
 | 2. Public data (optional) | `python convert_public.py --src <DLR 3K folder>` | tiles plus labels in `data/public/` |
 | 3. Pre-label | `python prelabel.py` | YOLO-OBB `.txt` next to each tile |
+| 3b. Check | `python preview.py data/raw` | Labels drawn into `data/preview/` |
 | 4. Correct | Open `data/raw/` in X-AnyLabeling | Corrected labels |
 | 5. Dataset | `python make_dataset.py` | `data/dataset/`, split **by site** |
 | 6. Baseline | `python evaluate.py --weights yolo11s-obb.pt --dota` | Pretrained model, unchanged |
@@ -36,9 +38,25 @@ pip install x-anylabeling   # optional: labelling GUI with OBB support
 The app picks up `dealer_vehicles.onnx` with its manifest `dealer_vehicles.json`
 after a restart. It prefers this model over the downloaded VisDrone model.
 
-**`sites.csv`** has the columns `id,lat,lon[,radius_m]`. Use 60–100 dealerships
-from several federal states. Hold out at least 15 sites;
-`make_dataset.py --val-share 0.2` does this per site.
+**`sites.csv`** has the columns `id,lat,lon,state[,radius_m]`. `state` is the
+two-letter state code that picks the orthophoto service. `select_sites.py`
+builds the file from an OSM dealer export (columns `ID`, `Dealership Name`,
+`Federal State`, `Latitude`, `Longitude`, `OSM ID`):
+
+- It drops non-dealers and sites closer than 400 m to another chosen site.
+  Overlapping tiles would leak between the training and validation split.
+- Hamburg and Sachsen-Anhalt are skipped because they have no open service.
+- Check the state of sites near state borders. A site placed in the wrong
+  state gets empty tiles, which `fetch_tiles.py` reports.
+
+Use 60–100 dealerships from several federal states. Hold out at least 15
+sites; `make_dataset.py --val-share 0.2` does this per site.
+
+**Pre-labels:** The DOTA model with `--imgsz 448 --conf 0.15` (the default)
+has high precision on dealership lots. It finds only about half of the
+vehicles, mostly missing dark cars in shadow, vans and vehicles at tile
+edges. Labelling therefore mostly means **adding** missed vehicles, not
+deleting wrong ones.
 
 **Labelling:** Draw one rotated box per vehicle. Use class `car` for cars,
 vans and pickups, and `large_vehicle` for trucks, buses and campers.
