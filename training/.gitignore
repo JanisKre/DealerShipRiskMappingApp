@@ -8,4 +8,5 @@ export/
 *.onnx
 *.cache
 .venv/
+.venv-label/
 __pycache__/

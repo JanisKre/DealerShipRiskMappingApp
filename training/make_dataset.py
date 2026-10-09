@@ -2,8 +2,13 @@
 
 Own dealership tiles (`data/raw`, labels corrected in X-AnyLabeling) are split
 per site into train/val — never per tile, since neighbouring tiles overlap and
-share vehicles. Public tiles (`data/public`) only go into train, so the
+share vehicles. Public tiles (`data/public/images`) only go into train, so the
 validation score reflects dealership imagery.
+
+Only sites listed in `data/reviewed_sites.txt` (one site id per line, e.g.
+`BB-osm9756873271`) are used. X-AnyLabeling exports labels for every tile,
+including ones still holding uncorrected pre-labels; those miss about half
+the vehicles and would teach the model to miss them too.
 
     python make_dataset.py --val-share 0.2 --seed 7
 """
@@ -15,17 +20,17 @@ import random
 import shutil
 from pathlib import Path
 
-from common import CLASS_NAMES, DATA, site_of
+from common import CLASS_NAMES, DATA, REVIEWED_SITES, label_path, reviewed_sites, site_of
 
 DATASET = DATA / "dataset"
 
 
 def labelled(folder: Path) -> list[Path]:
-    return sorted(p for p in folder.glob("*.jpg") if p.with_suffix(".txt").exists())
+    return sorted(p for p in folder.glob("*.jpg") if label_path(p).exists())
 
 
 def place(img: Path, split: str) -> None:
-    for src, sub in ((img, "images"), (img.with_suffix(".txt"), "labels")):
+    for src, sub in ((img, "images"), (label_path(img), "labels")):
         dst = DATASET / sub / split / src.name
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
@@ -38,12 +43,23 @@ def main() -> None:
     ap.add_argument("--no-public", action="store_true")
     args = ap.parse_args()
 
-    own = labelled(DATA / "raw")
-    public = [] if args.no_public else labelled(DATA / "public")
-    if not own:
-        raise SystemExit("no labelled tiles in data/raw — run fetch_tiles.py and prelabel.py, then correct the labels")
+    reviewed = reviewed_sites()
+    if not reviewed:
+        raise SystemExit(f"no reviewed sites — add each fully corrected site id to {REVIEWED_SITES}")
+
+    tiles = sorted(p for p in (DATA / "raw").glob("*.jpg") if site_of(p) in reviewed)
+    unlabelled = [p.name for p in tiles if not label_path(p).exists()]
+    if unlabelled:
+        raise SystemExit(f"reviewed tiles without a label file (export from X-AnyLabeling first): {unlabelled[:5]}")
+    unknown = reviewed - {site_of(p) for p in tiles}
+    if unknown:
+        print(f"warning: reviewed sites without tiles in data/raw: {sorted(unknown)[:5]}")
+    own = tiles
+    public = [] if args.no_public else labelled(DATA / "public" / "images")
 
     sites = sorted({site_of(p) for p in own})
+    if len(sites) < 5:
+        raise SystemExit(f"only {len(sites)} reviewed sites — review at least 5 (better 60+) before training")
     random.Random(args.seed).shuffle(sites)
     n_val = max(1, round(len(sites) * args.val_share))
     val_sites = set(sites[:n_val])

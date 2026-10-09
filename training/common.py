@@ -7,7 +7,8 @@ Conventions used by every script:
 * Tile filenames start with the site id (`<site>__<row>_<col>.jpg`) so splits
   can be made per site, never per tile (neighbouring tiles share vehicles).
 * Labels use the Ultralytics YOLO-OBB text format:
-  `class x1 y1 x2 y2 x3 y3 x4 y4` with corners normalised to [0, 1].
+  `class x1 y1 x2 y2 x3 y3 x4 y4` with corners normalised to [0, 1], stored
+  in `<image dir>/../labels/` (see label_path).
 """
 
 from __future__ import annotations
@@ -23,6 +24,32 @@ CLASS_NAMES = {0: "car", 1: "large_vehicle"}
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
+
+
+def label_path(image: Path) -> Path:
+    """YOLO label of a tile: `<image dir>/../labels/<stem>.txt` — the layout
+    X-AnyLabeling exports to by default (data/raw → data/labels), and the one
+    Ultralytics expects (images/ ↔ labels/)."""
+    return image.parent.parent / "labels" / f"{image.stem}.txt"
+
+
+def write_classes_file(folder: Path) -> Path:
+    """classes.txt (one name per line, in id order) — X-AnyLabeling asks for it on import/export."""
+    path = folder / "classes.txt"
+    path.write_text("\n".join(CLASS_NAMES[i] for i in sorted(CLASS_NAMES)) + "\n")
+    return path
+
+
+REVIEWED_SITES = DATA / "reviewed_sites.txt"
+
+
+def reviewed_sites() -> set[str]:
+    """Site ids whose 9 tiles have been fully corrected (one per line, `#` comments)."""
+    if not REVIEWED_SITES.exists():
+        return set()
+    # First word of each non-comment line; the rest (counts, names) is free text.
+    words = (line.split("#", 1)[0].split() for line in REVIEWED_SITES.read_text().splitlines())
+    return {w[0] for w in words if w}
 
 
 def site_of(path: Path) -> str:
