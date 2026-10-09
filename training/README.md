@@ -72,7 +72,8 @@ python label.py --status   # progress only
 tool's converter. It then opens the tool on the tiles of **unfinished sites
 only**. There is no import, export or text file to maintain. Your
 corrections are saved automatically next to each tile (`data/raw/*.json`)
-and are never overwritten.
+and are never overwritten. `make_dataset.py` reads these JSON files directly
+and keeps vehicles cut off at the tile edge (their boxes are clipped to the tile).
 
 The tool starts with an empty canvas. Press `D` once to show the first
 open tile.

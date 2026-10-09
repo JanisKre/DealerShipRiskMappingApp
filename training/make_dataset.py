@@ -1,7 +1,8 @@
 """Assemble the Ultralytics dataset from your corrected tiles, split by site.
 
 Only sites whose tiles are all ticked as done in X-AnyLabeling are used; their
-labels are converted straight from the tool's JSON (no export step). Unticked
+labels are read straight from the tool's JSON (no export step); boxes cut off
+at the tile edge are kept and clipped to the tile. Unticked
 tiles still hold raw suggestions, which miss about half of the vehicles and
 would teach the model to miss them too.
 
@@ -20,10 +21,9 @@ import random
 import shutil
 from pathlib import Path
 
-from common import CLASS_NAMES, DATA, RAW, label_path, reviewed_sites, site_of, xanylabeling_convert
+from common import CLASS_NAMES, DATA, RAW, corrected_labels, label_path, reviewed_sites, site_of, write_obb_labels
 
 DATASET = DATA / "dataset"
-CORRECTED = DATA / ".corrected"
 
 
 def place(img: Path, label: Path, split: str) -> None:
@@ -44,9 +44,6 @@ def main() -> None:
     if len(sites) < 5:
         raise SystemExit(f"only {len(sites)} sites fully ticked — finish at least 5 (better 40+) in label.py first")
 
-    # Your corrections: X-AnyLabeling JSON → YOLO-OBB, with the tool's own converter.
-    shutil.rmtree(CORRECTED, ignore_errors=True)
-    xanylabeling_convert("xlabel2yolo", RAW, CORRECTED)
     own = sorted(p for p in RAW.glob("*.jpg") if site_of(p) in reviewed)
     public_dir = DATA / "public" / "images"
     public = [] if args.no_public else sorted(p for p in public_dir.glob("*.jpg") if label_path(p).exists())
@@ -57,10 +54,13 @@ def main() -> None:
 
     shutil.rmtree(DATASET, ignore_errors=True)
     for img in own:
-        place(img, CORRECTED / f"{img.stem}.txt", "val" if site_of(img) in val_sites else "train")
+        split = "val" if site_of(img) in val_sites else "train"
+        # Your corrections: X-AnyLabeling JSON → YOLO-OBB (edge-cut boxes kept, clipped to the tile).
+        write_obb_labels(DATASET / "labels" / split / f"{img.stem}.txt", corrected_labels(img))
+        (DATASET / "images" / split).mkdir(parents=True, exist_ok=True)
+        shutil.copy2(img, DATASET / "images" / split / img.name)
     for img in public:
         place(img, label_path(img), "train")
-    shutil.rmtree(CORRECTED, ignore_errors=True)
 
     yaml = DATA.parent / "dataset.yaml"
     names = "\n".join(f"  {i}: {n}" for i, n in CLASS_NAMES.items())
