@@ -6,7 +6,7 @@ import type { AnalyzedDealership } from "@shared/types";
 import { effectiveVehicleCount } from "@shared/risk-math";
 import { eur } from "@renderer/lib/format";
 import { riskColor, riskLevel } from "@renderer/lib/riskColor";
-import { useMap } from "react-leaflet";
+import { useMap } from "./leaflet-react";
 import { riskMarkerIcon } from "./markerIcons";
 
 interface Props {
@@ -94,7 +94,7 @@ function popupHtml(d: AnalyzedDealership, t: (key: string) => string): string {
 
 /**
  * Imperative marker-cluster component. Uses `L.MarkerClusterGroup` directly
- * because react-leaflet v5 has no clean declarative integration.
+ * because the declarative bindings in ./leaflet-react cover plain layers only.
  * Rebuilds the cluster on every change to `dealerships`/`selectedId`.
  */
 export function ClusteredMarkers({

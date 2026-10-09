@@ -108,8 +108,8 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       url: "https://geodienste.bremen.de/wms_dop_lb",
       layer: "dop10_2025_HB",
       resolutionM: 0.1,
-      attribution: "© Landesamt GeoInformation Bremen ({year}), CC BY",
-      license: "CC BY",
+      attribution: "© Landesamt GeoInformation Bremen ({year}), CC BY 4.0",
+      license: "CC BY 4.0",
       vintageYear: 2025,
     },
     HE: {
@@ -119,8 +119,8 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       url: "https://www.gds-srv.hessen.de/cgi-bin/lika-services/ogc-free-images.ows?language=ger",
       layer: "he_dop20_rgb",
       resolutionM: 0.2,
-      attribution: "© HVBG Hessen ({year})",
-      license: "§ 24 HVGG (kostenfrei)",
+      attribution: "© HVBG Hessen ({year}), dl-de/zero-2-0",
+      license: "dl-de/zero-2-0",
     },
     MV: {
       state: "MV",
@@ -129,8 +129,8 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       url: "https://www.geodaten-mv.de/dienste/adv_dop",
       layer: "mv_dop",
       resolutionM: 0.2,
-      attribution: "© GeoBasis-DE/M-V {year}",
-      license: "Quellenvermerk Pflicht",
+      attribution: "© GeoBasis-DE/M-V ({year}), CC BY 4.0",
+      license: "CC BY 4.0",
     },
     NI: {
       state: "NI",
@@ -169,8 +169,8 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       url: "https://geoportal.saarland.de/freewms/dop",
       layer: "sl_dop",
       resolutionM: 0.2,
-      attribution: "© GeoBasis-DE/LVGL-SL ({year})",
-      license: "frei nutzbar",
+      attribution: "© GeoBasis-DE/LVGL-SL ({year}), dl-de/by-2-0",
+      license: "dl-de/by-2-0",
     },
     SN: {
       state: "SN",
@@ -199,8 +199,8 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       url: "https://www.geoproxy.geoportal-th.de/geoproxy/services/DOP",
       layer: "th_dop",
       resolutionM: 0.2,
-      attribution: "© GDI-Th ({year}), CC BY 4.0",
-      license: "CC BY 4.0",
+      attribution: "© GDI-Th ({year}), dl-de/by-2-0",
+      license: "dl-de/by-2-0",
     },
   };
 

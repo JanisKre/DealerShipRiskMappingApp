@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "env -u ELECTRON_RUN_AS_NODE electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && node scripts/generate-third-party-notices.mjs",
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
@@ -24,10 +24,11 @@
     "test:coverage": "vitest run --coverage",
     "smoke": "node scripts/smoke-test.mjs",
     "release:metadata": "node scripts/create-release-metadata.mjs",
-    "pack": "electron-vite build && electron-builder --dir",
-    "dist": "electron-vite build && electron-builder",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
     "benchmark:boundary": "BOUNDARY_BENCHMARK=1 vitest run src/main/services/boundary/boundary-benchmark.run.test.ts",
-    "benchmark:boundary:fused": "BOUNDARY_BENCHMARK=1 BOUNDARY_ENGINE=fused vitest run src/main/services/boundary/boundary-benchmark.run.test.ts"
+    "benchmark:boundary:fused": "BOUNDARY_BENCHMARK=1 BOUNDARY_ENGINE=fused vitest run src/main/services/boundary/boundary-benchmark.run.test.ts",
+    "notices": "node scripts/generate-third-party-notices.mjs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "3.0.2",
@@ -72,7 +73,6 @@
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "react-i18next": "15.6.0",
-    "react-leaflet": "5.0.0",
     "react-resizable-panels": "^4.12.4",
     "react-router-dom": "7.18.3",
     "recharts": "^2.15.4",

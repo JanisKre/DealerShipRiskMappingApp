@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { latLng, latLngBounds, type Map as LeafletMap } from "leaflet";
-import { useMap } from "react-leaflet";
+import { useMap } from "./leaflet-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { useAppStore } from "@renderer/store/appStore";
 import { useMapStore } from "@renderer/store/mapStore";

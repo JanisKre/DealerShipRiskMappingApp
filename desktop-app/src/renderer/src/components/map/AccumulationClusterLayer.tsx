@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Circle, Tooltip } from "react-leaflet";
+import { Circle, Tooltip } from "./leaflet-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { computeAccumulationClusters } from "@shared/risk-math";
 import { riskColor } from "@renderer/lib/riskColor";

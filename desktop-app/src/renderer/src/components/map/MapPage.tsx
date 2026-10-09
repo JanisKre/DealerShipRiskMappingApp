@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, useMap, useMapEvents } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import "@geoman-io/leaflet-geoman-free";
