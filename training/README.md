@@ -74,6 +74,9 @@ only**. There is no import, export or text file to maintain. Your
 corrections are saved automatically next to each tile (`data/raw/*.json`)
 and are never overwritten.
 
+The tool starts with an empty canvas. Press `D` once to show the first
+open tile.
+
 **Per tile:**
 
 1. Fix the boxes:
