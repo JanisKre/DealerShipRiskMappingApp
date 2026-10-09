@@ -1,0 +1,7 @@
+# Training pipeline for the vehicle detector (Python 3.11–3.12, Apple silicon / MPS)
+ultralytics>=8.4,<8.5
+torch>=2.5
+onnx>=1.17
+onnxslim>=0.1.40
+onnxruntime>=1.20
+pillow>=11
