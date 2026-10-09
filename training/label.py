@@ -10,7 +10,7 @@ X-AnyLabeling's own converter into its JSON next to each tile
 exactly as generated is refreshed when the suggestions change, e.g. after
 re-labelling with your own model in round 2.
 
-In the tool: fix the boxes of a tile, mark it checked (Ctrl+Alt+K — the
+In the tool: fix the boxes of a tile, mark it checked (⌘⌥K on macOS — the
 circle in the file list turns green), next tile with D. A site counts as done when all its tiles are
 ticked. make_dataset.py reads the corrections directly, no export needed.
 """
@@ -142,7 +142,7 @@ def main() -> None:
         raise SystemExit(f"X-AnyLabeling missing — see README setup ({XANYLABELING})")
 
     session = write_session_config(todo)
-    print("opening X-AnyLabeling — press D once to show the first tile; close the window when you're done")
+    print("opening X-AnyLabeling — press D once to show the first tile, ⌘⌥K marks a tile done; close the window when you're done")
     subprocess.run(
         [str(XANYLABELING), "--work-dir", str(WORK_DIR), "--config", str(session),
          "--filename", str(RAW), "--no-auto-update-check", "--logger-level", "warning"],

@@ -83,7 +83,7 @@ open tile.
    - add missing vehicles
    - delete wrong boxes
    - straighten boxes that are off
-2. Mark the tile as done with `Ctrl+Alt+K` (menu: *Mark as Checked*). The
+2. Mark the tile as done with `⌘⌥K` (`Ctrl+Alt+K` on Windows/Linux; menu: *Mark as Checked*). The
    title bar then shows `[Checked]` and the circle in the file list turns
    green. The blue box in the file list only means "has a label file".
 3. Press `D` for the next tile.
@@ -92,16 +92,18 @@ A site counts as done when all 9 of its tiles are ticked. Close the window
 whenever you want; the next `python label.py` starts with the remaining
 sites.
 
-| Key | Action |
+On macOS the tool's `Ctrl` shortcuts use **⌘ (Cmd)**, not the ctrl key.
+
+| Key (macOS) | Action |
 |---|---|
 | `D` / `A` | Next / previous tile |
 | `O` | New rotated box: drag a box, then rotate it |
 | `Z` `X` / `C` `V` | Rotate the selected box (large/small, either direction) |
-| `Ctrl+D` | Duplicate the selected box. Turn the first car of a row once, then duplicate it and move it with the arrow keys |
+| `⌘D` | Duplicate the selected box. Turn the first car of a row once, then duplicate it and move it with the arrow keys |
 | `Del` | Delete a wrong box |
-| `Ctrl+Z` | Undo |
-| `Ctrl+Alt+K` | Mark the tile as done (again to undo) |
-| `Ctrl+M` | Show / hide the box fill |
+| `⌘Z` | Undo |
+| `⌘⌥K` | Mark the tile as done (again to undo) |
+| `⌘M` | Show / hide the box fill |
 
 Rules:
 
@@ -109,7 +111,7 @@ Rules:
 - Use class `car` for cars, vans and pickups, and `large_vehicle` for trucks,
   buses, campers and trailers.
 - The class matters little: the app counts every box as one vehicle. Fix
-  it only when it is clearly wrong (`Ctrl+E`). New boxes reuse the last class.
+  it only when it is clearly wrong (`⌘E`). New boxes reuse the last class.
 - Label vehicles that are partly hidden or cut off at the tile edge.
 - Leave out vehicles you cannot see, for example in garages, under roofs or
   carports, or completely under trees.
