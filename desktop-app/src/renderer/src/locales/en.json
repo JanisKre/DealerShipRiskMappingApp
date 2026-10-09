@@ -86,8 +86,8 @@
         "description": "Values and area assumptions that determine financial exposure."
       },
       "risk": {
-        "title": "Risk & EAL",
-        "description": "Damage shares and occurrence probabilities for the EAL calculation."
+        "title": "Hail EAL",
+        "description": "Frequency per hail zone (λ), event classes (p), and loss per vehicle (S) for the expected annual loss."
       },
       "scores": {
         "title": "Peril scores",
@@ -113,8 +113,10 @@
       "centimeters": "cm",
       "millimetersPerYear": "mm/year",
       "kilometers": "km",
-      "outOf100": "out of 100",
-      "meters": "m"
+      "meters": "m",
+      "eventsPerYear": "events/year",
+      "eurPerVehicle": "€/vehicle",
+      "hailZone": "zone"
     },
     "parameterFields": {
       "vehicleValueCarEur": {
@@ -131,66 +133,9 @@
         "description": "Assumption used to estimate site capacity.",
         "tip": "The most important lever for estimated capacity when no reliable vehicle count is available."
       },
-      "hailDamageFraction": {
-        "label": "Hail damage share",
-        "description": "Share of damage for each affected event.",
-        "tip": "Estimates what share of exposed vehicle value is damaged when a site is hit."
-      },
-      "hailSiteHitProbability": {
-        "label": "Hail hit probability",
-        "description": "Probability that the site is hit.",
-        "tip": "Change only if your own claims history or a different peril model supports it."
-      },
-      "climateLoadingFactor": {
-        "label": "Climate loading",
-        "description": "Multiplicative loading applied to hail frequency.",
-        "tip": "Increases modeled hail frequency; 0.15 represents a 15% loading."
-      },
-      "windStormThresholdKmh": {
-        "label": "Storm threshold",
-        "description": "Wind damage is modeled above this wind speed."
-      },
-      "windDamageFraction": {
-        "label": "Wind damage share",
-        "description": "Share of damage per modeled storm day.",
-        "tip": "Describes the average loss severity on a day classified as a storm."
-      },
-      "windSiteHitProbability": {
-        "label": "Wind hit probability",
-        "description": "Site probability for wind damage."
-      },
-      "lightningDamageFraction": {
-        "label": "Lightning damage share",
-        "description": "Share of damage per lightning event."
-      },
-      "lightningDensityScale": {
-        "label": "Lightning-density scale",
-        "description": "Converts lightning density into EAL."
-      },
-      "snowLoadDamageFractionPer30cm": {
-        "label": "Snow-load share per 30 cm",
-        "description": "Share of damage per 30 cm of snow depth."
-      },
-      "floodDamageHq10": {
-        "label": "Flood damage share HQ10",
-        "description": "Damage share in the 10-year proxy scenario."
-      },
-      "floodDamageHq100": {
-        "label": "Flood damage share HQ100",
-        "description": "Damage share in the 100-year proxy scenario.",
-        "tip": "Change only when robust flood assumptions are available for the relevant sites."
-      },
-      "floodDamageHqExtrem": {
-        "label": "Extreme flood damage share",
-        "description": "Damage share in the extreme proxy scenario."
-      },
       "heatHotdaysScoreMax": {
         "label": "Hot days for score 100",
         "description": "Number of hot days needed for the maximum heat score."
-      },
-      "heatDamageFractionPerHotday": {
-        "label": "Heat damage share per hot day",
-        "description": "Share of damage per hot day."
       },
       "windScoreMaxKmh": {
         "label": "Wind at score 100",
@@ -253,11 +198,6 @@
         "label": "Extreme scenario damage share",
         "description": "Damage share in the extreme stress scenario."
       },
-      "alertExtremeScore": {
-        "label": "Risk-score alert threshold",
-        "description": "A critical alert is created from this score onward.",
-        "tip": "Lower means more alerts; higher highlights only the most critical locations."
-      },
       "alertOvercapacity": {
         "label": "Overcapacity alert threshold",
         "description": "Utilisation above this factor creates an alert.",
@@ -295,7 +235,66 @@
         "label": "Detection confidence",
         "description": "Base confidence required from the vehicle model; large vehicles need slightly more.",
         "tip": "Lower detects more vehicles but may introduce more false positives; higher is more conservative."
+      },
+      "hailFrequencyZone1": {
+        "label": "λ hail zone 1",
+        "description": "Damaging hail events per year at a site in zone 1."
+      },
+      "hailFrequencyZone2": {
+        "label": "λ hail zone 2",
+        "description": "Damaging hail events per year at a site in zone 2."
+      },
+      "hailFrequencyZone3": {
+        "label": "λ hail zone 3",
+        "description": "Damaging hail events per year at a site in zone 3."
+      },
+      "hailFrequencyZone4": {
+        "label": "λ hail zone 4",
+        "description": "Damaging hail events per year at a site in zone 4."
+      },
+      "hailFrequencyZone5": {
+        "label": "λ hail zone 5",
+        "description": "Damaging hail events per year at a site in zone 5."
+      },
+      "hailFrequencyZone6": {
+        "label": "λ hail zone 6",
+        "description": "Damaging hail events per year at a site in zone 6."
+      },
+      "hailShareSmall": {
+        "label": "p small event",
+        "description": "Share of hail events in the “small” class (p). The three shares are normalized by their sum."
+      },
+      "hailSeveritySmallEur": {
+        "label": "S small loss",
+        "description": "Loss per exposed vehicle in an event of the “small” class (S)."
+      },
+      "hailShareMedium": {
+        "label": "p medium event",
+        "description": "Share of hail events in the “medium” class (p). The three shares are normalized by their sum."
+      },
+      "hailSeverityMediumEur": {
+        "label": "S medium loss",
+        "description": "Loss per exposed vehicle in an event of the “medium” class (S)."
+      },
+      "hailShareLarge": {
+        "label": "p large event",
+        "description": "Share of hail events in the “large” class (p). The three shares are normalized by their sum."
+      },
+      "hailSeverityLargeEur": {
+        "label": "S large loss",
+        "description": "Loss per exposed vehicle in an event of the “large” class (S)."
+      },
+      "alertHailZone": {
+        "label": "Hail-zone review threshold",
+        "description": "Locations in this hail zone or above get a critical review note.",
+        "tip": "Lower means more notes; 5 flags zones 5 and 6."
       }
+    },
+    "hailEal": {
+      "formula": "N = vehicles parked in the open (covered vehicles are excluded), λ = events per year in the hail zone, p·S = expected loss per vehicle and event.",
+      "placeholders": "Placeholder values – calibration by underwriting is pending. The EAL is a screening estimate, not a tariff or underwriting decision.",
+      "meanSeverity": "Expected loss per exposed vehicle and event (Σ p·S): {{value}}",
+      "shareSum": "The shares p add up to {{sum}} instead of 1 – they are normalized to 1 for the calculation."
     }
   },
   "settings": {
@@ -519,48 +518,26 @@
     "locations": "Locations",
     "totalExposure": "Total Exposure",
     "totalEal": "Total EAL",
-    "avgScore": "Avg. Hail Score",
-    "extreme": "Extreme Risks",
-    "pml": "Probable Maximum Loss (PML)",
-    "riskDistribution": "Risk Distribution",
-    "topRisks": "Top Risk Locations",
-    "noAnomalies": "No anomalies or outliers detected.",
-    "insightsTitle": "Anomalies",
-    "insightsSummary": "{{alerts}} alerts · {{outliers}} outliers",
-    "statisticalOutliers": "Statistical outliers",
     "alertLevel": {
       "critical": "Critical",
       "warning": "Warning"
     },
     "alert": {
-      "extremeRisk": "Extreme risk (score {{score}}/100).",
       "highEal": "Contributes {{share}}% of the portfolio EAL.",
       "overcapacity": "Overcapacity ({{utilisation}}% of capacity).",
       "lowBoundaryConfidence": "Uncertain lot boundary (source {{source}}).",
-      "noDetection": "No vehicles detected — check boundary and aerial imagery."
-    },
-    "anomalyMetric": {
-      "score": "Risk score",
-      "eal": "EAL",
-      "utilisation": "Utilisation"
+      "noDetection": "No vehicles detected — check boundary and aerial imagery.",
+      "highHailZone": "Located in hail zone {{zone}}.",
+      "accumulation": "Accumulation of {{count}} locations with {{exposure}} exposure.",
+      "estimatedHailZone": "Hail zone {{zone}} is only estimated – check the address/postcode."
     },
     "sortAscending": "Sorted ascending; click to change",
     "sortDescending": "Sorted descending; click to change",
     "sortNone": "Not sorted; click to sort",
-    "seasonalTitle": "Seasonal Risk Profile",
-    "seasonalDescription": "Typical annual distribution of portfolio risk by peril",
-    "coverageTitle": "Peril Coverage & Concentration",
-    "averageLabel": "Avg",
-    "highLabel": "high",
-    "diversificationLabel": "Diversification (HHI)",
-    "effectiveLocations": "≈ {{count}} effective locations",
-    "largestClusterCell": "Largest Cluster Cell",
-    "ealShare": "Share of EAL",
     "utilisation": "Utilisation",
     "capacity": "Capacity",
     "area": "Area",
     "boundarySource": "Boundary Source",
-    "ealBreakdown": "EAL Breakdown",
     "manageTiles": "Customize dashboard",
     "visibleTiles": "Visible tiles",
     "resetTiles": "Reset layout",
@@ -573,22 +550,18 @@
     "assistantTitle": "Dashboard assistant",
     "assistantDescription": "Ask questions or change your dashboard",
     "assistantEmpty": "Ask about this portfolio or say “show the location table”.",
-    "assistantHint": "Try: “add seasonal profile” or “remove PML”.",
+    "assistantHint": "Try: “show accumulations” or “hide review notes”.",
     "examplePromptTable": "Show location table",
-    "examplePromptSeasonal": "Add seasonal profile",
-    "examplePromptRisk": "Show risk distribution",
     "commandAdded": "Added: {{tiles}}",
     "commandRemoved": "Removed: {{tiles}}",
     "commandReset": "Dashboard layout reset.",
     "tiles": {
       "summary": "Portfolio KPIs",
-      "risk": "Risk distribution",
-      "pml": "Probable maximum loss",
-      "insights": "Anomalies and alerts",
-      "coverage": "Peril coverage",
-      "seasonal": "Seasonal risk profile",
-      "clusters": "Accumulation clusters",
-      "table": "Location table"
+      "insights": "Review notes",
+      "clusters": "Largest accumulations",
+      "table": "Location table",
+      "zones": "Hail zone distribution",
+      "topLocations": "Top locations by hail EAL"
     },
     "detailDialog": {
       "imageryCountedOn": "Vehicles counted on",
@@ -668,7 +641,13 @@
         "boundaryReviewRequired": "Boundary requires review before underwriting use",
         "boundaryDisagreement": "Boundary sources do not sufficiently agree",
         "noMlModel": "Vehicle exposure is estimated because no ML model is installed",
-        "boundaryRole": "Boundary represents {{role}}, not a confirmed operational lot"
+        "boundaryRole": "Boundary represents {{role}}, not a confirmed operational lot",
+        "hailZoneEstimated": "Hail zone estimated from weather data; no postcode hail zone available",
+        "hailEalPlaceholders": "Hail EAL frequency and severity parameters are uncalibrated placeholders",
+        "hailVehiclesFromAssetValue": "Hail EAL vehicle count derived from the declared asset value",
+        "postcodeHailZones": "Postcode hail zones",
+        "postcodeHailZoneMethod": "postcode hail-zone lookup",
+        "estimatedHailZoneMethod": "hail zone estimated from weather-based hail score"
       },
       "osmLoading": "Loading OSM info…",
       "osmHeading": "From OpenStreetMap",
@@ -687,6 +666,131 @@
       "errorPrefix": "Error: {{error}}",
       "recommendedDeductibleLabel": "Rec. Deductible",
       "premiumLoadingLabel": "Premium Loading"
+    },
+    "hailEal": "Hail EAL",
+    "hailZone": "Hail zone",
+    "hailZoneLabel": "Hail zone {{zone}}",
+    "hailZoneEstimated": "Hail zone estimated from weather data – no postcode hail zone available",
+    "zoneShort": "Zone {{zone}}",
+    "showAll": "Show all {{count}}",
+    "showLess": "Show less",
+    "examplePromptClusters": "Show accumulations",
+    "examplePromptZones": "Show hail zone distribution",
+    "kpi": {
+      "exposedVehicles_one": "{{count}} in the open",
+      "exposedVehicles_other": "{{count}} in the open",
+      "perYear": "per year",
+      "largestAccumulation": "Largest accumulation",
+      "accumulationHint_one": "{{count}} location · {{radius}} km",
+      "accumulationHint_other": "{{count}} locations · {{radius}} km",
+      "noAccumulation": "none within {{radius}} km",
+      "elevatedZones": "In hail zone ≥ {{zone}}",
+      "exposureShare": "{{share}} of exposure"
+    },
+    "accumulations": {
+      "title": "Largest accumulations",
+      "description_one": "{{count}} accumulation: locations linked through neighbors within {{radius}} km. Click a row to see its locations.",
+      "description_other": "{{count}} accumulations: locations linked through neighbors within {{radius}} km. Click a row to see its locations.",
+      "empty": "No accumulations: no location has a neighbor within {{radius}} km.",
+      "clearFilter": "Clear accumulation filter",
+      "name": "Accumulation (largest location)",
+      "maxZone": "Max. zone",
+      "scenario": "Loss scenario ({{share}})",
+      "more_one": "+ {{count}} more",
+      "more_other": "+ {{count}} more",
+      "showOnMap": "Map"
+    },
+    "zones": {
+      "title": "Hail zone distribution",
+      "description": "How the portfolio spreads across hail zones 1 (low) to 6 (very high).",
+      "tooltipCount_one": "{{count}} location",
+      "tooltipCount_other": "{{count}} locations",
+      "tooltipEstimated_one": "{{count}} with an estimated zone",
+      "tooltipEstimated_other": "{{count}} with an estimated zone",
+      "unknown_one": "{{count}} location without a risk result is not included.",
+      "unknown_other": "{{count}} locations without a risk result are not included.",
+      "byExposure": "Exposure"
+    },
+    "topLocations": {
+      "title": "Top locations by hail EAL",
+      "description": "The {{count}} locations with the highest expected hail loss per year.",
+      "empty": "No locations with a hail EAL yet.",
+      "share": "{{share}} of the portfolio EAL"
+    },
+    "review": {
+      "title": "Review notes",
+      "summary": "{{critical}} critical · {{warnings}} data quality",
+      "none": "No review notes – every rule is clear.",
+      "ruleLabel": "Rule:",
+      "rules": {
+        "high-hail-zone": "Hail zone ≥ {{zone}}",
+        "high-eal": "Location causes ≥ {{share}} of the portfolio EAL",
+        "accumulation": "Accumulation ({{radius}} km radius) with exposure ≥ {{threshold}}",
+        "overcapacity": "Utilisation > {{utilisation}} of the estimated parking capacity",
+        "low-boundary-confidence": "Lot boundary confidence ≤ {{confidence}}",
+        "no-detection": "0 vehicles detected",
+        "estimated-hail-zone": "No postcode hail zone – zone estimated from weather data"
+      }
+    },
+    "modelVersion": {
+      "outdated_one": "{{count}} location was scored with an older risk model. Recalculate to get the hail EAL ({{version}}).",
+      "outdated_other": "{{count}} locations were scored with an older risk model. Recalculate to get the hail EAL ({{version}}).",
+      "recalculate": "Recalculate",
+      "done": "All locations scored with the current model.",
+      "failed_one": "{{count}} location could not be recalculated.",
+      "failed_other": "{{count}} locations could not be recalculated."
+    },
+    "hailEalDetail": {
+      "title": "Hail EAL",
+      "vehicles": "Exposed vehicles (N)",
+      "vehiclesValue": "{{exposed}} of {{total}}",
+      "frequency": "Frequency (λ)",
+      "frequencyValue": "{{frequency}}/year · zone {{zone}}",
+      "severity": "Loss per vehicle (Σ p·S)",
+      "formula": "{{exposed}} vehicles × {{frequency}} events/year × {{severity}} = {{eal}} per year.",
+      "vehicleSource": {
+        "manual": "Vehicle count reviewed manually.",
+        "detected": "Vehicle count from aerial detection.",
+        "assetValue": "Vehicle count derived from the declared asset value.",
+        "none": "No vehicle count available."
+      },
+      "zoneSource": {
+        "postcode": "Hail zone from the postcode table.",
+        "provider": "Hail zone derived from the NatCat provider score.",
+        "estimated": "Hail zone estimated from weather data (no postcode zone)."
+      },
+      "legacy": "Scored with an older model ({{eal}}). Choose “Recalculate” on the dashboard to get the hail EAL."
+    },
+    "info": {
+      "label": "What does this mean?",
+      "what": "What does it show?",
+      "how": "How is it calculated?",
+      "limits": "Limitations",
+      "hailEal": {
+        "what": "Expected hail loss per year (expected annual loss) for the locations shown.",
+        "how": "EAL = N × λ × (p_S·S_S + p_M·S_M + p_L·S_L). N = vehicles parked in the open, λ = hail events per year by hail zone, p = share of small/medium/large events, S = loss per vehicle. Values under “Parameters → Hail EAL”.",
+        "limits": "λ, p, and S are uncalibrated placeholders. A screening estimate, not a tariff, underwriting, or insurance decision."
+      },
+      "accumulations": {
+        "what": "Groups of locations that a single hail event could hit together – sorted by exposure.",
+        "how": "Two locations belong together when they are at most {{radius}} km apart; neighbors form chains (single linkage). Loss scenario = accumulation exposure × {{scenario}} damage ratio.",
+        "limits": "The radius is an assumption about the typical size of a hail cell; storm tracks and weather situations are not modeled. The loss scenario is not a PML from a catastrophe model."
+      },
+      "zones": {
+        "what": "How locations or exposure spread across hail zones 1 (low) to 6 (very high).",
+        "how": "Zone from the postcode hail-zone table; without a postcode it is estimated from the weather-based hail score (shown in the tooltip).",
+        "limits": "Hail zones describe regional hazard, not the condition of the individual site."
+      },
+      "topLocations": {
+        "what": "The locations with the highest expected hail loss per year.",
+        "how": "Sorted by hail EAL (€/year). The badge shows the hail zone; “≈” = estimated zone.",
+        "limits": "The EAL depends strongly on the vehicle count – manually reviewed counts improve the ranking."
+      },
+      "review": {
+        "what": "Locations an underwriter should look at more closely, with the rule that raised the note.",
+        "how": "Critical: hail zone ≥ {{zone}}; share of the portfolio EAL ≥ {{share}}; accumulation within {{radius}} km with exposure ≥ {{threshold}}. Data quality: utilisation > {{utilisation}}, boundary confidence ≤ {{confidence}}, 0 detected vehicles, estimated hail zone. Thresholds under “Parameters”.",
+        "limits": "Rule-based and unweighted – a note is a request to review, not a decline."
+      }
     }
   },
   "map": {

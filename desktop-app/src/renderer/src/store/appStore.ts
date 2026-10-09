@@ -55,6 +55,10 @@ interface AppState {
   boundaryHistory: Record<string, BoundaryResult[]>;
   /** Most recently added location IDs — drives map focus. */
   lastAddedIds: string[];
+  /** Locations the map should fit into view once (e.g. an accumulation). */
+  mapFocusIds: string[] | null;
+  /** Radius drawn around the focused locations' centre, kept fully in view. */
+  mapFocusRadiusKm: number | null;
   /** Timestamp of the last successful save (manual or autosave). */
   lastSavedAt: string | null;
   /** Quality report from the most recent CSV/XLSX import. */
@@ -149,6 +153,13 @@ interface AppState {
     removedPoints: ManualVehiclePoint[],
   ) => Promise<void>;
   select: (id: string | null) => void;
+  /**
+   * Asks the map to fit these locations into view the next time it renders;
+   * with `radiusKm`, the whole circle of that radius around their centre.
+   */
+  focusDealerships: (ids: string[], radiusKm?: number) => void;
+  /** Called by the map once it has applied `mapFocusIds`. */
+  clearMapFocus: () => void;
   /** Permanently removes a location from the portfolio. */
   removeDealership: (id: string) => void;
   /** Permanently removes multiple locations from the portfolio at once. */
@@ -215,6 +226,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   boundaryEditIds: [],
   boundaryHistory: {},
   lastAddedIds: [],
+  mapFocusIds: null,
+  mapFocusRadiusKm: null,
   lastSavedAt: null,
   lastImportReport: null,
   scenario: null,
@@ -403,6 +416,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         boundary,
         get().parameters,
         d.natCat,
+        d.hailZone,
       );
       get().upsertDealership({
         ...get().dealerships.find((x) => x.id === id)!,
@@ -446,6 +460,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         d.boundary,
         get().parameters,
         d.natCat,
+        d.hailZone,
       );
       const current = get().dealerships.find((x) => x.id === id);
       if (current) get().upsertDealership({ ...current, detection, risk });
@@ -491,6 +506,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         boundary,
         get().parameters,
         d.natCat,
+        d.hailZone,
       );
       const latest = get().dealerships.find((x) => x.id === id);
       if (latest) get().upsertDealership({ ...latest, risk });
@@ -551,6 +567,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       previous,
       get().parameters,
       current.natCat,
+      current.hailZone,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, risk });
@@ -587,6 +604,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       baseBoundary,
       get().parameters,
       current.natCat,
+      current.hailZone,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, risk });
@@ -633,6 +651,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       current.boundary,
       get().parameters,
       current.natCat,
+      current.hailZone,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, detection, risk });
@@ -657,12 +676,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       current.boundary,
       get().parameters,
       current.natCat,
+      current.hailZone,
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, detection, risk });
     await get().saveSession();
   },
   select: (id) => set({ selectedId: id }),
+  focusDealerships: (ids, radiusKm) =>
+    set({
+      mapFocusIds: ids,
+      mapFocusRadiusKm: radiusKm ?? null,
+      selectedId: null,
+    }),
+  clearMapFocus: () => set({ mapFocusIds: null, mapFocusRadiusKm: null }),
 
   removeDealership: (id) => get().removeDealerships([id]),
 
@@ -725,6 +752,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             d.boundary,
             get().parameters,
             result.natCat,
+            result.hailZone ?? d.hailZone,
           );
         } catch (err) {
           console.error(
@@ -756,6 +784,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         d.boundary,
         get().parameters,
         natCat,
+        d.hailZone,
       );
       const latest = get().dealerships.find((x) => x.id === id);
       if (latest) {
@@ -871,6 +900,8 @@ function resetToBlankPortfolio(
     analysisCancelRequested: false,
     analyzingIds: [],
     lastAddedIds: [],
+    mapFocusIds: null,
+    mapFocusRadiusKm: null,
     lastSavedAt: null,
     lastImportReport: null,
     scenario: null,
@@ -996,6 +1027,7 @@ async function rescoreWithConcurrency(
           dealership.boundary,
           parameters,
           dealership.natCat,
+          dealership.hailZone,
         );
         updates.push({ id: dealership.id, risk });
       } catch (err) {

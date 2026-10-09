@@ -54,8 +54,8 @@ export function DashboardAssistant({
 
   const examplePrompts = [
     t("dashboard.examplePromptTable"),
-    t("dashboard.examplePromptSeasonal"),
-    t("dashboard.examplePromptRisk"),
+    t("dashboard.examplePromptClusters"),
+    t("dashboard.examplePromptZones"),
   ];
 
   return (

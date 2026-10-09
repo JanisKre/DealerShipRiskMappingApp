@@ -546,6 +546,123 @@ export function hailZoneToRiskTier(zone: HailZone): HailRiskTier {
   return "Very High";
 }
 
+/**
+ * Inverse of `hailZoneToScore100`: maps a 0–100 hail score (CAPE proxy or a
+ * licensed provider score) onto the nearest hail zone. Used only when the
+ * postcode table has no zone for the site.
+ */
+export function estimateHailZoneFromScore(score: number): HailZone {
+  const zone = 1 + Math.round(Math.max(0, Math.min(100, score)) / 20);
+  return Math.min(6, Math.max(1, zone)) as HailZone;
+}
+
+/**
+ * Hail zone of an analyzed location: the zone the EAL was computed with,
+ * else the postcode zone, else an estimate from the stored hail score
+ * (portfolios scored before screening-0.4.0).
+ */
+export function dealershipHailZone(
+  d: AnalyzedDealership,
+): { zone: HailZone; source: "postcode" | "provider" | "estimated" } | null {
+  const detail = d.risk?.ealBreakdown?.hailDetail;
+  if (detail) return { zone: detail.zone, source: detail.zoneSource };
+  if (d.hailZone != null) return { zone: d.hailZone, source: "postcode" };
+  if (d.risk) {
+    return {
+      zone: estimateHailZoneFromScore(d.risk.overallScore),
+      source: "estimated",
+    };
+  }
+  return null;
+}
+
+// --- Hail EAL -----------------------------------------------------------------
+
+/** λ_z: damaging hail events per year for a site in the given zone. */
+export function hailFrequencyForZone(
+  zone: HailZone,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
+): number {
+  return parameters[`hailFrequencyZone${zone}`];
+}
+
+/**
+ * Σ p_k·S_k: expected loss per exposed vehicle and hail event (EUR). The
+ * class shares are weights normalized by their sum, so editing one share on
+ * the parameters page never leaves the model in an invalid state.
+ */
+export function meanHailSeverityEur(
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
+): number {
+  const classes = [
+    [parameters.hailShareSmall, parameters.hailSeveritySmallEur],
+    [parameters.hailShareMedium, parameters.hailSeverityMediumEur],
+    [parameters.hailShareLarge, parameters.hailSeverityLargeEur],
+  ] as const;
+  const shareSum = classes.reduce((sum, [share]) => sum + share, 0);
+  if (shareSum <= 0) return 0;
+  return (
+    classes.reduce((sum, [share, loss]) => sum + share * loss, 0) / shareSum
+  );
+}
+
+export type HailVehicleSource = "manual" | "detected" | "assetValue" | "none";
+
+/**
+ * N for the hail EAL: a reviewed count wins, then the detector count. Without
+ * any count, a declared asset value is converted at the car value so legacy
+ * inputs still produce an (explicitly flagged) estimate.
+ */
+export function hailVehicleBasis(
+  detection: DetectionResult | undefined,
+  assetValue: number,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
+): { vehicles: number; source: HailVehicleSource } {
+  if (detection?.manualVehicleCount != null) {
+    return { vehicles: detection.manualVehicleCount, source: "manual" };
+  }
+  const c = detection?.classCounts;
+  const classTotal = c ? c.car + c.van + c.truck + c.bus : 0;
+  const detected = classTotal > 0 ? classTotal : (detection?.vehicleCount ?? 0);
+  if (detected > 0) return { vehicles: detected, source: "detected" };
+  if (assetValue > 0 && parameters.vehicleValueCarEur > 0) {
+    return {
+      vehicles: assetValue / parameters.vehicleValueCarEur,
+      source: "assetValue",
+    };
+  }
+  return { vehicles: 0, source: "none" };
+}
+
+/**
+ * Hail expected annual loss:
+ *
+ *   EAL = N_exposed × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L)
+ *   N_exposed = N × exposureRatio   (vehicles not under a roof)
+ *
+ * A screening estimate — not an engineering, tariff, or insurance decision.
+ */
+export function computeHailEal(
+  input: { vehicles: number; exposureRatio: number; zone: HailZone },
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
+): {
+  eal: number;
+  exposedVehicles: number;
+  frequency: number;
+  meanSeverityEur: number;
+} {
+  const ratio = Math.max(0, Math.min(1, input.exposureRatio));
+  const exposedVehicles = Math.max(0, input.vehicles) * ratio;
+  const frequency = hailFrequencyForZone(input.zone, parameters);
+  const meanSeverityEur = meanHailSeverityEur(parameters);
+  return {
+    eal: exposedVehicles * frequency * meanSeverityEur,
+    exposedVehicles,
+    frequency,
+    meanSeverityEur,
+  };
+}
+
 // --- Spatial co-occurrence (directional corridors) ---------------------------
 
 /**

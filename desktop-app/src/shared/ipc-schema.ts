@@ -8,6 +8,7 @@ import {
   DashboardSpecSchema,
   DealershipInputSchema,
   DetectionResultSchema,
+  HailZoneSchema,
   ImportResultSchema,
   LlmProviderSchema,
   NatCatApiProviderSchema,
@@ -159,6 +160,8 @@ export const ipcRequest = {
     boundary: BoundaryResultSchema.optional(),
     parameters: RiskParametersSchema.optional(),
     natCat: NatCatAssessmentSchema.optional(),
+    /** Postcode hail zone from the analysis; drives λ_z in the hail EAL. */
+    hailZone: HailZoneSchema.optional(),
   }),
   "natcat:resolve": z.object({
     lat: z.number().finite().min(-90).max(90),

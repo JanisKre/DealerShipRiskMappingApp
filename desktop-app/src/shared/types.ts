@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HAIL_FREQUENCY_BY_ZONE, HAIL_SEVERITY_CLASSES } from "./constants";
 import { ImagerySelectionSchema } from "./imagery-sources";
 
 /**
@@ -415,14 +416,49 @@ export const PerilScoreSchema = z.object({
 });
 export type PerilScore = z.infer<typeof PerilScoreSchema>;
 
+export const HailZoneSchema = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6),
+]);
+export type HailZone = z.infer<typeof HailZoneSchema>;
+
+/**
+ * Inputs of the hail EAL (`EAL = N × λ_z × Σ p_k·S_k`), kept with the result
+ * so the figure stays traceable to its vehicle count and hail-zone source.
+ */
+export const HailEalDetailSchema = z.object({
+  /** Vehicles on site (N) before the roof-cover reduction. */
+  vehicles: z.number().nonnegative(),
+  /** Vehicles parked in the open: vehicles × exposure ratio. */
+  exposedVehicles: z.number().nonnegative(),
+  vehicleSource: z.enum(["manual", "detected", "assetValue", "none"]),
+  zone: HailZoneSchema,
+  /** postcode table, licensed provider score, or estimated from weather data. */
+  zoneSource: z.enum(["postcode", "provider", "estimated"]),
+  /** λ_z: damaging hail events per year at the site. */
+  frequency: z.number().nonnegative(),
+  /** Σ p_k·S_k: expected loss per exposed vehicle and event (EUR). */
+  meanSeverityEur: z.number().nonnegative(),
+});
+export type HailEalDetail = z.infer<typeof HailEalDetailSchema>;
+
+/**
+ * Since screening-0.4.0 the EAL is hail-only. The other perils stay optional
+ * so portfolios scored with older model versions still load.
+ */
 export const EalBreakdownSchema = z.object({
   hail: z.number().nonnegative(),
-  wind: z.number().nonnegative(),
-  flood: z.number().nonnegative(),
-  lightning: z.number().nonnegative(),
-  snow: z.number().nonnegative(),
-  heat: z.number().nonnegative(),
+  wind: z.number().nonnegative().optional(),
+  flood: z.number().nonnegative().optional(),
+  lightning: z.number().nonnegative().optional(),
+  snow: z.number().nonnegative().optional(),
+  heat: z.number().nonnegative().optional(),
   total: z.number().nonnegative(),
+  hailDetail: HailEalDetailSchema.optional(),
 });
 export type EalBreakdown = z.infer<typeof EalBreakdownSchema>;
 
@@ -430,7 +466,7 @@ export const RiskAssessmentSchema = z.object({
   /** Primary dealership score; currently the hail score. */
   overallScore: z.number().min(0).max(100),
   perils: z.array(PerilScoreSchema),
-  eal: z.number().nonnegative(), // Expected Annual Loss (total, EUR/year)
+  eal: z.number().nonnegative(), // Expected Annual Loss from hail (EUR/year)
   ealBreakdown: EalBreakdownSchema.optional(),
   exposureEur: z.number().nonnegative().optional(), // estimated vehicle value on-site
   utilisation: z.number().min(0).optional(), // utilisation 0..1+ (vehicles / capacity)
@@ -447,16 +483,6 @@ export const RiskAssessmentSchema = z.object({
 export type RiskAssessment = z.infer<typeof RiskAssessmentSchema>;
 
 // --- Complete analyzed dataset ---------------------------------------------
-
-export const HailZoneSchema = z.union([
-  z.literal(1),
-  z.literal(2),
-  z.literal(3),
-  z.literal(4),
-  z.literal(5),
-  z.literal(6),
-]);
-export type HailZone = z.infer<typeof HailZoneSchema>;
 
 export const HAIL_RISK_TIERS = [
   "Very Low",
@@ -493,20 +519,64 @@ export const RiskParametersSchema = z.object({
   vehicleValueCarEur: z.number().nonnegative(),
   vehicleValueDefaultEur: z.number().nonnegative(),
   capacitySqmPerVehicle: z.number().positive(),
-  hailDamageFraction: z.number().min(0).max(1),
-  hailSiteHitProbability: z.number().min(0).max(1),
-  climateLoadingFactor: z.number().min(0),
-  windStormThresholdKmh: z.number().nonnegative(),
-  windDamageFraction: z.number().min(0).max(1),
-  windSiteHitProbability: z.number().min(0).max(1),
-  lightningDamageFraction: z.number().min(0).max(1),
-  lightningDensityScale: z.number().nonnegative(),
-  snowLoadDamageFractionPer30cm: z.number().min(0).max(1),
-  floodDamageHq10: z.number().min(0).max(1),
-  floodDamageHq100: z.number().min(0).max(1),
-  floodDamageHqExtrem: z.number().min(0).max(1),
+  // --- Hail EAL: EAL = N × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L) ----------
+  // Defaults are uncalibrated screening placeholders (see docs/risk-model.md).
+  // They carry Zod defaults so sessions saved before screening-0.4.0 load.
+  /** λ_z: damaging hail events per year at a site in hail zone z. */
+  hailFrequencyZone1: z
+    .number()
+    .nonnegative()
+    .default(HAIL_FREQUENCY_BY_ZONE[1]),
+  hailFrequencyZone2: z
+    .number()
+    .nonnegative()
+    .default(HAIL_FREQUENCY_BY_ZONE[2]),
+  hailFrequencyZone3: z
+    .number()
+    .nonnegative()
+    .default(HAIL_FREQUENCY_BY_ZONE[3]),
+  hailFrequencyZone4: z
+    .number()
+    .nonnegative()
+    .default(HAIL_FREQUENCY_BY_ZONE[4]),
+  hailFrequencyZone5: z
+    .number()
+    .nonnegative()
+    .default(HAIL_FREQUENCY_BY_ZONE[5]),
+  hailFrequencyZone6: z
+    .number()
+    .nonnegative()
+    .default(HAIL_FREQUENCY_BY_ZONE[6]),
+  /** p_k: share of events in each severity class (weights, normalized by their sum). */
+  hailShareSmall: z
+    .number()
+    .min(0)
+    .max(1)
+    .default(HAIL_SEVERITY_CLASSES.small.share),
+  hailShareMedium: z
+    .number()
+    .min(0)
+    .max(1)
+    .default(HAIL_SEVERITY_CLASSES.medium.share),
+  hailShareLarge: z
+    .number()
+    .min(0)
+    .max(1)
+    .default(HAIL_SEVERITY_CLASSES.large.share),
+  /** S_k: loss per exposed vehicle in an event of each severity class (EUR). */
+  hailSeveritySmallEur: z
+    .number()
+    .nonnegative()
+    .default(HAIL_SEVERITY_CLASSES.small.lossEur),
+  hailSeverityMediumEur: z
+    .number()
+    .nonnegative()
+    .default(HAIL_SEVERITY_CLASSES.medium.lossEur),
+  hailSeverityLargeEur: z
+    .number()
+    .nonnegative()
+    .default(HAIL_SEVERITY_CLASSES.large.lossEur),
   heatHotdaysScoreMax: z.number().positive(),
-  heatDamageFractionPerHotday: z.number().min(0).max(1),
   windScoreMaxKmh: z.number().positive(),
   lightningScoreMaxDensity: z.number().positive(),
   snowScoreMaxCm: z.number().positive(),
@@ -521,7 +591,8 @@ export const RiskParametersSchema = z.object({
   scenarioDamageMedium: z.number().min(0).max(1),
   scenarioDamageHigh: z.number().min(0).max(1),
   scenarioDamageExtreme: z.number().min(0).max(1),
-  alertExtremeScore: z.number().min(0).max(100),
+  /** Locations in this hail zone or above get a "high hail zone" review note. */
+  alertHailZone: z.number().int().min(1).max(6).default(5),
   alertOvercapacity: z.number().nonnegative(),
   alertLowBoundaryConfidence: z.number().min(0).max(1),
   alertEalPortfolioShare: z.number().min(0).max(1),
@@ -627,7 +698,7 @@ export type NatCatSettings = z.infer<typeof NatCatSettingsSchema>;
 // --- Settings ---------------------------------------------------------------
 
 export const SettingsSchema = z.object({
-  language: z.enum(["en", "de", "fr"]).default("en"),
+  language: z.enum(["en", "de", "fr"]).default("de"),
   llm: LlmSettingsSchema.optional(),
   natCat: NatCatSettingsSchema.optional(),
   /**

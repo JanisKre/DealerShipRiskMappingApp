@@ -4,10 +4,16 @@ import { PERILS } from "./types";
 import {
   accumulationVerdict,
   computeAccumulationClusters,
+  computeHailEal,
+  dealershipHailZone,
+  estimateHailZoneFromScore,
   groupSummary,
+  hailVehicleBasis,
+  meanHailSeverityEur,
   nearbyInsured,
   productLimitBreach,
 } from "./risk-math";
+import { DEFAULT_RISK_PARAMETERS } from "./parameters";
 import {
   ACCUMULATION_RADIUS_KM,
   ACCUMULATION_REINSURE_THRESHOLD_EUR,
@@ -235,5 +241,139 @@ describe("computeAccumulationClusters", () => {
     expect(clusters[0].natCatKpiEur).toBeGreaterThanOrEqual(
       clusters[1].natCatKpiEur,
     );
+  });
+});
+
+describe("hail EAL", () => {
+  // Defaults: p = 0.6/0.3/0.1, S = 800/3,000/7,000 EUR → Σ p·S = 2,080 EUR.
+  it("computes the mean severity per vehicle and event", () => {
+    expect(meanHailSeverityEur()).toBeCloseTo(2_080, 6);
+  });
+
+  it("normalizes class shares that do not add up to 1", () => {
+    const doubled = {
+      ...DEFAULT_RISK_PARAMETERS,
+      hailShareSmall: 1.2,
+      hailShareMedium: 0.6,
+      hailShareLarge: 0.2,
+    };
+    expect(meanHailSeverityEur(doubled)).toBeCloseTo(2_080, 6);
+    expect(
+      meanHailSeverityEur({
+        ...DEFAULT_RISK_PARAMETERS,
+        hailShareSmall: 0,
+        hailShareMedium: 0,
+        hailShareLarge: 0,
+      }),
+    ).toBe(0);
+  });
+
+  it.each([
+    [1, 0.01, 2_080],
+    [2, 0.02, 4_160],
+    [3, 0.04, 8_320],
+    [4, 0.07, 14_560],
+    [5, 0.1, 20_800],
+    [6, 0.15, 31_200],
+  ] as const)(
+    "EAL = N × λ_z × Σ p·S for zone %i (100 open-air vehicles)",
+    (zone, frequency, eal) => {
+      const result = computeHailEal({ vehicles: 100, exposureRatio: 1, zone });
+      expect(result.frequency).toBe(frequency);
+      expect(result.exposedVehicles).toBe(100);
+      expect(result.eal).toBeCloseTo(eal, 6);
+    },
+  );
+
+  it("only counts vehicles parked in the open", () => {
+    const result = computeHailEal({
+      vehicles: 100,
+      exposureRatio: 0.25,
+      zone: 6,
+    });
+    expect(result.exposedVehicles).toBe(25);
+    expect(result.eal).toBeCloseTo(7_800, 6);
+  });
+
+  it("returns zero without vehicles", () => {
+    expect(computeHailEal({ vehicles: 0, exposureRatio: 1, zone: 6 }).eal).toBe(
+      0,
+    );
+  });
+
+  it("uses edited parameters", () => {
+    const result = computeHailEal(
+      { vehicles: 10, exposureRatio: 1, zone: 3 },
+      { ...DEFAULT_RISK_PARAMETERS, hailFrequencyZone3: 0.5 },
+    );
+    expect(result.eal).toBeCloseTo(10 * 0.5 * 2_080, 6);
+  });
+
+  it("estimates the hail zone as the inverse of the zone score", () => {
+    expect([0, 20, 40, 60, 80, 100].map(estimateHailZoneFromScore)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ]);
+    expect(estimateHailZoneFromScore(-5)).toBe(1);
+    expect(estimateHailZoneFromScore(150)).toBe(6);
+  });
+
+  it("prefers a reviewed vehicle count, then detection, then asset value", () => {
+    expect(
+      hailVehicleBasis(
+        { vehicleCount: 40, manualVehicleCount: 55, confidence: 1, model: "m" },
+        0,
+      ),
+    ).toEqual({ vehicles: 55, source: "manual" });
+    expect(
+      hailVehicleBasis({ vehicleCount: 40, confidence: 1, model: "m" }, 0),
+    ).toEqual({ vehicles: 40, source: "detected" });
+    expect(hailVehicleBasis(undefined, 250_000)).toEqual({
+      vehicles: 10,
+      source: "assetValue",
+    });
+    expect(hailVehicleBasis(undefined, 0)).toEqual({
+      vehicles: 0,
+      source: "none",
+    });
+  });
+});
+
+describe("dealershipHailZone", () => {
+  it("prefers the zone stored with the EAL, then the postcode zone", () => {
+    const d = make("1");
+    expect(dealershipHailZone({ ...d, hailZone: 3 })).toEqual({
+      zone: 3,
+      source: "postcode",
+    });
+    expect(
+      dealershipHailZone({
+        ...d,
+        hailZone: 3,
+        risk: {
+          ...d.risk!,
+          ealBreakdown: {
+            hail: 1,
+            total: 1,
+            hailDetail: {
+              vehicles: 1,
+              exposedVehicles: 1,
+              vehicleSource: "detected",
+              zone: 5,
+              zoneSource: "provider",
+              frequency: 0.1,
+              meanSeverityEur: 2_080,
+            },
+          },
+        },
+      }),
+    ).toEqual({ zone: 5, source: "provider" });
+  });
+
+  it("estimates the zone for results scored before the hail EAL", () => {
+    const d = make("1");
+    expect(
+      dealershipHailZone({ ...d, risk: { ...d.risk!, overallScore: 80 } }),
+    ).toEqual({ zone: 5, source: "estimated" });
+    expect(dealershipHailZone({ ...d, risk: undefined })).toBeNull();
   });
 });

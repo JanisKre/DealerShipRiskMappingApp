@@ -20,11 +20,13 @@ import area from "@turf/area";
 import type {
   AnalyzedDealership,
   BoundaryResult,
+  EalBreakdown,
   OsmDetails,
   StructuredMemo,
 } from "@shared/types";
 import { asPolygon, outerRings } from "@shared/boundary-geometry-utils";
 import { sourceLabel } from "@shared/natcat-catalog";
+import { boundarySourceLabel } from "@renderer/lib/boundarySource";
 import { LlmErrorMessage } from "@renderer/components/ai/LlmSetupNotice";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
@@ -205,43 +207,7 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
         )}
       </div>
 
-      {eb && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold">
-            {t("dashboard.ealBreakdown")}
-          </h4>
-          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-            <Metric
-              label={t("dashboard.detailDialog.ealPeril.hail")}
-              value={eur(eb.hail)}
-            />
-            <Metric
-              label={t("dashboard.detailDialog.ealPeril.wind")}
-              value={eur(eb.wind)}
-            />
-            <Metric
-              label={t("dashboard.detailDialog.ealPeril.flood")}
-              value={eur(eb.flood)}
-            />
-            <Metric
-              label={t("dashboard.detailDialog.ealPeril.lightning")}
-              value={eur(eb.lightning)}
-            />
-            <Metric
-              label={t("dashboard.detailDialog.ealPeril.snow")}
-              value={eur(eb.snow)}
-            />
-            <Metric
-              label={t("dashboard.detailDialog.ealPeril.heat")}
-              value={eur(eb.heat)}
-            />
-            <Metric
-              label={t("dashboard.detailDialog.ealPeril.total")}
-              value={eur(eb.total)}
-            />
-          </div>
-        </div>
-      )}
+      {eb && <HailEalSection eb={eb} />}
 
       <BoundarySummary d={d} />
 
@@ -251,6 +217,60 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
 
       <AiSection d={d} />
     </>
+  );
+}
+
+/** Shows how the hail EAL was derived: N × λ_z × S̄, with each input's source. */
+function HailEalSection({
+  eb,
+}: Readonly<{ eb: EalBreakdown }>): React.JSX.Element {
+  const { t } = useTranslation();
+  const detail = eb.hailDetail;
+  return (
+    <div className="space-y-2">
+      <h4 className="text-sm font-semibold">
+        {t("dashboard.hailEalDetail.title")}
+      </h4>
+      {detail ? (
+        <>
+          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            <Metric
+              label={t("dashboard.hailEalDetail.vehicles")}
+              value={t("dashboard.hailEalDetail.vehiclesValue", {
+                exposed: num(detail.exposedVehicles),
+                total: num(detail.vehicles),
+              })}
+            />
+            <Metric
+              label={t("dashboard.hailEalDetail.frequency")}
+              value={t("dashboard.hailEalDetail.frequencyValue", {
+                frequency: num(detail.frequency, 3),
+                zone: detail.zone,
+              })}
+            />
+            <Metric
+              label={t("dashboard.hailEalDetail.severity")}
+              value={eur(detail.meanSeverityEur)}
+            />
+            <Metric label={t("dashboard.hailEal")} value={eur(eb.hail)} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {t("dashboard.hailEalDetail.formula", {
+              exposed: num(detail.exposedVehicles),
+              frequency: num(detail.frequency, 3),
+              severity: eur(detail.meanSeverityEur),
+              eal: eur(eb.hail),
+            })}{" "}
+            {t(`dashboard.hailEalDetail.vehicleSource.${detail.vehicleSource}`)}{" "}
+            {t(`dashboard.hailEalDetail.zoneSource.${detail.zoneSource}`)}
+          </p>
+        </>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {t("dashboard.hailEalDetail.legacy", { eal: eur(eb.total) })}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -267,14 +287,6 @@ function Metric({
       <div className="mt-0.5 font-medium">{value}</div>
     </div>
   );
-}
-
-/** Human-readable label for a raw boundary source code, falling back to it verbatim. */
-function boundarySourceLabel(t: TFunction, source: string | undefined): string {
-  if (!source) return "–";
-  return t(`dashboard.detailDialog.boundarySource.${source}`, {
-    defaultValue: source,
-  });
 }
 
 /** Human-readable label for a raw boundary role code, falling back to it verbatim. */
@@ -495,7 +507,8 @@ function ModelConfidenceSummary({
               <div className="space-y-1 border-t pt-1.5 text-muted-foreground">
                 {evidence.map((item) => (
                   <div key={`${item.source}-${item.method}`}>
-                    {item.source} · {localizedRiskText(t, item.method)} ·{" "}
+                    {localizedRiskText(t, item.source)} ·{" "}
+                    {localizedRiskText(t, item.method)} ·{" "}
                     {pct(item.confidence, 0)}
                     {item.fallbackUsed
                       ? t("dashboard.detailDialog.evidenceFallbackSuffix")
@@ -539,6 +552,17 @@ function localizedRiskText(t: TFunction, text: string): string {
       "dashboard.detailDialog.riskText.boundaryDisagreement",
     "Vehicle exposure is estimated because no ML model is installed":
       "dashboard.detailDialog.riskText.noMlModel",
+    "Hail zone estimated from weather data; no postcode hail zone available":
+      "dashboard.detailDialog.riskText.hailZoneEstimated",
+    "Hail EAL frequency and severity parameters are uncalibrated placeholders":
+      "dashboard.detailDialog.riskText.hailEalPlaceholders",
+    "Hail EAL vehicle count derived from the declared asset value":
+      "dashboard.detailDialog.riskText.hailVehiclesFromAssetValue",
+    "Postcode hail zones": "dashboard.detailDialog.riskText.postcodeHailZones",
+    "postcode hail-zone lookup":
+      "dashboard.detailDialog.riskText.postcodeHailZoneMethod",
+    "hail zone estimated from weather-based hail score":
+      "dashboard.detailDialog.riskText.estimatedHailZoneMethod",
   };
   const key = exact[text];
   if (key) return t(key);

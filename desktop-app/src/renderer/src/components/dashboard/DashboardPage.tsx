@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { AnalyzedDealership } from "@shared/types";
+import type { AccumulationCluster, AnalyzedDealership } from "@shared/types";
 import { EmptyState } from "@renderer/components/common/EmptyState";
 import { Button } from "@renderer/components/ui/button";
 import {
@@ -28,17 +28,17 @@ import {
 } from "@renderer/components/ui/dropdown-menu";
 import { ComparisonView } from "@renderer/components/dashboard/ComparisonView";
 import { AccumulationClusterTable } from "@renderer/components/dashboard/AccumulationClusterTable";
-import { CoverageCard } from "@renderer/components/dashboard/CoverageCard";
 import { DashboardAssistant } from "@renderer/components/dashboard/DashboardAssistant";
 import { DealershipDetailDialog } from "@renderer/components/dashboard/DealershipDetailDialog";
 import { DealershipTable } from "@renderer/components/dashboard/DealershipTable";
+import { HailZoneDistribution } from "@renderer/components/dashboard/HailZoneDistribution";
 import { InsightsPanel } from "@renderer/components/dashboard/InsightsPanel";
-import { PmlCard } from "@renderer/components/dashboard/PmlCard";
+import { ModelVersionBanner } from "@renderer/components/dashboard/ModelVersionBanner";
 import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
-import { RiskChart } from "@renderer/components/dashboard/RiskChart";
-import { SeasonalProfile } from "@renderer/components/dashboard/SeasonalProfile";
 import { SummaryCards } from "@renderer/components/dashboard/SummaryCards";
+import { TopLocationsChart } from "@renderer/components/dashboard/TopLocationsChart";
 import { useAppStore } from "@renderer/store/appStore";
+import { useMapStore } from "@renderer/store/mapStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import {
   DEFAULT_TILE_ORDER,
@@ -49,7 +49,9 @@ import {
   parseDashboardCommand,
 } from "./dashboardTiles";
 
-const TILE_STORAGE_KEY = "dealership-risk-dashboard-tiles-v2";
+// v3: hail-focused layout. Bumped so stored v2 layouts (PML, coverage,
+// seasonal tiles) do not carry over.
+const TILE_STORAGE_KEY = "dealership-risk-dashboard-tiles-v3";
 
 function readTileOrder(): DashboardTileId[] {
   if (typeof window === "undefined") return DEFAULT_TILE_ORDER;
@@ -79,6 +81,8 @@ export function DashboardPage(): React.JSX.Element {
   const sessionName = useAppStore((s) => s.sessionName);
   const nlQueryMatchedIds = useAppStore((s) => s.nlQueryMatchedIds);
   const select = useAppStore((s) => s.select);
+  const setFilters = useAppStore((s) => s.setFilters);
+  const focusDealerships = useAppStore((s) => s.focusDealerships);
   // Opened only by an explicit row/card click (`onSelect` below) — never
   // derived from the shared `selectedId`, which other actions (e.g. adding
   // a single address) set for the map's fly-to behavior and would otherwise
@@ -101,6 +105,20 @@ export function DashboardPage(): React.JSX.Element {
 
   function showOnMap(d: AnalyzedDealership): void {
     select(d.id);
+    navigate("/map");
+  }
+
+  function showAccumulationOnMap(cluster: AccumulationCluster): void {
+    setFilters({ clusterId: cluster.clusterId });
+    showLocationsOnMap(cluster.memberIds);
+  }
+
+  function showLocationsOnMap(ids: string[]): void {
+    useMapStore.getState().setLayers({ accumulationClusters: true });
+    focusDealerships(
+      ids,
+      useAppStore.getState().parameters.accumulationRadiusKm,
+    );
     navigate("/map");
   }
 
@@ -193,6 +211,7 @@ export function DashboardPage(): React.JSX.Element {
 
         <main className="min-h-0 flex-1 overflow-y-auto">
           <div className="space-y-5 p-4 sm:p-6 lg:p-8">
+            <ModelVersionBanner dealerships={dealerships} />
             <PortfolioFilterBar dealerships={dealerships} />
             {tileOrder.length === 0 ? (
               <EmptyState
@@ -229,6 +248,8 @@ export function DashboardPage(): React.JSX.Element {
                       dealerships,
                       onSelect: setDetail,
                       onShowOnMap: showOnMap,
+                      onShowAccumulation: showAccumulationOnMap,
+                      onShowLocations: showLocationsOnMap,
                       highlightIds: nlQueryMatchedIds,
                     })}
                   </DashboardTile>
@@ -269,26 +290,40 @@ function renderTile(
     dealerships: AnalyzedDealership[];
     onSelect: (d: AnalyzedDealership) => void;
     onShowOnMap: (d: AnalyzedDealership) => void;
+    onShowAccumulation: (cluster: AccumulationCluster) => void;
+    onShowLocations: (ids: string[]) => void;
     highlightIds: string[] | null;
   },
 ): React.JSX.Element {
   switch (id) {
     case "summary":
       return <SummaryCards dealerships={props.filtered} />;
-    case "risk":
-      return <RiskChart dealerships={props.filtered} />;
-    case "pml":
-      return <PmlCard dealerships={props.filtered} />;
+    case "clusters":
+      return (
+        <AccumulationClusterTable
+          dealerships={props.dealerships}
+          onSelect={props.onSelect}
+          onShowOnMap={props.onShowAccumulation}
+        />
+      );
+    case "zones":
+      return <HailZoneDistribution dealerships={props.filtered} />;
+    case "topLocations":
+      return (
+        <TopLocationsChart
+          dealerships={props.filtered}
+          onSelect={props.onSelect}
+          onShowOnMap={props.onShowOnMap}
+        />
+      );
     case "insights":
       return (
-        <InsightsPanel dealerships={props.filtered} onSelect={props.onSelect} />
+        <InsightsPanel
+          dealerships={props.filtered}
+          onSelect={props.onSelect}
+          onShowAccumulation={props.onShowLocations}
+        />
       );
-    case "coverage":
-      return <CoverageCard dealerships={props.filtered} />;
-    case "seasonal":
-      return <SeasonalProfile dealerships={props.filtered} />;
-    case "clusters":
-      return <AccumulationClusterTable dealerships={props.dealerships} />;
     case "table":
       return (
         <DealershipTable
@@ -303,19 +338,13 @@ function renderTile(
 
 function tileSpan(id: DashboardTileId, compact: boolean): string {
   if (compact) {
-    return id === "insights" || id === "coverage"
+    return id === "zones" || id === "topLocations"
       ? "lg:col-span-1"
       : "lg:col-span-2";
   }
-  if (
-    id === "summary" ||
-    id === "seasonal" ||
-    id === "clusters" ||
-    id === "table"
-  ) {
+  if (id === "summary" || id === "clusters" || id === "table") {
     return "lg:col-span-2 xl:col-span-3";
   }
-  if (id === "risk") return "lg:col-span-2 xl:col-span-2";
   return "lg:col-span-1 xl:col-span-1";
 }
 

@@ -11,10 +11,9 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUpDown, AlertTriangle, MapPin } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
-import { effectiveVehicleCount } from "@shared/risk-math";
+import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { alertIdSet, generateAlerts } from "@shared/analytics";
 import { Badge } from "@renderer/components/ui/badge";
-import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
 import {
   Table,
@@ -25,24 +24,13 @@ import {
   TableRow,
 } from "@renderer/components/ui/table";
 import { eur, num } from "@renderer/lib/format";
-import { riskColor } from "@renderer/lib/riskColor";
+import { hailZoneColor } from "@renderer/lib/riskColor";
 import { useAppStore } from "@renderer/store/appStore";
 
 const columnHelper = createColumnHelper<AnalyzedDealership>();
 
 /** Purely numeric columns are right-aligned with tabular-nums. */
-const NUMERIC_COLUMNS = new Set([
-  "wind",
-  "hail",
-  "flood",
-  "vehicles",
-  "exposure",
-  "eal",
-]);
-
-function perilScore(d: AnalyzedDealership, name: string): number {
-  return d.risk?.perils.find((p) => p.peril === name)?.score ?? 0;
-}
+const NUMERIC_COLUMNS = new Set(["vehicles", "exposure", "eal"]);
 
 /**
  * Sortable and filterable portfolio table (@tanstack/react-table).
@@ -62,22 +50,13 @@ export function DealershipTable({
 }): React.JSX.Element {
   const { t } = useTranslation();
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "score", desc: true },
+    { id: "eal", desc: true },
   ]);
   const [filter, setFilter] = useState("");
-  const [showAdditionalScores, setShowAdditionalScores] = useState(false);
   const parameters = useAppStore((s) => s.parameters);
 
   const alertIds = useMemo(
-    () =>
-      alertIdSet(
-        generateAlerts(dealerships, {
-          extremeScore: parameters.alertExtremeScore,
-          overcapacity: parameters.alertOvercapacity,
-          lowBoundaryConfidence: parameters.alertLowBoundaryConfidence,
-          ealPortfolioShare: parameters.alertEalPortfolioShare,
-        }),
-      ),
+    () => alertIdSet(generateAlerts(dealerships, parameters)),
     [dealerships, parameters],
   );
 
@@ -94,34 +73,25 @@ export function DealershipTable({
           </span>
         ),
       }),
-      columnHelper.accessor((d) => d.risk?.overallScore ?? 0, {
-        id: "score",
-        header: t("dashboard.detailDialog.hailScoreLabel"),
-        cell: (info) => (
-          <Badge
-            style={{
-              backgroundColor: riskColor(info.getValue()),
-              color: "white",
-            }}
-          >
-            {info.getValue().toFixed(0)}
-          </Badge>
-        ),
+      columnHelper.accessor((d) => dealershipHailZone(d)?.zone ?? 0, {
+        id: "zone",
+        header: t("dashboard.hailZone"),
+        cell: (info) => {
+          const zone = info.getValue();
+          if (zone === 0) return "–";
+          const estimated =
+            dealershipHailZone(info.row.original)?.source === "estimated";
+          return (
+            <Badge
+              style={{ backgroundColor: hailZoneColor(zone), color: "white" }}
+              title={estimated ? t("dashboard.hailZoneEstimated") : undefined}
+            >
+              {estimated ? "≈" : ""}
+              {zone}
+            </Badge>
+          );
+        },
       }),
-      ...(showAdditionalScores
-        ? [
-            columnHelper.accessor((d) => perilScore(d, "wind"), {
-              id: "wind",
-              header: t("dashboard.detailDialog.ealPeril.wind"),
-              cell: (info) => info.getValue().toFixed(0),
-            }),
-            columnHelper.accessor((d) => perilScore(d, "flood"), {
-              id: "flood",
-              header: t("dashboard.detailDialog.ealPeril.flood"),
-              cell: (info) => info.getValue().toFixed(0),
-            }),
-          ]
-        : []),
       columnHelper.accessor((d) => effectiveVehicleCount(d.detection), {
         id: "vehicles",
         header: t("common.vehicles"),
@@ -134,7 +104,7 @@ export function DealershipTable({
       }),
       columnHelper.accessor((d) => d.risk?.eal ?? 0, {
         id: "eal",
-        header: t("dashboard.totalEal"),
+        header: t("dashboard.hailEal"),
         cell: (info) => eur(info.getValue()),
       }),
       columnHelper.display({
@@ -157,7 +127,7 @@ export function DealershipTable({
           ) : null,
       }),
     ],
-    [alertIds, onShowOnMap, showAdditionalScores, t],
+    [alertIds, onShowOnMap, t],
   );
 
   const table = useReactTable({
@@ -181,15 +151,6 @@ export function DealershipTable({
         placeholder={t("ui.filterLocations")}
         className="max-w-xs"
       />
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setShowAdditionalScores((visible) => !visible)}
-      >
-        {showAdditionalScores
-          ? t("dashboard.detailDialog.hideAdditionalScores")
-          : t("dashboard.detailDialog.showAdditionalScores")}
-      </Button>
       <div className="rounded-lg border">
         <Table>
           <TableHeader>

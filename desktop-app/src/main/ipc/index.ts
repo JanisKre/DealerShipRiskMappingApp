@@ -152,14 +152,23 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.fetchWeather, ({ lat, lon }) => fetchWeather(lat, lon));
   handle(
     IPC.scoreRisk,
-    ({ lat, lon, assetValue, detection, boundary, parameters, natCat }) =>
+    ({
+      lat,
+      lon,
+      assetValue,
+      detection,
+      boundary,
+      parameters,
+      natCat,
+      hailZone,
+    }) =>
       scoreRisk(
         lat,
         lon,
         assetValue,
         detection,
         boundary,
-        undefined,
+        hailZone,
         parameters,
         natCat,
       ),

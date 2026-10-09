@@ -86,8 +86,8 @@
         "description": "Werte und Flächenannahmen, die die finanzielle Exposition bestimmen."
       },
       "risk": {
-        "title": "Risiko & EAL",
-        "description": "Schadenquoten und Eintrittswahrscheinlichkeiten für die EAL-Berechnung."
+        "title": "Hagel-EAL",
+        "description": "Frequenz je Hagelzone (λ), Ereignisklassen (p) und Schaden je Fahrzeug (S) für die erwartete Jahresschadenlast."
       },
       "scores": {
         "title": "Gefahren-Scores",
@@ -113,8 +113,10 @@
       "centimeters": "cm",
       "millimetersPerYear": "mm/Jahr",
       "kilometers": "km",
-      "outOf100": "von 100",
-      "meters": "m"
+      "meters": "m",
+      "eventsPerYear": "Ereignisse/Jahr",
+      "eurPerVehicle": "€/Fahrzeug",
+      "hailZone": "Zone"
     },
     "parameterFields": {
       "vehicleValueCarEur": {
@@ -131,66 +133,9 @@
         "description": "Annahme für die Grundstücks-Kapazität.",
         "tip": "Der wichtigste Hebel für die geschätzte Kapazität, wenn keine verlässliche Fahrzeugzählung vorliegt."
       },
-      "hailDamageFraction": {
-        "label": "Hagelschadenquote",
-        "description": "Schadenanteil je getroffenem Ereignis.",
-        "tip": "Schätzt, welcher Anteil der exponierten Fahrzeugwerte bei einem Treffer beschädigt wird."
-      },
-      "hailSiteHitProbability": {
-        "label": "Hagel-Treffwahrscheinlichkeit",
-        "description": "Wahrscheinlichkeit, dass der Standort getroffen wird.",
-        "tip": "Nur anpassen, wenn eigene Schadenhistorie oder ein anderes Gefahrenmodell vorliegt."
-      },
-      "climateLoadingFactor": {
-        "label": "Klimaaufschlag",
-        "description": "Multiplikativer Aufschlag auf die Hagelfrequenz.",
-        "tip": "Erhöht die modellierte Hagelfrequenz; 0,15 entspricht einem Aufschlag von 15 %."
-      },
-      "windStormThresholdKmh": {
-        "label": "Sturmschwelle",
-        "description": "Ab dieser Windgeschwindigkeit wird Windschaden modelliert."
-      },
-      "windDamageFraction": {
-        "label": "Wind-Schadenquote",
-        "description": "Schadenanteil pro modelliertem Sturmtag.",
-        "tip": "Beschreibt die durchschnittliche Schadenhöhe an einem als Sturm gewerteten Tag."
-      },
-      "windSiteHitProbability": {
-        "label": "Wind-Treffwahrscheinlichkeit",
-        "description": "Standortwahrscheinlichkeit für Windschaden."
-      },
-      "lightningDamageFraction": {
-        "label": "Blitz-Schadenquote",
-        "description": "Schadenanteil je Blitzereignis."
-      },
-      "lightningDensityScale": {
-        "label": "Blitzdichte-Skalierung",
-        "description": "Umrechnung der Blitzdichte in die EAL."
-      },
-      "snowLoadDamageFractionPer30cm": {
-        "label": "Schneelastquote je 30 cm",
-        "description": "Schadenanteil pro 30 cm Schneehöhe."
-      },
-      "floodDamageHq10": {
-        "label": "Hochwasserquote HQ10",
-        "description": "Schadenquote im 10-jährlichen Proxy-Szenario."
-      },
-      "floodDamageHq100": {
-        "label": "Hochwasserquote HQ100",
-        "description": "Schadenquote im 100-jährlichen Proxy-Szenario.",
-        "tip": "Nur ändern, wenn für die betrachteten Standorte belastbare Hochwasserannahmen vorliegen."
-      },
-      "floodDamageHqExtrem": {
-        "label": "Hochwasserquote Extrem",
-        "description": "Schadenquote im extremen Proxy-Szenario."
-      },
       "heatHotdaysScoreMax": {
         "label": "Hitzetage für Score 100",
         "description": "Anzahl heißer Tage für den maximalen Hitze-Score."
-      },
-      "heatDamageFractionPerHotday": {
-        "label": "Hitzequote je Hitzetag",
-        "description": "Schadenanteil pro heißem Tag."
       },
       "windScoreMaxKmh": {
         "label": "Wind bei Score 100",
@@ -253,11 +198,6 @@
         "label": "Szenarioquote Extrem",
         "description": "Schadenquote im extremen Stressszenario."
       },
-      "alertExtremeScore": {
-        "label": "Warnschwelle Risiko-Score",
-        "description": "Ab diesem Score wird ein kritischer Hinweis erzeugt.",
-        "tip": "Niedriger = mehr Warnungen; höher = nur die kritischsten Standorte hervorheben."
-      },
       "alertOvercapacity": {
         "label": "Warnschwelle Überkapazität",
         "description": "Auslastung oberhalb dieses Faktors erzeugt einen Hinweis.",
@@ -295,7 +235,66 @@
         "label": "Erkennungs-Konfidenz",
         "description": "Basis-Mindestkonfidenz des Fahrzeugmodells; große Fahrzeuge brauchen etwas mehr.",
         "tip": "Niedriger findet mehr Fahrzeuge, kann aber mehr Fehlalarme erzeugen; höher ist konservativer."
+      },
+      "hailFrequencyZone1": {
+        "label": "λ Hagelzone 1",
+        "description": "Schadenrelevante Hagelereignisse pro Jahr an einem Standort in Zone 1."
+      },
+      "hailFrequencyZone2": {
+        "label": "λ Hagelzone 2",
+        "description": "Schadenrelevante Hagelereignisse pro Jahr an einem Standort in Zone 2."
+      },
+      "hailFrequencyZone3": {
+        "label": "λ Hagelzone 3",
+        "description": "Schadenrelevante Hagelereignisse pro Jahr an einem Standort in Zone 3."
+      },
+      "hailFrequencyZone4": {
+        "label": "λ Hagelzone 4",
+        "description": "Schadenrelevante Hagelereignisse pro Jahr an einem Standort in Zone 4."
+      },
+      "hailFrequencyZone5": {
+        "label": "λ Hagelzone 5",
+        "description": "Schadenrelevante Hagelereignisse pro Jahr an einem Standort in Zone 5."
+      },
+      "hailFrequencyZone6": {
+        "label": "λ Hagelzone 6",
+        "description": "Schadenrelevante Hagelereignisse pro Jahr an einem Standort in Zone 6."
+      },
+      "hailShareSmall": {
+        "label": "p Ereignis klein",
+        "description": "Anteil der Hagelereignisse der Klasse „klein“ (p). Die drei Anteile werden auf ihre Summe normiert."
+      },
+      "hailSeveritySmallEur": {
+        "label": "S Schaden klein",
+        "description": "Schaden je exponiertem Fahrzeug bei einem Ereignis der Klasse „klein“ (S)."
+      },
+      "hailShareMedium": {
+        "label": "p Ereignis mittel",
+        "description": "Anteil der Hagelereignisse der Klasse „mittel“ (p). Die drei Anteile werden auf ihre Summe normiert."
+      },
+      "hailSeverityMediumEur": {
+        "label": "S Schaden mittel",
+        "description": "Schaden je exponiertem Fahrzeug bei einem Ereignis der Klasse „mittel“ (S)."
+      },
+      "hailShareLarge": {
+        "label": "p Ereignis groß",
+        "description": "Anteil der Hagelereignisse der Klasse „groß“ (p). Die drei Anteile werden auf ihre Summe normiert."
+      },
+      "hailSeverityLargeEur": {
+        "label": "S Schaden groß",
+        "description": "Schaden je exponiertem Fahrzeug bei einem Ereignis der Klasse „groß“ (S)."
+      },
+      "alertHailZone": {
+        "label": "Prüfschwelle Hagelzone",
+        "description": "Ab dieser Hagelzone erzeugt ein Standort einen kritischen Prüfhinweis.",
+        "tip": "Niedriger = mehr Hinweise; 5 markiert die Zonen 5 und 6."
       }
+    },
+    "hailEal": {
+      "formula": "N = Fahrzeuge unter freiem Himmel (überdachte Fahrzeuge werden abgezogen), λ = Ereignisse pro Jahr in der Hagelzone, p·S = erwarteter Schaden je Fahrzeug und Ereignis.",
+      "placeholders": "Platzhalterwerte – Kalibrierung durch das Underwriting steht aus. Die EAL ist eine Screening-Schätzung, keine Tarif- oder Zeichnungsentscheidung.",
+      "meanSeverity": "Erwarteter Schaden je exponiertem Fahrzeug und Ereignis (Σ p·S): {{value}}",
+      "shareSum": "Die Anteile p summieren sich auf {{sum}} statt 1 – sie werden für die Berechnung auf 1 normiert."
     }
   },
   "settings": {
@@ -519,48 +518,26 @@
     "locations": "Standorte",
     "totalExposure": "Gesamt-Exposure",
     "totalEal": "Gesamt-EAL",
-    "avgScore": "Ø Hagel-Score",
-    "extreme": "Extrem-Risiken",
-    "pml": "Wahrscheinlicher Höchstschaden (PML)",
-    "riskDistribution": "Risikoverteilung",
-    "topRisks": "Top-Risiko-Standorte",
-    "noAnomalies": "Keine Anomalien oder Ausreißer erkannt.",
-    "insightsTitle": "Anomalien",
-    "insightsSummary": "{{alerts}} Warnungen · {{outliers}} Ausreißer",
-    "statisticalOutliers": "Statistische Ausreißer",
     "alertLevel": {
       "critical": "Kritisch",
       "warning": "Warnung"
     },
     "alert": {
-      "extremeRisk": "Extremes Risiko (Score {{score}}/100).",
       "highEal": "Verursacht {{share}} % des Portfolio-EAL.",
       "overcapacity": "Überkapazität ({{utilisation}} % der Kapazität).",
       "lowBoundaryConfidence": "Unsichere Grundstücksgrenze (Quelle {{source}}).",
-      "noDetection": "Keine Fahrzeuge erkannt – Grenze und Luftbild prüfen."
-    },
-    "anomalyMetric": {
-      "score": "Risiko-Score",
-      "eal": "EAL",
-      "utilisation": "Auslastung"
+      "noDetection": "Keine Fahrzeuge erkannt – Grenze und Luftbild prüfen.",
+      "highHailZone": "Liegt in Hagelzone {{zone}}.",
+      "accumulation": "Kumulation mit {{count}} Standorten und {{exposure}} Exposure.",
+      "estimatedHailZone": "Hagelzone {{zone}} nur geschätzt – Adresse/PLZ prüfen."
     },
     "sortAscending": "Aufsteigend sortiert; klicken zum Ändern",
     "sortDescending": "Absteigend sortiert; klicken zum Ändern",
     "sortNone": "Nicht sortiert; klicken zum Sortieren",
-    "seasonalTitle": "Saisonales Risikoprofil",
-    "seasonalDescription": "Typische jährliche Verteilung des Portfoliorisikos nach Gefahrenart",
-    "coverageTitle": "Gefahrenabdeckung und Konzentration",
-    "averageLabel": "Ø",
-    "highLabel": "hoch",
-    "diversificationLabel": "Diversifikation (HHI)",
-    "effectiveLocations": "≈ {{count}} effektive Standorte",
-    "largestClusterCell": "Größte Clusterzelle",
-    "ealShare": "EAL-Anteil",
     "utilisation": "Auslastung",
     "capacity": "Kapazität",
     "area": "Fläche",
     "boundarySource": "Grenzquelle",
-    "ealBreakdown": "EAL-Aufschlüsselung",
     "manageTiles": "Dashboard anpassen",
     "visibleTiles": "Sichtbare Kacheln",
     "resetTiles": "Layout zurücksetzen",
@@ -573,22 +550,18 @@
     "assistantTitle": "Dashboard-Assistent",
     "assistantDescription": "Fragen stellen oder Dashboard ändern",
     "assistantEmpty": "Frage etwas zum Portfolio oder sage „Standorttabelle anzeigen“.",
-    "assistantHint": "Versuche: „Saisonprofil hinzufügen“ oder „PML entfernen“.",
+    "assistantHint": "Versuche: „Kumulationen anzeigen“ oder „Prüfhinweise ausblenden“.",
     "examplePromptTable": "Standorttabelle anzeigen",
-    "examplePromptSeasonal": "Saisonprofil hinzufügen",
-    "examplePromptRisk": "Risikoverteilung anzeigen",
     "commandAdded": "Hinzugefügt: {{tiles}}",
     "commandRemoved": "Entfernt: {{tiles}}",
     "commandReset": "Dashboard-Layout zurückgesetzt.",
     "tiles": {
       "summary": "Portfolio-KPIs",
-      "risk": "Risikoverteilung",
-      "pml": "Wahrscheinlicher Höchstschaden",
-      "insights": "Anomalien und Warnungen",
-      "coverage": "Gefahrenabdeckung",
-      "seasonal": "Saisonales Risikoprofil",
-      "clusters": "Akkumulations-Cluster",
-      "table": "Standorttabelle"
+      "insights": "Prüfhinweise",
+      "clusters": "Größte Kumulationen",
+      "table": "Standorttabelle",
+      "zones": "Hagelzonen-Verteilung",
+      "topLocations": "Top-Standorte nach Hagel-EAL"
     },
     "detailDialog": {
       "imageryCountedOn": "Fahrzeuge gezählt auf",
@@ -668,7 +641,13 @@
         "boundaryReviewRequired": "Grundstücksgrenze muss vor der Underwriting-Nutzung geprüft werden",
         "boundaryDisagreement": "Grenzquellen stimmen nicht ausreichend überein",
         "noMlModel": "Fahrzeug-Exposure ist geschätzt, da kein ML-Modell installiert ist",
-        "boundaryRole": "Grenze beschreibt {{role}}, nicht das bestätigte Betriebsgelände"
+        "boundaryRole": "Grenze beschreibt {{role}}, nicht das bestätigte Betriebsgelände",
+        "hailZoneEstimated": "Hagelzone aus Wetterdaten geschätzt; keine PLZ-Hagelzone verfügbar",
+        "hailEalPlaceholders": "Frequenz- und Schadenparameter der Hagel-EAL sind unkalibrierte Platzhalter",
+        "hailVehiclesFromAssetValue": "Fahrzeugzahl der Hagel-EAL aus dem angegebenen Asset-Wert abgeleitet",
+        "postcodeHailZones": "PLZ-Hagelzonen",
+        "postcodeHailZoneMethod": "Hagelzonen-Abfrage per PLZ",
+        "estimatedHailZoneMethod": "Hagelzone aus wetterbasiertem Hagel-Score geschätzt"
       },
       "osmLoading": "OSM-Infos werden geladen…",
       "osmHeading": "Aus OpenStreetMap",
@@ -687,6 +666,131 @@
       "errorPrefix": "Fehler: {{error}}",
       "recommendedDeductibleLabel": "Empf. Selbstbehalt",
       "premiumLoadingLabel": "Prämienzuschlag"
+    },
+    "hailEal": "Hagel-EAL",
+    "hailZone": "Hagelzone",
+    "hailZoneLabel": "Hagelzone {{zone}}",
+    "hailZoneEstimated": "Hagelzone aus Wetterdaten geschätzt – keine PLZ-Hagelzone verfügbar",
+    "zoneShort": "Zone {{zone}}",
+    "showAll": "Alle {{count}} anzeigen",
+    "showLess": "Weniger anzeigen",
+    "examplePromptClusters": "Kumulationen anzeigen",
+    "examplePromptZones": "Hagelzonen-Verteilung anzeigen",
+    "kpi": {
+      "exposedVehicles_one": "davon {{count}} im Freien",
+      "exposedVehicles_other": "davon {{count}} im Freien",
+      "perYear": "pro Jahr",
+      "largestAccumulation": "Größte Kumulation",
+      "accumulationHint_one": "{{count}} Standort · {{radius}} km",
+      "accumulationHint_other": "{{count}} Standorte · {{radius}} km",
+      "noAccumulation": "keine im {{radius}}-km-Umkreis",
+      "elevatedZones": "In Hagelzone ≥ {{zone}}",
+      "exposureShare": "{{share}} des Exposures"
+    },
+    "accumulations": {
+      "title": "Größte Kumulationen",
+      "description_one": "{{count}} Kumulation: Standorte, die über Nachbarn im Umkreis von {{radius}} km verbunden sind. Zeile anklicken für die Standorte.",
+      "description_other": "{{count}} Kumulationen: Standorte, die über Nachbarn im Umkreis von {{radius}} km verbunden sind. Zeile anklicken für die Standorte.",
+      "empty": "Keine Kumulationen: Kein Standort hat einen Nachbarn im Umkreis von {{radius}} km.",
+      "clearFilter": "Kumulationsfilter aufheben",
+      "name": "Kumulation (größter Standort)",
+      "maxZone": "Max. Zone",
+      "scenario": "Schadenszenario ({{share}})",
+      "more_one": "+ {{count}} weiterer",
+      "more_other": "+ {{count}} weitere",
+      "showOnMap": "Karte"
+    },
+    "zones": {
+      "title": "Hagelzonen-Verteilung",
+      "description": "Wie sich das Portfolio auf die Hagelzonen 1 (gering) bis 6 (sehr hoch) verteilt.",
+      "tooltipCount_one": "{{count}} Standort",
+      "tooltipCount_other": "{{count}} Standorte",
+      "tooltipEstimated_one": "davon {{count}} mit geschätzter Zone",
+      "tooltipEstimated_other": "davon {{count}} mit geschätzter Zone",
+      "unknown_one": "{{count}} Standort ohne Risikoergebnis ist nicht enthalten.",
+      "unknown_other": "{{count}} Standorte ohne Risikoergebnis sind nicht enthalten.",
+      "byExposure": "Exposure"
+    },
+    "topLocations": {
+      "title": "Top-Standorte nach Hagel-EAL",
+      "description": "Die {{count}} Standorte mit dem höchsten erwarteten Hagelschaden pro Jahr.",
+      "empty": "Noch keine Standorte mit Hagel-EAL.",
+      "share": "{{share}} der Portfolio-EAL"
+    },
+    "review": {
+      "title": "Prüfhinweise",
+      "summary": "{{critical}} kritisch · {{warnings}} zur Datenqualität",
+      "none": "Keine Prüfhinweise – alle Regeln unauffällig.",
+      "ruleLabel": "Regel:",
+      "rules": {
+        "high-hail-zone": "Hagelzone ≥ {{zone}}",
+        "high-eal": "Standort verursacht ≥ {{share}} der Portfolio-EAL",
+        "accumulation": "Kumulation (Umkreis {{radius}} km) mit Exposure ≥ {{threshold}}",
+        "overcapacity": "Auslastung > {{utilisation}} der geschätzten Stellplatzkapazität",
+        "low-boundary-confidence": "Konfidenz der Grundstücksgrenze ≤ {{confidence}}",
+        "no-detection": "0 Fahrzeuge erkannt",
+        "estimated-hail-zone": "Keine PLZ-Hagelzone – Zone aus Wetterdaten geschätzt"
+      }
+    },
+    "modelVersion": {
+      "outdated_one": "{{count}} Standort wurde mit einem älteren Risikomodell berechnet. Neu berechnen, um die Hagel-EAL ({{version}}) zu erhalten.",
+      "outdated_other": "{{count}} Standorte wurden mit einem älteren Risikomodell berechnet. Neu berechnen, um die Hagel-EAL ({{version}}) zu erhalten.",
+      "recalculate": "Neu berechnen",
+      "done": "Alle Standorte mit dem aktuellen Modell berechnet.",
+      "failed_one": "{{count}} Standort konnte nicht neu berechnet werden.",
+      "failed_other": "{{count}} Standorte konnten nicht neu berechnet werden."
+    },
+    "hailEalDetail": {
+      "title": "Hagel-EAL",
+      "vehicles": "Exponierte Fahrzeuge (N)",
+      "vehiclesValue": "{{exposed}} von {{total}}",
+      "frequency": "Frequenz (λ)",
+      "frequencyValue": "{{frequency}}/Jahr · Zone {{zone}}",
+      "severity": "Schaden je Fahrzeug (Σ p·S)",
+      "formula": "{{exposed}} Fahrzeuge × {{frequency}} Ereignisse/Jahr × {{severity}} = {{eal}} pro Jahr.",
+      "vehicleSource": {
+        "manual": "Fahrzeugzahl manuell geprüft.",
+        "detected": "Fahrzeugzahl aus der Luftbild-Erkennung.",
+        "assetValue": "Fahrzeugzahl aus dem angegebenen Asset-Wert abgeleitet.",
+        "none": "Keine Fahrzeugzahl verfügbar."
+      },
+      "zoneSource": {
+        "postcode": "Hagelzone aus der PLZ-Tabelle.",
+        "provider": "Hagelzone aus dem NatCat-Anbieter-Score abgeleitet.",
+        "estimated": "Hagelzone aus Wetterdaten geschätzt (keine PLZ-Zone)."
+      },
+      "legacy": "Mit einem älteren Modell berechnet ({{eal}}). Im Dashboard „Neu berechnen“ wählen, um die Hagel-EAL zu erhalten."
+    },
+    "info": {
+      "label": "Was bedeutet das?",
+      "what": "Was zeigt das?",
+      "how": "Wie wird es berechnet?",
+      "limits": "Einschränkungen",
+      "hailEal": {
+        "what": "Erwarteter Hagelschaden pro Jahr (Expected Annual Loss) für die angezeigten Standorte.",
+        "how": "EAL = N × λ × (p_S·S_S + p_M·S_M + p_L·S_L). N = Fahrzeuge unter freiem Himmel, λ = Hagelereignisse pro Jahr je Hagelzone, p = Anteil kleiner/mittlerer/großer Ereignisse, S = Schaden je Fahrzeug. Werte unter „Parameter → Hagel-EAL“.",
+        "limits": "λ, p und S sind unkalibrierte Platzhalter. Screening-Schätzung, keine Tarif-, Zeichnungs- oder Versicherungsentscheidung."
+      },
+      "accumulations": {
+        "what": "Gruppen von Standorten, die ein einzelnes Hagelereignis gemeinsam treffen könnte – sortiert nach Exposure.",
+        "how": "Zwei Standorte gehören zusammen, wenn sie höchstens {{radius}} km voneinander entfernt sind; über Nachbarn entstehen Ketten (Single Linkage). Schadenszenario = Exposure der Kumulation × {{scenario}} Schadenquote.",
+        "limits": "Der Radius ist eine Annahme zur typischen Größe einer Hagelzelle; Zugbahnen und Wetterlagen werden nicht modelliert. Das Schadenszenario ist kein PML aus einem Katastrophenmodell."
+      },
+      "zones": {
+        "what": "Verteilung der Standorte bzw. des Exposures auf die Hagelzonen 1 (gering) bis 6 (sehr hoch).",
+        "how": "Zone aus der PLZ-Hagelzonentabelle; fehlt die PLZ, wird sie aus dem wetterbasierten Hagel-Score geschätzt (im Tooltip ausgewiesen).",
+        "limits": "Hagelzonen beschreiben die regionale Gefährdung, nicht den Zustand des einzelnen Standorts."
+      },
+      "topLocations": {
+        "what": "Die Standorte mit dem höchsten erwarteten Hagelschaden pro Jahr.",
+        "how": "Sortiert nach Hagel-EAL (€/Jahr). Das Badge zeigt die Hagelzone; „≈“ = geschätzte Zone.",
+        "limits": "Die EAL hängt stark von der Fahrzeugzahl ab – manuell geprüfte Zahlen verbessern das Ranking."
+      },
+      "review": {
+        "what": "Standorte, die ein Underwriter genauer ansehen sollte, mit der Regel, die den Hinweis ausgelöst hat.",
+        "how": "Kritisch: Hagelzone ≥ {{zone}}; Anteil an der Portfolio-EAL ≥ {{share}}; Kumulation im {{radius}}-km-Umkreis mit Exposure ≥ {{threshold}}. Datenqualität: Auslastung > {{utilisation}}, Grenz-Konfidenz ≤ {{confidence}}, 0 erkannte Fahrzeuge, geschätzte Hagelzone. Schwellen unter „Parameter“.",
+        "limits": "Regelbasiert und ohne Gewichtung – ein Hinweis ist ein Prüfauftrag, keine Ablehnung."
+      }
     }
   },
   "map": {

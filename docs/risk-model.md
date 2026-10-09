@@ -12,13 +12,83 @@ The orchestration entry point is
 
 - `hazard-models.ts` maps hazard indicators to comparable 0–100 scores.
 - `exposure.ts` estimates vehicle value and site capacity.
-- `financial-loss.ts` calculates the per-peril EAL breakdown.
+- `financial-loss.ts` calculates the hail EAL (see below).
 - `evidence.ts` attaches provenance, confidence, fallbacks, and limitations.
 
 Every new risk result includes a model version, overall confidence, source
-evidence, and limitations. The current flood component is intentionally a
-screening proxy based on precipitation; a hydraulic provider can replace it
-behind the provider boundary without changing the renderer contract.
+evidence, and limitations. The non-hail peril scores (wind, lightning, snow,
+flood, heat) are still computed for the detail view, but since
+`screening-0.4.0` they no longer feed the loss figure; the flood score remains
+a precipitation proxy that a hydraulic provider can replace behind the
+provider boundary.
+
+## Hail EAL (screening-0.4.0)
+
+The portfolio is underwritten for hail only, so the expected annual loss
+(EAL) is a hail loss per location:
+
+```text
+EAL = N_exposed × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L)
+N_exposed = N × exposure ratio
+```
+
+| Symbol | Meaning | Source |
+|---|---|---|
+| N | Vehicles on site | Manually reviewed count, else the detector count; without either, declared asset value ÷ car value (flagged as a limitation) |
+| exposure ratio | Share of vehicles parked in the open: `clamp(1 − roof coverage, 0.1, 1)` | `roof.service.ts`, from buildings inside the lot boundary |
+| z | Hail zone 1–6 | Licensed provider hail score if routed, else the postcode table (`shared/hail-zones.ts`), else estimated from the weather-based hail score as `1 + round(score / 20)` (flagged, lower confidence) |
+| λ_z | Damaging hail events per year at a site in zone z | Parameter per zone |
+| p_S, p_M, p_L | Share of small, medium, large events | Parameters; normalized by their sum, so they act as weights |
+| S_S, S_M, S_L | Loss per exposed vehicle in an event of that class (EUR) | Parameters |
+
+The implementation is `computeHailEal` in `shared/risk-math.ts`; the result
+stores every input (`ealBreakdown.hailDetail`), so the detail dialog shows the
+calculation for each location.
+
+### Default values (placeholders)
+
+The defaults are **uncalibrated screening placeholders** agreed as starting
+values until the underwriting team supplies calibrated figures. They are not
+derived from loss data. Every result carries the limitation "Hail EAL
+frequency and severity parameters are uncalibrated placeholders".
+
+| Zone | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| λ_z (events/year) | 0.01 | 0.02 | 0.04 | 0.07 | 0.10 | 0.15 |
+
+| Class | p | S (EUR per vehicle) |
+|---|---|---|
+| small | 0.60 | 800 |
+| medium | 0.30 | 3,000 |
+| large | 0.10 | 7,000 |
+
+With these values Σ p·S = 2,080 EUR, so a zone-6 site loses about 312 EUR per
+open-air vehicle and year. The values are editable under Parameters → Hail
+EAL; a change rescores every location.
+
+### Limitations
+
+- A screening estimate, not an engineering, tariff, underwriting, or insurance
+  decision.
+- λ, p, and S are placeholders until calibrated against loss experience.
+- Hail zones describe regional hazard; local exposure (e.g. temporary
+  covers, vehicles moved before a storm) is not modeled.
+- The vehicle count is a snapshot of the aerial image; stock varies over the
+  year.
+- Results stored by an older model version keep their old EAL until they are
+  recalculated (the dashboard offers this).
+
+### Portfolio views
+
+- **Largest accumulations**: single-linkage groups of locations within
+  `accumulationRadiusKm` (default 10 km), sorted by exposure. The loss
+  scenario per accumulation is exposure × `scenarioDamageMedium` (15 %); it
+  replaces the former PML tile on the dashboard and is not a PML from a
+  catastrophe model.
+- **Review notes** are fixed rules: hail zone ≥ `alertHailZone` (5), share of
+  the portfolio EAL ≥ `alertEalPortfolioShare` (20 %), an accumulation with
+  exposure ≥ `accumulationReinsureThresholdEur`, and data-quality checks
+  (utilisation, boundary confidence, zero vehicles, estimated hail zone).
 
 ## Licensed natural-catastrophe providers
 

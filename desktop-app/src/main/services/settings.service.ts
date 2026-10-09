@@ -13,7 +13,7 @@ const SETTINGS_KEY = "app.settings";
 
 // The fusion engine is the supported operational detector. Legacy stays in the
 // schema so benchmarks and tests can still compare both engines.
-const DEFAULTS: Settings = { language: "en", boundaryEngine: "fused" };
+const DEFAULTS: Settings = { language: "de", boundaryEngine: "fused" };
 
 export function getSettings(): Settings {
   const row = getDb()

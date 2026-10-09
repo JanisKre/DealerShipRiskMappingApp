@@ -18,7 +18,7 @@ export function App(): React.JSX.Element {
           void i18n.changeLanguage(s.language);
       })
       .catch(() => {
-        // Settings not loadable → keep default (en)
+        // Settings not loadable → keep default (de)
       });
   }, []);
 

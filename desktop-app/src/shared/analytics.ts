@@ -1,6 +1,12 @@
-import type { AnalyzedDealership, Peril } from "./types";
+import type { AnalyzedDealership, Peril, RiskParameters } from "./types";
 import { PERILS } from "./types";
-import { computeClusterRisk, effectiveVehicleCount } from "./risk-math";
+import { DEFAULT_RISK_PARAMETERS } from "./parameters";
+import {
+  computeAccumulationClusters,
+  computeClusterRisk,
+  dealershipHailZone,
+  effectiveVehicleCount,
+} from "./risk-math";
 
 /**
  * Portfolio analytics: pure functions without I/O (called from the renderer).
@@ -9,92 +15,24 @@ import { computeClusterRisk, effectiveVehicleCount } from "./risk-math";
  * `AnalyzedDealership` that are available on the renderer side are used.
  */
 
-// --- Anomaly detection (statistical outliers) ------------------------------
-
-export interface Anomaly {
-  dealershipId: string;
-  name: string;
-  metric: "score" | "eal" | "utilisation";
-  value: number;
-  /** Standardized distance from the portfolio mean (signed). */
-  zScore: number;
-  severity: "high" | "medium";
-}
-
 function mean(xs: number[]): number {
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
 }
 
-function stddev(xs: number[], mu: number): number {
-  if (xs.length < 2) return 0;
-  const variance = xs.reduce((a, b) => a + (b - mu) ** 2, 0) / (xs.length - 1);
-  return Math.sqrt(variance);
-}
-
-const METRIC_LABEL: Record<Anomaly["metric"], string> = {
-  score: "Risk score",
-  eal: "EAL",
-  utilisation: "Utilisation",
-};
-
-export function anomalyMetricLabel(m: Anomaly["metric"]): string {
-  return METRIC_LABEL[m];
-}
+// --- Rule-based review notes ("Prüfhinweise") -------------------------------
 
 /**
- * Finds locations whose metric (score/EAL/utilisation) deviates more than 2σ
- * from the portfolio mean (|z| >= 3 => "high"). Requires at least 3 locations
- * with the given metric, otherwise the statistic is not meaningful.
+ * Each kind is one named, documented rule; the dashboard shows the rule text
+ * next to every hit so underwriters can see why a location was flagged.
  */
-export function detectAnomalies(dealerships: AnalyzedDealership[]): Anomaly[] {
-  const metrics: Array<{
-    metric: Anomaly["metric"];
-    value: (d: AnalyzedDealership) => number | undefined;
-  }> = [
-    { metric: "score", value: (d) => d.risk?.overallScore },
-    { metric: "eal", value: (d) => d.risk?.eal },
-    { metric: "utilisation", value: (d) => d.risk?.utilisation },
-  ];
-
-  const out: Anomaly[] = [];
-  for (const { metric, value } of metrics) {
-    const present = dealerships
-      .map((d) => ({ d, v: value(d) }))
-      .filter((x): x is { d: AnalyzedDealership; v: number } => x.v != null);
-    if (present.length < 3) continue;
-
-    const mu = mean(present.map((x) => x.v));
-    const sigma = stddev(
-      present.map((x) => x.v),
-      mu,
-    );
-    if (sigma === 0) continue;
-
-    for (const { d, v } of present) {
-      const z = (v - mu) / sigma;
-      if (Math.abs(z) < 2) continue;
-      out.push({
-        dealershipId: d.id,
-        name: d.name,
-        metric,
-        value: v,
-        zScore: z,
-        severity: Math.abs(z) >= 3 ? "high" : "medium",
-      });
-    }
-  }
-  // Strongest outliers first.
-  return out.sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore));
-}
-
-// --- Rule-based alerts ------------------------------------------------------
-
 export type AlertKind =
-  | "extreme-risk"
+  | "high-hail-zone"
+  | "high-eal"
+  | "accumulation"
   | "overcapacity"
   | "low-boundary-confidence"
   | "no-detection"
-  | "high-eal";
+  | "estimated-hail-zone";
 
 export interface Alert {
   dealershipId: string;
@@ -105,27 +43,22 @@ export interface Alert {
   /** Structured values let renderers localize the message themselves. */
   value?: number;
   source?: string;
+  /** Accumulation alerts: every location in the accumulation. */
+  memberIds?: string[];
 }
 
-/** Thresholds for the alert rules (deliberately centralized, easy to tune). */
-export interface AlertThresholds {
-  extremeScore: number;
-  overcapacity: number;
-  lowBoundaryConfidence: number;
-  ealPortfolioShare: number;
-}
-
-export const ALERT_THRESHOLDS: AlertThresholds = {
-  extremeScore: 75,
-  overcapacity: 1.0,
-  lowBoundaryConfidence: 0.3,
-  /** Relative EAL alert: location contributes >= 20% of the portfolio EAL. */
-  ealPortfolioShare: 0.2,
-} as const;
-
+/**
+ * Rules, in order of severity:
+ * - high-hail-zone: hail zone >= alertHailZone
+ * - high-eal: location causes >= alertEalPortfolioShare of the portfolio EAL
+ * - accumulation: accumulation (accumulationRadiusKm) with exposure >=
+ *   accumulationReinsureThresholdEur — one alert per accumulation
+ * - data quality: utilisation > alertOvercapacity, boundary confidence <=
+ *   alertLowBoundaryConfidence, zero vehicles, hail zone only estimated
+ */
 export function generateAlerts(
   dealerships: AnalyzedDealership[],
-  thresholds: AlertThresholds = ALERT_THRESHOLDS,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): Alert[] {
   const totalEal = dealerships.reduce((a, d) => a + (d.risk?.eal ?? 0), 0);
   const out: Alert[] = [];
@@ -133,19 +66,20 @@ export function generateAlerts(
   for (const d of dealerships) {
     const r = d.risk;
     if (!r) continue;
+    const hailZone = dealershipHailZone(d);
 
-    if (r.overallScore >= thresholds.extremeScore) {
+    if (hailZone && hailZone.zone >= parameters.alertHailZone) {
       out.push({
         dealershipId: d.id,
         name: d.name,
         level: "critical",
-        kind: "extreme-risk",
-        message: `Extreme risk (score ${r.overallScore.toFixed(0)}/100).`,
-        value: r.overallScore,
+        kind: "high-hail-zone",
+        message: `Hail zone ${hailZone.zone} (threshold ${parameters.alertHailZone}).`,
+        value: hailZone.zone,
       });
     }
 
-    if (totalEal > 0 && r.eal / totalEal >= thresholds.ealPortfolioShare) {
+    if (totalEal > 0 && r.eal / totalEal >= parameters.alertEalPortfolioShare) {
       out.push({
         dealershipId: d.id,
         name: d.name,
@@ -156,7 +90,7 @@ export function generateAlerts(
       });
     }
 
-    if (r.utilisation != null && r.utilisation > thresholds.overcapacity) {
+    if (r.utilisation != null && r.utilisation > parameters.alertOvercapacity) {
       out.push({
         dealershipId: d.id,
         name: d.name,
@@ -169,7 +103,7 @@ export function generateAlerts(
 
     if (
       d.boundary &&
-      d.boundary.confidence <= thresholds.lowBoundaryConfidence
+      d.boundary.confidence <= parameters.alertLowBoundaryConfidence
     ) {
       out.push({
         dealershipId: d.id,
@@ -190,9 +124,51 @@ export function generateAlerts(
         message: "No vehicles detected — check boundary/aerial imagery.",
       });
     }
+
+    if (hailZone?.source === "estimated") {
+      out.push({
+        dealershipId: d.id,
+        name: d.name,
+        level: "warning",
+        kind: "estimated-hail-zone",
+        message: `Hail zone ${hailZone.zone} estimated from weather data.`,
+        value: hailZone.zone,
+      });
+    }
   }
 
-  // Critical first.
+  const byId = new Map(dealerships.map((d) => [d.id, d]));
+  const located = dealerships.filter((d) => d.lat != null && d.lon != null);
+  for (const cluster of computeAccumulationClusters(
+    located,
+    parameters.accumulationRadiusKm,
+    parameters,
+  )) {
+    if (
+      cluster.count < 2 ||
+      cluster.totalExposureEur < parameters.accumulationReinsureThresholdEur
+    )
+      continue;
+    // Anchor the alert on the member with the largest exposure.
+    const anchor = cluster.memberIds
+      .map((id) => byId.get(id))
+      .filter((d): d is AnalyzedDealership => d != null)
+      .sort(
+        (a, b) => (b.risk?.exposureEur ?? 0) - (a.risk?.exposureEur ?? 0),
+      )[0];
+    if (!anchor) continue;
+    out.push({
+      dealershipId: anchor.id,
+      name: anchor.name,
+      level: "critical",
+      kind: "accumulation",
+      message: `Accumulation of ${cluster.count} locations with ${cluster.totalExposureEur} EUR exposure.`,
+      value: cluster.totalExposureEur,
+      memberIds: cluster.memberIds,
+    });
+  }
+
+  // Critical first; the sort is stable, so rule order is kept within a level.
   return out.sort((a, b) =>
     a.level === b.level ? 0 : a.level === "critical" ? -1 : 1,
   );
@@ -200,7 +176,7 @@ export function generateAlerts(
 
 /** IDs of all locations with at least one alert — for table badges. */
 export function alertIdSet(alerts: Alert[]): Set<string> {
-  return new Set(alerts.map((a) => a.dealershipId));
+  return new Set(alerts.flatMap((a) => a.memberIds ?? [a.dealershipId]));
 }
 
 // --- Coverage/concentration analysis ---------------------------------------

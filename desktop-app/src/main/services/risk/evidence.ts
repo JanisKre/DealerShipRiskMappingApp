@@ -1,6 +1,7 @@
 import type {
   BoundaryResult,
   DetectionResult,
+  HailEalDetail,
   NatCatAssessment,
   RiskEvidence,
 } from "@shared/types";
@@ -10,6 +11,7 @@ export function riskEvidence(
   boundary: BoundaryResult | undefined,
   detection: DetectionResult | undefined,
   hazardEvidence?: RiskEvidence,
+  hailDetail?: HailEalDetail,
 ): RiskEvidence[] {
   const now = new Date().toISOString();
   const evidence: RiskEvidence[] = [
@@ -24,6 +26,30 @@ export function riskEvidence(
       limitations: ["Not a catastrophe-model or engineering assessment"],
     },
   ];
+
+  // The hail zone drives λ_z in the EAL, so its source is evidence in its
+  // own right. A provider zone is already covered by the provider evidence.
+  if (hailDetail?.zoneSource === "postcode") {
+    evidence.push({
+      source: "Postcode hail zones",
+      retrievedAt: now,
+      spatialResolution: "postcode",
+      method: "postcode hail-zone lookup",
+      confidence: 0.7,
+      fallbackUsed: false,
+      limitations: [],
+    });
+  } else if (hailDetail?.zoneSource === "estimated") {
+    evidence.push({
+      source: "Open-Meteo",
+      retrievedAt: now,
+      spatialResolution: "model grid",
+      method: "hail zone estimated from weather-based hail score",
+      confidence: 0.3,
+      fallbackUsed: true,
+      limitations: [HAIL_ZONE_ESTIMATED],
+    });
+  }
 
   if (boundary) {
     evidence.push(
@@ -64,15 +90,28 @@ export function riskEvidence(
   return evidence;
 }
 
+export const HAIL_ZONE_ESTIMATED =
+  "Hail zone estimated from weather data; no postcode hail zone available";
+export const HAIL_EAL_PLACEHOLDERS =
+  "Hail EAL frequency and severity parameters are uncalibrated placeholders";
+export const HAIL_VEHICLES_FROM_ASSET_VALUE =
+  "Hail EAL vehicle count derived from the declared asset value";
+
 export function riskLimitations(
   boundary: BoundaryResult | undefined,
   detection: DetectionResult | undefined,
   natCat?: NatCatAssessment,
+  hailDetail?: HailEalDetail,
 ): string[] {
   const limitations = [
     `Risk model ${RISK_MODEL_VERSION} is a screening model`,
     "Hazard values are location-level proxies and should be validated before underwriting decisions",
+    HAIL_EAL_PLACEHOLDERS,
   ];
+  if (hailDetail?.zoneSource === "estimated")
+    limitations.push(HAIL_ZONE_ESTIMATED);
+  if (hailDetail?.vehicleSource === "assetValue")
+    limitations.push(HAIL_VEHICLES_FROM_ASSET_VALUE);
   if (
     natCat &&
     natCat.hazards.every(

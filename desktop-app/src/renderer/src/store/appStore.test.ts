@@ -443,3 +443,44 @@ describe("bulk insured marking", () => {
     expect(byId.get("two")).toBe(false);
   });
 });
+
+describe("map focus", () => {
+  it("requests a one-off fit to the given locations and clears the selection", () => {
+    useAppStore.setState({ selectedId: "one", mapFocusIds: null });
+
+    useAppStore.getState().focusDealerships(["one", "two"]);
+    expect(useAppStore.getState().mapFocusIds).toEqual(["one", "two"]);
+    expect(useAppStore.getState().selectedId).toBeNull();
+
+    useAppStore.getState().focusDealerships(["one"], 10);
+    expect(useAppStore.getState().mapFocusRadiusKm).toBe(10);
+
+    useAppStore.getState().clearMapFocus();
+    expect(useAppStore.getState().mapFocusIds).toBeNull();
+    expect(useAppStore.getState().mapFocusRadiusKm).toBeNull();
+  });
+});
+
+describe("rescoring keeps the postcode hail zone", () => {
+  it("passes the stored hail zone to scoreRisk on a parameter change", async () => {
+    const dealership: AnalyzedDealership = {
+      ...firstInput,
+      lat: 51,
+      lon: 7,
+      hailZone: 4,
+    };
+    useAppStore.setState({ dealerships: [dealership], sessionId: null });
+    api.scoreRisk.mockResolvedValue({
+      overallScore: 60,
+      perils: [],
+      eal: 1,
+      computedAt: "2026-10-09T00:00:00.000Z",
+    });
+    api.saveSession.mockResolvedValue({ ok: true });
+
+    await useAppStore.getState().updateParameters({});
+
+    expect(api.scoreRisk).toHaveBeenCalledTimes(1);
+    expect(api.scoreRisk.mock.calls[0].at(-1)).toBe(4);
+  });
+});
