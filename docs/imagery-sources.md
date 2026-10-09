@@ -79,5 +79,5 @@ and recommends re-analysing.
 
 Each registry entry carries the attribution required by the provider, with the
 retrieval year inserted at runtime. The attribution is shown in the map and
-in the legend. Licences include dl-de/by-2-0, dl-de/zero-2-0, CC BY 4.0 and
-state-specific free-use terms (see `STATE_DOP_SERVICES`).
+in the legend. Every state service is under dl-de/by-2-0, dl-de/zero-2-0 or
+CC BY 4.0, as stated in the provider's metadata (see `STATE_DOP_SERVICES`).

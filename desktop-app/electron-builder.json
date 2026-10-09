@@ -6,8 +6,11 @@
     "output": "release",
     "buildResources": "resources"
   },
-  "files": ["out/**/*", "package.json"],
-  "extraResources": [{ "from": "resources/models", "to": "models" }],
+  "files": ["out/**/*", "!out/licenses/**", "package.json"],
+  "extraResources": [
+    { "from": "resources/models", "to": "models" },
+    { "from": "out/licenses", "to": "licenses" }
+  ],
   "asarUnpack": ["**/*.node"],
   "publish": {
     "provider": "github",

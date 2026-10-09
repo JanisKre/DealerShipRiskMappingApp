@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { CircleMarker, Marker, Tooltip } from "react-leaflet";
+import { CircleMarker, Marker, Tooltip } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
 import type { AnalyzedDealership, Peril } from "@shared/types";
 import { perilColor } from "@renderer/lib/perilLabel";

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Polyline, useMap } from "react-leaflet";
+import { Polyline, useMap } from "./leaflet-react";
 import type { Layer, LeafletEvent } from "leaflet";
 import type { HailstormScenario } from "@shared/types";
 import { SCENARIO_INTENSITY_DAMAGE } from "@shared/constants";

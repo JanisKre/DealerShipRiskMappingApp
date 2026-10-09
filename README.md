@@ -112,7 +112,7 @@ The core workflow in one sentence:
 | UI components  | shadcn/ui + Tailwind CSS 4 (Radix primitives)          |
 | State          | Zustand 5                                              |
 | DB (local)     | better-sqlite3 + Drizzle ORM                           |
-| Maps           | Leaflet + react-leaflet + Geoman                       |
+| Maps           | Leaflet + own React bindings + Geoman                  |
 | ML inference   | onnxruntime-node (YOLOv26) in a `utilityProcess`       |
 | LLM            | provider-agnostic (Ollama / OpenAI / Claude / Gemini)  |
 | IPC validation | Zod at the IPC boundary                                |
@@ -239,3 +239,19 @@ DealerShipRiskMapping/
 ## License
 
 GPL-3.0-or-later © [Janis Kretschmann](https://github.com/JanisKre) — see [LICENSE](./LICENSE).
+
+Third-party components keep their own licences:
+
+- **npm dependencies**: `npm run build` writes their licence texts to
+  `desktop-app/out/licenses/THIRD_PARTY_NOTICES.txt`. Packaged builds ship it
+  next to `LICENSE` in the app's `resources/licenses/` folder.
+- **Vehicle detection model**: Ultralytics-based weights are AGPL-3.0 and are
+  not part of this repository. The training data has its own terms (VisDrone,
+  DOTA and DLR 3K Munich are released for research). Check them before
+  bundling the model with a release or using it commercially. See
+  [training/README.md](./training/README.md#licences).
+- **Data**: OpenStreetMap (ODbL 1.0), Overture Maps (CDLA Permissive 2.0;
+  Foursquare-sourced places Apache 2.0) and the state orthophoto services
+  (dl-de/by-2-0, dl-de/zero-2-0, CC BY 4.0). The app shows the required
+  attribution; see [docs/imagery-sources.md](./docs/imagery-sources.md) and
+  [docs/dealer-directory.md](./docs/dealer-directory.md).

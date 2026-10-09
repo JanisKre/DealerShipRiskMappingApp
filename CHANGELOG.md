@@ -7,6 +7,19 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Licences: replaced `react-leaflet` (Hippocratic-2.1, which adds use
+  restrictions that conflict with GPL-3.0-or-later) with small in-house React
+  bindings for Leaflet (`components/map/leaflet-react.tsx`) that keep the same
+  component API. Corrected the orthophoto licences for Thüringen
+  (dl-de/by-2-0), Mecklenburg-Vorpommern (CC BY 4.0), Hessen (dl-de/zero-2-0),
+  Saarland (dl-de/by-2-0) and Bremen (CC BY 4.0) in the app's attribution and
+  in `training/fetch_tiles.py`, as stated in the providers' metadata.
+- Packaged builds now include `LICENSE` and a generated
+  `THIRD_PARTY_NOTICES.txt` with the licence texts of all production
+  dependencies (`resources/licenses/`).
+
 ### Added
 
 - Hail-focused dashboard, based on underwriter feedback: KPI row (locations,
