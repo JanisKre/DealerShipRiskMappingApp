@@ -139,6 +139,7 @@ interface AppState {
         | "subPortfolio"
         | "group"
         | "productLimitEur"
+        | "deductibleEur"
       >
     >,
   ) => void;
@@ -192,6 +193,13 @@ interface AppState {
    * background. Returns the number of skipped duplicates.
    */
   addAndAnalyze: (inputs: DealershipInput[]) => Promise<number>;
+  /**
+   * Imports an uploaded portfolio file: into a new portfolio named `name`
+   * (the current one is saved first) or the current one, with the business
+   * type taken from the file or set for every row. Returns the number of
+   * skipped duplicates.
+   */
+  importPortfolio: (options: PortfolioImportOptions) => Promise<number>;
 
   setScenario: (s: HailstormScenario | null) => void;
   setComparison: (s: Session | null) => void;
@@ -204,8 +212,41 @@ interface AppState {
   saveSession: () => Promise<void>;
 }
 
+/** How an import classifies its rows as existing or new business. */
+export type ImportBusinessMode = "file" | "existing" | "new";
+
+export interface PortfolioImportOptions {
+  rows: DealershipInput[];
+  target: "new" | "current";
+  /** Name of the new portfolio (ignored for `target: "current"`). */
+  name: string;
+  business: ImportBusinessMode;
+  /** Parser report, kept for the import-quality notice. */
+  report?: ImportReport;
+}
+
+/**
+ * Applies the import's business classification: `file` keeps each row's
+ * own value (unknown stays unknown), otherwise every row is set.
+ */
+export function applyBusinessClassification(
+  rows: DealershipInput[],
+  mode: ImportBusinessMode,
+): DealershipInput[] {
+  if (mode === "file") return rows;
+  const insured = mode === "existing";
+  return rows.map((row) => ({ ...row, insured }));
+}
+
+/** Existing business = marked insured; everything else counts as new business. */
+export function businessType(d: { insured?: boolean }): "existing" | "new" {
+  return d.insured === true ? "existing" : "new";
+}
+
 /** Active portfolio filters. `null`/`undefined` = no restriction. */
 export interface PortfolioFilters {
+  /** Existing vs. new business. */
+  business: "existing" | "new" | null;
   subPortfolio: string | null;
   salesPartner: string | null;
   group: string | null;
@@ -214,6 +255,7 @@ export interface PortfolioFilters {
 }
 
 const EMPTY_FILTERS: PortfolioFilters = {
+  business: null,
   subPortfolio: null,
   salesPartner: null,
   group: null,
@@ -917,6 +959,31 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     await runAnalysisQueue(fresh, set, get);
     return duplicates.length;
+  },
+
+  importPortfolio: async ({ rows, target, name, business, report }) => {
+    const classified = applyBusinessClassification(rows, business);
+    if (target === "new") {
+      // A new portfolio keeps the parameter set in use (e.g. calibrated
+      // hail EAL values) instead of falling back to the defaults.
+      const parameters = get().parameters;
+      await get().newPortfolio();
+      const trimmed = name.trim();
+      set({ sessionName: trimmed || DEFAULT_PORTFOLIO_NAME });
+      get().setParameters(parameters);
+    }
+    if (report) set({ lastImportReport: report });
+    // addAndAnalyze adds the pins synchronously and then analyses for a
+    // while; save the new portfolio right away so it is listed (and
+    // survives a restart) before the analysis finishes.
+    const analysis = get().addAndAnalyze(classified);
+    if (target === "new")
+      await get()
+        .saveSession()
+        .catch((err: unknown) => {
+          console.error("Saving the imported portfolio failed:", err);
+        });
+    return analysis;
   },
 
   setScenario: (scenario) => set({ scenario }),

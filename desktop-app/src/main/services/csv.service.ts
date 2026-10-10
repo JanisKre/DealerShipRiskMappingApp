@@ -12,7 +12,8 @@ import type {
  * Import parser (no heavy external dependency for CSV/TSV; XLSX via the
  * `exceljs` dependency already present).
  * Expected columns (case-insensitive, flexible): name, address, lat, lon, value,
- * insured, salespartner, subportfolio, group, limit.
+ * insured / business type, salespartner, subportfolio, group, limit
+ * (maximum indemnity), deductible.
  * CSV/TSV: splits on comma, semicolon, or tab (auto-detected); simple quotes.
  */
 export function parseCsv(content: string): DealershipInput[] {
@@ -177,7 +178,23 @@ function rowsFromMatrix(
           (i) => i >= 0,
         );
   const valIdx = idx(["value", "assetvalue", "wert", "suminsured"]);
-  const insuredIdx = idx(["insured", "versichert", "policy", "status"]);
+  // Existing vs. new business ("Bestand"/"Neugeschäft", yes/no, …).
+  const insuredIdx = idx([
+    "insured",
+    "versichert",
+    "policy",
+    "status",
+    "businesstype",
+    "business",
+    "geschaeftsart",
+    "geschaeftstyp",
+    "bestand",
+    "bestandneu",
+    "bestandoderneu",
+    "bestandneugeschaeft",
+    "kundenstatus",
+    "vertragsstatus",
+  ]);
   const partnerIdx = idx([
     "salespartner",
     "partner",
@@ -191,7 +208,39 @@ function rowsFromMatrix(
     "segment",
   ]);
   const groupIdx = idx(["group", "gruppe", "konzern"]);
-  const limitIdx = idx(["limit", "productlimit", "cap", "versicherungssumme"]);
+  // Maximum indemnity per location (stored as `productLimitEur`).
+  const limitIdx = idx([
+    "limit",
+    "productlimit",
+    "productlimiteur",
+    "limiteur",
+    "cap",
+    "versicherungssumme",
+    "maxindemnity",
+    "maximumindemnity",
+    "indemnitylimit",
+    "maxindemnitylimit",
+    "maximumindemnitylimit",
+    "hoechstentschaedigung",
+    "hoechstentschaedigungeur",
+    "hoechstentschaedigungsgrenze",
+    "entschaedigungsgrenze",
+    "haftungshoechstgrenze",
+    "hoechsthaftung",
+    "hoechstgrenze",
+    "jahreshoechstentschaedigung",
+  ]);
+  const deductibleIdx = idx([
+    "deductible",
+    "deductibleeur",
+    "excess",
+    "selbstbehalt",
+    "selbstbehalteur",
+    "selbstbeteiligung",
+    "selbstbeteiligungeur",
+    "sb",
+    "sbeur",
+  ]);
   const zuersFloodIdx = idx([
     "zuersfloodclass",
     "zuersfloodzone",
@@ -241,10 +290,16 @@ function rowsFromMatrix(
 
     const latCell = readNumber(cols[latIdx], "lat", rowNumber, issues);
     const lonCell = readNumber(cols[lonIdx], "lon", rowNumber, issues);
-    const valueCell = readNumber(cols[valIdx], "assetValue", rowNumber, issues);
-    const limitCell = readNumber(
+    const valueCell = readAmount(cols[valIdx], "assetValue", rowNumber, issues);
+    const limitCell = readAmount(
       cols[limitIdx],
       "productLimitEur",
+      rowNumber,
+      issues,
+    );
+    const deductibleCell = readAmount(
+      cols[deductibleIdx],
+      "deductibleEur",
       rowNumber,
       issues,
     );
@@ -252,6 +307,7 @@ function rowsFromMatrix(
     const lon = lonCell.value;
     const assetValue = valueCell.value;
     const productLimitEur = limitCell.value;
+    const deductibleEur = deductibleCell.value;
     const natCat =
       detectedProvider === "zuers-geo"
         ? parseZuersAssessment(
@@ -305,7 +361,10 @@ function rowsFromMatrix(
       lat: validLat,
       lon: validLon,
       assetValue: assetValue != null ? assetValue : undefined,
-      insured: insuredIdx >= 0 ? parseBool(cols[insuredIdx]) : undefined,
+      insured:
+        insuredIdx >= 0
+          ? parseBusinessType(cols[insuredIdx], rowNumber, issues)
+          : undefined,
       salesPartner:
         partnerIdx >= 0 ? cols[partnerIdx]?.trim() || undefined : undefined,
       subPortfolio:
@@ -314,6 +373,7 @@ function rowsFromMatrix(
           : undefined,
       group: groupIdx >= 0 ? cols[groupIdx]?.trim() || undefined : undefined,
       productLimitEur: productLimitEur != null ? productLimitEur : undefined,
+      deductibleEur: deductibleEur != null ? deductibleEur : undefined,
       // `natCatImport` keeps the import apart from routed API sources.
       ...(natCat ? { natCat, natCatImport: natCat } : {}),
     });
@@ -350,6 +410,7 @@ function rowsFromMatrix(
         subPortfolio: rawHeader[subPortfolioIdx] ?? null,
         group: rawHeader[groupIdx] ?? null,
         productLimitEur: rawHeader[limitIdx] ?? null,
+        deductibleEur: rawHeader[deductibleIdx] ?? null,
         zuersFloodClass: rawHeader[zuersFloodIdx] ?? null,
         zuersHeavyRainClass: rawHeader[zuersHeavyRainIdx] ?? null,
         zuersWatercourseZone: rawHeader[zuersWatercourseIdx] ?? null,
@@ -512,6 +573,56 @@ function readNumber(
   return { value: n };
 }
 
+/**
+ * Money cell: also accepts currency signs and thousands separators
+ * ("25.000 €", "1.250.000,00", "1,250,000.00"). A lone separator followed
+ * by groups of exactly three digits is a thousands separator — amounts
+ * carry two decimals at most — so "250.000" is 250 000, not 250, while
+ * "1250,50" stays 1 250.50. Negative amounts are rejected.
+ */
+function readAmount(
+  s: string | undefined,
+  field: string,
+  row: number,
+  issues: ImportReport["issues"],
+): { value: number | undefined } {
+  const raw = s?.trim();
+  if (!raw) return { value: undefined };
+  const n = parseAmount(raw);
+  if (n == null || n < 0) {
+    issues.push({
+      row,
+      field,
+      severity: "warning",
+      message: `Invalid amount '${raw}' ignored`,
+    });
+    return { value: undefined };
+  }
+  return { value: n };
+}
+
+function parseAmount(raw: string): number | undefined {
+  let v = raw.replace(/(eur|€)/gi, "").replace(/[\s\u00a0'’]/g, "");
+  if (!v) return undefined;
+  const lastDot = v.lastIndexOf(".");
+  const lastComma = v.lastIndexOf(",");
+  if (lastDot >= 0 && lastComma >= 0) {
+    // Both present: the later one is the decimal separator.
+    v =
+      lastComma > lastDot
+        ? v.replace(/\./g, "").replace(",", ".")
+        : v.replace(/,/g, "");
+  } else if (lastComma >= 0) {
+    v = /^-?\d{1,3}(,\d{3})+$/.test(v)
+      ? v.replace(/,/g, "")
+      : v.replace(",", ".");
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(v)) {
+    v = v.replace(/\./g, "");
+  }
+  if (!/^-?\d+(\.\d+)?$/.test(v)) return undefined;
+  return Number(v);
+}
+
 function normalise(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
@@ -553,6 +664,72 @@ function emptyResult(format: ImportReport["format"]): ImportResult {
       createdAt: new Date().toISOString(),
     },
   };
+}
+
+const EXISTING_BUSINESS_VALUES = new Set([
+  "yes",
+  "ja",
+  "true",
+  "wahr",
+  "1",
+  "x",
+  "insured",
+  "versichert",
+  "policy",
+  "existing",
+  "existingbusiness",
+  "inforce",
+  "renewal",
+  "bestand",
+  "bestandsgeschaeft",
+  "bestandskunde",
+  "bestandsvertrag",
+  "aktiv",
+  "active",
+]);
+const NEW_BUSINESS_VALUES = new Set([
+  "no",
+  "nein",
+  "false",
+  "falsch",
+  "0",
+  "new",
+  "newbusiness",
+  "prospect",
+  "quote",
+  "offer",
+  "neu",
+  "neugeschaeft",
+  "neukunde",
+  "neuvertrag",
+  "interessent",
+  "angebot",
+  "anfrage",
+  "nichtversichert",
+]);
+
+/**
+ * Existing (`true`) vs. new business (`false`) from an insured/business-type
+ * cell. Empty → undefined (unknown); an unrecognised value is reported and
+ * left unknown rather than silently counted as new business.
+ */
+function parseBusinessType(
+  s: string | undefined,
+  row: number,
+  issues: ImportReport["issues"],
+): boolean | undefined {
+  const raw = s?.trim();
+  if (!raw) return undefined;
+  const v = normaliseHeader(raw);
+  if (EXISTING_BUSINESS_VALUES.has(v)) return true;
+  if (NEW_BUSINESS_VALUES.has(v)) return false;
+  issues.push({
+    row,
+    field: "insured",
+    severity: "warning",
+    message: `Unrecognised business type '${raw}' left unclassified`,
+  });
+  return undefined;
 }
 
 /**

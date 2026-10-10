@@ -90,6 +90,24 @@ EAL; a change rescores every location.
   exposure ≥ `accumulationReinsureThresholdEur`, and data-quality checks
   (utilisation, boundary confidence, zero vehicles, estimated hail zone).
 
+## Portfolio terms and business type
+
+Portfolio uploads (CSV/TSV/XLSX) may carry per-location policy terms and a
+business type; `main/services/csv.service.ts` lists the recognised column
+names (English and German).
+
+- **Maximum indemnity** (`productLimitEur`) is the per-location coverage cap
+  used by the product-limit check against exposure.
+- **Deductible** (`deductibleEur`) is stored, shown and exported as
+  underwriting metadata only. The hail EAL stays a gross screening figure;
+  the deductible is not netted out.
+- **Business type**: existing business (`insured: true`) counts towards
+  accumulation with neighbouring insured locations and is drawn as a filled
+  map pin; new business — including rows whose type is unknown — is drawn as
+  an outlined pin and is assessed as a prospect. Unrecognised values in the
+  business-type column are reported in the import report and left
+  unclassified rather than guessed.
+
 ## Licensed natural-catastrophe providers
 
 The shared natural-catastrophe model accepts normalized observations from

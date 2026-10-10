@@ -9,6 +9,7 @@ import { eur } from "@renderer/lib/format";
 import { riskColor, riskLevel } from "@renderer/lib/riskColor";
 import { useMap } from "./leaflet-react";
 import { riskMarkerIcon } from "./markerIcons";
+import { businessType } from "@renderer/store/appStore";
 
 interface Props {
   dealerships: AnalyzedDealership[];
@@ -181,7 +182,11 @@ export function ClusteredMarkers({
       const pending = !d.risk || pendingIds.has(d.id);
       const isSelected = d.id === selectedId;
       const marker = L.marker([d.lat, d.lon], {
-        icon: riskMarkerIcon(d.risk?.overallScore ?? null, isSelected),
+        icon: riskMarkerIcon(
+          d.risk?.overallScore ?? null,
+          isSelected,
+          businessType(d),
+        ),
         opacity: pending ? 0.6 : 1,
         alt: `${d.name}${d.risk ? ` – ${t("ui.hailRisk")} ${Math.round(d.risk.overallScore)}/100` : ""}`,
         keyboard: true,

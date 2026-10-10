@@ -651,9 +651,9 @@
       },
       "osmLoading": "Loading OSM info…",
       "osmHeading": "From OpenStreetMap",
-      "insuredLabel": "Insured / Part of the Book",
+      "insuredLabel": "Existing business (insured)",
       "insuredYesDesc": "Existing customer — included in accumulation",
-      "insuredNoDesc": "New customer / Prospect",
+      "insuredNoDesc": "New business / Prospect",
       "salesPartnerLabel": "Sales Partner",
       "notesTitle": "Notes",
       "notesPlaceholder": "Underwriting notes, observations, follow-up points …",
@@ -675,7 +675,7 @@
       "websiteReset": "Use automatic",
       "subPortfolioLabel": "Sub-portfolio",
       "groupLabel": "Group",
-      "productLimitLabel": "Product Limit (EUR)",
+      "productLimitLabel": "Max. indemnity / Limit (EUR)",
       "natCatTitle": "Natural catastrophe source",
       "natCatRefresh": "Re-query sources",
       "natCatRefreshing": "Querying sources…",
@@ -683,7 +683,8 @@
       "natCatAttribute": "{{name}}: {{value}}",
       "errorPrefix": "Error: {{error}}",
       "recommendedDeductibleLabel": "Rec. Deductible",
-      "premiumLoadingLabel": "Premium Loading"
+      "premiumLoadingLabel": "Premium Loading",
+      "deductibleLabel": "Deductible (EUR)"
     },
     "hailEal": "Hail EAL",
     "hailZone": "Hail zone",
@@ -862,7 +863,10 @@
         "fixed-provider": "fixed in settings",
         "overview-zoom": "overview zoom – Esri mosaic"
       },
-      "imageryAlternatives": "Alternatives checked"
+      "imageryAlternatives": "Alternatives checked",
+      "business": "Business type",
+      "existingBusiness": "Existing business (filled)",
+      "newBusiness": "New business (outline)"
     },
     "editBoundary": "Edit Boundary",
     "locationsPanel": {
@@ -877,7 +881,7 @@
         "one": "1 insured neighbor within {{radius}} km",
         "other": "{{count}} insured neighbors within {{radius}} km"
       },
-      "insuredChip": "insured",
+      "insuredChip": "existing",
       "sameGroupChip": "same group",
       "inRadiusChip": "in radius",
       "viewDetails": "View details",
@@ -891,10 +895,10 @@
       "deleteSelectedConfirmTitle": "Delete selected locations?",
       "deleteSelectedConfirmDescription": "This will permanently remove {{count}} location(s) from the portfolio. This can't be undone.",
       "deleteSelectedToast": "Deleted {{count}} location(s)",
-      "markInsured": "Mark selected as insured",
-      "markNotInsured": "Mark selected as not insured",
-      "markInsuredToast": "Marked {{count}} location(s) as insured",
-      "markNotInsuredToast": "Marked {{count}} location(s) as not insured",
+      "markInsured": "Mark selected as existing business",
+      "markNotInsured": "Mark selected as new business",
+      "markInsuredToast": "Marked {{count}} location(s) as existing business",
+      "markNotInsuredToast": "Marked {{count}} location(s) as new business",
       "directoryHintPrefix": "Dealer missing?",
       "directoryHintLink": "Load the dealer directory"
     },
@@ -1145,7 +1149,11 @@
     "name": "Name",
     "boundarySource": "Boundary source",
     "allBoundaries": "All boundaries",
-    "fallbackBoundary": "Fallback boundary"
+    "fallbackBoundary": "Fallback boundary",
+    "businessType": "Business type",
+    "allBusiness": "All business types",
+    "existingBusiness": "Existing business",
+    "newBusiness": "New business"
   },
   "aiSetup": {
     "missingTitle": "AI assistant not set up yet",
@@ -1153,5 +1161,42 @@
     "rejectedTitle": "Credentials rejected",
     "rejectedDescription": "The AI endpoint did not accept the API key (401/403). Check the key, model and endpoint in the settings.",
     "openSettings": "Set up AI"
+  },
+  "portfolioImport": {
+    "title": "Import portfolio",
+    "summary": "{{file}}: {{imported}} of {{total}} rows recognised.",
+    "skipped": "{{count}} row(s) skipped.",
+    "issues": "{{count}} note(s) in the import report.",
+    "parseFailed": "Could not read the file: {{error}}",
+    "detectedColumns": "Detected columns",
+    "noTermsColumns": "No maximum indemnity or deductible column detected – these can be added per location later.",
+    "field": {
+      "name": "Name",
+      "address": "Address",
+      "lat": "Latitude",
+      "lon": "Longitude",
+      "assetValue": "Value",
+      "insured": "Business type",
+      "productLimitEur": "Max. indemnity",
+      "deductibleEur": "Deductible",
+      "salesPartner": "Sales partner",
+      "subPortfolio": "Sub-portfolio",
+      "group": "Group"
+    },
+    "targetTitle": "Destination",
+    "targetNew": "Create a new portfolio",
+    "targetCurrent": "Add to “{{name}}”",
+    "nameLabel": "Portfolio name",
+    "businessTitle": "Business type",
+    "businessFile": "Per location from the file (column “{{column}}”)",
+    "businessFileCounts": "{{existing}} existing · {{fresh}} new · {{unknown}} unspecified (counted as new business)",
+    "businessExisting": "Entire portfolio is existing business",
+    "businessExistingDesc": "All locations count as insured and are included in accumulation.",
+    "businessNew": "Entire portfolio is new business",
+    "businessNewDesc": "All locations are assessed as new business / prospects.",
+    "businessRequired": "Please choose the business type – it determines how locations are shown and assessed.",
+    "waitForAnalysis": "Please wait until the running analysis has finished.",
+    "cancel": "Cancel",
+    "confirm": "Import {{count}} location(s)"
   }
 }

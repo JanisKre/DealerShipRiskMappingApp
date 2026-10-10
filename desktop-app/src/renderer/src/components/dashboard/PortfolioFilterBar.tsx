@@ -10,7 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@renderer/components/ui/select";
-import { useAppStore, type PortfolioFilters } from "@renderer/store/appStore";
+import {
+  businessType,
+  useAppStore,
+  type PortfolioFilters,
+} from "@renderer/store/appStore";
 
 const ALL = "__all__";
 
@@ -28,8 +32,8 @@ function distinct(
 }
 
 /**
- * Filter bar for the portfolio view: sub-portfolio, sales partner, and
- * group. Writes to the store's `filters` slice; the table, cluster view,
+ * Filter bar for the portfolio view: business type (existing vs. new),
+ * sub-portfolio, sales partner, and group. Writes to the store's `filters` slice; the table, cluster view,
  * and map read from it. Only shown if at least one field has data.
  */
 export function PortfolioFilterBar({
@@ -51,6 +55,13 @@ export function PortfolioFilterBar({
     [dealerships],
   );
   const groups = useMemo(() => distinct(dealerships, "group"), [dealerships]);
+  const businessCounts = useMemo(() => {
+    let existing = 0;
+    for (const d of dealerships) if (businessType(d) === "existing") existing++;
+    return { existing, fresh: dealerships.length - existing };
+  }, [dealerships]);
+  // Only worth a filter when the portfolio mixes both business types.
+  const mixedBusiness = businessCounts.existing > 0 && businessCounts.fresh > 0;
   const fallbackCount = useMemo(
     () => dealerships.filter((d) => d.boundary?.source === "synthetic").length,
     [dealerships],
@@ -58,6 +69,8 @@ export function PortfolioFilterBar({
 
   // Nothing to show if no metadata is present.
   if (
+    !mixedBusiness &&
+    !filters.business &&
     partners.length === 0 &&
     subs.length === 0 &&
     groups.length === 0 &&
@@ -66,6 +79,7 @@ export function PortfolioFilterBar({
     return null;
 
   const active =
+    filters.business ||
     filters.subPortfolio ||
     filters.salesPartner ||
     filters.group ||
@@ -74,6 +88,32 @@ export function PortfolioFilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {(mixedBusiness || filters.business) && (
+        <Select
+          value={filters.business ?? ALL}
+          onValueChange={(v) =>
+            setFilters({
+              business: v === ALL ? null : (v as "existing" | "new"),
+            })
+          }
+        >
+          <SelectTrigger
+            className="h-9 w-52 bg-background text-sm"
+            aria-label={t("ui.businessType")}
+          >
+            <SelectValue placeholder={t("ui.businessType")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t("ui.allBusiness")}</SelectItem>
+            <SelectItem value="existing">
+              {t("ui.existingBusiness")} ({businessCounts.existing})
+            </SelectItem>
+            <SelectItem value="new">
+              {t("ui.newBusiness")} ({businessCounts.fresh})
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      )}
       {subs.length > 0 && (
         <FilterSelect
           label={t("ui.subPortfolio")}
@@ -107,7 +147,7 @@ export function PortfolioFilterBar({
             })
           }
         >
-          <SelectTrigger className="h-9 w-52 text-sm">
+          <SelectTrigger className="h-9 w-52 bg-background text-sm">
             <SelectValue placeholder={t("ui.boundarySource")} />
           </SelectTrigger>
           <SelectContent>
@@ -151,7 +191,7 @@ function FilterSelect({
       value={value ?? ALL}
       onValueChange={(v) => onChange(v === ALL ? null : v)}
     >
-      <SelectTrigger className="h-9 w-48 text-sm">
+      <SelectTrigger className="h-9 w-48 bg-background text-sm">
         <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent>
@@ -175,6 +215,7 @@ export function applyMetaFilters(
 ): AnalyzedDealership[] {
   return dealerships.filter(
     (d) =>
+      (!filters.business || businessType(d) === filters.business) &&
       (!filters.subPortfolio || d.subPortfolio === filters.subPortfolio) &&
       (!filters.salesPartner || d.salesPartner === filters.salesPartner) &&
       (!filters.group || d.group === filters.group) &&

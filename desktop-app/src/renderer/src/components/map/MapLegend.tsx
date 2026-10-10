@@ -71,6 +71,13 @@ export function MapLegend({
               />
             ))}
           </LegendGroup>
+          <LegendGroup title={t("map.legend.business")}>
+            <BusinessLegendRow
+              hollow={false}
+              label={t("map.legend.existingBusiness")}
+            />
+            <BusinessLegendRow hollow label={t("map.legend.newBusiness")} />
+          </LegendGroup>
           <LegendGroup title={t("map.legend.boundarySource")}>
             {SOURCES.map((s) => (
               <LegendRow
@@ -318,6 +325,29 @@ function LegendRow({
             ? { border: `2px solid ${color}`, backgroundColor: `${color}33` }
             : { backgroundColor: color }
         }
+      />
+      {label}
+    </div>
+  );
+}
+
+/** Mini map pin: filled for existing business, hollow for new business. */
+function BusinessLegendRow({
+  hollow,
+  label,
+}: Readonly<{ hollow: boolean; label: string }>): React.JSX.Element {
+  const color = "#6b7280";
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        aria-hidden
+        className="mx-0.5 size-2.5 shrink-0 -rotate-45"
+        style={{
+          borderRadius: "50% 50% 50% 0",
+          ...(hollow
+            ? { border: `2px solid ${color}`, backgroundColor: "#fff" }
+            : { backgroundColor: color }),
+        }}
       />
       {label}
     </div>
