@@ -11,6 +11,7 @@ import { ConversationSidebar } from "@renderer/components/chat/ConversationSideb
 import { MessageBubble } from "@renderer/components/chat/MessageBubble";
 import { useChat } from "@renderer/components/chat/useChat";
 import { Omnibox, type PlacePick } from "@renderer/components/upload/Omnibox";
+import { usePortfolioImport } from "@renderer/components/upload/PortfolioImportDialog";
 import { nameForPlace } from "@renderer/lib/placeName";
 
 /**
@@ -28,7 +29,11 @@ export function StartPage(): React.JSX.Element {
   const analyzing = useAppStore((s) => s.analyzing);
   const hasData = useAppStore((s) => s.dealerships.length > 0);
   const lastImportReport = useAppStore((s) => s.lastImportReport);
-  const setImportReport = useAppStore((s) => s.setImportReport);
+  // Uploads go through the import dialog; afterwards jump to the map,
+  // where the analysis runs in the background.
+  const { startImport, dialog: importDialog } = usePortfolioImport(() =>
+    navigate("/map"),
+  );
   const loadList = useConversationStore((s) => s.loadList);
   const { messages, activeId, streamingText, streaming, error, send } =
     useChat();
@@ -66,23 +71,12 @@ export function StartPage(): React.JSX.Element {
     ]);
   }
 
-  /** Read a CSV/TSV/Excel file and import it as location rows. */
-  async function handleUploadFile(file: File): Promise<void> {
-    const isXlsx = /\.xlsx$/i.test(file.name);
-    const result = isXlsx
-      ? await window.api.parseXlsx(
-          arrayBufferToBase64(await file.arrayBuffer()),
-        )
-      : await window.api.parseCsv(await file.text());
-    setImportReport(result.report);
-    await addRows(result.rows);
-  }
-
   const chatEmpty = messages.length === 0 && !streaming;
   const pageEmpty = chatEmpty && !hasData;
 
   return (
     <div className="flex h-full">
+      {importDialog}
       <ConversationSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
@@ -138,7 +132,7 @@ export function StartPage(): React.JSX.Element {
             <Omnibox
               onPickAddress={onPickAddress}
               onAskQuestion={send}
-              onUploadFile={handleUploadFile}
+              onUploadFile={startImport}
               disabled={analyzing || streaming}
             />
             <p className="px-1 text-xs text-muted-foreground">
@@ -190,15 +184,4 @@ function ImportQualityNotice({
       ))}
     </div>
   );
-}
-
-/** ArrayBuffer -> base64 (for XLSX transport over IPC). */
-function arrayBufferToBase64(buf: ArrayBuffer): string {
-  let binary = "";
-  const bytes = new Uint8Array(buf);
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
 }

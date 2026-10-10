@@ -115,8 +115,16 @@ export const DealershipInputSchema = z.object({
   subPortfolio: z.string().optional(),
   /** Group/corporate membership (multiple locations of one customer). */
   group: z.string().optional(),
-  /** Product limit / sum insured (EUR) — hard coverage cap. */
+  /**
+   * Product limit / maximum indemnity (EUR) — hard coverage cap per
+   * location.
+   */
   productLimitEur: z.number().nonnegative().optional(),
+  /**
+   * Deductible per loss (EUR). Underwriting metadata only: the screening
+   * EAL is a gross figure and does not net the deductible out.
+   */
+  deductibleEur: z.number().nonnegative().optional(),
   /**
    * Free-text underwriting notes (observations, follow-ups). Local only —
    * never sent to the LLM or included in exports.

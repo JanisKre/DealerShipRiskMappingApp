@@ -32,9 +32,11 @@ export function AccumulationClusterLayer({
 
   const clusters = useMemo(
     () =>
-      computeAccumulationClusters(dealerships, parameters.accumulationRadiusKm, parameters).filter(
-        (c) => c.count > 1,
-      ),
+      computeAccumulationClusters(
+        dealerships,
+        parameters.accumulationRadiusKm,
+        parameters,
+      ).filter((c) => c.count > 1),
     [dealerships, parameters],
   );
 

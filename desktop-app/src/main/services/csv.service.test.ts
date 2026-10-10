@@ -117,3 +117,80 @@ describe("portfolio import report", () => {
     });
   });
 });
+
+describe("portfolio terms and business type", () => {
+  it("imports maximum indemnity and deductible from German headers", () => {
+    const result = parseCsvWithReport(
+      [
+        "Händler;Adresse;Höchstentschädigung;Selbstbehalt;Geschäftsart",
+        "Autohaus Nord;Hauptstr. 1, Hamburg;1.250.000,00 €;2.500;Bestand",
+        "Autohaus Süd;Ringstr. 2, München;750000;1000 EUR;Neugeschäft",
+      ].join("\n"),
+    );
+
+    expect(result.report.columnMapping).toMatchObject({
+      productLimitEur: "Höchstentschädigung",
+      deductibleEur: "Selbstbehalt",
+      insured: "Geschäftsart",
+    });
+    expect(result.rows[0]).toMatchObject({
+      productLimitEur: 1_250_000,
+      deductibleEur: 2_500,
+      insured: true,
+    });
+    expect(result.rows[1]).toMatchObject({
+      productLimitEur: 750_000,
+      deductibleEur: 1_000,
+      insured: false,
+    });
+  });
+
+  it("recognises English headers and thousands separators", () => {
+    const result = parseCsvWithReport(
+      [
+        "name\tmax indemnity\tdeductible\tbusiness type",
+        "Dealer A\t1,500,000.00\t5,000\texisting business",
+        "Dealer B\t250.000\t1250,50\tnew business",
+      ].join("\n"),
+    );
+
+    expect(result.rows.map((r) => r.productLimitEur)).toEqual([
+      1_500_000, 250_000,
+    ]);
+    expect(result.rows.map((r) => r.deductibleEur)).toEqual([5_000, 1_250.5]);
+    expect(result.rows.map((r) => r.insured)).toEqual([true, false]);
+  });
+
+  it("leaves unknown business types unclassified and reports them", () => {
+    const result = parseCsvWithReport(
+      ["name,status", "Dealer A,vielleicht", "Dealer B,", "Dealer C,ja"].join(
+        "\n",
+      ),
+    );
+
+    expect(result.rows.map((r) => r.insured)).toEqual([
+      undefined,
+      undefined,
+      true,
+    ]);
+    expect(result.report.issues).toContainEqual(
+      expect.objectContaining({
+        row: 2,
+        field: "insured",
+        severity: "warning",
+      }),
+    );
+  });
+
+  it("rejects negative or malformed amounts with a warning", () => {
+    const result = parseCsvWithReport(
+      ["name,limit,deductible", "Dealer A,-5,abc"].join("\n"),
+    );
+
+    expect(result.rows[0].productLimitEur).toBeUndefined();
+    expect(result.rows[0].deductibleEur).toBeUndefined();
+    expect(
+      result.report.issues.filter((i) => i.severity === "warning"),
+    ).toHaveLength(2);
+  });
+});

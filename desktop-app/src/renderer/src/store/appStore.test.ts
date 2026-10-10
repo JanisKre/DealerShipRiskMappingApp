@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalyzedDealership, DealershipInput } from "@shared/types";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
-import { DEFAULT_PORTFOLIO_NAME, useAppStore } from "./appStore";
+import {
+  DEFAULT_PORTFOLIO_NAME,
+  applyBusinessClassification,
+  useAppStore,
+} from "./appStore";
+import { applyMetaFilters } from "@renderer/components/dashboard/PortfolioFilterBar";
 
 const api = {
   analyzeDealership: vi.fn(),
@@ -667,6 +672,112 @@ describe("dealership website", () => {
       website: "https://autohaus.de/",
       websiteSource: "manual",
     });
+  });
+});
+
+describe("portfolio import", () => {
+  const rows: DealershipInput[] = [
+    { ...firstInput, insured: true },
+    { ...secondInput, insured: undefined },
+  ];
+
+  beforeEach(() => {
+    api.saveSession.mockResolvedValue(undefined);
+    api.analyzeDealership.mockImplementation(
+      async (input: DealershipInput) =>
+        ({ ...input, risk: { overallScore: 10 } }) as AnalyzedDealership,
+    );
+  });
+
+  it("classifies rows from the file or for the whole portfolio", () => {
+    expect(
+      applyBusinessClassification(rows, "file").map((r) => r.insured),
+    ).toEqual([true, undefined]);
+    expect(
+      applyBusinessClassification(rows, "existing").map((r) => r.insured),
+    ).toEqual([true, true]);
+    expect(
+      applyBusinessClassification(rows, "new").map((r) => r.insured),
+    ).toEqual([false, false]);
+  });
+
+  it("saves the current portfolio and imports into a new, named one", async () => {
+    const parameters = {
+      ...DEFAULT_RISK_PARAMETERS,
+      hailFrequencyZone1: 0.5,
+    };
+    useAppStore.setState({
+      sessionId: "old",
+      sessionName: "Old portfolio",
+      dealerships: [
+        { id: "x", name: "Existing", lat: 50, lon: 9 } as AnalyzedDealership,
+      ],
+      parameters,
+    });
+
+    await useAppStore.getState().importPortfolio({
+      rows,
+      target: "new",
+      name: "  Händler Q3  ",
+      business: "new",
+    });
+
+    expect(api.saveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "old", name: "Old portfolio" }),
+    );
+    expect(api.saveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Händler Q3" }),
+    );
+    const state = useAppStore.getState();
+    expect(state.sessionName).toBe("Händler Q3");
+    expect(state.parameters.hailFrequencyZone1).toBe(0.5);
+    expect(state.dealerships.map((d) => d.id)).toEqual(["one", "two"]);
+    expect(state.dealerships.every((d) => d.insured === false)).toBe(true);
+  });
+
+  it("adds to the current portfolio without renaming it", async () => {
+    useAppStore.setState({
+      sessionId: "cur",
+      sessionName: "Current",
+      dealerships: [
+        { id: "x", name: "Existing", lat: 50, lon: 9 } as AnalyzedDealership,
+      ],
+    });
+
+    await useAppStore.getState().importPortfolio({
+      rows,
+      target: "current",
+      name: "ignored",
+      business: "existing",
+    });
+
+    const state = useAppStore.getState();
+    expect(state.sessionId).toBe("cur");
+    expect(state.sessionName).toBe("Current");
+    expect(state.dealerships.map((d) => d.id)).toEqual(["x", "one", "two"]);
+    expect(
+      state.dealerships.filter((d) => d.id !== "x").every((d) => d.insured),
+    ).toBe(true);
+  });
+
+  it("filters existing vs. new business, counting unknown as new", () => {
+    const portfolio = [
+      { ...firstInput, insured: true },
+      { ...secondInput, insured: false },
+      { ...firstInput, id: "three", insured: undefined },
+    ] as AnalyzedDealership[];
+    const filters = useAppStore.getState().filters;
+
+    expect(
+      applyMetaFilters(portfolio, { ...filters, business: "existing" }).map(
+        (d) => d.id,
+      ),
+    ).toEqual(["one"]);
+    expect(
+      applyMetaFilters(portfolio, { ...filters, business: "new" }).map(
+        (d) => d.id,
+      ),
+    ).toEqual(["two", "three"]);
   });
 });
 

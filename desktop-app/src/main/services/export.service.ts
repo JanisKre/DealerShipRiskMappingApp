@@ -244,6 +244,7 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
     { header: "Subportfolio", key: "subPortfolio", width: 18 },
     { header: "Group", key: "group", width: 18 },
     { header: "Product Limit (EUR)", key: "productLimit", width: 18 },
+    { header: "Deductible (EUR)", key: "deductible", width: 16 },
     { header: "Cluster ID", key: "clusterId", width: 16 },
   ];
 
@@ -274,6 +275,7 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
       subPortfolio: d.subPortfolio ?? "",
       group: d.group ?? "",
       productLimit: d.productLimitEur ?? null,
+      deductible: d.deductibleEur ?? null,
       clusterId: clusters.get(d.id) ?? "",
     });
     // Color the score cell
@@ -296,9 +298,12 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
     fgColor: { argb: "FF1E293B" },
   };
   ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-  ws.autoFilter = { from: "A1", to: `U${session.dealerships.length + 1}` };
+  ws.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: session.dealerships.length + 1, column: ws.columnCount },
+  };
 
-  const currencyCols = ["exposure", "eal", "productLimit"];
+  const currencyCols = ["exposure", "eal", "productLimit", "deductible"];
   for (const key of currencyCols) {
     ws.getColumn(key).numFmt = "#,##0 €";
   }
@@ -333,6 +338,7 @@ function toCsv(session: Session): string {
     "subPortfolio",
     "group",
     "productLimitEur",
+    "deductibleEur",
     "clusterId",
   ];
   const lines = [header.join(",")];
@@ -361,6 +367,7 @@ function toCsv(session: Session): string {
         csv(d.subPortfolio ?? ""),
         csv(d.group ?? ""),
         d.productLimitEur ?? "",
+        d.deductibleEur ?? "",
         clusters.get(d.id) ?? "",
       ].join(","),
     );

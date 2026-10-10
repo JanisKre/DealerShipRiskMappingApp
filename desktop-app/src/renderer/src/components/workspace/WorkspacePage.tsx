@@ -1,7 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
-import type { DealershipInput } from "@shared/types";
+import { useEffect, useMemo } from "react";
 import { useAppStore } from "@renderer/store/appStore";
 import { useMapStore } from "@renderer/store/mapStore";
 import { usePanelRef, useDefaultLayout } from "react-resizable-panels";
@@ -29,8 +26,6 @@ const RIGHT_ID = "drm-ws-right";
  * Panel widths are persisted in localStorage via `useDefaultLayout`.
  */
 export function WorkspacePage(): React.JSX.Element {
-  const { t } = useTranslation();
-  const addAndAnalyze = useAppStore((s) => s.addAndAnalyze);
   const dealerships = useAppStore((s) => s.dealerships);
   const locationsPanelOpen = useMapStore((s) => s.locationsPanelOpen);
   const chatPanelOpen = useMapStore((s) => s.chatPanelOpen);
@@ -67,20 +62,6 @@ export function WorkspacePage(): React.JSX.Element {
     else if (!chatPanelOpen && !h.isCollapsed()) h.collapse();
   }, [chatPanelOpen, rightRef]);
 
-  /**
-   * Shared add-rows handler: waits on addAndAnalyze and toasts duplicates.
-   * No navigate() needed — we're already in the workspace.
-   */
-  const addRows = useCallback(
-    async (incoming: DealershipInput[]): Promise<void> => {
-      const skipped = await addAndAnalyze(incoming);
-      if (skipped > 0) {
-        toast.info(t("start.duplicatesSkipped", { count: skipped }));
-      }
-    },
-    [addAndAnalyze, t],
-  );
-
   return (
     <>
       <ResizablePanelGroup
@@ -106,7 +87,7 @@ export function WorkspacePage(): React.JSX.Element {
               useMapStore.getState().toggleLocationsPanel();
           }}
         >
-          <AddressDock onAddRows={addRows} />
+          <AddressDock />
         </ResizablePanel>
 
         <ResizableHandle withHandle />

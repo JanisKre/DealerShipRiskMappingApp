@@ -651,9 +651,9 @@
       },
       "osmLoading": "OSM-Infos werden geladen…",
       "osmHeading": "Aus OpenStreetMap",
-      "insuredLabel": "Versichert / Teil des Bestands",
+      "insuredLabel": "Bestandsgeschäft (versichert)",
       "insuredYesDesc": "Bestandskunde — fließt in Akkumulation ein",
-      "insuredNoDesc": "Neukunde / Prospect",
+      "insuredNoDesc": "Neugeschäft / Prospect",
       "salesPartnerLabel": "Vertriebspartner",
       "notesTitle": "Notizen",
       "notesPlaceholder": "Underwriting-Notizen, Beobachtungen, offene Punkte …",
@@ -675,7 +675,7 @@
       "websiteReset": "Automatisch verwenden",
       "subPortfolioLabel": "Teilportfolio",
       "groupLabel": "Gruppe",
-      "productLimitLabel": "Produktlimit (EUR)",
+      "productLimitLabel": "Höchstentschädigung / Limit (EUR)",
       "natCatTitle": "Naturgefahrenquelle",
       "natCatRefresh": "Quellen neu abfragen",
       "natCatRefreshing": "Quellen werden abgefragt…",
@@ -683,7 +683,8 @@
       "natCatAttribute": "{{name}}: {{value}}",
       "errorPrefix": "Fehler: {{error}}",
       "recommendedDeductibleLabel": "Empf. Selbstbehalt",
-      "premiumLoadingLabel": "Prämienzuschlag"
+      "premiumLoadingLabel": "Prämienzuschlag",
+      "deductibleLabel": "Selbstbehalt (EUR)"
     },
     "hailEal": "Hagel-EAL",
     "hailZone": "Hagelzone",
@@ -862,7 +863,10 @@
         "fixed-provider": "in den Einstellungen fest gewählt",
         "overview-zoom": "Übersichtszoom – Esri-Mosaik"
       },
-      "imageryAlternatives": "Geprüfte Alternativen"
+      "imageryAlternatives": "Geprüfte Alternativen",
+      "business": "Geschäftsart",
+      "existingBusiness": "Bestandsgeschäft (gefüllt)",
+      "newBusiness": "Neugeschäft (Kontur)"
     },
     "editBoundary": "Grenze bearbeiten",
     "locationsPanel": {
@@ -877,7 +881,7 @@
         "one": "1 versicherter Nachbar im {{radius}} km-Radius",
         "other": "{{count}} versicherte Nachbarn im {{radius}} km-Radius"
       },
-      "insuredChip": "versichert",
+      "insuredChip": "Bestand",
       "sameGroupChip": "gleiche Gruppe",
       "inRadiusChip": "im Radius",
       "viewDetails": "Details ansehen",
@@ -891,10 +895,10 @@
       "deleteSelectedConfirmTitle": "Ausgewählte Standorte löschen?",
       "deleteSelectedConfirmDescription": "Dadurch werden {{count}} Standort(e) dauerhaft aus dem Portfolio entfernt. Das kann nicht rückgängig gemacht werden.",
       "deleteSelectedToast": "{{count}} Standort(e) gelöscht",
-      "markInsured": "Auswahl als versichert markieren",
-      "markNotInsured": "Auswahl als nicht versichert markieren",
-      "markInsuredToast": "{{count}} Standort(e) als versichert markiert",
-      "markNotInsuredToast": "{{count}} Standort(e) als nicht versichert markiert",
+      "markInsured": "Auswahl als Bestandsgeschäft markieren",
+      "markNotInsured": "Auswahl als Neugeschäft markieren",
+      "markInsuredToast": "{{count}} Standort(e) als Bestandsgeschäft markiert",
+      "markNotInsuredToast": "{{count}} Standort(e) als Neugeschäft markiert",
       "directoryHintPrefix": "Händler fehlt?",
       "directoryHintLink": "Händlerverzeichnis laden"
     },
@@ -1145,7 +1149,11 @@
     "name": "Name",
     "boundarySource": "Grenzquelle",
     "allBoundaries": "Alle Grenzen",
-    "fallbackBoundary": "Fallback-Grenze"
+    "fallbackBoundary": "Fallback-Grenze",
+    "businessType": "Geschäftsart",
+    "allBusiness": "Alle Geschäftsarten",
+    "existingBusiness": "Bestandsgeschäft",
+    "newBusiness": "Neugeschäft"
   },
   "aiSetup": {
     "missingTitle": "KI-Assistent noch nicht eingerichtet",
@@ -1153,5 +1161,42 @@
     "rejectedTitle": "Zugangsdaten abgelehnt",
     "rejectedDescription": "Der KI-Endpunkt hat den API-Key nicht akzeptiert (401/403). Prüfe Key, Modell und Endpunkt in den Einstellungen.",
     "openSettings": "KI einrichten"
+  },
+  "portfolioImport": {
+    "title": "Portfolio importieren",
+    "summary": "{{file}}: {{imported}} von {{total}} Zeilen erkannt.",
+    "skipped": "{{count}} Zeile(n) übersprungen.",
+    "issues": "{{count}} Hinweis(e) im Importbericht.",
+    "parseFailed": "Datei konnte nicht gelesen werden: {{error}}",
+    "detectedColumns": "Erkannte Spalten",
+    "noTermsColumns": "Keine Spalten für Höchstentschädigung oder Selbstbehalt erkannt – diese Angaben lassen sich später je Standort ergänzen.",
+    "field": {
+      "name": "Name",
+      "address": "Adresse",
+      "lat": "Breite",
+      "lon": "Länge",
+      "assetValue": "Wert",
+      "insured": "Geschäftsart",
+      "productLimitEur": "Höchstentschädigung",
+      "deductibleEur": "Selbstbehalt",
+      "salesPartner": "Vertriebspartner",
+      "subPortfolio": "Teilportfolio",
+      "group": "Gruppe"
+    },
+    "targetTitle": "Ziel",
+    "targetNew": "Neues Portfolio anlegen",
+    "targetCurrent": "Zu „{{name}}“ hinzufügen",
+    "nameLabel": "Name des Portfolios",
+    "businessTitle": "Geschäftsart",
+    "businessFile": "Je Standort aus der Datei (Spalte „{{column}}“)",
+    "businessFileCounts": "{{existing}} Bestand · {{fresh}} Neugeschäft · {{unknown}} ohne Angabe (zählen als Neugeschäft)",
+    "businessExisting": "Gesamtes Portfolio ist Bestandsgeschäft",
+    "businessExistingDesc": "Alle Standorte gelten als versichert und fließen in die Akkumulation ein.",
+    "businessNew": "Gesamtes Portfolio ist Neugeschäft",
+    "businessNewDesc": "Alle Standorte werden als Neugeschäft / Prospect bewertet.",
+    "businessRequired": "Bitte die Geschäftsart wählen – sie bestimmt Darstellung und Bewertung.",
+    "waitForAnalysis": "Bitte warten, bis die laufende Analyse abgeschlossen ist.",
+    "cancel": "Abbrechen",
+    "confirm": "{{count}} Standort(e) importieren"
   }
 }

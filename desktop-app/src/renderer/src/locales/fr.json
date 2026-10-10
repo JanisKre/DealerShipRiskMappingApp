@@ -417,9 +417,9 @@
       },
       "osmLoading": "Chargement des infos OSM…",
       "osmHeading": "Depuis OpenStreetMap",
-      "insuredLabel": "Assuré / Fait partie du portefeuille",
+      "insuredLabel": "Portefeuille existant (assuré)",
       "insuredYesDesc": "Client existant — inclus dans le cumul",
-      "insuredNoDesc": "Nouveau client / Prospect",
+      "insuredNoDesc": "Affaire nouvelle / Prospect",
       "salesPartnerLabel": "Partenaire commercial",
       "notesTitle": "Notes",
       "notesPlaceholder": "Notes de souscription, observations, points de suivi …",
@@ -441,7 +441,7 @@
       "websiteReset": "Utiliser l’automatique",
       "subPortfolioLabel": "Sous-portefeuille",
       "groupLabel": "Groupe",
-      "productLimitLabel": "Limite produit (EUR)",
+      "productLimitLabel": "Indemnité max. / Limite (EUR)",
       "natCatTitle": "Source catastrophes naturelles",
       "natCatRefresh": "Réinterroger les sources",
       "natCatRefreshing": "Interrogation des sources…",
@@ -449,7 +449,8 @@
       "natCatAttribute": "{{name}} : {{value}}",
       "errorPrefix": "Erreur : {{error}}",
       "recommendedDeductibleLabel": "Franchise recommandée",
-      "premiumLoadingLabel": "Majoration de prime"
+      "premiumLoadingLabel": "Majoration de prime",
+      "deductibleLabel": "Franchise (EUR)"
     }
   },
   "map": {
@@ -503,7 +504,10 @@
         "fixed-provider": "fixée dans les paramètres",
         "overview-zoom": "zoom d'ensemble – mosaïque Esri"
       },
-      "imageryAlternatives": "Alternatives vérifiées"
+      "imageryAlternatives": "Alternatives vérifiées",
+      "business": "Type d’affaire",
+      "existingBusiness": "Portefeuille existant (plein)",
+      "newBusiness": "Affaire nouvelle (contour)"
     },
     "editBoundary": "Modifier la limite",
     "locationsPanel": {
@@ -518,7 +522,7 @@
         "one": "1 voisin assuré dans un rayon de {{radius}} km",
         "other": "{{count}} voisins assurés dans un rayon de {{radius}} km"
       },
-      "insuredChip": "assuré",
+      "insuredChip": "existant",
       "sameGroupChip": "même groupe",
       "inRadiusChip": "dans le rayon",
       "viewDetails": "Voir les détails",
@@ -532,10 +536,10 @@
       "deleteSelectedConfirmTitle": "Supprimer les sites sélectionnés ?",
       "deleteSelectedConfirmDescription": "Cette action supprimera définitivement {{count}} site(s) du portefeuille. Cette action est irréversible.",
       "deleteSelectedToast": "{{count}} site(s) supprimé(s)",
-      "markInsured": "Marquer la sélection comme assurée",
-      "markNotInsured": "Marquer la sélection comme non assurée",
-      "markInsuredToast": "{{count}} site(s) marqué(s) comme assuré(s)",
-      "markNotInsuredToast": "{{count}} site(s) marqué(s) comme non assuré(s)",
+      "markInsured": "Marquer la sélection comme portefeuille existant",
+      "markNotInsured": "Marquer la sélection comme affaire nouvelle",
+      "markInsuredToast": "{{count}} site(s) marqué(s) comme portefeuille existant",
+      "markNotInsuredToast": "{{count}} site(s) marqué(s) comme affaire nouvelle",
       "directoryHintPrefix": "Concessionnaire introuvable ?",
       "directoryHintLink": "Charger l’annuaire"
     },
@@ -786,7 +790,11 @@
     "name": "Nom",
     "boundarySource": "Source de la limite",
     "allBoundaries": "Toutes les limites",
-    "fallbackBoundary": "Limite de secours"
+    "fallbackBoundary": "Limite de secours",
+    "businessType": "Type d’affaire",
+    "allBusiness": "Tous types d’affaire",
+    "existingBusiness": "Portefeuille existant",
+    "newBusiness": "Affaire nouvelle"
   },
   "aiSetup": {
     "missingTitle": "Assistant IA pas encore configuré",
@@ -794,5 +802,42 @@
     "rejectedTitle": "Identifiants refusés",
     "rejectedDescription": "L’endpoint IA n’a pas accepté la clé API (401/403). Vérifiez la clé, le modèle et l’endpoint dans les paramètres.",
     "openSettings": "Configurer l’IA"
+  },
+  "portfolioImport": {
+    "title": "Importer un portefeuille",
+    "summary": "{{file}} : {{imported}} ligne(s) reconnue(s) sur {{total}}.",
+    "skipped": "{{count}} ligne(s) ignorée(s).",
+    "issues": "{{count}} remarque(s) dans le rapport d’import.",
+    "parseFailed": "Impossible de lire le fichier : {{error}}",
+    "detectedColumns": "Colonnes détectées",
+    "noTermsColumns": "Aucune colonne d’indemnité maximale ou de franchise détectée – ces données peuvent être ajoutées par site ultérieurement.",
+    "field": {
+      "name": "Nom",
+      "address": "Adresse",
+      "lat": "Latitude",
+      "lon": "Longitude",
+      "assetValue": "Valeur",
+      "insured": "Type d’affaire",
+      "productLimitEur": "Indemnité max.",
+      "deductibleEur": "Franchise",
+      "salesPartner": "Partenaire commercial",
+      "subPortfolio": "Sous-portefeuille",
+      "group": "Groupe"
+    },
+    "targetTitle": "Destination",
+    "targetNew": "Créer un nouveau portefeuille",
+    "targetCurrent": "Ajouter à « {{name}} »",
+    "nameLabel": "Nom du portefeuille",
+    "businessTitle": "Type d’affaire",
+    "businessFile": "Par site depuis le fichier (colonne « {{column}} »)",
+    "businessFileCounts": "{{existing}} existant(s) · {{fresh}} nouveau(x) · {{unknown}} non renseigné(s) (comptés comme affaire nouvelle)",
+    "businessExisting": "Tout le portefeuille est existant",
+    "businessExistingDesc": "Tous les sites sont considérés comme assurés et inclus dans le cumul.",
+    "businessNew": "Tout le portefeuille est une affaire nouvelle",
+    "businessNewDesc": "Tous les sites sont évalués comme affaire nouvelle / prospects.",
+    "businessRequired": "Veuillez choisir le type d’affaire – il détermine l’affichage et l’évaluation.",
+    "waitForAnalysis": "Veuillez attendre la fin de l’analyse en cours.",
+    "cancel": "Annuler",
+    "confirm": "Importer {{count}} site(s)"
   }
 }

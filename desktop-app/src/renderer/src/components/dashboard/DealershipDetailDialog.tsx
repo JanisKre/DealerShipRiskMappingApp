@@ -1084,8 +1084,8 @@ function OsmDetailsSection({
 }
 
 /**
- * Editable portfolio metadata: insured status (existing book vs. new customer),
- * sales partner, sub-portfolio, group, and product limit. Writes directly
+ * Editable portfolio metadata: business type (existing vs. new business),
+ * sales partner, sub-portfolio, group, maximum indemnity, and deductible. Writes directly
  * to the store (`updateDealershipMeta`); text fields commit on blur.
  */
 function PortfolioMetaSection({
@@ -1105,6 +1105,28 @@ function PortfolioMetaSection({
       <Input
         defaultValue={d[key] ?? ""}
         onBlur={(e) => updateMeta(d.id, { [key]: e.target.value || undefined })}
+      />
+    </label>
+  );
+
+  const amountField = (
+    label: string,
+    key: "productLimitEur" | "deductibleEur",
+  ): React.JSX.Element => (
+    <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+      {label}
+      <Input
+        // Remount when the stored value changes (e.g. after an import).
+        key={`${key}-${d[key] ?? ""}`}
+        type="number"
+        min={0}
+        defaultValue={d[key] ?? ""}
+        onBlur={(e) => {
+          const n = Number(e.target.value);
+          updateMeta(d.id, {
+            [key]: e.target.value && !Number.isNaN(n) && n >= 0 ? n : undefined,
+          });
+        }}
       />
     </label>
   );
@@ -1139,21 +1161,14 @@ function PortfolioMetaSection({
           "subPortfolio",
         )}
         {textField(t("dashboard.detailDialog.groupLabel"), "group")}
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          {t("dashboard.detailDialog.productLimitLabel")}
-          <Input
-            type="number"
-            min={0}
-            defaultValue={d.productLimitEur ?? ""}
-            onBlur={(e) => {
-              const n = Number(e.target.value);
-              updateMeta(d.id, {
-                productLimitEur:
-                  e.target.value && !Number.isNaN(n) ? n : undefined,
-              });
-            }}
-          />
-        </label>
+        {amountField(
+          t("dashboard.detailDialog.productLimitLabel"),
+          "productLimitEur",
+        )}
+        {amountField(
+          t("dashboard.detailDialog.deductibleLabel"),
+          "deductibleEur",
+        )}
       </div>
     </div>
   );

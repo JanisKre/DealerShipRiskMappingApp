@@ -33,9 +33,7 @@ function toLatLng(ring: [number, number][]): [number, number][] {
 function toLatLngGeometry(geometry: BoundaryGeometry): unknown {
   return geometry.type === "Polygon"
     ? geometry.coordinates.map((ring) => toLatLng(ring))
-    : geometry.coordinates.map((part) =>
-        part.map((ring) => toLatLng(ring)),
-      );
+    : geometry.coordinates.map((part) => part.map((ring) => toLatLng(ring)));
 }
 
 /**
@@ -134,10 +132,16 @@ function isLeafletPoint(value: unknown): value is LeafletPoint {
 }
 
 function readRing(value: unknown): [number, number][] | null {
-  if (!Array.isArray(value) || value.length < 3 || !value.every(isLeafletPoint)) {
+  if (
+    !Array.isArray(value) ||
+    value.length < 3 ||
+    !value.every(isLeafletPoint)
+  ) {
     return null;
   }
-  const coords = value.map((point) => [point.lng, point.lat] as [number, number]);
+  const coords = value.map(
+    (point) => [point.lng, point.lat] as [number, number],
+  );
   const first = coords[0];
   const last = coords.at(-1)!;
   if (first[0] !== last[0] || first[1] !== last[1]) coords.push(first);
