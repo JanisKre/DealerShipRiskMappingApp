@@ -141,6 +141,11 @@ interface AppState {
       >
     >,
   ) => void;
+  /**
+   * Saves a location's free-text notes (empty clears them), stamps the
+   * change time and persists the session right away.
+   */
+  updateDealershipNotes: (id: string, notes: string) => Promise<void>;
   /** Bulk-sets the insured flag for multiple locations at once. */
   setInsuredForDealerships: (ids: string[], insured: boolean) => void;
   /** Saves an optional human-reviewed vehicle count and recalculates risk. */
@@ -620,6 +625,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       );
       return { dealerships: copy };
     }),
+  updateDealershipNotes: async (id, notes) => {
+    const current = get().dealerships.find((d) => d.id === id);
+    if (!current) return;
+    const next = notes.trim() === "" ? undefined : notes;
+    if (next === current.notes) return;
+    const notesUpdatedAt =
+      next === undefined ? undefined : new Date().toISOString();
+    set((s) => ({
+      dealerships: s.dealerships.map((d) =>
+        d.id === id ? { ...d, notes: next, notesUpdatedAt } : d,
+      ),
+    }));
+    await get().saveSession();
+  },
   setInsuredForDealerships: (ids, insured) =>
     set((s) => {
       const idSet = new Set(ids);
@@ -761,7 +780,18 @@ export const useAppStore = create<AppState>((set, get) => ({
           );
         }
       }
-      get().upsertDealership(result);
+      // Notes edited while the re-analysis ran must not be overwritten by the
+      // snapshot `result` was built from.
+      const latest = get().dealerships.find((x) => x.id === id);
+      get().upsertDealership(
+        latest
+          ? {
+              ...result,
+              notes: latest.notes,
+              notesUpdatedAt: latest.notesUpdatedAt,
+            }
+          : result,
+      );
     } catch (err) {
       console.error(`Re-analysis failed for ${d.name}:`, err);
     } finally {

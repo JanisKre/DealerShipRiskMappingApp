@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { HAIL_FREQUENCY_BY_ZONE, HAIL_SEVERITY_CLASSES } from "./constants";
+import {
+  DEALERSHIP_NOTES_MAX_LENGTH,
+  HAIL_FREQUENCY_BY_ZONE,
+  HAIL_SEVERITY_CLASSES,
+} from "./constants";
 import { ImagerySelectionSchema } from "./imagery-sources";
 
 /**
@@ -112,6 +116,13 @@ export const DealershipInputSchema = z.object({
   group: z.string().optional(),
   /** Product limit / sum insured (EUR) — hard coverage cap. */
   productLimitEur: z.number().nonnegative().optional(),
+  /**
+   * Free-text underwriting notes (observations, follow-ups). Local only —
+   * never sent to the LLM or included in exports.
+   */
+  notes: z.string().max(DEALERSHIP_NOTES_MAX_LENGTH).optional(),
+  /** ISO timestamp of the last notes change. */
+  notesUpdatedAt: z.string().optional(),
   /**
    * Natural-catastrophe assessment used for scoring: imported data plus the
    * providers routed in the settings, combined per peril.

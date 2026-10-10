@@ -444,6 +444,87 @@ describe("bulk insured marking", () => {
   });
 });
 
+describe("dealership notes", () => {
+  beforeEach(() => {
+    api.saveSession.mockResolvedValue(undefined);
+  });
+
+  it("stores notes on the location, stamps them and persists the session", async () => {
+    useAppStore.setState({
+      sessionId: "abc",
+      dealerships: [
+        { ...firstInput, insured: true } as AnalyzedDealership,
+        { ...secondInput, insured: false } as AnalyzedDealership,
+      ],
+    });
+
+    await useAppStore
+      .getState()
+      .updateDealershipNotes("two", "Sales partner visit planned");
+
+    const [one, two] = useAppStore.getState().dealerships;
+    expect(two.notes).toBe("Sales partner visit planned");
+    expect(two.notesUpdatedAt).toEqual(expect.any(String));
+    expect(one.notes).toBeUndefined();
+    expect(api.saveSession).toHaveBeenCalledTimes(1);
+    expect(api.saveSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dealerships: expect.arrayContaining([
+          expect.objectContaining({
+            id: "two",
+            notes: "Sales partner visit planned",
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("clears notes when only whitespace is saved", async () => {
+    useAppStore.setState({
+      dealerships: [
+        {
+          ...firstInput,
+          notes: "Old note",
+          notesUpdatedAt: "2026-01-01T00:00:00.000Z",
+        } as AnalyzedDealership,
+      ],
+    });
+
+    await useAppStore.getState().updateDealershipNotes("one", "   ");
+
+    const [one] = useAppStore.getState().dealerships;
+    expect(one.notes).toBeUndefined();
+    expect(one.notesUpdatedAt).toBeUndefined();
+    expect(api.saveSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not save when the notes are unchanged", async () => {
+    useAppStore.setState({
+      dealerships: [{ ...firstInput, notes: "Same" } as AnalyzedDealership],
+    });
+
+    await useAppStore.getState().updateDealershipNotes("one", "Same");
+
+    expect(api.saveSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps notes edited while a re-analysis is running", async () => {
+    useAppStore.setState({
+      dealerships: [{ ...firstInput, notes: "Before" } as AnalyzedDealership],
+    });
+    api.analyzeDealership.mockImplementationOnce(async (input) => {
+      await useAppStore.getState().updateDealershipNotes("one", "During");
+      return { ...input, risk: { overallScore: 10 } } as AnalyzedDealership;
+    });
+
+    await useAppStore.getState().reanalyzeDealership("one");
+
+    const [one] = useAppStore.getState().dealerships;
+    expect(one.notes).toBe("During");
+    expect(one.risk?.overallScore).toBe(10);
+  });
+});
+
 describe("map focus", () => {
   it("requests a one-off fit to the given locations and clears the selection", () => {
     useAppStore.setState({ selectedId: "one", mapFocusIds: null });
