@@ -439,7 +439,9 @@ function ParameterEditor({
           </span>
         </div>
       )}
-      <div className="relative">
+      {/* Unit as an in-field suffix with its own width: units range from
+          "€" to "Schläge/km²/Jahr", so a fixed right padding can't fit them. */}
+      <div className="flex h-9 w-full items-center rounded-md border border-input shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring has-[:disabled]:opacity-50">
         <Input
           id={`parameter-${field.key}`}
           type="number"
@@ -453,9 +455,9 @@ function ParameterEditor({
             if (event.key === "Enter") event.currentTarget.blur();
           }}
           disabled={disabled}
-          className="pr-16 text-right tabular-nums"
+          className="h-full min-w-0 flex-1 border-0 text-right tabular-nums shadow-none focus-visible:ring-0 disabled:opacity-100"
         />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+        <span className="shrink-0 whitespace-nowrap pr-3 text-xs text-muted-foreground">
           {unit}
         </span>
       </div>
