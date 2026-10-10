@@ -9,6 +9,7 @@ import {
   filterDetectionToBoundary,
 } from "./detection.service";
 import { geocode } from "./geocoding.service";
+import { getOsmDetails } from "./osmDetails.service";
 import { scoreRisk } from "./risk.service";
 import { aerialImageForContext } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
@@ -24,8 +25,28 @@ function extractPostalCode(address: string | undefined): string | null {
 }
 
 /**
+ * Website for a location without one, via the OSM dealership lookup (also
+ * used by the detail view, so its cache serves both). Best effort: an
+ * Overpass failure must never fail the analysis.
+ */
+async function detectWebsite(
+  lat: number,
+  lon: number,
+  input: DealershipInput,
+): Promise<string | undefined> {
+  if (input.website) return undefined;
+  try {
+    return (await getOsmDetails(lat, lon, input.name, input.address)).website;
+  } catch (error) {
+    console.warn(`Website lookup failed for '${input.name}':`, error);
+    return undefined;
+  }
+}
+
+/**
  * Core workflow for one record:
- *   (geocoding if needed) → boundary → aerial image → vehicle detection → risk.
+ *   (geocoding if needed) → boundary → website → aerial image → vehicle
+ *   detection → risk.
  */
 export async function analyzeDealership(
   input: DealershipInput,
@@ -57,6 +78,9 @@ export async function analyzeDealership(
     input.address,
     parameters,
   );
+  // After the boundary rather than alongside it, so one site never fires
+  // its Overpass queries in parallel.
+  const website = await detectWebsite(lat, lon, input);
   // Context image and first detection pass are deliberately independent of
   // the boundary just chosen (P5): a too-tight boundary must not also hide
   // vehicles from the model. The boundary is applied only as a spatial
@@ -97,6 +121,7 @@ export async function analyzeDealership(
     // Explicit, also when undefined: overrides a stale `natCat` from `input`.
     natCat,
     ...(natCatImport ? { natCatImport } : {}),
+    ...(website ? { website, websiteSource: "osm" as const } : {}),
     ...(hailZone != null ? { hailZone, hailRiskTier } : {}),
   };
 }

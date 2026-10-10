@@ -615,6 +615,41 @@ describe("dealership website", () => {
     expect(api.saveSession).not.toHaveBeenCalled();
   });
 
+  it("takes a website found by re-analysis only when none is stored", async () => {
+    useAppStore.setState({
+      dealerships: [
+        { ...firstInput } as AnalyzedDealership,
+        {
+          ...secondInput,
+          website: "https://manual.de/",
+          websiteSource: "manual",
+        } as AnalyzedDealership,
+      ],
+    });
+    api.analyzeDealership.mockImplementation(
+      async (input: AnalyzedDealership) =>
+        ({
+          ...input,
+          website: input.website ?? "https://osm.de/",
+          websiteSource: input.websiteSource ?? "osm",
+          risk: { overallScore: 10 },
+        }) as AnalyzedDealership,
+    );
+
+    await useAppStore.getState().reanalyzeDealership("one");
+    await useAppStore.getState().reanalyzeDealership("two");
+
+    const [one, two] = useAppStore.getState().dealerships;
+    expect(one).toMatchObject({
+      website: "https://osm.de/",
+      websiteSource: "osm",
+    });
+    expect(two).toMatchObject({
+      website: "https://manual.de/",
+      websiteSource: "manual",
+    });
+  });
+
   it("keeps a website set while a re-analysis is running", async () => {
     useAppStore.setState({
       dealerships: [{ ...firstInput } as AnalyzedDealership],

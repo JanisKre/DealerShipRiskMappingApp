@@ -817,8 +817,11 @@ export const useAppStore = create<AppState>((set, get) => ({
               ...result,
               notes: latest.notes,
               notesUpdatedAt: latest.notesUpdatedAt,
-              website: latest.website,
-              websiteSource: latest.websiteSource,
+              // A link found by this run fills an empty slot only.
+              website: latest.website ?? result.website,
+              websiteSource: latest.website
+                ? latest.websiteSource
+                : result.websiteSource,
             }
           : result,
       );
