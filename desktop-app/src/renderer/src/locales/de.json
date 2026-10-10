@@ -840,6 +840,7 @@
         "sharper-within-tolerance": "schärfer, höchstens 6 Monate älter als die neueste",
         "only-option": "einzige datierte Quelle",
         "no-dated-source": "keine datierte Quelle – Esri als Rückfall",
+        "no-sharp-source": "keine ausreichend scharfe Quelle – Esri als Rückfall",
         "fixed-provider": "in den Einstellungen fest gewählt",
         "overview-zoom": "Übersichtszoom – Esri-Mosaik"
       },

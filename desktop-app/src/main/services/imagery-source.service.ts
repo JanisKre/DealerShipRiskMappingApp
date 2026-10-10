@@ -1,6 +1,7 @@
 import { buildTileUrl, DETECTION_ZOOM } from "@shared/constants";
 import {
   buildStateTileUrl,
+  DETECTION_MAX_RESOLUTION_M,
   IMAGERY_MIN_SELECTION_ZOOM,
   IMAGERY_TOLERANCE_DAYS,
   isGermanState,
@@ -177,7 +178,9 @@ function currentMode(): ImagerySelection["mode"] {
 /**
  * Source for vehicle detection at a point. Esri is considered at
  * DETECTION_ZOOM and one level below, because Esri often serves a different
- * (older or newer) image at z20 than at z19.
+ * (older or newer) image at z20 than at z19. Only sources up to
+ * DETECTION_MAX_RESOLUTION_M compete; when none qualifies, Esri is still used
+ * and the detector flags the coarse imagery in its limitations.
  */
 export async function selectImageryForDetection(
   lat: number,
@@ -203,11 +206,13 @@ export async function selectImageryForDetection(
   const candidates = state ? [...esri, state] : esri;
   const fallback = esri[0];
 
+  // Stricter than the map: coarse scenes are what the detector under-counts on.
+  const limits = { maxResolutionM: DETECTION_MAX_RESOLUTION_M };
   if (mode === "esri") {
-    const { chosen } = selectImagery(esri, fallback);
+    const { chosen } = selectImagery(esri, fallback, limits);
     return selection(mode, chosen, "fixed-provider", candidates);
   }
-  const { chosen, reason } = selectImagery(candidates, fallback);
+  const { chosen, reason } = selectImagery(candidates, fallback, limits);
   return selection(mode, chosen, reason, candidates);
 }
 
@@ -246,7 +251,9 @@ export const ESRI_TILE_SOURCE: TileSource = {
   url: (z, y, x) => buildTileUrl("esri", z, y, x),
 };
 
-export function tileSourceForCandidate(candidate: ImageryCandidate): TileSource {
+export function tileSourceForCandidate(
+  candidate: ImageryCandidate,
+): TileSource {
   if (candidate.kind === "state-dop" && candidate.state) {
     const service = STATE_DOP_SERVICES[candidate.state];
     if (service) {

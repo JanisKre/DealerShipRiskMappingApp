@@ -3,6 +3,7 @@ import {
   VEHICLE_MAX_LENGTH_M,
   VEHICLE_MIN_WIDTH_M,
 } from "@shared/constants";
+import { DETECTION_MAX_RESOLUTION_M } from "@shared/imagery-sources";
 import type { VehicleModelManifest } from "@shared/model-manifest";
 import type { VehicleClass } from "@shared/types";
 
@@ -482,4 +483,17 @@ export function resampleFactor(
   const factor = metersPerPixel / targetGsdM;
   if (Math.abs(factor - 1) < 0.05) return 1;
   return Math.min(2.5, Math.max(0.5, factor));
+}
+
+/**
+ * Limitation for imagery coarser than the detector is trained on. Such scenes
+ * stay blurry after resampling (and beyond the 2.5× cap, cars stay too small),
+ * so the model under-counts; the result says so instead of failing silently.
+ */
+export function coarseImageryLimitations(resolutionM: number): string[] {
+  if (!(resolutionM > DETECTION_MAX_RESOLUTION_M)) return [];
+  return [
+    `Imagery resolution ${resolutionM.toFixed(2)} m/px is coarser than the detector ` +
+      `supports (≤ ${DETECTION_MAX_RESOLUTION_M} m/px); the vehicle count is likely too low`,
+  ];
 }

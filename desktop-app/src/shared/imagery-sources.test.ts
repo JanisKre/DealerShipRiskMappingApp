@@ -63,6 +63,14 @@ describe("selectImagery", () => {
     expect(selectImagery([coarse, fine], coarse).chosen.id).toBe("dop:BB");
   });
 
+  it("reports dated but too-coarse sources as no sharp source", () => {
+    const fallback = candidate("esri:z19", "2025-06-22", 0.5);
+    const result = selectImagery([fallback], fallback, {
+      maxResolutionM: 0.25,
+    });
+    expect(result).toEqual({ chosen: fallback, reason: "no-sharp-source" });
+  });
+
   it("falls back when nothing is dated", () => {
     const fallback = candidate("esri:z19", null, 0.5);
     const result = selectImagery(
@@ -105,14 +113,24 @@ describe("tile templates", () => {
   });
 
   it("fills XYZ templates for Bavaria", () => {
-    expect(fillTileTemplate(stateTileTemplate(STATE_DOP_SERVICES.BY!), 19, 279001, 181951)).toBe(
-      "https://wmtsod1.bayernwolke.de/wmts/by_dop/smerc/19/279001/181951",
-    );
+    expect(
+      fillTileTemplate(
+        stateTileTemplate(STATE_DOP_SERVICES.BY!),
+        19,
+        279001,
+        181951,
+      ),
+    ).toBe("https://wmtsod1.bayernwolke.de/wmts/by_dop/smerc/19/279001/181951");
   });
 
   it("renders one WMS tile per request for WMS states", () => {
     const url = new URL(
-      fillTileTemplate(stateTileTemplate(STATE_DOP_SERVICES.NW!), 19, 272008, 174991),
+      fillTileTemplate(
+        stateTileTemplate(STATE_DOP_SERVICES.NW!),
+        19,
+        272008,
+        174991,
+      ),
     );
     expect(url.searchParams.get("REQUEST")).toBe("GetMap");
     expect(url.searchParams.get("LAYERS")).toBe("nw_dop_rgb");

@@ -24,6 +24,7 @@ import type { AerialCapture } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type { RiskParameters } from "@shared/types";
 import {
+  coarseImageryLimitations,
   hullSize,
   mosaicMetersPerPixel,
   nms,
@@ -298,6 +299,12 @@ export class OnnxYoloDetector implements VehicleDetector {
       factor,
     );
     const metersPerPixel = (sourceMpp * image.width) / width;
+    // Real detail of the scene: tiles can be upsampled from coarser imagery,
+    // so the source's published resolution counts, not just the tile zoom.
+    const sourceResolutionM = Math.max(
+      sourceMpp,
+      (image as AerialCapture).imagery?.chosen.resolutionM ?? 0,
+    );
 
     const window = this.manifest.imgsz;
     const stride = Math.round(window * (1 - DETECTION_WINDOW_OVERLAP));
@@ -333,6 +340,7 @@ export class OnnxYoloDetector implements VehicleDetector {
       boundary,
       totalInferenceMs,
       factor,
+      sourceResolutionM,
     );
   }
 
@@ -369,6 +377,7 @@ export class OnnxYoloDetector implements VehicleDetector {
     boundary: BoundaryResult | undefined,
     inferenceMs: number,
     resample: number,
+    sourceResolutionM: number,
   ): DetectionResult {
     // Normalized axis-aligned hulls: consumers only need the extent and the
     // geographic center, and stay independent of the model's box type.
@@ -445,6 +454,7 @@ export class OnnxYoloDetector implements VehicleDetector {
         confidence: vehicleCount > 0 ? confSum / vehicleCount : 0,
         fallbackUsed: false,
         limitations: [
+          ...coarseImageryLimitations(sourceResolutionM),
           "Accuracy depends on imagery resolution and capture date",
           "Screening estimate of vehicles visible on the capture date, not a current stock count",
           ...m.limitations,

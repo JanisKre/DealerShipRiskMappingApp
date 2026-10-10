@@ -481,6 +481,7 @@
         "sharper-within-tolerance": "plus nette, au plus 6 mois plus ancienne que la plus récente",
         "only-option": "seule source datée",
         "no-dated-source": "aucune source datée – Esri par défaut",
+        "no-sharp-source": "aucune source assez nette – Esri par défaut",
         "fixed-provider": "fixée dans les paramètres",
         "overview-zoom": "zoom d'ensemble – mosaïque Esri"
       },

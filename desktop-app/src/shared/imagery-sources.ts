@@ -290,6 +290,14 @@ export function buildStateTileUrl(
 export const IMAGERY_TOLERANCE_DAYS = 183;
 /** Coarser sources cannot resolve individual parked cars. */
 export const IMAGERY_MAX_RESOLUTION_M = 0.5;
+/**
+ * Finest-to-coarsest range the vehicle detector is trained on: the dealership
+ * model sees 0.10–0.20 m state orthophotos. Coarser imagery is upsampled at
+ * most 2.5× (resampleFactor), so cars stay smaller and blurrier than in
+ * training and are under-counted. Detection only competes sources up to this
+ * resolution; the map still uses IMAGERY_MAX_RESOLUTION_M.
+ */
+export const DETECTION_MAX_RESOLUTION_M = 0.25;
 /** Below this map zoom the view spans several states; Esri's mosaic is used. */
 export const IMAGERY_MIN_SELECTION_ZOOM = 15;
 
@@ -318,6 +326,7 @@ export const ImagerySelectionReasonSchema = z.enum([
   "sharper-within-tolerance",
   "only-option",
   "no-dated-source",
+  "no-sharp-source",
   "fixed-provider",
   "overview-zoom",
 ]);
@@ -364,15 +373,18 @@ export function selectImagery(
     maxResolutionM = IMAGERY_MAX_RESOLUTION_M,
   }: { toleranceDays?: number; maxResolutionM?: number } = {},
 ): { chosen: ImageryCandidate; reason: ImagerySelectionReason } {
-  const usable = candidates
-    .filter(
-      (c) =>
-        c.capturedAt != null &&
-        !Number.isNaN(Date.parse(c.capturedAt)) &&
-        (c.resolutionM == null || c.resolutionM <= maxResolutionM),
-    )
+  const dated = candidates.filter(
+    (c) => c.capturedAt != null && !Number.isNaN(Date.parse(c.capturedAt)),
+  );
+  const usable = dated
+    .filter((c) => c.resolutionM == null || c.resolutionM <= maxResolutionM)
     .sort((a, b) => b.capturedAt!.localeCompare(a.capturedAt!));
-  if (usable.length === 0) return { chosen: fallback, reason: "no-dated-source" };
+  if (usable.length === 0) {
+    return {
+      chosen: fallback,
+      reason: dated.length > 0 ? "no-sharp-source" : "no-dated-source",
+    };
+  }
 
   const newest = usable[0];
   const contenders = usable.filter(

@@ -107,7 +107,9 @@ describe("selectImageryForDetection", () => {
       dateSource: "bkg-flight-index",
       zoom: 20,
     });
-    expect(selection.reason).toBe("sharper-within-tolerance");
+    // Esri z19 (0.34 m) is too coarse for detection, so the orthophoto is
+    // simply the newest sharp source.
+    expect(selection.reason).toBe("newest");
     expect(selection.candidates.map((c) => c.id)).toEqual([
       "esri:z20",
       "esri:z19",
@@ -132,8 +134,25 @@ describe("selectImageryForDetection", () => {
       "esri:z19",
       "dop:BY",
     ]);
+    // The newer 0.5 m scene is too coarse for counting cars, so detection
+    // takes the 0.2 m orthophoto even though it is ten months older.
+    expect(selection.chosen.id).toBe("dop:BY");
+    expect(selection.reason).toBe("only-option");
+  });
+
+  it("keeps Esri for detection when no source is sharp enough, and says why", async () => {
+    mocks.getEsriImageryMetadata.mockImplementation(
+      async (_lat: number, _lon: number, zoom: number) =>
+        zoom === 20
+          ? emptyImageryMetadata("esri", 20)
+          : esriMeta(19, "2025-06-22", 0.5),
+    );
+    mocks.fetchWithResilience.mockResolvedValue({ ok: false, status: 503 });
+
+    const selection = await selectImageryForDetection(48.137, 11.575);
+
     expect(selection.chosen.id).toBe("esri:z19");
-    expect(selection.chosen.zoom).toBe(19);
+    expect(selection.reason).toBe("no-sharp-source");
   });
 
   it("withholds a BKG date the pinned state service does not serve", async () => {
@@ -168,7 +187,8 @@ describe("selectImageryForDetection", () => {
     mocks.getSettings.mockReturnValue({ satelliteProvider: "esri" });
     const selection = await selectImageryForDetection(51.2277, 6.7735);
     expect(selection.reason).toBe("fixed-provider");
-    expect(selection.chosen.id).toBe("esri:z19");
+    // Of Esri's two scenes only z20 (0.1 m) is sharp enough to count cars on.
+    expect(selection.chosen.id).toBe("esri:z20");
     expect(mocks.fetchWithResilience).not.toHaveBeenCalled();
   });
 
