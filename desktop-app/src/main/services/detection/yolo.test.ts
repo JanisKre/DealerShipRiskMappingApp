@@ -19,6 +19,7 @@ import {
   unletterbox,
   windowOffsets,
   type VehicleCandidate,
+  coarseImageryLimitations,
 } from "./yolo";
 
 const tile2lon = (x: number, z: number): number => (x / 2 ** z) * 360 - 180;
@@ -328,6 +329,22 @@ describe("window planning", () => {
     expect(planCrops(300, 200, 640, 320)).toEqual([
       { cropX: 0, cropY: 0, w: 300, h: 200 },
     ]);
+  });
+});
+
+describe("coarseImageryLimitations", () => {
+  it("flags imagery coarser than the detector supports", () => {
+    expect(coarseImageryLimitations(0.5)).toEqual([
+      expect.stringContaining(
+        "0.50 m/px is coarser than the detector supports",
+      ),
+    ]);
+  });
+
+  it("stays silent for orthophoto-grade imagery and unknown resolution", () => {
+    expect(coarseImageryLimitations(0.2)).toEqual([]);
+    expect(coarseImageryLimitations(0.25)).toEqual([]);
+    expect(coarseImageryLimitations(Number.NaN)).toEqual([]);
   });
 });
 

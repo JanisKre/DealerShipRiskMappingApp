@@ -840,6 +840,7 @@
         "sharper-within-tolerance": "sharper, at most 6 months older than the newest",
         "only-option": "only dated source",
         "no-dated-source": "no dated source – Esri as fallback",
+        "no-sharp-source": "no sufficiently sharp source – Esri as fallback",
         "fixed-provider": "fixed in settings",
         "overview-zoom": "overview zoom – Esri mosaic"
       },

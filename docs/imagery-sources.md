@@ -38,6 +38,18 @@ was written, so they always use Esri. The nationwide BKG orthophoto service
 4. If no source is dated, Esri is used and the selection reason is
    `no-dated-source`.
 
+Vehicle detection applies a stricter limit: only sources of 0.25 m or finer
+compete (`DETECTION_MAX_RESOLUTION_M`). The dealership detector is trained on
+0.10–0.20 m state orthophotos; on 0.3–0.5 m satellite scenes cars stay small
+and blurry after resampling and are under-counted. The trade-off is
+deliberate: a sharper but older image wins over a newer coarse one, so the
+count may describe an older stock picture (the capture date is always stored
+with the result). If no source is sharp enough, Esri is still used, the
+selection reason is `no-sharp-source`, and the detection result carries a
+limitation that the count is likely too low. The same limitation is added
+whenever the published resolution of the chosen source, or the tile zoom
+after a fallback to a lower zoom, is coarser than 0.25 m.
+
 The 183-day tolerance (`IMAGERY_TOLERANCE_DAYS`) prefers a 10–20 cm
 orthophoto from spring over a 30–50 cm satellite scene from summer, but not
 over one from a later year. The map uses the same rule at the current map

@@ -21,7 +21,7 @@ from pathlib import Path
 import onnxruntime as ort
 from ultralytics import YOLO
 
-from common import ROOT, TARGET_GSD_M
+from common import DATA, ROOT, TARGET_GSD_M
 
 NAME = "dealer_vehicles"
 # Model class name → the app's vehicle class
@@ -39,6 +39,21 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def training_data() -> list[str]:
+    """Sources actually in the dataset the model was trained on, for the manifest's provenance.
+    Public tiles are the DLR 3K Munich crops (`DLR-*`, see convert_public.py); a hard-coded
+    list would claim them even after `make_dataset.py --no-public`."""
+    train = sorted((DATA / "dataset" / "images" / "train").glob("*.jpg"))
+    if not train:
+        raise SystemExit("no data/dataset/images/train — run make_dataset.py, or pass --training-data")
+    sources = []
+    if any(not p.name.startswith("DLR-") for p in train):
+        sources.append("Dealership orthophoto tiles (state DOPs)")
+    if any(p.name.startswith("DLR-") for p in train):
+        sources.append("DLR 3K Munich Vehicle")
+    return sources
+
+
 def output_format(onnx_path: Path, task: str, nc: int) -> str:
     shape = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"]).get_outputs()[0].shape
     raw_channels = 4 + nc + (1 if task == "obb" else 0)
@@ -53,7 +68,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--weights", default=str(ROOT / "runs" / "dealer-obb" / "weights" / "best.pt"))
     ap.add_argument("--version", default=dt.date.today().isoformat())
-    ap.add_argument("--training-data", nargs="*", default=["Dealership orthophoto tiles (state DOPs)", "DLR 3K Munich Vehicle"])
+    ap.add_argument("--training-data", nargs="*", default=None, help="provenance for the manifest (default: read from data/dataset)")
     ap.add_argument("--install", action="store_true")
     ap.add_argument("--install-dir", default=str(DEFAULT_INSTALL_DIR))
     args = ap.parse_args()
@@ -83,7 +98,7 @@ def main() -> None:
         "vehicleClasses": {str(i): APP_CLASS[n] for i, n in names.items() if n in APP_CLASS},
         "classOffsets": {str(i): CLASS_OFFSETS[n] for i, n in names.items() if n in CLASS_OFFSETS},
         "sha256": sha256(onnx_path),
-        "trainingData": args.training_data,
+        "trainingData": args.training_data if args.training_data is not None else training_data(),
         "license": "AGPL-3.0 (Ultralytics); training data licences apply",
         "limitations": [
             "Fine-tuned on a limited set of German dealership sites; validate on new regions before relying on counts",
