@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEALERSHIP_NOTES_MAX_LENGTH } from "./constants";
 import {
   LlmStreamEnvelopeSchema,
   ModelDownloadEnvelopeSchema,
@@ -73,6 +74,31 @@ describe("local model IPC payloads", () => {
         query: "x".repeat(101),
         sort: "trending",
       }).success,
+    ).toBe(false);
+  });
+});
+
+describe("dealership notes in saved sessions", () => {
+  const session = (notes: string): unknown => ({
+    session: {
+      id: "s1",
+      name: "Portfolio",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      dealerships: [{ id: "d1", name: "Dealer", lat: 51, lon: 7, notes }],
+    },
+  });
+
+  it("accepts notes up to the length limit and rejects longer ones", () => {
+    expect(
+      ipcRequest["sessions:save"].safeParse(
+        session("x".repeat(DEALERSHIP_NOTES_MAX_LENGTH)),
+      ).success,
+    ).toBe(true);
+    expect(
+      ipcRequest["sessions:save"].safeParse(
+        session("x".repeat(DEALERSHIP_NOTES_MAX_LENGTH + 1)),
+      ).success,
     ).toBe(false);
   });
 });

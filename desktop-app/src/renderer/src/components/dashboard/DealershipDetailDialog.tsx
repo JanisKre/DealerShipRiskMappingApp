@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import {
   Phone,
   RefreshCw,
   Save,
+  StickyNote,
   Tag,
 } from "lucide-react";
 import area from "@turf/area";
@@ -25,6 +26,7 @@ import type {
   StructuredMemo,
 } from "@shared/types";
 import { asPolygon, outerRings } from "@shared/boundary-geometry-utils";
+import { DEALERSHIP_NOTES_MAX_LENGTH } from "@shared/constants";
 import { sourceLabel } from "@shared/natcat-catalog";
 import { boundarySourceLabel } from "@renderer/lib/boundarySource";
 import { LlmErrorMessage } from "@renderer/components/ai/LlmSetupNotice";
@@ -41,6 +43,7 @@ import { Input } from "@renderer/components/ui/input";
 import { Label } from "@renderer/components/ui/label";
 import { Separator } from "@renderer/components/ui/separator";
 import { Switch } from "@renderer/components/ui/switch";
+import { Textarea } from "@renderer/components/ui/textarea";
 import { useAppStore } from "@renderer/store/appStore";
 import { eur, num, pct } from "@renderer/lib/format";
 import { riskColor } from "@renderer/lib/riskColor";
@@ -104,6 +107,8 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
       <OsmDetailsSection details={osmDetails} loading={osmLoading} />
 
       <PortfolioMetaSection d={d} />
+
+      <NotesSection d={d} />
 
       <NatCatSection d={d} />
 
@@ -980,6 +985,97 @@ function PortfolioMetaSection({
           />
         </label>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Free-text underwriting notes for one location, stored with the portfolio.
+ * Saves on the button, on blur, and when the dialog closes with unsaved
+ * changes, so closing via Escape never discards typed text.
+ */
+function NotesSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const updateNotes = useAppStore((s) => s.updateDealershipNotes);
+  const [draft, setDraft] = useState(d.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  useEffect(() => {
+    setDraft(d.notes ?? "");
+  }, [d.id, d.notes]);
+
+  // Flush unsaved text on unmount (dialog closed or another location opened).
+  useEffect(() => {
+    const id = d.id;
+    return () => {
+      void useAppStore
+        .getState()
+        .updateDealershipNotes(id, draftRef.current)
+        .catch((err: unknown) => {
+          console.error("Saving notes on close failed:", err);
+        });
+    };
+  }, [d.id]);
+
+  const dirty = (draft.trim() === "" ? "" : draft) !== (d.notes ?? "");
+
+  async function save(): Promise<void> {
+    if (!dirty) return;
+    setSaving(true);
+    try {
+      await updateNotes(d.id, draft);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <Label
+          htmlFor={`notes-${d.id}`}
+          className="flex items-center gap-1.5 text-sm font-semibold"
+        >
+          <StickyNote className="size-3.5 text-muted-foreground" />
+          {t("dashboard.detailDialog.notesTitle")}
+        </Label>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 gap-1 text-xs"
+          disabled={saving || !dirty}
+          onClick={() => void save()}
+        >
+          {saving ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Save className="size-3.5" />
+          )}
+          {t("dashboard.detailDialog.notesSave")}
+        </Button>
+      </div>
+      <Textarea
+        id={`notes-${d.id}`}
+        value={draft}
+        rows={4}
+        maxLength={DEALERSHIP_NOTES_MAX_LENGTH}
+        placeholder={t("dashboard.detailDialog.notesPlaceholder")}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => void save()}
+      />
+      <p className="text-[10px] text-muted-foreground">
+        {dirty
+          ? t("dashboard.detailDialog.notesUnsaved")
+          : d.notesUpdatedAt
+            ? t("dashboard.detailDialog.notesUpdatedAt", {
+                date: new Date(d.notesUpdatedAt).toLocaleString(i18n.language),
+              })
+            : t("dashboard.detailDialog.notesEmpty")}
+      </p>
     </div>
   );
 }

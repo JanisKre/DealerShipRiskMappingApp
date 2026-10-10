@@ -25,6 +25,11 @@ export const CAPACITY_SQM_PER_VEHICLE = 25;
  */
 export const RISK_MODEL_VERSION = "screening-0.4.0";
 
+// --- Dealership notes ------------------------------------------------------
+
+/** Upper bound for a dealership's free-text underwriting notes. */
+export const DEALERSHIP_NOTES_MAX_LENGTH = 10_000;
+
 // --- Hail EAL: EAL = N × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L) -------------
 //
 // Uncalibrated screening placeholders, agreed as starting values until the
