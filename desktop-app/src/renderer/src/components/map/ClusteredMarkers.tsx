@@ -4,6 +4,7 @@ import L from "leaflet";
 import "leaflet.markercluster";
 import type { AnalyzedDealership } from "@shared/types";
 import { effectiveVehicleCount } from "@shared/risk-math";
+import { isHttpWebsiteUrl, websiteLabel } from "@shared/website";
 import { eur } from "@renderer/lib/format";
 import { riskColor, riskLevel } from "@renderer/lib/riskColor";
 import { useMap } from "./leaflet-react";
@@ -34,6 +35,16 @@ function vehicleLabel(
   return d.detection.model === "stub-area-heuristic"
     ? `~${count} (${t("ui.estimated")})`
     : String(count);
+}
+
+/** Escapes text for the imperative Leaflet HTML (names come from imports/OSM). */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /** Builds the HTML content for an imperative Leaflet popup. */
@@ -70,9 +81,18 @@ function popupHtml(d: AnalyzedDealership, t: (key: string) => string): string {
          </div>`
       : "";
 
+  // Opened via the main process' window-open handler (http/https only).
+  const websiteHtml =
+    d.website && isHttpWebsiteUrl(d.website)
+      ? `<div class="popup-row">
+           <span>${t("ui.website")}</span>
+           <a href="${escapeHtml(d.website)}" target="_blank" rel="noreferrer" title="${escapeHtml(d.website)}">${escapeHtml(websiteLabel(d.website))}</a>
+         </div>`
+      : "";
+
   return `
     <div class="drm-popup">
-      <div class="popup-title">${d.name}</div>
+      <div class="popup-title">${escapeHtml(d.name)}</div>
       <div class="popup-row">
         <span>${t("ui.hailRisk")}</span>
         <span style="color:${color};font-weight:600">
@@ -86,6 +106,7 @@ function popupHtml(d: AnalyzedDealership, t: (key: string) => string): string {
       <div class="popup-row">
         <span>${t("common.vehicles")}</span><span>${vehicles}</span>
       </div>
+      ${websiteHtml}
       ${boundaryWarningHtml}
       ${modelWarningHtml}
       <button class="popup-details-btn" data-id="${d.id}">${t("ui.viewDetails")}</button>
@@ -174,7 +195,7 @@ export function ClusteredMarkers({
 
       // Hover tooltip: hail risk (the map's single score) and vehicle count.
       const tooltipText = [
-        `<strong>${d.name}</strong>`,
+        `<strong>${escapeHtml(d.name)}</strong>`,
         d.risk
           ? `${t("ui.hailRisk")}: ${Math.round(d.risk.overallScore)}/100 (${t(`risk.${riskLevel(d.risk.overallScore)}`)})`
           : t("ui.analyzing"),

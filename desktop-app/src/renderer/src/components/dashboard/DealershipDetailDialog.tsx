@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
 import {
+  Check,
   ChevronDown,
   Clock,
   ExternalLink,
@@ -11,11 +12,14 @@ import {
   Loader2,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   RefreshCw,
+  RotateCcw,
   Save,
   StickyNote,
   Tag,
+  X,
 } from "lucide-react";
 import area from "@turf/area";
 import type {
@@ -27,6 +31,7 @@ import type {
 } from "@shared/types";
 import { asPolygon, outerRings } from "@shared/boundary-geometry-utils";
 import { DEALERSHIP_NOTES_MAX_LENGTH } from "@shared/constants";
+import { WEBSITE_URL_MAX_LENGTH, websiteLabel } from "@shared/website";
 import { sourceLabel } from "@shared/natcat-catalog";
 import { boundarySourceLabel } from "@renderer/lib/boundarySource";
 import { LlmErrorMessage } from "@renderer/components/ai/LlmSetupNotice";
@@ -102,7 +107,13 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
         </DialogDescription>
       </DialogHeader>
 
-      <QuickLinksRow d={d} website={osmDetails?.website} />
+      <QuickLinksRow d={d} />
+
+      <WebsiteRow
+        d={d}
+        detectedWebsite={osmDetails?.website}
+        detecting={osmLoading}
+      />
 
       <OsmDetailsSection details={osmDetails} loading={osmLoading} />
 
@@ -752,7 +763,7 @@ function ManualVehicleCountEditor({
 
 /**
  * Loads additional OSM info (website, phone, opening hours, brand, ...) for a
- * coordinate — shared by `QuickLinksRow` (website link) and
+ * coordinate — shared by `WebsiteRow` (website link) and
  * `OsmDetailsSection` (full view) so it's only fetched once per location.
  */
 function useOsmDetails(
@@ -799,18 +810,10 @@ function openStreetMapUrl(lat: number, lon: number): string {
 }
 
 /**
- * Always-visible link row: a dealership-specific Google Maps search, the
- * coordinate-based OpenStreetMap view, and the official website when OSM has
- * provided one.
+ * Always-visible link row: a dealership-specific Google Maps search and the
+ * coordinate-based OpenStreetMap view.
  */
-function QuickLinksRow({
-  d,
-  website,
-}: {
-  d: AnalyzedDealership;
-  website?: string;
-}): React.JSX.Element {
-  const { t } = useTranslation();
+function QuickLinksRow({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-3 text-sm">
       <a
@@ -831,24 +834,191 @@ function QuickLinksRow({
         <ExternalLink className="size-3.5" />
         OpenStreetMap
       </a>
-      {website && (
+    </div>
+  );
+}
+
+/**
+ * The dealership's website: the stored link (manual or a previous OSM hit),
+ * else the one OpenStreetMap just found — which is then stored, so the map
+ * popup and later visits have it too. A manual link always wins; resetting
+ * it falls back to the automatic lookup.
+ */
+function WebsiteRow({
+  d,
+  detectedWebsite,
+  detecting,
+}: {
+  d: AnalyzedDealership;
+  detectedWebsite?: string;
+  detecting: boolean;
+}): React.JSX.Element {
+  const { t } = useTranslation();
+  const updateWebsite = useAppStore((s) => s.updateDealershipWebsite);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [invalid, setInvalid] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (detectedWebsite && d.websiteSource !== "manual")
+      void updateWebsite(d.id, detectedWebsite, "osm").catch((err: unknown) => {
+        console.error("Storing the detected website failed:", err);
+      });
+  }, [d.id, d.websiteSource, detectedWebsite, updateWebsite]);
+
+  useEffect(() => {
+    setEditing(false);
+  }, [d.id]);
+
+  const website =
+    d.website ?? (d.websiteSource !== "manual" ? detectedWebsite : undefined);
+  const manual = d.websiteSource === "manual";
+
+  function startEditing(): void {
+    setDraft(website ?? "");
+    setInvalid(false);
+    setEditing(true);
+  }
+
+  async function apply(value: string | null): Promise<void> {
+    setSaving(true);
+    try {
+      const ok = await updateWebsite(d.id, value, "manual");
+      if (!ok) {
+        setInvalid(true);
+        return;
+      }
+      setEditing(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <form
+        className="space-y-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void apply(draft.trim() === "" ? null : draft);
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <Globe className="size-3.5 shrink-0 text-muted-foreground" />
+          <Input
+            autoFocus
+            value={draft}
+            maxLength={WEBSITE_URL_MAX_LENGTH}
+            placeholder="https://www.autohaus-beispiel.de"
+            aria-label={t("dashboard.detailDialog.websiteEditLabel")}
+            aria-invalid={invalid}
+            className="h-8"
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setInvalid(false);
+            }}
+          />
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            className="h-8"
+            disabled={saving}
+            title={t("dashboard.detailDialog.websiteSave")}
+          >
+            <Check className="size-3.5" />
+            <span className="sr-only">
+              {t("dashboard.detailDialog.websiteSave")}
+            </span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8"
+            onClick={() => setEditing(false)}
+            title={t("dashboard.detailDialog.websiteCancel")}
+          >
+            <X className="size-3.5" />
+            <span className="sr-only">
+              {t("dashboard.detailDialog.websiteCancel")}
+            </span>
+          </Button>
+        </div>
+        {invalid && (
+          <p className="text-xs text-destructive">
+            {t("dashboard.detailDialog.websiteInvalid")}
+          </p>
+        )}
+      </form>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+      <Globe className="size-3.5 shrink-0 text-muted-foreground" />
+      {website ? (
         <a
           href={website}
           target="_blank"
           rel="noreferrer"
-          className="flex min-w-0 items-center gap-1.5 text-primary hover:underline"
+          className="min-w-0 truncate text-primary hover:underline"
+          title={website}
         >
-          <Globe className="size-3.5 shrink-0" />
-          <span className="truncate">{t("ui.website")}</span>
+          {websiteLabel(website)}
         </a>
+      ) : detecting ? (
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" />
+          {t("dashboard.detailDialog.websiteDetecting")}
+        </span>
+      ) : (
+        <span className="text-xs text-muted-foreground">
+          {t("dashboard.detailDialog.websiteNone")}
+        </span>
       )}
+      {website && (
+        <span className="text-xs text-muted-foreground">
+          {manual
+            ? t("dashboard.detailDialog.websiteSourceManual")
+            : t("dashboard.detailDialog.websiteSourceOsm")}
+        </span>
+      )}
+      <div className="ml-auto flex items-center gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 px-2 text-xs"
+          onClick={startEditing}
+        >
+          <Pencil className="size-3" />
+          {website
+            ? t("dashboard.detailDialog.websiteEdit")
+            : t("dashboard.detailDialog.websiteAdd")}
+        </Button>
+        {manual && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 px-2 text-xs"
+            disabled={saving}
+            onClick={() => void apply(null)}
+          >
+            <RotateCcw className="size-3" />
+            {t("dashboard.detailDialog.websiteReset")}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
 
 /**
  * Additional info from OpenStreetMap (phone, opening hours, brand, ...) — the
- * website is already in `QuickLinksRow`, not duplicated here. Hides itself
+ * website is already in `WebsiteRow`, not duplicated here. Hides itself
  * entirely when OSM has none of these tags for the location.
  */
 function OsmDetailsSection({
@@ -1070,11 +1240,15 @@ function NotesSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
       <p className="text-[10px] text-muted-foreground">
         {dirty
           ? t("dashboard.detailDialog.notesUnsaved")
-          : d.notesUpdatedAt
-            ? t("dashboard.detailDialog.notesUpdatedAt", {
-                date: new Date(d.notesUpdatedAt).toLocaleString(i18n.language),
-              })
-            : t("dashboard.detailDialog.notesEmpty")}
+          : !d.notes
+            ? t("dashboard.detailDialog.notesEmpty")
+            : d.notesUpdatedAt
+              ? t("dashboard.detailDialog.notesUpdatedAt", {
+                  date: new Date(d.notesUpdatedAt).toLocaleString(
+                    i18n.language,
+                  ),
+                })
+              : t("dashboard.detailDialog.notesSaved")}
       </p>
     </div>
   );

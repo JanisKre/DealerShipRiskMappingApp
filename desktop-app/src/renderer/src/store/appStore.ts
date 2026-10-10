@@ -18,6 +18,7 @@ import {
 import { boundaryNeedsReview } from "@shared/boundary-review";
 import { dedupeDealerships } from "@shared/dedupe";
 import { effectiveVehicleCount } from "@shared/risk-math";
+import { normalizeWebsiteUrl } from "@shared/website";
 import { riskLevel } from "@renderer/lib/riskColor";
 
 /**
@@ -146,6 +147,16 @@ interface AppState {
    * change time and persists the session right away.
    */
   updateDealershipNotes: (id: string, notes: string) => Promise<void>;
+  /**
+   * Stores a location's website and persists the session. `null` clears it
+   * (back to automatic lookup). An OSM link never replaces a manual one.
+   * Returns false when the URL isn't a usable http(s) website.
+   */
+  updateDealershipWebsite: (
+    id: string,
+    website: string | null,
+    source: "osm" | "manual",
+  ) => Promise<boolean>;
   /** Bulk-sets the insured flag for multiple locations at once. */
   setInsuredForDealerships: (ids: string[], insured: boolean) => void;
   /** Saves an optional human-reviewed vehicle count and recalculates risk. */
@@ -639,6 +650,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
     await get().saveSession();
   },
+  updateDealershipWebsite: async (id, website, source) => {
+    const current = get().dealerships.find((d) => d.id === id);
+    if (!current) return false;
+    const next = website === null ? undefined : normalizeWebsiteUrl(website);
+    if (website !== null && !next) return false;
+    if (source === "osm" && current.websiteSource === "manual") return true;
+    const websiteSource = next ? source : undefined;
+    if (next === current.website && websiteSource === current.websiteSource)
+      return true;
+    set((s) => ({
+      dealerships: s.dealerships.map((d) =>
+        d.id === id ? { ...d, website: next, websiteSource } : d,
+      ),
+    }));
+    await get().saveSession();
+    return true;
+  },
   setInsuredForDealerships: (ids, insured) =>
     set((s) => {
       const idSet = new Set(ids);
@@ -780,8 +808,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           );
         }
       }
-      // Notes edited while the re-analysis ran must not be overwritten by the
-      // snapshot `result` was built from.
+      // Notes and website edited while the re-analysis ran must not be
+      // overwritten by the snapshot `result` was built from.
       const latest = get().dealerships.find((x) => x.id === id);
       get().upsertDealership(
         latest
@@ -789,6 +817,8 @@ export const useAppStore = create<AppState>((set, get) => ({
               ...result,
               notes: latest.notes,
               notesUpdatedAt: latest.notesUpdatedAt,
+              website: latest.website,
+              websiteSource: latest.websiteSource,
             }
           : result,
       );

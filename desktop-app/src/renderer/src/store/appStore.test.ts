@@ -525,6 +525,116 @@ describe("dealership notes", () => {
   });
 });
 
+describe("dealership website", () => {
+  beforeEach(() => {
+    api.saveSession.mockResolvedValue(undefined);
+  });
+
+  it("stores a detected OSM website and persists the session", async () => {
+    useAppStore.setState({
+      dealerships: [{ ...firstInput } as AnalyzedDealership],
+    });
+
+    const ok = await useAppStore
+      .getState()
+      .updateDealershipWebsite("one", "autohaus.de", "osm");
+
+    expect(ok).toBe(true);
+    const [one] = useAppStore.getState().dealerships;
+    expect(one.website).toBe("https://autohaus.de/");
+    expect(one.websiteSource).toBe("osm");
+    expect(api.saveSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("never lets an OSM link replace a manual one", async () => {
+    useAppStore.setState({
+      dealerships: [
+        {
+          ...firstInput,
+          website: "https://manual.de/",
+          websiteSource: "manual",
+        } as AnalyzedDealership,
+      ],
+    });
+
+    await useAppStore
+      .getState()
+      .updateDealershipWebsite("one", "https://osm.de/", "osm");
+
+    const [one] = useAppStore.getState().dealerships;
+    expect(one.website).toBe("https://manual.de/");
+    expect(one.websiteSource).toBe("manual");
+    expect(api.saveSession).not.toHaveBeenCalled();
+  });
+
+  it("replaces an OSM link manually and resets back to automatic", async () => {
+    useAppStore.setState({
+      dealerships: [
+        {
+          ...firstInput,
+          website: "https://osm.de/",
+          websiteSource: "osm",
+        } as AnalyzedDealership,
+      ],
+    });
+
+    await useAppStore
+      .getState()
+      .updateDealershipWebsite("one", "www.richtig.de", "manual");
+    expect(useAppStore.getState().dealerships[0]).toMatchObject({
+      website: "https://www.richtig.de/",
+      websiteSource: "manual",
+    });
+
+    await useAppStore.getState().updateDealershipWebsite("one", null, "manual");
+    const [one] = useAppStore.getState().dealerships;
+    expect(one.website).toBeUndefined();
+    expect(one.websiteSource).toBeUndefined();
+    expect(api.saveSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects an invalid URL without changing the stored link", async () => {
+    useAppStore.setState({
+      dealerships: [
+        {
+          ...firstInput,
+          website: "https://osm.de/",
+          websiteSource: "osm",
+        } as AnalyzedDealership,
+      ],
+    });
+
+    const ok = await useAppStore
+      .getState()
+      .updateDealershipWebsite("one", "javascript:alert(1)", "manual");
+
+    expect(ok).toBe(false);
+    expect(useAppStore.getState().dealerships[0].website).toBe(
+      "https://osm.de/",
+    );
+    expect(api.saveSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps a website set while a re-analysis is running", async () => {
+    useAppStore.setState({
+      dealerships: [{ ...firstInput } as AnalyzedDealership],
+    });
+    api.analyzeDealership.mockImplementationOnce(async (input) => {
+      await useAppStore
+        .getState()
+        .updateDealershipWebsite("one", "autohaus.de", "manual");
+      return { ...input, risk: { overallScore: 10 } } as AnalyzedDealership;
+    });
+
+    await useAppStore.getState().reanalyzeDealership("one");
+
+    expect(useAppStore.getState().dealerships[0]).toMatchObject({
+      website: "https://autohaus.de/",
+      websiteSource: "manual",
+    });
+  });
+});
+
 describe("map focus", () => {
   it("requests a one-off fit to the given locations and clears the selection", () => {
     useAppStore.setState({ selectedId: "one", mapFocusIds: null });

@@ -102,3 +102,35 @@ describe("dealership notes in saved sessions", () => {
     ).toBe(false);
   });
 });
+
+describe("dealership website in saved sessions", () => {
+  const session = (website: string): unknown => ({
+    session: {
+      id: "s1",
+      name: "Portfolio",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      dealerships: [
+        {
+          id: "d1",
+          name: "Dealer",
+          lat: 51,
+          lon: 7,
+          website,
+          websiteSource: "manual",
+        },
+      ],
+    },
+  });
+
+  it("accepts http(s) websites and rejects other schemes", () => {
+    expect(
+      ipcRequest["sessions:save"].safeParse(session("https://autohaus.de/"))
+        .success,
+    ).toBe(true);
+    expect(
+      ipcRequest["sessions:save"].safeParse(session("javascript:alert(1)"))
+        .success,
+    ).toBe(false);
+  });
+});

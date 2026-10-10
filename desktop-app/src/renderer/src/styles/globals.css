@@ -233,7 +233,7 @@ body {
   background: var(--marker-color, #6b7280);
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
-  box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .risk-marker .marker-label {
@@ -244,7 +244,7 @@ body {
   font-weight: 700;
   line-height: 1;
   margin-top: -6px;
-  text-shadow: 0 1px 2px rgba(0,0,0,.4);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 /* Puls-Ring bei Auswahl */
@@ -259,9 +259,18 @@ body {
 }
 
 @keyframes marker-pulse {
-  0%   { transform: scale(0.8); opacity: 0.8; }
-  70%  { transform: scale(1.4); opacity: 0; }
-  100% { transform: scale(0.8); opacity: 0; }
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
 }
 
 /* ── Cluster-Icon ─────────────────────────────────────────────────────── */
@@ -275,7 +284,7 @@ body {
   align-items: center;
   justify-content: center;
   opacity: 0.88;
-  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* ── Karten-Popup ─────────────────────────────────────────────────────── */
@@ -283,7 +292,7 @@ body {
   border-radius: 10px;
   padding: 0;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .drm-popup-wrapper .leaflet-popup-content {
@@ -313,6 +322,18 @@ body {
 
 .drm-popup .popup-row span:first-child {
   color: #888;
+}
+
+.drm-popup .popup-row a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #2563eb;
+}
+
+.drm-popup .popup-row a:hover {
+  text-decoration: underline;
 }
 
 .drm-popup .popup-risk-track {
