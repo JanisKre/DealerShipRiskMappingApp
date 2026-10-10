@@ -5,6 +5,7 @@ import {
   HAIL_SEVERITY_CLASSES,
 } from "./constants";
 import { ImagerySelectionSchema } from "./imagery-sources";
+import { isHttpWebsiteUrl } from "./website";
 
 /**
  * Domain types + Zod schemas, shared between main and renderer.
@@ -123,6 +124,16 @@ export const DealershipInputSchema = z.object({
   notes: z.string().max(DEALERSHIP_NOTES_MAX_LENGTH).optional(),
   /** ISO timestamp of the last notes change. */
   notesUpdatedAt: z.string().optional(),
+  /** Dealership website (absolute http(s) URL). */
+  website: z
+    .string()
+    .refine(isHttpWebsiteUrl, "Website must be an http(s) URL")
+    .optional(),
+  /**
+   * Where `website` came from: found automatically via OpenStreetMap, or
+   * entered by the underwriter. A manual link is never overwritten.
+   */
+  websiteSource: z.enum(["osm", "manual"]).optional(),
   /**
    * Natural-catastrophe assessment used for scoring: imported data plus the
    * providers routed in the settings, combined per peril.

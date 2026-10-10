@@ -1,5 +1,6 @@
 import type { OsmDetails } from "@shared/types";
 import { haversineKm } from "@shared/risk-math";
+import { normalizeWebsiteUrl } from "@shared/website";
 import { cached, TTL } from "./cache.service";
 import { fetchOverpass } from "./boundary.service";
 
@@ -86,7 +87,7 @@ export async function getOsmDetails(
     return {
       name: tags.name,
       category: tags.shop ?? tags.amenity,
-      website: normalizeWebsite(tags.website ?? tags["contact:website"]),
+      website: normalizeWebsiteUrl(tags.website ?? tags["contact:website"]),
       phone: tags.phone ?? tags["contact:phone"],
       email: tags.email ?? tags["contact:email"],
       openingHours: tags.opening_hours,
@@ -108,10 +109,4 @@ function normalizeText(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
-}
-
-function normalizeWebsite(value?: string): string | undefined {
-  const trimmed = value?.trim();
-  if (!trimmed) return undefined;
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }

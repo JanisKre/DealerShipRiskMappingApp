@@ -86,8 +86,13 @@ export function DashboardPage(): React.JSX.Element {
   // Opened only by an explicit row/card click (`onSelect` below) — never
   // derived from the shared `selectedId`, which other actions (e.g. adding
   // a single address) set for the map's fly-to behavior and would otherwise
-  // pop this dialog open the moment the Dashboard mounts.
-  const [detail, setDetail] = useState<AnalyzedDealership | null>(null);
+  // pop this dialog open the moment the Dashboard mounts. Only the id is
+  // kept so edits made in the dialog (notes, website, …) show up live.
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detail = useMemo(
+    () => dealerships.find((d) => d.id === detailId) ?? null,
+    [dealerships, detailId],
+  );
   const [tileOrder, setTileOrder] = useState<DashboardTileId[]>(readTileOrder);
   const [draggedTile, setDraggedTile] = useState<DashboardTileId | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -246,7 +251,7 @@ export function DashboardPage(): React.JSX.Element {
                     {renderTile(id, {
                       filtered,
                       dealerships,
-                      onSelect: setDetail,
+                      onSelect: (d: AnalyzedDealership) => setDetailId(d.id),
                       onShowOnMap: showOnMap,
                       onShowAccumulation: showAccumulationOnMap,
                       onShowLocations: showLocationsOnMap,
@@ -274,7 +279,7 @@ export function DashboardPage(): React.JSX.Element {
         open={detail !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setDetail(null);
+            setDetailId(null);
             select(null);
           }
         }}
