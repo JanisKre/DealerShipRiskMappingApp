@@ -81,6 +81,19 @@ const api = {
       parameters,
     } satisfies IpcRequest["detect:vehicles"]),
 
+  countVehiclesOverTime: (
+    lat: number,
+    lon: number,
+    boundary?: IpcRequest["detect:vehiclesTimeline"]["boundary"],
+    parameters?: IpcRequest["detect:vehiclesTimeline"]["parameters"],
+  ): Promise<IpcResponse["detect:vehiclesTimeline"]> =>
+    ipcRenderer.invoke(IPC.detectVehiclesTimeline, {
+      lat,
+      lon,
+      boundary,
+      parameters,
+    } satisfies IpcRequest["detect:vehiclesTimeline"]),
+
   getOsmDetails: (
     lat: number,
     lon: number,

@@ -130,6 +130,42 @@ metadata service, so their dates are unknown. Most German locations show
 a handful of distinct images, at intervals of one to several years.
 Licence and attribution are the same as for Esri World Imagery.
 
+## Vehicle stock across image dates
+
+One image is a snapshot of a stock that turns over within weeks. On
+request (detail dialog, "Count stock across image dates"), the detector
+runs on up to four archived Esri images of the lot and reports the median
+and the range of the counts.
+
+Implementation: `desktop-app/src/main/services/vehicle-timeline.service.ts`
+and `desktop-app/src/shared/vehicle-timeline.ts`, IPC
+`detect:vehiclesTimeline`. Tests: `vehicle-timeline.service.test.ts`,
+`vehicle-timeline.test.ts`.
+
+- **Images**: the Wayback history at the detection zoom (z20, or z19 where
+  z20 is missing), newest first. Only dated images with a resolution of
+  0.25 m or finer (`DETECTION_MAX_RESOLUTION_M`) are counted, the same limit
+  as the automatic selection uses. Each image is captured from its own
+  Wayback version and counted inside the current boundary with the
+  installed model. Without a model the app refuses, because the area
+  heuristic would repeat one estimate.
+- **Result**: `DetectionResult.timeline` holds every count with its capture
+  date, resolution and Wayback version, plus median, minimum and maximum.
+  A one-line summary goes into `evidence.limitations`, so reports and memos
+  carry it.
+- **Risk model**: unchanged. Exposure and EAL still use the current count,
+  and the timeline is evidence only. Using the median for the exposure
+  would be a separate risk-model change with its own methodology note.
+
+Limitations: the images are typically one to several years apart and are
+often taken in different seasons. A range shows stock variability, but
+also differences in boundary fit, shadows, image quality and possible
+site changes (new buildings, re-paved lots). The current boundary is
+applied to older images too. Counts on 0.2 m orthophotos that Esri took
+over from the states are comparable to the main count; satellite scenes are
+excluded by the resolution limit. This is a screening estimate, not a stock
+audit.
+
 ## Licences and attribution
 
 Each registry entry carries the attribution required by the provider, with the

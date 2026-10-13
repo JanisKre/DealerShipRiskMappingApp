@@ -23,6 +23,8 @@ export const IPC = {
 
   // Vehicle detection
   detectVehicles: "detect:vehicles",
+  // Counts on archived Esri images of the same lot (evidence only)
+  detectVehiclesTimeline: "detect:vehiclesTimeline",
 
   // Weather / Risk
   fetchWeather: "weather:fetch",

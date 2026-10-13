@@ -695,7 +695,14 @@
         "showOnMap": "Map",
         "empty": "No archived Esri imagery versions are available for this location.",
         "hint": "Only versions in which the image changed here (zoom {{zoom}}). State orthophotos are not included.",
-        "truncated": "Older versions are hidden."
+        "truncated": "Older versions are hidden.",
+        "vehicles": "Vehicles",
+        "countButton": "Count stock across image dates",
+        "counting": "Counting on archived images…",
+        "countFailed": "Counting across image dates failed",
+        "countNeedsModel": "Requires the vehicle detection model.",
+        "countSummary_one": "{{count}} image counted: median {{median}}, range {{min}}–{{max}} vehicles. Evidence only – the exposure uses the current count.",
+        "countSummary_other": "{{count}} images counted: median {{median}}, range {{min}}–{{max}} vehicles. Evidence only – the exposure uses the current count."
       }
     },
     "hailEal": "Hail EAL",

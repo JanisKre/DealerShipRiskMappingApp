@@ -461,7 +461,14 @@
         "showOnMap": "Carte",
         "empty": "Aucune version d'image Esri archivée n'est disponible pour ce site.",
         "hint": "Uniquement les versions où l'image a changé ici (zoom {{zoom}}). Les orthophotos des Länder ne sont pas incluses.",
-        "truncated": "Les versions plus anciennes sont masquées."
+        "truncated": "Les versions plus anciennes sont masquées.",
+        "vehicles": "Véhicules",
+        "countButton": "Compter le stock sur plusieurs dates",
+        "counting": "Comptage sur les images archivées…",
+        "countFailed": "Le comptage sur plusieurs dates a échoué",
+        "countNeedsModel": "Nécessite le modèle de détection de véhicules.",
+        "countSummary_one": "{{count}} image comptée : médiane {{median}}, plage {{min}}–{{max}} véhicules. Indication seulement – l'exposition utilise le comptage actuel.",
+        "countSummary_other": "{{count}} images comptées : médiane {{median}}, plage {{min}}–{{max}} véhicules. Indication seulement – l'exposition utilise le comptage actuel."
       }
     }
   },

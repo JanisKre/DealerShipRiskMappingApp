@@ -418,6 +418,30 @@ export const DetectionEvaluationSchema = z.object({
 });
 export type DetectionEvaluation = z.infer<typeof DetectionEvaluationSchema>;
 
+/** Machine count on one archived image of the lot (Esri Wayback). */
+export const VehicleTimelineCountSchema = z.object({
+  candidateId: z.string(),
+  capturedAt: z.string().nullable(),
+  resolutionM: z.number().nullable(),
+  /** Wayback version the image was taken from. */
+  publishedAt: z.string().optional(),
+  vehicleCount: z.number().int().nonnegative(),
+});
+export type VehicleTimelineCount = z.infer<typeof VehicleTimelineCountSchema>;
+
+/**
+ * Vehicle counts on several dated images of the same lot. Evidence only:
+ * the exposure still uses the single count above (docs/imagery-sources.md).
+ */
+export const VehicleTimelineSchema = z.object({
+  counts: z.array(VehicleTimelineCountSchema),
+  median: z.number().nonnegative(),
+  min: z.number().int().nonnegative(),
+  max: z.number().int().nonnegative(),
+  computedAt: z.string(),
+});
+export type VehicleTimeline = z.infer<typeof VehicleTimelineSchema>;
+
 export const DetectionResultSchema = z.object({
   vehicleCount: z.number().int().nonnegative(),
   /** Optional human-reviewed count used for underwriting calculations. */
@@ -435,6 +459,8 @@ export const DetectionResultSchema = z.object({
   evaluation: DetectionEvaluationSchema.optional(),
   /** Imagery the vehicles were counted on: source, capture date, alternatives. */
   imagery: ImagerySelectionSchema.optional(),
+  /** Counts on earlier images of the lot, when requested. */
+  timeline: VehicleTimelineSchema.optional(),
 });
 export type DetectionResult = z.infer<typeof DetectionResultSchema>;
 
