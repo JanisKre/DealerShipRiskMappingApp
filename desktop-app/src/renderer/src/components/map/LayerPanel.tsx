@@ -332,13 +332,22 @@ export function LayerPanel({
   const [open, setOpen] = useState(false);
   const bmLabels = basemapLabels(t);
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
+  // The year the pinned image was taken, not when Esri published the
+  // version (a 2022 version can show a 2020 orthophoto).
+  const pinnedCandidate =
+    pinnedWayback && imageryTimeline
+      ? waybackCandidateForVersion(imageryTimeline.candidates, pinnedWayback)
+      : null;
+  const pinnedYear = pinnedCandidate?.capturedAt?.slice(0, 4);
   const basemapBadge =
     basemap === "satellite" && pinnedWayback && imageryTimelineAvailable
-      ? `${bmLabels[basemap]} · ${pinnedWayback.publishedAt.slice(0, 4)}`
+      ? pinnedYear
+        ? `${bmLabels[basemap]} · ${pinnedYear}`
+        : `${bmLabels[basemap]} · ${t("map.layerPanel.imageryVersionPinnedBadge")}`
       : bmLabels[basemap];
 
   return (
-    <div className="glass flex flex-col rounded-lg border shadow-lg">
+    <div className="glass pointer-events-auto flex max-h-full min-h-0 flex-col rounded-lg border shadow-lg">
       {/* Fixed header — collapses/expands the entire panel */}
       <button
         type="button"
@@ -362,7 +371,8 @@ export function LayerPanel({
 
       {open && (
         <>
-          <div className="px-3">
+          {/* Scrolls when the open sections are taller than the map. */}
+          <div className="min-h-0 overflow-y-auto px-3">
             {/* Basemap — collapsed, current value as badge */}
             <Section
               icon={<Map className="size-3" />}

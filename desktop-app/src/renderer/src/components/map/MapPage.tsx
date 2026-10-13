@@ -883,7 +883,7 @@ export function MapPage(): React.JSX.Element {
       </div>
 
       {/* Layer control bottom right, collapsible */}
-      <div className="absolute bottom-6 right-3 z-[1000] w-60">
+      <div className="pointer-events-none absolute bottom-6 right-3 top-3 z-[1000] flex w-60 flex-col justify-end">
         <LayerPanel
           drawing={drawingScenario}
           onToggleDraw={() => setDrawingScenario((d) => !d)}

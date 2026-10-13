@@ -962,7 +962,7 @@
       "copyButton": "Kopieren",
       "copyTitle": "In Zwischenablage",
       "imageryVersionLabel": "Bildstand",
-      "imageryVersionAuto": "Automatisch (aktuellste passende Quelle)",
+      "imageryVersionAuto": "Automatisch",
       "imageryVersionPublished": "Wayback-Version vom {{date}}",
       "imageryVersionHint_one": "{{count}} Esri-Bildstand an der Kartenmitte (Esri World Imagery Wayback).",
       "imageryVersionHint_other": "{{count}} Esri-Bildstände an der Kartenmitte (Esri World Imagery Wayback).",
@@ -972,7 +972,8 @@
       "recentSceneCloud": "{{pct}} % Wolken",
       "recentSceneOpacityAriaLabel": "Deckkraft der aktuellen Szene",
       "recentSceneHint": "NASA HLS (Sentinel-2/Landsat), 30 m. Zeigt Veränderungen am Standort seit dem scharfen Bild – keine Fahrzeuge.",
-      "recentSceneNone": "Keine Szene mit höchstens {{cloud}} % Wolken in den letzten {{days}} Tagen."
+      "recentSceneNone": "Keine Szene mit höchstens {{cloud}} % Wolken in den letzten {{days}} Tagen.",
+      "imageryVersionPinnedBadge": "Archiv"
     },
     "multiPerilOverlay": {
       "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"

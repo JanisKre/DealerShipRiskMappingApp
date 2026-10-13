@@ -603,7 +603,7 @@
       "copyButton": "Copier",
       "copyTitle": "Copier dans le presse-papiers",
       "imageryVersionLabel": "Version de l'image",
-      "imageryVersionAuto": "Automatique (source adaptée la plus récente)",
+      "imageryVersionAuto": "Automatique",
       "imageryVersionPublished": "Version Wayback du {{date}}",
       "imageryVersionHint_one": "{{count}} version d'image Esri au centre de la carte (Esri World Imagery Wayback).",
       "imageryVersionHint_other": "{{count}} versions d'image Esri au centre de la carte (Esri World Imagery Wayback).",
@@ -613,7 +613,8 @@
       "recentSceneCloud": "{{pct}} % de nuages",
       "recentSceneOpacityAriaLabel": "Opacité de la scène récente",
       "recentSceneHint": "NASA HLS (Sentinel-2/Landsat), 30 m. Montre les changements du site depuis l'image nette – pas les véhicules.",
-      "recentSceneNone": "Aucune scène avec au plus {{cloud}} % de nuages au cours des {{days}} derniers jours."
+      "recentSceneNone": "Aucune scène avec au plus {{cloud}} % de nuages au cours des {{days}} derniers jours.",
+      "imageryVersionPinnedBadge": "archive"
     },
     "multiPerilOverlay": {
       "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"
