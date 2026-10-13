@@ -169,10 +169,20 @@
       "esriOption": "Esri World Imagery",
       "esriShort": "Utiliser Esri uniquement",
       "tileTemplateLabel": "Modèle de tuile",
-      "tileTemplateHint": "URL XYZ avec {z}/{x}/{y} ou URL WMS GetMap avec {bbox-epsg-3857}. Revient à Esri sans modèle valide.",
+      "tileTemplateHint": "URL XYZ HTTPS avec {z}/{x}/{y} ou URL WMS GetMap avec {bbox-epsg-3857} ; {time} en option. Revient à Esri sans modèle valide.",
       "autoOption": "Automatique (recommandé)",
       "autoShort": "Meilleure source disponible par site",
-      "autoHint": "Choisit la source la plus récente par site : Esri World Imagery ou l'orthophoto officielle du Land (14 Länder avec service ouvert). La carte et la détection de véhicules utilisent la même source ; le choix est enregistré avec chaque détection."
+      "autoHint": "Choisit la source la plus récente par site : Esri World Imagery ou l'orthophoto officielle du Land (14 Länder avec service ouvert). La carte et la détection de véhicules utilisent la même source ; le choix est enregistré avec chaque détection.",
+      "tileTemplateErrors": {
+        "empty": "Veuillez saisir un modèle.",
+        "too-long": "Le modèle est trop long (2048 caractères max.).",
+        "invalid-url": "Ce n'est pas une URL valide.",
+        "not-https": "Seules les adresses HTTPS sont autorisées.",
+        "credentials": "Les identifiants dans l'URL ne sont pas autorisés.",
+        "placeholder-in-host": "Les espaces réservés ne sont autorisés que dans le chemin ou la requête, pas dans le nom du serveur.",
+        "unknown-placeholder": "Espace réservé inconnu. Autorisés : {z}, {x}, {y}, {bbox-epsg-3857} et {time}.",
+        "missing-placeholders": "Il manque {z}/{x}/{y} ou {bbox-epsg-3857}."
+      }
     },
     "appearance": {
       "title": "Apparence",

@@ -1,6 +1,7 @@
 import { safeStorage } from "electron";
 import type { LlmProvider, NatCatApiProvider, Settings } from "@shared/types";
 import { SettingsSchema } from "@shared/types";
+import { validateTileTemplate } from "@shared/tile-template";
 import { getDb } from "../db/database";
 
 /**
@@ -35,6 +36,15 @@ export function getSettings(): Settings {
 }
 
 export function setSettings(partial: Partial<Settings>): Settings {
+  // The custom tile template is fetched by the main process; reject it here
+  // rather than at use, so the user sees why it was not saved.
+  if (partial.wmsTileUrl !== undefined) {
+    const check = validateTileTemplate(partial.wmsTileUrl);
+    if (!check.ok) {
+      throw new Error(`Invalid tile template (${check.problem})`);
+    }
+    partial = { ...partial, wmsTileUrl: check.template };
+  }
   const merged = { ...getSettings(), ...partial };
   const validated = SettingsSchema.parse(merged);
   getDb()

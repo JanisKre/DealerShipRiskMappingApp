@@ -4,6 +4,7 @@
  */
 
 import { fillTileTemplate } from "./imagery-sources";
+import { validateTileTemplate } from "./tile-template";
 
 // --- Vehicle exposure -------------------------------------------------------
 
@@ -145,14 +146,14 @@ export function buildTileUrl(
   x: number,
   opts: { wmsTemplate?: string; time?: string } = {},
 ): string {
-  if (
-    provider === "wms" &&
-    opts.wmsTemplate &&
-    opts.wmsTemplate.includes("{")
-  ) {
-    return fillTileTemplate(opts.wmsTemplate, z, x, y).replaceAll(
+  const custom =
+    provider === "wms" && opts.wmsTemplate
+      ? validateTileTemplate(opts.wmsTemplate)
+      : null;
+  if (custom?.ok) {
+    return fillTileTemplate(custom.template, z, x, y).replaceAll(
       "{time}",
-      opts.time ?? "",
+      encodeURIComponent(opts.time ?? ""),
     );
   }
   return buildEsriTileUrl(z, y, x);

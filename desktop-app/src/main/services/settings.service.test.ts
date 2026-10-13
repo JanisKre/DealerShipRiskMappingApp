@@ -77,6 +77,24 @@ describe("settings persistence", () => {
     );
   });
 
+  it("validates and normalizes a custom tile template before saving", () => {
+    mocks.statement.get.mockReturnValue({ value: JSON.stringify({}) });
+
+    expect(() =>
+      setSettings({ wmsTileUrl: "http://insecure.example.com/{z}/{x}/{y}" }),
+    ).toThrow(/not-https/);
+    expect(() =>
+      setSettings({ wmsTileUrl: "https://{s}.example.com/{z}/{x}/{y}" }),
+    ).toThrow(/unknown-placeholder/);
+    expect(mocks.statement.run).not.toHaveBeenCalled();
+
+    expect(
+      setSettings({ wmsTileUrl: " https://t.example.com/{z}/{x}/{y}.png " })
+        .wmsTileUrl,
+    ).toBe("https://t.example.com/{z}/{x}/{y}.png");
+    mocks.statement.get.mockReset();
+  });
+
   it("migrates a stored legacy boundary engine to fusion", () => {
     mocks.statement.get.mockReturnValueOnce({
       value: JSON.stringify({ language: "de", boundaryEngine: "legacy" }),
