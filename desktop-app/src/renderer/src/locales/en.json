@@ -389,10 +389,20 @@
       "esriOption": "Esri World Imagery",
       "esriShort": "Use Esri only",
       "tileTemplateLabel": "Tile Template",
-      "tileTemplateHint": "XYZ URL with {z}/{x}/{y} or WMS GetMap URL with {bbox-epsg-3857}. Falls back to Esri without a valid template.",
+      "tileTemplateHint": "HTTPS XYZ URL with {z}/{x}/{y} or WMS GetMap URL with {bbox-epsg-3857}; optional {time}. Falls back to Esri without a valid template.",
       "autoOption": "Automatic (recommended)",
       "autoShort": "Best available source per location",
-      "autoHint": "Picks the newest source per location: Esri World Imagery or the official state orthophoto (14 German states with an open service). Map view and vehicle detection use the same source; the choice is stored with every detection."
+      "autoHint": "Picks the newest source per location: Esri World Imagery or the official state orthophoto (14 German states with an open service). Map view and vehicle detection use the same source; the choice is stored with every detection.",
+      "tileTemplateErrors": {
+        "empty": "Please enter a template.",
+        "too-long": "The template is too long (max. 2048 characters).",
+        "invalid-url": "This is not a valid URL.",
+        "not-https": "Only HTTPS addresses are allowed.",
+        "credentials": "Credentials in the URL are not allowed.",
+        "placeholder-in-host": "Placeholders are only allowed in the path or query, not in the server name.",
+        "unknown-placeholder": "Unknown placeholder. Allowed are {z}, {x}, {y}, {bbox-epsg-3857} and {time}.",
+        "missing-placeholders": "{z}/{x}/{y} or {bbox-epsg-3857} is missing."
+      }
     },
     "appearance": {
       "title": "Appearance",

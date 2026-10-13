@@ -389,10 +389,20 @@
       "esriOption": "Esri World Imagery",
       "esriShort": "Nur Esri verwenden",
       "tileTemplateLabel": "Kachel-Template",
-      "tileTemplateHint": "XYZ-URL mit {z}/{x}/{y} oder WMS-GetMap-URL mit {bbox-epsg-3857}. Ohne gültiges Template wird auf Esri zurückgefallen.",
+      "tileTemplateHint": "HTTPS-XYZ-URL mit {z}/{x}/{y} oder WMS-GetMap-URL mit {bbox-epsg-3857}; optional {time}. Ohne gültiges Template wird auf Esri zurückgefallen.",
       "autoOption": "Automatisch (empfohlen)",
       "autoShort": "Beste verfügbare Quelle je Standort",
-      "autoHint": "Wählt pro Standort die neueste Quelle: Esri World Imagery oder das amtliche Orthophoto des Bundeslandes (14 Länder mit offenem Dienst). Kartenansicht und Fahrzeugerkennung nutzen dieselbe Quelle; die Auswahl wird mit jeder Erkennung gespeichert."
+      "autoHint": "Wählt pro Standort die neueste Quelle: Esri World Imagery oder das amtliche Orthophoto des Bundeslandes (14 Länder mit offenem Dienst). Kartenansicht und Fahrzeugerkennung nutzen dieselbe Quelle; die Auswahl wird mit jeder Erkennung gespeichert.",
+      "tileTemplateErrors": {
+        "empty": "Bitte ein Template eingeben.",
+        "too-long": "Das Template ist zu lang (max. 2048 Zeichen).",
+        "invalid-url": "Das ist keine gültige URL.",
+        "not-https": "Nur HTTPS-Adressen sind erlaubt.",
+        "credentials": "Zugangsdaten in der URL sind nicht erlaubt.",
+        "placeholder-in-host": "Platzhalter sind nur im Pfad oder in der Abfrage erlaubt, nicht im Servernamen.",
+        "unknown-placeholder": "Unbekannter Platzhalter. Erlaubt sind {z}, {x}, {y}, {bbox-epsg-3857} und {time}.",
+        "missing-placeholders": "Es fehlen {z}/{x}/{y} oder {bbox-epsg-3857}."
+      }
     },
     "appearance": {
       "title": "Darstellung",

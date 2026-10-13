@@ -35,6 +35,7 @@ import {
   type MapViewPoint,
 } from "@renderer/lib/useImagerySelection";
 import { useImageryTimeline } from "@renderer/lib/useImageryTimeline";
+import { validateTileTemplate } from "@shared/tile-template";
 import { useRecentScenes } from "@renderer/lib/useRecentScenes";
 import {
   GIBS_ATTRIBUTION,
@@ -299,12 +300,9 @@ export function MapPage(): React.JSX.Element {
   const [wmsUrl, setWmsUrl] = useState<string | null>(null);
   useEffect(() => {
     window.api.getSettings().then((s) => {
-      if (
-        s.satelliteProvider === "wms" &&
-        s.wmsTileUrl &&
-        s.wmsTileUrl.includes("{")
-      ) {
-        setWmsUrl(s.wmsTileUrl);
+      if (s.satelliteProvider === "wms" && s.wmsTileUrl) {
+        const check = validateTileTemplate(s.wmsTileUrl);
+        if (check.ok) setWmsUrl(check.template);
       }
     });
   }, []);

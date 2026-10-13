@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { validateTileTemplate } from "@shared/tile-template";
 import { useSearchParams } from "react-router-dom";
 import { Loader2, Monitor, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
@@ -63,6 +64,10 @@ export function SettingsPage(): React.JSX.Element {
   useEffect(() => {
     setWmsTileUrl(settings?.wmsTileUrl ?? "");
   }, [settings?.wmsTileUrl]);
+
+  // Checked as the user types; only a valid template (or none) is saved.
+  const wmsCheck =
+    wmsTileUrl.trim() === "" ? null : validateTileTemplate(wmsTileUrl);
 
   const settingsLoaded = settings !== null;
   useEffect(() => {
@@ -245,12 +250,22 @@ export function SettingsPage(): React.JSX.Element {
               <Input
                 value={wmsTileUrl}
                 placeholder="https://…/{z}/{x}/{y}.png"
+                aria-invalid={wmsCheck?.ok === false}
                 onChange={(e) => setWmsTileUrl(e.target.value)}
                 onBlur={() => {
-                  if (wmsTileUrl !== (settings.wmsTileUrl ?? ""))
-                    void update({ wmsTileUrl: wmsTileUrl || undefined });
+                  if (wmsCheck?.ok === false) return;
+                  const next = wmsCheck?.ok ? wmsCheck.template : undefined;
+                  if (next !== settings.wmsTileUrl)
+                    void update({ wmsTileUrl: next });
                 }}
               />
+              {wmsCheck?.ok === false && (
+                <p className="text-xs text-destructive">
+                  {t(
+                    `settings.satelliteSource.tileTemplateErrors.${wmsCheck.problem}`,
+                  )}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
                 {t("settings.satelliteSource.tileTemplateHint")}
               </p>

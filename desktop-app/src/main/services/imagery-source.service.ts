@@ -13,6 +13,7 @@ import {
   type ImagerySelection,
 } from "@shared/imagery-sources";
 import { buildWaybackTileUrl } from "@shared/imagery-wayback";
+import { isUsableTileTemplate } from "@shared/tile-template";
 import { cached, cacheKeyFragment, TTL } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
 import { getEsriImageryMetadata } from "./imagery-metadata.service";
@@ -172,7 +173,7 @@ function currentMode(): ImagerySelection["mode"] {
   const wms = getSettings().wmsTileUrl;
   // A "wms" setting without a usable template behaves like Esri everywhere
   // else in the app (buildTileUrl falls back), so report it as such.
-  if (provider === "wms" && !(wms && wms.includes("{"))) return "esri";
+  if (provider === "wms" && !isUsableTileTemplate(wms)) return "esri";
   return provider;
 }
 
@@ -272,7 +273,10 @@ export function tileSourceForCandidate(
     };
   }
   if (candidate.kind === "custom") {
-    const template = getSettings().wmsTileUrl ?? "";
+    const template = getSettings().wmsTileUrl;
+    // An unusable template is never fetched (buildTileUrl would fall back
+    // to Esri anyway); keep the Esri cache id so tiles are not mislabelled.
+    if (!isUsableTileTemplate(template)) return ESRI_TILE_SOURCE;
     return {
       cacheId: `wms:${cacheKeyFragment(template)}`,
       url: (z, y, x, time) =>
