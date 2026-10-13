@@ -4,7 +4,6 @@ import type { TFunction } from "i18next";
 import { toast } from "sonner";
 import {
   Check,
-  ChevronDown,
   Clock,
   ExternalLink,
   FileText,
@@ -57,8 +56,8 @@ import { DetectionImageryNote } from "./DetectionImageryNote";
 import { ImageryHistorySection } from "./ImageryHistorySection";
 
 /**
- * Detail dialog for a location: area/capacity/utilisation, EAL breakdown
- * per peril, boundary source, and on-demand AI (structured memo + boundary
+ * Detail dialog for a location: area/capacity/utilisation, hail EAL
+ * breakdown, boundary source, and on-demand AI (structured memo + boundary
  * refinement). Controlled via `open`/`onOpenChange`.
  */
 export function DealershipDetailDialog({
@@ -92,7 +91,6 @@ function DetailBody({
   const score = d.risk?.overallScore ?? 0;
   const hailScore =
     d.risk?.perils.find((peril) => peril.peril === "hail")?.score ?? score;
-  const [showAdditionalScores, setShowAdditionalScores] = useState(false);
   const eb = d.risk?.ealBreakdown;
   const { details: osmDetails, loading: osmLoading } = useOsmDetails(
     d.lat,
@@ -169,24 +167,9 @@ function DetailBody({
       <Separator />
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className="text-sm font-semibold">
-            {t("dashboard.detailDialog.mainScoreTitle")}
-          </h4>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1 px-2 text-xs"
-            onClick={() => setShowAdditionalScores((visible) => !visible)}
-          >
-            {showAdditionalScores
-              ? t("dashboard.detailDialog.hideAdditionalScores")
-              : t("dashboard.detailDialog.showAdditionalScores")}
-            <ChevronDown
-              className={`size-3.5 transition-transform ${showAdditionalScores ? "rotate-180" : ""}`}
-            />
-          </Button>
-        </div>
+        <h4 className="text-sm font-semibold">
+          {t("dashboard.detailDialog.mainScoreTitle")}
+        </h4>
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline" className="gap-1">
             <span>{t("dashboard.detailDialog.hailScoreLabel")}</span>
@@ -194,20 +177,6 @@ function DetailBody({
               {hailScore.toFixed(0)}
             </span>
           </Badge>
-          {showAdditionalScores &&
-            d.risk?.perils
-              .filter((peril) => peril.peril !== "hail")
-              .map((p) => (
-                <Badge key={p.peril} variant="outline" className="gap-1">
-                  <span>{t(`dashboard.detailDialog.ealPeril.${p.peril}`)}</span>
-                  <span
-                    className="font-mono"
-                    style={{ color: riskColor(p.score) }}
-                  >
-                    {p.score.toFixed(0)}
-                  </span>
-                </Badge>
-              ))}
         </div>
 
         {d.hailZone != null && (
@@ -661,7 +630,7 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
                   score: hazard.score.toFixed(0),
                   unit: hazard.unit,
                 })}
-                {/* Per-peril source when several providers are combined. */}
+                {/* Source per value in assessments combined by older builds. */}
                 {assessment.provider === "composite" && hazard.provider && (
                   <span className="text-muted-foreground">
                     {" "}

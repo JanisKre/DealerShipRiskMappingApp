@@ -4,21 +4,22 @@ import {
   sourcesToQuery,
 } from "@shared/natcat-routing";
 import type { NatCatConnectorTest } from "@shared/ipc-schema";
-import type { NatCatApiProvider, NatCatAssessment } from "@shared/types";
+import {
+  PERILS,
+  type NatCatApiProvider,
+  type NatCatAssessment,
+} from "@shared/types";
 import { fetchHazardApiAssessment } from "./hazard-api.service";
 import { getNatCatApiKey, getSettings } from "./settings.service";
 
 /**
- * Resolves the natural-catastrophe assessment of one location from the
- * routing in the settings: queries every connected API source the routing
- * needs (in parallel), then combines them with the location's imported data
- * per peril. A failed source falls back along the chain and is recorded in
- * the evidence; it never aborts the analysis.
+ * Resolves the hail assessment of one location from the NatCat source chosen
+ * in the settings. A failed source falls back to the screening model; it
+ * never aborts the analysis.
  */
 export async function resolveNatCat(
   lat: number,
   lon: number,
-  imported?: NatCatAssessment,
 ): Promise<NatCatAssessment | undefined> {
   const routing = effectiveNatCatRouting(getSettings().natCat);
   const providers = sourcesToQuery(routing);
@@ -40,7 +41,7 @@ export async function resolveNatCat(
       results[provider] = error;
     }
   });
-  return composeNatCat({ routing, imported, results });
+  return composeNatCat({ routing, results });
 }
 
 async function lookup(
@@ -53,7 +54,9 @@ async function lookup(
   if (!endpoint) throw new Error(`${provider} is not connected`);
   const apiKey = getNatCatApiKey(provider);
   if (!apiKey) throw new Error(`${provider} API key is not configured`);
-  return fetchHazardApiAssessment(lat, lon, { provider, endpoint, apiKey });
+  return fetchHazardApiAssessment(lat, lon, { provider, endpoint, apiKey }, [
+    ...PERILS,
+  ]);
 }
 
 /** Reference location for connection tests: Frankfurt am Main. */

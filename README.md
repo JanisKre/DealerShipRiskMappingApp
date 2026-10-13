@@ -73,7 +73,7 @@ rate limiting).
 The core workflow in one sentence:
 
 > **Import CSV → automatically detect lot boundaries → count vehicles on
-> aerial imagery via YOLOv26 → score wind/lightning/snow/flood/hail →
+> aerial imagery via YOLOv26 → score hail and the hail EAL →
 > map + dashboard → AI underwriting memo → export.**
 
 ## Features
@@ -89,8 +89,9 @@ The core workflow in one sentence:
 - ✏️ **Boundary review** — manually edited parking boundaries are rescored
   immediately and offer an explicit “Update car detection” action for the new
   area
-- 🌪️ **Risk scoring across 5 perils** — wind, lightning, snow, flood (pluvial),
-  hail; EAL (Expected Annual Loss), PML, cluster risk, scenario simulation
+- 🧊 **Hail risk scoring** — hail only: hail score from GDV hail zones, a
+  licensed provider or an Open-Meteo CAPE proxy; hail EAL (Expected Annual
+  Loss), accumulations, hailstorm scenario simulation
 - 📊 **Dashboard & analysis** — KPIs, charts (recharts), sortable/filterable
   table, detail dialog, portfolio comparison
 - 🧠 **LLM layer** — underwriting memos, executive summaries, portfolio chat,

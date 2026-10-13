@@ -89,10 +89,6 @@
         "title": "Hail EAL",
         "description": "Frequency per hail zone (λ), event classes (p), and loss per vehicle (S) for the expected annual loss."
       },
-      "scores": {
-        "title": "Peril scores",
-        "description": "Thresholds at which measured values reach their maximum peril score."
-      },
       "portfolio": {
         "title": "Portfolio, PML & scenarios",
         "description": "Concentration risk, reinsurance and portfolio-level stress scenarios."
@@ -106,12 +102,7 @@
       "eur": "€",
       "squareMeters": "m²",
       "fraction": "share",
-      "kmh": "km/h",
       "factor": "factor",
-      "strikesPerSqKmYear": "strikes/km²/year",
-      "daysPerYear": "days/year",
-      "centimeters": "cm",
-      "millimetersPerYear": "mm/year",
       "kilometers": "km",
       "meters": "m",
       "eventsPerYear": "events/year",
@@ -132,28 +123,6 @@
         "label": "Area per vehicle",
         "description": "Assumption used to estimate site capacity.",
         "tip": "The most important lever for estimated capacity when no reliable vehicle count is available."
-      },
-      "heatHotdaysScoreMax": {
-        "label": "Hot days for score 100",
-        "description": "Number of hot days needed for the maximum heat score."
-      },
-      "windScoreMaxKmh": {
-        "label": "Wind at score 100",
-        "description": "Wind speed for the maximum wind score.",
-        "tip": "Useful when the score should follow an internal threshold model."
-      },
-      "lightningScoreMaxDensity": {
-        "label": "Lightning density at score 100",
-        "description": "Lightning density for the maximum lightning score."
-      },
-      "snowScoreMaxCm": {
-        "label": "Snow at score 100",
-        "description": "Snow depth for the maximum snow score."
-      },
-      "floodScoreMaxAnnualPrecipMm": {
-        "label": "Precipitation at score 100",
-        "description": "Annual precipitation for the maximum flood score.",
-        "tip": "Defines the annual precipitation at which the flood score reaches its maximum."
       },
       "pmlDamageFraction10": {
         "label": "PML damage share, 10 years",
@@ -310,69 +279,51 @@
     "apiKeySetPlaceholder": "•••••••• (stored) — enter a new key to replace",
     "apiKeyUnsetPlaceholder": "Stored encrypted (OS keychain)",
     "natCat": {
-      "title": "Natural hazard data sources",
+      "title": "Hail data source",
       "statusDefault": "Default: screening",
       "statusLicensed": "Licensed data active",
       "reset": "Reset to default",
-      "resetHint": "Score all perils with the Open-Meteo screening again. Connected providers stay saved.",
-      "intro": "Choose where each peril gets its values: a primary source for all perils and, if needed, specialists for single perils (e.g. flood). Without a choice, the Open-Meteo screening applies.",
+      "resetHint": "Score hail with the screening again (GDV hail zones, Open-Meteo). Connected providers stay saved.",
+      "intro": "Choose where the hail score comes from. Without a choice, the screening applies: GDV hail zones by postcode, otherwise an Open-Meteo weather estimate. The app assesses hail only.",
       "screening": "Screening (Open-Meteo)",
       "screeningDefault": "Screening (Open-Meteo) – default",
       "notConnected": "not connected",
       "keySet": "•••••••• (stored) – enter a new key to replace",
       "keyUnset": "Stored encrypted (OS keychain)",
       "routing": {
-        "title": "Source per peril",
-        "primary": "Primary source",
-        "followPrimary": "Same as primary ({{source}})",
-        "order": "Order per peril: chosen source → the location's imported ZÜRS data → primary source → screening. If a source returns no value, the next one applies; this is noted on the location.",
+        "primary": "Hail source",
+        "order": "If the chosen provider fails or returns no hail value, the screening applies.",
         "applies": "Changes apply to new analyses. Update existing locations via “Re-analyze” or “Re-query sources” in the location details."
-      },
-      "perils": {
-        "wind": "Storm",
-        "lightning": "Lightning",
-        "snow": "Snow",
-        "flood": "Flood",
-        "hail": "Hail",
-        "heat": "Heat",
-        "heavyRain": "Heavy rain"
       },
       "catalog": {
         "title": "Providers",
         "showAll": "Show more providers ({{count}})",
         "hideAll": "Collapse provider list",
-        "description": "Common natural hazard data sources. Commercial providers connect through an HTTPS endpoint in the app's hazard API format (a contract and, if needed, a translation service at the provider are required). Coverage per vendor information, October 2026.",
+        "description": "Common hail data sources. Commercial providers connect through an HTTPS endpoint in the app's hazard API format (a contract and, if needed, a translation service at the provider are required). Only the hail value is used. Coverage per vendor information, October 2026.",
         "customName": "Custom hazard API",
         "website": "Provider website",
-        "allPerils": "All perils",
         "license": {
           "free": "Free",
           "commercial": "License required"
         },
         "status": {
           "builtin": "Default · always on",
-          "import": "Via CSV/Excel import",
-          "planned": "Planned",
           "connected": "Connected",
           "available": "Not connected"
         },
         "notes": {
           "screening": "Weather-based approximation from Open-Meteo climate data plus GDV hail zones. Not a catastrophe model.",
-          "zuers": "GDV zoning for flood and heavy rain. Detected automatically in the regular location import.",
-          "catnet": "Multi-peril data from Swiss Re for locations worldwide.",
-          "munichre": "Scores incl. hail, lightning, river flood, storm surge and earthquake (formerly NATHAN).",
-          "moodys": "Risk scores and average annual loss (AAL) for more than 100 countries.",
-          "verisk": "Europe: windstorm and severe thunderstorm/hail (22 countries), inland flood for Central Europe incl. Germany.",
-          "jba": "Flood specialist; Germany map at 5 m resolution for river and surface water.",
-          "fathom": "Global flood maps for river, pluvial and coastal flooding.",
-          "custom": "Any other service that answers in the app's hazard API format – e.g. your own translation service.",
-          "jrc": "Free EU flood hazard maps (100 m, return periods 10–500 years). Not integrated yet."
+          "catnet": "Swiss Re hazard data for locations worldwide; the app uses the hail value.",
+          "munichre": "Location scores including hail (formerly NATHAN); the app uses the hail score.",
+          "moodys": "Risk scores for more than 100 countries; the app uses the hail score.",
+          "verisk": "Europe: severe thunderstorm/hail for 22 countries.",
+          "custom": "Any other service that answers in the app's hazard API format – e.g. your own translation service."
         }
       },
       "connector": {
         "edit": "Edit",
         "connect": "Connect",
-        "contract": "The endpoint receives POST {latitude, longitude, perils} with a bearer token and must return {hazards: [{peril, score 0–100, …}]}. Only the location's coordinates are sent.",
+        "contract": "The endpoint receives POST {latitude, longitude, perils} with a bearer token and must return {hazards: [{peril: \"hail\", score 0–100, …}]}. Only the location's coordinates are sent.",
         "endpoint": "Endpoint (HTTPS)",
         "key": "API key",
         "save": "Save",
@@ -585,21 +536,13 @@
       "manualCountInvalid": "Enter a whole number ≥ 0.",
       "exposureLabel": "Exposure",
       "totalEalLabel": "Total EAL",
-      "perilScoresTitle": "Peril Scores",
       "mainScoreTitle": "Main Score · Hail",
       "hailScoreLabel": "Hail Score",
-      "showAdditionalScores": "Show additional scores",
-      "hideAdditionalScores": "Hide additional scores",
       "hailZoneLabel": "Hail Zone {{zone}}",
       "hailZoneKasko": "K-Kasko · {{tier}}",
       "hailZoneScore": "Score {{score}}/100",
       "ealPeril": {
         "hail": "Hail",
-        "wind": "Wind",
-        "flood": "Flood",
-        "lightning": "Lightning",
-        "snow": "Snow",
-        "heat": "Heat",
         "total": "Total"
       },
       "boundaryTitle": "Parcel Boundary",
@@ -686,7 +629,7 @@
       "subPortfolioLabel": "Sub-portfolio",
       "groupLabel": "Group",
       "productLimitLabel": "Max. indemnity / Limit (EUR)",
-      "natCatTitle": "Natural catastrophe source",
+      "natCatTitle": "Hail data source",
       "natCatRefresh": "Re-query sources",
       "natCatRefreshing": "Querying sources…",
       "natCatHazard": "{{peril}}: {{score}}/100 ({{unit}})",
@@ -946,8 +889,8 @@
       "satelliteOpacityAriaLabel": "Satellite opacity",
       "boundariesLayerLabel": "Parcels",
       "nearbyInsuredLayerLabel": "Insured Neighbors",
+      "hailOverlayLayerLabel": "Hail score",
       "accumulationClustersLayerLabel": "Accumulation Clusters",
-      "overlaysSectionTitle": "Overlays",
       "editingActiveBadge": "active",
       "editBoundariesButton": "Edit boundaries",
       "stopEditingButton": "Stop editing",
@@ -975,7 +918,7 @@
       "recentSceneNone": "No scene with at most {{cloud}} % cloud in the last {{days}} days.",
       "imageryVersionPinnedBadge": "archive"
     },
-    "multiPerilOverlay": {
+    "hailScoreOverlay": {
       "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"
     },
     "page": {
@@ -1158,7 +1101,6 @@
     "estimated": "estimated",
     "boundaryReviewNeeded": "⚠ Review property boundary",
     "confirmBoundary": "✓ Confirm boundary",
-    "topPeril": "Top peril",
     "risk": "Risk",
     "ealYear": "EAL / year",
     "viewDetails": "View details →",

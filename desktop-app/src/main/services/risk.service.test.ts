@@ -16,15 +16,7 @@ vi.mock("./weather.service", async (importOriginal) => {
 
 import { scoreRisk } from "./risk.service";
 
-const REAL_WEATHER = {
-  maxWindKmh: 50,
-  annualPrecipMm: 800,
-  maxSnowDepthCm: 5,
-  lightningDensity: 1,
-  hailProbability: 0.2,
-  maxTempC: 28,
-  hotDays: 10,
-};
+const REAL_WEATHER = { hailProbability: 0.2 };
 
 describe("scoreRisk weather resilience", () => {
   it("does not abort the analysis when the weather lookup fails", async () => {
@@ -52,5 +44,16 @@ describe("scoreRisk weather resilience", () => {
     );
     expect(weatherEvidence?.fallbackUsed).toBe(false);
     expect(weatherEvidence?.confidence).toBe(0.55);
+  });
+});
+
+describe("scoreRisk perils", () => {
+  it("scores hail only", async () => {
+    mocks.fetchWeather.mockResolvedValue(REAL_WEATHER);
+
+    const result = await scoreRisk(52.5, 13.4, 100_000);
+
+    expect(result.perils.map((p) => p.peril)).toEqual(["hail"]);
+    expect(result.overallScore).toBe(20);
   });
 });

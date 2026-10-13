@@ -89,11 +89,11 @@ describe("computeDashboardData", () => {
     }
   });
 
-  it("always reports all six perils and twelve seasonal months", () => {
+  it("always reports twelve hail seasonal months", () => {
     const ds = [make("1", { score: 50, perilScores: { hail: 80 } })];
     const data = computeDashboardData(ds);
-    expect(data.perilCoverage).toHaveLength(6);
     expect(data.seasonalProfile).toHaveLength(12);
+    expect(Object.keys(data.seasonalProfile[0])).toEqual(["month", "hail"]);
   });
 
   it("stays finite for an empty portfolio", () => {

@@ -10,17 +10,45 @@ The orchestration entry point is
 `desktop-app/src/main/services/risk.service.ts`. The model layers are in
 `desktop-app/src/main/services/risk/`:
 
-- `hazard-models.ts` maps hazard indicators to comparable 0–100 scores.
+- `hazard-models.ts` maps the hail indicator to a 0–100 hail score.
 - `exposure.ts` estimates vehicle value and site capacity.
 - `financial-loss.ts` calculates the hail EAL (see below).
 - `evidence.ts` attaches provenance, confidence, fallbacks, and limitations.
 
 Every new risk result includes a model version, overall confidence, source
-evidence, and limitations. The non-hail peril scores (wind, lightning, snow,
-flood, heat) are still computed for the detail view, but since
-`screening-0.4.0` they no longer feed the loss figure; the flood score remains
-a precipitation proxy that a hydraulic provider can replace behind the
-provider boundary.
+evidence, and limitations.
+
+## Hail only (screening-0.5.0)
+
+The application assesses hail and nothing else. Since `screening-0.5.0` the
+storm, lightning, snow, flood and heat scores are no longer computed, shown
+or exported; `PERILS` in `shared/types.ts` is `["hail"]`.
+
+The hail score (0–100) comes from, in this order:
+
+1. a licensed provider's hail value, if a hail source is chosen in the
+   settings and delivers one;
+2. the postcode hail zone (`shared/hail-zones.ts`): `(zone − 1) / 5 × 100`;
+3. the Open-Meteo screening proxy: 3 × the share of days with a daily
+   maximum CAPE ≥ 1,500 J/kg plus 0.3 × the share with ≥ 1,000 J/kg, over a
+   92-day window, clamped to 5–90 %. Only the hourly CAPE series is
+   requested.
+
+Data sources: GDV/K-Kasko hail zones by postcode, Open-Meteo forecast API
+(CAPE), optionally a contracted hail provider. Limitations: the CAPE proxy
+reflects a recent 92-day window, not a hail climatology; hail zones describe
+regional hazard, not the individual site.
+
+Removed with this version: the score caps for wind, lightning, snow, heat
+and flood on the parameters page, the per-peril map overlays, the ZÜRS Geo
+import (flood and heavy-rain classes) and the flood specialists JBA and
+Fathom. Stored data stays readable: on load, `shared/retired-perils.ts`
+strips scores and provider values of the removed perils, `PerilScoresSchema`
+drops them when a session is parsed, and the NatCat settings turn a former
+per-peril hail choice into the hail source and drop retired providers
+(`migrateNatCatSettings`). Results from older model versions are flagged on
+the dashboard for recalculation. Deterministic fixtures:
+`hazard-models.test.ts`, `retired-perils.test.ts`, `natcat-routing.test.ts`.
 
 ## Hail EAL (screening-0.4.0)
 
@@ -36,7 +64,7 @@ N_exposed = N × exposure ratio
 |---|---|---|
 | N | Vehicles on site | Manually reviewed count, else the detector count; without either, declared asset value ÷ car value (flagged as a limitation) |
 | exposure ratio | Share of vehicles parked in the open: `clamp(1 − roof coverage, 0.1, 1)` | `roof.service.ts`, from buildings inside the lot boundary |
-| z | Hail zone 1–6 | Licensed provider hail score if routed, else the postcode table (`shared/hail-zones.ts`), else estimated from the weather-based hail score as `1 + round(score / 20)` (flagged, lower confidence) |
+| z | Hail zone 1–6 | Licensed provider hail score if chosen, else the postcode table (`shared/hail-zones.ts`), else estimated from the weather-based hail score as `1 + round(score / 20)` (flagged, lower confidence) |
 | λ_z | Damaging hail events per year at a site in zone z | Parameter per zone |
 | p_S, p_M, p_L | Share of small, medium, large events | Parameters; normalized by their sum, so they act as weights |
 | S_S, S_M, S_L | Loss per exposed vehicle in an event of that class (EUR) | Parameters |
@@ -108,20 +136,15 @@ names (English and German).
   business-type column are reported in the import report and left
   unclassified rather than guessed.
 
-## Licensed natural-catastrophe providers
+## Licensed hail providers
 
-The shared natural-catastrophe model accepts normalized observations from
-licensed providers without persisting raw vendor payloads:
+The hail score accepts a normalized value from a licensed provider without
+persisting raw vendor payloads:
 
-- ZÜRS Geo CSV/XLSX exports are detected by their class columns and imported
-  at address/building resolution. Flood classes 1–4 and heavy-rain classes
-  1–3 are retained as raw attributes and displayed as normalized scores. The
-  class-to-score mapping is a screening visualization, not an insurance
-  tariff.
 - Licensed APIs (Swiss Re CatNet, Munich Re Location Risk Intelligence,
-  Moody's RMS and Verisk Location Intelligence, JBA, Fathom, or any other
-  service) are accessed through customer-configured HTTPS endpoints that
-  answer in the app's hazard API contract below
+  Moody's RMS and Verisk Location Intelligence, or any other service) are
+  accessed through customer-configured HTTPS endpoints that answer in the
+  app's hazard API contract below
   (`main/services/hazard-api.service.ts`). The vendors publish their
   production schemas only to contracted clients, so a vendor's native API is
   connected through a translation service on the customer side rather than a
@@ -137,12 +160,12 @@ existing EAL remains a screening estimate and is labeled accordingly.
 
 ```
 POST <endpoint>            Authorization: Bearer <key>
-{ "latitude": 50.11, "longitude": 8.68, "perils": ["flood"] }   // perils optional
+{ "latitude": 50.11, "longitude": 8.68, "perils": ["hail"] }
 
 200 OK
 {
   "hazards": [            // at least one
-    { "peril": "flood", "score": 72,             // score 0–100, required
+    { "peril": "hail", "score": 72,              // score 0–100, required
       "hazardValue": 0.02, "unit": "AEP",        // optional
       "rawValue": "class 3",                     // optional, kept as source value
       "returnPeriodYears": 50,                   // optional
@@ -154,42 +177,26 @@ POST <endpoint>            Authorization: Bearer <key>
 }
 ```
 
-Scored perils are `wind`, `lightning`, `snow`, `flood`, `hail` and `heat`;
-other peril names (e.g. `heavyRain`) are kept and displayed but not scored.
+Only the `hail` entry is used; other peril names in a response are ignored.
 Only the coordinates leave the device. Endpoints must use HTTPS, may not embed
 credentials, and keys are stored per provider in the OS keychain.
 
-### Source routing per peril
+### Hail source
 
-`shared/natcat-routing.ts` decides per scored peril which source supplies the
-value. The settings hold a primary source (default: screening) and optional
-per-peril choices (`primary`, `screening`, or a connected API provider). For
-each peril the first source in this chain that delivers a value wins:
+`shared/natcat-routing.ts` picks the source of the hail score. The settings
+hold one hail source (`primary`, default: screening). When it is a connected
+API provider, that provider is queried and its `hail` value overrides the
+screening score; any other hazard in the response is dropped. When the
+provider fails, is not connected, or returns no hail value, the screening
+score applies. Every analysis resolves the source from the current settings,
+so API values are never re-used after the source changed. "Reset to default"
+sets the hail source back to screening and keeps the connectors. A failed
+source never aborts an analysis. Deterministic fixtures:
+`natcat-routing.test.ts`, `natcat.service.test.ts`.
 
-1. the API provider chosen for this peril,
-2. the location's imported data (ZÜRS Geo),
-3. the primary source, if it is an API provider,
-4. otherwise the Open-Meteo screening model.
-
-Choosing `screening` for a peril bypasses the chain. Each hazard records its
-`provider`; an assessment built from more than one source has provider
-`composite`, the minimum confidence of its sources, and the union of their
-limitations. When the responsible API source fails, is not connected, or —
-when chosen explicitly — returns no value for the peril, the fallback is
-written to the limitations (`"flood: … unavailable; … used instead"`) and
-`fallbackUsed` is set. A primary source that does not cover a peril is not a
-fallback; that peril simply stays on screening.
-
-Every analysis re-routes from the current settings. Only the user's import is
-kept between runs (`DealershipInput.natCatImport`; older sessions are read
-from `natCat` when its provider is `zuers-geo`), so API values are never
-re-used after the routing changed. "Reset to default" sets the primary source
-and every peril back to screening and keeps the connectors. A failed source
-never aborts an analysis. Deterministic fixtures: `natcat-routing.test.ts`.
-
-Limitations: the routing combines scores; it does not reconcile different
-vendors' scales, return periods, or vulnerability assumptions. Mixing sources
-per peril is a screening choice and not a substitute for a calibrated
+Limitations: a provider's hail score is used as delivered; the app does not
+reconcile different vendors' scales, return periods, or vulnerability
+assumptions. It is a screening input and not a substitute for a calibrated
 catastrophe model.
 
 Import reports and scenario impacts follow the same principle: inputs,

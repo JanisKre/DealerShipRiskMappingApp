@@ -36,46 +36,44 @@ describe("NatCat source resolution", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("queries each routed source once and combines them per peril", async () => {
+  it("queries the hail source once and keeps only its hail value", async () => {
     mocks.settings = {
       language: "en",
       natCat: {
         provider: "screening",
         primary: "swissre-catnet",
-        perilSources: { flood: "jba-flood" },
         connectors: {
           "swissre-catnet": { endpoint: "https://catnet.example/lookup" },
-          "jba-flood": { endpoint: "https://jba.example/lookup" },
+          "munichre-lri": { endpoint: "https://munichre.example/lookup" },
         },
       },
     };
     fetchMock.mockImplementation((input, init) => {
-      const url = String(input);
-      expect(JSON.parse(String(init?.body))).toMatchObject({
+      expect(new URL(String(input)).host).toBe("catnet.example");
+      expect(JSON.parse(String(init?.body))).toEqual({
         latitude: 50,
         longitude: 8,
+        perils: ["hail"],
       });
-      if (new URL(url).host === "catnet.example")
-        return Promise.resolve(
-          json({
-            hazards: [
-              { peril: "hail", score: 70 },
-              { peril: "flood", score: 20 },
-            ],
-          }),
-        );
       return Promise.resolve(
-        json({ hazards: [{ peril: "flood", score: 90 }] }),
+        json({
+          hazards: [
+            { peril: "hail", score: 70 },
+            { peril: "flood", score: 20 },
+          ],
+        }),
       );
     });
 
     const result = await resolveNatCat(50, 8);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(result?.provider).toBe("composite");
-    expect(result?.hazards.find((h) => h.peril === "flood")).toMatchObject({
-      score: 90,
-      provider: "jba-flood",
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result?.provider).toBe("swissre-catnet");
+    expect(result?.hazards).toHaveLength(1);
+    expect(result?.hazards[0]).toMatchObject({
+      peril: "hail",
+      score: 70,
+      provider: "swissre-catnet",
     });
     const auth = (fetchMock.mock.calls[0][1]?.headers as Record<string, string>)
       .Authorization;
@@ -103,15 +101,17 @@ describe("NatCat source resolution", () => {
       language: "en",
       natCat: {
         provider: "screening",
-        connectors: { "jba-flood": { endpoint: "https://jba.example/lookup" } },
+        connectors: {
+          "munichre-lri": { endpoint: "https://munichre.example/lookup" },
+        },
       },
     };
     fetchMock.mockResolvedValueOnce(
-      json({ hazards: [{ peril: "flood", score: 40 }] }),
+      json({ hazards: [{ peril: "hail", score: 40 }] }),
     );
-    await expect(testNatCatConnector("jba-flood")).resolves.toMatchObject({
+    await expect(testNatCatConnector("munichre-lri")).resolves.toMatchObject({
       ok: true,
-      perils: ["flood"],
+      perils: ["hail"],
     });
 
     await expect(testNatCatConnector("verisk-li")).resolves.toMatchObject({

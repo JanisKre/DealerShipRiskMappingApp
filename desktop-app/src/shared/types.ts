@@ -15,14 +15,11 @@ import { isHttpWebsiteUrl } from "./website";
 
 // --- Perils ---------------------------------------------------------------
 
-export const PERILS = [
-  "wind",
-  "lightning",
-  "snow",
-  "flood",
-  "hail",
-  "heat",
-] as const;
+/**
+ * Scored perils. Since screening-0.5.0 the app models hail only; storm,
+ * lightning, snow, flood and heat were removed (see `docs/risk-model.md`).
+ */
+export const PERILS = ["hail"] as const;
 export const PerilSchema = z.enum(PERILS);
 export type Peril = z.infer<typeof PerilSchema>;
 
@@ -53,23 +50,24 @@ export const NAT_CAT_API_PROVIDERS = [
   "munichre-lri",
   "moodys-li",
   "verisk-li",
-  "jba-flood",
-  "fathom-flood",
   "custom-api",
 ] as const;
 export const NatCatApiProviderSchema = z.enum(NAT_CAT_API_PROVIDERS);
 export type NatCatApiProvider = z.infer<typeof NatCatApiProviderSchema>;
 
-export const NAT_CAT_PROVIDERS = [
+/**
+ * Sources removed with the hail-only model: the ZÜRS Geo import and the
+ * flood specialists only ever delivered flood and heavy-rain values.
+ */
+export const RETIRED_NAT_CAT_PROVIDERS = [
   "zuers-geo",
-  ...NAT_CAT_API_PROVIDERS,
+  "jba-flood",
+  "fathom-flood",
 ] as const;
-export const NatCatProviderSchema = z.enum(NAT_CAT_PROVIDERS);
-export type NatCatProvider = z.infer<typeof NatCatProviderSchema>;
 
 /** A normalized provider observation; rawValue preserves the source class/value. */
 export const NatCatHazardSchema = z.object({
-  /** Existing perils plus provider-specific values such as heavyRain. */
+  /** Scored peril ("hail"); other values from an endpoint are not used. */
   peril: z.string().min(1).max(64),
   score: z.number().min(0).max(100),
   hazardValue: z.number().optional(),
@@ -78,13 +76,13 @@ export const NatCatHazardSchema = z.object({
   returnPeriodYears: z.number().positive().optional(),
   annualExceedanceProbability: z.number().positive().max(1).optional(),
   /** Source of this value; set when an assessment combines several providers. */
-  provider: NatCatProviderSchema.optional(),
+  provider: NatCatApiProviderSchema.optional(),
 });
 export type NatCatHazard = z.infer<typeof NatCatHazardSchema>;
 
 export const NatCatAssessmentSchema = z.object({
-  /** `composite` = hazards routed per peril from several providers. */
-  provider: z.enum([...NAT_CAT_PROVIDERS, "composite"]),
+  /** `composite` = assessments saved by older builds that combined providers. */
+  provider: z.enum([...NAT_CAT_API_PROVIDERS, "composite"]),
   retrievedAt: z.string(),
   dataVersion: z.string().optional(),
   spatialResolution: z.string().optional(),
@@ -142,16 +140,8 @@ export const DealershipInputSchema = z.object({
    * entered by the underwriter. A manual link is never overwritten.
    */
   websiteSource: z.enum(["osm", "manual"]).optional(),
-  /**
-   * Natural-catastrophe assessment used for scoring: imported data plus the
-   * providers routed in the settings, combined per peril.
-   */
+  /** Hail assessment of the NatCat source chosen in the settings, if any. */
   natCat: NatCatAssessmentSchema.optional(),
-  /**
-   * User-supplied import (ZÜRS Geo) kept separately, so a re-analysis can
-   * re-route API sources without losing or re-using stale API values.
-   */
-  natCatImport: NatCatAssessmentSchema.optional(),
 });
 export type DealershipInput = z.infer<typeof DealershipInputSchema>;
 
@@ -472,6 +462,20 @@ export const PerilScoreSchema = z.object({
 });
 export type PerilScore = z.infer<typeof PerilScoreSchema>;
 
+/**
+ * Peril scores; sessions saved before the hail-only model also carry storm,
+ * lightning, snow, flood and heat scores, which are dropped when parsed.
+ */
+const PerilScoresSchema = z.preprocess(
+  (value) =>
+    Array.isArray(value)
+      ? value.filter((score: { peril?: unknown }) =>
+          (PERILS as readonly unknown[]).includes(score?.peril),
+        )
+      : value,
+  z.array(PerilScoreSchema),
+);
+
 export const HailZoneSchema = z.union([
   z.literal(1),
   z.literal(2),
@@ -503,16 +507,11 @@ export const HailEalDetailSchema = z.object({
 export type HailEalDetail = z.infer<typeof HailEalDetailSchema>;
 
 /**
- * Since screening-0.4.0 the EAL is hail-only. The other perils stay optional
- * so portfolios scored with older model versions still load.
+ * Hail-only EAL. Older portfolios also stored per-peril EALs for storm,
+ * flood, lightning, snow and heat; parsing strips those keys.
  */
 export const EalBreakdownSchema = z.object({
   hail: z.number().nonnegative(),
-  wind: z.number().nonnegative().optional(),
-  flood: z.number().nonnegative().optional(),
-  lightning: z.number().nonnegative().optional(),
-  snow: z.number().nonnegative().optional(),
-  heat: z.number().nonnegative().optional(),
   total: z.number().nonnegative(),
   hailDetail: HailEalDetailSchema.optional(),
 });
@@ -521,7 +520,7 @@ export type EalBreakdown = z.infer<typeof EalBreakdownSchema>;
 export const RiskAssessmentSchema = z.object({
   /** Primary dealership score; currently the hail score. */
   overallScore: z.number().min(0).max(100),
-  perils: z.array(PerilScoreSchema),
+  perils: PerilScoresSchema,
   eal: z.number().nonnegative(), // Expected Annual Loss from hail (EUR/year)
   ealBreakdown: EalBreakdownSchema.optional(),
   exposureEur: z.number().nonnegative().optional(), // estimated vehicle value on-site
@@ -531,7 +530,7 @@ export const RiskAssessmentSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
   modelVersion: z.string().optional(),
   evidence: z.array(RiskEvidenceSchema).optional(),
-  /** Provider assessment used to override screening hazard proxies. */
+  /** Provider assessment used to override the screening hail proxy. */
   natCat: NatCatAssessmentSchema.optional(),
   limitations: z.array(z.string()).optional(),
   computedAt: z.string(),
@@ -632,11 +631,6 @@ export const RiskParametersSchema = z.object({
     .number()
     .nonnegative()
     .default(HAIL_SEVERITY_CLASSES.large.lossEur),
-  heatHotdaysScoreMax: z.number().positive(),
-  windScoreMaxKmh: z.number().positive(),
-  lightningScoreMaxDensity: z.number().positive(),
-  snowScoreMaxCm: z.number().positive(),
-  floodScoreMaxAnnualPrecipMm: z.number().positive(),
   pmlDamageFraction10: z.number().min(0).max(1),
   pmlDamageFraction50: z.number().min(0).max(1),
   pmlDamageFraction100: z.number().min(0).max(1),
@@ -727,28 +721,51 @@ export const NatCatConnectorSchema = z.object({
 });
 export type NatCatConnector = z.infer<typeof NatCatConnectorSchema>;
 
-/** Source choice for one peril: follow the primary source, screening, or an API. */
-export const NatCatPerilSourceSchema = z.enum([
-  "primary",
-  "screening",
-  ...NAT_CAT_API_PROVIDERS,
-]);
-export type NatCatPerilSource = z.infer<typeof NatCatPerilSourceSchema>;
+/**
+ * Settings saved before the hail-only model may carry per-peril overrides and
+ * flood-only sources. The hail override becomes the primary source and
+ * retired sources fall back to screening, so a stored row still parses — a
+ * failed parse would reset every setting to its default.
+ */
+function migrateNatCatSettings(value: unknown): unknown {
+  if (!value || typeof value !== "object") return value;
+  const { perilSources, ...settings } = value as Record<string, unknown>;
+  const retired = (id: unknown): boolean =>
+    (RETIRED_NAT_CAT_PROVIDERS as readonly unknown[]).includes(id);
+  const hail = (perilSources as Record<string, unknown> | undefined)?.hail;
+  if (
+    hail === "screening" ||
+    (NAT_CAT_API_PROVIDERS as readonly unknown[]).includes(hail)
+  ) {
+    settings.primary = hail;
+  }
+  if (retired(settings.primary)) settings.primary = "screening";
+  if (retired(settings.provider)) settings.provider = "screening";
+  if (settings.connectors && typeof settings.connectors === "object") {
+    settings.connectors = Object.fromEntries(
+      Object.entries(settings.connectors).filter(([id]) => !retired(id)),
+    );
+  }
+  return settings;
+}
 
-export const NatCatSettingsSchema = z.object({
-  /** Legacy single-provider switch; read only when `primary` is unset. */
-  provider: z.enum(["screening", ...NAT_CAT_PROVIDERS]).default("screening"),
-  /** Legacy CatNet endpoint; superseded by `connectors["swissre-catnet"]`. */
-  catnetEndpoint: HttpsUrlSchema.optional(),
-  catnetHasApiKey: z.boolean().optional(),
-  /** Source for every peril without its own choice. Default: screening. */
-  primary: z.enum(["screening", ...NAT_CAT_API_PROVIDERS]).optional(),
-  /** Per-peril overrides, e.g. flood from a flood specialist. */
-  perilSources: z.record(PerilSchema, NatCatPerilSourceSchema).optional(),
-  connectors: z
-    .record(NatCatApiProviderSchema, NatCatConnectorSchema)
-    .optional(),
-});
+export const NatCatSettingsSchema = z.preprocess(
+  migrateNatCatSettings,
+  z.object({
+    /** Legacy single-provider switch; read only when `primary` is unset. */
+    provider: z
+      .enum(["screening", ...NAT_CAT_API_PROVIDERS])
+      .default("screening"),
+    /** Legacy CatNet endpoint; superseded by `connectors["swissre-catnet"]`. */
+    catnetEndpoint: HttpsUrlSchema.optional(),
+    catnetHasApiKey: z.boolean().optional(),
+    /** Source of the hail score. Default: screening. */
+    primary: z.enum(["screening", ...NAT_CAT_API_PROVIDERS]).optional(),
+    connectors: z
+      .record(NatCatApiProviderSchema, NatCatConnectorSchema)
+      .optional(),
+  }),
+);
 export type NatCatSettings = z.infer<typeof NatCatSettingsSchema>;
 
 // --- Settings ---------------------------------------------------------------
@@ -833,8 +850,6 @@ export const HailstormScenarioSchema = z.object({
   pathCoordinates: z.array(z.tuple([z.number(), z.number()])).min(2),
   widthKm: z.number().positive(),
   intensityLevel: z.enum(["LOW", "MEDIUM", "HIGH", "EXTREME"]),
-  /** Optional generic scenario metadata; old hailstorm files remain valid. */
-  peril: PerilSchema.optional(),
   returnPeriodYears: z
     .union([z.literal(10), z.literal(50), z.literal(100)])
     .optional(),
@@ -946,7 +961,6 @@ export const DASHBOARD_WIDGET_TYPES = [
   "pieChart",
   "table",
   "insights",
-  "coverage",
   "seasonal",
   "text",
 ] as const;
@@ -968,7 +982,6 @@ export const DASHBOARD_SERIES_KEYS = [
   "riskDistribution",
   "topEal",
   "topScore",
-  "perilCoverage",
   "seasonalProfile",
 ] as const;
 export type DashboardSeriesKey = (typeof DASHBOARD_SERIES_KEYS)[number];
@@ -1016,11 +1029,6 @@ export const NlQueryDealershipSchema = z.object({
   eal: z.number().optional(),
   exposureEur: z.number().optional(),
   hailScore: z.number().optional(),
-  windScore: z.number().optional(),
-  floodScore: z.number().optional(),
-  snowScore: z.number().optional(),
-  lightningScore: z.number().optional(),
-  heatScore: z.number().optional(),
   boundarySource: z.string().optional(),
   boundaryConfidence: z.number().optional(),
   insured: z.boolean().optional(),

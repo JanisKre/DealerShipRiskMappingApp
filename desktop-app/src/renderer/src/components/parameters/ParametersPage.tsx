@@ -32,12 +32,7 @@ type UnitKey =
   | "eur"
   | "squareMeters"
   | "fraction"
-  | "kmh"
   | "factor"
-  | "strikesPerSqKmYear"
-  | "daysPerYear"
-  | "centimeters"
-  | "millimetersPerYear"
   | "kilometers"
   | "eventsPerYear"
   | "eurPerVehicle"
@@ -53,7 +48,7 @@ type ParameterField = {
   tip?: boolean;
 };
 type ParameterGroup = {
-  id: "exposure" | "risk" | "scores" | "portfolio" | "quality";
+  id: "exposure" | "risk" | "portfolio" | "quality";
   fields: ParameterField[];
   defaultOpen?: boolean;
 };
@@ -172,35 +167,6 @@ const GROUPS: ParameterGroup[] = [
         min: 0,
         step: 100,
         recommended: true,
-      },
-    ],
-  },
-  {
-    id: "scores",
-    fields: [
-      {
-        key: "windScoreMaxKmh",
-        unit: "kmh",
-        min: 1,
-        step: 1,
-        recommended: true,
-        tip: true,
-      },
-      {
-        key: "lightningScoreMaxDensity",
-        unit: "strikesPerSqKmYear",
-        min: 0.1,
-        step: 0.1,
-      },
-      { key: "snowScoreMaxCm", unit: "centimeters", min: 1, step: 1 },
-      { key: "heatHotdaysScoreMax", unit: "daysPerYear", min: 1, step: 1 },
-      {
-        key: "floodScoreMaxAnnualPrecipMm",
-        unit: "millimetersPerYear",
-        min: 1,
-        step: 50,
-        recommended: true,
-        tip: true,
       },
     ],
   },

@@ -163,18 +163,18 @@ describe("settings persistence", () => {
   });
 
   it("stores one key per hazard API provider", () => {
-    mocks.safeStorage.encryptString.mockReturnValue(Buffer.from("jba"));
-    setNatCatApiKey("jba-flood", "jba-key");
+    mocks.safeStorage.encryptString.mockReturnValue(Buffer.from("verisk"));
+    setNatCatApiKey("verisk-li", "verisk-key");
     expect(mocks.statement.run).toHaveBeenCalledWith(
-      "natcat.apikey.jba-flood",
-      Buffer.from("jba").toString("base64"),
+      "natcat.apikey.verisk-li",
+      Buffer.from("verisk").toString("base64"),
     );
   });
 
   it("uses the CatNet environment fallback only for CatNet", () => {
     vi.stubEnv("SWISSRE_CATNET_API_KEY", "env-catnet");
     mocks.statement.get.mockReturnValue(undefined);
-    expect(getNatCatApiKey("jba-flood")).toBeNull();
+    expect(getNatCatApiKey("verisk-li")).toBeNull();
   });
 
   it("uses the environment fallback for CatNet when the keychain is unavailable", () => {

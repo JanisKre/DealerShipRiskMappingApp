@@ -27,7 +27,7 @@ export function effectiveVehicleCount(
  * Portfolio aggregate math (PML, cluster heatmap, scenario impact).
  * Pure functions without I/O — computed from the portfolio in the renderer,
  * ported exactly from the original (riskScoring/clusterRisk/scenarioSimulation),
- * but mapped onto this app's 5-peril score model:
+ * but mapped onto this app's hail score model:
  *   - Exposure comes from risk.exposureEur (vehicle value on-site)
  *   - EAL comes from risk.eal
  *   - Risk level is tracked via risk.overallScore (0..100) instead of RiskLevel
@@ -529,7 +529,7 @@ export function hailZoneToScore(zone: HailZone): number {
   return (zone - 1) / 5;
 }
 
-/** 0-100 score for the peril scoring model. */
+/** 0-100 hail score of a hail zone. */
 export function hailZoneToScore100(zone: HailZone): number {
   return hailZoneToScore(zone) * 100;
 }

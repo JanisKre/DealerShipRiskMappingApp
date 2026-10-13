@@ -6,7 +6,7 @@ import { computeEalBreakdown, resolveHailZone } from "./financial-loss";
 function perils(hail: number): PerilScore[] {
   return PERILS.map((peril) => ({
     peril,
-    score: peril === "hail" ? hail : 50,
+    score: hail,
     hazardValue: 0,
     unit: "x",
   }));
@@ -46,8 +46,7 @@ describe("computeEalBreakdown", () => {
     // 100 vehicles × 0.5 open-air × λ6 0.15 × Σ p·S 2,080 = 15,600
     expect(eb.hail).toBe(15_600);
     expect(eb.total).toBe(15_600);
-    expect(eb.wind).toBeUndefined();
-    expect(eb.flood).toBeUndefined();
+    expect(Object.keys(eb).sort()).toEqual(["hail", "hailDetail", "total"]);
     expect(eb.hailDetail).toEqual({
       vehicles: 100,
       exposedVehicles: 50,

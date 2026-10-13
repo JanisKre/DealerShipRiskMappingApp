@@ -4,6 +4,7 @@ import type {
   RiskParameters,
   Session,
 } from "@shared/types";
+import { stripRetiredPerils } from "@shared/retired-perils";
 import { getDb } from "../db/database";
 
 /** Session-Persistenz in SQLite. Dealerships werden als JSON-Blob abgelegt. */
@@ -45,9 +46,9 @@ export function loadSession(id: string): Session | null {
   } catch {
     return null;
   }
-  const dealerships = Array.isArray(stored)
-    ? stored
-    : (stored.dealerships ?? []);
+  const dealerships = (
+    Array.isArray(stored) ? stored : (stored.dealerships ?? [])
+  ).map(stripRetiredPerils);
   return {
     id: row.id,
     name: row.name,

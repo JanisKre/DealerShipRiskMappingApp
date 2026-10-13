@@ -11,7 +11,7 @@ import {
 /**
  * Portfolio analytics: pure functions without I/O (called from the renderer).
  * Ports the idea from `anomalyDetector`/`alertEngine`/`coverageAnalysis` of the
- * web app to this app's 5+1-peril score model. Only fields from
+ * web app to this app's hail score model. Only fields from
  * `AnalyzedDealership` that are available on the renderer side are used.
  */
 
@@ -251,25 +251,18 @@ export function computeCoverage(
   };
 }
 
-// --- Seasonal profile (typical distribution of peril risk over the year) --
+// --- Seasonal profile (typical distribution of hail risk over the year) --
 
 /**
- * Climatological monthly weights per peril (sum per peril ~= 12, so the
- * yearly average matches the score). Deliberately labelled a "typical"
- * seasonal profile — it is not a location-specific measurement series, but
- * the known seasonality of hazards in Central Europe (thunderstorms/hail in
- * summer, wind storms in the winter half-year, snow in deep winter, heat in
- * midsummer, flood with two peaks).
+ * Climatological monthly hail weights (sum ~= 12, so the yearly average
+ * matches the score). Deliberately labelled a "typical" seasonal profile —
+ * it is not a location-specific measurement series, but the known
+ * seasonality of convective hail in Central Europe (peak May–August).
  */
-const SEASON_WEIGHTS: Record<Peril, number[]> = {
-  //          J    F    M    A    M    J    J    A    S    O    N    D
-  wind: [1.8, 1.7, 1.5, 1.0, 0.7, 0.5, 0.5, 0.6, 0.8, 1.1, 1.6, 1.8],
-  lightning: [0.1, 0.2, 0.4, 0.8, 1.4, 2.0, 2.3, 2.1, 1.2, 0.6, 0.2, 0.1],
-  hail: [0.1, 0.2, 0.4, 0.9, 1.6, 2.1, 2.2, 1.9, 1.1, 0.5, 0.2, 0.1],
-  snow: [2.6, 2.3, 1.3, 0.4, 0.05, 0.0, 0.0, 0.0, 0.05, 0.3, 1.2, 2.4],
-  flood: [1.2, 1.1, 1.3, 1.0, 1.0, 1.2, 1.1, 1.0, 0.8, 0.8, 1.0, 1.2],
-  heat: [0.0, 0.0, 0.1, 0.4, 1.0, 1.9, 2.6, 2.5, 1.2, 0.3, 0.0, 0.0],
-};
+const HAIL_SEASON_WEIGHTS = [
+  //J  F    M    A    M    J    J    A    S    O    N    D
+  0.1, 0.2, 0.4, 0.9, 1.6, 2.1, 2.2, 1.9, 1.1, 0.5, 0.2, 0.1,
+];
 
 export const MONTH_LABELS = [
   "Jan",
@@ -288,43 +281,23 @@ export const MONTH_LABELS = [
 
 export interface SeasonalPoint {
   month: string;
-  wind: number;
-  lightning: number;
-  snow: number;
-  flood: number;
   hail: number;
-  heat: number;
-  /** Weighted overall risk of the month (average over the perils). */
-  total: number;
 }
 
 /**
- * Produces a 12-month profile of the portfolio risk: the portfolio average
- * score per peril, modulated with the climatological monthly weights. Used
- * for the weather timeline and seasonal risk profile charts.
+ * Produces a 12-month profile of the portfolio hail risk: the portfolio
+ * average hail score, modulated with the climatological monthly weights.
  */
 export function computeSeasonalProfile(
   dealerships: AnalyzedDealership[],
 ): SeasonalPoint[] {
-  const scored = dealerships.filter((d) => d.risk);
-  const avg: Record<Peril, number> = {} as Record<Peril, number>;
-  for (const peril of PERILS) {
-    avg[peril] = mean(
-      scored
-        .map((d) => perilScoreOf(d, peril))
-        .filter((s): s is number => s != null),
-    );
-  }
-
-  return MONTH_LABELS.map((month, i) => {
-    const point = { month } as SeasonalPoint;
-    let sum = 0;
-    for (const peril of PERILS) {
-      const v = avg[peril] * SEASON_WEIGHTS[peril][i];
-      point[peril] = Math.round(v);
-      sum += v;
-    }
-    point.total = Math.round(sum / PERILS.length);
-    return point;
-  });
+  const avg = mean(
+    dealerships
+      .map((d) => perilScoreOf(d, "hail"))
+      .filter((s): s is number => s != null),
+  );
+  return MONTH_LABELS.map((month, i) => ({
+    month,
+    hail: Math.round(avg * HAIL_SEASON_WEIGHTS[i]),
+  }));
 }

@@ -1,6 +1,6 @@
 import type {
   NatCatAssessment,
-  NatCatProvider,
+  NatCatApiProvider,
   RiskEvidence,
 } from "@shared/types";
 import type { WeatherMetrics } from "./weather.service";
@@ -17,7 +17,7 @@ export interface HazardProvider {
  * normalize vendor-specific payloads before they cross into risk scoring.
  */
 export interface NatCatProviderAdapter {
-  readonly id: NatCatProvider;
+  readonly id: NatCatApiProvider;
   lookup(
     lat: number,
     lon: number,

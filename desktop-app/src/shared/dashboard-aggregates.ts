@@ -1,9 +1,5 @@
-import type { AnalyzedDealership, DashboardSpec, Peril } from "./types";
-import {
-  computeCoverage,
-  computeSeasonalProfile,
-  type SeasonalPoint,
-} from "./analytics";
+import type { AnalyzedDealership, DashboardSpec } from "./types";
+import { computeSeasonalProfile, type SeasonalPoint } from "./analytics";
 import { effectiveVehicleCount } from "./risk-math";
 
 /**
@@ -12,8 +8,8 @@ import { effectiveVehicleCount } from "./risk-math";
  * the LLM only arranges widgets and picks sources (`source`), it never
  * invents numbers.
  *
- * The label/bucket logic is deliberately duplicated here (instead of being
- * imported from the renderer's `riskColor`/`perilLabel`) so this module in
+ * The bucket logic is deliberately duplicated here (instead of being
+ * imported from the renderer's `riskColor`) so this module in
  * `shared/` stays free of renderer dependencies.
  */
 
@@ -35,19 +31,8 @@ export interface DashboardData {
   riskDistribution: SeriesPoint[];
   topEal: SeriesPoint[];
   topScore: SeriesPoint[];
-  perilCoverage: SeriesPoint[];
   seasonalProfile: SeasonalPoint[];
 }
-
-/** Peril labels (mirrors `renderer/lib/perilLabel`, shared-safe). */
-const PERIL_LABEL: Record<Peril, string> = {
-  wind: "Storm",
-  lightning: "Lightning",
-  snow: "Snow",
-  flood: "Flood",
-  hail: "Hail",
-  heat: "Heat",
-};
 
 /** Discrete risk tiers with label and threshold (descending). */
 const RISK_BUCKETS: Array<{ label: string; min: number }> = [
@@ -114,13 +99,6 @@ export function computeDashboardData(
       value: Math.round(d.risk?.overallScore ?? 0),
     }));
 
-  // Peril coverage: average score per hazard (from the existing coverage analysis).
-  const coverage = computeCoverage(dealerships);
-  const perilCoverage: SeriesPoint[] = coverage.perils.map((p) => ({
-    label: PERIL_LABEL[p.peril],
-    value: Math.round(p.avgScore),
-  }));
-
   const seasonalProfile = computeSeasonalProfile(dealerships);
 
   return {
@@ -135,7 +113,6 @@ export function computeDashboardData(
     riskDistribution,
     topEal,
     topScore,
-    perilCoverage,
     seasonalProfile,
   };
 }
@@ -192,8 +169,7 @@ export function buildDefaultDashboardSpec(): DashboardSpec {
         source: "topScore",
         limit: 10,
       },
-      { id: "coverage", type: "coverage", title: "Hazard coverage" },
-      { id: "seasonal", type: "seasonal", title: "Seasonal profile" },
+      { id: "seasonal", type: "seasonal", title: "Hail seasonal profile" },
       { id: "table", type: "table", title: "All locations" },
     ],
   };

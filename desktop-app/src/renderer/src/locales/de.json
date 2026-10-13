@@ -89,10 +89,6 @@
         "title": "Hagel-EAL",
         "description": "Frequenz je Hagelzone (λ), Ereignisklassen (p) und Schaden je Fahrzeug (S) für die erwartete Jahresschadenlast."
       },
-      "scores": {
-        "title": "Gefahren-Scores",
-        "description": "Grenzwerte, ab denen Messwerte einen maximalen Gefahren-Score erreichen."
-      },
       "portfolio": {
         "title": "Portfolio, PML & Szenarien",
         "description": "Konzentrationsrisiken, Rückversicherung und Stressszenarien auf Portfolioebene."
@@ -106,12 +102,7 @@
       "eur": "€",
       "squareMeters": "m²",
       "fraction": "Anteil",
-      "kmh": "km/h",
       "factor": "Faktor",
-      "strikesPerSqKmYear": "Schläge/km²/Jahr",
-      "daysPerYear": "Tage/Jahr",
-      "centimeters": "cm",
-      "millimetersPerYear": "mm/Jahr",
       "kilometers": "km",
       "meters": "m",
       "eventsPerYear": "Ereignisse/Jahr",
@@ -132,28 +123,6 @@
         "label": "Fläche pro Fahrzeug",
         "description": "Annahme für die Grundstücks-Kapazität.",
         "tip": "Der wichtigste Hebel für die geschätzte Kapazität, wenn keine verlässliche Fahrzeugzählung vorliegt."
-      },
-      "heatHotdaysScoreMax": {
-        "label": "Hitzetage für Score 100",
-        "description": "Anzahl heißer Tage für den maximalen Hitze-Score."
-      },
-      "windScoreMaxKmh": {
-        "label": "Wind bei Score 100",
-        "description": "Windgeschwindigkeit für den maximalen Wind-Score.",
-        "tip": "Sinnvoll, wenn der Score an ein eigenes internes Schwellenmodell angepasst werden soll."
-      },
-      "lightningScoreMaxDensity": {
-        "label": "Blitzdichte bei Score 100",
-        "description": "Blitzdichte für den maximalen Blitz-Score."
-      },
-      "snowScoreMaxCm": {
-        "label": "Schnee bei Score 100",
-        "description": "Schneehöhe für den maximalen Schnee-Score."
-      },
-      "floodScoreMaxAnnualPrecipMm": {
-        "label": "Niederschlag bei Score 100",
-        "description": "Jahresniederschlag für den maximalen Hochwasser-Score.",
-        "tip": "Definiert, bei welchem Jahresniederschlag der Hochwasser-Score den Höchstwert erreicht."
       },
       "pmlDamageFraction10": {
         "label": "PML-Schadenquote 10 Jahre",
@@ -310,69 +279,51 @@
     "apiKeySetPlaceholder": "•••••••• (hinterlegt) — neuen Key eingeben zum Ersetzen",
     "apiKeyUnsetPlaceholder": "Wird verschlüsselt gespeichert (OS-Keychain)",
     "natCat": {
-      "title": "Naturgefahren-Datenquellen",
+      "title": "Hagel-Datenquelle",
       "statusDefault": "Standard: Screening",
       "statusLicensed": "Lizenzdaten aktiv",
       "reset": "Auf Standard zurücksetzen",
-      "resetHint": "Alle Gefahren wieder mit dem Open-Meteo-Screening bewerten. Angebundene Anbieter bleiben gespeichert.",
-      "intro": "Lege fest, woher jede Gefahr ihre Werte bekommt: eine Hauptquelle für alle Gefahren und bei Bedarf Spezialanbieter für einzelne Gefahren (z. B. Hochwasser). Ohne Auswahl gilt das Open-Meteo-Screening.",
+      "resetHint": "Hagel wieder mit dem Screening bewerten (GDV-Hagelzonen, Open-Meteo). Angebundene Anbieter bleiben gespeichert.",
+      "intro": "Lege fest, woher der Hagel-Score kommt. Ohne Auswahl gilt das Screening: GDV-Hagelzone nach Postleitzahl, sonst eine Open-Meteo-Wetterschätzung. Die App bewertet ausschließlich Hagel.",
       "screening": "Screening (Open-Meteo)",
       "screeningDefault": "Screening (Open-Meteo) – Standard",
       "notConnected": "nicht angebunden",
       "keySet": "•••••••• (hinterlegt) – neuen Key eingeben zum Ersetzen",
       "keyUnset": "Wird verschlüsselt gespeichert (OS-Keychain)",
       "routing": {
-        "title": "Quelle je Gefahr",
-        "primary": "Hauptquelle",
-        "followPrimary": "Wie Hauptquelle ({{source}})",
-        "order": "Reihenfolge je Gefahr: gewählte Quelle → importierte ZÜRS-Daten des Standorts → Hauptquelle → Screening. Liefert eine Quelle keinen Wert, greift die nächste; das wird beim Standort vermerkt.",
+        "primary": "Hagelquelle",
+        "order": "Fällt der gewählte Anbieter aus oder liefert keinen Hagelwert, gilt das Screening.",
         "applies": "Änderungen gelten für neue Analysen. Bestehende Standorte über „Neu analysieren“ oder „Quellen neu abfragen“ im Standortdetail aktualisieren."
-      },
-      "perils": {
-        "wind": "Sturm",
-        "lightning": "Blitz",
-        "snow": "Schnee",
-        "flood": "Hochwasser",
-        "hail": "Hagel",
-        "heat": "Hitze",
-        "heavyRain": "Starkregen"
       },
       "catalog": {
         "title": "Anbieter",
         "showAll": "Weitere Anbieter anzeigen ({{count}})",
         "hideAll": "Anbieterliste einklappen",
-        "description": "Gängige Datenquellen für Naturgefahren. Kommerzielle Anbieter werden über einen HTTPS-Endpunkt im Hazard-API-Format der App angebunden (Vertrag und ggf. Übersetzungsdienst beim Anbieter erforderlich). Angaben zur Abdeckung laut Herstellern, Stand Oktober 2026.",
+        "description": "Gängige Datenquellen für Hagel. Kommerzielle Anbieter werden über einen HTTPS-Endpunkt im Hazard-API-Format der App angebunden (Vertrag und ggf. Übersetzungsdienst beim Anbieter erforderlich). Verwendet wird nur der Hagelwert. Angaben zur Abdeckung laut Herstellern, Stand Oktober 2026.",
         "customName": "Eigene Hazard-API",
         "website": "Website des Anbieters",
-        "allPerils": "Alle Gefahren",
         "license": {
           "free": "Frei",
           "commercial": "Lizenz erforderlich"
         },
         "status": {
           "builtin": "Standard · immer aktiv",
-          "import": "Per CSV/Excel-Import",
-          "planned": "Geplant",
           "connected": "Verbunden",
           "available": "Nicht verbunden"
         },
         "notes": {
           "screening": "Wetterbasierte Näherung aus Open-Meteo-Klimadaten plus GDV-Hagelzonen. Kein Katastrophenmodell.",
-          "zuers": "GDV-Zonierung für Hochwasser und Starkregen. Wird beim normalen Standort-Import automatisch erkannt.",
-          "catnet": "Multi-Gefahren-Daten von Swiss Re für Standorte weltweit.",
-          "munichre": "Scores u. a. für Hagel, Blitz, Flusshochwasser, Sturmflut und Erdbeben (früher NATHAN).",
-          "moodys": "Risk-Scores und erwarteter Jahresschaden (AAL) für über 100 Länder.",
-          "verisk": "Europa: Wintersturm und Gewitter/Hagel (22 Länder), Hochwasser für Mitteleuropa inkl. Deutschland.",
-          "jba": "Hochwasser-Spezialist; Deutschland-Karte in 5 m Auflösung für Fluss- und Oberflächenwasser.",
-          "fathom": "Globale Hochwasserkarten für Fluss-, Starkregen- und Küstenhochwasser.",
-          "custom": "Jeder andere Dienst, der das Hazard-API-Format der App liefert – z. B. ein eigener Übersetzungsdienst.",
-          "jrc": "Freie EU-Hochwasser-Gefahrenkarten (100 m, Wiederkehrperioden 10–500 Jahre). Noch nicht integriert."
+          "catnet": "Gefahrendaten von Swiss Re für Standorte weltweit; die App nutzt den Hagelwert.",
+          "munichre": "Standort-Scores u. a. für Hagel (früher NATHAN); die App nutzt den Hagel-Score.",
+          "moodys": "Risk-Scores für über 100 Länder; die App nutzt den Hagel-Score.",
+          "verisk": "Europa: Gewitter/Hagel für 22 Länder.",
+          "custom": "Jeder andere Dienst, der das Hazard-API-Format der App liefert – z. B. ein eigener Übersetzungsdienst."
         }
       },
       "connector": {
         "edit": "Bearbeiten",
         "connect": "Anbinden",
-        "contract": "Der Endpunkt erhält POST {latitude, longitude, perils} mit Bearer-Token und muss {hazards: [{peril, score 0–100, …}]} liefern. Dabei werden nur die Koordinaten des Standorts übertragen.",
+        "contract": "Der Endpunkt erhält POST {latitude, longitude, perils} mit Bearer-Token und muss {hazards: [{peril: \"hail\", score 0–100, …}]} liefern. Dabei werden nur die Koordinaten des Standorts übertragen.",
         "endpoint": "Endpunkt (HTTPS)",
         "key": "API-Key",
         "save": "Speichern",
@@ -585,21 +536,13 @@
       "manualCountInvalid": "Ganze Zahl ≥ 0 eingeben.",
       "exposureLabel": "Exposure",
       "totalEalLabel": "EAL gesamt",
-      "perilScoresTitle": "Gefahren-Scores",
       "mainScoreTitle": "Hauptscore · Hagel",
       "hailScoreLabel": "Hagel-Score",
-      "showAdditionalScores": "Weitere Scores anzeigen",
-      "hideAdditionalScores": "Weitere Scores ausblenden",
       "hailZoneLabel": "Hagelzone {{zone}}",
       "hailZoneKasko": "K-Kasko · {{tier}}",
       "hailZoneScore": "Score {{score}}/100",
       "ealPeril": {
         "hail": "Hagel",
-        "wind": "Wind",
-        "flood": "Flut",
-        "lightning": "Blitz",
-        "snow": "Schnee",
-        "heat": "Hitze",
         "total": "Summe"
       },
       "boundaryTitle": "Grundstücksgrenze",
@@ -686,7 +629,7 @@
       "subPortfolioLabel": "Teilportfolio",
       "groupLabel": "Gruppe",
       "productLimitLabel": "Höchstentschädigung / Limit (EUR)",
-      "natCatTitle": "Naturgefahrenquelle",
+      "natCatTitle": "Hagel-Datenquelle",
       "natCatRefresh": "Quellen neu abfragen",
       "natCatRefreshing": "Quellen werden abgefragt…",
       "natCatHazard": "{{peril}}: {{score}}/100 ({{unit}})",
@@ -946,8 +889,8 @@
       "satelliteOpacityAriaLabel": "Satelliten-Deckkraft",
       "boundariesLayerLabel": "Grundstücke",
       "nearbyInsuredLayerLabel": "Versicherte Nachbarn",
+      "hailOverlayLayerLabel": "Hagel-Score",
       "accumulationClustersLayerLabel": "Kumul-Cluster",
-      "overlaysSectionTitle": "Overlays",
       "editingActiveBadge": "aktiv",
       "editBoundariesButton": "Grenzen bearbeiten",
       "stopEditingButton": "Bearbeiten beenden",
@@ -975,7 +918,7 @@
       "recentSceneNone": "Keine Szene mit höchstens {{cloud}} % Wolken in den letzten {{days}} Tagen.",
       "imageryVersionPinnedBadge": "Archiv"
     },
-    "multiPerilOverlay": {
+    "hailScoreOverlay": {
       "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"
     },
     "page": {
@@ -1158,7 +1101,6 @@
     "estimated": "geschätzt",
     "boundaryReviewNeeded": "⚠ Grundstücksgrenze prüfen",
     "confirmBoundary": "✓ Grenze bestätigen",
-    "topPeril": "Größte Gefahr",
     "risk": "Risiko",
     "ealYear": "EAL / Jahr",
     "viewDetails": "Details anzeigen →",

@@ -4,8 +4,6 @@ import type {
   DealershipInput,
   ImportResult,
   ImportReport,
-  NatCatAssessment,
-  NatCatProvider,
 } from "@shared/types";
 
 /**
@@ -20,22 +18,14 @@ export function parseCsv(content: string): DealershipInput[] {
   return parseCsvWithReport(content).rows;
 }
 
-/** Explicit ZÜRS Geo import entry point; the normal uploader also auto-detects these columns. */
-export function parseZuersCsvWithReport(content: string): ImportResult {
-  return parseCsvWithReport(content, "zuers-geo");
-}
-
 /** CSV/TSV import with row-level diagnostics and a reproducible mapping report. */
-export function parseCsvWithReport(
-  content: string,
-  provider?: NatCatProvider,
-): ImportResult {
+export function parseCsvWithReport(content: string): ImportResult {
   const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length === 0) return emptyResult("csv");
 
   const delimiter = detectDelimiter(lines[0]);
   const matrix = lines.map((l) => splitLine(l, delimiter));
-  return rowsFromMatrix(matrix, delimiter === "\t" ? "tsv" : "csv", provider);
+  return rowsFromMatrix(matrix, delimiter === "\t" ? "tsv" : "csv");
 }
 
 /** XLSX import: first worksheet, same column heuristic as CSV. */
@@ -66,12 +56,6 @@ export async function parseXlsxWithReport(
   return rowsFromMatrix(matrix, "xlsx");
 }
 
-export async function parseZuersXlsxWithReport(
-  base64: string,
-): Promise<ImportResult> {
-  return parseXlsxWithReport(base64);
-}
-
 /** Selects the most frequent delimiter in the header row from tab/semicolon/comma. */
 function detectDelimiter(header: string): string {
   const counts: Array<[string, number]> = [
@@ -93,7 +77,6 @@ function occurrences(s: string, ch: string): number {
 function rowsFromMatrix(
   matrix: string[][],
   format: ImportReport["format"],
-  provider?: NatCatProvider,
 ): ImportResult {
   if (matrix.length === 0) return emptyResult(format);
   const rawHeader = matrix[0].map((h) => h.trim());
@@ -241,34 +224,6 @@ function rowsFromMatrix(
     "sb",
     "sbeur",
   ]);
-  const zuersFloodIdx = idx([
-    "zuersfloodclass",
-    "zuersfloodzone",
-    "zuershochwasserklasse",
-    "zuersgefaehrdungsklasse",
-    "floodclass",
-    "hochwasserklasse",
-    "hochwassergefaehrdungsklasse",
-  ]);
-  const zuersHeavyRainIdx = idx([
-    "zuersheavyrainclass",
-    "starkregenklasse",
-    "starkregengefahrenklasse",
-    "starkregenrisikoklasse",
-    "sgk",
-  ]);
-  const zuersWatercourseIdx = idx([
-    "watercoursezone",
-    "bachzone",
-    "gewaesserzone",
-  ]);
-  const zuersVersionIdx = idx(["zuersversion", "zuersdataversion"]);
-  const detectedProvider =
-    provider ??
-    (zuersFloodIdx >= 0 || zuersHeavyRainIdx >= 0 || zuersWatercourseIdx >= 0
-      ? "zuers-geo"
-      : undefined);
-
   const rows: DealershipInput[] = [];
   const issues: ImportReport["issues"] = [];
   const seen = new Set<string>();
@@ -308,20 +263,6 @@ function rowsFromMatrix(
     const assetValue = valueCell.value;
     const productLimitEur = limitCell.value;
     const deductibleEur = deductibleCell.value;
-    const natCat =
-      detectedProvider === "zuers-geo"
-        ? parseZuersAssessment(
-            cols,
-            {
-              flood: zuersFloodIdx,
-              heavyRain: zuersHeavyRainIdx,
-              watercourse: zuersWatercourseIdx,
-              version: zuersVersionIdx,
-            },
-            rowNumber,
-            issues,
-          )
-        : undefined;
 
     if (lat != null && (lat < -90 || lat > 90)) {
       issues.push({
@@ -374,8 +315,6 @@ function rowsFromMatrix(
       group: groupIdx >= 0 ? cols[groupIdx]?.trim() || undefined : undefined,
       productLimitEur: productLimitEur != null ? productLimitEur : undefined,
       deductibleEur: deductibleEur != null ? deductibleEur : undefined,
-      // `natCatImport` keeps the import apart from routed API sources.
-      ...(natCat ? { natCat, natCatImport: natCat } : {}),
     });
   }
 
@@ -411,118 +350,12 @@ function rowsFromMatrix(
         group: rawHeader[groupIdx] ?? null,
         productLimitEur: rawHeader[limitIdx] ?? null,
         deductibleEur: rawHeader[deductibleIdx] ?? null,
-        zuersFloodClass: rawHeader[zuersFloodIdx] ?? null,
-        zuersHeavyRainClass: rawHeader[zuersHeavyRainIdx] ?? null,
-        zuersWatercourseZone: rawHeader[zuersWatercourseIdx] ?? null,
-        zuersVersion: rawHeader[zuersVersionIdx] ?? null,
       },
       issues,
       warnings,
       createdAt: new Date().toISOString(),
     },
   };
-}
-
-function parseZuersAssessment(
-  cols: string[],
-  indexes: {
-    flood: number;
-    heavyRain: number;
-    watercourse: number;
-    version: number;
-  },
-  row: number,
-  issues: ImportReport["issues"],
-): NatCatAssessment | undefined {
-  const floodClass = readClass(
-    cols[indexes.flood],
-    "zuersFloodClass",
-    row,
-    issues,
-    4,
-  );
-  const heavyRainClass = readClass(
-    cols[indexes.heavyRain],
-    "zuersHeavyRainClass",
-    row,
-    issues,
-    3,
-  );
-  const watercourseZone = parseBool(cols[indexes.watercourse]);
-  if (floodClass == null && heavyRainClass == null && watercourseZone == null) {
-    return undefined;
-  }
-
-  const hazards = [] as NatCatAssessment["hazards"];
-  if (floodClass != null) {
-    hazards.push({
-      peril: "flood",
-      score: classScore(floodClass, 4),
-      hazardValue: floodClass,
-      unit: "ZÜRS Hochwasser-Gefährdungsklasse",
-      rawValue: floodClass,
-    });
-  }
-  if (heavyRainClass != null) {
-    hazards.push({
-      peril: "heavyRain",
-      score: classScore(heavyRainClass, 3),
-      hazardValue: heavyRainClass,
-      unit: "ZÜRS Starkregen-Gefährdungsklasse",
-      rawValue: heavyRainClass,
-    });
-  }
-
-  const attributes: Record<string, string | number | boolean> = {};
-  if (floodClass != null) attributes.floodClass = floodClass;
-  if (heavyRainClass != null) attributes.heavyRainClass = heavyRainClass;
-  if (watercourseZone != null) attributes.watercourseZone = watercourseZone;
-  const retrievedAt = new Date().toISOString();
-  return {
-    provider: "zuers-geo",
-    retrievedAt,
-    dataVersion: cols[indexes.version]?.trim() || undefined,
-    spatialResolution: "address/building",
-    hazards,
-    attributes,
-    evidence: {
-      source: "ZÜRS Geo",
-      retrievedAt,
-      dataVersion: cols[indexes.version]?.trim() || undefined,
-      spatialResolution: "address/building",
-      method: "licensed ZÜRS Geo CSV import",
-      confidence: 0.9,
-      fallbackUsed: false,
-      limitations: [
-        "Imported classification values require verification against the applicable ZÜRS license and data release",
-      ],
-    },
-  };
-}
-
-function readClass(
-  value: string | undefined,
-  field: string,
-  row: number,
-  issues: ImportReport["issues"],
-  max: number,
-): number | undefined {
-  if (!value?.trim()) return undefined;
-  const parsed = Number(value.trim().replace(",", "."));
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > max) {
-    issues.push({
-      row,
-      field,
-      severity: "warning",
-      message: `Expected an integer from 1 to ${max}; '${value.trim()}' ignored`,
-    });
-    return undefined;
-  }
-  return parsed;
-}
-
-function classScore(value: number, max: number): number {
-  return Math.round(((value - 1) / (max - 1)) * 100 * 100) / 100;
 }
 
 function cellToString(v: unknown): string {
@@ -730,23 +563,4 @@ function parseBusinessType(
     message: `Unrecognised business type '${raw}' left unclassified`,
   });
   return undefined;
-}
-
-/**
- * Interprets a cell as an insured flag. Truthy: yes/ja/true/1/insured/
- * versichert/x/policy. Empty cell → undefined (unknown, not false).
- */
-function parseBool(s: string | undefined): boolean | undefined {
-  const v = s?.trim().toLowerCase();
-  if (!v) return undefined;
-  return [
-    "yes",
-    "ja",
-    "true",
-    "1",
-    "insured",
-    "versichert",
-    "x",
-    "policy",
-  ].includes(v);
 }

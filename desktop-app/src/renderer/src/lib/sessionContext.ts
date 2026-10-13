@@ -21,13 +21,12 @@ export function buildSessionContext(dealerships: AnalyzedDealership[]): string {
 
   const lines = dealerships
     .slice(0, 40)
-    .map((d) => {
-      const peril = (n: string): number =>
-        d.risk?.perils.find((p) => p.peril === n)?.score ?? 0;
-      return `- ${d.name}: Score ${Math.round(d.risk?.overallScore ?? 0)}, Vehicles ${effectiveVehicleCount(
-        d.detection,
-      )}, EAL ${Math.round(d.risk?.eal ?? 0)}€, Hail ${peril("hail")}, Wind ${peril("wind")}, Flood ${peril("flood")}`;
-    })
+    .map(
+      (d) =>
+        `- ${d.name}: Hail score ${Math.round(d.risk?.overallScore ?? 0)}, Vehicles ${effectiveVehicleCount(
+          d.detection,
+        )}, Hail EAL ${Math.round(d.risk?.eal ?? 0)}€`,
+    )
     .join("\n");
 
   return [

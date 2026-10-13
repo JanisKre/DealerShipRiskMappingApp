@@ -8,7 +8,7 @@ import { useAppStore } from "@renderer/store/appStore";
 
 /**
  * Shown when locations were scored with an older risk model (e.g. the
- * multi-peril EAL before screening-0.4.0). Recalculating reuses the
+ * multi-peril scores before screening-0.5.0). Recalculating reuses the
  * parameter rescore path, so boundaries and vehicle counts are kept.
  */
 export function ModelVersionBanner({
