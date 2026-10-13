@@ -35,6 +35,12 @@ import {
   type MapViewPoint,
 } from "@renderer/lib/useImagerySelection";
 import { useImageryTimeline } from "@renderer/lib/useImageryTimeline";
+import { useRecentScenes } from "@renderer/lib/useRecentScenes";
+import {
+  GIBS_ATTRIBUTION,
+  gibsTileTemplate,
+  recentSceneKey,
+} from "@shared/imagery-gibs";
 import {
   IMAGERY_MIN_SELECTION_ZOOM,
   IMAGERY_TOLERANCE_DAYS,
@@ -286,6 +292,8 @@ export function MapPage(): React.JSX.Element {
   const [mapView, setMapView] = useState<MapViewPoint | null>(null);
   const imagery = useImagerySelection(mapView, basemap === "satellite");
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
+  const chosenRecentScene = useMapStore((s) => s.recentScene);
+  const recentSceneOpacity = useMapStore((s) => s.recentSceneOpacity);
 
   // WMS URL from settings (only for the satellite basemap).
   const [wmsUrl, setWmsUrl] = useState<string | null>(null);
@@ -311,6 +319,20 @@ export function MapPage(): React.JSX.Element {
     mapView.zoom >= IMAGERY_MIN_SELECTION_ZOOM;
   const { timeline: imageryTimeline, loading: imageryTimelineLoading } =
     useImageryTimeline(mapView, timelineEnabled);
+
+  // Recent 30 m scene overlay: the chosen scene while it is still listed
+  // for this area, otherwise the newest clear one.
+  const { scenes: recentScenes, loading: recentScenesLoading } =
+    useRecentScenes(mapView, layers.recentScene);
+  const activeRecentScene = layers.recentScene
+    ? (recentScenes?.scenes.find(
+        (s) =>
+          chosenRecentScene != null &&
+          recentSceneKey(s) === recentSceneKey(chosenRecentScene),
+      ) ??
+      recentScenes?.scenes[0] ??
+      null)
+    : null;
 
   // While a version is pinned, the legend describes that version's image at
   // the map centre instead of the automatic choice.
@@ -557,6 +579,22 @@ export function MapPage(): React.JSX.Element {
           opacity={tileOpacity}
           {...BBOX_TEMPLATE_OPTION}
         />
+        {activeRecentScene && (
+          <TileLayer
+            key={recentSceneKey(activeRecentScene)}
+            attribution={GIBS_ATTRIBUTION}
+            url={gibsTileTemplate(
+              activeRecentScene.product,
+              activeRecentScene.day,
+            )}
+            maxZoom={BASEMAP_MAX_ZOOM}
+            maxNativeZoom={12}
+            opacity={recentSceneOpacity}
+            // Above the basemap, which remounts (and would otherwise land
+            // on top) whenever its source or attribution changes.
+            zIndex={2}
+          />
+        )}
         <MapResizer />
         <MapViewReporter onChange={setMapView} />
         <ZoomControl />
@@ -861,6 +899,9 @@ export function MapPage(): React.JSX.Element {
           imageryTimeline={timelineEnabled ? imageryTimeline : null}
           imageryTimelineLoading={timelineEnabled && imageryTimelineLoading}
           imageryTimelineAvailable={basemap === "satellite" && !wmsUrl}
+          recentScenes={recentScenes}
+          recentScenesLoading={recentScenesLoading}
+          activeRecentScene={activeRecentScene}
         />
       </div>
 

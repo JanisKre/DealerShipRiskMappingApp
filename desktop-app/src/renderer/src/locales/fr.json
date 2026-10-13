@@ -597,7 +597,13 @@
       "imageryVersionPublished": "Version Wayback du {{date}}",
       "imageryVersionHint_one": "{{count}} version d'image Esri au centre de la carte (Esri World Imagery Wayback).",
       "imageryVersionHint_other": "{{count}} versions d'image Esri au centre de la carte (Esri World Imagery Wayback).",
-      "imageryVersionZoomHint": "Zoomez au niveau 15 ou plus pour choisir des images Esri plus anciennes."
+      "imageryVersionZoomHint": "Zoomez au niveau 15 ou plus pour choisir des images Esri plus anciennes.",
+      "recentSceneLayerLabel": "Scène récente (30 m, contexte seulement)",
+      "recentSceneSelectAriaLabel": "Choisir la scène",
+      "recentSceneCloud": "{{pct}} % de nuages",
+      "recentSceneOpacityAriaLabel": "Opacité de la scène récente",
+      "recentSceneHint": "NASA HLS (Sentinel-2/Landsat), 30 m. Montre les changements du site depuis l'image nette – pas les véhicules.",
+      "recentSceneNone": "Aucune scène avec au plus {{cloud}} % de nuages au cours des {{days}} derniers jours."
     },
     "multiPerilOverlay": {
       "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"

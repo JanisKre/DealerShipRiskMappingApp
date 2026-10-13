@@ -94,4 +94,6 @@ export const TTL = {
   waybackConfig: 24 * 60 * 60 * 1000, // 24 h
   /** A published Wayback version is frozen; only its listing can be revised. */
   waybackArchive: 30 * 24 * 60 * 60 * 1000, // 30 d
+  /** HLS scenes arrive every few days; the key also rolls over daily. */
+  recentScenes: 6 * 60 * 60 * 1000, // 6 h
 } as const;
