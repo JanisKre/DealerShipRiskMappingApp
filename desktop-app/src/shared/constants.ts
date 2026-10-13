@@ -24,7 +24,7 @@ export const CAPACITY_SQM_PER_VEHICLE = 25;
  * Version of the risk model that produced a RiskAssessment. The dashboard
  * offers a recalculation for results stored with an older version.
  */
-export const RISK_MODEL_VERSION = "screening-0.4.0";
+export const RISK_MODEL_VERSION = "screening-0.5.0";
 
 // --- Dealership notes ------------------------------------------------------
 
@@ -53,9 +53,6 @@ export const HAIL_SEVERITY_CLASSES = {
   medium: { share: 0.3, lossEur: 3_000 },
   large: { share: 0.1, lossEur: 7_000 },
 } as const;
-
-/** Heat: number of hot days/year (Tmax >= 30 C) at which the score peaks. */
-export const HEAT_HOTDAYS_SCORE_MAX = 40;
 
 // --- PML / cluster / scenario -----------------------------------------------
 

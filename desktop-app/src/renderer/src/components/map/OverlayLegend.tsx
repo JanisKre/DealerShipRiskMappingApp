@@ -1,45 +1,43 @@
-import type { Peril } from "@shared/types";
-import { perilColor } from "@renderer/lib/perilLabel";
+import { HAIL_COLOR } from "@renderer/lib/hailColor";
 import { riskColor } from "@renderer/lib/riskColor";
-import { perilRingStyleForScore } from "./MultiPerilOverlay";
+import { hailRingStyleForScore } from "./HailScoreOverlay";
 
 /** Sample scores for the legend — show exactly what the real rings look like at this value. */
 const LEGEND_SCORES = [0, 25, 50, 75, 100];
 
 interface Props {
-  /** Active peril overlay. null = none active. */
-  perilOverlay: Peril | null;
+  /** Hail score overlay visible? */
+  showHailOverlay: boolean;
   /** Accumulation cluster layer visible? */
   showClusters: boolean;
 }
 
 /**
  * Context-dependent color scale next to the map legend.
- * - Peril overlay active → 0-100 gradient in the peril color with unit.
+ * - Hail overlay active → 0-100 ring samples in the hail color.
  * - Accumulation clusters active → risk color scale Low->Extreme (hail score of the clusters).
  * Hidden when both are inactive.
  */
 export function OverlayLegend({
-  perilOverlay,
+  showHailOverlay,
   showClusters,
 }: Props): React.JSX.Element | null {
   const { t } = useTranslation();
-  if (!perilOverlay && !showClusters) return null;
+  if (!showHailOverlay && !showClusters) return null;
 
-  if (perilOverlay) {
-    const color = perilColor(perilOverlay);
+  if (showHailOverlay) {
+    const color = HAIL_COLOR;
     return (
       <div className="space-y-1.5 rounded-lg border bg-card/95 p-3 text-xs shadow-lg backdrop-blur">
         <div className="font-semibold text-muted-foreground">
-          {t(`dashboard.detailDialog.ealPeril.${perilOverlay}`)} –{" "}
-          {t("common.score")}
+          {t("dashboard.detailDialog.ealPeril.hail")} – {t("common.score")}
         </div>
         {/* Samples instead of a gradient: a plain alpha ramp already looks "fully
             saturated" on a dark background past ~50% — these circles show exactly
             the stroke weight/fill that the real rings have at this score. */}
         <div className="flex items-end justify-between gap-1">
           {LEGEND_SCORES.map((score) => {
-            const { weight, fillOpacity } = perilRingStyleForScore(score);
+            const { weight, fillOpacity } = hailRingStyleForScore(score);
             return (
               <div key={score} className="flex flex-col items-center gap-1">
                 <span

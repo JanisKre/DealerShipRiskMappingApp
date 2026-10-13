@@ -13,8 +13,6 @@ import {
   Pencil,
   Zap,
 } from "lucide-react";
-import type { Peril } from "@shared/types";
-import { PERILS } from "@shared/types";
 import { Button } from "@renderer/components/ui/button";
 import { Checkbox } from "@renderer/components/ui/checkbox";
 import { Label } from "@renderer/components/ui/label";
@@ -27,10 +25,6 @@ import {
 } from "@renderer/components/ui/select";
 import { Skeleton } from "@renderer/components/ui/skeleton";
 import { Slider } from "@renderer/components/ui/slider";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@renderer/components/ui/toggle-group";
 import {
   waybackCandidateForVersion,
   type ImageryTimeline,
@@ -328,7 +322,8 @@ export function LayerPanel({
   const setEditing = useMapStore((s) => s.setEditing);
   const setDetectionEditing = useMapStore((s) => s.setDetectionEditing);
 
-  const activeLayerCount = Object.values(layers).filter(Boolean).length;
+  const activeLayerCount =
+    Object.values(layers).filter(Boolean).length + (perilOverlay ? 1 : 0);
   const [open, setOpen] = useState(false);
   const bmLabels = basemapLabels(t);
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
@@ -430,6 +425,13 @@ export function LayerPanel({
                   onChange={() => toggleLayer("nearbyInsured")}
                 />
                 <LayerToggle
+                  label={t("map.layerPanel.hailOverlayLayerLabel")}
+                  checked={perilOverlay === "hail"}
+                  onChange={() =>
+                    setPerilOverlay(perilOverlay === "hail" ? null : "hail")
+                  }
+                />
+                <LayerToggle
                   label={t("map.layerPanel.accumulationClustersLayerLabel")}
                   checked={layers.accumulationClusters}
                   onChange={() => toggleLayer("accumulationClusters")}
@@ -447,37 +449,6 @@ export function LayerPanel({
                   />
                 )}
               </div>
-            </Section>
-
-            {/* Peril overlays — collapsed, badge when active */}
-            <Section
-              title={t("map.layerPanel.overlaysSectionTitle")}
-              badge={
-                perilOverlay
-                  ? t(`dashboard.detailDialog.ealPeril.${perilOverlay}`)
-                  : undefined
-              }
-              defaultOpen={!!perilOverlay}
-            >
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                size="sm"
-                value={perilOverlay ?? ""}
-                onValueChange={(v) => setPerilOverlay(v ? (v as Peril) : null)}
-                className="grid w-full grid-cols-3 gap-1"
-              >
-                {PERILS.map((p) => (
-                  <ToggleGroupItem
-                    key={p}
-                    value={p}
-                    aria-label={t(`dashboard.detailDialog.ealPeril.${p}`)}
-                    className="flex-none rounded-md! border-l! text-xs"
-                  >
-                    {t(`dashboard.detailDialog.ealPeril.${p}`)}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
             </Section>
 
             {/* Edit boundaries — collapsed */}

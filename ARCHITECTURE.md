@@ -52,7 +52,7 @@ typed and Zod-validated over IPC.
 │  ├─ services/   business logic:                           │
 │  │   ├─ boundary.service   (ALKIS/OSM/Overture→fusion→QA)  │
 │  │   ├─ detection.service  (YOLOv26 ONNX inference)         │
-│  │   ├─ risk.service       (5 perils + EAL)                │
+│  │   ├─ risk.service       (hail score + hail EAL)         │
 │  │   ├─ weather.service    (Open-Meteo/DWD + cache)        │
 │  │   ├─ llm.service        (memos, chat, NL query)         │
 │  │   └─ export.service     (CSV/PDF/Excel)                 │

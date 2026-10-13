@@ -34,10 +34,7 @@ export function resolveHailZone(
   return { zone: estimateHailZoneFromScore(hailScore), source: "estimated" };
 }
 
-/**
- * Hail-only EAL (`EAL = N × λ_z × Σ p_k·S_k`). Other perils no longer feed
- * the loss figure; their scores remain available in `RiskAssessment.perils`.
- */
+/** Hail EAL (`EAL = N × λ_z × Σ p_k·S_k`). */
 export function computeEalBreakdown(
   detection: DetectionResult | undefined,
   assetValue: number,

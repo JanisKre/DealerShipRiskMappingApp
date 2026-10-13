@@ -51,6 +51,12 @@ describe("risk parameter normalization", () => {
       hailDamageFraction: 0.15,
       floodDamageHq100: 0.15,
       alertExtremeScore: 75,
+      // Score caps of the perils removed with the hail-only model.
+      windScoreMaxKmh: 120,
+      lightningScoreMaxDensity: 5,
+      snowScoreMaxCm: 50,
+      heatHotdaysScoreMax: 40,
+      floodScoreMaxAnnualPrecipMm: 1200,
     };
 
     const parsed = RiskParametersSchema.parse(legacy);
@@ -58,5 +64,6 @@ describe("risk parameter normalization", () => {
     expect(parsed).toEqual(DEFAULT_RISK_PARAMETERS);
     expect(parsed).not.toHaveProperty("hailDamageFraction");
     expect(parsed).not.toHaveProperty("alertExtremeScore");
+    expect(parsed).not.toHaveProperty("windScoreMaxKmh");
   });
 });

@@ -64,7 +64,7 @@ import { DetectionOverlay, type DetectionEditDraft } from "./DetectionOverlay";
 import { HailstormScenarioLayer } from "./HailstormScenarioLayer";
 import { LayerPanel } from "./LayerPanel";
 import { MapLegend } from "./MapLegend";
-import { MultiPerilOverlay } from "./MultiPerilOverlay";
+import { HailScoreOverlay } from "./HailScoreOverlay";
 import { NearbyInsuredLayer } from "./NearbyInsuredLayer";
 import { OverlayLegend } from "./OverlayLegend";
 import { ViewPersistence } from "./ViewPersistence";
@@ -485,7 +485,6 @@ export function MapPage(): React.JSX.Element {
       pathCoordinates: path,
       widthKm: scenario?.widthKm ?? 20,
       intensityLevel: scenario?.intensityLevel ?? "HIGH",
-      peril: scenario?.peril ?? "hail",
       returnPeriodYears: scenario?.returnPeriodYears ?? 100,
       exposureMultiplier: scenario?.exposureMultiplier ?? 1,
       modelVersion: scenario?.modelVersion ?? "scenario-screening-0.2.0",
@@ -607,11 +606,8 @@ export function MapPage(): React.JSX.Element {
             radiusKm={parameters.accumulationRadiusKm}
           />
         )}
-        {perilOverlay && (
-          <MultiPerilOverlay
-            dealerships={visibleDealerships}
-            peril={perilOverlay}
-          />
+        {perilOverlay === "hail" && (
+          <HailScoreOverlay dealerships={visibleDealerships} />
         )}
         {layers.boundaries && (
           <BoundaryLayer dealerships={visibleDealerships} editable={editing} />
@@ -907,7 +903,7 @@ export function MapPage(): React.JSX.Element {
       <div className="absolute bottom-6 left-3 z-[1000] flex flex-col gap-2">
         <PortfolioFilterBar dealerships={withCoords} />
         <OverlayLegend
-          perilOverlay={perilOverlay}
+          showHailOverlay={perilOverlay === "hail"}
           showClusters={layers.accumulationClusters}
         />
         <MapLegend

@@ -50,7 +50,7 @@ npm run smoke       # starts the built app briefly where a display is available
 ## Commit messages
 
 Short, imperative, one topic per commit. Split up multiple changes.
-Example: `Add pluvial flood peril to risk.service`.
+Example: `Add hail zone lookup to risk.service`.
 
 ## What doesn't belong in the repo
 

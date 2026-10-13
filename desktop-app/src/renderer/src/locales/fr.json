@@ -90,69 +90,51 @@
     "apiKeySetPlaceholder": "•••••••• (enregistrée) — saisir une nouvelle clé pour la remplacer",
     "apiKeyUnsetPlaceholder": "Enregistrée de façon chiffrée (trousseau du système)",
     "natCat": {
-      "title": "Sources de données sur les risques naturels",
+      "title": "Source de données grêle",
       "statusDefault": "Par défaut : screening",
       "statusLicensed": "Données sous licence actives",
       "reset": "Rétablir le mode par défaut",
-      "resetHint": "Évaluer à nouveau tous les périls avec le screening Open-Meteo. Les fournisseurs connectés restent enregistrés.",
-      "intro": "Définissez la source de chaque péril : une source principale pour tous les périls et, si besoin, des spécialistes pour certains périls (p. ex. inondation). Sans choix, le screening Open-Meteo s’applique.",
+      "resetHint": "Évaluer à nouveau la grêle avec le screening (zones de grêle GDV, Open-Meteo). Les fournisseurs connectés restent enregistrés.",
+      "intro": "Définissez la source du score grêle. Sans choix, le screening s’applique : zone de grêle GDV selon le code postal, sinon une estimation météo Open-Meteo. L’application évalue uniquement la grêle.",
       "screening": "Screening (Open-Meteo)",
       "screeningDefault": "Screening (Open-Meteo) – par défaut",
       "notConnected": "non connecté",
       "keySet": "•••••••• (enregistrée) – saisir une nouvelle clé pour remplacer",
       "keyUnset": "Enregistrée chiffrée (trousseau du système)",
       "routing": {
-        "title": "Source par péril",
-        "primary": "Source principale",
-        "followPrimary": "Comme la source principale ({{source}})",
-        "order": "Ordre par péril : source choisie → données ZÜRS importées du site → source principale → screening. Si une source ne fournit pas de valeur, la suivante s’applique ; c’est indiqué sur le site.",
+        "primary": "Source grêle",
+        "order": "Si le fournisseur choisi échoue ou ne fournit pas de valeur grêle, le screening s’applique.",
         "applies": "Les modifications s’appliquent aux nouvelles analyses. Mettez à jour les sites existants via « Réanalyser » ou « Réinterroger les sources » dans le détail du site."
-      },
-      "perils": {
-        "wind": "Tempête",
-        "lightning": "Foudre",
-        "snow": "Neige",
-        "flood": "Inondation",
-        "hail": "Grêle",
-        "heat": "Chaleur",
-        "heavyRain": "Pluies intenses"
       },
       "catalog": {
         "title": "Fournisseurs",
         "showAll": "Afficher plus de fournisseurs ({{count}})",
         "hideAll": "Réduire la liste des fournisseurs",
-        "description": "Sources courantes de données sur les risques naturels. Les fournisseurs commerciaux se connectent via un endpoint HTTPS au format hazard API de l’application (contrat et, si nécessaire, service de traduction chez le fournisseur requis). Couverture selon les éditeurs, octobre 2026.",
+        "description": "Sources courantes de données grêle. Les fournisseurs commerciaux se connectent via un endpoint HTTPS au format hazard API de l’application (contrat et, si nécessaire, service de traduction chez le fournisseur requis). Seule la valeur grêle est utilisée. Couverture selon les éditeurs, octobre 2026.",
         "customName": "Hazard API personnalisée",
         "website": "Site du fournisseur",
-        "allPerils": "Tous les périls",
         "license": {
           "free": "Gratuit",
           "commercial": "Licence requise"
         },
         "status": {
           "builtin": "Par défaut · toujours actif",
-          "import": "Via import CSV/Excel",
-          "planned": "Prévu",
           "connected": "Connecté",
           "available": "Non connecté"
         },
         "notes": {
           "screening": "Approximation météo à partir des données climatiques Open-Meteo et des zones de grêle GDV. Pas un modèle catastrophe.",
-          "zuers": "Zonage GDV pour inondation et pluies intenses. Détecté automatiquement lors de l’import des sites.",
-          "catnet": "Données multi-périls de Swiss Re pour des sites dans le monde entier.",
-          "munichre": "Scores notamment pour grêle, foudre, crue fluviale, onde de tempête et séisme (anciennement NATHAN).",
-          "moodys": "Scores de risque et perte annuelle moyenne (AAL) pour plus de 100 pays.",
-          "verisk": "Europe : tempête et orages/grêle (22 pays), inondation pour l’Europe centrale dont l’Allemagne.",
-          "jba": "Spécialiste inondation ; carte de l’Allemagne à 5 m pour crues fluviales et ruissellement.",
-          "fathom": "Cartes mondiales d’inondation fluviale, pluviale et côtière.",
-          "custom": "Tout autre service répondant au format hazard API de l’application – p. ex. votre propre service de traduction.",
-          "jrc": "Cartes européennes gratuites d’aléa inondation (100 m, périodes de retour 10–500 ans). Pas encore intégrées."
+          "catnet": "Données d’aléas de Swiss Re pour des sites dans le monde entier ; l’application utilise la valeur grêle.",
+          "munichre": "Scores de site notamment pour la grêle (anciennement NATHAN) ; l’application utilise le score grêle.",
+          "moodys": "Scores de risque pour plus de 100 pays ; l’application utilise le score grêle.",
+          "verisk": "Europe : orages/grêle pour 22 pays.",
+          "custom": "Tout autre service répondant au format hazard API de l’application – p. ex. votre propre service de traduction."
         }
       },
       "connector": {
         "edit": "Modifier",
         "connect": "Connecter",
-        "contract": "L’endpoint reçoit POST {latitude, longitude, perils} avec un jeton Bearer et doit renvoyer {hazards: [{peril, score 0–100, …}]}. Seules les coordonnées du site sont transmises.",
+        "contract": "L’endpoint reçoit POST {latitude, longitude, perils} avec un jeton Bearer et doit renvoyer {hazards: [{peril: \"hail\", score 0–100, …}]}. Seules les coordonnées du site sont transmises.",
         "endpoint": "Endpoint (HTTPS)",
         "key": "Clé API",
         "save": "Enregistrer",
@@ -357,21 +339,13 @@
       "manualCountInvalid": "Saisissez un entier ≥ 0.",
       "exposureLabel": "Exposition",
       "totalEalLabel": "EAL total",
-      "perilScoresTitle": "Scores de périls",
       "mainScoreTitle": "Score principal · Grêle",
       "hailScoreLabel": "Score de grêle",
-      "showAdditionalScores": "Afficher les scores supplémentaires",
-      "hideAdditionalScores": "Masquer les scores supplémentaires",
       "hailZoneLabel": "Zone de grêle {{zone}}",
       "hailZoneKasko": "K-Kasko · {{tier}}",
       "hailZoneScore": "Score {{score}}/100",
       "ealPeril": {
         "hail": "Grêle",
-        "wind": "Vent",
-        "flood": "Inondation",
-        "lightning": "Foudre",
-        "snow": "Neige",
-        "heat": "Chaleur",
         "total": "Total"
       },
       "boundaryTitle": "Limite de parcelle",
@@ -452,7 +426,7 @@
       "subPortfolioLabel": "Sous-portefeuille",
       "groupLabel": "Groupe",
       "productLimitLabel": "Indemnité max. / Limite (EUR)",
-      "natCatTitle": "Source catastrophes naturelles",
+      "natCatTitle": "Source de données grêle",
       "natCatRefresh": "Réinterroger les sources",
       "natCatRefreshing": "Interrogation des sources…",
       "natCatHazard": "{{peril}} : {{score}}/100 ({{unit}})",
@@ -587,8 +561,8 @@
       "satelliteOpacityAriaLabel": "Opacité du satellite",
       "boundariesLayerLabel": "Parcelles",
       "nearbyInsuredLayerLabel": "Voisins assurés",
+      "hailOverlayLayerLabel": "Score grêle",
       "accumulationClustersLayerLabel": "Clusters de cumul",
-      "overlaysSectionTitle": "Superpositions",
       "editingActiveBadge": "actif",
       "editBoundariesButton": "Modifier les limites",
       "stopEditingButton": "Arrêter la modification",
@@ -616,7 +590,7 @@
       "recentSceneNone": "Aucune scène avec au plus {{cloud}} % de nuages au cours des {{days}} derniers jours.",
       "imageryVersionPinnedBadge": "archive"
     },
-    "multiPerilOverlay": {
+    "hailScoreOverlay": {
       "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"
     },
     "page": {
@@ -799,7 +773,6 @@
     "estimated": "estimé",
     "boundaryReviewNeeded": "⚠ Vérifier la limite du terrain",
     "confirmBoundary": "✓ Confirmer la limite",
-    "topPeril": "Péril principal",
     "risk": "Risque",
     "ealYear": "EAL / an",
     "viewDetails": "Voir les détails →",

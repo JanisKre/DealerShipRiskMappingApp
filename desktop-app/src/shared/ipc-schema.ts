@@ -140,8 +140,6 @@ const DetectVehiclesRequestSchema: z.ZodType<
 export const ipcRequest = {
   "csv:parse": z.object({ content: z.string() }),
   "xlsx:parse": z.object({ base64: z.string() }),
-  "natcat:zuers:parseCsv": z.object({ content: z.string() }),
-  "natcat:zuers:parseXlsx": z.object({ base64: z.string() }),
   "geocode:search": z.object({ query: z.string().min(1) }),
   "places:autocomplete": z.object({
     query: z.string().min(1).max(200),
@@ -188,8 +186,6 @@ export const ipcRequest = {
   "natcat:resolve": z.object({
     lat: z.number().finite().min(-90).max(90),
     lon: z.number().finite().min(-180).max(180),
-    /** The location's imported data (ZÜRS), combined per peril. */
-    imported: NatCatAssessmentSchema.optional(),
   }),
   "natcat:testConnector": z.object({ provider: NatCatApiProviderSchema }),
   "analyze:dealership": z.object({
@@ -269,8 +265,6 @@ export const ipcRequest = {
 export const ipcResponse = {
   "csv:parse": ImportResultSchema,
   "xlsx:parse": ImportResultSchema,
-  "natcat:zuers:parseCsv": ImportResultSchema,
-  "natcat:zuers:parseXlsx": ImportResultSchema,
   "geocode:search": z.array(
     z.object({ label: z.string(), lat: z.number(), lon: z.number() }),
   ),

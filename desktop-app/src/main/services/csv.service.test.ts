@@ -34,7 +34,7 @@ describe("portfolio import report", () => {
     });
   });
 
-  it("auto-detects ZÜRS classes and preserves source evidence", () => {
+  it("ignores ZÜRS flood columns: the app models hail only", () => {
     const result = parseCsvWithReport(
       [
         "name,address,lat,lon,ZÜRS Hochwasserklasse,Starkregenklasse,Bachzone,ZÜRS Version",
@@ -42,37 +42,11 @@ describe("portfolio import report", () => {
       ].join("\n"),
     );
 
-    expect(result.rows[0].natCat).toMatchObject({
-      provider: "zuers-geo",
-      dataVersion: "2026",
-      attributes: { floodClass: 4, heavyRainClass: 3, watercourseZone: true },
-    });
-    expect(result.rows[0].natCat?.hazards).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ peril: "flood", score: 100, rawValue: 4 }),
-        expect.objectContaining({
-          peril: "heavyRain",
-          score: 100,
-          rawValue: 3,
-        }),
-      ]),
-    );
-    expect(result.report.columnMapping.zuersFloodClass).toBe(
-      "ZÜRS Hochwasserklasse",
-    );
-  });
-
-  it("reports invalid ZÜRS classes without importing them as risk data", () => {
-    const result = parseCsvWithReport("name,zuersFloodClass\nSite,5");
-    expect(result.rows[0].natCat).toBeUndefined();
-    expect(result.report.issues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          field: "zuersFloodClass",
-          severity: "warning",
-        }),
-      ]),
-    );
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).not.toHaveProperty("natCat");
+    expect(result.rows[0].address).toBe("Main Street 1");
+    expect(result.report.columnMapping).not.toHaveProperty("zuersFloodClass");
+    expect(result.report.issues).toEqual([]);
   });
 
   it("maps 'Dealership Name' and joins split address columns", () => {

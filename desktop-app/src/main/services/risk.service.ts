@@ -48,10 +48,7 @@ export async function scoreRisk(
     boundary ? exposureRatioForBoundary(boundary) : Promise.resolve(1),
   ]);
 
-  const perils = scorePerils(weather, hailZone, parameters, natCat);
-  // The dealership's primary score is intentionally hail-only for now.
-  // Keep the other peril scores available for optional detail views and
-  // future score configuration without mixing them into the main score.
+  const perils = scorePerils(weather, hailZone, natCat);
   const overallScore = primaryHailScore(perils);
 
   const exposureEur = estimatedExposureEur(detection, assetValue, parameters);

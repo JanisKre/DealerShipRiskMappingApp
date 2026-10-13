@@ -12,7 +12,7 @@ import { fetchWithResilience, HttpRequestError } from "./http.service";
 /**
  * Adapter for the app's hazard API contract (documented in
  * `docs/risk-model.md`). Every licensed provider — Swiss Re CatNet, Munich
- * Re, Moody's, Verisk, JBA, Fathom or any other — is reached through a
+ * Re, Moody's, Verisk or any other — is reached through a
  * customer-configured HTTPS endpoint that answers in this contract, because
  * the vendors expose their production schemas only to contracted clients.
  *

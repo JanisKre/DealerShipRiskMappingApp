@@ -152,6 +152,16 @@ export const useMapStore = create<MapState>()(
         locationsPanelOpen: s.locationsPanelOpen,
         chatPanelOpen: s.chatPanelOpen,
       }),
+      // An overlay of a peril removed with the hail-only model (storm,
+      // flood, …) must not come back as an empty overlay after an update.
+      merge: (persisted, current) => {
+        const stored = (persisted ?? {}) as Partial<MapState>;
+        return {
+          ...current,
+          ...stored,
+          perilOverlay: stored.perilOverlay === "hail" ? "hail" : null,
+        };
+      },
     },
   ),
 );

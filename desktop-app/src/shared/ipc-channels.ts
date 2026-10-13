@@ -6,8 +6,6 @@ export const IPC = {
   // CSV / Import
   parseCsv: "csv:parse",
   parseXlsx: "xlsx:parse",
-  parseZuersCsv: "natcat:zuers:parseCsv",
-  parseZuersXlsx: "natcat:zuers:parseXlsx",
 
   // Geocoding
   geocode: "geocode:search",

@@ -7,6 +7,20 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- All perils except hail (risk model `screening-0.5.0`): storm, lightning,
+  snow, flood and heat are no longer scored, shown, exported or sent to the
+  AI assistant. Removed with them: their score caps on the parameters page,
+  the per-peril map overlays (replaced by a single "Hail score" layer), the
+  extra scores in the location details, the hazard-coverage dashboard widget,
+  the ZÜRS Geo import (flood and heavy-rain classes, incl. its IPC channels)
+  and the flood providers JBA, Fathom and JRC. The NatCat settings now choose
+  one hail source instead of a source per peril; providers are asked for
+  `hail` only. Open-Meteo is queried for CAPE only. Saved portfolios and
+  settings still load: values of removed perils and providers are dropped,
+  and older results are offered for recalculation.
+
 ### Fixed
 
 - Licences: replaced `react-leaflet` (Hippocratic-2.1, which adds use

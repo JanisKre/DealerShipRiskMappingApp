@@ -14,7 +14,6 @@ import { scoreRisk } from "./risk.service";
 import { aerialImageForContext } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type { RiskParameters } from "@shared/types";
-import { importedNatCat } from "@shared/natcat-routing";
 import { resolveNatCat } from "./natcat.service";
 
 /** Extracts a 5-digit postal code from a German address string. */
@@ -92,11 +91,10 @@ export async function analyzeDealership(
       (await detectVehicles(contextImage, boundary, parameters)),
     contextImage.imagery,
   );
-  // Re-route on every analysis: only the import is kept from earlier runs,
-  // so a changed routing (or a reset to screening) takes effect and stale API
-  // values are never re-used. Failed sources fall back per peril.
-  const natCatImport = importedNatCat(input);
-  const natCat = await resolveNatCat(lat, lon, natCatImport);
+  // Resolved on every analysis, so a changed hail source (or a reset to
+  // screening) takes effect and stale API values are never re-used. A failed
+  // source falls back to screening.
+  const natCat = await resolveNatCat(lat, lon);
 
   const risk = await scoreRisk(
     lat,
@@ -120,7 +118,6 @@ export async function analyzeDealership(
     risk,
     // Explicit, also when undefined: overrides a stale `natCat` from `input`.
     natCat,
-    ...(natCatImport ? { natCatImport } : {}),
     ...(website ? { website, websiteSource: "osm" as const } : {}),
     ...(hailZone != null ? { hailZone, hailRiskTier } : {}),
   };

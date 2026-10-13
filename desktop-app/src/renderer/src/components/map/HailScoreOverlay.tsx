@@ -1,10 +1,10 @@
 import L from "leaflet";
 import { CircleMarker, Marker, Tooltip } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
-import type { AnalyzedDealership, Peril } from "@shared/types";
-import { perilColor } from "@renderer/lib/perilLabel";
+import type { AnalyzedDealership } from "@shared/types";
+import { HAIL_COLOR } from "@renderer/lib/hailColor";
 
-/** Fixed radius for the peril ring — deliberately not score-scaled: a tiny
+/** Fixed radius for the hail ring — deliberately not score-scaled: a tiny
  * circle at a low score was practically invisible on the aerial image. */
 const RING_RADIUS_PX = 26;
 
@@ -13,7 +13,7 @@ const RING_RADIUS_PX = 26;
  * legend shows exactly what's on the map (instead of an independent CSS
  * gradient estimate that would look different from the actual rings).
  */
-export function perilRingStyleForScore(score: number): {
+export function hailRingStyleForScore(score: number): {
   weight: number;
   fillOpacity: number;
 } {
@@ -36,33 +36,29 @@ function scoreBadgeIcon(score: number, color: string): L.DivIcon {
 }
 
 /**
- * Multi-peril overlay: a colored ring per location for the selected peril,
- * plus a numeric badge with the score (0..100) — a plain color/opacity circle
+ * Hail score overlay: a colored ring per location, plus a numeric badge with the score (0..100) — a plain color/opacity circle
  * was hard to read against the aerial background, and an alpha ramp already
  * looks "fully saturated" to the eye above ~50% opacity, which is why the
  * number is the reliable source. The ring remains as a rough pattern for
  * quickly scanning the portfolio (thin/pale = low, thick/saturated = high).
- * Toggleable via the layer control in `MapPage`. Color per peril from the
- * central palette.
+ * Toggleable via the layer control in `MapPage`.
  */
-export function MultiPerilOverlay({
+export function HailScoreOverlay({
   dealerships,
-  peril,
 }: Readonly<{
   dealerships: AnalyzedDealership[];
-  peril: Peril;
 }>): React.JSX.Element {
   const { t } = useTranslation();
-  const color = perilColor(peril);
+  const color = HAIL_COLOR;
 
   return (
     <>
       {dealerships.map((d) => {
-        const score = d.risk?.perils.find((p) => p.peril === peril)?.score;
+        const score = hailScore(d);
         if (score == null) return null;
         // Border weight 3–9px and fill 0.3–0.75 carry the score; the ring
         // itself always stays clearly visible (border opacity stays constantly high).
-        const { weight, fillOpacity } = perilRingStyleForScore(score);
+        const { weight, fillOpacity } = hailRingStyleForScore(score);
         return (
           <CircleMarker
             key={d.id}
@@ -80,12 +76,12 @@ export function MultiPerilOverlay({
               <div className="space-y-0.5">
                 <strong>{d.name}</strong>
                 <div>
-                  {t(`dashboard.detailDialog.ealPeril.${peril}`)}:{" "}
+                  {t("dashboard.detailDialog.ealPeril.hail")}:{" "}
                   {score.toFixed(0)}/100
                 </div>
-                {peril === "hail" && d.hailZone != null && (
+                {d.hailZone != null && (
                   <div className="text-xs text-muted-foreground">
-                    {t("map.multiPerilOverlay.hailZoneTooltip", {
+                    {t("map.hailScoreOverlay.hailZoneTooltip", {
                       zone: d.hailZone,
                       tier: d.hailRiskTier,
                     })}
@@ -97,7 +93,7 @@ export function MultiPerilOverlay({
         );
       })}
       {dealerships.map((d) => {
-        const score = d.risk?.perils.find((p) => p.peril === peril)?.score;
+        const score = hailScore(d);
         if (score == null) return null;
         return (
           <Marker
@@ -110,4 +106,8 @@ export function MultiPerilOverlay({
       })}
     </>
   );
+}
+
+function hailScore(d: AnalyzedDealership): number | undefined {
+  return d.risk?.perils.find((p) => p.peril === "hail")?.score;
 }

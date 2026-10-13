@@ -123,8 +123,9 @@ source-specific ranking and calibration.
 - CSV import, manual entry, geocoding (Nominatim)
 - Multi-source boundary detection (ALKIS + semantic OSM/Overpass candidates)
   with confidence, review flags and manual correction via Geoman
-- Weather (Open-Meteo), risk scoring (5 perils + EAL breakdown, utilisation,
-  exposure, PML, cluster heatmap)
+- Hail risk scoring (GDV hail zones, Open-Meteo CAPE proxy, optional licensed
+  provider) with hail EAL breakdown, utilisation, exposure, PML, cluster
+  heatmap
 - Real YOLOv26 ONNX vehicle detection (Esri aerial imagery tiles, sliding
   window, soft-NMS) with stub fallback and installation wizard
 - Leaflet map: satellite toggle, boundary/detection/cluster layers, hailstorm

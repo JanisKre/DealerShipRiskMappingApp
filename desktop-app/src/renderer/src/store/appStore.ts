@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { importedNatCat } from "@shared/natcat-routing";
 import type {
   AnalyzedDealership,
   BoundaryResult,
@@ -902,8 +901,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!d) return;
     try {
       const natCat =
-        (await window.api.resolveNatCat(d.lat, d.lon, importedNatCat(d))) ??
-        undefined;
+        (await window.api.resolveNatCat(d.lat, d.lon)) ?? undefined;
       const risk = await window.api.scoreRisk(
         d.lat,
         d.lon,
@@ -916,13 +914,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       );
       const latest = get().dealerships.find((x) => x.id === id);
       if (latest) {
-        const natCatImport = importedNatCat(latest);
-        get().upsertDealership({
-          ...latest,
-          natCat,
-          ...(natCatImport ? { natCatImport } : {}),
-          risk,
-        });
+        get().upsertDealership({ ...latest, natCat, risk });
         await get().saveSession();
       }
     } catch (err) {
@@ -1199,8 +1191,6 @@ async function rescoreWithConcurrency(
 
 /** Flat NL query projection of a dealership (for the filter evaluator in main). */
 export function toNlQueryDealership(d: AnalyzedDealership): NlQueryDealership {
-  const peril = (name: string): number | undefined =>
-    d.risk?.perils.find((p) => p.peril === name)?.score;
   const score = d.risk?.overallScore;
   return {
     id: d.id,
@@ -1211,12 +1201,7 @@ export function toNlQueryDealership(d: AnalyzedDealership): NlQueryDealership {
     utilisation: d.risk?.utilisation,
     eal: d.risk?.eal,
     exposureEur: d.risk?.exposureEur,
-    hailScore: peril("hail"),
-    windScore: peril("wind"),
-    floodScore: peril("flood"),
-    snowScore: peril("snow"),
-    lightningScore: peril("lightning"),
-    heatScore: peril("heat"),
+    hailScore: d.risk?.perils.find((p) => p.peril === "hail")?.score,
     boundarySource: d.boundary?.source,
     boundaryConfidence: d.boundary?.confidence,
     insured: d.insured,

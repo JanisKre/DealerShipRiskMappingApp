@@ -45,8 +45,6 @@ import { getOsmDetails } from "../services/osmDetails.service";
 import { placesAutocomplete } from "../services/places.service";
 import {
   parseCsvWithReport,
-  parseZuersCsvWithReport,
-  parseZuersXlsxWithReport,
   parseXlsxWithReport,
 } from "../services/csv.service";
 import { resolveNatCat, testNatCatConnector } from "../services/natcat.service";
@@ -133,8 +131,6 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   mainWindowProvider = getMainWindow;
   handle(IPC.parseCsv, ({ content }) => parseCsvWithReport(content));
   handle(IPC.parseXlsx, ({ base64 }) => parseXlsxWithReport(base64));
-  handle(IPC.parseZuersCsv, ({ content }) => parseZuersCsvWithReport(content));
-  handle(IPC.parseZuersXlsx, ({ base64 }) => parseZuersXlsxWithReport(base64));
   handle(IPC.geocode, ({ query }) => geocode(query));
   handle(IPC.placesAutocomplete, ({ query, near }) =>
     placesAutocomplete(query, near),
@@ -181,8 +177,7 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   );
   handle(
     IPC.resolveNatCat,
-    async ({ lat, lon, imported }) =>
-      (await resolveNatCat(lat, lon, imported)) ?? null,
+    async ({ lat, lon }) => (await resolveNatCat(lat, lon)) ?? null,
   );
   handle(IPC.testNatCatConnector, ({ provider }) =>
     testNatCatConnector(provider),

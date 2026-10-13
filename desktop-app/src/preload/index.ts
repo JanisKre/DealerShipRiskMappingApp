@@ -25,20 +25,6 @@ const api = {
       base64,
     } satisfies IpcRequest["xlsx:parse"]),
 
-  parseZuersCsv: (
-    content: string,
-  ): Promise<IpcResponse["natcat:zuers:parseCsv"]> =>
-    ipcRenderer.invoke(IPC.parseZuersCsv, {
-      content,
-    } satisfies IpcRequest["natcat:zuers:parseCsv"]),
-
-  parseZuersXlsx: (
-    base64: string,
-  ): Promise<IpcResponse["natcat:zuers:parseXlsx"]> =>
-    ipcRenderer.invoke(IPC.parseZuersXlsx, {
-      base64,
-    } satisfies IpcRequest["natcat:zuers:parseXlsx"]),
-
   geocode: (query: string): Promise<IpcResponse["geocode:search"]> =>
     ipcRenderer.invoke(IPC.geocode, {
       query,
@@ -137,16 +123,14 @@ const api = {
       hailZone,
     } satisfies IpcRequest["risk:score"]),
 
-  /** Re-resolves the routed NatCat sources for one location. */
+  /** Re-resolves the hail source chosen in the settings for one location. */
   resolveNatCat: (
     lat: number,
     lon: number,
-    imported?: IpcRequest["natcat:resolve"]["imported"],
   ): Promise<IpcResponse["natcat:resolve"]> =>
     ipcRenderer.invoke(IPC.resolveNatCat, {
       lat,
       lon,
-      imported,
     } satisfies IpcRequest["natcat:resolve"]),
 
   testNatCatConnector: (

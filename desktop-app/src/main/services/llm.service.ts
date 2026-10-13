@@ -545,7 +545,7 @@ Respond EXCLUSIVELY with JSON (no markdown, no code blocks):
   "sublimitNotes": ["<note 1>", "<note 2>"],
   "reasoning": "<2-3 sentence rationale in ${responseLanguageName()}>"
 }
-Consider: EAL, utilisation, hail zone, wind risk, flood risk, lot size.`,
+Consider: hail EAL, utilisation, hail zone, hail score, lot size. The app assesses hail only.`,
     },
     {
       role: "user",
@@ -606,7 +606,7 @@ Select and arrange suitable widgets for the user's request. Respond EXCLUSIVELY 
 Allowed "type" values: ${DASHBOARD_WIDGET_TYPES.join(", ")}.
 For type "kpi", "source" MUST be one of these keys: ${DASHBOARD_KPI_KEYS.join(", ")}.
 For type "barChart"/"lineChart"/"pieChart", "source" MUST be one of these keys: ${DASHBOARD_SERIES_KEYS.join(", ")}.
-For type "table"/"insights"/"coverage"/"seasonal" no "source" is needed.
+For type "table"/"insights"/"seasonal" no "source" is needed.
 For type "text" use the "text" field for short prose (heading/note) — NEVER numbers.
 
 IMPORTANT: Never output concrete figures or values. You only arrange widgets; the app fills in the data. 1-12 widgets. Use "limit" (max 50) only for chart/list widgets.`,
@@ -683,7 +683,7 @@ export async function nlQueryFilter(
 Convert the user's request into a structured filter.
 Available fields: riskLevel (LOW/MEDIUM/HIGH/EXTREME), overallScore (0-100),
 vehicleCount (number), utilisation (0-1+), eal (number), exposureEur (number),
-hailScore/windScore/floodScore/snowScore/lightningScore (0-100),
+hailScore (0-100),
 boundaryConfidence (0-1), boundarySource (string).
 Respond ONLY with JSON: {"filter":{"field":"riskLevel","op":"eq","value":"HIGH"}}
 For combined filters: {"filter":{"and":[{...},{...}]}}

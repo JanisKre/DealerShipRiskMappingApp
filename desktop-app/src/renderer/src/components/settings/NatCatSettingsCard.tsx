@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import type { NatCatConnectorTest } from "@shared/ipc-schema";
 import {
   NAT_CAT_CATALOG,
-  coversPeril,
   sourceLabel,
   type NatCatCatalogEntry,
 } from "@shared/natcat-catalog";
@@ -26,11 +25,8 @@ import {
 } from "@shared/natcat-routing";
 import {
   NAT_CAT_API_PROVIDERS,
-  PERILS,
   type NatCatApiProvider,
-  type NatCatPerilSource,
   type NatCatSettings,
-  type Peril,
   type Settings,
 } from "@shared/types";
 import { Badge } from "@renderer/components/ui/badge";
@@ -65,8 +61,7 @@ function isApiProvider(id: string): id is NatCatApiProvider {
 }
 
 /**
- * Natural-catastrophe data sources: per-peril routing (primary source plus
- * overrides such as "flood from a flood specialist"), a reset to the
+ * Hail data source: screening or a connected provider, a reset to the
  * screening default, and a catalog of providers with their connectors.
  */
 export function NatCatSettingsCard({
@@ -100,7 +95,6 @@ export function NatCatSettingsCard({
           // Persist the effective routing so legacy CatNet fields migrate.
           provider: settings.natCat?.provider ?? "screening",
           primary: routing.primary,
-          perilSources: routing.perilSources,
           connectors: routing.connectors,
           ...partial,
         },
@@ -113,20 +107,9 @@ export function NatCatSettingsCard({
     }
   }
 
-  function setPerilSource(peril: Peril, source: NatCatPerilSource): void {
-    const perilSources = { ...routing.perilSources };
-    if (source === "primary") delete perilSources[peril];
-    else perilSources[peril] = source;
-    void save({ perilSources });
-  }
-
   async function disconnect(provider: NatCatApiProvider): Promise<void> {
     const connectors = { ...routing.connectors };
     delete connectors[provider];
-    // Nothing may keep pointing at a source that no longer exists.
-    const perilSources = Object.fromEntries(
-      Object.entries(routing.perilSources).filter(([, s]) => s !== provider),
-    ) as NatCatRouting["perilSources"];
     try {
       await window.api.deleteNatCatApiKey(provider);
     } catch (err) {
@@ -134,7 +117,7 @@ export function NatCatSettingsCard({
     }
     await save({
       connectors,
-      perilSources,
+      // Nothing may keep pointing at a source that no longer exists.
       primary: routing.primary === provider ? "screening" : routing.primary,
       ...(provider === "swissre-catnet"
         ? { catnetEndpoint: undefined, provider: "screening" }
@@ -175,11 +158,10 @@ export function NatCatSettingsCard({
           {t("settings.natCat.intro")}
         </p>
 
-        <RoutingTable
+        <HailSourceSelect
           routing={routing}
           connected={connected}
-          onPrimaryChange={(primary) => void save({ primary })}
-          onPerilChange={setPerilSource}
+          onChange={(primary) => void save({ primary })}
         />
 
         <section className="space-y-3">
@@ -256,37 +238,26 @@ export function NatCatSettingsCard({
   );
 }
 
-function RoutingTable({
+function HailSourceSelect({
   routing,
   connected,
-  onPrimaryChange,
-  onPerilChange,
+  onChange,
 }: Readonly<{
   routing: NatCatRouting;
   connected: NatCatApiProvider[];
-  onPrimaryChange: (primary: NatCatRouting["primary"]) => void;
-  onPerilChange: (peril: Peril, source: NatCatPerilSource) => void;
+  onChange: (primary: NatCatRouting["primary"]) => void;
 }>): React.JSX.Element {
   const { t } = useTranslation();
-  const name = (id: "screening" | NatCatApiProvider): string =>
-    id === "screening" ? t("settings.natCat.screening") : sourceLabel(id);
-  // Multi-peril sources only; a flood specialist cannot be the primary.
-  const primaryOptions = connected.filter((p) =>
-    PERILS.every((peril) => coversPeril(p, peril)),
-  );
-
+  const value = routing.primary;
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-medium">
-        {t("settings.natCat.routing.title")}
-      </h3>
       <div className="grid items-center gap-x-3 gap-y-2 sm:grid-cols-[10rem_1fr]">
         <label className="text-sm font-medium">
           {t("settings.natCat.routing.primary")}
         </label>
         <Select
-          value={routing.primary}
-          onValueChange={(v) => onPrimaryChange(v as NatCatRouting["primary"])}
+          value={value}
+          onValueChange={(v) => onChange(v as NatCatRouting["primary"])}
         >
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -295,30 +266,19 @@ function RoutingTable({
             <SelectItem value="screening">
               {t("settings.natCat.screeningDefault")}
             </SelectItem>
-            {primaryOptions.map((p) => (
+            {connected.map((p) => (
               <SelectItem key={p} value={p}>
                 {sourceLabel(p)}
               </SelectItem>
             ))}
+            {/* Keep a saved choice visible after its connector was removed. */}
+            {value !== "screening" && !connected.includes(value) && (
+              <SelectItem value={value} disabled>
+                {sourceLabel(value)} ({t("settings.natCat.notConnected")})
+              </SelectItem>
+            )}
           </SelectContent>
         </Select>
-
-        {PERILS.map((peril) => {
-          const options = connected.filter((p) => coversPeril(p, peril));
-          return (
-            <PerilRow
-              key={peril}
-              label={t(`settings.natCat.perils.${peril}`)}
-              value={routing.perilSources[peril] ?? "primary"}
-              primaryLabel={t("settings.natCat.routing.followPrimary", {
-                source: name(routing.primary),
-              })}
-              primary={routing.primary}
-              options={options}
-              onChange={(source) => onPerilChange(peril, source)}
-            />
-          );
-        })}
       </div>
       <p className="text-xs text-muted-foreground">
         {t("settings.natCat.routing.order")}
@@ -327,70 +287,6 @@ function RoutingTable({
         {t("settings.natCat.routing.applies")}
       </p>
     </section>
-  );
-}
-
-function PerilRow({
-  label,
-  value,
-  primaryLabel,
-  primary,
-  options,
-  onChange,
-}: Readonly<{
-  label: string;
-  value: NatCatPerilSource;
-  primaryLabel: string;
-  primary: NatCatRouting["primary"];
-  options: NatCatApiProvider[];
-  onChange: (source: NatCatPerilSource) => void;
-}>): React.JSX.Element {
-  const { t } = useTranslation();
-  const primaryIsScreening = primary === "screening";
-  // When the main source is screening, both choices have the same effect.
-  const showPrimary = !primaryIsScreening || value !== "screening";
-  const showExplicitScreening = !primaryIsScreening || value === "screening";
-  return (
-    <>
-      <span className="text-sm">{label}</span>
-      <Select
-        value={value}
-        onValueChange={(v) => onChange(v as NatCatPerilSource)}
-      >
-        <SelectTrigger
-          className={cn("w-full", value !== "primary" && "border-primary")}
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {showPrimary && (
-            <SelectItem value="primary">
-              {primaryIsScreening
-                ? t("settings.natCat.screening")
-                : primaryLabel}
-            </SelectItem>
-          )}
-          {showExplicitScreening && (
-            <SelectItem value="screening">
-              {t("settings.natCat.screening")}
-            </SelectItem>
-          )}
-          {options.map((p) => (
-            <SelectItem key={p} value={p}>
-              {sourceLabel(p)}
-            </SelectItem>
-          ))}
-          {/* Keep a saved choice visible after its connector was removed. */}
-          {value !== "primary" &&
-            value !== "screening" &&
-            !options.includes(value) && (
-              <SelectItem value={value} disabled>
-                {sourceLabel(value)} ({t("settings.natCat.notConnected")})
-              </SelectItem>
-            )}
-        </SelectContent>
-      </Select>
-    </>
   );
 }
 
@@ -425,22 +321,12 @@ function CatalogRow({
   const status =
     entry.kind === "builtin"
       ? { label: t("settings.natCat.catalog.status.builtin"), tone: "ok" }
-      : entry.kind === "import"
-        ? { label: t("settings.natCat.catalog.status.import"), tone: "info" }
-        : entry.kind === "planned"
-          ? {
-              label: t("settings.natCat.catalog.status.planned"),
-              tone: "muted",
-            }
-          : isConnected
-            ? {
-                label: t("settings.natCat.catalog.status.connected"),
-                tone: "ok",
-              }
-            : {
-                label: t("settings.natCat.catalog.status.available"),
-                tone: "muted",
-              };
+      : isConnected
+        ? { label: t("settings.natCat.catalog.status.connected"), tone: "ok" }
+        : {
+            label: t("settings.natCat.catalog.status.available"),
+            tone: "muted",
+          };
 
   async function submit(): Promise<void> {
     if (!provider) return;
@@ -499,22 +385,6 @@ function CatalogRow({
                 {t(`settings.natCat.catalog.notes.${entry.noteKey}`)}
               </p>
               <div className="mt-1 flex flex-wrap gap-1">
-                {entry.perils === "all" ? (
-                  <Badge variant="outline" className="text-[10px]">
-                    {t("settings.natCat.catalog.allPerils")}
-                  </Badge>
-                ) : (
-                  entry.perils.map((p) => (
-                    <Badge key={p} variant="outline" className="text-[10px]">
-                      {t(`settings.natCat.perils.${p}`)}
-                    </Badge>
-                  ))
-                )}
-                {entry.extraHazards?.map((h) => (
-                  <Badge key={h} variant="outline" className="text-[10px]">
-                    {t(`settings.natCat.perils.${h}`)}
-                  </Badge>
-                ))}
                 <Badge variant="secondary" className="text-[10px]">
                   {t(`settings.natCat.catalog.license.${entry.license}`)}
                 </Badge>

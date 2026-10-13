@@ -167,28 +167,16 @@ async function writePdf(session: Session, filePath: string): Promise<void> {
       "Manual Vehicles",
       "Vehicles Used",
       "Hail Score",
-      "Wind",
-      "Lightning",
-      "Snow",
-      "Flood",
-      "Hail",
       "Exposure",
       "EAL",
     ],
   ];
-  const peril = (d: Session["dealerships"][number], name: string): number =>
-    d.risk?.perils.find((x) => x.peril === name)?.score ?? 0;
   const body = session.dealerships.map((d) => [
     d.name,
     String(d.detection?.vehicleCount ?? "—"),
     String(d.detection?.manualVehicleCount ?? "—"),
     String(d.detection ? effectiveVehicleCount(d.detection) : "—"),
     (d.risk?.overallScore ?? 0).toFixed(0),
-    peril(d, "wind").toFixed(0),
-    peril(d, "lightning").toFixed(0),
-    peril(d, "snow").toFixed(0),
-    peril(d, "flood").toFixed(0),
-    peril(d, "hail").toFixed(0),
     eur(d.risk?.exposureEur ?? 0),
     eur(d.risk?.eal ?? 0),
   ]);
@@ -231,12 +219,7 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
     { header: "Machine Vehicles", key: "machineVehicles", width: 16 },
     { header: "Manual Vehicles", key: "manualVehicles", width: 16 },
     { header: "Vehicles Used", key: "vehicles", width: 14 },
-    { header: "Score", key: "score", width: 10 },
-    { header: "Wind", key: "wind", width: 8 },
-    { header: "Lightning", key: "lightning", width: 8 },
-    { header: "Snow", key: "snow", width: 8 },
-    { header: "Flood", key: "flood", width: 8 },
-    { header: "Hail", key: "hail", width: 8 },
+    { header: "Hail Score", key: "score", width: 10 },
     { header: "Exposure (EUR)", key: "exposure", width: 16 },
     { header: "EAL (EUR)", key: "eal", width: 14 },
     { header: "Insured", key: "insured", width: 12 },
@@ -250,9 +233,6 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
 
   const clusters = clusterAssignment(session);
 
-  const peril = (d: Session["dealerships"][number], name: string): number =>
-    d.risk?.perils.find((x) => x.peril === name)?.score ?? 0;
-
   for (const d of session.dealerships) {
     const row = ws.addRow({
       name: d.name,
@@ -263,11 +243,6 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
       manualVehicles: d.detection?.manualVehicleCount ?? null,
       vehicles: d.detection ? effectiveVehicleCount(d.detection) : null,
       score: d.risk?.overallScore ?? null,
-      wind: peril(d, "wind"),
-      lightning: peril(d, "lightning"),
-      snow: peril(d, "snow"),
-      flood: peril(d, "flood"),
-      hail: peril(d, "hail"),
       exposure: d.risk?.exposureEur ?? null,
       eal: d.risk?.eal ?? null,
       insured: d.insured == null ? "" : d.insured ? "yes" : "no",
@@ -327,11 +302,6 @@ function toCsv(session: Session): string {
     "manualVehicleCount",
     "vehicleCount",
     "hailScore",
-    "wind",
-    "lightning",
-    "snow",
-    "flood",
-    "hail",
     "eal",
     "insured",
     "salesPartner",
@@ -343,8 +313,6 @@ function toCsv(session: Session): string {
   ];
   const lines = [header.join(",")];
   for (const d of session.dealerships) {
-    const p = (name: string): number =>
-      d.risk?.perils.find((x) => x.peril === name)?.score ?? 0;
     lines.push(
       [
         csv(d.name),
@@ -356,11 +324,6 @@ function toCsv(session: Session): string {
         d.detection?.manualVehicleCount ?? "",
         d.detection ? effectiveVehicleCount(d.detection) : "",
         d.risk?.overallScore ?? "",
-        p("wind"),
-        p("lightning"),
-        p("snow"),
-        p("flood"),
-        p("hail"),
         d.risk?.eal ?? "",
         d.insured == null ? "" : d.insured ? "yes" : "no",
         csv(d.salesPartner ?? ""),
