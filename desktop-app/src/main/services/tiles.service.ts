@@ -5,6 +5,7 @@ import { DETECTION_ZOOM, TILE_SIZE } from "@shared/constants";
 import {
   lat2tile,
   lon2tile,
+  type ImageryCandidate,
   type ImagerySelection,
 } from "@shared/imagery-sources";
 import { cacheGet, cacheSet } from "./cache.service";
@@ -64,12 +65,9 @@ async function loadTileRgb(
 
   if (!bytes) {
     try {
-      const res = await fetchWithResilience(
-        source.url(z, y, x, time),
-        {
-          headers: { "User-Agent": "DealershipRiskMapping/1.0 (desktop)" },
-        },
-      );
+      const res = await fetchWithResilience(source.url(z, y, x, time), {
+        headers: { "User-Agent": "DealershipRiskMapping/1.0 (desktop)" },
+      });
       if (res.ok) {
         bytes = Buffer.from(await res.arrayBuffer());
         cacheSet(cacheKey, bytes.toString("base64"), TILE_TTL);
@@ -132,6 +130,26 @@ export async function aerialImageForBoundary(
   // No mosaic-level cache: the large RGBA buffer isn't JSON-friendly and
   // the individual tiles are already cached persistently (loadTileRgb).
   return captureWithSelectedSource(bbox, zoom, time);
+}
+
+/**
+ * Captures the boundary bbox from one given imagery candidate instead of the
+ * automatic choice — used to count vehicles on archived (Wayback) images.
+ */
+export async function aerialImageForBoundaryFrom(
+  candidate: ImageryCandidate,
+  lat: number,
+  lon: number,
+  boundary?: BoundaryResult,
+): Promise<AerialCapture> {
+  const bbox: [number, number, number, number] = boundary
+    ? boundingBox(boundary)
+    : [lon - 0.001, lat - 0.001, lon + 0.001, lat + 0.001];
+  return captureMosaic(
+    bbox,
+    Math.min(DETECTION_ZOOM, candidate.zoom),
+    tileSourceForCandidate(candidate),
+  );
 }
 
 /** Public bbox capture used by boundary surface segmentation and diagnostics. */

@@ -18,6 +18,7 @@ import {
 import { boundaryNeedsReview } from "@shared/boundary-review";
 import { dedupeDealerships } from "@shared/dedupe";
 import { effectiveVehicleCount } from "@shared/risk-math";
+import { attachVehicleTimeline } from "@shared/vehicle-timeline";
 import { normalizeWebsiteUrl } from "@shared/website";
 import { riskLevel } from "@renderer/lib/riskColor";
 
@@ -169,6 +170,11 @@ interface AppState {
     points: ManualVehiclePoint[],
     removedPoints: ManualVehiclePoint[],
   ) => Promise<void>;
+  /**
+   * Counts vehicles on archived Esri images of the lot and stores the
+   * result on the detection as evidence. The risk is not recalculated.
+   */
+  countVehicleTimeline: (id: string) => Promise<void>;
   select: (id: string | null) => void;
   /**
    * Asks the map to fit these locations into view the next time it renders;
@@ -769,6 +775,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, detection, risk });
+    await get().saveSession();
+  },
+  countVehicleTimeline: async (id) => {
+    const current = get().dealerships.find((d) => d.id === id);
+    if (!current?.detection) return;
+    const timeline = await window.api.countVehiclesOverTime(
+      current.lat,
+      current.lon,
+      current.boundary,
+      get().parameters,
+    );
+    const latest = get().dealerships.find((d) => d.id === id);
+    if (!latest?.detection) return;
+    get().upsertDealership({
+      ...latest,
+      detection: attachVehicleTimeline(latest.detection, timeline),
+    });
     await get().saveSession();
   },
   select: (id) => set({ selectedId: id }),

@@ -81,6 +81,7 @@ import { aerialImageForBoundary } from "../services/tiles.service";
 import { fetchWeather } from "../services/weather.service";
 import { selectImageryForView } from "../services/imagery-source.service";
 import { waybackTimeline } from "../services/wayback.service";
+import { countVehiclesOverTime } from "../services/vehicle-timeline.service";
 import {
   deleteSession,
   listSessions,
@@ -150,6 +151,9 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
       image.imagery,
     );
   });
+  handle(IPC.detectVehiclesTimeline, ({ lat, lon, boundary, parameters }) =>
+    countVehiclesOverTime(lat, lon, boundary, parameters),
+  );
   handle(IPC.fetchWeather, ({ lat, lon }) => fetchWeather(lat, lon));
   handle(
     IPC.scoreRisk,

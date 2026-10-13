@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { History, MapPin } from "lucide-react";
+import { toast } from "sonner";
+import { Car, History, Loader2, MapPin } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { DETECTION_ZOOM } from "@shared/constants";
 import type { ImageryCandidate } from "@shared/imagery-sources";
@@ -16,10 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@renderer/components/ui/table";
-import {
-  formatImageryDate,
-  formatMeters,
-} from "@renderer/lib/imageryFormat";
+import { formatImageryDate, formatMeters } from "@renderer/lib/imageryFormat";
 import { useImageryTimeline } from "@renderer/lib/useImageryTimeline";
 import { useAppStore } from "@renderer/store/appStore";
 import { useMapStore } from "@renderer/store/mapStore";
@@ -61,6 +59,28 @@ export function ImageryHistorySection({
   );
   const { timeline, loading } = useImageryTimeline(point, true);
   const basis = d.detection?.imagery?.chosen;
+  const countVehicleTimeline = useAppStore((s) => s.countVehicleTimeline);
+  const [counting, setCounting] = useState(false);
+  const vehicleTimeline = d.detection?.timeline;
+  const countByCandidate = new Map(
+    (vehicleTimeline?.counts ?? []).map((c) => [c.candidateId, c.vehicleCount]),
+  );
+  // The area heuristic used without a model cannot tell images apart.
+  const canCount =
+    d.detection != null && d.detection.model !== "stub-area-heuristic";
+
+  async function countOverTime(): Promise<void> {
+    setCounting(true);
+    try {
+      await countVehicleTimeline(d.id);
+    } catch (error) {
+      toast.error(t("dashboard.detailDialog.imageryHistory.countFailed"), {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setCounting(false);
+    }
+  }
 
   function showOnMap(c: ImageryCandidate): void {
     if (!c.wayback) return;
@@ -104,6 +124,11 @@ export function ImageryHistorySection({
                 <TableHead>
                   {t("dashboard.detailDialog.imageryHistory.version")}
                 </TableHead>
+                {vehicleTimeline && (
+                  <TableHead className="text-right">
+                    {t("dashboard.detailDialog.imageryHistory.vehicles")}
+                  </TableHead>
+                )}
                 <TableHead className="w-0" />
               </TableRow>
             </TableHeader>
@@ -135,6 +160,11 @@ export function ImageryHistorySection({
                       ? formatImageryDate(c.wayback.publishedAt, i18n.language)
                       : "–"}
                   </TableCell>
+                  {vehicleTimeline && (
+                    <TableCell className="text-right font-mono">
+                      {countByCandidate.get(c.id) ?? "–"}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Button
                       variant="ghost"
@@ -151,6 +181,39 @@ export function ImageryHistorySection({
               ))}
             </TableBody>
           </Table>
+          {vehicleTimeline && (
+            <p className="text-xs">
+              {t("dashboard.detailDialog.imageryHistory.countSummary", {
+                count: vehicleTimeline.counts.length,
+                median: vehicleTimeline.median,
+                min: vehicleTimeline.min,
+                max: vehicleTimeline.max,
+              })}
+            </p>
+          )}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1 text-xs"
+              disabled={!canCount || counting}
+              onClick={() => void countOverTime()}
+            >
+              {counting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Car className="size-3.5" />
+              )}
+              {counting
+                ? t("dashboard.detailDialog.imageryHistory.counting")
+                : t("dashboard.detailDialog.imageryHistory.countButton")}
+            </Button>
+            {!canCount && (
+              <span className="text-[11px] text-muted-foreground">
+                {t("dashboard.detailDialog.imageryHistory.countNeedsModel")}
+              </span>
+            )}
+          </div>
           <p className="text-[11px] leading-snug text-muted-foreground">
             {t("dashboard.detailDialog.imageryHistory.hint", {
               zoom: timeline.zoom,

@@ -8,6 +8,7 @@ import {
   DashboardSpecSchema,
   DealershipInputSchema,
   DetectionResultSchema,
+  VehicleTimelineSchema,
   HailZoneSchema,
   ImportResultSchema,
   LlmProviderSchema,
@@ -23,6 +24,7 @@ import {
   SettingsSchema,
   StructuredMemoSchema,
 } from "./types";
+import type { BoundaryResult, RiskParameters } from "./types";
 import { HF_REPO_ID_PATTERN, OLLAMA_HF_MODEL_PATTERN } from "./llm-config";
 import {
   ImagerySelectionSchema,
@@ -112,6 +114,28 @@ export const DealerDirectoryStatusSchema = z.object({
 });
 export type DealerDirectoryStatus = z.infer<typeof DealerDirectoryStatusSchema>;
 
+/** Location, optional boundary and parameters of a vehicle count. */
+export interface DetectVehiclesRequest {
+  lat: number;
+  lon: number;
+  boundary?: BoundaryResult;
+  parameters?: RiskParameters;
+}
+
+// Explicitly typed and shared by two channels: inlining the boundary and
+// parameter types twice pushes `ipcRequest` past the compiler's
+// serialization limit (TS7056).
+const DetectVehiclesRequestSchema: z.ZodType<
+  DetectVehiclesRequest,
+  z.ZodTypeDef,
+  unknown
+> = z.object({
+  lat: z.number(),
+  lon: z.number(),
+  boundary: BoundaryResultSchema.optional(),
+  parameters: RiskParametersSchema.optional(),
+});
+
 export const ipcRequest = {
   "csv:parse": z.object({ content: z.string() }),
   "xlsx:parse": z.object({ base64: z.string() }),
@@ -146,12 +170,8 @@ export const ipcRequest = {
     name: z.string().optional(),
     address: z.string().optional(),
   }),
-  "detect:vehicles": z.object({
-    lat: z.number(),
-    lon: z.number(),
-    boundary: BoundaryResultSchema.optional(),
-    parameters: RiskParametersSchema.optional(),
-  }),
+  "detect:vehicles": DetectVehiclesRequestSchema,
+  "detect:vehiclesTimeline": DetectVehiclesRequestSchema,
   "weather:fetch": z.object({ lat: z.number(), lon: z.number() }),
   "risk:score": z.object({
     lat: z.number(),
@@ -261,6 +281,7 @@ export const ipcResponse = {
   "boundary:detect": BoundaryResultSchema,
   "osm:details": OsmDetailsSchema,
   "detect:vehicles": DetectionResultSchema,
+  "detect:vehiclesTimeline": VehicleTimelineSchema,
   "weather:fetch": z.record(z.string(), z.number()),
   "risk:score": RiskAssessmentSchema,
   "natcat:resolve": NatCatAssessmentSchema.nullable(),

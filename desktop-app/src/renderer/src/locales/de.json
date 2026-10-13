@@ -695,7 +695,14 @@
         "showOnMap": "Karte",
         "empty": "Für diesen Standort sind keine archivierten Esri-Bildstände verfügbar.",
         "hint": "Nur Stände, in denen sich das Bild hier geändert hat (Zoomstufe {{zoom}}). Landes-Orthofotos sind nicht enthalten.",
-        "truncated": "Ältere Stände sind ausgeblendet."
+        "truncated": "Ältere Stände sind ausgeblendet.",
+        "vehicles": "Fahrzeuge",
+        "countButton": "Bestand über mehrere Stände zählen",
+        "counting": "Zähle auf archivierten Bildern…",
+        "countFailed": "Zählung über mehrere Bildstände fehlgeschlagen",
+        "countNeedsModel": "Erfordert das Fahrzeugerkennungsmodell.",
+        "countSummary_one": "{{count}} Bildstand gezählt: Median {{median}}, Spanne {{min}}–{{max}} Fahrzeuge. Nur Evidenz – die Exposure nutzt die aktuelle Zählung.",
+        "countSummary_other": "{{count}} Bildstände gezählt: Median {{median}}, Spanne {{min}}–{{max}} Fahrzeuge. Nur Evidenz – die Exposure nutzt die aktuelle Zählung."
       }
     },
     "hailEal": "Hagel-EAL",
