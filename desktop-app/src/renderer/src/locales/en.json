@@ -956,7 +956,13 @@
       "imageryVersionPublished": "Wayback version of {{date}}",
       "imageryVersionHint_one": "{{count}} Esri image version at the map centre (Esri World Imagery Wayback).",
       "imageryVersionHint_other": "{{count}} Esri image versions at the map centre (Esri World Imagery Wayback).",
-      "imageryVersionZoomHint": "Zoom to level 15 or closer to choose older Esri images."
+      "imageryVersionZoomHint": "Zoom to level 15 or closer to choose older Esri images.",
+      "recentSceneLayerLabel": "Recent scene (30 m, context only)",
+      "recentSceneSelectAriaLabel": "Choose scene",
+      "recentSceneCloud": "{{pct}} % cloud",
+      "recentSceneOpacityAriaLabel": "Recent scene opacity",
+      "recentSceneHint": "NASA HLS (Sentinel-2/Landsat), 30 m. Shows site changes since the sharp image – not vehicles.",
+      "recentSceneNone": "No scene with at most {{cloud}} % cloud in the last {{days}} days."
     },
     "multiPerilOverlay": {
       "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"

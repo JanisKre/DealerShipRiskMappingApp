@@ -96,6 +96,8 @@ export const IPC = {
   imagerySelect: "imagery:select",
   // Dated Esri World Imagery Wayback versions at a point (history of the image)
   imageryTimeline: "imagery:timeline",
+  // Recent 30 m HLS scenes (NASA CMR) for the map's context overlay
+  imageryRecentScenes: "imagery:recentScenes",
 
   // Vehicle detection model: status + install wizard download
   modelStatus: "model:status", // invoke -> { available: boolean }

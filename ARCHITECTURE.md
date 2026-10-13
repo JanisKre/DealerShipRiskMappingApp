@@ -117,6 +117,9 @@ Interface: `tiles.service.ts` → `aerialImageForBbox(bbox) → RGBA`.
 Earlier versions of the Esri image (World Imagery Wayback) are listed per
 location by `wayback.service.ts` (IPC `imagery:timeline`) and can be pinned
 as the map's satellite basemap; see docs/imagery-sources.md.
+A recent 30 m NASA HLS scene (CMR search in `gibs.service.ts`, IPC
+`imagery:recentScenes`, GIBS tiles in the renderer) can be laid over the map
+as context; it is never used for counting.
 
 ## Translation: DRM server → Electron
 

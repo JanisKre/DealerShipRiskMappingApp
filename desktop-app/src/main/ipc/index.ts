@@ -81,6 +81,7 @@ import { aerialImageForBoundary } from "../services/tiles.service";
 import { fetchWeather } from "../services/weather.service";
 import { selectImageryForView } from "../services/imagery-source.service";
 import { waybackTimeline } from "../services/wayback.service";
+import { recentScenes } from "../services/gibs.service";
 import { countVehiclesOverTime } from "../services/vehicle-timeline.service";
 import {
   deleteSession,
@@ -268,6 +269,7 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.imageryTimeline, ({ lat, lon, zoom }) =>
     waybackTimeline(lat, lon, zoom),
   );
+  handle(IPC.imageryRecentScenes, ({ lat, lon }) => recentScenes(lat, lon));
 
   handle(IPC.modelStatus, () => ({
     available: isModelAvailable(),
