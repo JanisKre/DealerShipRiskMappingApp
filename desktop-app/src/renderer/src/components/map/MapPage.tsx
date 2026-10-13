@@ -34,11 +34,21 @@ import {
   useImagerySelection,
   type MapViewPoint,
 } from "@renderer/lib/useImagerySelection";
+import { useImageryTimeline } from "@renderer/lib/useImageryTimeline";
 import {
+  IMAGERY_MIN_SELECTION_ZOOM,
+  IMAGERY_TOLERANCE_DAYS,
   STATE_DOP_SERVICES,
   stateTileTemplate,
   tileBboxEpsg3857,
+  type ImageryCandidate,
+  type ImagerySelection,
 } from "@shared/imagery-sources";
+import {
+  WAYBACK_ATTRIBUTION,
+  waybackCandidateForVersion,
+  waybackTileTemplate,
+} from "@shared/imagery-wayback";
 import { useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { AccumulationClusterLayer } from "./AccumulationClusterLayer";
 import { BoundaryLayer } from "./BoundaryLayer";
@@ -275,6 +285,7 @@ export function MapPage(): React.JSX.Element {
 
   const [mapView, setMapView] = useState<MapViewPoint | null>(null);
   const imagery = useImagerySelection(mapView, basemap === "satellite");
+  const pinnedWayback = useMapStore((s) => s.pinnedWayback);
 
   // WMS URL from settings (only for the satellite basemap).
   const [wmsUrl, setWmsUrl] = useState<string | null>(null);
@@ -289,6 +300,55 @@ export function MapPage(): React.JSX.Element {
       }
     });
   }, []);
+
+  // Wayback history at the map centre — only where a location-level choice
+  // makes sense (same zoom floor as the automatic selection) and no custom
+  // WMS replaces Esri.
+  const timelineEnabled =
+    basemap === "satellite" &&
+    !wmsUrl &&
+    mapView != null &&
+    mapView.zoom >= IMAGERY_MIN_SELECTION_ZOOM;
+  const { timeline: imageryTimeline, loading: imageryTimelineLoading } =
+    useImageryTimeline(mapView, timelineEnabled);
+
+  // While a version is pinned, the legend describes that version's image at
+  // the map centre instead of the automatic choice.
+  const pinnedCandidate: ImageryCandidate | null = !pinnedWayback
+    ? null
+    : ((imageryTimeline &&
+        waybackCandidateForVersion(
+          imageryTimeline.candidates,
+          pinnedWayback,
+        )) ??
+      (imageryTimelineLoading
+        ? null
+        : // Outside the resolved timeline (overview zoom, older than the
+          // listed versions): the version is known, its image date is not.
+          {
+            id: `wayback:${pinnedWayback.release}`,
+            kind: "esri-wayback",
+            label: `Esri Wayback ${pinnedWayback.publishedAt}`,
+            capturedAt: null,
+            dateSource: "none",
+            resolutionM: null,
+            zoom: mapView?.zoom ?? 0,
+            attribution: WAYBACK_ATTRIBUTION,
+            wayback: pinnedWayback,
+          }));
+  const legendImagery: ImagerySelection | null =
+    basemap === "satellite" && pinnedWayback && !wmsUrl
+      ? pinnedCandidate
+        ? {
+            mode: imagery?.mode ?? "auto",
+            chosen: pinnedCandidate,
+            reason: "pinned-version",
+            candidates: [pinnedCandidate, ...(imagery?.candidates ?? [])],
+            toleranceDays: imagery?.toleranceDays ?? IMAGERY_TOLERANCE_DAYS,
+            resolvedAt: imagery?.resolvedAt ?? new Date().toISOString(),
+          }
+        : null
+      : imagery;
 
   const withCoords = useMemo(
     () => dealerships.filter((d) => d.lat != null && d.lon != null),
@@ -451,6 +511,9 @@ export function MapPage(): React.JSX.Element {
         : undefined;
     if (wmsUrl) {
       tileUrl = wmsUrl;
+    } else if (pinnedWayback) {
+      tileUrl = waybackTileTemplate(pinnedWayback.release);
+      tileAttribution = `&copy; ${(pinnedCandidate?.attribution ?? WAYBACK_ATTRIBUTION).replace(/^© /, "")}`;
     } else if (service && chosen) {
       tileUrl = stateTileTemplate(service);
       tileAttribution = chosen.attribution;
@@ -795,6 +858,9 @@ export function MapPage(): React.JSX.Element {
           onStartDetectionEditing={startDetectionEditing}
           onSaveDetectionEdits={() => void saveDetectionEdits()}
           onCancelDetectionEdits={cancelDetectionEditing}
+          imageryTimeline={timelineEnabled ? imageryTimeline : null}
+          imageryTimelineLoading={timelineEnabled && imageryTimelineLoading}
+          imageryTimelineAvailable={basemap === "satellite" && !wmsUrl}
         />
       </div>
 
@@ -805,7 +871,10 @@ export function MapPage(): React.JSX.Element {
           perilOverlay={perilOverlay}
           showClusters={layers.accumulationClusters}
         />
-        <MapLegend imagery={imagery} showImagery={basemap === "satellite"} />
+        <MapLegend
+          imagery={legendImagery}
+          showImagery={basemap === "satellite"}
+        />
       </div>
 
       {contextMenu && (

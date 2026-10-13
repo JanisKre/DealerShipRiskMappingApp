@@ -246,4 +246,22 @@ describe("tileSourceForCandidate", () => {
       "https://wmtsod1.bayernwolke.de/wmts/by_dop/smerc/20/558002/363902",
     );
   });
+
+  it("routes Wayback candidates to their archived version", () => {
+    const source = tileSourceForCandidate({
+      id: "wayback:10321:z20",
+      kind: "esri-wayback",
+      label: "Esri Wayback 2022-03-16",
+      capturedAt: "2020-07-01",
+      dateSource: "esri-wayback-metadata",
+      resolutionM: 0.2,
+      zoom: 20,
+      attribution: "",
+      wayback: { release: 10321, publishedAt: "2022-03-16" },
+    });
+    expect(source.cacheId).toBe("wayback:10321");
+    expect(source.url(20, 350806, 564300)).toBe(
+      "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/10321/20/350806/564300",
+    );
+  });
 });

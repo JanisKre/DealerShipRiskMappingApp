@@ -684,7 +684,19 @@
       "errorPrefix": "Error: {{error}}",
       "recommendedDeductibleLabel": "Rec. Deductible",
       "premiumLoadingLabel": "Premium Loading",
-      "deductibleLabel": "Deductible (EUR)"
+      "deductibleLabel": "Deductible (EUR)",
+      "imageryHistory": {
+        "title": "Imagery history (Esri Wayback)",
+        "captured": "Captured",
+        "resolution": "Resolution",
+        "source": "Source",
+        "version": "Version",
+        "countBasis": "Count basis",
+        "showOnMap": "Map",
+        "empty": "No archived Esri imagery versions are available for this location.",
+        "hint": "Only versions in which the image changed here (zoom {{zoom}}). State orthophotos are not included.",
+        "truncated": "Older versions are hidden."
+      }
     },
     "hailEal": "Hail EAL",
     "hailZone": "Hail zone",
@@ -850,7 +862,8 @@
       "imageryDateSources": {
         "esri-metadata": "Esri image metadata",
         "bkg-flight-index": "flight date per BKG",
-        "none": "–"
+        "none": "–",
+        "esri-wayback-metadata": "Esri Wayback metadata"
       },
       "imageryAttribution": "Attribution",
       "imagerySelection": "Selection",
@@ -861,12 +874,14 @@
         "no-dated-source": "no dated source – Esri as fallback",
         "no-sharp-source": "no sufficiently sharp source – Esri as fallback",
         "fixed-provider": "fixed in settings",
-        "overview-zoom": "overview zoom – Esri mosaic"
+        "overview-zoom": "overview zoom – Esri mosaic",
+        "pinned-version": "Wayback version chosen manually"
       },
       "imageryAlternatives": "Alternatives checked",
       "business": "Business type",
       "existingBusiness": "Existing business (filled)",
-      "newBusiness": "New business (outline)"
+      "newBusiness": "New business (outline)",
+      "imageryWaybackVersion": "Wayback version"
     },
     "editBoundary": "Edit Boundary",
     "locationsPanel": {
@@ -928,7 +943,13 @@
       "drawingBadge": "drawing",
       "saveMapTitle": "Save map as PNG",
       "copyButton": "Copy",
-      "copyTitle": "Copy to clipboard"
+      "copyTitle": "Copy to clipboard",
+      "imageryVersionLabel": "Imagery version",
+      "imageryVersionAuto": "Automatic (newest suitable source)",
+      "imageryVersionPublished": "Wayback version of {{date}}",
+      "imageryVersionHint_one": "{{count}} Esri image version at the map centre (Esri World Imagery Wayback).",
+      "imageryVersionHint_other": "{{count}} Esri image versions at the map centre (Esri World Imagery Wayback).",
+      "imageryVersionZoomHint": "Zoom to level 15 or closer to choose older Esri images."
     },
     "multiPerilOverlay": {
       "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"

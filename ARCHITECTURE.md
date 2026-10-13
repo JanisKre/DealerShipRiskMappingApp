@@ -114,6 +114,9 @@ The **Main process fetches orthophotos itself** (WMS/tile provider based on
 the boundary bbox) and hands them to the ONNX worker. No renderer detour
 through a pixel buffer, and it's cacheable offline via the same API cache.
 Interface: `tiles.service.ts` → `aerialImageForBbox(bbox) → RGBA`.
+Earlier versions of the Esri image (World Imagery Wayback) are listed per
+location by `wayback.service.ts` (IPC `imagery:timeline`) and can be pinned
+as the map's satellite basemap; see docs/imagery-sources.md.
 
 ## Translation: DRM server → Electron
 

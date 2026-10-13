@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Peril } from "@shared/types";
+import type { PinnedWayback } from "@shared/imagery-wayback";
 import type { RiskLevel } from "@renderer/lib/riskColor";
 
 /** Basemap variants. WMS override (from settings) only applies to "satellite". */
@@ -37,6 +38,12 @@ interface MapState {
   basemap: Basemap;
   /** Opacity of the satellite layer (0..1). */
   satelliteOpacity: number;
+  /**
+   * Esri Wayback version shown instead of the automatic imagery choice
+   * (`null` = automatic). Not persisted: a historical basemap must not
+   * silently reappear on the next start.
+   */
+  pinnedWayback: PinnedWayback | null;
   perilOverlay: Peril | null;
   editing: boolean;
   detectionEditing: boolean;
@@ -54,6 +61,7 @@ interface MapState {
   toggleLayer: (key: keyof MapLayers) => void;
   setBasemap: (basemap: Basemap) => void;
   setSatelliteOpacity: (v: number) => void;
+  setPinnedWayback: (v: PinnedWayback | null) => void;
   setPerilOverlay: (p: Peril | null) => void;
   setEditing: (v: boolean) => void;
   setDetectionEditing: (v: boolean) => void;
@@ -84,6 +92,7 @@ export const useMapStore = create<MapState>()(
       },
       basemap: "satellite",
       satelliteOpacity: 1,
+      pinnedWayback: null,
       perilOverlay: null,
       editing: false,
       detectionEditing: false,
@@ -99,6 +108,7 @@ export const useMapStore = create<MapState>()(
         set((s) => ({ layers: { ...s.layers, [key]: !s.layers[key] } })),
       setBasemap: (basemap) => set({ basemap }),
       setSatelliteOpacity: (satelliteOpacity) => set({ satelliteOpacity }),
+      setPinnedWayback: (pinnedWayback) => set({ pinnedWayback }),
       setPerilOverlay: (perilOverlay) => set({ perilOverlay }),
       setEditing: (editing) => set({ editing }),
       setDetectionEditing: (detectionEditing) => set({ detectionEditing }),

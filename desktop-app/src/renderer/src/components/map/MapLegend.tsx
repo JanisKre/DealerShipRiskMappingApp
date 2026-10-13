@@ -143,7 +143,10 @@ function ImageryDetails({
     ? imageryAgeYears(chosen.capturedAt)
     : null;
   const stale = ageYears != null && ageYears >= IMAGERY_STALE_AFTER_YEARS;
-  const esri = chosen.kind === "esri" ? chosen.esri : undefined;
+  const esri =
+    chosen.kind === "esri" || chosen.kind === "esri-wayback"
+      ? chosen.esri
+      : undefined;
   const sensor = esri ? satelliteSensorName(esri.description) : null;
   const resolution =
     chosen.resolutionM == null
@@ -234,6 +237,11 @@ function ImageryDetails({
               {chosen.dateSource !== "none" && (
                 <MetaRow label={t("map.legend.imageryDateSource")}>
                   {t(`map.legend.imageryDateSources.${chosen.dateSource}`)}
+                </MetaRow>
+              )}
+              {chosen.wayback && (
+                <MetaRow label={t("map.legend.imageryWaybackVersion")}>
+                  {formatDate(chosen.wayback.publishedAt)}
                 </MetaRow>
               )}
               {esri?.release && (

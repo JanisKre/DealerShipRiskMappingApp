@@ -684,7 +684,19 @@
       "errorPrefix": "Fehler: {{error}}",
       "recommendedDeductibleLabel": "Empf. Selbstbehalt",
       "premiumLoadingLabel": "Prämienzuschlag",
-      "deductibleLabel": "Selbstbehalt (EUR)"
+      "deductibleLabel": "Selbstbehalt (EUR)",
+      "imageryHistory": {
+        "title": "Bildhistorie (Esri Wayback)",
+        "captured": "Aufnahme",
+        "resolution": "Auflösung",
+        "source": "Quelle",
+        "version": "Version",
+        "countBasis": "Zählgrundlage",
+        "showOnMap": "Karte",
+        "empty": "Für diesen Standort sind keine archivierten Esri-Bildstände verfügbar.",
+        "hint": "Nur Stände, in denen sich das Bild hier geändert hat (Zoomstufe {{zoom}}). Landes-Orthofotos sind nicht enthalten.",
+        "truncated": "Ältere Stände sind ausgeblendet."
+      }
     },
     "hailEal": "Hagel-EAL",
     "hailZone": "Hagelzone",
@@ -850,7 +862,8 @@
       "imageryDateSources": {
         "esri-metadata": "Esri-Bildmetadaten",
         "bkg-flight-index": "Bildflugdatum lt. BKG",
-        "none": "–"
+        "none": "–",
+        "esri-wayback-metadata": "Esri-Wayback-Metadaten"
       },
       "imageryAttribution": "Quellenvermerk",
       "imagerySelection": "Auswahl",
@@ -861,12 +874,14 @@
         "no-dated-source": "keine datierte Quelle – Esri als Rückfall",
         "no-sharp-source": "keine ausreichend scharfe Quelle – Esri als Rückfall",
         "fixed-provider": "in den Einstellungen fest gewählt",
-        "overview-zoom": "Übersichtszoom – Esri-Mosaik"
+        "overview-zoom": "Übersichtszoom – Esri-Mosaik",
+        "pinned-version": "manuell gewählter Wayback-Stand"
       },
       "imageryAlternatives": "Geprüfte Alternativen",
       "business": "Geschäftsart",
       "existingBusiness": "Bestandsgeschäft (gefüllt)",
-      "newBusiness": "Neugeschäft (Kontur)"
+      "newBusiness": "Neugeschäft (Kontur)",
+      "imageryWaybackVersion": "Wayback-Version"
     },
     "editBoundary": "Grenze bearbeiten",
     "locationsPanel": {
@@ -928,7 +943,13 @@
       "drawingBadge": "zeichnet",
       "saveMapTitle": "Karte als PNG speichern",
       "copyButton": "Kopieren",
-      "copyTitle": "In Zwischenablage"
+      "copyTitle": "In Zwischenablage",
+      "imageryVersionLabel": "Bildstand",
+      "imageryVersionAuto": "Automatisch (aktuellste passende Quelle)",
+      "imageryVersionPublished": "Wayback-Version vom {{date}}",
+      "imageryVersionHint_one": "{{count}} Esri-Bildstand an der Kartenmitte (Esri World Imagery Wayback).",
+      "imageryVersionHint_other": "{{count}} Esri-Bildstände an der Kartenmitte (Esri World Imagery Wayback).",
+      "imageryVersionZoomHint": "Ab Zoomstufe 15 lassen sich ältere Esri-Bildstände wählen."
     },
     "multiPerilOverlay": {
       "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"

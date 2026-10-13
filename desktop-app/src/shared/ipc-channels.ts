@@ -92,6 +92,8 @@ export const IPC = {
 
   // Imagery source for the map view (Esri vs. state orthophoto) incl. capture dates
   imagerySelect: "imagery:select",
+  // Dated Esri World Imagery Wayback versions at a point (history of the image)
+  imageryTimeline: "imagery:timeline",
 
   // Vehicle detection model: status + install wizard download
   modelStatus: "model:status", // invoke -> { available: boolean }
