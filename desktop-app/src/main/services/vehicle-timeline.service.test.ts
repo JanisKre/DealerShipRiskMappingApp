@@ -4,16 +4,20 @@ import type { ImageryCandidate } from "@shared/imagery-sources";
 const mocks = vi.hoisted(() => ({
   isModelAvailable: vi.fn(),
   detectVehicles: vi.fn(),
-  aerialImageForBoundaryFrom: vi.fn(),
+  detectVehiclesInContext: vi.fn(),
+  filterDetectionToBoundary: vi.fn(),
+  aerialImageForContextFrom: vi.fn(),
   waybackTimeline: vi.fn(),
 }));
 
 vi.mock("./detection.service", () => ({
   isModelAvailable: mocks.isModelAvailable,
   detectVehicles: mocks.detectVehicles,
+  detectVehiclesInContext: mocks.detectVehiclesInContext,
+  filterDetectionToBoundary: mocks.filterDetectionToBoundary,
 }));
 vi.mock("./tiles.service", () => ({
-  aerialImageForBoundaryFrom: mocks.aerialImageForBoundaryFrom,
+  aerialImageForContextFrom: mocks.aerialImageForContextFrom,
 }));
 vi.mock("./wayback.service", () => ({
   waybackTimeline: mocks.waybackTimeline,
@@ -43,11 +47,11 @@ describe("countVehiclesOverTime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.isModelAvailable.mockReturnValue(true);
-    mocks.aerialImageForBoundaryFrom.mockImplementation(
+    mocks.aerialImageForContextFrom.mockImplementation(
       async (c: ImageryCandidate) => ({ release: c.wayback?.release }),
     );
     const counts: Record<number, number> = { 63124: 40, 10320: 12, 5217: 31 };
-    mocks.detectVehicles.mockImplementation(
+    mocks.detectVehiclesInContext.mockImplementation(
       async (image: { release: number }) => ({
         vehicleCount: counts[image.release],
       }),
@@ -100,7 +104,46 @@ describe("countVehiclesOverTime", () => {
     );
 
     expect(timeline.counts).toHaveLength(2);
-    expect(mocks.detectVehicles).toHaveBeenCalledTimes(2);
+    expect(mocks.detectVehiclesInContext).toHaveBeenCalledTimes(2);
+  });
+
+  it("counts like the analysis: context capture, then the boundary as a filter", async () => {
+    mocks.waybackTimeline.mockResolvedValue({
+      zoom: 20,
+      truncated: false,
+      candidates: [candidate(63124, "2024-06-01", 0.15)],
+    });
+    const boundary = { polygon: {} } as never;
+    mocks.filterDetectionToBoundary.mockReturnValue({ vehicleCount: 17 });
+
+    const timeline = await countVehiclesOverTime(51, 13.7, boundary);
+
+    expect(mocks.aerialImageForContextFrom).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "wayback:63124:z20" }),
+      51,
+      13.7,
+    );
+    expect(mocks.filterDetectionToBoundary).toHaveBeenCalledWith(
+      { vehicleCount: 40 },
+      boundary,
+    );
+    expect(mocks.detectVehicles).not.toHaveBeenCalled();
+    expect(timeline.counts[0].vehicleCount).toBe(17);
+  });
+
+  it("re-detects inside the boundary when the context result has no boxes", async () => {
+    mocks.waybackTimeline.mockResolvedValue({
+      zoom: 20,
+      truncated: false,
+      candidates: [candidate(63124, "2024-06-01", 0.15)],
+    });
+    const boundary = { polygon: {} } as never;
+    mocks.filterDetectionToBoundary.mockReturnValue(null);
+    mocks.detectVehicles.mockResolvedValue({ vehicleCount: 9 });
+
+    const timeline = await countVehiclesOverTime(51, 13.7, boundary);
+
+    expect(timeline.counts[0].vehicleCount).toBe(9);
   });
 
   it("refuses without a detection model or a sharp archived image", async () => {

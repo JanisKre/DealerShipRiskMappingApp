@@ -145,10 +145,12 @@ and `desktop-app/src/shared/vehicle-timeline.ts`, IPC
 - **Images**: the Wayback history at the detection zoom (z20, or z19 where
   z20 is missing), newest first. Only dated images with a resolution of
   0.25 m or finer (`DETECTION_MAX_RESOLUTION_M`) are counted, the same limit
-  as the automatic selection uses. Each image is captured from its own
-  Wayback version and counted inside the current boundary with the
-  installed model. Without a model the app refuses, because the area
-  heuristic would repeat one estimate.
+  as the automatic selection uses. Each image is taken from its own Wayback
+  version and counted exactly like the analysis counts on the current image:
+  the same fixed context capture of 100 m radius around the geocoded point,
+  the same model, and the current boundary as a filter afterwards. The counts
+  are therefore comparable with the stored one. Without a model the app
+  refuses, because the area heuristic would repeat one estimate.
 - **Result**: `DetectionResult.timeline` holds every count with its capture
   date, resolution and Wayback version, plus median, minimum and maximum.
   A one-line summary goes into `evidence.limitations`, so reports and memos
@@ -161,7 +163,9 @@ Limitations: the images are typically one to several years apart and are
 often taken in different seasons. A range shows stock variability, but
 also differences in boundary fit, shadows, image quality and possible
 site changes (new buildings, re-paved lots). The current boundary is
-applied to older images too. Counts on 0.2 m orthophotos that Esri took
+applied to older images too. Like the analysis itself, the count only sees
+the 100 m context capture: parts of a very large lot beyond that radius are
+missing from every count. Counts on 0.2 m orthophotos that Esri took
 over from the states are comparable to the main count; satellite scenes are
 excluded by the resolution limit. This is a screening estimate, not a stock
 audit.

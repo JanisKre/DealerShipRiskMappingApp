@@ -132,26 +132,6 @@ export async function aerialImageForBoundary(
   return captureWithSelectedSource(bbox, zoom, time);
 }
 
-/**
- * Captures the boundary bbox from one given imagery candidate instead of the
- * automatic choice — used to count vehicles on archived (Wayback) images.
- */
-export async function aerialImageForBoundaryFrom(
-  candidate: ImageryCandidate,
-  lat: number,
-  lon: number,
-  boundary?: BoundaryResult,
-): Promise<AerialCapture> {
-  const bbox: [number, number, number, number] = boundary
-    ? boundingBox(boundary)
-    : [lon - 0.001, lat - 0.001, lon + 0.001, lat + 0.001];
-  return captureMosaic(
-    bbox,
-    Math.min(DETECTION_ZOOM, candidate.zoom),
-    tileSourceForCandidate(candidate),
-  );
-}
-
 /** Public bbox capture used by boundary surface segmentation and diagnostics. */
 export async function aerialImageForBbox(
   bbox: [number, number, number, number],
@@ -212,14 +192,34 @@ export async function aerialImageForContext(
   lon: number,
   time?: string,
 ): Promise<AerialCapture> {
+  return aerialImageForBbox(contextBbox(lat, lon), DETECTION_ZOOM, time);
+}
+
+/**
+ * The same context capture from one given imagery candidate instead of the
+ * automatic choice — used to count vehicles on archived (Wayback) images
+ * exactly like the analysis counts on the current one.
+ */
+export async function aerialImageForContextFrom(
+  candidate: ImageryCandidate,
+  lat: number,
+  lon: number,
+): Promise<AerialCapture> {
+  return captureMosaic(
+    contextBbox(lat, lon),
+    Math.min(DETECTION_ZOOM, candidate.zoom),
+    tileSourceForCandidate(candidate),
+  );
+}
+
+function contextBbox(
+  lat: number,
+  lon: number,
+): [number, number, number, number] {
   const radiusM = CONTEXT_CAPTURE_RADIUS_M;
   const dLat = radiusM / 111_320;
   const dLon = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
-  return aerialImageForBbox(
-    [lon - dLon, lat - dLat, lon + dLon, lat + dLat],
-    DETECTION_ZOOM,
-    time,
-  );
+  return [lon - dLon, lat - dLat, lon + dLon, lat + dLat];
 }
 
 // Below this fraction of valid tiles, retry one zoom level down. Some

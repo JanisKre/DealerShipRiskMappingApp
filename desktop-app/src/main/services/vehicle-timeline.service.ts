@@ -10,15 +10,23 @@ import {
   summarizeVehicleTimeline,
   VEHICLE_TIMELINE_MAX_DATES,
 } from "@shared/vehicle-timeline";
-import { detectVehicles, isModelAvailable } from "./detection.service";
-import { aerialImageForBoundaryFrom } from "./tiles.service";
+import {
+  detectVehicles,
+  detectVehiclesInContext,
+  filterDetectionToBoundary,
+  isModelAvailable,
+} from "./detection.service";
+import { aerialImageForContextFrom } from "./tiles.service";
 import { waybackTimeline } from "./wayback.service";
 
 /**
  * Counts the vehicles on a lot on several archived Esri images (Wayback),
  * newest first. Only images sharp enough for the detector compete
- * (DETECTION_MAX_RESOLUTION_M, like the automatic selection). Runs are
- * sequential: each is a full CPU inference in the ONNX worker.
+ * (DETECTION_MAX_RESOLUTION_M, like the automatic selection). Each image is
+ * captured and clipped exactly like the analysis does it (analyze.service:
+ * fixed context capture around the point, then the boundary as a filter),
+ * so the counts are comparable with the stored one. Runs are sequential:
+ * each is a full CPU inference in the ONNX worker.
  */
 export async function countVehiclesOverTime(
   lat: number,
@@ -50,13 +58,12 @@ export async function countVehiclesOverTime(
 
   const counts: VehicleTimelineCount[] = [];
   for (const candidate of eligible) {
-    const image = await aerialImageForBoundaryFrom(
-      candidate,
-      lat,
-      lon,
-      boundary,
-    );
-    const detection = await detectVehicles(image, boundary, parameters);
+    const image = await aerialImageForContextFrom(candidate, lat, lon);
+    const raw = await detectVehiclesInContext(image, parameters);
+    const detection = boundary
+      ? (filterDetectionToBoundary(raw, boundary) ??
+        (await detectVehicles(image, boundary, parameters)))
+      : raw;
     counts.push({
       candidateId: candidate.id,
       capturedAt: candidate.capturedAt,
