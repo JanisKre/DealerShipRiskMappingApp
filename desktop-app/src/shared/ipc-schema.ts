@@ -28,6 +28,7 @@ import {
   ImagerySelectionSchema,
   ImageryViewRequestSchema,
 } from "./imagery-sources";
+import { ImageryTimelineSchema } from "./imagery-wayback";
 
 // --- NatCat connectors --------------------------------------------------------
 
@@ -235,6 +236,7 @@ export const ipcRequest = {
     mode: z.enum(["save", "clipboard"]),
   }),
   "imagery:select": ImageryViewRequestSchema,
+  "imagery:timeline": ImageryViewRequestSchema,
   "model:status": z.void(),
   "dealerDirectory:status": z.void(),
 } as const;
@@ -302,6 +304,7 @@ export const ipcResponse = {
   "settings:deleteNatCatApiKey": z.object({ ok: z.boolean() }),
   "map:capture": z.object({ path: z.string().nullable(), ok: z.boolean() }),
   "imagery:select": ImagerySelectionSchema,
+  "imagery:timeline": ImageryTimelineSchema,
   "dealerDirectory:status": DealerDirectoryStatusSchema.nullable(),
   "model:status": z.object({
     available: z.boolean(),

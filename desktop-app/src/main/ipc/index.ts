@@ -80,6 +80,7 @@ import {
 import { aerialImageForBoundary } from "../services/tiles.service";
 import { fetchWeather } from "../services/weather.service";
 import { selectImageryForView } from "../services/imagery-source.service";
+import { waybackTimeline } from "../services/wayback.service";
 import {
   deleteSession,
   listSessions,
@@ -259,6 +260,9 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.mapCapture, ({ rect, mode }) => captureMap(rect, mode));
   handle(IPC.imagerySelect, ({ lat, lon, zoom }) =>
     selectImageryForView(lat, lon, zoom),
+  );
+  handle(IPC.imageryTimeline, ({ lat, lon, zoom }) =>
+    waybackTimeline(lat, lon, zoom),
   );
 
   handle(IPC.modelStatus, () => ({

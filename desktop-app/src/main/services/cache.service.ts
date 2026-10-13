@@ -90,4 +90,8 @@ export const TTL = {
   cadastre: 30 * 24 * 60 * 60 * 1000, // 30 d
   /** Esri republishes World Imagery roughly monthly; a week keeps new scenes visible. */
   imageryMetadata: 7 * 24 * 60 * 60 * 1000, // 7 d
+  /** Esri publishes a new Wayback version every few weeks. */
+  waybackConfig: 24 * 60 * 60 * 1000, // 24 h
+  /** A published Wayback version is frozen; only its listing can be revised. */
+  waybackArchive: 30 * 24 * 60 * 60 * 1000, // 30 d
 } as const;

@@ -54,6 +54,7 @@ import { eur, num, pct } from "@renderer/lib/format";
 import { riskColor } from "@renderer/lib/riskColor";
 import { UnderwritingMessages } from "./UnderwritingMessages";
 import { DetectionImageryNote } from "./DetectionImageryNote";
+import { ImageryHistorySection } from "./ImageryHistorySection";
 
 /**
  * Detail dialog for a location: area/capacity/utilisation, EAL breakdown
@@ -72,13 +73,21 @@ export function DealershipDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] max-w-2xl overflow-auto">
-        {dealership && <DetailBody d={dealership} />}
+        {dealership && (
+          <DetailBody d={dealership} onClose={() => onOpenChange(false)} />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
+function DetailBody({
+  d,
+  onClose,
+}: {
+  d: AnalyzedDealership;
+  onClose: () => void;
+}): React.JSX.Element {
   const { t } = useTranslation();
   const score = d.risk?.overallScore ?? 0;
   const hailScore =
@@ -154,6 +163,8 @@ function DetailBody({ d }: { d: AnalyzedDealership }): React.JSX.Element {
       </div>
 
       <DetectionImageryNote detection={d.detection} />
+
+      <ImageryHistorySection d={d} onClose={onClose} />
 
       <Separator />
 

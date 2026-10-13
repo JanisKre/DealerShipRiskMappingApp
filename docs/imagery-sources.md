@@ -87,6 +87,49 @@ and recommends re-analysing.
 - State services are third-party endpoints. Their URLs, layers and licences
   were verified in October 2026 and can change.
 
+## Imagery history (Esri World Imagery Wayback)
+
+Esri archives every published version of World Imagery (about 200 since
+February 2014, keyless). The app lists the versions in which the image at a
+location actually changed, so an older and sometimes sharper image can be
+viewed on the map. These versions do **not** change the automatic selection
+or the risk model: `selectImagery` never sees Wayback candidates.
+
+Implementation: `desktop-app/src/shared/imagery-wayback.ts` (URLs, parsing),
+`desktop-app/src/main/services/wayback.service.ts` (lookup), IPC
+`imagery:timeline`. Tests: `imagery-wayback.test.ts`,
+`wayback.service.test.ts`.
+
+- **Versions**: `waybackconfig.json` (release number, publication date,
+  metadata service per version), cached for 24 hours.
+- **Local changes**: the tilemap service
+  (`World_Imagery/MapServer/tilemap/{release}/{z}/{y}/{x}`) names the release
+  that holds the tile a version shows. The lookup starts at the newest
+  version and continues just below each holder, so there is one request per
+  change rather than one per version. It stops after 8 changes and flags
+  the timeline as truncated. Where the newest version has no imagery at the
+  requested zoom (z20 is missing in large parts of Germany), it drops one
+  zoom level once.
+- **Capture date**: the holder's own metadata service, queried like the
+  live one (`SRC_DATE`, `SRC_RES`, `NICE_NAME`). Wayback metadata services
+  number their layers 0–13 (1.9 cm to 150 m) instead of the live service's
+  5–18, so the layer is `clamp(23 − zoom, 0, 13)`. Versions that show the same
+  scene (same date, collection and resolution) are listed once.
+- **Display**: a pinned version replaces the satellite basemap until the
+  user returns to "Automatic". It is not persisted across restarts. The
+  legend shows the capture date of the pinned version's image at the map
+  centre: the newest listed change that is not newer than the pinned
+  version.
+- **Security**: tile, tilemap and metadata URLs are built from constants
+  and validated integers. Metadata URLs from the configuration are only
+  used on `https://metadata.maptiles.arcgis.com/arcgis/rest/services/<name>/MapServer`.
+
+Limitations: Wayback holds Esri's mosaic only. State orthophotos are not
+included unless Esri itself used them. Early versions (2014) have no
+metadata service, so their dates are unknown. Most German locations show
+a handful of distinct images, at intervals of one to several years.
+Licence and attribution are the same as for Esri World Imagery.
+
 ## Licences and attribution
 
 Each registry entry carries the attribution required by the provider, with the

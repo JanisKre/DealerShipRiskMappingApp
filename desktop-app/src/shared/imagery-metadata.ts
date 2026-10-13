@@ -38,8 +38,8 @@ export const ImageryMetadataSchema = z.object({
 });
 export type ImageryMetadata = z.infer<typeof ImageryMetadataSchema>;
 
-const ESRI_IDENTIFY_URL =
-  "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/identify";
+const ESRI_METADATA_MAPSERVER_URL =
+  "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer";
 
 /**
  * World Imagery publishes one metadata layer per zoom level: layer 5 is the
@@ -55,6 +55,24 @@ export function buildEsriIdentifyUrl(
   lon: number,
   zoom: number,
 ): string {
+  return buildMetadataIdentifyUrl(
+    ESRI_METADATA_MAPSERVER_URL,
+    esriMetadataLayerForZoom(zoom),
+    lat,
+    lon,
+  );
+}
+
+/**
+ * Point `identify` request against an Esri metadata MapServer (live World
+ * Imagery or a Wayback release's metadata service) for one layer.
+ */
+export function buildMetadataIdentifyUrl(
+  mapServerUrl: string,
+  layerId: number,
+  lat: number,
+  lon: number,
+): string {
   // identify needs a map extent/display even for a point query; a tiny
   // extent around the point keeps the result independent of the viewport.
   const d = 0.0005;
@@ -62,14 +80,14 @@ export function buildEsriIdentifyUrl(
     geometry: `${lon},${lat}`,
     geometryType: "esriGeometryPoint",
     sr: "4326",
-    layers: `all:${esriMetadataLayerForZoom(zoom)}`,
+    layers: `all:${layerId}`,
     tolerance: "0",
     mapExtent: `${lon - d},${lat - d},${lon + d},${lat + d}`,
     imageDisplay: "256,256,96",
     returnGeometry: "false",
     f: "json",
   });
-  return `${ESRI_IDENTIFY_URL}?${params.toString()}`;
+  return `${mapServerUrl}/identify?${params.toString()}`;
 }
 
 /** Converts Esri's `YYYYMMDD` (with "Null" for unknown) to ISO `YYYY-MM-DD`. */
@@ -122,16 +140,20 @@ export function emptyImageryMetadata(
   };
 }
 
-/** Normalizes an Esri identify response; unknown shapes yield `available: false`. */
+/**
+ * Normalizes an Esri identify response; unknown shapes yield `available: false`.
+ * `layerId` defaults to the live World Imagery layer for `zoom`; Wayback
+ * metadata services number their layers differently.
+ */
 export function parseEsriIdentify(
   json: unknown,
   zoom: number,
+  layerId: number = esriMetadataLayerForZoom(zoom),
 ): ImageryMetadata {
   const empty = emptyImageryMetadata("esri", zoom);
   const results = (json as { results?: unknown } | null)?.results;
   if (!Array.isArray(results)) return empty;
 
-  const layerId = esriMetadataLayerForZoom(zoom);
   const hit = results.find(
     (r): r is { attributes: Record<string, unknown> } =>
       typeof r === "object" &&

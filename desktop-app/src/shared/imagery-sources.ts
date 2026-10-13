@@ -222,6 +222,24 @@ export function stateAttribution(
 
 const EARTH_HALF_CIRCUMFERENCE = Math.PI * 6378137;
 
+/** XYZ (Web Mercator) tile column containing a longitude. */
+export function lon2tile(lon: number, zoom: number): number {
+  return Math.floor(((lon + 180) / 360) * 2 ** zoom);
+}
+
+/** XYZ (Web Mercator) tile row containing a latitude (row 0 is north). */
+export function lat2tile(lat: number, zoom: number): number {
+  return Math.floor(
+    ((1 -
+      Math.log(
+        Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180),
+      ) /
+        Math.PI) /
+      2) *
+      2 ** zoom,
+  );
+}
+
 /** Web Mercator (EPSG:3857) bounds of an XYZ tile: [minX, minY, maxX, maxY]. */
 export function tileBboxEpsg3857(
   z: number,
@@ -304,11 +322,16 @@ export const IMAGERY_MIN_SELECTION_ZOOM = 15;
 export const ImageryCandidateSchema = z.object({
   /** Stable id, e.g. "esri:z19" or "dop:NW". */
   id: z.string(),
-  kind: z.enum(["esri", "state-dop", "custom"]),
+  kind: z.enum(["esri", "state-dop", "custom", "esri-wayback"]),
   label: z.string(),
   capturedAt: z.string().nullable(),
   /** Where `capturedAt` comes from. */
-  dateSource: z.enum(["esri-metadata", "bkg-flight-index", "none"]),
+  dateSource: z.enum([
+    "esri-metadata",
+    "esri-wayback-metadata",
+    "bkg-flight-index",
+    "none",
+  ]),
   resolutionM: z.number().nullable(),
   /** Zoom level the imagery is captured/displayed at. */
   zoom: z.number().int(),
@@ -316,6 +339,14 @@ export const ImageryCandidateSchema = z.object({
   state: z.enum(GERMAN_STATES).optional(),
   /** Full Esri record for Esri candidates. */
   esri: ImageryMetadataSchema.optional(),
+  /** Archived World Imagery version, for `esri-wayback` candidates. */
+  wayback: z
+    .object({
+      release: z.number().int().positive(),
+      /** ISO date Esri published this version of the basemap. */
+      publishedAt: z.string(),
+    })
+    .optional(),
   /** Why a candidate's date was withheld or qualified. */
   note: z.string().optional(),
 });
@@ -329,6 +360,8 @@ export const ImagerySelectionReasonSchema = z.enum([
   "no-sharp-source",
   "fixed-provider",
   "overview-zoom",
+  /** A Wayback version chosen by the user for display. */
+  "pinned-version",
 ]);
 export type ImagerySelectionReason = z.infer<
   typeof ImagerySelectionReasonSchema

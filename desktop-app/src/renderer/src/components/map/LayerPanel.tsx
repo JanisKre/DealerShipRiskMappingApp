@@ -17,10 +17,24 @@ import type { Peril } from "@shared/types";
 import { PERILS } from "@shared/types";
 import { Button } from "@renderer/components/ui/button";
 import { Checkbox } from "@renderer/components/ui/checkbox";
+import { Label } from "@renderer/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@renderer/components/ui/select";
+import { Skeleton } from "@renderer/components/ui/skeleton";
 import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@renderer/components/ui/toggle-group";
+import {
+  waybackCandidateForVersion,
+  type ImageryTimeline,
+} from "@shared/imagery-wayback";
+import { imageryCandidateSummary } from "@renderer/lib/imageryFormat";
 import { useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { ScenarioBuilder } from "./ScenarioBuilder";
 import { PANEL_ACTION_CLASS } from "./panelStyles";
@@ -112,6 +126,94 @@ export interface LayerPanelProps {
   onStartDetectionEditing: () => void;
   onSaveDetectionEdits: () => void;
   onCancelDetectionEdits: () => void;
+  /** Wayback versions at the map centre; null below the selection zoom. */
+  imageryTimeline: ImageryTimeline | null;
+  imageryTimelineLoading: boolean;
+  /** False when the basemap is not satellite or a custom WMS replaces Esri. */
+  imageryTimelineAvailable: boolean;
+}
+
+const AUTO_IMAGERY = "auto";
+
+/**
+ * Picks which version of the satellite image the map shows: the automatic
+ * per-location choice, or an archived Esri Wayback version.
+ */
+function ImageryVersionSelect({
+  timeline,
+  loading,
+}: Readonly<{
+  timeline: ImageryTimeline | null;
+  loading: boolean;
+}>): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const pinned = useMapStore((s) => s.pinnedWayback);
+  const setPinned = useMapStore((s) => s.setPinnedWayback);
+  const candidates = timeline?.candidates ?? [];
+  const pinnedCandidate = pinned
+    ? waybackCandidateForVersion(candidates, pinned)
+    : null;
+  const value = pinned
+    ? String(pinnedCandidate?.wayback?.release ?? pinned.release)
+    : AUTO_IMAGERY;
+
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="imagery-version" className="text-xs">
+        {t("map.layerPanel.imageryVersionLabel")}
+      </Label>
+      {loading && !timeline ? (
+        <Skeleton className="h-9 w-full" />
+      ) : (
+        <Select
+          value={value}
+          onValueChange={(v) => {
+            if (v === AUTO_IMAGERY) {
+              setPinned(null);
+              return;
+            }
+            const c = candidates.find((x) => String(x.wayback?.release) === v);
+            if (c?.wayback) setPinned(c.wayback);
+          }}
+          disabled={!timeline && !pinned}
+        >
+          <SelectTrigger id="imagery-version" className="w-full text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={AUTO_IMAGERY}>
+              {t("map.layerPanel.imageryVersionAuto")}
+            </SelectItem>
+            {pinned && !pinnedCandidate && (
+              <SelectItem value={String(pinned.release)}>
+                {t("map.layerPanel.imageryVersionPublished", {
+                  date: pinned.publishedAt,
+                })}
+              </SelectItem>
+            )}
+            {candidates.map((c) =>
+              c.wayback ? (
+                <SelectItem
+                  key={c.id}
+                  value={String(c.wayback.release)}
+                  className="text-xs"
+                >
+                  {imageryCandidateSummary(c, t, i18n.language)}
+                </SelectItem>
+              ) : null,
+            )}
+          </SelectContent>
+        </Select>
+      )}
+      <p className="text-[10px] leading-snug text-muted-foreground">
+        {timeline
+          ? t("map.layerPanel.imageryVersionHint", {
+              count: candidates.length,
+            })
+          : t("map.layerPanel.imageryVersionZoomHint")}
+      </p>
+    </div>
+  );
 }
 
 export function LayerPanel({
@@ -124,6 +226,9 @@ export function LayerPanel({
   onStartDetectionEditing,
   onSaveDetectionEdits,
   onCancelDetectionEdits,
+  imageryTimeline,
+  imageryTimelineLoading,
+  imageryTimelineAvailable,
 }: LayerPanelProps): React.JSX.Element {
   const { t } = useTranslation();
   const layers = useMapStore((s) => s.layers);
@@ -139,6 +244,11 @@ export function LayerPanel({
   const activeLayerCount = Object.values(layers).filter(Boolean).length;
   const [open, setOpen] = useState(false);
   const bmLabels = basemapLabels(t);
+  const pinnedWayback = useMapStore((s) => s.pinnedWayback);
+  const basemapBadge =
+    basemap === "satellite" && pinnedWayback && imageryTimelineAvailable
+      ? `${bmLabels[basemap]} · ${pinnedWayback.publishedAt.slice(0, 4)}`
+      : bmLabels[basemap];
 
   return (
     <div className="glass flex flex-col rounded-lg border shadow-lg">
@@ -170,7 +280,8 @@ export function LayerPanel({
             <Section
               icon={<Map className="size-3" />}
               title={t("map.layerPanel.basemapSectionTitle")}
-              badge={bmLabels[basemap]}
+              badge={basemapBadge}
+              defaultOpen={pinnedWayback != null}
             >
               <div className="space-y-2">
                 <select
@@ -185,6 +296,12 @@ export function LayerPanel({
                     </option>
                   ))}
                 </select>
+                {imageryTimelineAvailable && (
+                  <ImageryVersionSelect
+                    timeline={imageryTimeline}
+                    loading={imageryTimelineLoading}
+                  />
+                )}
               </div>
             </Section>
 

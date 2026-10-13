@@ -380,6 +380,17 @@ const api = {
       zoom,
     } satisfies IpcRequest["imagery:select"]),
 
+  imageryTimeline: (
+    lat: number,
+    lon: number,
+    zoom: number,
+  ): Promise<IpcResponse["imagery:timeline"]> =>
+    ipcRenderer.invoke(IPC.imageryTimeline, {
+      lat,
+      lon,
+      zoom,
+    } satisfies IpcRequest["imagery:timeline"]),
+
   modelStatus: (): Promise<IpcResponse["model:status"]> =>
     ipcRenderer.invoke(IPC.modelStatus),
 

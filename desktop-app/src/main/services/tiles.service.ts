@@ -2,7 +2,11 @@ import sharp from "sharp";
 import type { BoundaryResult } from "@shared/types";
 import { geometryBbox } from "@shared/boundary-geometry-utils";
 import { DETECTION_ZOOM, TILE_SIZE } from "@shared/constants";
-import type { ImagerySelection } from "@shared/imagery-sources";
+import {
+  lat2tile,
+  lon2tile,
+  type ImagerySelection,
+} from "@shared/imagery-sources";
 import { cacheGet, cacheSet } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
 import {
@@ -25,20 +29,6 @@ import type { AerialImage } from "./detection.service";
 
 // --- Tile math (Web Mercator) ---------------------------------------
 
-function lon2tile(lon: number, zoom: number): number {
-  return Math.floor(((lon + 180) / 360) * 2 ** zoom);
-}
-function lat2tile(lat: number, zoom: number): number {
-  return Math.floor(
-    ((1 -
-      Math.log(
-        Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180),
-      ) /
-        Math.PI) /
-      2) *
-      2 ** zoom,
-  );
-}
 function tile2lon(x: number, zoom: number): number {
   return (x / 2 ** zoom) * 360 - 180;
 }

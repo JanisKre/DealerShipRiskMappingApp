@@ -56,6 +56,11 @@ const HOST_POLICIES: Record<string, HostPolicy> = {
   // Photon's public instance asks for moderate use; search sends two queries
   // per keystroke pause (all places + dealerships only).
   "photon.komoot.io": { maxConcurrent: 2 },
+  // Esri World Imagery Wayback: tiles (incl. tilemap) and per-version
+  // metadata. A capture already caps itself at TILE_FETCH_CONCURRENCY; this
+  // keeps parallel analyses from stacking up on the archive.
+  "wayback.maptiles.arcgis.com": { maxConcurrent: 6 },
+  "metadata.maptiles.arcgis.com": { maxConcurrent: 4 },
 };
 
 class HostGate {

@@ -12,6 +12,7 @@ import {
   type ImageryCandidate,
   type ImagerySelection,
 } from "@shared/imagery-sources";
+import { buildWaybackTileUrl } from "@shared/imagery-wayback";
 import { cached, cacheKeyFragment, TTL } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
 import { getEsriImageryMetadata } from "./imagery-metadata.service";
@@ -262,6 +263,13 @@ export function tileSourceForCandidate(
         url: (z, y, x) => buildStateTileUrl(service, z, x, y),
       };
     }
+  }
+  if (candidate.kind === "esri-wayback" && candidate.wayback) {
+    const { release } = candidate.wayback;
+    return {
+      cacheId: `wayback:${release}`,
+      url: (z, y, x) => buildWaybackTileUrl(release, z, y, x),
+    };
   }
   if (candidate.kind === "custom") {
     const template = getSettings().wmsTileUrl ?? "";
