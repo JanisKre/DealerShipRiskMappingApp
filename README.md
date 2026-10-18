@@ -56,6 +56,8 @@ anyway**. See [all releases](https://github.com/JanisKre/DealerShipRiskMappingAp
 - [Getting Started](#getting-started)
 - [ONNX Model (required)](#onnx-model-required)
 - [Scripts](#scripts)
+- [Code signing policy](#code-signing-policy)
+- [Privacy](#privacy)
 - [Project Structure](#project-structure)
 - [Security](#security)
 - [Documentation](#documentation)
@@ -222,6 +224,33 @@ DealerShipRiskMapping/
 - API keys are stored via `safeStorage` (OS-keychain-encrypted) — never in
   plain text
 - ONNX inference runs in a `utilityProcess`, separate from the app/IPC event
+## Code signing policy
+
+Windows releases are being set up for signing with a certificate issued to the
+SignPath Foundation; until that is approved, Windows builds are unsigned. Free
+code signing provided by [SignPath.io](https://signpath.io), certificate by
+[SignPath Foundation](https://signpath.org).
+
+- Only binaries built from this repository by the tag-driven
+  [Release workflow](./.github/workflows/release.yml) on GitHub-hosted runners
+  are submitted for signing.
+- Roles: the maintainer, [Janis Kretschmann](https://github.com/JanisKre), is
+  committer, reviewer and approver. Signing requests for release builds are
+  approved manually.
+- Multi-factor authentication is required for every account that can trigger
+  or approve a signing request.
+- Releases include SHA-256 checksums, a CycloneDX SBOM and GitHub build
+  provenance attestations.
+- macOS builds are not yet signed or notarized; see the
+  [Download](#️-download) section for how to open them.
+
+## Privacy
+
+The app is local and single-user: the maintainer receives no data and there is
+no telemetry. It contacts third-party map, imagery, weather and (optionally)
+AI services only for analyses you start, and an AI memo is only generated when
+you configure a provider. Details are in the [privacy policy](./PRIVACY.md).
+
   loop
 
 ## Documentation
@@ -232,6 +261,7 @@ DealerShipRiskMapping/
 | [CONTRIBUTING.md](./CONTRIBUTING.md)             | Development workflow, conventions    |
 | [CHANGELOG.md](./CHANGELOG.md)                   | Version history                      |
 | [desktop-app/README.md](./desktop-app/README.md) | App-specific details                 |
+| [PRIVACY.md](./PRIVACY.md)                       | Privacy policy, external services    |
 | [.github/SUPPORT.md](./.github/SUPPORT.md)       | Support and data-sharing guidance    |
 | [SECURITY.md](./SECURITY.md)                     | Reporting a vulnerability            |
 | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)       | Community guidelines                 |
