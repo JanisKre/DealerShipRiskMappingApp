@@ -26,7 +26,6 @@ import {
   effectiveVehicleCount,
 } from "@shared/risk-math";
 import { EmptyState } from "@renderer/components/common/EmptyState";
-import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
 import { Button } from "@renderer/components/ui/button";
 import { useAppStore } from "@renderer/store/appStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
@@ -881,9 +880,8 @@ export function MapPage(): React.JSX.Element {
         />
       </div>
 
-      {/* Legend + overlay scale bottom left */}
+      {/* Legend bottom left; portfolio filters live in the layer panel */}
       <div className="absolute bottom-6 left-3 z-[1000] flex flex-col gap-2">
-        <PortfolioFilterBar dealerships={withCoords} hideBusiness />
         <MapLegend
           showClusterNote={layers.accumulationClusters}
           imagery={shownImagery}
