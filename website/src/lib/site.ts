@@ -1,4 +1,5 @@
 import type { DocSlug } from "@/lib/docs-pages";
+import type { Localized } from "@/lib/i18n";
 
 export const REPO_URL = "https://github.com/JanisKre/DealerShipRiskMappingApp";
 export const RELEASES_URL = `${REPO_URL}/releases`;
@@ -34,7 +35,7 @@ export interface DownloadOption {
   platform: Platform;
   os: "macOS" | "Windows";
   label: string;
-  detail: string;
+  detail: Localized;
   file: string;
   href: string;
 }
@@ -46,7 +47,11 @@ export const DOWNLOADS: DownloadOption[] = [
     platform: "mac-arm64",
     os: "macOS",
     label: "Apple Silicon",
-    detail: "M1 and newer · .dmg",
+    detail: {
+      en: "M1 and newer · .dmg",
+      de: "M1 und neuer · .dmg",
+      fr: "M1 et plus récents · .dmg",
+    },
     file: "dealership-risk-desktop-mac-arm64.dmg",
     href: `${DOWNLOAD_BASE}/dealership-risk-desktop-mac-arm64.dmg`,
   },
@@ -54,7 +59,11 @@ export const DOWNLOADS: DownloadOption[] = [
     platform: "mac-x64",
     os: "macOS",
     label: "Intel",
-    detail: "Intel Macs · .dmg",
+    detail: {
+      en: "Intel Macs · .dmg",
+      de: "Intel-Macs · .dmg",
+      fr: "Mac Intel · .dmg",
+    },
     file: "dealership-risk-desktop-mac-x64.dmg",
     href: `${DOWNLOAD_BASE}/dealership-risk-desktop-mac-x64.dmg`,
   },
@@ -62,7 +71,11 @@ export const DOWNLOADS: DownloadOption[] = [
     platform: "win-x64",
     os: "Windows",
     label: "Windows x64",
-    detail: "Windows 10/11 · .exe installer",
+    detail: {
+      en: "Windows 10/11 · .exe installer",
+      de: "Windows 10/11 · .exe-Installer",
+      fr: "Windows 10/11 · installateur .exe",
+    },
     file: "dealership-risk-desktop-win-x64.exe",
     href: `${DOWNLOAD_BASE}/dealership-risk-desktop-win-x64.exe`,
   },

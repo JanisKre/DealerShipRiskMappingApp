@@ -7,12 +7,74 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DOC_GROUPS, DOC_PAGES, type DocSlug } from "@/lib/docs-pages";
+import { type Lang, type Localized, useLang } from "@/lib/i18n";
 import { type Page, repoFile, sitePath } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 type DocsPage = Exclude<Page, "home">;
 
+const T: Localized<{
+  overview: string;
+  nav: string;
+  pager: string;
+  previous: string;
+  next: string;
+  eyebrow: string;
+  title: string;
+  intro: [string, string, string];
+}> = {
+  en: {
+    overview: "Overview",
+    nav: "Documentation",
+    pager: "Previous and next page",
+    previous: "Previous",
+    next: "Next",
+    eyebrow: "Documentation",
+    title: "User guide",
+    intro: [
+      "Everything you need for a first portfolio run. The full technical documentation lives in the ",
+      "repository",
+      ".",
+    ],
+  },
+  de: {
+    overview: "Übersicht",
+    nav: "Dokumentation",
+    pager: "Vorherige und nächste Seite",
+    previous: "Zurück",
+    next: "Weiter",
+    eyebrow: "Dokumentation",
+    title: "Benutzerhandbuch",
+    intro: [
+      "Alles für den ersten Portfolio-Durchlauf. Die vollständige technische Dokumentation liegt im ",
+      "Repository",
+      " (auf Englisch).",
+    ],
+  },
+  fr: {
+    overview: "Vue d’ensemble",
+    nav: "Documentation",
+    pager: "Page précédente et suivante",
+    previous: "Précédent",
+    next: "Suivant",
+    eyebrow: "Documentation",
+    title: "Guide d’utilisation",
+    intro: [
+      "Tout ce qu’il faut pour analyser un premier portefeuille. La documentation technique complète se trouve dans le ",
+      "dépôt",
+      " (en anglais).",
+    ],
+  },
+};
+
+/** Browser tab title for a docs page in the current language. */
+export function docsTitle(page: DocsPage, lang: Lang): string {
+  const current = DOC_PAGES.find((p) => p.slug === page);
+  return `${current ? current.title[lang] : T[lang].nav} · Dealership Risk Mapping`;
+}
+
 export function Docs({ page }: { page: DocsPage }): React.JSX.Element {
+  const lang = useLang();
   const current = DOC_PAGES.find((p) => p.slug === page);
 
   return (
@@ -25,7 +87,7 @@ export function Docs({ page }: { page: DocsPage }): React.JSX.Element {
 
       <details className="group bg-muted/40 rounded-lg border lg:hidden">
         <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
-          {current ? current.title : "Overview"}
+          {current ? current.title[lang] : T[lang].overview}
           <ChevronDown className="text-muted-foreground size-4 transition-transform group-open:rotate-180" />
         </summary>
         <div className="border-t px-4 py-4">
@@ -41,19 +103,22 @@ export function Docs({ page }: { page: DocsPage }): React.JSX.Element {
 }
 
 function DocsNav({ page }: { page: DocsPage }): React.JSX.Element {
+  const lang = useLang();
+  const t = T[lang];
+
   return (
-    <nav aria-label="Documentation" className="space-y-6 text-sm">
+    <nav aria-label={t.nav} className="space-y-6 text-sm">
       <NavLink href={sitePath(page, "docs")} active={page === "docs"}>
-        Overview
+        {t.overview}
       </NavLink>
       {DOC_GROUPS.map((group) => (
-        <div key={group.label}>
-          <p className="mb-2 font-semibold">{group.label}</p>
+        <div key={group.id}>
+          <p className="mb-2 font-semibold">{group.label[lang]}</p>
           <ul className="space-y-0.5 border-l">
             {group.pages.map((p) => (
               <li key={p.slug}>
                 <NavLink href={sitePath(page, p.slug)} active={page === p.slug} indent>
-                  {p.title}
+                  {p.title[lang]}
                 </NavLink>
               </li>
             ))}
@@ -92,30 +157,35 @@ function NavLink({
 }
 
 function Overview(): React.JSX.Element {
+  const lang = useLang();
+  const t = T[lang];
+
   return (
     <>
-      <PageHeading eyebrow="Documentation" title="User guide">
+      <PageHeading eyebrow={t.eyebrow} title={t.title}>
         <p className="text-muted-foreground mt-4 text-lg text-pretty">
-          Everything you need for a first portfolio run. The full technical
-          documentation lives in the{" "}
-          <A href={repoFile("README.md")}>repository</A>.
+          {t.intro[0]}
+          <A href={repoFile("README.md")}>{t.intro[1]}</A>
+          {t.intro[2]}
         </p>
       </PageHeading>
       <div className="space-y-12">
         {DOC_GROUPS.map((group) => (
-          <section key={group.label}>
-            <h2 className="mb-4 text-xl font-semibold tracking-tight">{group.label}</h2>
+          <section key={group.id}>
+            <h2 className="mb-4 text-xl font-semibold tracking-tight">
+              {group.label[lang]}
+            </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {group.pages.map((p) => (
                 <a key={p.slug} href={sitePath("docs", p.slug)} className="group">
                   <Card className="h-full group-hover:shadow-md">
                     <CardHeader className="gap-2">
                       <CardTitle className="flex items-center justify-between text-base">
-                        {p.title}
+                        {p.title[lang]}
                         <ArrowRight className="text-muted-foreground group-hover:text-foreground size-4 transition-transform group-hover:translate-x-0.5" />
                       </CardTitle>
                       <CardDescription className="leading-relaxed">
-                        {p.blurb}
+                        {p.blurb[lang]}
                       </CardDescription>
                     </CardHeader>
                   </Card>
@@ -152,29 +222,30 @@ function PageHeading({
 }
 
 function DocArticle({ slug }: { slug: DocSlug }): React.JSX.Element {
+  const lang = useLang();
+  const t = T[lang];
   const index = DOC_PAGES.findIndex((p) => p.slug === slug);
   const page = DOC_PAGES[index];
   const prev = DOC_PAGES[index - 1];
   const next = DOC_PAGES[index + 1];
-  const Content = DOC_CONTENT[slug];
 
   return (
     <>
-      <PageHeading eyebrow={page.group} title={page.title} />
+      <PageHeading eyebrow={page.group[lang]} title={page.title[lang]} />
       <div className="space-y-4 leading-relaxed">
-        <Content />
+        {DOC_CONTENT[slug][lang]}
       </div>
 
       <nav
-        aria-label="Previous and next page"
+        aria-label={t.pager}
         className="mt-16 grid gap-4 border-t pt-6 text-sm sm:grid-cols-2"
       >
         {prev ? (
           <a href={sitePath(slug, prev.slug)} className="group">
             <span className="text-muted-foreground flex items-center gap-1">
-              <ArrowLeft className="size-3.5" /> Previous
+              <ArrowLeft className="size-3.5" /> {t.previous}
             </span>
-            <span className="group-hover:text-primary font-medium">{prev.title}</span>
+            <span className="group-hover:text-primary font-medium">{prev.title[lang]}</span>
           </a>
         ) : (
           <span />
@@ -182,9 +253,9 @@ function DocArticle({ slug }: { slug: DocSlug }): React.JSX.Element {
         {next && (
           <a href={sitePath(slug, next.slug)} className="group sm:text-right">
             <span className="text-muted-foreground flex items-center gap-1 sm:justify-end">
-              Next <ArrowRight className="size-3.5" />
+              {t.next} <ArrowRight className="size-3.5" />
             </span>
-            <span className="group-hover:text-primary font-medium">{next.title}</span>
+            <span className="group-hover:text-primary font-medium">{next.title[lang]}</span>
           </a>
         )}
       </nav>
