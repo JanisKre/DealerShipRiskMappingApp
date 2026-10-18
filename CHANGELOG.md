@@ -12,8 +12,10 @@ the project follows [Semantic Versioning](https://semver.org/).
 - Project homepage in `website/` (Vite, React, Tailwind CSS 4, shadcn/ui)
   with an overview and the download options, plus a user guide split into
   one page per topic under `/docs/` (old `/docs/#topic` links redirect). The
-  `Pages` workflow builds it on every change and deploys it to GitHub Pages
-  from `main`.
+  site is available in English, German and French; a language switcher sits
+  in the header, the first visit follows the browser language and the choice
+  is remembered. The `Pages` workflow builds it on every change and deploys it
+  to GitHub Pages from `main`.
 
 ### Removed
 

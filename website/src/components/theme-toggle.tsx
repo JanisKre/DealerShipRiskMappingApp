@@ -1,5 +1,12 @@
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { type Localized, useLang } from "@/lib/i18n";
+
+const LABEL: Localized = {
+  en: "Toggle dark mode",
+  de: "Dunkelmodus umschalten",
+  fr: "Basculer le mode sombre",
+};
 
 // public/theme-init.js applies the initial class before first paint.
 function toggleTheme(): void {
@@ -13,12 +20,13 @@ function toggleTheme(): void {
 }
 
 export function ThemeToggle(): React.JSX.Element {
+  const label = LABEL[useLang()];
   return (
     <Button
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
-      aria-label="Toggle dark mode"
+      aria-label={label}
     >
       <Sun className="dark:hidden" />
       <Moon className="hidden dark:block" />

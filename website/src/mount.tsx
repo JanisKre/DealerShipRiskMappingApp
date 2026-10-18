@@ -1,6 +1,7 @@
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import "@/index.css";
+import { LangProvider } from "@/lib/i18n";
 
 /**
  * The page renders after the browser has tried to jump to the URL's anchor,
@@ -19,8 +20,10 @@ function ScrollToHash(): null {
 export function mount(page: React.ReactNode): void {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      {page}
-      <ScrollToHash />
+      <LangProvider>
+        {page}
+        <ScrollToHash />
+      </LangProvider>
     </StrictMode>,
   );
 }
