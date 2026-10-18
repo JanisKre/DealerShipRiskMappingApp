@@ -22,6 +22,10 @@ vi.mock("./tiles.service", () => ({
 vi.mock("./wayback.service", () => ({
   waybackTimeline: mocks.waybackTimeline,
 }));
+// The roof mask needs OSM; without footprints it passes detections through.
+vi.mock("./detection/roof-mask.service", () => ({
+  maskRoofDetections: async (detection: unknown) => detection,
+}));
 
 import { countVehiclesOverTime } from "./vehicle-timeline.service";
 

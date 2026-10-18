@@ -302,7 +302,12 @@ async function tryFusedBoundary(
       return {
         requestedEngine,
         usedEngine: "legacy",
-        fallbackReason: "no defensible evidence to grow a site from",
+        // An unreachable Overpass is the usual cause, and the one the user
+        // can fix by re-analysing later — name it rather than blaming the site.
+        fallbackReason:
+          bundle.availability.osm !== false
+            ? "no defensible evidence to grow a site from"
+            : "OpenStreetMap unreachable — no vector evidence; re-analyse when online",
         result: null,
       };
     }

@@ -47,6 +47,16 @@ The pipeline works in these steps:
    - Intersection-over-smaller ≥ 0.7 or ≥ 0.8 respectively. This catches
      vehicles cut off at window seams.
 7. Clip the box centres to the site boundary.
+8. Drop detections on building roofs (`detection/roof-mask.ts`): a box centre
+   at least 2 m inside a mapped OSM building footprint is removed. Solar
+   panel rows and roof fixtures otherwise read as vehicles. Multi-storey and
+   rooftop car parks are exempt. Without footprints (Overpass unreachable,
+   building unmapped) nothing is removed. The number removed is recorded in
+   the detection's `limitations`.
+
+The map shows the selected site's vehicles over the image they were counted
+on (state orthophoto or archived Esri version), not over the newest basemap.
+Dots drawn over another capture land on roofs and empty stalls.
 
 The model, version, training resolution and any resampling factor are
 recorded in the detection evidence (`source`, `dataVersion`, `method`).

@@ -28,6 +28,7 @@ import {
   modelsDir,
   MODEL_FILENAME,
 } from "../services/detection.service";
+import { maskRoofDetections } from "../services/detection/roof-mask.service";
 import {
   downloadModel,
   MODEL_DOWNLOAD_URL,
@@ -143,7 +144,11 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.detectVehicles, async ({ lat, lon, boundary, parameters }) => {
     const image = await aerialImageForBoundary(lat, lon, boundary);
     return attachImageryProvenance(
-      await detectVehicles(image, boundary, parameters),
+      await maskRoofDetections(
+        await detectVehicles(image, boundary, parameters),
+        lat,
+        lon,
+      ),
       image.imagery,
     );
   });

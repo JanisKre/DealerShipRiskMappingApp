@@ -394,6 +394,21 @@ export function MapPage(): React.JSX.Element {
     () => withCoords.find((d) => d.id === selectedId) ?? null,
     [withCoords, selectedId],
   );
+
+  // The image the selected site's vehicles were counted on. Shown instead of
+  // the automatic choice (unless the user pinned a version or set a WMS), so
+  // the dots sit on the cars they were counted from.
+  const countedSelection =
+    basemap === "satellite" && !wmsUrl && !pinnedWayback && layers.detections
+      ? (selectedDealership?.detection?.imagery ?? null)
+      : null;
+  const countedOn =
+    countedSelection &&
+    (countedSelection.chosen.kind === "state-dop" ||
+      countedSelection.chosen.kind === "esri-wayback")
+      ? countedSelection.chosen
+      : null;
+  const shownImagery = countedOn ? countedSelection : legendImagery;
   const detectionReviewDealership = useMemo(
     () => withCoords.find((d) => d.id === detectionEditId) ?? null,
     [withCoords, detectionEditId],
@@ -495,6 +510,9 @@ export function MapPage(): React.JSX.Element {
 
   // Tile URL for the active basemap. Satellite follows the per-location
   // imagery choice (state orthophoto or Esri); a custom WMS overrides both.
+  // With vehicles shown for a selected site, the map shows the image the
+  // vehicles were counted on: dots drawn over a different capture (another
+  // year, another provider's registration) land on roofs and empty stalls.
   let tileUrl = TILE_URLS[basemap];
   let tileAttribution = tileAttributions(t)[basemap];
   if (basemap === "satellite") {
@@ -503,11 +521,21 @@ export function MapPage(): React.JSX.Element {
       chosen?.kind === "state-dop" && chosen.state
         ? STATE_DOP_SERVICES[chosen.state]
         : undefined;
+    const countedService =
+      countedOn?.kind === "state-dop" && countedOn.state
+        ? STATE_DOP_SERVICES[countedOn.state]
+        : undefined;
     if (wmsUrl) {
       tileUrl = wmsUrl;
     } else if (pinnedWayback) {
       tileUrl = waybackTileTemplate(pinnedWayback.release);
       tileAttribution = `&copy; ${(pinnedCandidate?.attribution ?? WAYBACK_ATTRIBUTION).replace(/^© /, "")}`;
+    } else if (countedService && countedOn) {
+      tileUrl = stateTileTemplate(countedService);
+      tileAttribution = countedOn.attribution;
+    } else if (countedOn?.kind === "esri-wayback" && countedOn.wayback) {
+      tileUrl = waybackTileTemplate(countedOn.wayback.release);
+      tileAttribution = `&copy; ${countedOn.attribution.replace(/^© /, "")}`;
     } else if (service && chosen) {
       tileUrl = stateTileTemplate(service);
       tileAttribution = chosen.attribution;
@@ -858,7 +886,7 @@ export function MapPage(): React.JSX.Element {
         <PortfolioFilterBar dealerships={withCoords} hideBusiness />
         <MapLegend
           showClusterNote={layers.accumulationClusters}
-          imagery={legendImagery}
+          imagery={shownImagery}
           showImagery={basemap === "satellite"}
         />
       </div>
