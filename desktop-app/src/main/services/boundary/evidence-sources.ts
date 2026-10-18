@@ -3,7 +3,7 @@ import { fetchParcelsNear, PARCEL_SEARCH_RADIUS_M } from "../alkis.service";
 import { fetchOsmEvidence } from "./osm-evidence.service";
 import { resolveNominatimMatch } from "./nominatim-polygon";
 import { OSM_EVIDENCE_RADIUS_M } from "./osm-overpass";
-import type { FusionBundle } from "./fusion";
+import type { FusionBundle, VehicleEvidence } from "./fusion";
 import type { LonLat } from "../boundary-geometry";
 
 /**
@@ -20,7 +20,12 @@ import type { LonLat } from "../boundary-geometry";
 export async function collectEvidence(
   lat: number,
   lon: number,
-  context: { name?: string; address?: string; parameters: RiskParameters },
+  context: {
+    name?: string;
+    address?: string;
+    parameters: RiskParameters;
+    vehicles?: VehicleEvidence[];
+  },
 ): Promise<FusionBundle> {
   const anchor: LonLat = [lon, lat];
   const radiusM = Math.max(
@@ -83,5 +88,7 @@ export async function collectEvidence(
       alkis: parcels.status,
       nominatim: nominatim.status,
     },
+    // Already computed by the caller from the context image; no request here.
+    ...(context.vehicles ? { vehicles: context.vehicles } : {}),
   };
 }

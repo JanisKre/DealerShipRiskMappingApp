@@ -26,6 +26,7 @@ import {
   buildResultFromFusion,
   FUSION_VERSION,
   fuseBoundary,
+  type VehicleEvidence,
 } from "./boundary/fusion";
 import { getSettings } from "./settings.service";
 import { fromOverture } from "./overture.service";
@@ -50,6 +51,8 @@ export interface BoundaryLookupContext {
   name?: string;
   address?: string;
   parameters?: RiskParameters;
+  /** Vehicle detections from the context image; only the fusion engine reads them. */
+  vehicles?: VehicleEvidence[];
 }
 
 const BOUNDARY_PROVIDERS: BoundaryProvider[] = [
@@ -66,7 +69,7 @@ const AERIAL_SURFACE_PROVIDER: BoundaryProvider = {
 
 /**
  * Lot boundary detection with a multi-source candidate pipeline:
- *   1. ALKIS (official German cadastral parcels)   — implemented, 7 of 16
+ *   1. ALKIS (official German cadastral parcels)   — implemented, 9 of 16
  *      states (see alkis.service.ts — state determined offline via BBOX,
  *      no reverse-geocoding call needed anymore)
  *   2. OSM landuse/amenity via Overpass           — semantic parking candidate
@@ -90,8 +93,14 @@ export async function detectBoundary(
   name?: string,
   address?: string,
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
+  vehicles?: VehicleEvidence[],
 ): Promise<BoundaryResult> {
-  const context = { name, address, parameters } satisfies BoundaryLookupContext;
+  const context = {
+    name,
+    address,
+    parameters,
+    vehicles,
+  } satisfies BoundaryLookupContext;
   const settled = await Promise.allSettled(
     BOUNDARY_PROVIDERS.map((provider) => provider.resolve(lat, lon, context)),
   );
@@ -269,6 +278,7 @@ async function tryFusedBoundary(
       name: context.name,
       address: context.address,
       parameters: attemptParameters,
+      vehicles: context.vehicles,
     });
     let outcome = fuseBoundary(bundle, attemptParameters);
 
@@ -294,6 +304,7 @@ async function tryFusedBoundary(
         name: context.name,
         address: context.address,
         parameters: attemptParameters,
+        vehicles: context.vehicles,
       });
       outcome = fuseBoundary(bundle, attemptParameters);
     }

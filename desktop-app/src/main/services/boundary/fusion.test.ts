@@ -6,9 +6,11 @@ import {
   FUSION_VERSION,
   fuseBoundary,
   fusedConfidence,
+  LAYER_WEIGHTS,
   layerDiversity,
   matchesSite,
   type FusionBundle,
+  type VehicleEvidence,
 } from "./fusion";
 import { polygonRasterIoU } from "./rasterize";
 import { cellIndex, lonLatToCell } from "./grid";
@@ -1090,5 +1092,111 @@ describe("business park: the site does not swallow its neighbours", () => {
     );
     expect(result.quality?.pointRelation).toBe("outside");
     expect(result.quality?.pointDistanceM).toBeGreaterThan(200);
+  });
+});
+
+describe("vehicle evidence (fusion v4)", () => {
+  // A small mapped forecourt at the anchor and an unmapped yard of parked
+  // cars directly east of it — the truncated-lot case vehicles should fix.
+  const forecourt = rect(0, 0, 15, 15);
+  const osm = (): OsmEvidence => ({
+    ...emptyOsm(),
+    areas: [
+      { kind: "parking", ring: forecourt, tags: {}, osmType: "way", osmId: 1 },
+    ],
+  });
+
+  /** Cars on a 3 m × 5 m stall grid, east offsets [fromE, toE], north [fromN, toN]. */
+  function carGrid(
+    fromE: number,
+    toE: number,
+    fromN: number,
+    toN: number,
+    score = 0.9,
+  ): VehicleEvidence[] {
+    const out: VehicleEvidence[] = [];
+    for (let e = fromE; e <= toE; e += 3) {
+      for (let n = fromN; n <= toN; n += 5) {
+        out.push({ point: unprojectPoint([e, n], ANCHOR), score });
+      }
+    }
+    return out;
+  }
+
+  it("grows a truncated lot over an adjacent cluster of parked cars", () => {
+    const without = fuseBoundary(bundle({ osm: osm() }), PARAMS)!;
+    const withCars = fuseBoundary(
+      bundle({ osm: osm(), vehicles: carGrid(16, 49, -10, 10) }),
+      PARAMS,
+    )!;
+    expect(without).not.toBeNull();
+    expect(withCars).not.toBeNull();
+    // The yard adds roughly 34 m × 20 m on top of the 30 m × 30 m forecourt.
+    expect(withCars.areaSqm).toBeGreaterThan(without.areaSqm + 500);
+    const layer = withCars.layers.find((l) => l.layer === "yolo-vehicles");
+    expect(layer?.cells).toBeGreaterThan(0);
+    expect(layer?.weight).toBeCloseTo(LAYER_WEIGHTS.vehicle);
+  });
+
+  it("is identical to the vehicle-free result when no detections are passed", () => {
+    const a = fuseBoundary(bundle({ osm: osm() }), PARAMS)!;
+    const b = fuseBoundary(bundle({ osm: osm(), vehicles: [] }), PARAMS)!;
+    expect(b.areaSqm).toBe(a.areaSqm);
+    expect(a.layers.some((l) => l.layer === "yolo-vehicles")).toBe(false);
+  });
+
+  it("never confirms a site from vehicles alone", () => {
+    const cars = bundle({ vehicles: carGrid(-30, 30, -20, 20) });
+    const { grid } = buildEvidenceGrid(cars, PARAMS);
+    const max = grid.score.reduce((m, v) => Math.max(m, v), 0);
+    expect(max).toBeLessThan(PARAMS.boundaryGrowHighThreshold);
+    // At most the existing anchor-cell fallback: grown, but unconfirmed, so
+    // its confidence is halved and the result goes to review.
+    const result = fuseBoundary(cars, PARAMS);
+    expect(result?.confirmed ?? false).toBe(false);
+  });
+
+  it("ignores cars on another business's premises", () => {
+    const supermarket = rect(45, 0, 25, 20);
+    const foreignOsm: OsmEvidence = {
+      ...osm(),
+      areas: [
+        ...osm().areas,
+        {
+          kind: "landuse",
+          ring: supermarket,
+          tags: { landuse: "retail", name: "Kaufland" },
+          osmType: "way",
+          osmId: 2,
+        },
+      ],
+    };
+    const site = bundle({
+      osm: foreignOsm,
+      name: "Autohaus Brinkmann",
+      vehicles: carGrid(25, 64, -15, 15),
+    });
+    const { grid, layers } = buildEvidenceGrid(site, PARAMS);
+    // Every car sits inside the supermarket polygon, so none contributes.
+    expect(layers.find((l) => l.layer === "yolo-vehicles")?.cells).toBe(0);
+    const cell = lonLatToCell(grid.spec, unprojectPoint([45, 0], ANCHOR))!;
+    expect(grid.score[cellIndex(grid.spec, cell.col, cell.row)]).toBeLessThan(0);
+
+    const result = fuseBoundary(site, PARAMS)!;
+    const baseline = fuseBoundary(
+      bundle({ osm: foreignOsm, name: "Autohaus Brinkmann" }),
+      PARAMS,
+    )!;
+    expect(result.areaSqm).toBe(baseline.areaSqm);
+  });
+
+  it("is switched off by a zero vehicle evidence weight", () => {
+    const params = { ...PARAMS, boundaryVehicleEvidenceWeight: 0 };
+    const a = fuseBoundary(bundle({ osm: osm() }), params)!;
+    const b = fuseBoundary(
+      bundle({ osm: osm(), vehicles: carGrid(16, 49, -10, 10) }),
+      params,
+    )!;
+    expect(b.areaSqm).toBe(a.areaSqm);
   });
 });

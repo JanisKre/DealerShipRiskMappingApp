@@ -9,12 +9,17 @@ import {
   filterDetectionToBoundary,
 } from "./detection.service";
 import { maskRoofDetections } from "./detection/roof-mask.service";
-import { geocode } from "./geocoding.service";
+import { geocodeCandidates, pickGeocodeHit } from "./geocoding.service";
 import { getOsmDetails } from "./osmDetails.service";
 import { scoreRisk } from "./risk.service";
 import { aerialImageForContext } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
-import type { RiskParameters } from "@shared/types";
+import type {
+  BoundaryResult,
+  DetectionResult,
+  RiskParameters,
+} from "@shared/types";
+import type { VehicleEvidence } from "./boundary/fusion";
 import { resolveNatCat } from "./natcat.service";
 
 /** Extracts a 5-digit postal code from a German address string. */
@@ -44,22 +49,62 @@ async function detectWebsite(
 }
 
 /**
+ * Anchor for a record that has only an address. The name query often finds
+ * the dealership POI where the address query only finds the street; both are
+ * scored together (`pickGeocodeHit`), address hits first so ties keep the old
+ * behaviour. The name query is best effort.
+ */
+async function geocodeDealership(
+  address: string,
+  name?: string,
+): Promise<{ lat: number; lon: number; ambiguity?: string }> {
+  const byAddress = await geocodeCandidates(address);
+  const byName = name
+    ? await geocodeCandidates(`${name}, ${address}`).catch(() => [])
+    : [];
+  const pick = pickGeocodeHit([...byAddress, ...byName], { name, address });
+  if (!pick) throw new Error(`Address could not be resolved: ${address}`);
+  return { lat: pick.hit.lat, lon: pick.hit.lon, ambiguity: pick.ambiguity };
+}
+
+/** Records an ambiguous anchor on the boundary and sends it to review. */
+function withAnchorAmbiguity(
+  boundary: BoundaryResult,
+  ambiguity: string | undefined,
+): BoundaryResult {
+  if (!ambiguity) return boundary;
+  return {
+    ...boundary,
+    reviewRequired: true,
+    ...(boundary.quality
+      ? {
+          quality: {
+            ...boundary.quality,
+            reasons: [...boundary.quality.reasons, ambiguity],
+          },
+        }
+      : {}),
+  };
+}
+
+/**
  * Core workflow for one record:
- *   (geocoding if needed) → boundary → website → aerial image → vehicle
- *   detection → risk.
+ *   (geocoding if needed) → aerial image → vehicle detection → boundary
+ *   (with the vehicles as evidence) → website → vehicles clipped to the
+ *   boundary → risk.
  */
 export async function analyzeDealership(
   input: DealershipInput,
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): Promise<AnalyzedDealership> {
   let { lat, lon } = input;
+  let anchorAmbiguity: string | undefined;
 
   if ((lat == null || lon == null) && input.address) {
-    const hits = await geocode(input.address);
-    if (hits.length === 0)
-      throw new Error(`Address could not be resolved: ${input.address}`);
-    lat = hits[0].lat;
-    lon = hits[0].lon;
+    const anchor = await geocodeDealership(input.address, input.name);
+    lat = anchor.lat;
+    lon = anchor.lon;
+    anchorAmbiguity = anchor.ambiguity;
   }
   if (lat == null || lon == null) {
     throw new Error(
@@ -71,29 +116,39 @@ export async function analyzeDealership(
   const postalCode = extractPostalCode(input.address);
   const hailZone = postalCode ? lookupHailZone(postalCode) : null;
 
-  const boundary = await detectBoundary(
+  // Context image and detection run before the boundary and independently
+  // of it (P5): a too-tight boundary must not also hide vehicles from the
+  // model, and the vehicles are evidence for the boundary itself. Roofs are
+  // masked first so a car park on a roof deck cannot pull the lot onto a
+  // building. Everything stays sequential, so one site never fires its
+  // Overpass queries in parallel.
+  const contextImage = await aerialImageForContext(lat, lon);
+  const contextDetection = await maskRoofDetections(
+    await detectVehiclesInContext(contextImage, parameters),
     lat,
     lon,
-    input.name,
-    input.address,
-    parameters,
   );
-  // After the boundary rather than alongside it, so one site never fires
-  // its Overpass queries in parallel.
-  const website = await detectWebsite(lat, lon, input);
-  // Context image and first detection pass are deliberately independent of
-  // the boundary just chosen (P5): a too-tight boundary must not also hide
-  // vehicles from the model. The boundary is applied only as a spatial
-  // filter afterwards, reusing the same detection rather than re-running it.
-  const contextImage = await aerialImageForContext(lat, lon);
-  const rawDetection = await detectVehiclesInContext(contextImage, parameters);
-  const detection = attachImageryProvenance(
-    await maskRoofDetections(
-      filterDetectionToBoundary(rawDetection, boundary) ??
-        (await detectVehicles(contextImage, boundary, parameters)),
+  const boundary = withAnchorAmbiguity(
+    await detectBoundary(
       lat,
       lon,
+      input.name,
+      input.address,
+      parameters,
+      vehicleEvidence(contextDetection),
     ),
+    anchorAmbiguity,
+  );
+  const website = await detectWebsite(lat, lon, input);
+  // The boundary is applied only as a spatial filter, reusing the same
+  // detection rather than re-running it.
+  const detection = attachImageryProvenance(
+    filterDetectionToBoundary(contextDetection, boundary) ??
+      (await maskRoofDetections(
+        await detectVehicles(contextImage, boundary, parameters),
+        lat,
+        lon,
+      )),
     contextImage.imagery,
   );
   // Resolved on every analysis, so a changed hail source (or a reset to
@@ -126,4 +181,19 @@ export async function analyzeDealership(
     ...(website ? { website, websiteSource: "osm" as const } : {}),
     ...(hailZone != null ? { hailZone, hailRiskTier } : {}),
   };
+}
+
+/**
+ * Georeferenced boxes as boundary evidence. Undefined when the detector
+ * produced no boxes — the area-based fallback estimate is not evidence.
+ */
+function vehicleEvidence(
+  detection: DetectionResult,
+): VehicleEvidence[] | undefined {
+  if (!detection.boxes) return undefined;
+  return detection.boxes.flatMap((box) =>
+    box.lon == null || box.lat == null
+      ? []
+      : [{ point: [box.lon, box.lat] as [number, number], score: box.score }],
+  );
 }
