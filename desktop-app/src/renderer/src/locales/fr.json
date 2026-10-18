@@ -529,6 +529,7 @@
         "other": "{{count}} voisins assurés dans un rayon de {{radius}} km"
       },
       "insuredChip": "existant",
+      "notInsuredChip": "nouveau",
       "sameGroupChip": "même groupe",
       "inRadiusChip": "dans le rayon",
       "viewDetails": "Voir les détails",

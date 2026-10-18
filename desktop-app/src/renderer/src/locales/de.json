@@ -854,6 +854,7 @@
         "other": "{{count}} versicherte Nachbarn im {{radius}} km-Radius"
       },
       "insuredChip": "Bestand",
+      "notInsuredChip": "Neu",
       "sameGroupChip": "gleiche Gruppe",
       "inRadiusChip": "im Radius",
       "viewDetails": "Details ansehen",

@@ -317,25 +317,27 @@ export function LocationsPanel({
                 <div className="ml-auto flex shrink-0 items-center gap-1">
                   <HintButton
                     type="button"
-                    size="icon"
+                    size="sm"
                     variant="outline"
-                    className="size-6 shrink-0"
+                    className="h-6 shrink-0 gap-1 px-2 text-xs"
                     disabled={selectedIds.size === 0}
                     onClick={() => markSelectedInsured(true)}
                     aria-label={t("map.locationsPanel.markInsured")}
                   >
                     <ShieldCheck className="size-3.5" />
+                    {t("map.locationsPanel.insuredChip")}
                   </HintButton>
                   <HintButton
                     type="button"
-                    size="icon"
+                    size="sm"
                     variant="outline"
-                    className="size-6 shrink-0"
+                    className="h-6 shrink-0 gap-1 px-2 text-xs"
                     disabled={selectedIds.size === 0}
                     onClick={() => markSelectedInsured(false)}
                     aria-label={t("map.locationsPanel.markNotInsured")}
                   >
                     <ShieldOff className="size-3.5" />
+                    {t("map.locationsPanel.notInsuredChip")}
                   </HintButton>
                   <HintButton
                     type="button"
