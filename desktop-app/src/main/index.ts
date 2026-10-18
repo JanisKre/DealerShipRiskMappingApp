@@ -4,6 +4,14 @@ import { pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc";
 import { closeDb, getDb } from "./db/database";
 
+// Unpackaged dev runs are an unsigned generic "Electron", so macOS re-asks for
+// the Keychain password on every start. A mock keychain avoids that; it is
+// never enabled in packaged builds, which keep the real OS keychain. Keys
+// saved in dev are therefore not readable by a packaged build.
+if (process.platform === "darwin" && !app.isPackaged) {
+  app.commandLine.appendSwitch("use-mock-keychain");
+}
+
 function isSafeExternalUrl(rawUrl: string): boolean {
   try {
     const url = new URL(rawUrl);
