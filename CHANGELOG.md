@@ -10,9 +10,9 @@ the project follows [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Project homepage in `website/` (Vite, React, Tailwind CSS 4, shadcn/ui)
-  with an overview, the download options and a short user guide. The
-  `Pages` workflow builds it on every change and deploys it to GitHub Pages
-  from `main`.
+  with an overview and the download options, plus a user guide on its own
+  page (`/docs/`). The `Pages` workflow builds it on every change and deploys
+  it to GitHub Pages from `main`.
 
 ### Removed
 

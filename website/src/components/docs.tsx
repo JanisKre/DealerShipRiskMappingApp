@@ -1,20 +1,11 @@
 import { AlertTriangle, ExternalLink } from "lucide-react";
+import { useEffect, useState } from "react";
 import { CodeBlock } from "@/components/code-block";
-import { Section } from "@/components/section";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { repoFile } from "@/lib/site";
-
-const TOC = [
-  { id: "quick-start", label: "Quick start" },
-  { id: "import-format", label: "Import format" },
-  { id: "detection-model", label: "Detection model" },
-  { id: "hail-model", label: "How hail risk is scored" },
-  { id: "ai-memo", label: "AI memo" },
-  { id: "privacy", label: "Privacy & data" },
-  { id: "build", label: "Build from source" },
-  { id: "further-reading", label: "Further reading" },
-];
+import { DOC_TOPICS, type DocTopicId } from "@/lib/docs-topics";
+import { repoFile, sitePath } from "@/lib/site";
+import { cn } from "@/lib/utils";
 
 const QUICK_START = [
   {
@@ -22,8 +13,8 @@ const QUICK_START = [
     text: (
       <>
         Download the installer for your platform from the{" "}
-        <A href="#download">download section</A> and follow the notes for
-        unsigned builds.
+        <A href={sitePath("docs", "home", "#download")}>download section</A>{" "}
+        and follow the notes for unsigned builds.
       </>
     ),
   },
@@ -64,22 +55,60 @@ const FURTHER_READING = [
   { path: "CHANGELOG.md", text: "Version history" },
 ];
 
+/** Topic whose section is nearest below the sticky header while scrolling. */
+function useActiveTopic(): DocTopicId {
+  const [active, setActive] = useState<DocTopicId>(DOC_TOPICS[0].id);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length > 0) setActive(visible[0].target.id as DocTopicId);
+      },
+      // A band just below the header: a section counts once its top enters it.
+      { rootMargin: "-80px 0px -65% 0px" },
+    );
+    for (const topic of DOC_TOPICS) {
+      const el = document.getElementById(topic.id);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, []);
+
+  return active;
+}
+
 export function Docs(): React.JSX.Element {
+  const active = useActiveTopic();
+
   return (
-    <Section
-      id="docs"
-      eyebrow="Documentation"
-      title="Getting started"
-      description="Everything you need for a first portfolio run. The full technical documentation lives in the repository."
-    >
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16">
+      <div className="mb-10 max-w-2xl border-b pb-10 md:mb-12">
+        <p className="text-primary mb-2 text-sm font-semibold tracking-wide uppercase">
+          Documentation
+        </p>
+        <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
+          Getting started
+        </h1>
+        <p className="text-muted-foreground mt-4 text-lg text-pretty">
+          Everything you need for a first portfolio run. The full technical
+          documentation lives in the{" "}
+          <A href={repoFile("README.md")}>repository</A>.
+        </p>
+      </div>
+
       <div className="grid gap-10 lg:grid-cols-[13rem_1fr] lg:gap-16">
         <nav aria-label="Documentation" className="hidden lg:block">
           <ul className="sticky top-24 space-y-1 border-l text-sm">
-            {TOC.map((item) => (
+            {DOC_TOPICS.map((item) => (
               <li key={item.id}>
                 <a
                   href={`#${item.id}`}
-                  className="text-muted-foreground hover:text-foreground hover:border-foreground -ml-px block border-l border-transparent py-1 pl-4 transition-colors"
+                  aria-current={active === item.id ? "location" : undefined}
+                  className={cn(
+                    "text-muted-foreground hover:text-foreground hover:border-foreground -ml-px block border-l border-transparent py-1 pl-4 transition-colors",
+                    active === item.id && "border-primary text-foreground font-medium",
+                  )}
                 >
                   {item.label}
                 </a>
@@ -89,6 +118,25 @@ export function Docs(): React.JSX.Element {
         </nav>
 
         <div className="min-w-0 max-w-3xl space-y-14">
+          <nav
+            aria-label="On this page"
+            className="bg-muted/40 rounded-lg border p-4 lg:hidden"
+          >
+            <p className="mb-2 text-sm font-semibold">On this page</p>
+            <ul className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+              {DOC_TOPICS.map((item) => (
+                <li key={item.id}>
+                  <a
+                    href={`#${item.id}`}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
           <DocSection id="quick-start" title="Quick start">
             <ol className="space-y-5">
               {QUICK_START.map((step, i) => (
@@ -97,7 +145,7 @@ export function Docs(): React.JSX.Element {
                     {i + 1}
                   </span>
                   <div>
-                    <h4 className="font-medium">{step.title}</h4>
+                    <h3 className="font-medium">{step.title}</h3>
                     <p className="text-muted-foreground mt-1">{step.text}</p>
                   </div>
                 </li>
@@ -248,7 +296,7 @@ npm run dist`}
           </DocSection>
         </div>
       </div>
-    </Section>
+    </div>
   );
 }
 
@@ -257,13 +305,13 @@ function DocSection({
   title,
   children,
 }: {
-  id: string;
+  id: DocTopicId;
   title: string;
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
     <section id={id} className="space-y-4 leading-relaxed">
-      <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
+      <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
       <Separator />
       {children}
     </section>

@@ -2,28 +2,36 @@ import { GithubIcon } from "@/components/github-icon";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { REPO_URL } from "@/lib/site";
+import { type Page, REPO_URL, sitePath } from "@/lib/site";
+import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "#features", label: "Features" },
-  { href: "#download", label: "Download" },
-  { href: "#docs", label: "Docs" },
-];
+export function SiteHeader({ page }: { page: Page }): React.JSX.Element {
+  const nav = [
+    { href: sitePath(page, "home", "#features"), label: "Features", active: false },
+    { href: sitePath(page, "home", "#download"), label: "Download", active: false },
+    { href: sitePath(page, "docs"), label: "Docs", active: page === "docs" },
+  ];
 
-export function SiteHeader(): React.JSX.Element {
   return (
     <header className="bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
-        <a href="#top" className="flex items-center gap-2 font-semibold">
+        <a
+          href={sitePath(page, "home")}
+          className="flex items-center gap-2 font-semibold"
+        >
           <Logo className="size-7" />
           <span className="hidden sm:inline">Dealership Risk Mapping</span>
         </a>
         <nav className="text-muted-foreground flex items-center gap-4 text-sm sm:gap-6">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <a
-              key={item.href}
+              key={item.label}
               href={item.href}
-              className="hover:text-foreground transition-colors"
+              aria-current={item.active ? "page" : undefined}
+              className={cn(
+                "hover:text-foreground transition-colors",
+                item.active && "text-foreground font-medium",
+              )}
             >
               {item.label}
             </a>

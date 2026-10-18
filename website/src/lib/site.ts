@@ -2,6 +2,17 @@ export const REPO_URL = "https://github.com/JanisKre/DealerShipRiskMappingApp";
 export const RELEASES_URL = `${REPO_URL}/releases`;
 const DOWNLOAD_BASE = `${RELEASES_URL}/latest/download`;
 
+export type Page = "home" | "docs";
+
+/**
+ * Relative link from one page to another (optionally to an anchor), so the
+ * site works under the GitHub Pages project path and on a custom domain.
+ */
+export function sitePath(from: Page, to: Page, hash = ""): string {
+  const root = from === "home" ? "./" : "../";
+  return `${root}${to === "docs" ? "docs/" : ""}${hash}`;
+}
+
 /** Links a file or folder on the default branch. */
 export function repoFile(path: string): string {
   return `${REPO_URL}/blob/main/${path}`;

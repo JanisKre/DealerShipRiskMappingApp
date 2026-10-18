@@ -12,7 +12,7 @@ import {
 import { GithubIcon } from "@/components/github-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DOWNLOADS, detectPlatform, REPO_URL } from "@/lib/site";
+import { DOWNLOADS, detectPlatform, REPO_URL, sitePath } from "@/lib/site";
 
 const PIPELINE = [
   {
@@ -96,7 +96,7 @@ export function Hero(): React.JSX.Element {
               </a>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <a href="#docs">
+              <a href={sitePath("home", "docs")}>
                 <BookOpen />
                 Read the docs
               </a>
