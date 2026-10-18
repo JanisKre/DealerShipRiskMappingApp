@@ -31,9 +31,11 @@ The pipeline works in these steps:
 1. Capture the site as a tile mosaic.
 2. Resample the mosaic to the model's training ground resolution (`gsdM` in
    the model manifest, 0.10 m/px for current models).
-3. Slice it into full-size windows (model input size, 50 % overlap). Edge
-   windows are pulled inside the mosaic. Mosaics smaller than one window are
-   padded, never upscaled.
+3. Slice it into full-size windows (model input size, 30 % overlap, but at
+   least the longest plausible vehicle of 16 m and at most half a window).
+   Every vehicle is therefore fully inside at least one window. Edge windows
+   are pulled inside the mosaic. Mosaics smaller than one window are padded,
+   never upscaled.
 4. Run the model and decode its output: axis-aligned boxes (`detect`) or
    oriented boxes (`obb`).
 5. Keep a detection only if both of these hold:
@@ -86,6 +88,10 @@ this order:
   survive with damped scores.
 - **Edge crops.** Small edge crops are no longer upscaled up to 10×.
   Upscaling produced phantom detections.
+- **Window overlap (2026-10).** Lowered from 50 % to 30 % (with the 16 m
+  minimum above). A 1920 px mosaic needs 16 instead of 25 windows, about a
+  third less inference time. Seam duplicates are still caught by the
+  intersection-over-smaller rule in step 6.
 
 **Data sources.**
 

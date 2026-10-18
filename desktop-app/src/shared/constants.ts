@@ -88,10 +88,12 @@ export const SCENARIO_INTENSITY_DAMAGE = {
 
 // --- Detection / tiles (main process only, but centralized here) ----------
 
-// Sliding windows are the model's input size (from its manifest); 50% overlap
-// is standard — every vehicle is fully inside at least one window, and the
-// seam duplicates are merged by NMS.
-export const DETECTION_WINDOW_OVERLAP = 0.5;
+// Sliding windows are the model's input size (from its manifest). 30% overlap
+// (192 px of a 640 px window at 0.10 m/px) already exceeds the longest
+// plausible vehicle (VEHICLE_MAX_LENGTH_M, 16 m = 160 px), so every vehicle is fully
+// inside at least one window; seam duplicates are merged by NMS. windowStride
+// raises the overlap for small model inputs where 30% would be too little.
+export const DETECTION_WINDOW_OVERLAP = 0.3;
 // 20 ≈ 0.09–0.11 m/pixel at German dealership latitudes (was 19, ≈0.19m).
 // Densely parked rows in industrial/dealership lots put vehicles only 1-2
 // pixels apart at zoom 19, which starves the model of separable edges and
