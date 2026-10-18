@@ -8,6 +8,7 @@ import {
   detectVehiclesInContext,
   filterDetectionToBoundary,
 } from "./detection.service";
+import { maskRoofDetections } from "./detection/roof-mask.service";
 import { geocode } from "./geocoding.service";
 import { getOsmDetails } from "./osmDetails.service";
 import { scoreRisk } from "./risk.service";
@@ -87,8 +88,12 @@ export async function analyzeDealership(
   const contextImage = await aerialImageForContext(lat, lon);
   const rawDetection = await detectVehiclesInContext(contextImage, parameters);
   const detection = attachImageryProvenance(
-    filterDetectionToBoundary(rawDetection, boundary) ??
-      (await detectVehicles(contextImage, boundary, parameters)),
+    await maskRoofDetections(
+      filterDetectionToBoundary(rawDetection, boundary) ??
+        (await detectVehicles(contextImage, boundary, parameters)),
+      lat,
+      lon,
+    ),
     contextImage.imagery,
   );
   // Resolved on every analysis, so a changed hail source (or a reset to

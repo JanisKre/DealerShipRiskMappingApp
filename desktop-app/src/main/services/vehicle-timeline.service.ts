@@ -16,6 +16,7 @@ import {
   filterDetectionToBoundary,
   isModelAvailable,
 } from "./detection.service";
+import { maskRoofDetections } from "./detection/roof-mask.service";
 import { aerialImageForContextFrom } from "./tiles.service";
 import { waybackTimeline } from "./wayback.service";
 
@@ -60,10 +61,14 @@ export async function countVehiclesOverTime(
   for (const candidate of eligible) {
     const image = await aerialImageForContextFrom(candidate, lat, lon);
     const raw = await detectVehiclesInContext(image, parameters);
-    const detection = boundary
-      ? (filterDetectionToBoundary(raw, boundary) ??
-        (await detectVehicles(image, boundary, parameters)))
-      : raw;
+    const detection = await maskRoofDetections(
+      boundary
+        ? (filterDetectionToBoundary(raw, boundary) ??
+            (await detectVehicles(image, boundary, parameters)))
+        : raw,
+      lat,
+      lon,
+    );
     counts.push({
       candidateId: candidate.id,
       capturedAt: candidate.capturedAt,

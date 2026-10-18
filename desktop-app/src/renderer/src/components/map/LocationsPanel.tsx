@@ -30,6 +30,12 @@ import {
   DialogTitle,
 } from "@renderer/components/ui/dialog";
 import { Input } from "@renderer/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@renderer/components/ui/tooltip";
 import { cn } from "@renderer/lib/utils";
 import { riskLevel, riskLevelColor } from "@renderer/lib/riskColor";
 import { useAppStore } from "@renderer/store/appStore";
@@ -186,209 +192,230 @@ export function LocationsPanel({
   );
 
   return (
-    <div
-      className={cn(
-        "flex min-h-0 flex-col overflow-hidden",
-        variant === "dock"
-          ? "h-full border-r bg-card"
-          : "glass rounded-lg border shadow-lg",
-        variant === "float" && open && "flex-1",
-      )}
-    >
-      {/* Header — always visible */}
-      <div className="flex shrink-0 items-center gap-1.5 px-2.5 py-2">
-        <button
-          type="button"
-          onClick={toggleOpen}
-          className="flex flex-1 items-center gap-1.5 text-sm font-semibold"
-          aria-expanded={open}
-          aria-label={t("map.locationsPanel.toggleAriaLabel")}
-        >
-          {open ? (
-            <ChevronDown className="size-4 shrink-0" />
-          ) : (
-            <ChevronRight className="size-4 shrink-0" />
+    <TooltipProvider>
+      <div
+        className={cn(
+          "flex min-h-0 flex-col overflow-hidden",
+          variant === "dock"
+            ? "h-full border-r bg-card"
+            : "glass rounded-lg border shadow-lg",
+          variant === "float" && open && "flex-1",
+        )}
+      >
+        {/* Header — always visible */}
+        <div className="flex shrink-0 items-center gap-1.5 px-2.5 py-2">
+          <button
+            type="button"
+            onClick={toggleOpen}
+            className="flex flex-1 items-center gap-1.5 text-sm font-semibold"
+            aria-expanded={open}
+            aria-label={t("map.locationsPanel.toggleAriaLabel")}
+          >
+            {open ? (
+              <ChevronDown className="size-4 shrink-0" />
+            ) : (
+              <ChevronRight className="size-4 shrink-0" />
+            )}
+            <MapPin className="size-4 shrink-0" />
+            {t("dashboard.locations")}
+            <span className="text-muted-foreground">
+              ({dealerships.length})
+            </span>
+          </button>
+          {onUploadFile && (
+            <>
+              <input
+                ref={uploadRef}
+                type="file"
+                accept=".csv,.tsv,.txt,.xlsx"
+                className="hidden"
+                onChange={onFileChange}
+              />
+              <HintButton
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-6 shrink-0"
+                onClick={() => uploadRef.current?.click()}
+                aria-label={t("map.locationsPanel.importPortfolio")}
+              >
+                <Paperclip className="size-3.5" />
+              </HintButton>
+            </>
           )}
-          <MapPin className="size-4 shrink-0" />
-          {t("dashboard.locations")}
-          <span className="text-muted-foreground">({dealerships.length})</span>
-        </button>
-        {onUploadFile && (
-          <>
-            <input
-              ref={uploadRef}
-              type="file"
-              accept=".csv,.tsv,.txt,.xlsx"
-              className="hidden"
-              onChange={onFileChange}
-            />
-            <Button
+          {dealerships.length > 0 && (
+            <HintButton
               type="button"
               size="icon"
-              variant="ghost"
+              variant={selectMode ? "default" : "ghost"}
               className="size-6 shrink-0"
-              onClick={() => uploadRef.current?.click()}
-              title={t("map.locationsPanel.importPortfolio")}
-              aria-label={t("map.locationsPanel.importPortfolio")}
+              onClick={toggleSelectMode}
+              aria-label={t(
+                selectMode
+                  ? "map.locationsPanel.selectModeExit"
+                  : "map.locationsPanel.selectModeEnter",
+              )}
+              aria-pressed={selectMode}
             >
-              <Paperclip className="size-3.5" />
-            </Button>
-          </>
-        )}
-        {dealerships.length > 0 && (
-          <Button
+              {selectMode ? (
+                <X className="size-3.5" />
+              ) : (
+                <CheckSquare className="size-3.5" />
+              )}
+            </HintButton>
+          )}
+          <HintButton
             type="button"
             size="icon"
-            variant={selectMode ? "default" : "ghost"}
+            variant={adding ? "default" : "ghost"}
             className="size-6 shrink-0"
-            onClick={toggleSelectMode}
-            title={t(
-              selectMode
-                ? "map.locationsPanel.selectModeExit"
-                : "map.locationsPanel.selectModeEnter",
-            )}
-            aria-label={t(
-              selectMode
-                ? "map.locationsPanel.selectModeExit"
-                : "map.locationsPanel.selectModeEnter",
-            )}
-            aria-pressed={selectMode}
+            onClick={() => setAdding((v) => !v)}
+            aria-label={t("map.locationsPanel.addAddress")}
           >
-            {selectMode ? (
+            {adding ? (
               <X className="size-3.5" />
             ) : (
-              <CheckSquare className="size-3.5" />
+              <Plus className="size-3.5" />
             )}
-          </Button>
-        )}
-        <Button
-          type="button"
-          size="icon"
-          variant={adding ? "default" : "ghost"}
-          className="size-6 shrink-0"
-          onClick={() => setAdding((v) => !v)}
-          title={t("map.locationsPanel.addAddress")}
-          aria-label={t("map.locationsPanel.addAddress")}
-        >
-          {adding ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
-        </Button>
-      </div>
-
-      {/* Add address */}
-      {adding && (
-        <div className="shrink-0 border-t px-2.5 py-2">
-          <AddLocationField onAdded={() => setAdding(false)} />
+          </HintButton>
         </div>
-      )}
 
-      {open && (
-        <>
-          {/* Bulk-selection toolbar, or the subject's relationship summary */}
-          {selectMode ? (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-2.5 py-1.5 text-xs">
-              <div className="flex min-w-0 items-center gap-2">
-                <button
-                  type="button"
-                  className="shrink-0 font-medium text-primary hover:underline"
-                  onClick={
-                    selectedIds.size === dealerships.length
-                      ? deselectAll
-                      : selectAll
-                  }
-                >
-                  {t(
-                    selectedIds.size === dealerships.length
-                      ? "map.locationsPanel.deselectAll"
-                      : "map.locationsPanel.selectAll",
-                  )}
-                </button>
-                <span className="shrink-0 text-muted-foreground">
-                  {t("map.locationsPanel.selectedCount", {
-                    count: selectedIds.size,
-                  })}
-                </span>
-              </div>
-              <div className="ml-auto flex shrink-0 items-center gap-1">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="size-6 shrink-0"
-                  disabled={selectedIds.size === 0}
-                  onClick={() => markSelectedInsured(true)}
-                  title={t("map.locationsPanel.markInsured")}
-                  aria-label={t("map.locationsPanel.markInsured")}
-                >
-                  <ShieldCheck className="size-3.5" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="size-6 shrink-0"
-                  disabled={selectedIds.size === 0}
-                  onClick={() => markSelectedInsured(false)}
-                  title={t("map.locationsPanel.markNotInsured")}
-                  aria-label={t("map.locationsPanel.markNotInsured")}
-                >
-                  <ShieldOff className="size-3.5" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="destructive"
-                  className="size-6 shrink-0"
-                  disabled={selectedIds.size === 0}
-                  onClick={() => setConfirmingDelete(true)}
-                  title={t("map.page.delete")}
-                  aria-label={t("map.page.delete")}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
-              </div>
-            </div>
-          ) : (
-            subject && (
-              <div className="shrink-0 border-t px-2.5 py-1.5 text-xs text-muted-foreground">
-                {neighborSummaryText(t, neighborCount)}
-              </div>
-            )
-          )}
-
-          {/* List */}
-          <div className="min-h-0 flex-1 overflow-y-auto border-t">
-            {rows.length === 0 ? (
-              <p className="px-2.5 py-3 text-xs text-muted-foreground">
-                {t("map.locationsPanel.empty")}
-              </p>
-            ) : (
-              <ul className="divide-y">
-                {rows.map((row) => (
-                  <LocationRow
-                    key={row.d.id}
-                    row={row}
-                    selected={row.d.id === selectedId}
-                    pending={!row.d.risk || analyzingIds.includes(row.d.id)}
-                    onSelect={onSelect}
-                    onOpenDetails={onOpenDetails}
-                    selectMode={selectMode}
-                    checked={selectedIds.has(row.d.id)}
-                    onToggleCheck={toggleChecked}
-                  />
-                ))}
-              </ul>
-            )}
+        {/* Add address */}
+        {adding && (
+          <div className="shrink-0 border-t px-2.5 py-2">
+            <AddLocationField onAdded={() => setAdding(false)} />
           </div>
-        </>
-      )}
+        )}
 
-      <DeleteSelectedDialog
-        open={confirmingDelete}
-        count={selectedIds.size}
-        onOpenChange={setConfirmingDelete}
-        onConfirm={confirmDelete}
-      />
-    </div>
+        {open && (
+          <>
+            {/* Bulk-selection toolbar, or the subject's relationship summary */}
+            {selectMode ? (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-2.5 py-1.5 text-xs">
+                <div className="flex min-w-0 items-center gap-2">
+                  <button
+                    type="button"
+                    className="shrink-0 font-medium text-primary hover:underline"
+                    onClick={
+                      selectedIds.size === dealerships.length
+                        ? deselectAll
+                        : selectAll
+                    }
+                  >
+                    {t(
+                      selectedIds.size === dealerships.length
+                        ? "map.locationsPanel.deselectAll"
+                        : "map.locationsPanel.selectAll",
+                    )}
+                  </button>
+                  <span className="shrink-0 text-muted-foreground">
+                    {t("map.locationsPanel.selectedCount", {
+                      count: selectedIds.size,
+                    })}
+                  </span>
+                </div>
+                <div className="ml-auto flex shrink-0 items-center gap-1">
+                  <HintButton
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="size-6 shrink-0"
+                    disabled={selectedIds.size === 0}
+                    onClick={() => markSelectedInsured(true)}
+                    aria-label={t("map.locationsPanel.markInsured")}
+                  >
+                    <ShieldCheck className="size-3.5" />
+                  </HintButton>
+                  <HintButton
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="size-6 shrink-0"
+                    disabled={selectedIds.size === 0}
+                    onClick={() => markSelectedInsured(false)}
+                    aria-label={t("map.locationsPanel.markNotInsured")}
+                  >
+                    <ShieldOff className="size-3.5" />
+                  </HintButton>
+                  <HintButton
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    className="size-6 shrink-0"
+                    disabled={selectedIds.size === 0}
+                    onClick={() => setConfirmingDelete(true)}
+                    aria-label={t("map.page.delete")}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </HintButton>
+                </div>
+              </div>
+            ) : (
+              subject && (
+                <div className="shrink-0 border-t px-2.5 py-1.5 text-xs text-muted-foreground">
+                  {neighborSummaryText(t, neighborCount)}
+                </div>
+              )
+            )}
+
+            {/* List */}
+            <div className="min-h-0 flex-1 overflow-y-auto border-t">
+              {rows.length === 0 ? (
+                <p className="px-2.5 py-3 text-xs text-muted-foreground">
+                  {t("map.locationsPanel.empty")}
+                </p>
+              ) : (
+                <ul className="divide-y">
+                  {rows.map((row) => (
+                    <LocationRow
+                      key={row.d.id}
+                      row={row}
+                      selected={row.d.id === selectedId}
+                      pending={!row.d.risk || analyzingIds.includes(row.d.id)}
+                      onSelect={onSelect}
+                      onOpenDetails={onOpenDetails}
+                      selectMode={selectMode}
+                      checked={selectedIds.has(row.d.id)}
+                      onToggleCheck={toggleChecked}
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        )}
+
+        <DeleteSelectedDialog
+          open={confirmingDelete}
+          count={selectedIds.size}
+          onOpenChange={setConfirmingDelete}
+          onConfirm={confirmDelete}
+        />
+      </div>
+    </TooltipProvider>
+  );
+}
+
+/**
+ * Icon button with an instant tooltip. Native `title` tooltips are not shown
+ * in Electron, so the label comes from the aria-label via Radix Tooltip.
+ */
+function HintButton({
+  "aria-label": label,
+  ...props
+}: Readonly<
+  React.ComponentProps<typeof Button> & { "aria-label": string }
+>): React.JSX.Element {
+  return (
+    <Tooltip delayDuration={150}>
+      <TooltipTrigger asChild>
+        {/* span keeps the tooltip working while the button is disabled */}
+        <span className="inline-flex shrink-0">
+          <Button {...props} aria-label={label} />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -532,17 +559,23 @@ function LocationRow({
       </button>
       {/* Open details (separate button, not nested) — hidden while selecting */}
       {!selectMode && (
-        <button
-          type="button"
-          className="shrink-0 px-1.5 text-muted-foreground hover:text-foreground"
-          onClick={() => onOpenDetails(d.id)}
-          title={t("map.locationsPanel.viewDetails")}
-          aria-label={t("map.locationsPanel.viewDetailsFor", {
-            name: d.name,
-          })}
-        >
-          <ChevronRight className="size-4" />
-        </button>
+        <Tooltip delayDuration={150}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="shrink-0 px-1.5 text-muted-foreground hover:text-foreground"
+              onClick={() => onOpenDetails(d.id)}
+              aria-label={t("map.locationsPanel.viewDetailsFor", {
+                name: d.name,
+              })}
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            {t("map.locationsPanel.viewDetails")}
+          </TooltipContent>
+        </Tooltip>
       )}
     </li>
   );
@@ -556,7 +589,18 @@ function ScoreLabel({
   pending: boolean;
   score: number | undefined;
 }>): React.JSX.Element {
-  if (pending) return <Loader2 className="size-3.5 animate-spin" />;
+  const { t } = useTranslation();
+  if (pending)
+    return (
+      <Tooltip delayDuration={150}>
+        <TooltipTrigger asChild>
+          <Loader2 className="size-3.5 animate-spin" />
+        </TooltipTrigger>
+        <TooltipContent side="left">
+          {t("map.locationsPanel.analyzing")}
+        </TooltipContent>
+      </Tooltip>
+    );
   return <>{score != null ? Math.round(score) : "…"}</>;
 }
 

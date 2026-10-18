@@ -175,6 +175,20 @@ describe("boundaryEngine flag", () => {
     expect(result.quality?.fallbackReason).toMatch(/no defensible evidence/i);
   });
 
+  it("names an unreachable OpenStreetMap as the reason for the fallback", async () => {
+    mocks.getSettings.mockReturnValue({ boundaryEngine: "fused" });
+    mocks.collectEvidence.mockResolvedValue({
+      anchor: ANCHOR,
+      osm: null,
+      parcels: [],
+      parcelsTruncated: false,
+      availability: { osm: false, alkis: true },
+    });
+    vi.spyOn(fusion, "fuseBoundary").mockReturnValue(null);
+    const result = await detectBoundary(LAT, LON);
+    expect(result.quality?.fallbackReason).toMatch(/OpenStreetMap unreachable/);
+  });
+
   it("falls back to the chain when evidence collection throws", async () => {
     mocks.getSettings.mockReturnValue({ boundaryEngine: "fused" });
     mocks.collectEvidence.mockRejectedValue(new Error("overpass down"));
