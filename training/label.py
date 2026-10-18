@@ -31,6 +31,7 @@ from common import (
     ROOT,
     SUGGESTIONS,
     XANYLABELING,
+    is_negative_site,
     label_path,
     reviewed_sites,
     site_of,
@@ -87,7 +88,9 @@ def suggestion_count(site_tiles) -> int:
 def weak_states(sites: dict) -> set[str]:
     per_state = defaultdict(list)
     for site, tiles in sites.items():
-        per_state[site.split("-", 1)[0]].append(suggestion_count(tiles))
+        # Negatives have few suggestions by design; they must not make a state look weak.
+        if not is_negative_site(site):
+            per_state[site.split("-", 1)[0]].append(suggestion_count(tiles))
     return {state for state, counts in per_state.items() if statistics.median(counts) < WEAK_MEDIAN}
 
 
@@ -121,8 +124,12 @@ def main() -> None:
 
     done = reviewed_sites()
     weak = set() if args.all else weak_states(sites)
-    todo = sorted(s for s in sites if s not in done and s.split("-", 1)[0] not in weak)
-    later = sorted(s for s in sites if s not in done and s.split("-", 1)[0] in weak)
+
+    def held_back(site: str) -> bool:
+        return site.split("-", 1)[0] in weak and not is_negative_site(site)
+
+    todo = sorted(s for s in sites if s not in done and not held_back(s))
+    later = sorted(s for s in sites if s not in done and held_back(s))
     ticked = sum(tile_checked(t) for tiles in sites.values() for t in tiles)
     n_tiles = sum(len(t) for t in sites.values())
 

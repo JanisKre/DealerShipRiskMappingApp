@@ -27,15 +27,16 @@ python3.12 -m venv .venv-label
 | Step | Command | Result |
 |---|---|---|
 | 0. Sites | `python select_sites.py dealers.csv --count 80` | `data/sites.csv`, spread over all states |
+| 0b. Negatives (optional) | `python select_negatives.py --count 40`, then `python fetch_tiles.py data/negatives.csv` | One tile each of large rooftop solar arrays in `data/raw/` |
 | 1. Tiles | `python fetch_tiles.py data/sites.csv` | 640 px tiles at 0.10 m/px in `data/raw/` |
 | 2. Public data (optional) | `python convert_public.py --src <DLR 3K folder>` | `data/public/images` and `data/public/labels` |
 | 3. Pre-label | `python prelabel.py` | Suggestions per tile in `data/labels/` |
 | 3b. Check | `python preview.py data/raw` | Labels drawn into `data/preview/` |
 | 4. Correct | `python label.py` | Corrections in `data/raw/*.json`; finished tiles ticked in the tool |
-| 5. Dataset | `python make_dataset.py` | `data/dataset/` from finished sites, split **by site** |
+| 5. Dataset | `python make_dataset.py` | `data/dataset/` from finished sites, split **by site**, plus degraded copies of sharp tiles |
 | 6. Baseline | `python evaluate.py --weights yolo11s-obb.pt --dota` | Pretrained model, unchanged |
 | 7. Train | `caffeinate -i python train.py` | `runs/dealer-obb/weights/best.pt` |
-| 8. Evaluate | `python evaluate.py` | mAP50 and per-site count MAE, bias, within-10 % |
+| 8. Evaluate | `python evaluate.py` | mAP50 and per-site count MAE, bias, within-10 %, also per native resolution and false detections on negatives |
 | 9. Install | `python export.py --install` | ONNX and manifest in the app's `userData/models` |
 
 The app picks up `dealer_vehicles.onnx` with its manifest `dealer_vehicles.json`
@@ -60,6 +61,34 @@ has high precision on dealership lots. It finds only about half of the
 vehicles, mostly missing dark cars in shadow, vans and vehicles at tile
 edges. Labelling therefore mostly means **adding** missed vehicles, not
 deleting wrong ones.
+
+## Hard negatives (rooftop solar)
+
+Rows of solar panels on hall roofs look like parked cars from above. The app
+removes detections on mapped roofs afterwards, but a model that has seen such
+roofs in training makes fewer of these mistakes, including on roofs that OSM
+has not mapped. `select_negatives.py` picks large rooftop PV arrays from OSM
+(at least 25 m, at least 400 m from every dealership in `data/sites.csv`).
+`fetch_tiles.py` then loads one tile per array.
+
+Their site ids contain `neg`, for example `NW-negw123`. Pre-label them with
+your own model, so the suggestions are exactly the mistakes it makes. In
+`label.py`, delete the boxes on the roof, keep real vehicles in the yard, and
+tick the tile. `label.py` never holds negatives back as a weak state.
+`make_dataset.py` splits them by site like dealerships. `evaluate.py` keeps
+them out of the count metrics and reports false detections per negative tile
+instead.
+
+## Degraded copies of sharp tiles
+
+The app scales DOP20 and Esri zoom-19 imagery up to 0.10 m/px, which looks
+softer than true 0.10 m imagery. Most state services are 0.2 m anyway, but the
+NRW, Bremen and DLR 3K tiles are sharp. `make_dataset.py --degrade 0.5`
+(default) therefore gives half of those train tiles a softer copy
+(`<tile>__lr.jpg`, same labels): shrunk to 0.18–0.25 m/px and scaled back up
+the way the app does it, then saved with stronger JPEG compression. The model
+then sees the same lot both sharp and soft. Validation tiles stay unchanged,
+so `evaluate.py` remains comparable. Use `--degrade 0` to switch it off.
 
 ## Correcting the suggestions
 
