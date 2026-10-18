@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { VEHICLE_MAX_LENGTH_M } from "@shared/constants";
 import {
   LEGACY_VISDRONE_MANIFEST,
   parseVehicleModelManifest,
@@ -18,6 +19,7 @@ import {
   resampleFactor,
   unletterbox,
   windowOffsets,
+  windowStride,
   type VehicleCandidate,
   coarseImageryLimitations,
 } from "./yolo";
@@ -329,6 +331,34 @@ describe("window planning", () => {
     expect(planCrops(300, 200, 640, 320)).toEqual([
       { cropX: 0, cropY: 0, w: 300, h: 200 },
     ]);
+  });
+
+  it("overlaps windows by 30 %, but at least one maximum-length vehicle", () => {
+    // 640 px at 0.10 m/px: 30 % = 192 px already exceeds a 16 m (160 px) vehicle.
+    expect(windowStride(640, 0.1)).toBe(448);
+    // 400 px: 30 % = 120 px is too little, the vehicle length wins.
+    expect(windowStride(400, 0.1)).toBe(240);
+    // Never denser than half a window, even for very fine imagery.
+    expect(windowStride(256, 0.05)).toBe(128);
+    // Unknown resolution falls back to the plain percentage.
+    expect(windowStride(640, 0)).toBe(448);
+  });
+
+  it("puts every maximum-length vehicle fully inside some window", () => {
+    for (const [window, mpp] of [
+      [640, 0.1],
+      [400, 0.1],
+      [640, 0.08],
+    ] as const) {
+      const vehiclePx = Math.ceil(VEHICLE_MAX_LENGTH_M / mpp);
+      const offsets = windowOffsets(1920, window, windowStride(window, mpp));
+      for (let x = 0; x + vehiclePx <= 1920; x++) {
+        const covered = offsets.some(
+          (o) => o <= x && x + vehiclePx <= o + window,
+        );
+        expect(covered, `window ${window}, vehicle at ${x}`).toBe(true);
+      }
+    }
   });
 });
 

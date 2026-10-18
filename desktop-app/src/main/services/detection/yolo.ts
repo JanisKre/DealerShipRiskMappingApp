@@ -1,4 +1,5 @@
 import {
+  DETECTION_WINDOW_OVERLAP,
   VEHICLE_MAX_ASPECT_RATIO,
   VEHICLE_MAX_LENGTH_M,
   VEHICLE_MIN_WIDTH_M,
@@ -441,6 +442,22 @@ export function windowOffsets(
   for (let o = 0; o + window < length; o += stride) offsets.push(o);
   offsets.push(length - window);
   return offsets;
+}
+
+/**
+ * Stride between sliding windows. The overlap is DETECTION_WINDOW_OVERLAP of
+ * the window, but never less than the longest plausible vehicle, so every
+ * vehicle lies fully inside at least one window even for small model inputs.
+ * Capped at half a window, the densest tiling the detector ever used.
+ */
+export function windowStride(window: number, metersPerPixel: number): number {
+  const vehiclePx =
+    metersPerPixel > 0 ? Math.ceil(VEHICLE_MAX_LENGTH_M / metersPerPixel) : 0;
+  const overlap = Math.min(
+    window / 2,
+    Math.max(Math.round(window * DETECTION_WINDOW_OVERLAP), vehiclePx),
+  );
+  return Math.round(window - overlap);
 }
 
 export interface Crop {

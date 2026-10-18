@@ -10,7 +10,6 @@ import type {
   DetectionResult,
   VehicleClass,
 } from "@shared/types";
-import { DETECTION_WINDOW_OVERLAP } from "@shared/constants";
 import {
   describeImagerySelection,
   type ImagerySelection,
@@ -31,6 +30,7 @@ import {
   nmsOptionsFor,
   planCrops,
   resampleFactor,
+  windowStride,
   type VehicleCandidate,
 } from "./detection/yolo";
 
@@ -307,7 +307,7 @@ export class OnnxYoloDetector implements VehicleDetector {
     );
 
     const window = this.manifest.imgsz;
-    const stride = Math.round(window * (1 - DETECTION_WINDOW_OVERLAP));
+    const stride = windowStride(window, metersPerPixel);
     const allCandidates: VehicleCandidate[] = [];
     let totalInferenceMs = 0;
 
