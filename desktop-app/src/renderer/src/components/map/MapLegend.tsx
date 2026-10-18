@@ -35,11 +35,14 @@ const SOURCES: Array<{
 export function MapLegend({
   imagery,
   showImagery = false,
+  showClusterNote = false,
 }: Readonly<{
   /** Metadata at the map centre; null while the first lookup is pending. */
   imagery?: ImagerySelection | null;
   /** Whether the satellite basemap is active (the section is hidden otherwise). */
   showImagery?: boolean;
+  /** Accumulation clusters are shown: explain their opacity. */
+  showClusterNote?: boolean;
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -70,8 +73,13 @@ export function MapLegend({
                 label={t(`risk.${lvl}`)}
               />
             ))}
+            {showClusterNote && (
+              <div className="col-span-2 text-muted-foreground">
+                {t("ui.opacityEalShare")}
+              </div>
+            )}
           </LegendGroup>
-          <LegendGroup title={t("map.legend.business")}>
+          <LegendGroup title={t("map.legend.business")} single>
             <BusinessLegendRow
               hollow={false}
               label={t("map.legend.existingBusiness")}
@@ -304,11 +312,24 @@ function MetaRow({
 function LegendGroup({
   title,
   children,
-}: Readonly<{ title: string; children: React.ReactNode }>): React.JSX.Element {
+  single,
+}: Readonly<{
+  title: string;
+  children: React.ReactNode;
+  /** One entry per row instead of two columns. */
+  single?: boolean;
+}>): React.JSX.Element {
   return (
     <div>
       <div className="mb-1 font-semibold text-muted-foreground">{title}</div>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">{children}</div>
+      <div
+        className={cn(
+          "grid gap-x-3 gap-y-0.5",
+          single ? "grid-cols-1" : "grid-cols-2",
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -339,12 +360,12 @@ function LegendRow({
   );
 }
 
-/** Mini map pin: filled for existing business, hollow for new business. */
+/** Mini pin: the outline color marks the business type (blue = existing, violet = new). */
 function BusinessLegendRow({
   hollow,
   label,
 }: Readonly<{ hollow: boolean; label: string }>): React.JSX.Element {
-  const color = "#6b7280";
+  const color = hollow ? "#a21caf" : "#1d4ed8";
   return (
     <div className="flex items-center gap-1.5">
       <span
@@ -352,9 +373,8 @@ function BusinessLegendRow({
         className="mx-0.5 size-2.5 shrink-0 -rotate-45"
         style={{
           borderRadius: "50% 50% 50% 0",
-          ...(hollow
-            ? { border: `2px solid ${color}`, backgroundColor: "#fff" }
-            : { backgroundColor: color }),
+          backgroundColor: "#9ca3af",
+          border: `2px solid ${color}`,
         }}
       />
       {label}

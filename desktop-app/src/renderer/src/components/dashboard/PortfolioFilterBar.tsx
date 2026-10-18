@@ -38,8 +38,11 @@ function distinct(
  */
 export function PortfolioFilterBar({
   dealerships,
+  hideBusiness = false,
 }: Readonly<{
   dealerships: AnalyzedDealership[];
+  /** The business-type select is shown elsewhere (map layer panel). */
+  hideBusiness?: boolean;
 }>): React.JSX.Element | null {
   const { t } = useTranslation();
   const filters = useAppStore((s) => s.filters);
@@ -55,13 +58,9 @@ export function PortfolioFilterBar({
     [dealerships],
   );
   const groups = useMemo(() => distinct(dealerships, "group"), [dealerships]);
-  const businessCounts = useMemo(() => {
-    let existing = 0;
-    for (const d of dealerships) if (businessType(d) === "existing") existing++;
-    return { existing, fresh: dealerships.length - existing };
-  }, [dealerships]);
-  // Only worth a filter when the portfolio mixes both business types.
-  const mixedBusiness = businessCounts.existing > 0 && businessCounts.fresh > 0;
+  const businessCounts = useBusinessCounts(dealerships);
+  const mixedBusiness =
+    !hideBusiness && businessCounts.existing > 0 && businessCounts.fresh > 0;
   const fallbackCount = useMemo(
     () => dealerships.filter((d) => d.boundary?.source === "synthetic").length,
     [dealerships],
@@ -70,7 +69,7 @@ export function PortfolioFilterBar({
   // Nothing to show if no metadata is present.
   if (
     !mixedBusiness &&
-    !filters.business &&
+    !(filters.business && !hideBusiness) &&
     partners.length === 0 &&
     subs.length === 0 &&
     groups.length === 0 &&
@@ -79,7 +78,7 @@ export function PortfolioFilterBar({
     return null;
 
   const active =
-    filters.business ||
+    (!hideBusiness && filters.business) ||
     filters.subPortfolio ||
     filters.salesPartner ||
     filters.group ||
@@ -88,32 +87,7 @@ export function PortfolioFilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {(mixedBusiness || filters.business) && (
-        <Select
-          value={filters.business ?? ALL}
-          onValueChange={(v) =>
-            setFilters({
-              business: v === ALL ? null : (v as "existing" | "new"),
-            })
-          }
-        >
-          <SelectTrigger
-            className="h-9 w-52 bg-background text-sm"
-            aria-label={t("ui.businessType")}
-          >
-            <SelectValue placeholder={t("ui.businessType")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>{t("ui.allBusiness")}</SelectItem>
-            <SelectItem value="existing">
-              {t("ui.existingBusiness")} ({businessCounts.existing})
-            </SelectItem>
-            <SelectItem value="new">
-              {t("ui.newBusiness")} ({businessCounts.fresh})
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      )}
+      {!hideBusiness && <BusinessTypeSelect dealerships={dealerships} />}
       {subs.length > 0 && (
         <FilterSelect
           label={t("ui.subPortfolio")}
@@ -171,6 +145,57 @@ export function PortfolioFilterBar({
         </Button>
       )}
     </div>
+  );
+}
+
+function useBusinessCounts(dealerships: AnalyzedDealership[]): {
+  existing: number;
+  fresh: number;
+} {
+  return useMemo(() => {
+    let existing = 0;
+    for (const d of dealerships) if (businessType(d) === "existing") existing++;
+    return { existing, fresh: dealerships.length - existing };
+  }, [dealerships]);
+}
+
+/**
+ * Business-type filter (existing vs. new). Only rendered when the portfolio
+ * mixes both types, or while a business filter is still active.
+ */
+export function BusinessTypeSelect({
+  dealerships,
+  className = "h-9 w-52 bg-background text-sm",
+}: Readonly<{
+  dealerships: AnalyzedDealership[];
+  className?: string;
+}>): React.JSX.Element | null {
+  const { t } = useTranslation();
+  const business = useAppStore((s) => s.filters.business);
+  const setFilters = useAppStore((s) => s.setFilters);
+  const counts = useBusinessCounts(dealerships);
+  const mixed = counts.existing > 0 && counts.fresh > 0;
+  if (!mixed && !business) return null;
+  return (
+    <Select
+      value={business ?? ALL}
+      onValueChange={(v) =>
+        setFilters({ business: v === ALL ? null : (v as "existing" | "new") })
+      }
+    >
+      <SelectTrigger className={className} aria-label={t("ui.businessType")}>
+        <SelectValue placeholder={t("ui.businessType")} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL}>{t("ui.allBusiness")}</SelectItem>
+        <SelectItem value="existing">
+          {t("ui.existingBusiness")} ({counts.existing})
+        </SelectItem>
+        <SelectItem value="new">
+          {t("ui.newBusiness")} ({counts.fresh})
+        </SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
 

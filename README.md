@@ -4,8 +4,6 @@
 
 **Desktop app for physical risk assessment of dealership portfolios**
 
-Upload CSV → detect lot boundaries → count vehicles with AI → score 5 natural hazards → visualise on map & dashboard → generate LLM memos → export
-
 <br />
 
 ![Electron](https://img.shields.io/badge/Electron-44-47848F?logo=electron&logoColor=white)
@@ -56,10 +54,10 @@ anyway**. See [all releases](https://github.com/JanisKre/DealerShipRiskMappingAp
 - [Getting Started](#getting-started)
 - [ONNX Model (required)](#onnx-model-required)
 - [Scripts](#scripts)
-- [Code signing policy](#code-signing-policy)
-- [Privacy](#privacy)
 - [Project Structure](#project-structure)
 - [Security](#security)
+- [Code signing policy](#code-signing-policy)
+- [Privacy](#privacy)
 - [Documentation](#documentation)
 - [License](#license)
 
@@ -224,6 +222,8 @@ DealerShipRiskMapping/
 - API keys are stored via `safeStorage` (OS-keychain-encrypted) — never in
   plain text
 - ONNX inference runs in a `utilityProcess`, separate from the app/IPC event
+  loop
+
 ## Code signing policy
 
 Windows releases are being set up for signing with a certificate issued to the
@@ -251,8 +251,6 @@ no telemetry. It contacts third-party map, imagery, weather and (optionally)
 AI services only for analyses you start, and an AI memo is only generated when
 you configure a provider. Details are in the [privacy policy](./PRIVACY.md).
 
-  loop
-
 ## Documentation
 
 | Document                                         | Content                              |
@@ -261,9 +259,9 @@ you configure a provider. Details are in the [privacy policy](./PRIVACY.md).
 | [CONTRIBUTING.md](./CONTRIBUTING.md)             | Development workflow, conventions    |
 | [CHANGELOG.md](./CHANGELOG.md)                   | Version history                      |
 | [desktop-app/README.md](./desktop-app/README.md) | App-specific details                 |
-| [PRIVACY.md](./PRIVACY.md)                       | Privacy policy, external services    |
 | [.github/SUPPORT.md](./.github/SUPPORT.md)       | Support and data-sharing guidance    |
 | [SECURITY.md](./SECURITY.md)                     | Reporting a vulnerability            |
+| [PRIVACY.md](./PRIVACY.md)                       | Privacy policy, external services    |
 | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)       | Community guidelines                 |
 | [LICENSE](./LICENSE)                             | GPL-3.0-or-later License             |
 

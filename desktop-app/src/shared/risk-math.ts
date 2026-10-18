@@ -609,15 +609,15 @@ export function meanHailSeverityEur(
 export type HailVehicleSource = "manual" | "detected" | "assetValue" | "none";
 
 /**
- * N for the hail EAL: a reviewed count wins, then the detector count. Without
- * any count, a declared asset value is converted at the car value so legacy
- * inputs still produce an (explicitly flagged) estimate.
+ * N for the hail EAL: a reviewed count wins, then the detector count. Only
+ * vehicles on the lot are counted; a number is never estimated (not from an
+ * asset value, not for cars inside the showroom). `assetValue` stays in the
+ * source type so portfolios stored by older builds still parse.
  */
-export function hailVehicleBasis(
-  detection: DetectionResult | undefined,
-  assetValue: number,
-  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
-): { vehicles: number; source: HailVehicleSource } {
+export function hailVehicleBasis(detection: DetectionResult | undefined): {
+  vehicles: number;
+  source: HailVehicleSource;
+} {
   if (detection?.manualVehicleCount != null) {
     return { vehicles: detection.manualVehicleCount, source: "manual" };
   }
@@ -625,25 +625,21 @@ export function hailVehicleBasis(
   const classTotal = c ? c.car + c.van + c.truck + c.bus : 0;
   const detected = classTotal > 0 ? classTotal : (detection?.vehicleCount ?? 0);
   if (detected > 0) return { vehicles: detected, source: "detected" };
-  if (assetValue > 0 && parameters.vehicleValueCarEur > 0) {
-    return {
-      vehicles: assetValue / parameters.vehicleValueCarEur,
-      source: "assetValue",
-    };
-  }
   return { vehicles: 0, source: "none" };
 }
 
 /**
  * Hail expected annual loss:
  *
- *   EAL = N_exposed × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L)
- *   N_exposed = N × exposureRatio   (vehicles not under a roof)
+ *   EAL = N × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L)
+ *
+ * N is the number of vehicles counted on the lot; no share of them is
+ * assumed to be under a roof or inside a building.
  *
  * A screening estimate — not an engineering, tariff, or insurance decision.
  */
 export function computeHailEal(
-  input: { vehicles: number; exposureRatio: number; zone: HailZone },
+  input: { vehicles: number; zone: HailZone },
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): {
   eal: number;
@@ -651,8 +647,7 @@ export function computeHailEal(
   frequency: number;
   meanSeverityEur: number;
 } {
-  const ratio = Math.max(0, Math.min(1, input.exposureRatio));
-  const exposedVehicles = Math.max(0, input.vehicles) * ratio;
+  const exposedVehicles = Math.max(0, input.vehicles);
   const frequency = hailFrequencyForZone(input.zone, parameters);
   const meanSeverityEur = meanHailSeverityEur(parameters);
   return {

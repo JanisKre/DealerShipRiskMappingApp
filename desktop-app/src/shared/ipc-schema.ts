@@ -31,7 +31,6 @@ import {
   ImageryViewRequestSchema,
 } from "./imagery-sources";
 import { ImageryTimelineSchema } from "./imagery-wayback";
-import { RecentScenesSchema } from "./imagery-gibs";
 
 // --- NatCat connectors --------------------------------------------------------
 
@@ -254,10 +253,6 @@ export const ipcRequest = {
   }),
   "imagery:select": ImageryViewRequestSchema,
   "imagery:timeline": ImageryViewRequestSchema,
-  "imagery:recentScenes": z.object({
-    lat: z.number().finite().min(-90).max(90),
-    lon: z.number().finite().min(-180).max(180),
-  }),
   "model:status": z.void(),
   "dealerDirectory:status": z.void(),
 } as const;
@@ -325,7 +320,6 @@ export const ipcResponse = {
   "map:capture": z.object({ path: z.string().nullable(), ok: z.boolean() }),
   "imagery:select": ImagerySelectionSchema,
   "imagery:timeline": ImageryTimelineSchema,
-  "imagery:recentScenes": RecentScenesSchema,
   "dealerDirectory:status": DealerDirectoryStatusSchema.nullable(),
   "model:status": z.object({
     available: z.boolean(),

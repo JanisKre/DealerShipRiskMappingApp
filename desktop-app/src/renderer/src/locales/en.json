@@ -260,7 +260,7 @@
       }
     },
     "hailEal": {
-      "formula": "N = vehicles parked in the open (covered vehicles are excluded), λ = events per year in the hail zone, p·S = expected loss per vehicle and event.",
+      "formula": "N = vehicles counted on the lot (no estimate for vehicles inside buildings), λ = events per year in the hail zone, p·S = expected loss per vehicle and event.",
       "placeholders": "Placeholder values – calibration by underwriting is pending. The EAL is a screening estimate, not a tariff or underwriting decision.",
       "meanSeverity": "Expected loss per exposed vehicle and event (Σ p·S): {{value}}",
       "shareSum": "The shares p add up to {{sum}} instead of 1 – they are normalized to 1 for the calculation."
@@ -536,11 +536,10 @@
       "manualCountInvalid": "Enter a whole number ≥ 0.",
       "exposureLabel": "Exposure",
       "totalEalLabel": "Total EAL",
-      "mainScoreTitle": "Main Score · Hail",
+      "mainScoreTitle": "Hail zone",
       "hailScoreLabel": "Hail Score",
       "hailZoneLabel": "Hail Zone {{zone}}",
       "hailZoneKasko": "K-Kasko · {{tier}}",
-      "hailZoneScore": "Score {{score}}/100",
       "ealPeril": {
         "hail": "Hail",
         "total": "Total"
@@ -632,7 +631,7 @@
       "natCatTitle": "Hail data source",
       "natCatRefresh": "Re-query sources",
       "natCatRefreshing": "Querying sources…",
-      "natCatHazard": "{{peril}}: {{score}}/100 ({{unit}})",
+      "natCatHazard": "{{peril}}: zone {{zone}} ({{unit}})",
       "natCatAttribute": "{{name}}: {{value}}",
       "errorPrefix": "Error: {{error}}",
       "recommendedDeductibleLabel": "Rec. Deductible",
@@ -668,8 +667,6 @@
     "examplePromptClusters": "Show accumulations",
     "examplePromptZones": "Show hail zone distribution",
     "kpi": {
-      "exposedVehicles_one": "{{count}} in the open",
-      "exposedVehicles_other": "{{count}} in the open",
       "perYear": "per year",
       "largestAccumulation": "Largest accumulation",
       "accumulationHint_one": "{{count}} location · {{radius}} km",
@@ -733,12 +730,11 @@
     },
     "hailEalDetail": {
       "title": "Hail EAL",
-      "vehicles": "Exposed vehicles (N)",
-      "vehiclesValue": "{{exposed}} of {{total}}",
+      "vehicles": "Vehicles on the lot (N)",
       "frequency": "Frequency (λ)",
       "frequencyValue": "{{frequency}}/year · zone {{zone}}",
       "severity": "Loss per vehicle (Σ p·S)",
-      "formula": "{{exposed}} vehicles × {{frequency}} events/year × {{severity}} = {{eal}} per year.",
+      "formula": "{{vehicles}} vehicles × {{frequency}} events/year × {{severity}} = {{eal}} per year.",
       "vehicleSource": {
         "manual": "Vehicle count reviewed manually.",
         "detected": "Vehicle count from aerial detection.",
@@ -839,8 +835,8 @@
       },
       "imageryAlternatives": "Alternatives checked",
       "business": "Business type",
-      "existingBusiness": "Existing business (filled)",
-      "newBusiness": "New business (outline)",
+      "existingBusiness": "Existing business (blue outline)",
+      "newBusiness": "New business (violet outline, +)",
       "imageryWaybackVersion": "Wayback version"
     },
     "editBoundary": "Edit Boundary",
@@ -889,7 +885,6 @@
       "satelliteOpacityAriaLabel": "Satellite opacity",
       "boundariesLayerLabel": "Parcels",
       "nearbyInsuredLayerLabel": "Insured Neighbors",
-      "hailOverlayLayerLabel": "Hail score",
       "accumulationClustersLayerLabel": "Accumulation Clusters",
       "editingActiveBadge": "active",
       "editBoundariesButton": "Edit boundaries",
@@ -910,16 +905,7 @@
       "imageryVersionHint_one": "{{count}} Esri image version at the map centre (Esri World Imagery Wayback).",
       "imageryVersionHint_other": "{{count}} Esri image versions at the map centre (Esri World Imagery Wayback).",
       "imageryVersionZoomHint": "Zoom to level 15 or closer to choose older Esri images.",
-      "recentSceneLayerLabel": "Recent scene (30 m, context only)",
-      "recentSceneSelectAriaLabel": "Choose scene",
-      "recentSceneCloud": "{{pct}} % cloud",
-      "recentSceneOpacityAriaLabel": "Recent scene opacity",
-      "recentSceneHint": "NASA HLS (Sentinel-2/Landsat), 30 m. Shows site changes since the sharp image – not vehicles.",
-      "recentSceneNone": "No scene with at most {{cloud}} % cloud in the last {{days}} days.",
       "imageryVersionPinnedBadge": "archive"
-    },
-    "hailScoreOverlay": {
-      "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"
     },
     "page": {
       "attributionOsm": "OpenStreetMap contributors",
@@ -985,11 +971,11 @@
     },
     "hail": {
       "highTitle": "High hail risk",
-      "highDetail": "Hail score {{score}}/100 — area with high hail exposure. Recommend cover only with a loading/deductible.",
+      "highDetail": "Hail zone {{zone}} — area with high hail exposure. Recommend cover only with a loading/deductible.",
       "lowTitle": "Low hail risk",
-      "lowDetail": "Hail score {{score}}/100 — area with low hail exposure.",
+      "lowDetail": "Hail zone {{zone}} — area with low hail exposure.",
       "mediumTitle": "Medium hail risk",
-      "mediumDetail": "Hail score {{score}}/100."
+      "mediumDetail": "Hail zone {{zone}}."
     },
     "limit": {
       "breachTitle": "Product limit reached",
@@ -1013,7 +999,7 @@
     "group": {
       "title": "Group \"{{group}}\" — {{count}} locations",
       "breachNote": " {{count}} location(s) over product limit.",
-      "detail": "{{insured}}/{{total}} insured, accumulated exposure {{exposure}}, {{vehicles}} vehicles. Max. hail score {{maxHail}}/100.{{breachNote}} Reinsure (group): {{reinsureWord}}. Pricing (group): {{pricing}}."
+      "detail": "{{insured}}/{{total}} insured, accumulated exposure {{exposure}}, {{vehicles}} vehicles. Max. hail zone {{maxZone}}.{{breachNote}} Reinsure (group): {{reinsureWord}}. Pricing (group): {{pricing}}."
     }
   },
   "upload": {

@@ -278,32 +278,20 @@ describe("hail EAL", () => {
   ] as const)(
     "EAL = N × λ_z × Σ p·S for zone %i (100 open-air vehicles)",
     (zone, frequency, eal) => {
-      const result = computeHailEal({ vehicles: 100, exposureRatio: 1, zone });
+      const result = computeHailEal({ vehicles: 100, zone });
       expect(result.frequency).toBe(frequency);
       expect(result.exposedVehicles).toBe(100);
       expect(result.eal).toBeCloseTo(eal, 6);
     },
   );
 
-  it("only counts vehicles parked in the open", () => {
-    const result = computeHailEal({
-      vehicles: 100,
-      exposureRatio: 0.25,
-      zone: 6,
-    });
-    expect(result.exposedVehicles).toBe(25);
-    expect(result.eal).toBeCloseTo(7_800, 6);
-  });
-
   it("returns zero without vehicles", () => {
-    expect(computeHailEal({ vehicles: 0, exposureRatio: 1, zone: 6 }).eal).toBe(
-      0,
-    );
+    expect(computeHailEal({ vehicles: 0, zone: 6 }).eal).toBe(0);
   });
 
   it("uses edited parameters", () => {
     const result = computeHailEal(
-      { vehicles: 10, exposureRatio: 1, zone: 3 },
+      { vehicles: 10, zone: 3 },
       { ...DEFAULT_RISK_PARAMETERS, hailFrequencyZone3: 0.5 },
     );
     expect(result.eal).toBeCloseTo(10 * 0.5 * 2_080, 6);
@@ -317,21 +305,19 @@ describe("hail EAL", () => {
     expect(estimateHailZoneFromScore(150)).toBe(6);
   });
 
-  it("prefers a reviewed vehicle count, then detection, then asset value", () => {
+  it("prefers a reviewed vehicle count, then detection, and never estimates one", () => {
     expect(
-      hailVehicleBasis(
-        { vehicleCount: 40, manualVehicleCount: 55, confidence: 1, model: "m" },
-        0,
-      ),
+      hailVehicleBasis({
+        vehicleCount: 40,
+        manualVehicleCount: 55,
+        confidence: 1,
+        model: "m",
+      }),
     ).toEqual({ vehicles: 55, source: "manual" });
     expect(
-      hailVehicleBasis({ vehicleCount: 40, confidence: 1, model: "m" }, 0),
+      hailVehicleBasis({ vehicleCount: 40, confidence: 1, model: "m" }),
     ).toEqual({ vehicles: 40, source: "detected" });
-    expect(hailVehicleBasis(undefined, 250_000)).toEqual({
-      vehicles: 10,
-      source: "assetValue",
-    });
-    expect(hailVehicleBasis(undefined, 0)).toEqual({
+    expect(hailVehicleBasis(undefined)).toEqual({
       vehicles: 0,
       source: "none",
     });

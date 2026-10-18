@@ -37,24 +37,18 @@ export function resolveHailZone(
 /** Hail EAL (`EAL = N × λ_z × Σ p_k·S_k`). */
 export function computeEalBreakdown(
   detection: DetectionResult | undefined,
-  assetValue: number,
-  exposureRatio: number,
   perils: PerilScore[],
   hailZone?: HailZone,
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
   natCat?: NatCatAssessment,
 ): EalBreakdown {
-  const { vehicles, source: vehicleSource } = hailVehicleBasis(
-    detection,
-    assetValue,
-    parameters,
-  );
+  const { vehicles, source: vehicleSource } = hailVehicleBasis(detection);
   const { zone, source: zoneSource } = resolveHailZone(
     perils,
     hailZone,
     natCat,
   );
-  const result = computeHailEal({ vehicles, exposureRatio, zone }, parameters);
+  const result = computeHailEal({ vehicles, zone }, parameters);
   const hail = round(result.eal);
   return {
     hail,

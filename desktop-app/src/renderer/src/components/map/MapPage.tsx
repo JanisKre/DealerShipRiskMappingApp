@@ -36,12 +36,6 @@ import {
 } from "@renderer/lib/useImagerySelection";
 import { useImageryTimeline } from "@renderer/lib/useImageryTimeline";
 import { validateTileTemplate } from "@shared/tile-template";
-import { useRecentScenes } from "@renderer/lib/useRecentScenes";
-import {
-  GIBS_ATTRIBUTION,
-  gibsTileTemplate,
-  recentSceneKey,
-} from "@shared/imagery-gibs";
 import {
   IMAGERY_MIN_SELECTION_ZOOM,
   IMAGERY_TOLERANCE_DAYS,
@@ -64,9 +58,7 @@ import { DetectionOverlay, type DetectionEditDraft } from "./DetectionOverlay";
 import { HailstormScenarioLayer } from "./HailstormScenarioLayer";
 import { LayerPanel } from "./LayerPanel";
 import { MapLegend } from "./MapLegend";
-import { HailScoreOverlay } from "./HailScoreOverlay";
 import { NearbyInsuredLayer } from "./NearbyInsuredLayer";
-import { OverlayLegend } from "./OverlayLegend";
 import { ViewPersistence } from "./ViewPersistence";
 
 /** Tile URLs per basemap type. */
@@ -272,7 +264,6 @@ export function MapPage(): React.JSX.Element {
   // Map UI state (persisted) — only what MapPage itself still renders
   const layers = useMapStore((s) => s.layers);
   const basemap = useMapStore((s) => s.basemap);
-  const perilOverlay = useMapStore((s) => s.perilOverlay);
   const editing = useMapStore((s) => s.editing);
   const setEditing = useMapStore((s) => s.setEditing);
   const setLayers = useMapStore((s) => s.setLayers);
@@ -293,8 +284,6 @@ export function MapPage(): React.JSX.Element {
   const [mapView, setMapView] = useState<MapViewPoint | null>(null);
   const imagery = useImagerySelection(mapView, basemap === "satellite");
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
-  const chosenRecentScene = useMapStore((s) => s.recentScene);
-  const recentSceneOpacity = useMapStore((s) => s.recentSceneOpacity);
 
   // WMS URL from settings (only for the satellite basemap).
   const [wmsUrl, setWmsUrl] = useState<string | null>(null);
@@ -317,20 +306,6 @@ export function MapPage(): React.JSX.Element {
     mapView.zoom >= IMAGERY_MIN_SELECTION_ZOOM;
   const { timeline: imageryTimeline, loading: imageryTimelineLoading } =
     useImageryTimeline(mapView, timelineEnabled);
-
-  // Recent 30 m scene overlay: the chosen scene while it is still listed
-  // for this area, otherwise the newest clear one.
-  const { scenes: recentScenes, loading: recentScenesLoading } =
-    useRecentScenes(mapView, layers.recentScene);
-  const activeRecentScene = layers.recentScene
-    ? (recentScenes?.scenes.find(
-        (s) =>
-          chosenRecentScene != null &&
-          recentSceneKey(s) === recentSceneKey(chosenRecentScene),
-      ) ??
-      recentScenes?.scenes[0] ??
-      null)
-    : null;
 
   // While a version is pinned, the legend describes that version's image at
   // the map centre instead of the automatic choice.
@@ -576,22 +551,6 @@ export function MapPage(): React.JSX.Element {
           opacity={tileOpacity}
           {...BBOX_TEMPLATE_OPTION}
         />
-        {activeRecentScene && (
-          <TileLayer
-            key={recentSceneKey(activeRecentScene)}
-            attribution={GIBS_ATTRIBUTION}
-            url={gibsTileTemplate(
-              activeRecentScene.product,
-              activeRecentScene.day,
-            )}
-            maxZoom={BASEMAP_MAX_ZOOM}
-            maxNativeZoom={12}
-            opacity={recentSceneOpacity}
-            // Above the basemap, which remounts (and would otherwise land
-            // on top) whenever its source or attribution changes.
-            zIndex={2}
-          />
-        )}
         <MapResizer />
         <MapViewReporter onChange={setMapView} />
         <ZoomControl />
@@ -605,9 +564,6 @@ export function MapPage(): React.JSX.Element {
             dealerships={withCoords}
             radiusKm={parameters.accumulationRadiusKm}
           />
-        )}
-        {perilOverlay === "hail" && (
-          <HailScoreOverlay dealerships={visibleDealerships} />
         )}
         {layers.boundaries && (
           <BoundaryLayer dealerships={visibleDealerships} editable={editing} />
@@ -882,6 +838,7 @@ export function MapPage(): React.JSX.Element {
       <div className="pointer-events-none absolute bottom-6 right-3 top-3 z-[1000] flex w-60 flex-col justify-end">
         <LayerPanel
           drawing={drawingScenario}
+          dealerships={withCoords}
           onToggleDraw={() => setDrawingScenario((d) => !d)}
           capturing={capturing}
           onExport={exportMap}
@@ -893,20 +850,14 @@ export function MapPage(): React.JSX.Element {
           imageryTimeline={timelineEnabled ? imageryTimeline : null}
           imageryTimelineLoading={timelineEnabled && imageryTimelineLoading}
           imageryTimelineAvailable={basemap === "satellite" && !wmsUrl}
-          recentScenes={recentScenes}
-          recentScenesLoading={recentScenesLoading}
-          activeRecentScene={activeRecentScene}
         />
       </div>
 
       {/* Legend + overlay scale bottom left */}
       <div className="absolute bottom-6 left-3 z-[1000] flex flex-col gap-2">
-        <PortfolioFilterBar dealerships={withCoords} />
-        <OverlayLegend
-          showHailOverlay={perilOverlay === "hail"}
-          showClusters={layers.accumulationClusters}
-        />
+        <PortfolioFilterBar dealerships={withCoords} hideBusiness />
         <MapLegend
+          showClusterNote={layers.accumulationClusters}
           imagery={legendImagery}
           showImagery={basemap === "satellite"}
         />

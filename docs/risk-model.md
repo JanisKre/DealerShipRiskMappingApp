@@ -56,18 +56,16 @@ The portfolio is underwritten for hail only, so the expected annual loss
 (EAL) is a hail loss per location:
 
 ```text
-EAL = N_exposed × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L)
-N_exposed = N × exposure ratio
+EAL = N × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L)
 ```
 
 | Symbol | Meaning | Source |
 |---|---|---|
-| N | Vehicles on site | Manually reviewed count, else the detector count; without either, declared asset value ÷ car value (flagged as a limitation) |
-| exposure ratio | Share of vehicles parked in the open: `clamp(1 − roof coverage, 0.1, 1)` | `roof.service.ts`, from buildings inside the lot boundary |
+| N | Vehicles counted on the lot | Manually reviewed count, else the detector count. Only vehicles on the lot are counted: no count is estimated from the asset value and no vehicles inside buildings are assumed |
 | z | Hail zone 1–6 | Licensed provider hail score if chosen, else the postcode table (`shared/hail-zones.ts`), else estimated from the weather-based hail score as `1 + round(score / 20)` (flagged, lower confidence) |
 | λ_z | Damaging hail events per year at a site in zone z | Parameter per zone |
 | p_S, p_M, p_L | Share of small, medium, large events | Parameters; normalized by their sum, so they act as weights |
-| S_S, S_M, S_L | Loss per exposed vehicle in an event of that class (EUR) | Parameters |
+| S_S, S_M, S_L | Loss per vehicle in an event of that class (EUR) | Parameters |
 
 The implementation is `computeHailEal` in `shared/risk-math.ts`; the result
 stores every input (`ealBreakdown.hailDetail`), so the detail dialog shows the

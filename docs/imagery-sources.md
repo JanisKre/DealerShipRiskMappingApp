@@ -170,37 +170,6 @@ over from the states are comparable to the main count; satellite scenes are
 excluded by the resolution limit. This is a screening estimate, not a stock
 audit.
 
-## Recent 30 m scenes (NASA HLS, context only)
-
-The sharp images are months to years old. The map layer "Recent scene"
-lays a recent satellite scene over the basemap to show whether a site has
-visibly changed since then: new buildings, cleared or re-paved areas,
-flooding. At 30 m a dealership lot is only a few pixels, so the overlay
-never shows vehicles and is not used in any calculation.
-
-Implementation: `desktop-app/src/shared/imagery-gibs.ts`,
-`desktop-app/src/main/services/gibs.service.ts`, IPC `imagery:recentScenes`.
-Tests: `imagery-gibs.test.ts`, `gibs.service.test.ts`.
-
-- **Data**: NASA Harmonized Landsat Sentinel-2 (HLS). S30 is Sentinel-2
-  (`C2021957295-LPCLOUD`) and L30 is Landsat 8/9 (`C2021957657-LPCLOUD`),
-  both at 30 m with BRDF-adjusted reflectance. Together they give a new
-  scene every few days, clouds permitting.
-- **Scene list**: NASA CMR granule search (keyless) over a ~1 km box around
-  the map centre for the last 60 days, limited to at most 40 % cloud cover
-  (HLS `CLOUD_COVERAGE`, a tile-level value, so a site can still be under a
-  cloud). One scene per product and day, newest first. Cached for 6 hours.
-- **Tiles**: NASA GIBS WMTS (`epsg3857/best`, native up to z12, upscaled
-  beyond). The renderer loads the tiles directly. The search runs in the
-  main process.
-
-This approach was adapted from the "recent imagery" layer of the
-open-source project gods-eye-view, which combines CMR and GIBS in the
-same way.
-
-Licence: NASA data are free of copyright restrictions. The attribution
-"NASA GIBS · HLS (LP DAAC)" is shown on the map.
-
 ## Licences and attribution
 
 Each registry entry carries the attribution required by the provider, with the

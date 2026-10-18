@@ -42,14 +42,14 @@ describe("resolveHailZone", () => {
 
 describe("computeEalBreakdown", () => {
   it("is hail-only and keeps the formula inputs", () => {
-    const eb = computeEalBreakdown(DETECTION, 0, 0.5, perils(0), 6);
-    // 100 vehicles × 0.5 open-air × λ6 0.15 × Σ p·S 2,080 = 15,600
-    expect(eb.hail).toBe(15_600);
-    expect(eb.total).toBe(15_600);
+    const eb = computeEalBreakdown(DETECTION, perils(0), 6);
+    // 100 counted vehicles × λ6 0.15 × Σ p·S 2,080 = 31,200
+    expect(eb.hail).toBe(31_200);
+    expect(eb.total).toBe(31_200);
     expect(Object.keys(eb).sort()).toEqual(["hail", "hailDetail", "total"]);
     expect(eb.hailDetail).toEqual({
       vehicles: 100,
-      exposedVehicles: 50,
+      exposedVehicles: 100,
       vehicleSource: "detected",
       zone: 6,
       zoneSource: "postcode",
@@ -58,10 +58,9 @@ describe("computeEalBreakdown", () => {
     });
   });
 
-  it("falls back to the asset value when nothing was counted", () => {
-    const eb = computeEalBreakdown(undefined, 500_000, 1, perils(0), 1);
-    // 500,000 / 25,000 = 20 vehicles × 0.01 × 2,080 = 416
-    expect(eb.total).toBe(416);
-    expect(eb.hailDetail?.vehicleSource).toBe("assetValue");
+  it("never estimates a vehicle count from the asset value", () => {
+    const eb = computeEalBreakdown(undefined, perils(0), 1);
+    expect(eb.total).toBe(0);
+    expect(eb.hailDetail?.vehicleSource).toBe("none");
   });
 });

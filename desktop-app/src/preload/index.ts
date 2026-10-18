@@ -388,15 +388,6 @@ const api = {
       zoom,
     } satisfies IpcRequest["imagery:timeline"]),
 
-  recentScenes: (
-    lat: number,
-    lon: number,
-  ): Promise<IpcResponse["imagery:recentScenes"]> =>
-    ipcRenderer.invoke(IPC.imageryRecentScenes, {
-      lat,
-      lon,
-    } satisfies IpcRequest["imagery:recentScenes"]),
-
   modelStatus: (): Promise<IpcResponse["model:status"]> =>
     ipcRenderer.invoke(IPC.modelStatus),
 

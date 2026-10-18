@@ -1,6 +1,8 @@
 import type { AnalyzedDealership } from "@shared/types";
 import {
   accumulationVerdict,
+  dealershipHailZone,
+  estimateHailZoneFromScore,
   groupSummary,
   nearbyInsured,
   productLimitBreach,
@@ -43,25 +45,26 @@ function hailMessage(
   subject: AnalyzedDealership,
 ): UwMessage | null {
   const hail = subject.risk?.perils.find((p) => p.peril === "hail")?.score;
-  if (hail == null) return null;
+  const zone = dealershipHailZone(subject)?.zone;
+  if (hail == null || zone == null) return null;
   if (hail >= 60) {
     return {
       severity: "danger",
       title: t("underwriting.hail.highTitle"),
-      detail: t("underwriting.hail.highDetail", { score: hail.toFixed(0) }),
+      detail: t("underwriting.hail.highDetail", { zone }),
     };
   }
   if (hail < 25) {
     return {
       severity: "ok",
       title: t("underwriting.hail.lowTitle"),
-      detail: t("underwriting.hail.lowDetail", { score: hail.toFixed(0) }),
+      detail: t("underwriting.hail.lowDetail", { zone }),
     };
   }
   return {
     severity: "info",
     title: t("underwriting.hail.mediumTitle"),
-    detail: t("underwriting.hail.mediumDetail", { score: hail.toFixed(0) }),
+    detail: t("underwriting.hail.mediumDetail", { zone }),
   };
 }
 
@@ -162,7 +165,7 @@ function groupMessage(
       total: group.memberCount,
       exposure: eur(group.totalExposureEur),
       vehicles: num(group.totalVehicles),
-      maxHail: group.maxHailScore.toFixed(0),
+      maxZone: estimateHailZoneFromScore(group.maxHailScore),
       breachNote,
       reinsureWord: group.reinsure
         ? t("underwriting.reinsure.yesWord")

@@ -51,6 +51,10 @@ import { Textarea } from "@renderer/components/ui/textarea";
 import { useAppStore } from "@renderer/store/appStore";
 import { eur, num, pct } from "@renderer/lib/format";
 import { riskColor } from "@renderer/lib/riskColor";
+import {
+  dealershipHailZone,
+  estimateHailZoneFromScore,
+} from "@shared/risk-math";
 import { UnderwritingMessages } from "./UnderwritingMessages";
 import { DetectionImageryNote } from "./DetectionImageryNote";
 import { ImageryHistorySection } from "./ImageryHistorySection";
@@ -89,8 +93,7 @@ function DetailBody({
 }): React.JSX.Element {
   const { t } = useTranslation();
   const score = d.risk?.overallScore ?? 0;
-  const hailScore =
-    d.risk?.perils.find((peril) => peril.peril === "hail")?.score ?? score;
+  const hailZone = dealershipHailZone(d)?.zone;
   const eb = d.risk?.ealBreakdown;
   const { details: osmDetails, loading: osmLoading } = useOsmDetails(
     d.lat,
@@ -105,8 +108,9 @@ function DetailBody({
         <DialogTitle className="flex items-center gap-2">
           {d.name}
           <Badge style={{ backgroundColor: riskColor(score), color: "white" }}>
-            {t("dashboard.detailDialog.hailScoreLabel")} ·{" "}
-            {hailScore.toFixed(0)}
+            {hailZone != null
+              ? t("dashboard.detailDialog.hailZoneLabel", { zone: hailZone })
+              : "—"}
           </Badge>
         </DialogTitle>
         <DialogDescription>
@@ -170,15 +174,6 @@ function DetailBody({
         <h4 className="text-sm font-semibold">
           {t("dashboard.detailDialog.mainScoreTitle")}
         </h4>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="gap-1">
-            <span>{t("dashboard.detailDialog.hailScoreLabel")}</span>
-            <span className="font-mono" style={{ color: riskColor(hailScore) }}>
-              {hailScore.toFixed(0)}
-            </span>
-          </Badge>
-        </div>
-
         {d.hailZone != null && (
           <div className="flex items-center gap-2 rounded-md border bg-amber-50 px-3 py-2 text-sm dark:bg-amber-950/20">
             <span className="text-lg">🌨</span>
@@ -193,11 +188,6 @@ function DetailBody({
                   tier: d.hailRiskTier,
                 })}
               </span>
-            </div>
-            <div className="ml-auto text-xs text-muted-foreground">
-              {t("dashboard.detailDialog.hailZoneScore", {
-                score: (((d.hailZone - 1) / 5) * 100).toFixed(0),
-              })}
             </div>
           </div>
         )}
@@ -232,10 +222,7 @@ function HailEalSection({
           <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
             <Metric
               label={t("dashboard.hailEalDetail.vehicles")}
-              value={t("dashboard.hailEalDetail.vehiclesValue", {
-                exposed: num(detail.exposedVehicles),
-                total: num(detail.vehicles),
-              })}
+              value={num(detail.vehicles)}
             />
             <Metric
               label={t("dashboard.hailEalDetail.frequency")}
@@ -252,7 +239,7 @@ function HailEalSection({
           </div>
           <p className="text-xs text-muted-foreground">
             {t("dashboard.hailEalDetail.formula", {
-              exposed: num(detail.exposedVehicles),
+              vehicles: num(detail.vehicles),
               frequency: num(detail.frequency, 3),
               severity: eur(detail.meanSeverityEur),
               eal: eur(eb.hail),
@@ -627,7 +614,7 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
               <div key={`${hazard.peril}-${hazard.unit}`}>
                 {t("dashboard.detailDialog.natCatHazard", {
                   peril: hazard.peril,
-                  score: hazard.score.toFixed(0),
+                  zone: estimateHailZoneFromScore(hazard.score),
                   unit: hazard.unit,
                 })}
                 {/* Source per value in assessments combined by older builds. */}
