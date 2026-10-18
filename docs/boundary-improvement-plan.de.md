@@ -1,6 +1,6 @@
 # Grundstückserkennung: Verbesserungsplan zur manuellen Prüfung
 
-**Status:** Entwurf zur Freigabe; keine Implementierung begonnen.  
+**Status:** Teilweise umgesetzt. Stand 18. Oktober 2026: Fusion ist Standard; Standortzugehörigkeit, Suchraumerweiterung (P3), MultiPolygon (P2), Fahrzeug-Evidenz in der Fusion (P5, Teil Fahrzeuge; Fusion v4) und Bewertung der Geocoding-Treffer (P3) sind implementiert. Segmentierung (P5), Kandidatenvarianten/Snapping (P4), Review-Ablauf (P6) und Kalibrierung (P7) sind offen. Der Abschnitt 3 beschreibt den Ausgangsstand vom 14. September.  
 **Stand:** 14. September 2026; Codebasis `169a48f`.  
 **Ziel:** Betriebsflächen vollständiger erkennen, Nachbarflächen seltener aufnehmen und den manuellen Korrekturaufwand deutlich reduzieren.
 

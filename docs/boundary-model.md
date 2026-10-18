@@ -225,6 +225,54 @@ Limitation: a dealership whose second plot carries no dealer tagging (an
 unnamed overflow car park on the next parcel) is now left out and needs a
 manual edit — the deliberate price of not annexing neighbours.
 
+### Vehicle evidence (fusion v4)
+
+OSM often maps only one forecourt of a dealership, and seven federal states
+have no reachable cadastre, so the mapped evidence routinely stops short of
+the lot. Parked cars are the most direct sign of where the lot really is.
+`analyzeDealership` therefore runs the context-image capture, the YOLO
+detector and the roof mask *before* `detectBoundary`, passes the
+georeferenced boxes in (`FusionBundle.vehicles`), and afterwards only clips
+the same detection to the chosen boundary — one inference, as before.
+
+- **Layer.** Each vehicle is a Gaussian-tapered disk of `VEHICLE_RADIUS_M`
+  (4 m: a stall plus half an aisle), peak `LAYER_WEIGHTS.vehicle` (0.6) ×
+  detector score × `boundaryVehicleEvidenceWeight` (default 1, 0 disables).
+  Rows of cars overlap and add up. Reported as the `yolo-vehicles` layer.
+- **Support, not proof.** Summed vehicle evidence per cell is capped at
+  90% of `boundaryGrowHighThreshold`, so cars can carry growth but never seed
+  or confirm a site on their own. With nothing else at the anchor, growth
+  can at most start from the existing unconfirmed anchor-cell fallback —
+  confidence halved, review required. Combined with real evidence (a mapped
+  car park, the anchor parcel's reinforcement) they extend it.
+- **Not a neighbour's car park.** Vehicles inside another business's area,
+  or within 15 m of its point, are skipped. They are rasterized before the
+  site gate, so vehicles outside the site's parcels are damped by
+  `SITE_GATE_FACTOR` like any other positive evidence, and roads still cut.
+- **Only real detections.** The area-based stub detector has no boxes and
+  contributes nothing; a missing model never becomes evidence.
+
+Limitations: the context image covers about ±100 m around the anchor
+(`CONTEXT_CAPTURE_RADIUS_M`) while the grid covers ±200 m, so vehicles far
+out on a large site are not seen. Empty stalls get no support — an empty lot
+is not penalised, just not helped. The imagery may be months or years old
+(see the imagery provenance on the detection), so the parking pattern can
+differ from today's. Re-detecting the boundary from the UI (the
+`detectBoundary` IPC channel) runs without vehicle evidence; only a full
+analysis passes it.
+
+### Geocoding anchor
+
+Records without coordinates are geocoded with two Nominatim queries — the
+address, and name plus address — and the hits are scored together by
+`pickGeocodeHit` (`geocoding.service.ts`): matching postcode +2, house
+number +1, dealership name +2, vehicle-trade POI type (`shop=car` etc.) +1,
+contradicting postcode −3. Ties keep Nominatim's order, address hits first,
+so the old behaviour is kept whenever nothing distinguishes the hits. When
+the two best hits score within one point and lie more than 100 m apart, the
+reason is added to the boundary's quality reasons and the boundary is sent
+to review.
+
 ### Area comes from the mask, not the ring
 
 The polygon carries only an outer ring, so a void that stays open — a pond, an
@@ -255,8 +303,6 @@ Not yet built (planned):
   parcels the site substantially covers. `cadastreSnapped` is reported as
   `false` throughout until this lands.
 - **Imagery layers** — paved-surface, vegetation and texture masks at z18.
-- **Vehicle evidence** — the existing YOLO detector run *before* the boundary
-  rather than clipped to it, so vehicle clusters can correct a truncated lot.
 - **Perimeter support** — the share of outline actually backed by a fence, road
   or parcel edge. Until then `barrierSupport` reports layer diversity in its
   place, which is a weaker but not misleading stand-in.

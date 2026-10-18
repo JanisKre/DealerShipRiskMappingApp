@@ -78,7 +78,9 @@ import {
 // v3: evidence outside the site's own parcels is damped (site gate), the
 // cadastral snap may no longer enlarge the site, and the search space only
 // widens for real site evidence at the edge — v2 flooded business parks.
-export const FUSION_VERSION = 3;
+// v4: detected vehicles are supporting evidence (capped below the seed
+// threshold, gated like any other positive evidence).
+export const FUSION_VERSION = 4;
 
 /** Below this, a separately-confirmed component reads as raster noise, not a site part. */
 const MIN_SECONDARY_COMPONENT_SQM = 100;
@@ -113,6 +115,12 @@ export const LAYER_WEIGHTS = {
   anchorParcel: 0.5,
   addressNode: 0.4,
   /**
+   * Peak of one detected vehicle's disk, before its detector score and
+   * `boundaryVehicleEvidenceWeight`. Rows of parked cars overlap and add up;
+   * the sum is capped by `VEHICLE_CELL_CAP_SHARE`.
+   */
+  vehicle: 0.6,
+  /**
    * A *different* named business (another tenant, a neighbour's yard).
    * Replaces the area's own positive weight rather than adding to it, so a
    * named industrial landuse stops counting as site evidence.
@@ -138,6 +146,17 @@ export interface FusionBundle {
   availability: Record<string, boolean>;
   /** Richer per-source outcome (empty/partial/unreachable/unsupported), keyed like `availability`. */
   sourceStatus?: Record<string, SourceStatus>;
+  /**
+   * Georeferenced vehicle detections from the context image, roofs already
+   * masked. Absent when no real detector ran — area estimates are not evidence.
+   */
+  vehicles?: VehicleEvidence[];
+}
+
+export interface VehicleEvidence {
+  point: LonLat;
+  /** Detector confidence, 0..1. */
+  score: number;
 }
 
 export interface FusionOutcome {
@@ -232,6 +251,14 @@ function lineWeight(line: EvidenceLine): number {
 const FOREIGN_ANCHOR_PROTECTION_M = 20;
 /** Radius of the score dip around a foreign business point. */
 const FOREIGN_POINT_RADIUS_M = 15;
+/** One parking stall plus half an aisle: adjacent stalls in a row overlap. */
+export const VEHICLE_RADIUS_M = 4;
+/**
+ * Vehicle evidence per cell never exceeds this share of the confirmation
+ * threshold. Cars carry growth but cannot seed or confirm a site on their own —
+ * a car park full of cars is a car park, not proof whose it is.
+ */
+export const VEHICLE_CELL_CAP_SHARE = 0.9;
 
 function distanceM(a: LonLat, b: LonLat): number {
   const [x, y] = projectPoint(a, b);
@@ -314,10 +341,14 @@ export function buildEvidenceGrid(
 
   const points = foreignPoints(bundle);
   const foreignBusinesses = new Set<string>();
+  const foreignRings: LonLat[][] = [];
 
   for (const area of bundle.osm?.areas ?? []) {
     const foreign = foreignIdentityOf(area, bundle, points);
-    if (foreign) foreignBusinesses.add(foreign);
+    if (foreign) {
+      foreignBusinesses.add(foreign);
+      foreignRings.push(area.ring);
+    }
     const weight = foreign
       ? LAYER_WEIGHTS.foreignBusiness
       : areaWeight(area, bundle.name, bundle.address);
@@ -407,6 +438,22 @@ export function buildEvidenceGrid(
     });
   }
 
+  if (bundle.vehicles) {
+    acc.add(
+      rasterizeVehicles(
+        bundle.vehicles,
+        spec,
+        score,
+        parameters,
+        (point) =>
+          foreignRings.some((ring) => ringContains(ring, point)) ||
+          points.some(
+            (place) => distanceM(place.point, point) < FOREIGN_POINT_RADIUS_M,
+          ),
+      ),
+    );
+  }
+
   // Only the parcel containing the anchor contributes score, and it does so as
   // *reinforcement* — it is added where operational evidence already exists and
   // nowhere else. A parcel is a legal unit: it is routinely larger than the lot
@@ -468,6 +515,54 @@ export function buildEvidenceGrid(
     layers: acc.layers,
     foreignBusinesses: [...foreignBusinesses],
   };
+}
+
+/**
+ * Adds detected vehicles to the score as supporting evidence. Each vehicle is
+ * a tapered disk scaled by its detector score; the summed vehicle evidence per
+ * cell is capped below the confirmation threshold so cars alone never seed or
+ * confirm a site. Vehicles on another business's premises are skipped, and
+ * runs before the site gate so vehicles on neighbouring parcels are damped
+ * like any other positive evidence.
+ */
+function rasterizeVehicles(
+  vehicles: VehicleEvidence[],
+  spec: EvidenceGrid["spec"],
+  score: Float32Array,
+  parameters: RiskParameters,
+  isForeign: (point: LonLat) => boolean,
+): BoundaryEvidenceLayer {
+  const weight = LAYER_WEIGHTS.vehicle * parameters.boundaryVehicleEvidenceWeight;
+  const layer = {
+    layer: "yolo-vehicles",
+    source: "Aerial imagery / vehicle detector",
+    weight,
+    available: true,
+    limitation:
+      "Only vehicles near the anchor are seen; an empty lot gets no support",
+  };
+  if (weight <= 0 || vehicles.length === 0) return { ...layer, cells: 0 };
+
+  const vehicleScore = new Float32Array(score.length);
+  for (const vehicle of vehicles) {
+    if (!(vehicle.score > 0) || isForeign(vehicle.point)) continue;
+    rasterizeDisk(
+      spec,
+      vehicle.point,
+      VEHICLE_RADIUS_M,
+      vehicleScore,
+      weight * Math.min(1, vehicle.score),
+      "gauss",
+    );
+  }
+  const cap = parameters.boundaryGrowHighThreshold * VEHICLE_CELL_CAP_SHARE;
+  let cells = 0;
+  for (let i = 0; i < vehicleScore.length; i += 1) {
+    if (vehicleScore[i] <= 0) continue;
+    score[i] += Math.min(cap, vehicleScore[i]);
+    cells += 1;
+  }
+  return { ...layer, cells };
 }
 
 /**

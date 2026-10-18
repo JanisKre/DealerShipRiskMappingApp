@@ -36,6 +36,17 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Lot boundaries (fusion engine v4): vehicles detected on the context image
+  are now evidence for the boundary itself. Detection runs before the
+  boundary instead of after it; parked-car clusters next to a partly mapped
+  forecourt extend the lot. Vehicle evidence alone never confirms a site, is
+  damped outside the site's cadastral parcels and ignored on another
+  business's premises. Weighted by `boundaryVehicleEvidenceWeight` (0 turns
+  it off). See `docs/boundary-model.md`.
+- Address-only records are geocoded by scoring Nominatim hits (postcode,
+  house number, dealership name, vehicle-trade POI) instead of taking the
+  first hit; an additional name-and-address query finds the dealership POI.
+  Distant hits that score alike are flagged for boundary review.
 - Hail-focused dashboard, based on underwriter feedback: KPI row (locations,
   vehicles parked in the open, exposure, hail EAL, largest accumulation,
   locations in hail zone ≥ 4), a "Largest accumulations" list whose rows
