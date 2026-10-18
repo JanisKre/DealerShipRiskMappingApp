@@ -17,6 +17,7 @@ import {
   detectPlatform,
   MAC_QUARANTINE_COMMAND,
   RELEASES_URL,
+  sitePath,
 } from "@/lib/site";
 
 export function Download(): React.JSX.Element {
@@ -71,7 +72,7 @@ export function Download(): React.JSX.Element {
 
       <p className="text-muted-foreground mt-4 text-sm">
         Linux: build an AppImage from source (see{" "}
-        <a href="#build" className="text-foreground underline underline-offset-4">
+        <a href={sitePath("home", "docs", "#build")} className="text-foreground underline underline-offset-4">
           Build from source
         </a>
         ).{" "}

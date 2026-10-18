@@ -30,12 +30,24 @@ function contentSecurityPolicy(): Plugin {
   };
 }
 
+const page = (path: string): string =>
+  fileURLToPath(new URL(path, import.meta.url));
+
 // Relative base so the build works under the GitHub Pages project path
-// (/DealerShipRiskMappingApp/) as well as on a custom domain.
+// (/DealerShipRiskMappingApp/) as well as on a custom domain. Each page is
+// its own HTML entry, so /docs/ needs no SPA fallback on GitHub Pages.
 export default defineConfig({
   base: "./",
   plugins: [react(), tailwindcss(), contentSecurityPolicy()],
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: { "@": page("./src") },
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        home: page("./index.html"),
+        docs: page("./docs/index.html"),
+      },
+    },
   },
 });

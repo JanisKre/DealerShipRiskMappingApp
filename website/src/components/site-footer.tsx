@@ -1,37 +1,37 @@
 import { Logo } from "@/components/logo";
-import { RELEASES_URL, REPO_URL, repoFile } from "@/lib/site";
+import { type Page, RELEASES_URL, REPO_URL, repoFile, sitePath } from "@/lib/site";
 
-const COLUMNS = [
-  {
-    title: "Product",
-    links: [
-      { href: "#features", label: "Features" },
-      { href: "#download", label: "Download" },
-      { href: RELEASES_URL, label: "Releases" },
-      { href: repoFile("CHANGELOG.md"), label: "Changelog" },
-    ],
-  },
-  {
-    title: "Docs",
-    links: [
-      { href: "#quick-start", label: "Quick start" },
-      { href: repoFile("ARCHITECTURE.md"), label: "Architecture" },
-      { href: repoFile("docs/risk-model.md"), label: "Risk model" },
-      { href: repoFile("CONTRIBUTING.md"), label: "Contributing" },
-    ],
-  },
-  {
-    title: "Project",
-    links: [
-      { href: REPO_URL, label: "GitHub" },
-      { href: `${REPO_URL}/issues`, label: "Issues" },
-      { href: repoFile("PRIVACY.md"), label: "Privacy" },
-      { href: repoFile("SECURITY.md"), label: "Security" },
-    ],
-  },
-];
+export function SiteFooter({ page }: { page: Page }): React.JSX.Element {
+  const columns = [
+    {
+      title: "Product",
+      links: [
+        { href: sitePath(page, "home", "#features"), label: "Features" },
+        { href: sitePath(page, "home", "#download"), label: "Download" },
+        { href: RELEASES_URL, label: "Releases" },
+        { href: repoFile("CHANGELOG.md"), label: "Changelog" },
+      ],
+    },
+    {
+      title: "Docs",
+      links: [
+        { href: sitePath(page, "docs", "#quick-start"), label: "Quick start" },
+        { href: repoFile("ARCHITECTURE.md"), label: "Architecture" },
+        { href: repoFile("docs/risk-model.md"), label: "Risk model" },
+        { href: repoFile("CONTRIBUTING.md"), label: "Contributing" },
+      ],
+    },
+    {
+      title: "Project",
+      links: [
+        { href: REPO_URL, label: "GitHub" },
+        { href: `${REPO_URL}/issues`, label: "Issues" },
+        { href: repoFile("PRIVACY.md"), label: "Privacy" },
+        { href: repoFile("SECURITY.md"), label: "Security" },
+      ],
+    },
+  ];
 
-export function SiteFooter(): React.JSX.Element {
   return (
     <footer>
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.5fr_repeat(3,1fr)]">
@@ -45,7 +45,7 @@ export function SiteFooter(): React.JSX.Element {
             open source under GPL-3.0-or-later.
           </p>
         </div>
-        {COLUMNS.map((col) => (
+        {columns.map((col) => (
           <div key={col.title}>
             <h3 className="mb-3 text-sm font-semibold">{col.title}</h3>
             <ul className="text-muted-foreground space-y-2 text-sm">

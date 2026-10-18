@@ -21,7 +21,7 @@
 ![Type](https://img.shields.io/badge/mode-single--user_·_local-important)
 ![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)
 
-**[🌐 Homepage & docs](https://janiskre.github.io/DealerShipRiskMappingApp/)**
+**[🌐 Homepage](https://janiskre.github.io/DealerShipRiskMappingApp/) · [📖 Docs](https://janiskre.github.io/DealerShipRiskMappingApp/docs/)**
 
 ### ⬇️ Download
 

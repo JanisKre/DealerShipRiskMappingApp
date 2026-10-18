@@ -1,4 +1,4 @@
-import { Docs } from "@/components/docs";
+import { DocsTeaser } from "@/components/docs-teaser";
 import { Download } from "@/components/download";
 import { Features } from "@/components/features";
 import { Hero } from "@/components/hero";
@@ -8,14 +8,14 @@ import { SiteHeader } from "@/components/site-header";
 export function App(): React.JSX.Element {
   return (
     <div className="flex min-h-svh flex-col">
-      <SiteHeader />
+      <SiteHeader page="home" />
       <main className="flex-1">
         <Hero />
         <Features />
         <Download />
-        <Docs />
+        <DocsTeaser />
       </main>
-      <SiteFooter />
+      <SiteFooter page="home" />
     </div>
   );
 }

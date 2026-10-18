@@ -1,0 +1,26 @@
+import { StrictMode, useEffect } from "react";
+import { createRoot } from "react-dom/client";
+import "@/index.css";
+
+/**
+ * The page renders after the browser has tried to jump to the URL's anchor,
+ * so links like docs/#build would otherwise land at the top. Repeat the jump
+ * once the content exists.
+ */
+function ScrollToHash(): null {
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (id) document.getElementById(id)?.scrollIntoView({ behavior: "instant" });
+  }, []);
+  return null;
+}
+
+/** Shared bootstrap for every HTML entry (index.html, docs/index.html). */
+export function mount(page: React.ReactNode): void {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      {page}
+      <ScrollToHash />
+    </StrictMode>,
+  );
+}
