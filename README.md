@@ -21,6 +21,8 @@
 ![Type](https://img.shields.io/badge/mode-single--user_·_local-important)
 ![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)
 
+**[🌐 Homepage & docs](https://janiskre.github.io/DealerShipRiskMappingApp/)**
+
 ### ⬇️ Download
 
 [![Download for macOS (Apple Silicon)](https://img.shields.io/badge/macOS-Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-mac-arm64.dmg)
@@ -203,6 +205,7 @@ DealerShipRiskMapping/
 ├─ ARCHITECTURE.md           # target architecture & tech-stack rationale
 ├─ CONTRIBUTING.md           # development workflow & conventions
 ├─ CHANGELOG.md              # version history
+├─ website/                  # project homepage (Vite + shadcn/ui, GitHub Pages)
 └─ desktop-app/              # the Electron app
    ├─ src/
    │  ├─ main/               # IPC handlers, services, DB, ONNX worker
@@ -259,6 +262,7 @@ you configure a provider. Details are in the [privacy policy](./PRIVACY.md).
 | [CONTRIBUTING.md](./CONTRIBUTING.md)             | Development workflow, conventions    |
 | [CHANGELOG.md](./CHANGELOG.md)                   | Version history                      |
 | [desktop-app/README.md](./desktop-app/README.md) | App-specific details                 |
+| [Homepage](https://janiskre.github.io/DealerShipRiskMappingApp/) | Overview, downloads, quick start |
 | [.github/SUPPORT.md](./.github/SUPPORT.md)       | Support and data-sharing guidance    |
 | [SECURITY.md](./SECURITY.md)                     | Reporting a vulnerability            |
 | [PRIVACY.md](./PRIVACY.md)                       | Privacy policy, external services    |

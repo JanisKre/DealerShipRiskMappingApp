@@ -7,6 +7,13 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Project homepage in `website/` (Vite, React, Tailwind CSS 4, shadcn/ui)
+  with an overview, the download options and a short user guide. The
+  `Pages` workflow builds it on every change and deploys it to GitHub Pages
+  from `main`.
+
 ### Removed
 
 - All perils except hail (risk model `screening-0.5.0`): storm, lightning,
