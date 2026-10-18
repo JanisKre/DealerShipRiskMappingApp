@@ -35,14 +35,14 @@ function distinct(
  * Filter bar for the portfolio view: business type (existing vs. new),
  * sub-portfolio, sales partner, and group. Writes to the store's `filters` slice; the table, cluster view,
  * and map read from it. Only shown if at least one field has data.
+ * `variant="panel"` stacks the selects full-width for the map layer panel.
  */
 export function PortfolioFilterBar({
   dealerships,
-  hideBusiness = false,
+  variant = "bar",
 }: Readonly<{
   dealerships: AnalyzedDealership[];
-  /** The business-type select is shown elsewhere (map layer panel). */
-  hideBusiness?: boolean;
+  variant?: "bar" | "panel";
 }>): React.JSX.Element | null {
   const { t } = useTranslation();
   const filters = useAppStore((s) => s.filters);
@@ -59,8 +59,7 @@ export function PortfolioFilterBar({
   );
   const groups = useMemo(() => distinct(dealerships, "group"), [dealerships]);
   const businessCounts = useBusinessCounts(dealerships);
-  const mixedBusiness =
-    !hideBusiness && businessCounts.existing > 0 && businessCounts.fresh > 0;
+  const mixedBusiness = businessCounts.existing > 0 && businessCounts.fresh > 0;
   const fallbackCount = useMemo(
     () => dealerships.filter((d) => d.boundary?.source === "synthetic").length,
     [dealerships],
@@ -69,7 +68,7 @@ export function PortfolioFilterBar({
   // Nothing to show if no metadata is present.
   if (
     !mixedBusiness &&
-    !(filters.business && !hideBusiness) &&
+    !filters.business &&
     partners.length === 0 &&
     subs.length === 0 &&
     groups.length === 0 &&
@@ -77,8 +76,10 @@ export function PortfolioFilterBar({
   )
     return null;
 
+  const panel = variant === "panel";
+  const selectClass = panel ? "h-8 w-full bg-background text-xs" : undefined;
   const active =
-    (!hideBusiness && filters.business) ||
+    filters.business ||
     filters.subPortfolio ||
     filters.salesPartner ||
     filters.group ||
@@ -86,14 +87,19 @@ export function PortfolioFilterBar({
     filters.boundarySource;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {!hideBusiness && <BusinessTypeSelect dealerships={dealerships} />}
+    <div
+      className={
+        panel ? "flex flex-col gap-2" : "flex flex-wrap items-center gap-2"
+      }
+    >
+      <BusinessTypeSelect dealerships={dealerships} className={selectClass} />
       {subs.length > 0 && (
         <FilterSelect
           label={t("ui.subPortfolio")}
           value={filters.subPortfolio}
           options={subs}
           onChange={(v) => setFilters({ subPortfolio: v })}
+          className={selectClass}
         />
       )}
       {partners.length > 0 && (
@@ -102,6 +108,7 @@ export function PortfolioFilterBar({
           value={filters.salesPartner}
           options={partners}
           onChange={(v) => setFilters({ salesPartner: v })}
+          className={selectClass}
         />
       )}
       {groups.length > 0 && (
@@ -110,6 +117,7 @@ export function PortfolioFilterBar({
           value={filters.group}
           options={groups}
           onChange={(v) => setFilters({ group: v })}
+          className={selectClass}
         />
       )}
       {fallbackCount > 0 && (
@@ -121,7 +129,9 @@ export function PortfolioFilterBar({
             })
           }
         >
-          <SelectTrigger className="h-9 w-52 bg-background text-sm">
+          <SelectTrigger
+            className={selectClass ?? "h-9 w-52 bg-background text-sm"}
+          >
             <SelectValue placeholder={t("ui.boundarySource")} />
           </SelectTrigger>
           <SelectContent>
@@ -163,7 +173,7 @@ function useBusinessCounts(dealerships: AnalyzedDealership[]): {
  * Business-type filter (existing vs. new). Only rendered when the portfolio
  * mixes both types, or while a business filter is still active.
  */
-export function BusinessTypeSelect({
+function BusinessTypeSelect({
   dealerships,
   className = "h-9 w-52 bg-background text-sm",
 }: Readonly<{
@@ -204,11 +214,13 @@ function FilterSelect({
   value,
   options,
   onChange,
+  className = "h-9 w-48 bg-background text-sm",
 }: Readonly<{
   label: string;
   value: string | null;
   options: string[];
   onChange: (v: string | null) => void;
+  className?: string;
 }>): React.JSX.Element {
   const { t } = useTranslation();
   return (
@@ -216,7 +228,7 @@ function FilterSelect({
       value={value ?? ALL}
       onValueChange={(v) => onChange(v === ALL ? null : v)}
     >
-      <SelectTrigger className="h-9 w-48 bg-background text-sm">
+      <SelectTrigger className={className}>
         <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent>

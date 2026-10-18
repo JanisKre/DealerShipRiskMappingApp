@@ -29,7 +29,7 @@ import {
   type ImageryTimeline,
 } from "@shared/imagery-wayback";
 import { imageryCandidateSummary } from "@renderer/lib/imageryFormat";
-import { BusinessTypeSelect } from "@renderer/components/dashboard/PortfolioFilterBar";
+import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
 import type { AnalyzedDealership } from "@shared/types";
 import { useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { ScenarioBuilder } from "./ScenarioBuilder";
@@ -344,10 +344,7 @@ export function LayerPanel({
                   checked={layers.accumulationClusters}
                   onChange={() => toggleLayer("accumulationClusters")}
                 />
-                <BusinessTypeSelect
-                  dealerships={dealerships}
-                  className="h-8 w-full bg-background text-xs"
-                />
+                <PortfolioFilterBar dealerships={dealerships} variant="panel" />
               </div>
             </Section>
 
