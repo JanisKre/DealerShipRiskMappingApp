@@ -59,7 +59,7 @@ export function DashboardAssistant({
   ];
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col border-l bg-card shadow-xl md:w-80 lg:w-96">
+    <aside className="flex h-full min-h-0 w-full flex-col border-l bg-card">
       <header className="flex shrink-0 items-center gap-2 border-b px-3 py-2.5">
         <MessageSquare className="size-4 text-primary" />
         <div className="min-w-0 flex-1">

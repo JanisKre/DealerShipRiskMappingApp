@@ -214,7 +214,7 @@ export function DashboardPage(): React.JSX.Element {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto">
+        <main className="@container min-h-0 flex-1 overflow-y-auto">
           <div className="space-y-5 p-4 sm:p-6 lg:p-8">
             <ModelVersionBanner dealerships={dealerships} />
             <PortfolioFilterBar dealerships={dealerships} />
@@ -231,9 +231,7 @@ export function DashboardPage(): React.JSX.Element {
               />
             ) : (
               <div
-                className={`grid grid-cols-1 items-start gap-4 lg:grid-cols-2 ${
-                  assistantOpen ? "2xl:grid-cols-2" : "xl:grid-cols-3"
-                }`}
+                className="grid grid-cols-1 items-start gap-4 @3xl:grid-cols-2 @5xl:grid-cols-3"
               >
                 {tileOrder.map((id) => (
                   <DashboardTile
@@ -241,7 +239,6 @@ export function DashboardPage(): React.JSX.Element {
                     id={id}
                     label={tileLabels.get(id) ?? id}
                     dragged={draggedTile === id}
-                    compact={assistantOpen}
                     onDragStart={() => setDraggedTile(id)}
                     onDragEnd={() => setDraggedTile(null)}
                     onDrop={() => moveTile(id)}
@@ -266,7 +263,7 @@ export function DashboardPage(): React.JSX.Element {
       </div>
 
       {assistantOpen && (
-        <div className="absolute inset-y-0 right-0 z-30 flex w-full max-w-md shadow-2xl 2xl:static 2xl:w-96 2xl:max-w-none 2xl:shadow-none">
+        <div className="absolute inset-y-0 right-0 z-30 flex w-96 max-w-full shadow-2xl lg:static lg:shrink-0 lg:shadow-none">
           <DashboardAssistant
             onClose={() => setAssistantOpen(false)}
             onDashboardCommand={handleDashboardCommand}
@@ -341,23 +338,17 @@ function renderTile(
   }
 }
 
-function tileSpan(id: DashboardTileId, compact: boolean): string {
-  if (compact) {
-    return id === "zones" || id === "topLocations"
-      ? "lg:col-span-1"
-      : "lg:col-span-2";
-  }
+function tileSpan(id: DashboardTileId): string {
   if (id === "summary" || id === "clusters" || id === "table") {
-    return "lg:col-span-2 xl:col-span-3";
+    return "@3xl:col-span-2 @5xl:col-span-3";
   }
-  return "lg:col-span-1 xl:col-span-1";
+  return "@3xl:col-span-1";
 }
 
 function DashboardTile({
   id,
   label,
   dragged,
-  compact,
   onDragStart,
   onDragEnd,
   onDrop,
@@ -368,7 +359,6 @@ function DashboardTile({
   id: DashboardTileId;
   label: string;
   dragged: boolean;
-  compact: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
   onDrop: () => void;
@@ -378,7 +368,7 @@ function DashboardTile({
 }>): React.JSX.Element {
   return (
     <section
-      className={`group relative min-w-0 ${tileSpan(id, compact)} ${dragged ? "opacity-50" : ""}`}
+      className={`group relative min-w-0 ${tileSpan(id)} ${dragged ? "opacity-50" : ""}`}
       draggable
       tabIndex={0}
       onDragStart={onDragStart}
