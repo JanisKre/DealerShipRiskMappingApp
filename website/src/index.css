@@ -100,8 +100,11 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-* {
-  border-color: var(--border);
+/* In the base layer so border-color utilities (border-primary, …) win. */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 html {

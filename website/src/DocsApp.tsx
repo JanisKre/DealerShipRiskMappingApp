@@ -1,15 +1,16 @@
 import { Docs } from "@/components/docs";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import type { Page } from "@/lib/site";
 
-export function DocsApp(): React.JSX.Element {
+export function DocsApp({ page }: { page: Exclude<Page, "home"> }): React.JSX.Element {
   return (
     <div className="flex min-h-svh flex-col">
-      <SiteHeader page="docs" />
+      <SiteHeader page={page} />
       <main className="flex-1 border-b">
-        <Docs />
+        <Docs page={page} />
       </main>
-      <SiteFooter page="docs" />
+      <SiteFooter page={page} />
     </div>
   );
 }

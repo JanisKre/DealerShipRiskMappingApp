@@ -2,6 +2,7 @@ import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
+import { DOC_PAGES } from "./src/lib/docs-pages";
 
 // GitHub Pages cannot set response headers, so the policy ships as a meta tag.
 // Build only: the dev server injects an inline React Refresh preamble.
@@ -35,7 +36,8 @@ const page = (path: string): string =>
 
 // Relative base so the build works under the GitHub Pages project path
 // (/DealerShipRiskMappingApp/) as well as on a custom domain. Each page is
-// its own HTML entry, so /docs/ needs no SPA fallback on GitHub Pages.
+// its own HTML entry (docs/<slug>/index.html per docs page), so GitHub Pages
+// needs no SPA fallback.
 export default defineConfig({
   base: "./",
   plugins: [react(), tailwindcss(), contentSecurityPolicy()],
@@ -47,6 +49,9 @@ export default defineConfig({
       input: {
         home: page("./index.html"),
         docs: page("./docs/index.html"),
+        ...Object.fromEntries(
+          DOC_PAGES.map((p) => [`docs/${p.slug}`, page(`./docs/${p.slug}/index.html`)]),
+        ),
       },
     },
   },

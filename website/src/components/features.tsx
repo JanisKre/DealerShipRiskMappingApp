@@ -2,8 +2,6 @@ import {
   Bot,
   Car,
   CloudHail,
-  HardDrive,
-  Languages,
   LayoutDashboard,
   MapPinned,
   ShieldCheck,
@@ -20,42 +18,32 @@ const FEATURES = [
   {
     icon: MapPinned,
     title: "Lot boundary detection",
-    text: "Fallback chain from ALKIS cadastre to OpenStreetMap, building footprints and a synthetic circle — each with a confidence score. Correct any polygon by hand.",
+    text: "Cadastre, OpenStreetMap or building footprints — each with a confidence score.",
   },
   {
     icon: Car,
     title: "AI vehicle counts",
-    text: "A YOLOv26 model counts vehicles on aerial imagery tiles. Edited boundaries are rescored immediately; counts can be reviewed per site.",
+    text: "A YOLOv26 model counts vehicles on aerial imagery.",
   },
   {
     icon: CloudHail,
     title: "Hail score & EAL",
-    text: "Hail score from GDV hail zones, a licensed provider or an Open-Meteo CAPE proxy, plus expected annual loss and hailstorm scenarios.",
+    text: "Hail zone, licensed provider or CAPE proxy, plus expected annual loss.",
   },
   {
     icon: LayoutDashboard,
     title: "Map & dashboard",
-    text: "KPIs, charts, a sortable table, per-location detail with the full calculation, and portfolio comparison.",
+    text: "KPIs, charts and the full calculation for every location.",
   },
   {
     icon: Bot,
     title: "AI underwriting memo",
-    text: "Memos, executive summaries and portfolio chat with a local model (Ollama, LM Studio, llama.cpp), OpenAI, Claude or a custom endpoint. Off unless you set it up.",
-  },
-  {
-    icon: HardDrive,
-    title: "Local & offline-friendly",
-    text: "SQLite database and API cache on your machine. Export to PDF, Excel, CSV or a portable .drm portfolio file.",
+    text: "Optional, with a local model, OpenAI, Claude or a custom endpoint.",
   },
   {
     icon: ShieldCheck,
-    title: "Hardened by design",
-    text: "Sandboxed renderer, Zod-validated IPC, API keys encrypted in the OS keychain. No accounts, no telemetry.",
-  },
-  {
-    icon: Languages,
-    title: "German, English, French",
-    text: "The interface is available in German, English and French and can be switched at any time.",
+    title: "Local & private",
+    text: "SQLite on your machine. No accounts, no telemetry.",
   },
 ];
 
@@ -65,9 +53,8 @@ export function Features(): React.JSX.Element {
       id="features"
       eyebrow="What it does"
       title="From address list to underwriting memo"
-      description="Built for underwriters and risk engineers who need a fast, explainable first look at a dealership portfolio's hail exposure."
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((f) => (
           <Card key={f.title} className="hover:shadow-md">
             <CardHeader className="gap-3">
