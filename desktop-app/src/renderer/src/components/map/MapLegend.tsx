@@ -19,6 +19,7 @@ const SOURCES: Array<{
   labelKey?: string;
   label?: string;
 }> = [
+  { source: "fused", labelKey: "map.legend.fused" },
   { source: "alkis", label: "ALKIS" },
   { source: "osm", label: "OSM" },
   { source: "overture", label: "Overture" },

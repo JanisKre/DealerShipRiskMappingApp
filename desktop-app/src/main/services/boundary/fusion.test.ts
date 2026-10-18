@@ -3,6 +3,7 @@ import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import {
   buildEvidenceGrid,
   buildResultFromFusion,
+  FUSION_VERSION,
   fuseBoundary,
   fusedConfidence,
   layerDiversity,
@@ -581,7 +582,7 @@ describe("buildResultFromFusion", () => {
 
     expect(result.source).toBe("fused");
     expect(result.role).toBe("operationalLot");
-    expect(result.quality?.fusionVersion).toBe(2);
+    expect(result.quality?.fusionVersion).toBe(FUSION_VERSION);
     expect(result.quality?.cadastreSnapped).toBe(true);
     expect(result.quality?.parcelCount).toBe(2);
     expect(result.quality?.layers?.length).toBeGreaterThan(0);
@@ -822,15 +823,36 @@ describe("foreign businesses as counter-evidence (P3)", () => {
     const osm: OsmEvidence = {
       areas: [
         { kind: "parking", ring: dealer, tags: {}, osmType: "way", osmId: 1 },
-        { kind: "landuse", ring: rect(0, 0, 40, 25), tags: { landuse: "commercial" }, osmType: "way", osmId: 2 },
+        {
+          kind: "landuse",
+          ring: rect(0, 0, 40, 25),
+          tags: { landuse: "commercial" },
+          osmType: "way",
+          osmId: 2,
+        },
         // An unnamed office plot next door; only its tenants' points say whose it is.
-        { kind: "landuse", ring: rect(90, 0, 50, 30), tags: { landuse: "commercial" }, osmType: "way", osmId: 3 },
-        { kind: "parking", ring: rect(90, 0, 45, 25), tags: {}, osmType: "way", osmId: 4 },
+        {
+          kind: "landuse",
+          ring: rect(90, 0, 50, 30),
+          tags: { landuse: "commercial" },
+          osmType: "way",
+          osmId: 3,
+        },
+        {
+          kind: "parking",
+          ring: rect(90, 0, 45, 25),
+          tags: {},
+          osmType: "way",
+          osmId: 4,
+        },
       ],
       lines: [],
       addressNodes: [],
       namedPlaces: [
-        { point: unprojectPoint([95, 5], ANCHOR), tags: { office: "company", name: "DREEBIT GmbH" } },
+        {
+          point: unprojectPoint([95, 5], ANCHOR),
+          tags: { office: "company", name: "DREEBIT GmbH" },
+        },
       ],
     };
     const result = fuseBoundary(bundle({ osm, name: siteName }), PARAMS);
@@ -921,10 +943,9 @@ describe("separate components need more than an adjacent parcel (P3)", () => {
   it("rejects an untagged car park whose only link is the adjacent parcel", () => {
     const result = withSecondLot({ amenity: "parking" }, "parking");
     expect(result).not.toBeNull();
+    // The unnamed car park sits outside the site parcels, so the site gate
+    // damps it below the confirmation threshold before membership is asked.
     expect(result!.additionalComponents).toBe(0);
-    expect(result!.reasons.join(" ")).toMatch(
-      /adjacency alone is not evidence/,
-    );
   });
 
   it("still accepts vehicle-trade use on the adjacent parcel", () => {
@@ -940,5 +961,134 @@ describe("separate components need more than an adjacent parcel (P3)", () => {
     );
     expect(result).not.toBeNull();
     expect(result!.additionalComponents).toBe(0);
+  });
+});
+
+describe("business park: the site does not swallow its neighbours", () => {
+  // One industrial landuse over three parcels: the dealership in the middle,
+  // an unnamed hall with a yard to the east, an unnamed car park to the south,
+  // tied together by shared driveways — the layout that v2 flooded.
+  const dealerParcel = rect(0, 0, 40, 40);
+  const eastParcel = rect(80, 0, 40, 40);
+  const southParcel = rect(0, -80, 40, 40);
+  const parcels = [dealerParcel, eastParcel, southParcel].map((r) => ({
+    ring: r,
+    areaSqm: ringAreaSqm(r),
+    state: "Baden-Württemberg",
+  }));
+  const osm: OsmEvidence = {
+    areas: [
+      {
+        kind: "landuse",
+        ring: rect(40, -40, 90, 90),
+        tags: { landuse: "industrial" },
+        osmType: "way",
+        osmId: 1,
+      },
+      {
+        kind: "dealerArea",
+        ring: rect(0, 0, 36, 36),
+        tags: { shop: "car", name: "Autohaus Brinkmann" },
+        osmType: "way",
+        osmId: 2,
+      },
+      {
+        kind: "building",
+        ring: rect(80, 10, 30, 20),
+        tags: { building: "industrial" },
+        osmType: "way",
+        osmId: 3,
+      },
+      {
+        kind: "parking",
+        ring: rect(80, -28, 30, 10),
+        tags: { amenity: "parking" },
+        osmType: "way",
+        osmId: 4,
+      },
+      {
+        kind: "parking",
+        ring: rect(0, -80, 35, 30),
+        tags: { amenity: "parking" },
+        osmType: "way",
+        osmId: 5,
+      },
+    ],
+    lines: [
+      {
+        kind: "serviceAisle",
+        line: [
+          unprojectPoint([20, 0], ANCHOR),
+          unprojectPoint([110, 0], ANCHOR),
+        ],
+        halfWidthM: 3,
+        tags: { highway: "service" },
+        osmId: 6,
+      },
+      {
+        kind: "serviceAisle",
+        line: [
+          unprojectPoint([0, -20], ANCHOR),
+          unprojectPoint([0, -110], ANCHOR),
+        ],
+        halfWidthM: 3,
+        tags: { highway: "service" },
+        osmId: 7,
+      },
+    ],
+    addressNodes: [],
+    namedPlaces: [],
+  };
+
+  it("keeps the result on the dealership parcel", () => {
+    const result = fuseBoundary(
+      bundle({ osm, parcels, name: "Autohaus Brinkmann" }),
+      PARAMS,
+    );
+    expect(result).not.toBeNull();
+    const dealerArea = ringAreaSqm(dealerParcel);
+    expect(result!.areaSqm).toBeLessThanOrEqual(dealerArea * 1.25);
+    expect(
+      polygonRasterIoU(result!.polygon, {
+        type: "Polygon",
+        coordinates: [dealerParcel],
+      }),
+    ).toBeGreaterThanOrEqual(0.8);
+    for (const neighbour of [
+      [80, 10],
+      [80, -28],
+      [0, -80],
+    ] as Array<[number, number]>) {
+      const cell = lonLatToCell(
+        result!.grid.spec,
+        unprojectPoint(neighbour, ANCHOR),
+      )!;
+      expect(
+        result!.mask[cellIndex(result!.grid.spec, cell.col, cell.row)],
+      ).toBe(0);
+    }
+    expect(result!.layers.some((l) => l.layer === "alkis-site-gate")).toBe(
+      true,
+    );
+  });
+
+  it("reports the real point relation when the anchor is off the site", () => {
+    const outcome = fuseBoundary(
+      bundle({ osm, parcels, name: "Autohaus Brinkmann" }),
+      PARAMS,
+    )!;
+    const result = buildResultFromFusion(
+      { ...outcome, anchor: unprojectPoint([0, 300], ANCHOR) },
+      PARAMS,
+      {
+        barrierSupport: 0.5,
+        cadastreSnapped: false,
+        parcelCount: 1,
+        areaPlausibility: 0.9,
+        sourceAgreement: 0.5,
+      },
+    );
+    expect(result.quality?.pointRelation).toBe("outside");
+    expect(result.quality?.pointDistanceM).toBeGreaterThan(200);
   });
 });

@@ -16,7 +16,8 @@ const SOURCE_COLOR: Record<BoundarySource, string> = {
   osm: "#0891b2",
   overture: "#7c3aed",
   aerial: "#ea580c",
-  fused: "#10b981",
+  // Distinct from manual green: the two used to be indistinguishable.
+  fused: "#db2777",
   synthetic: "#f59e0b",
   manual: "#16a34a",
 };

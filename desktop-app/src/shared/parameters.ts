@@ -53,17 +53,38 @@ export const DEFAULT_RISK_PARAMETERS: RiskParameters = {
   boundaryGridResolutionM: 0.5,
   boundaryGridExtentM: 400,
   boundaryGrowHighThreshold: 0.6,
-  boundaryGrowLowThreshold: 0.15,
-  boundaryMaxAreaSqm: 200_000,
+  // 0.4 keeps a lone landuse (0.35) or roof (0.3) from carrying growth
+  // across a business park; see docs/boundary-model.md.
+  boundaryGrowLowThreshold: 0.4,
+  boundaryMaxAreaSqm: 60_000,
   boundaryParcelSnapOverlap: 0.6,
   boundaryVehicleEvidenceWeight: 1,
   boundaryBarrierSupportReview: 0.35,
   boundaryRegularizeAngleToleranceDeg: 12,
 };
 
+/**
+ * Earlier defaults that were retuned. A stored value equal to the old default
+ * was never chosen by the user — it is the old default persisted with the
+ * session — so it moves to the new one. A deliberately edited value is kept.
+ */
+const RETIRED_DEFAULTS: Partial<RiskParameters> = {
+  boundaryGrowLowThreshold: 0.15,
+  boundaryMaxAreaSqm: 200_000,
+};
+
 /** Normalizes a partial/legacy session value without mutating the input. */
 export function normalizeRiskParameters(
   value?: Partial<RiskParameters> | null,
 ): RiskParameters {
-  return RiskParametersSchema.parse({ ...DEFAULT_RISK_PARAMETERS, ...value });
+  const migrated: Partial<RiskParameters> = { ...value };
+  for (const [key, retired] of Object.entries(RETIRED_DEFAULTS) as Array<
+    [keyof RiskParameters, unknown]
+  >) {
+    if (migrated[key] === retired) delete migrated[key];
+  }
+  return RiskParametersSchema.parse({
+    ...DEFAULT_RISK_PARAMETERS,
+    ...migrated,
+  });
 }

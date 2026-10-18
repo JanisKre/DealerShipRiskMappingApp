@@ -795,6 +795,7 @@
       "carCategory": "Fahrzeug / Car",
       "estimated": "Fallback-Grenze",
       "manual": "Manuell",
+      "fused": "Fusioniert (mehrere Quellen)",
       "imageryTitle": "Satellitenbild (Kartenmitte)",
       "imageryLoading": "Metadaten werden geladen…",
       "imageryNoMetadataWms": "Die eigene WMS-Quelle stellt keine Bildmetadaten bereit; das Aufnahmedatum ist unbekannt.",

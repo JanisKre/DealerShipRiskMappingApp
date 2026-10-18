@@ -40,6 +40,12 @@ export interface GrowResult {
   stoppedBy: BoundaryGrowthStop;
   /** False when nothing in the region rose above `highThreshold`. */
   confirmed: boolean;
+  /**
+   * Strongest score among cells turned away by the radius cap (0 if none).
+   * Widening the search only makes sense when this is real site evidence,
+   * not a business-park landuse that simply continues past the edge.
+   */
+  capEvidence: number;
 }
 
 const NEIGHBOURS_4: ReadonlyArray<readonly [number, number]> = [
@@ -114,7 +120,14 @@ export function growRegion(
   const seedIndex = cellIndex(spec, seed.col, seed.row);
 
   if (blocked[seedIndex] || score[seedIndex] < options.lowThreshold) {
-    return { mask, seed, areaSqm: 0, stoppedBy: "exhausted", confirmed: false };
+    return {
+      mask,
+      seed,
+      areaSqm: 0,
+      stoppedBy: "exhausted",
+      confirmed: false,
+      capEvidence: 0,
+    };
   }
 
   const cellAreaSqm = spec.resolutionM * spec.resolutionM;
@@ -124,6 +137,7 @@ export function growRegion(
 
   let confirmed = score[seedIndex] >= options.highThreshold;
   let stoppedBy: BoundaryGrowthStop = "exhausted";
+  let capEvidence = 0;
   let count = 1;
   mask[seedIndex] = 1;
 
@@ -151,6 +165,7 @@ export function growRegion(
       const rr = nextRow - seed.row;
       if (rc * rc + rr * rr > maxRadiusSq) {
         stoppedBy = "radiusCap";
+        capEvidence = Math.max(capEvidence, score[nextIndex]);
         continue;
       }
 
@@ -164,13 +179,21 @@ export function growRegion(
           areaSqm: count * cellAreaSqm,
           stoppedBy: "areaCap",
           confirmed,
+          capEvidence,
         };
       }
       queue[tail++] = nextIndex;
     }
   }
 
-  return { mask, seed, areaSqm: count * cellAreaSqm, stoppedBy, confirmed };
+  return {
+    mask,
+    seed,
+    areaSqm: count * cellAreaSqm,
+    stoppedBy,
+    confirmed,
+    capEvidence,
+  };
 }
 
 /**

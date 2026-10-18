@@ -212,3 +212,53 @@ describe("assembleSiteFromParcels", () => {
     );
   });
 });
+
+describe("assembly does not annex neighbours", () => {
+  const site: ParcelFeature = {
+    ring: rect(0, 0, 60, 60),
+    areaSqm: 3_600,
+    state: "Bayern",
+  };
+  const neighbour: ParcelFeature = {
+    ring: rect(60, 0, 120, 60),
+    areaSqm: 3_600,
+    state: "Bayern",
+  };
+
+  it("skips a neighbour only grazed by the footprint", () => {
+    // The footprint covers the site and 30 % of the neighbour.
+    const result = assembleSiteFromParcels(
+      [site, neighbour],
+      unprojectPoint([30, 30], ORIGIN),
+      {
+        footprint: poly(rect(0, 0, 78, 60)),
+        supporting: [],
+      },
+    );
+    expect(result?.parcelCount).toBe(1);
+  });
+
+  it("does not let the neighbour's own car park vouch for its parcel", () => {
+    const result = assembleSiteFromParcels(
+      [site, neighbour],
+      unprojectPoint([30, 30], ORIGIN),
+      {
+        footprint: poly(rect(0, 0, 60, 60)),
+        supporting: [poly(rect(70, 10, 110, 50))],
+      },
+    );
+    expect(result?.parcelCount).toBe(1);
+  });
+
+  it("still joins a neighbour the footprint mostly covers", () => {
+    const result = assembleSiteFromParcels(
+      [site, neighbour],
+      unprojectPoint([30, 30], ORIGIN),
+      {
+        footprint: poly(rect(0, 0, 110, 60)),
+        supporting: [],
+      },
+    );
+    expect(result?.parcelCount).toBe(2);
+  });
+});

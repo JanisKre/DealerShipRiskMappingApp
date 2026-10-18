@@ -54,6 +54,13 @@ export const HARD_REJECT_RATIO = 25;
 /** Below this, an OSM footprint is treated as a building, not a lot outline. */
 export const SHOWROOM_FOOTPRINT_SQM = 1_000;
 
+/**
+ * Share of a parcel that must lie inside the known footprint before the whole
+ * parcel is taken. A parcel only grazed by the footprint — a raster edge, a
+ * driveway bleeding over the line — is a neighbour, not part of the site.
+ */
+export const MIN_PARCEL_FOOTPRINT_SHARE = 0.5;
+
 export interface ParcelEvidence {
   /**
    * Geometry the site is known to occupy, e.g. a mapped dealer area or the
@@ -252,8 +259,13 @@ export function assembleSiteFromParcels(
   if (footprint) {
     features.forEach(({ feature }, index) => {
       if (anchorIndices.has(index)) return;
-      // The parcel must cover a real part of the known footprint.
-      if (overlapRatio(footprint, feature) >= 0.15) anchorIndices.add(index);
+      // The parcel must cover a real part of the known footprint *and* lie
+      // mostly inside it; otherwise the union annexes the rest of its plot.
+      if (
+        overlapRatio(footprint, feature) >= 0.15 &&
+        overlapRatio(feature, footprint) >= MIN_PARCEL_FOOTPRINT_SHARE
+      )
+        anchorIndices.add(index);
     });
   }
 
@@ -289,9 +301,16 @@ export function assembleSiteFromParcels(
   }
 
   // Stage 2: expand along shared edges onto evidenced parcels only.
+  // A supporting polygon only vouches when it belongs to the site itself;
+  // a neighbour's car park next door is evidence for the neighbour.
   const supporting = evidence.supporting
     .map((polygon) => polygonToFeature(polygon))
-    .filter((feature): feature is PolyFeature => feature !== null);
+    .filter((feature): feature is PolyFeature => feature !== null)
+    .filter(
+      (feature) =>
+        !footprint ||
+        overlapRatio(feature, footprint) >= MIN_PARCEL_FOOTPRINT_SHARE,
+    );
 
   const selected = new Set(anchorIndices);
   let expanded = 0;
@@ -301,9 +320,9 @@ export function assembleSiteFromParcels(
     for (let i = 0; i < features.length; i += 1) {
       if (selected.has(i)) continue;
       const candidate = features[i].feature;
-      const hasEvidence =
-        supporting.some((support) => overlapRatio(candidate, support) >= 0.2) ||
-        (footprint ? overlapRatio(candidate, footprint) >= 0.1 : false);
+      const hasEvidence = footprint
+        ? overlapRatio(candidate, footprint) >= MIN_PARCEL_FOOTPRINT_SHARE
+        : supporting.some((support) => overlapRatio(candidate, support) >= 0.2);
       if (!hasEvidence) continue;
       const touches = [...selected].some((index) =>
         sharesEdge(features[index].parcel.ring, features[i].parcel.ring),
