@@ -63,13 +63,6 @@ export function SummaryCards({
     (a, d) => a + effectiveVehicleCount(d.detection),
     0,
   );
-  const exposedVehicles = dealerships.reduce(
-    (a, d) => a + (d.risk?.ealBreakdown?.hailDetail?.exposedVehicles ?? 0),
-    0,
-  );
-  const hasExposedVehicles = dealerships.some(
-    (d) => d.risk?.ealBreakdown?.hailDetail != null,
-  );
   const totalExposure = dealerships.reduce(
     (a, d) => a + (d.risk?.exposureEur ?? 0),
     0,
@@ -104,11 +97,6 @@ export function SummaryCards({
     {
       label: t("common.vehicles"),
       value: num(totalVehicles),
-      hint: hasExposedVehicles
-        ? t("dashboard.kpi.exposedVehicles", {
-            count: Math.round(exposedVehicles),
-          })
-        : undefined,
       icon: Car,
     },
     {

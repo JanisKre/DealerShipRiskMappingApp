@@ -260,7 +260,7 @@
       }
     },
     "hailEal": {
-      "formula": "N = Fahrzeuge unter freiem Himmel (überdachte Fahrzeuge werden abgezogen), λ = Ereignisse pro Jahr in der Hagelzone, p·S = erwarteter Schaden je Fahrzeug und Ereignis.",
+      "formula": "N = auf dem Gelände gezählte Fahrzeuge (keine Schätzung für Fahrzeuge im Gebäude), λ = Ereignisse pro Jahr in der Hagelzone, p·S = erwarteter Schaden je Fahrzeug und Ereignis.",
       "placeholders": "Platzhalterwerte – Kalibrierung durch das Underwriting steht aus. Die EAL ist eine Screening-Schätzung, keine Tarif- oder Zeichnungsentscheidung.",
       "meanSeverity": "Erwarteter Schaden je exponiertem Fahrzeug und Ereignis (Σ p·S): {{value}}",
       "shareSum": "Die Anteile p summieren sich auf {{sum}} statt 1 – sie werden für die Berechnung auf 1 normiert."
@@ -536,11 +536,10 @@
       "manualCountInvalid": "Ganze Zahl ≥ 0 eingeben.",
       "exposureLabel": "Exposure",
       "totalEalLabel": "EAL gesamt",
-      "mainScoreTitle": "Hauptscore · Hagel",
+      "mainScoreTitle": "Hagelzone",
       "hailScoreLabel": "Hagel-Score",
       "hailZoneLabel": "Hagelzone {{zone}}",
       "hailZoneKasko": "K-Kasko · {{tier}}",
-      "hailZoneScore": "Score {{score}}/100",
       "ealPeril": {
         "hail": "Hagel",
         "total": "Summe"
@@ -632,7 +631,7 @@
       "natCatTitle": "Hagel-Datenquelle",
       "natCatRefresh": "Quellen neu abfragen",
       "natCatRefreshing": "Quellen werden abgefragt…",
-      "natCatHazard": "{{peril}}: {{score}}/100 ({{unit}})",
+      "natCatHazard": "{{peril}}: Zone {{zone}} ({{unit}})",
       "natCatAttribute": "{{name}}: {{value}}",
       "errorPrefix": "Fehler: {{error}}",
       "recommendedDeductibleLabel": "Empf. Selbstbehalt",
@@ -668,8 +667,6 @@
     "examplePromptClusters": "Kumulationen anzeigen",
     "examplePromptZones": "Hagelzonen-Verteilung anzeigen",
     "kpi": {
-      "exposedVehicles_one": "davon {{count}} im Freien",
-      "exposedVehicles_other": "davon {{count}} im Freien",
       "perYear": "pro Jahr",
       "largestAccumulation": "Größte Kumulation",
       "accumulationHint_one": "{{count}} Standort · {{radius}} km",
@@ -733,12 +730,11 @@
     },
     "hailEalDetail": {
       "title": "Hagel-EAL",
-      "vehicles": "Exponierte Fahrzeuge (N)",
-      "vehiclesValue": "{{exposed}} von {{total}}",
+      "vehicles": "Fahrzeuge auf dem Gelände (N)",
       "frequency": "Frequenz (λ)",
       "frequencyValue": "{{frequency}}/Jahr · Zone {{zone}}",
       "severity": "Schaden je Fahrzeug (Σ p·S)",
-      "formula": "{{exposed}} Fahrzeuge × {{frequency}} Ereignisse/Jahr × {{severity}} = {{eal}} pro Jahr.",
+      "formula": "{{vehicles}} Fahrzeuge × {{frequency}} Ereignisse/Jahr × {{severity}} = {{eal}} pro Jahr.",
       "vehicleSource": {
         "manual": "Fahrzeugzahl manuell geprüft.",
         "detected": "Fahrzeugzahl aus der Luftbild-Erkennung.",
@@ -839,8 +835,8 @@
       },
       "imageryAlternatives": "Geprüfte Alternativen",
       "business": "Geschäftsart",
-      "existingBusiness": "Bestandsgeschäft (gefüllt)",
-      "newBusiness": "Neugeschäft (Kontur)",
+      "existingBusiness": "Bestandsgeschäft (blauer Rand)",
+      "newBusiness": "Neugeschäft (violetter Rand, +)",
       "imageryWaybackVersion": "Wayback-Version"
     },
     "editBoundary": "Grenze bearbeiten",
@@ -889,7 +885,6 @@
       "satelliteOpacityAriaLabel": "Satelliten-Deckkraft",
       "boundariesLayerLabel": "Grundstücke",
       "nearbyInsuredLayerLabel": "Versicherte Nachbarn",
-      "hailOverlayLayerLabel": "Hagel-Score",
       "accumulationClustersLayerLabel": "Kumul-Cluster",
       "editingActiveBadge": "aktiv",
       "editBoundariesButton": "Grenzen bearbeiten",
@@ -910,16 +905,7 @@
       "imageryVersionHint_one": "{{count}} Esri-Bildstand an der Kartenmitte (Esri World Imagery Wayback).",
       "imageryVersionHint_other": "{{count}} Esri-Bildstände an der Kartenmitte (Esri World Imagery Wayback).",
       "imageryVersionZoomHint": "Ab Zoomstufe 15 lassen sich ältere Esri-Bildstände wählen.",
-      "recentSceneLayerLabel": "Aktuelle Szene (30 m, nur Kontext)",
-      "recentSceneSelectAriaLabel": "Szene auswählen",
-      "recentSceneCloud": "{{pct}} % Wolken",
-      "recentSceneOpacityAriaLabel": "Deckkraft der aktuellen Szene",
-      "recentSceneHint": "NASA HLS (Sentinel-2/Landsat), 30 m. Zeigt Veränderungen am Standort seit dem scharfen Bild – keine Fahrzeuge.",
-      "recentSceneNone": "Keine Szene mit höchstens {{cloud}} % Wolken in den letzten {{days}} Tagen.",
       "imageryVersionPinnedBadge": "Archiv"
-    },
-    "hailScoreOverlay": {
-      "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"
     },
     "page": {
       "attributionOsm": "OpenStreetMap-Mitwirkende",
@@ -985,11 +971,11 @@
     },
     "hail": {
       "highTitle": "Hohes Hagelrisiko",
-      "highDetail": "Hagel-Score {{score}}/100 — Gebiet mit hoher Hagelgefahr. Deckung nur mit Zuschlag/Selbstbehalt empfehlen.",
+      "highDetail": "Hagelzone {{zone}} — Gebiet mit hoher Hagelgefahr. Deckung nur mit Zuschlag/Selbstbehalt empfehlen.",
       "lowTitle": "Geringes Hagelrisiko",
-      "lowDetail": "Hagel-Score {{score}}/100 — Gebiet mit geringer Hagelgefahr.",
+      "lowDetail": "Hagelzone {{zone}} — Gebiet mit geringer Hagelgefahr.",
       "mediumTitle": "Mittleres Hagelrisiko",
-      "mediumDetail": "Hagel-Score {{score}}/100."
+      "mediumDetail": "Hagelzone {{zone}}."
     },
     "limit": {
       "breachTitle": "Produktlimit erreicht",
@@ -1013,7 +999,7 @@
     "group": {
       "title": "Gruppe „{{group}}“ — {{count}} Standorte",
       "breachNote": " {{count}} Standort(e) über Produktlimit.",
-      "detail": "{{insured}}/{{total}} versichert, kumulierte Exposure {{exposure}}, {{vehicles}} Fahrzeuge. Max. Hagel-Score {{maxHail}}/100.{{breachNote}} Rückversichern (Gruppe): {{reinsureWord}}. Pricing (Gruppe): {{pricing}}."
+      "detail": "{{insured}}/{{total}} versichert, kumulierte Exposure {{exposure}}, {{vehicles}} Fahrzeuge. Max. Hagelzone {{maxZone}}.{{breachNote}} Rückversichern (Gruppe): {{reinsureWord}}. Pricing (Gruppe): {{pricing}}."
     }
   },
   "upload": {

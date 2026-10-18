@@ -24,21 +24,13 @@ import {
   SelectValue,
 } from "@renderer/components/ui/select";
 import { Skeleton } from "@renderer/components/ui/skeleton";
-import { Slider } from "@renderer/components/ui/slider";
 import {
   waybackCandidateForVersion,
   type ImageryTimeline,
 } from "@shared/imagery-wayback";
-import {
-  GIBS_PRODUCTS,
-  recentSceneKey,
-  type RecentScene,
-  type RecentScenes,
-} from "@shared/imagery-gibs";
-import {
-  formatImageryDate,
-  imageryCandidateSummary,
-} from "@renderer/lib/imageryFormat";
+import { imageryCandidateSummary } from "@renderer/lib/imageryFormat";
+import { BusinessTypeSelect } from "@renderer/components/dashboard/PortfolioFilterBar";
+import type { AnalyzedDealership } from "@shared/types";
 import { useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { ScenarioBuilder } from "./ScenarioBuilder";
 import { PANEL_ACTION_CLASS } from "./panelStyles";
@@ -121,6 +113,8 @@ function LayerToggle({
 }
 
 export interface LayerPanelProps {
+  /** Locations on the map (for the business-type filter counts). */
+  dealerships: AnalyzedDealership[];
   drawing: boolean;
   onToggleDraw: () => void;
   capturing: boolean;
@@ -135,80 +129,6 @@ export interface LayerPanelProps {
   imageryTimelineLoading: boolean;
   /** False when the basemap is not satellite or a custom WMS replaces Esri. */
   imageryTimelineAvailable: boolean;
-  /** Recent 30 m scenes at the map centre; null while the overlay is off. */
-  recentScenes: RecentScenes | null;
-  recentScenesLoading: boolean;
-  /** Scene the overlay currently shows. */
-  activeRecentScene: RecentScene | null;
-}
-
-/** Scene choice and opacity for the recent 30 m scene overlay. */
-function RecentSceneControls({
-  scenes,
-  loading,
-  active,
-}: Readonly<{
-  scenes: RecentScenes | null;
-  loading: boolean;
-  active: RecentScene | null;
-}>): React.JSX.Element {
-  const { t, i18n } = useTranslation();
-  const setRecentScene = useMapStore((s) => s.setRecentScene);
-  const opacity = useMapStore((s) => s.recentSceneOpacity);
-  const setOpacity = useMapStore((s) => s.setRecentSceneOpacity);
-  const list = scenes?.scenes ?? [];
-
-  if (loading && !scenes) return <Skeleton className="h-9 w-full" />;
-  if (!scenes || list.length === 0) {
-    return (
-      <p className="text-[10px] leading-snug text-muted-foreground">
-        {t("map.layerPanel.recentSceneNone", {
-          days: scenes?.days ?? 60,
-          cloud: scenes?.maxCloud ?? 40,
-        })}
-      </p>
-    );
-  }
-  return (
-    <div className="space-y-1.5 pl-6">
-      <Select
-        value={active ? recentSceneKey(active) : undefined}
-        onValueChange={(v) => {
-          const scene = list.find((s) => recentSceneKey(s) === v);
-          if (scene) setRecentScene({ product: scene.product, day: scene.day });
-        }}
-      >
-        <SelectTrigger
-          className="w-full text-xs"
-          aria-label={t("map.layerPanel.recentSceneSelectAriaLabel")}
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {list.map((s) => (
-            <SelectItem
-              key={recentSceneKey(s)}
-              value={recentSceneKey(s)}
-              className="text-xs"
-            >
-              {formatImageryDate(s.day, i18n.language)} ·{" "}
-              {GIBS_PRODUCTS[s.product].label}
-              {s.cloudPct != null &&
-                ` · ${t("map.layerPanel.recentSceneCloud", { pct: Math.round(s.cloudPct) })}`}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Slider
-        value={opacity}
-        onValueChange={setOpacity}
-        aria-label={t("map.layerPanel.recentSceneOpacityAriaLabel")}
-      />
-      <p className="text-[10px] leading-snug text-muted-foreground">
-        {t("map.layerPanel.recentSceneHint")}
-      </p>
-    </div>
-  );
 }
 
 const AUTO_IMAGERY = "auto";
@@ -295,6 +215,7 @@ function ImageryVersionSelect({
 }
 
 export function LayerPanel({
+  dealerships,
   drawing,
   onToggleDraw,
   capturing,
@@ -307,23 +228,17 @@ export function LayerPanel({
   imageryTimeline,
   imageryTimelineLoading,
   imageryTimelineAvailable,
-  recentScenes,
-  recentScenesLoading,
-  activeRecentScene,
 }: LayerPanelProps): React.JSX.Element {
   const { t } = useTranslation();
   const layers = useMapStore((s) => s.layers);
   const toggleLayer = useMapStore((s) => s.toggleLayer);
   const basemap = useMapStore((s) => s.basemap);
   const setBasemap = useMapStore((s) => s.setBasemap);
-  const perilOverlay = useMapStore((s) => s.perilOverlay);
-  const setPerilOverlay = useMapStore((s) => s.setPerilOverlay);
   const editing = useMapStore((s) => s.editing);
   const setEditing = useMapStore((s) => s.setEditing);
   const setDetectionEditing = useMapStore((s) => s.setDetectionEditing);
 
-  const activeLayerCount =
-    Object.values(layers).filter(Boolean).length + (perilOverlay ? 1 : 0);
+  const activeLayerCount = Object.values(layers).filter(Boolean).length;
   const [open, setOpen] = useState(false);
   const bmLabels = basemapLabels(t);
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
@@ -425,29 +340,14 @@ export function LayerPanel({
                   onChange={() => toggleLayer("nearbyInsured")}
                 />
                 <LayerToggle
-                  label={t("map.layerPanel.hailOverlayLayerLabel")}
-                  checked={perilOverlay === "hail"}
-                  onChange={() =>
-                    setPerilOverlay(perilOverlay === "hail" ? null : "hail")
-                  }
-                />
-                <LayerToggle
                   label={t("map.layerPanel.accumulationClustersLayerLabel")}
                   checked={layers.accumulationClusters}
                   onChange={() => toggleLayer("accumulationClusters")}
                 />
-                <LayerToggle
-                  label={t("map.layerPanel.recentSceneLayerLabel")}
-                  checked={layers.recentScene ?? false}
-                  onChange={() => toggleLayer("recentScene")}
+                <BusinessTypeSelect
+                  dealerships={dealerships}
+                  className="h-8 w-full bg-background text-xs"
                 />
-                {layers.recentScene && (
-                  <RecentSceneControls
-                    scenes={recentScenes}
-                    loading={recentScenesLoading}
-                    active={activeRecentScene}
-                  />
-                )}
               </div>
             </Section>
 

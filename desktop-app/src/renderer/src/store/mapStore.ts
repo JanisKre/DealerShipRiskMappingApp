@@ -1,8 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Peril } from "@shared/types";
 import type { PinnedWayback } from "@shared/imagery-wayback";
-import type { RecentScene } from "@shared/imagery-gibs";
 import type { RiskLevel } from "@renderer/lib/riskColor";
 
 /** Basemap variants. WMS override (from settings) only applies to "satellite". */
@@ -17,8 +15,6 @@ export interface MapLayers {
   nearbyInsured: boolean;
   /** Accumulation clusters (>= 2 locations) as radius circles, opacity ~ EAL share. */
   accumulationClusters: boolean;
-  /** Recent 30 m satellite scene (NASA HLS) over the basemap, context only. */
-  recentScene: boolean;
 }
 
 /** Search and filter options. */
@@ -47,11 +43,6 @@ interface MapState {
    * silently reappear on the next start.
    */
   pinnedWayback: PinnedWayback | null;
-  /** Scene chosen for the recent-scene overlay (`null` = newest available). */
-  recentScene: Pick<RecentScene, "product" | "day"> | null;
-  /** Opacity of the recent-scene overlay (0..1). */
-  recentSceneOpacity: number;
-  perilOverlay: Peril | null;
   editing: boolean;
   detectionEditing: boolean;
   filter: MapFilter;
@@ -69,9 +60,6 @@ interface MapState {
   setBasemap: (basemap: Basemap) => void;
   setSatelliteOpacity: (v: number) => void;
   setPinnedWayback: (v: PinnedWayback | null) => void;
-  setRecentScene: (v: Pick<RecentScene, "product" | "day"> | null) => void;
-  setRecentSceneOpacity: (v: number) => void;
-  setPerilOverlay: (p: Peril | null) => void;
   setEditing: (v: boolean) => void;
   setDetectionEditing: (v: boolean) => void;
   setFilter: (f: Partial<MapFilter>) => void;
@@ -98,14 +86,10 @@ export const useMapStore = create<MapState>()(
         detections: true,
         nearbyInsured: false,
         accumulationClusters: false,
-        recentScene: false,
       },
       basemap: "satellite",
       satelliteOpacity: 1,
       pinnedWayback: null,
-      recentScene: null,
-      recentSceneOpacity: 0.8,
-      perilOverlay: null,
       editing: false,
       detectionEditing: false,
       filter: DEFAULT_FILTER,
@@ -121,10 +105,6 @@ export const useMapStore = create<MapState>()(
       setBasemap: (basemap) => set({ basemap }),
       setSatelliteOpacity: (satelliteOpacity) => set({ satelliteOpacity }),
       setPinnedWayback: (pinnedWayback) => set({ pinnedWayback }),
-      setRecentScene: (recentScene) => set({ recentScene }),
-      setRecentSceneOpacity: (recentSceneOpacity) =>
-        set({ recentSceneOpacity }),
-      setPerilOverlay: (perilOverlay) => set({ perilOverlay }),
       setEditing: (editing) => set({ editing }),
       setDetectionEditing: (detectionEditing) => set({ detectionEditing }),
       setFilter: (partial) =>
@@ -139,29 +119,17 @@ export const useMapStore = create<MapState>()(
     }),
     {
       name: "drm-map-ui",
-      // Only persistent fields — view/filter/layers/basemap/opacity/perilOverlay.
+      // Only persistent fields — view/filter/layers/basemap/opacity.
       // `editing` is always false on startup (no persisted edit mode).
       partialize: (s) => ({
         layers: s.layers,
         basemap: s.basemap,
         satelliteOpacity: s.satelliteOpacity,
-        recentSceneOpacity: s.recentSceneOpacity,
-        perilOverlay: s.perilOverlay,
         filter: s.filter,
         view: s.view,
         locationsPanelOpen: s.locationsPanelOpen,
         chatPanelOpen: s.chatPanelOpen,
       }),
-      // An overlay of a peril removed with the hail-only model (storm,
-      // flood, …) must not come back as an empty overlay after an update.
-      merge: (persisted, current) => {
-        const stored = (persisted ?? {}) as Partial<MapState>;
-        return {
-          ...current,
-          ...stored,
-          perilOverlay: stored.perilOverlay === "hail" ? "hail" : null,
-        };
-      },
     },
   ),
 );

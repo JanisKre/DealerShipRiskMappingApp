@@ -61,8 +61,6 @@ const HOST_POLICIES: Record<string, HostPolicy> = {
   // keeps parallel analyses from stacking up on the archive.
   "wayback.maptiles.arcgis.com": { maxConcurrent: 6 },
   "metadata.maptiles.arcgis.com": { maxConcurrent: 4 },
-  // NASA CMR catalogue search for the recent-scene overlay.
-  "cmr.earthdata.nasa.gov": { maxConcurrent: 2 },
 };
 
 class HostGate {

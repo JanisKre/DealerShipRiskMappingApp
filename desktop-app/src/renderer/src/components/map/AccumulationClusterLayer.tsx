@@ -2,7 +2,10 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Circle, Tooltip } from "./leaflet-react";
 import type { AnalyzedDealership } from "@shared/types";
-import { computeAccumulationClusters } from "@shared/risk-math";
+import {
+  computeAccumulationClusters,
+  estimateHailZoneFromScore,
+} from "@shared/risk-math";
 import { riskColor } from "@renderer/lib/riskColor";
 import { eur } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
@@ -77,8 +80,10 @@ export function AccumulationClusterLayer({
               <div className="space-y-0.5">
                 <strong className="font-mono">{c.clusterId}</strong>
                 <div>
-                  {c.count} {t("dashboard.locations")} · {t("ui.hailLevel")}{" "}
-                  {c.maxHailScore.toFixed(0)}
+                  {c.count} {t("dashboard.locations")} ·{" "}
+                  {t("dashboard.hailZoneLabel", {
+                    zone: estimateHailZoneFromScore(c.maxHailScore),
+                  })}
                 </div>
                 <div>
                   {t("ui.value")}: {eur(c.totalExposureEur)}

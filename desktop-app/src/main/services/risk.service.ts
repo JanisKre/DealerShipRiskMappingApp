@@ -5,7 +5,6 @@ import type {
   NatCatAssessment,
   RiskAssessment,
 } from "@shared/types";
-import { exposureRatioForBoundary } from "./roof.service";
 import {
   fetchWeather,
   NEUTRAL_WEATHER_METRICS,
@@ -36,17 +35,14 @@ export async function scoreRisk(
   natCat?: NatCatAssessment,
 ): Promise<RiskAssessment> {
   let weatherFallbackUsed = false;
-  const [weather, exposureRatio] = await Promise.all([
-    fetchWeather(lat, lon).catch((error: unknown) => {
-      // A transient Open-Meteo failure (outage, rate limit, timeout) must
-      // degrade the weather-driven score, not abort the whole analysis —
-      // boundary detection and vehicle counting already succeeded by now.
-      console.warn("Weather lookup failed; using a neutral fallback", error);
-      weatherFallbackUsed = true;
-      return NEUTRAL_WEATHER_METRICS;
-    }),
-    boundary ? exposureRatioForBoundary(boundary) : Promise.resolve(1),
-  ]);
+  const weather = await fetchWeather(lat, lon).catch((error: unknown) => {
+    // A transient Open-Meteo failure (outage, rate limit, timeout) must
+    // degrade the weather-driven score, not abort the whole analysis —
+    // boundary detection and vehicle counting already succeeded by now.
+    console.warn("Weather lookup failed; using a neutral fallback", error);
+    weatherFallbackUsed = true;
+    return NEUTRAL_WEATHER_METRICS;
+  });
 
   const perils = scorePerils(weather, hailZone, natCat);
   const overallScore = primaryHailScore(perils);
@@ -58,8 +54,6 @@ export async function scoreRisk(
   const utilisation = capacityEstimate > 0 ? carCount / capacityEstimate : 0;
   const ealBreakdown = computeEalBreakdown(
     detection,
-    assetValue,
-    exposureRatio,
     perils,
     hailZone,
     parameters,

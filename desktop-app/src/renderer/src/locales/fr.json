@@ -339,11 +339,10 @@
       "manualCountInvalid": "Saisissez un entier ≥ 0.",
       "exposureLabel": "Exposition",
       "totalEalLabel": "EAL total",
-      "mainScoreTitle": "Score principal · Grêle",
+      "mainScoreTitle": "Zone de grêle",
       "hailScoreLabel": "Score de grêle",
       "hailZoneLabel": "Zone de grêle {{zone}}",
       "hailZoneKasko": "K-Kasko · {{tier}}",
-      "hailZoneScore": "Score {{score}}/100",
       "ealPeril": {
         "hail": "Grêle",
         "total": "Total"
@@ -429,7 +428,7 @@
       "natCatTitle": "Source de données grêle",
       "natCatRefresh": "Réinterroger les sources",
       "natCatRefreshing": "Interrogation des sources…",
-      "natCatHazard": "{{peril}} : {{score}}/100 ({{unit}})",
+      "natCatHazard": "{{peril}} : zone {{zone}} ({{unit}})",
       "natCatAttribute": "{{name}} : {{value}}",
       "errorPrefix": "Erreur : {{error}}",
       "recommendedDeductibleLabel": "Franchise recommandée",
@@ -511,8 +510,8 @@
       },
       "imageryAlternatives": "Alternatives vérifiées",
       "business": "Type d’affaire",
-      "existingBusiness": "Portefeuille existant (plein)",
-      "newBusiness": "Affaire nouvelle (contour)",
+      "existingBusiness": "Portefeuille existant (bord bleu)",
+      "newBusiness": "Affaire nouvelle (bord violet, +)",
       "imageryWaybackVersion": "Version Wayback"
     },
     "editBoundary": "Modifier la limite",
@@ -561,7 +560,6 @@
       "satelliteOpacityAriaLabel": "Opacité du satellite",
       "boundariesLayerLabel": "Parcelles",
       "nearbyInsuredLayerLabel": "Voisins assurés",
-      "hailOverlayLayerLabel": "Score grêle",
       "accumulationClustersLayerLabel": "Clusters de cumul",
       "editingActiveBadge": "actif",
       "editBoundariesButton": "Modifier les limites",
@@ -582,16 +580,7 @@
       "imageryVersionHint_one": "{{count}} version d'image Esri au centre de la carte (Esri World Imagery Wayback).",
       "imageryVersionHint_other": "{{count}} versions d'image Esri au centre de la carte (Esri World Imagery Wayback).",
       "imageryVersionZoomHint": "Zoomez au niveau 15 ou plus pour choisir des images Esri plus anciennes.",
-      "recentSceneLayerLabel": "Scène récente (30 m, contexte seulement)",
-      "recentSceneSelectAriaLabel": "Choisir la scène",
-      "recentSceneCloud": "{{pct}} % de nuages",
-      "recentSceneOpacityAriaLabel": "Opacité de la scène récente",
-      "recentSceneHint": "NASA HLS (Sentinel-2/Landsat), 30 m. Montre les changements du site depuis l'image nette – pas les véhicules.",
-      "recentSceneNone": "Aucune scène avec au plus {{cloud}} % de nuages au cours des {{days}} derniers jours.",
       "imageryVersionPinnedBadge": "archive"
-    },
-    "hailScoreOverlay": {
-      "hailZoneTooltip": "Zone {{zone}} K-Kasko · {{tier}}"
     },
     "page": {
       "attributionOsm": "contributeurs d'OpenStreetMap",
@@ -657,11 +646,11 @@
     },
     "hail": {
       "highTitle": "Risque de grêle élevé",
-      "highDetail": "Score de grêle {{score}}/100 — zone à risque de grêle élevé. Recommander une couverture uniquement avec majoration/franchise.",
+      "highDetail": "Zone de grêle {{zone}} — zone à risque de grêle élevé. Recommander une couverture uniquement avec majoration/franchise.",
       "lowTitle": "Risque de grêle faible",
-      "lowDetail": "Score de grêle {{score}}/100 — zone à faible risque de grêle.",
+      "lowDetail": "Zone de grêle {{zone}} — zone à faible risque de grêle.",
       "mediumTitle": "Risque de grêle moyen",
-      "mediumDetail": "Score de grêle {{score}}/100."
+      "mediumDetail": "Zone de grêle {{zone}}."
     },
     "limit": {
       "breachTitle": "Limite produit atteinte",
@@ -685,7 +674,7 @@
     "group": {
       "title": "Groupe « {{group}} » — {{count}} sites",
       "breachNote": " {{count}} site(s) au-dessus de la limite produit.",
-      "detail": "{{insured}}/{{total}} assurés, exposition cumulée {{exposure}}, {{vehicles}} véhicules. Score de grêle max. {{maxHail}}/100.{{breachNote}} Réassurer (groupe) : {{reinsureWord}}. Tarification (groupe) : {{pricing}}."
+      "detail": "{{insured}}/{{total}} assurés, exposition cumulée {{exposure}}, {{vehicles}} véhicules. Zone de grêle max. {{maxZone}}.{{breachNote}} Réassurer (groupe) : {{reinsureWord}}. Tarification (groupe) : {{pricing}}."
     }
   },
   "upload": {

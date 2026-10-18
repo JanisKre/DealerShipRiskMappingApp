@@ -233,6 +233,7 @@ body {
   background: var(--marker-color, #6b7280);
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
+  border: 3px solid var(--biz-color, #1d4ed8);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
@@ -247,15 +248,45 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-/* New business: hollow pin outlined in the risk color. */
-.risk-marker.marker-new-business::before {
-  background: #fff;
-  border: 3px solid var(--marker-color, #6b7280);
+/* Business type is the outline color: blue = existing, violet = new (+ badge). */
+.risk-marker.marker-new-business {
+  --biz-color: #a21caf;
 }
 
-.risk-marker.marker-new-business .marker-label {
-  color: var(--marker-color, #6b7280);
-  text-shadow: none;
+.risk-marker .marker-new-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  z-index: 2;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--biz-color, #a21caf);
+  border: 1.5px solid #fff;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 12px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Hail zone scale (1-6) in the hover tooltip and popup. */
+.hail-scale {
+  display: flex;
+  gap: 2px;
+  margin: 3px 0 1px;
+}
+
+.hail-scale i {
+  flex: 1;
+  height: 6px;
+  border-radius: 2px;
+  opacity: 0.25;
+}
+
+.hail-scale i.on {
+  opacity: 1;
 }
 
 /* Puls-Ring bei Auswahl */
@@ -285,17 +316,40 @@ body {
 }
 
 /* ── Cluster-Icon ─────────────────────────────────────────────────────── */
+/* Group of several locations: shadcn-style pill (card surface, hairline
+   border) with a risk dot for the worst risk inside, a building icon and
+   the count. Single locations stay teardrop pins. */
 .cluster-icon {
-  border-radius: 50%;
-  background: var(--cluster-color, #6b7280);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
   display: flex;
   align-items: center;
-  justify-content: center;
-  opacity: 0.88;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  gap: 6px;
+  width: max-content;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--card-foreground);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    0 4px 10px rgba(0, 0, 0, 0.18);
+}
+
+.cluster-icon i {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--cluster-color, #6b7280);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--cluster-color, #6b7280) 25%, transparent);
+}
+
+.cluster-icon svg {
+  opacity: 0.6;
 }
 
 /* ── Karten-Popup ─────────────────────────────────────────────────────── */

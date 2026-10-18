@@ -3,10 +3,10 @@ import { useTranslation } from "react-i18next";
 import L from "leaflet";
 import "leaflet.markercluster";
 import type { AnalyzedDealership } from "@shared/types";
-import { effectiveVehicleCount } from "@shared/risk-math";
+import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { isHttpWebsiteUrl, websiteLabel } from "@shared/website";
 import { eur } from "@renderer/lib/format";
-import { riskColor, riskLevel } from "@renderer/lib/riskColor";
+import { hailZoneColor, riskColor, riskLevel } from "@renderer/lib/riskColor";
 import { useMap } from "./leaflet-react";
 import { riskMarkerIcon } from "./markerIcons";
 import { businessType } from "@renderer/store/appStore";
@@ -48,20 +48,36 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function zoneOf(d: AnalyzedDealership): number | undefined {
+  return dealershipHailZone(d)?.zone;
+}
+
+/** lucide "building-2": a group of locations, as opposed to a single pin. */
+const CLUSTER_ICON_SVG =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>';
+
+/** Six-step hail zone bar; the site's zone is lit, the others are dimmed. */
+function zoneScaleHtml(zone: number): string {
+  const cells = [1, 2, 3, 4, 5, 6]
+    .map(
+      (z) =>
+        `<i class="${z === zone ? "on" : ""}" style="background:${hailZoneColor(z)}"></i>`,
+    )
+    .join("");
+  return `<div class="hail-scale" aria-hidden="true">${cells}</div>`;
+}
+
 /** Builds the HTML content for an imperative Leaflet popup. */
-function popupHtml(d: AnalyzedDealership, t: (key: string) => string): string {
+function popupHtml(
+  d: AnalyzedDealership,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
   const score = d.risk?.overallScore;
   const color = score != null ? riskColor(score) : "#6b7280";
   const levelLabel = score != null ? t(`risk.${riskLevel(score)}`) : "—";
   const eal = d.risk?.eal != null ? eur(d.risk.eal) : "—";
   const vehicles = vehicleLabel(d, t);
-
-  const scoreBar =
-    score != null
-      ? `<div class="popup-risk-track">
-           <div class="popup-risk-bar" style="width:${score}%;background:${color}"></div>
-         </div>`
-      : "";
+  const zone = dealershipHailZone(d)?.zone;
 
   const boundaryWarningHtml =
     d.boundary?.source === "synthetic"
@@ -97,10 +113,10 @@ function popupHtml(d: AnalyzedDealership, t: (key: string) => string): string {
       <div class="popup-row">
         <span>${t("ui.hailRisk")}</span>
         <span style="color:${color};font-weight:600">
-          ${score != null ? `${Math.round(score)}/100` : t("ui.analyzing")} ${score != null ? `(${levelLabel})` : ""}
+          ${score != null && zone != null ? `${t("dashboard.hailZoneLabel", { zone })} (${levelLabel})` : t("ui.analyzing")}
         </span>
       </div>
-      ${scoreBar}
+      ${zone != null ? zoneScaleHtml(zone) : ""}
       <div class="popup-row">
         <span>${t("ui.ealYear")}</span><span>${eal}</span>
       </div>
@@ -149,12 +165,14 @@ export function ClusteredMarkers({
           0,
         );
         const color = riskColor(maxScore);
-        const size = count < 10 ? 36 : count < 50 ? 44 : 52;
+        const label = `${count} ${t("dashboard.locations")}`;
+        // Fixed box so Leaflet can anchor it; the pill itself is centered inside.
+        const width = 56 + label.length * 7;
         return L.divIcon({
           className: "",
-          iconSize: [size, size],
-          iconAnchor: [size / 2, size / 2],
-          html: `<div class="cluster-icon" style="--cluster-color:${color};width:${size}px;height:${size}px">${count}</div>`,
+          iconSize: [width, 32],
+          iconAnchor: [width / 2, 16],
+          html: `<div class="cluster-icon" style="--cluster-color:${color}"><i></i>${CLUSTER_ICON_SVG}<span>${escapeHtml(label)}</span></div>`,
         });
       },
     });
@@ -165,7 +183,7 @@ export function ClusteredMarkers({
       map.removeLayer(group);
       clusterRef.current = null;
     };
-  }, [map]);
+  }, [map, t]);
 
   // Sync markers when data or selection changes.
   useEffect(() => {
@@ -184,11 +202,12 @@ export function ClusteredMarkers({
       const marker = L.marker([d.lat, d.lon], {
         icon: riskMarkerIcon(
           d.risk?.overallScore ?? null,
+          zoneOf(d),
           isSelected,
           businessType(d),
         ),
         opacity: pending ? 0.6 : 1,
-        alt: `${d.name}${d.risk ? ` – ${t("ui.hailRisk")} ${Math.round(d.risk.overallScore)}/100` : ""}`,
+        alt: `${d.name}${zoneOf(d) != null ? ` – ${t("dashboard.hailZoneLabel", { zone: zoneOf(d) })}` : ""}`,
         keyboard: true,
         title: d.name,
         riseOnHover: true,
@@ -202,8 +221,9 @@ export function ClusteredMarkers({
       const tooltipText = [
         `<strong>${escapeHtml(d.name)}</strong>`,
         d.risk
-          ? `${t("ui.hailRisk")}: ${Math.round(d.risk.overallScore)}/100 (${t(`risk.${riskLevel(d.risk.overallScore)}`)})`
+          ? `${t("dashboard.hailZoneLabel", { zone: zoneOf(d) })} (${t(`risk.${riskLevel(d.risk.overallScore)}`)})`
           : t("ui.analyzing"),
+        zoneOf(d) != null ? zoneScaleHtml(zoneOf(d)!) : null,
         d.detection ? `${t("common.vehicles")}: ${vehicleLabel(d, t)}` : null,
         d.boundary?.reviewRequired ? t("ui.boundaryReviewNeeded") : null,
       ]
