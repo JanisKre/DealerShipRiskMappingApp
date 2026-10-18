@@ -663,9 +663,9 @@ export const RiskParametersSchema = z.object({
   /** A grown region must contain at least one cell at or above this score. */
   boundaryGrowHighThreshold: z.number().default(0.6),
   /** Growth continues through cells at or above this score (hysteresis). */
-  boundaryGrowLowThreshold: z.number().default(0.15),
+  boundaryGrowLowThreshold: z.number().default(0.4),
   /** Hard area cap; hitting it flags the result for review. */
-  boundaryMaxAreaSqm: z.number().positive().default(200_000),
+  boundaryMaxAreaSqm: z.number().positive().default(60_000),
   /** Share of a cadastral parcel that must be covered before it is snapped in. */
   boundaryParcelSnapOverlap: z.number().min(0).max(1).default(0.6),
   /** Scales how strongly detected vehicles pull the boundary outwards. */

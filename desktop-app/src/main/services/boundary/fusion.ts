@@ -1,3 +1,4 @@
+import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import type {
   BoundaryEvidenceLayer,
   BoundaryGeometry,
@@ -7,7 +8,13 @@ import type {
   RiskParameters,
   SourceStatus,
 } from "@shared/types";
-import { checkRing, projectPoint, type LonLat } from "../boundary-geometry";
+import {
+  checkRing,
+  distanceToRingM,
+  projectPoint,
+  type LonLat,
+} from "../boundary-geometry";
+import { outerRings } from "@shared/boundary-geometry-utils";
 import {
   cellIndex,
   cellToLonLat,
@@ -21,6 +28,7 @@ import {
   polygonRasterIoU,
   rasterizeBarrier,
   rasterizeDisk,
+  rasterizeMaskPolygon,
   rasterizePolygon,
   rasterizePolyline,
   rasterizeReinforcement,
@@ -67,12 +75,28 @@ import {
 /** Bumped whenever scoring changes, so cached results can be retired. */
 // v2: foreign businesses are counter-evidence; an adjacent parcel alone no
 // longer admits a separate component.
-export const FUSION_VERSION = 2;
+// v3: evidence outside the site's own parcels is damped (site gate), the
+// cadastral snap may no longer enlarge the site, and the search space only
+// widens for real site evidence at the edge — v2 flooded business parks.
+export const FUSION_VERSION = 3;
 
 /** Below this, a separately-confirmed component reads as raster noise, not a site part. */
 const MIN_SECONDARY_COMPONENT_SQM = 100;
 /** At most this many additional components beyond the primary site (P3). */
 const MAX_ADDITIONAL_COMPONENTS = 1;
+
+/**
+ * Factor on positive evidence outside the site's own parcels. A business park
+ * is one landuse polygon full of unnamed roofs, yards and shared driveways;
+ * at full weight that evidence carried growth across every neighbour until a
+ * public road stopped it. Damped, nothing outside the site parcels clears the
+ * growth threshold on its own.
+ */
+export const SITE_GATE_FACTOR = 0.3;
+/** A parcel is part of the site when this share of it carries matched site evidence. */
+const SITE_PARCEL_EVIDENCE_SHARE = 0.3;
+/** The cadastral union may exceed the fused site by at most this factor. */
+export const MAX_SNAP_GROWTH = 1.25;
 
 /** Cell weights per evidence layer. See docs/boundary-model.md. */
 export const LAYER_WEIGHTS = {
@@ -134,6 +158,10 @@ export interface FusionOutcome {
   grid: EvidenceGrid;
   /** Share of the final outline running along a physical barrier cell (P4). */
   barrierSupport: number;
+  /** Geocoded reference point, for the point relation of the result. */
+  anchor: LonLat;
+  /** Strongest evidence turned away by the radius cap; see `GrowResult`. */
+  capEvidence: number;
   /**
    * Number of separately-grown components beyond the primary site (P3) —
    * present in `polygon` as extra `MultiPolygon` parts, each individually
@@ -423,11 +451,86 @@ export function buildEvidenceGrid(
     });
   }
 
+  if (anchorParcel) {
+    const gated = applySiteGate(bundle, anchorParcel, spec, score);
+    acc.add({
+      layer: "alkis-site-gate",
+      source: "German cadastral service / ALKIS",
+      weight: SITE_GATE_FACTOR,
+      cells: gated.cells,
+      available: true,
+      limitation: `Evidence outside ${gated.siteParcels} site parcel(s) damped`,
+    });
+  }
+
   return {
     grid,
     layers: acc.layers,
     foreignBusinesses: [...foreignBusinesses],
   };
+}
+
+/**
+ * Damps positive evidence outside the parcels that demonstrably belong to the
+ * site: the anchor parcel plus every parcel substantially covered by matched
+ * dealer geometry (address match, or a dealer area that is not another named
+ * operator's) or holding a matched address node. Returns the damped cell count.
+ */
+function applySiteGate(
+  bundle: FusionBundle,
+  anchorParcel: ParcelFeature,
+  spec: EvidenceGrid["spec"],
+  score: Float32Array,
+): { cells: number; siteParcels: number } {
+  const evidence = new Uint8Array(score.length);
+  if (bundle.matchedRing)
+    rasterizeMaskPolygon(spec, bundle.matchedRing, evidence);
+  for (const area of bundle.osm?.areas ?? []) {
+    if (area.kind !== "dealerArea") continue;
+    // Vehicle-trade use vouches for its parcel unless it is demonstrably
+    // another operator's; unnamed roofs, yards and car parks do not.
+    if (
+      matchesSite(area.tags, bundle.name, bundle.address) ||
+      ringContains(area.ring, bundle.anchor) ||
+      !isForeignBusiness(area.tags, bundle.name)
+    ) {
+      rasterizeMaskPolygon(spec, area.ring, evidence);
+    }
+  }
+  const nodes = (bundle.osm?.addressNodes ?? [])
+    .filter((node) => matchesSite(node.tags, bundle.name, bundle.address))
+    .map((node) => node.point);
+
+  const site = new Uint8Array(score.length);
+  let siteParcels = 0;
+  for (const parcel of bundle.parcels) {
+    const parcelMask = new Uint8Array(score.length);
+    const cells = rasterizeMaskPolygon(spec, parcel.ring, parcelMask);
+    let belongs =
+      parcel === anchorParcel ||
+      nodes.some((point) => ringContains(parcel.ring, point));
+    if (!belongs && cells > 0) {
+      let covered = 0;
+      for (let i = 0; i < parcelMask.length; i += 1) {
+        if (parcelMask[i] && evidence[i]) covered += 1;
+      }
+      belongs = covered / cells >= SITE_PARCEL_EVIDENCE_SHARE;
+    }
+    if (!belongs) continue;
+    siteParcels += 1;
+    for (let i = 0; i < parcelMask.length; i += 1) {
+      if (parcelMask[i]) site[i] = 1;
+    }
+  }
+
+  let gated = 0;
+  for (let i = 0; i < score.length; i += 1) {
+    if (score[i] > 0 && !site[i]) {
+      score[i] *= SITE_GATE_FACTOR;
+      gated += 1;
+    }
+  }
+  return { cells: gated, siteParcels };
 }
 
 /** Union of several equally-sized masks, cell by cell. */
@@ -700,7 +803,13 @@ export function fuseBoundary(
         fusedGeometry,
         parameters.boundaryGridResolutionM,
       );
-      if (agreement >= parameters.boundaryParcelSnapOverlap) {
+      const fusedAreaSqm = maskAreaSqm(grid.spec, combinedMask);
+      if (assembled.areaSqm > fusedAreaSqm * MAX_SNAP_GROWTH) {
+        // Snapping exists for surveyed edges, not to annex a neighbour's plot.
+        reasons.push(
+          `cadastral union rejected: ${(assembled.areaSqm / Math.max(1, fusedAreaSqm)).toFixed(2)}x the fused site`,
+        );
+      } else if (agreement >= parameters.boundaryParcelSnapOverlap) {
         polygon = assembled.polygon;
         areaSqm = assembled.areaSqm;
         cadastre = assembled;
@@ -728,6 +837,8 @@ export function fuseBoundary(
     grid,
     barrierSupport,
     additionalComponents: additionalMasks.length,
+    anchor: bundle.anchor,
+    capEvidence: grown.capEvidence,
   };
 }
 
@@ -788,6 +899,27 @@ export function buildResultFromFusion(
     stoppedByCap: outcome.stoppedBy !== "exhausted",
   });
 
+  // The seed may move off the geocoded point, so the result does not
+  // necessarily contain it — report what is true rather than assuming.
+  let inside = false;
+  try {
+    inside = booleanPointInPolygon(outcome.anchor, outcome.polygon);
+  } catch {
+    inside = false;
+  }
+  const pointDistanceM = inside
+    ? 0
+    : Math.min(
+        ...outerRings(outcome.polygon).map((ring) =>
+          distanceToRingM(outcome.anchor, ring as LonLat[]),
+        ),
+      );
+  const pointRelation = inside
+    ? "inside"
+    : pointDistanceM <= parameters.boundaryNearPointDistanceM
+      ? "near"
+      : "outside";
+
   return {
     source: "fused",
     role: "operationalLot",
@@ -797,7 +929,8 @@ export function buildResultFromFusion(
     confidence,
     quality: {
       geometryValid: true,
-      pointRelation: "inside",
+      pointRelation,
+      pointDistanceM,
       sourceAgreement: extras.sourceAgreement,
       areaPlausibility: extras.areaPlausibility,
       boundaryFit: 1,

@@ -153,10 +153,10 @@ means the number cannot be used to triage review.
 
 ## The fusion engine
 
-Enabled per-installation via the `boundaryEngine` setting (`"legacy"` |
-`"fused"`). **It defaults to `legacy`**, and stays there until it beats the
-candidate chain on the hold-out stratum of the public benchmark. Compare them
-with `npm run benchmark:boundary` and `npm run benchmark:boundary:fused`.
+The app runs the fusion engine (`settings.service.ts` pins `boundaryEngine` to
+`"fused"`); the candidate chain remains the fallback whenever fusion returns
+null. Compare the two with `npm run benchmark:boundary` and
+`npm run benchmark:boundary:fused`.
 
 ### How it works
 
@@ -192,6 +192,38 @@ edges, which is exactly how the baseline over-shot by 90%. The consequence is
 deliberate: with *only* a parcel available, fusion returns null and the
 candidate chain proposes the parcel honestly, flagged for review, rather than
 fusion redrawing it as a confirmed operational lot.
+
+### Business parks (fusion v3)
+
+Fusion v2 over-shot badly inside commercial estates: one industrial landuse
+polygon, unnamed halls and yards, shared driveways. Each of those is weak
+positive evidence, the growth threshold (0.15) let every one of them carry the
+region, and nothing stopped it short of a public road — the result was the
+dealership plus its neighbours, and vehicles on the neighbours' lots were
+counted as exposure. A regression fixture
+(`fusion.test.ts`, "business park") reproduces it: v2 returned 32,400 m² for a
+6,400 m² dealer parcel. v3 adds four constraints:
+
+- **Site gate.** With cadastral parcels available, positive evidence outside
+  the site parcels is multiplied by `SITE_GATE_FACTOR` (0.3). Site parcels are
+  the anchor parcel plus parcels at least 30% covered by the address-matched
+  polygon or by a dealer area that is not another named operator's, and
+  parcels holding a matched address node. The gate is reported as the
+  `alkis-site-gate` layer.
+- **Growth threshold 0.4** (`boundaryGrowLowThreshold`). A lone landuse (0.35)
+  or roof (0.3) no longer carries growth; stacked evidence or the anchor
+  parcel's reinforcement still does.
+- **Area cap 60,000 m²** (`boundaryMaxAreaSqm`, was 200,000), and the
+  operational-lot plausibility ceiling drops to the same value, so an outsized
+  outline is flagged for review. Sessions that stored the old defaults are
+  migrated (`normalizeRiskParameters`); edited values are kept.
+- **Search widening only for real evidence.** The grid widens after a radius
+  cap only when a cell turned away at the edge reached the confirmation
+  threshold (`GrowResult.capEvidence`), not because a landuse continues.
+
+Limitation: a dealership whose second plot carries no dealer tagging (an
+unnamed overflow car park on the next parcel) is now left out and needs a
+manual edit — the deliberate price of not annexing neighbours.
 
 ### Area comes from the mask, not the ring
 
@@ -263,14 +295,17 @@ legal edges are, and surveyed edges beat a 0.5 m raster staircase.
 Assembly (`boundary/parcel-assembly.ts`) is two-stage:
 
 1. **Anchors** — parcels containing the geocoded point, plus parcels covering a
-   real share of the mapped footprint.
-2. **Expansion** — grow along *shared boundaries* onto parcels that carry their
-   own supporting evidence. A parcel with no evidence is never added, however
-   adjacent; that is what stops a site running away across a business park.
+   real share of the mapped footprint *and* lying at least half inside it.
+2. **Expansion** — grow along *shared boundaries* onto parcels that lie at
+   least half inside the fused footprint. Supporting parking or dealer
+   polygons only count when they themselves belong to the footprint, so a
+   neighbour's car park never vouches for the neighbour's plot.
 
 The union is adopted only if it overlaps the fused shape by at least
-`boundaryParcelSnapOverlap`, and never when the cadastral response was
-truncated — which parcels are missing is arbitrary, so the union would be too.
+`boundaryParcelSnapOverlap`, is at most `MAX_SNAP_GROWTH` (1.25x) its area —
+snapping straightens edges, it must not annex a plot — and never when the
+cadastral response was truncated, since which parcels are missing is
+arbitrary.
 
 ### Two things learned building it
 

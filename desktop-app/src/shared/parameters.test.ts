@@ -20,6 +20,24 @@ describe("risk parameter normalization", () => {
     expect(patch).toEqual({ vehicleValueCarEur: 42_000 });
   });
 
+  it("moves retired boundary defaults to the retuned ones", () => {
+    const result = normalizeRiskParameters({
+      boundaryGrowLowThreshold: 0.15,
+      boundaryMaxAreaSqm: 200_000,
+    });
+    expect(result.boundaryGrowLowThreshold).toBe(0.4);
+    expect(result.boundaryMaxAreaSqm).toBe(60_000);
+  });
+
+  it("keeps boundary values the user chose deliberately", () => {
+    const result = normalizeRiskParameters({
+      boundaryGrowLowThreshold: 0.25,
+      boundaryMaxAreaSqm: 90_000,
+    });
+    expect(result.boundaryGrowLowThreshold).toBe(0.25);
+    expect(result.boundaryMaxAreaSqm).toBe(90_000);
+  });
+
   it("rejects invalid values instead of silently accepting them", () => {
     expect(() => normalizeRiskParameters({ vehicleValueCarEur: -1 })).toThrow();
     expect(() =>

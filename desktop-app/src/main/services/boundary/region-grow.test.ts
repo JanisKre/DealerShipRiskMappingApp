@@ -160,6 +160,9 @@ describe("growRegion", () => {
       maxRadiusM: 20,
     });
     expect(result.stoppedBy).toBe("radiusCap");
+    // What was turned away at the edge is reported, so the caller can tell
+    // real site evidence from a landuse that merely continues.
+    expect(result.capEvidence).toBeCloseTo(1, 5);
   });
 
   it("returns an empty region for an unsupported seed", () => {

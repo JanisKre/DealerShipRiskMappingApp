@@ -279,6 +279,9 @@ async function tryFusedBoundary(
     let expansions = 0;
     while (
       outcome?.stoppedBy === "radiusCap" &&
+      // Only real site evidence at the edge justifies a wider search; a
+      // landuse or roof that merely continues past it does not.
+      outcome.capEvidence >= attemptParameters.boundaryGrowHighThreshold &&
       expansions < MAX_SEARCH_EXPANSIONS
     ) {
       expansions += 1;
@@ -579,7 +582,9 @@ function areaBoundsForRole(
     ? [20, 2_500, 50_000]
     : role === "parcel"
       ? [100, 5_000, 500_000]
-      : [250, 8_000, 250_000];
+      : // A dealership lot rarely exceeds a few hectares; beyond that the
+        // outline has almost certainly swallowed neighbours.
+        [250, 8_000, 60_000];
 }
 
 function areaPlausibilityScore(

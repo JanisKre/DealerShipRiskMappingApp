@@ -84,6 +84,8 @@ function fusionOutcome(
     grid: {} as never,
     barrierSupport: 0.4,
     additionalComponents: 0,
+    anchor: ANCHOR,
+    capEvidence: 0,
     ...overrides,
   };
 }
@@ -148,6 +150,8 @@ describe("boundaryEngine flag", () => {
       grid: {} as never,
       barrierSupport: 0.4,
       additionalComponents: 0,
+      anchor: ANCHOR,
+      capEvidence: 0,
     });
 
     const result = await detectBoundary(LAT, LON);
@@ -216,6 +220,8 @@ describe("boundaryEngine flag", () => {
       grid: {} as never,
       barrierSupport: 0,
       additionalComponents: 0,
+      anchor: ANCHOR,
+      capEvidence: 0,
     });
 
     const result = await detectBoundary(LAT, LON);
@@ -228,7 +234,9 @@ describe("boundaryEngine flag", () => {
   it("widens the search space when growth is capped by its radius, then succeeds", async () => {
     mocks.getSettings.mockReturnValue({ boundaryEngine: "fused" });
     vi.spyOn(fusion, "fuseBoundary")
-      .mockReturnValueOnce(fusionOutcome({ stoppedBy: "radiusCap" }))
+      .mockReturnValueOnce(
+        fusionOutcome({ stoppedBy: "radiusCap", capEvidence: 1 }),
+      )
       .mockReturnValueOnce(fusionOutcome({ stoppedBy: "exhausted" }));
 
     const result = await detectBoundary(LAT, LON);
@@ -241,10 +249,22 @@ describe("boundaryEngine flag", () => {
     expect(extents[1]).toBeGreaterThan(extents[0]);
   });
 
+  it("does not widen the search when only weak evidence continues past the edge", async () => {
+    mocks.getSettings.mockReturnValue({ boundaryEngine: "fused" });
+    vi.spyOn(fusion, "fuseBoundary").mockReturnValue(
+      fusionOutcome({ stoppedBy: "radiusCap", capEvidence: 0.35 }),
+    );
+
+    const result = await detectBoundary(LAT, LON);
+    expect(result.source).toBe("fused");
+    expect(result.quality?.possiblyIncomplete).toBe(true);
+    expect(mocks.collectEvidence).toHaveBeenCalledTimes(1);
+  });
+
   it("stops after two expansions and flags the result as possibly incomplete", async () => {
     mocks.getSettings.mockReturnValue({ boundaryEngine: "fused" });
     vi.spyOn(fusion, "fuseBoundary").mockReturnValue(
-      fusionOutcome({ stoppedBy: "radiusCap" }),
+      fusionOutcome({ stoppedBy: "radiusCap", capEvidence: 1 }),
     );
 
     const result = await detectBoundary(LAT, LON);

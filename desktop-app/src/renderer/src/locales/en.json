@@ -795,6 +795,7 @@
       "carCategory": "Vehicle / Car",
       "estimated": "Fallback boundary",
       "manual": "Manual",
+      "fused": "Fused (multi-source)",
       "imageryTitle": "Satellite image (map centre)",
       "imageryLoading": "Loading metadata…",
       "imageryNoMetadataWms": "The custom WMS source provides no image metadata; the capture date is unknown.",

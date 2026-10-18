@@ -470,6 +470,7 @@
       "carCategory": "Véhicule / Car",
       "estimated": "Limite de secours",
       "manual": "Manuel",
+      "fused": "Fusionnée (multi-sources)",
       "imageryTitle": "Image satellite (centre de la carte)",
       "imageryLoading": "Chargement des métadonnées…",
       "imageryNoMetadataWms": "La source WMS personnalisée ne fournit aucune métadonnée ; la date de prise de vue est inconnue.",
