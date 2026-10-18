@@ -4,8 +4,8 @@ import "@/index.css";
 
 /**
  * The page renders after the browser has tried to jump to the URL's anchor,
- * so links like docs/#build would otherwise land at the top. Repeat the jump
- * once the content exists.
+ * so links like docs/installation/#unsigned-builds would otherwise land at
+ * the top. Repeat the jump once the content exists.
  */
 function ScrollToHash(): null {
   useEffect(() => {
@@ -15,7 +15,7 @@ function ScrollToHash(): null {
   return null;
 }
 
-/** Shared bootstrap for every HTML entry (index.html, docs/index.html). */
+/** Shared bootstrap for every HTML entry (index.html and the docs pages). */
 export function mount(page: React.ReactNode): void {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>

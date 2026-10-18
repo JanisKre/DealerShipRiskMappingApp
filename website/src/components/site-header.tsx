@@ -9,7 +9,7 @@ export function SiteHeader({ page }: { page: Page }): React.JSX.Element {
   const nav = [
     { href: sitePath(page, "home", "#features"), label: "Features", active: false },
     { href: sitePath(page, "home", "#download"), label: "Download", active: false },
-    { href: sitePath(page, "docs"), label: "Docs", active: page === "docs" },
+    { href: sitePath(page, "docs"), label: "Docs", active: page !== "home" },
   ];
 
   return (

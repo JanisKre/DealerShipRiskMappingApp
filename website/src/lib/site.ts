@@ -1,16 +1,26 @@
+import type { DocSlug } from "@/lib/docs-pages";
+
 export const REPO_URL = "https://github.com/JanisKre/DealerShipRiskMappingApp";
 export const RELEASES_URL = `${REPO_URL}/releases`;
 const DOWNLOAD_BASE = `${RELEASES_URL}/latest/download`;
 
-export type Page = "home" | "docs";
+/** A page of the site: the homepage, the docs overview or a docs page. */
+export type Page = "home" | "docs" | DocSlug;
+
+function depth(page: Page): number {
+  return page === "home" ? 0 : page === "docs" ? 1 : 2;
+}
+
+function pathOf(page: Page): string {
+  return page === "home" ? "" : page === "docs" ? "docs/" : `docs/${page}/`;
+}
 
 /**
  * Relative link from one page to another (optionally to an anchor), so the
  * site works under the GitHub Pages project path and on a custom domain.
  */
 export function sitePath(from: Page, to: Page, hash = ""): string {
-  const root = from === "home" ? "./" : "../";
-  return `${root}${to === "docs" ? "docs/" : ""}${hash}`;
+  return `${"../".repeat(depth(from)) || "./"}${pathOf(to)}${hash}`;
 }
 
 /** Links a file or folder on the default branch. */

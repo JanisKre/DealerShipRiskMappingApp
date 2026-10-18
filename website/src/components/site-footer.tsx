@@ -15,7 +15,7 @@ export function SiteFooter({ page }: { page: Page }): React.JSX.Element {
     {
       title: "Docs",
       links: [
-        { href: sitePath(page, "docs", "#quick-start"), label: "Quick start" },
+        { href: sitePath(page, "quick-start"), label: "Quick start" },
         { href: repoFile("ARCHITECTURE.md"), label: "Architecture" },
         { href: repoFile("docs/risk-model.md"), label: "Risk model" },
         { href: repoFile("CONTRIBUTING.md"), label: "Contributing" },

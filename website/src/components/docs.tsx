@@ -1,341 +1,193 @@
-import { AlertTriangle, ExternalLink } from "lucide-react";
-import { useEffect, useState } from "react";
-import { CodeBlock } from "@/components/code-block";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { DOC_TOPICS, type DocTopicId } from "@/lib/docs-topics";
-import { repoFile, sitePath } from "@/lib/site";
+import { ArrowLeft, ArrowRight, ChevronDown } from "lucide-react";
+import { A, DOC_CONTENT } from "@/components/docs-content";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { DOC_GROUPS, DOC_PAGES, type DocSlug } from "@/lib/docs-pages";
+import { type Page, repoFile, sitePath } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-const QUICK_START = [
-  {
-    title: "Install",
-    text: (
-      <>
-        Download the installer for your platform from the{" "}
-        <A href={sitePath("docs", "home", "#download")}>download section</A>{" "}
-        and follow the notes for unsigned builds.
-      </>
-    ),
-  },
-  {
-    title: "Install the detection model",
-    text: "On first launch a wizard offers to download the vehicle detection model. You can skip it; the app then uses an area-based estimate.",
-  },
-  {
-    title: "Import your portfolio",
-    text: "Load a CSV, TSV or Excel file, or add single locations by address. Addresses without coordinates are geocoded.",
-  },
-  {
-    title: "Review lot boundaries",
-    text: "Check the detected parking areas on the map and correct polygons where needed. Edited boundaries are rescored immediately; use “Update car detection” to recount vehicles.",
-  },
-  {
-    title: "Run the analysis",
-    text: "The app counts vehicles, looks up the hail score and calculates the hail EAL for every location. A batch can be stopped after the active location; failures are kept per location.",
-  },
-  {
-    title: "Read and share the results",
-    text: "Explore the map and dashboard, open a location to see the full calculation, generate an AI memo and export to PDF, Excel, CSV or a .drm portfolio file.",
-  },
-];
+type DocsPage = Exclude<Page, "home">;
 
-const SAMPLE_CSV = `name,address,lat,lon,value
-Autohaus Beispiel Nord,"Musterstraße 1, 20095 Hamburg",,,1800000
-Autohaus Beispiel Süd,"Beispielweg 5, 80331 München",48.137,11.575,2500000`;
-
-const FURTHER_READING = [
-  { path: "ARCHITECTURE.md", text: "Architecture and the 3-process model" },
-  { path: "docs/risk-model.md", text: "Risk model, formulas and default parameters" },
-  { path: "docs/boundary-model.md", text: "How lot boundaries are detected" },
-  { path: "docs/imagery-sources.md", text: "Aerial imagery sources and licences" },
-  { path: "PRIVACY.md", text: "Privacy policy and external services" },
-  { path: "SECURITY.md", text: "Reporting a vulnerability" },
-  { path: "CONTRIBUTING.md", text: "Development workflow and conventions" },
-  { path: "CHANGELOG.md", text: "Version history" },
-];
-
-/** Topic whose section is nearest below the sticky header while scrolling. */
-function useActiveTopic(): DocTopicId {
-  const [active, setActive] = useState<DocTopicId>(DOC_TOPICS[0].id);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting);
-        if (visible.length > 0) setActive(visible[0].target.id as DocTopicId);
-      },
-      // A band just below the header: a section counts once its top enters it.
-      { rootMargin: "-80px 0px -65% 0px" },
-    );
-    for (const topic of DOC_TOPICS) {
-      const el = document.getElementById(topic.id);
-      if (el) observer.observe(el);
-    }
-    return () => observer.disconnect();
-  }, []);
-
-  return active;
-}
-
-export function Docs(): React.JSX.Element {
-  const active = useActiveTopic();
+export function Docs({ page }: { page: DocsPage }): React.JSX.Element {
+  const current = DOC_PAGES.find((p) => p.slug === page);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16">
-      <div className="mb-10 max-w-2xl border-b pb-10 md:mb-12">
-        <p className="text-primary mb-2 text-sm font-semibold tracking-wide uppercase">
-          Documentation
-        </p>
-        <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-          Getting started
-        </h1>
+    <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:py-16 lg:grid-cols-[13rem_1fr] lg:gap-16">
+      <aside className="hidden lg:block">
+        <div className="sticky top-24">
+          <DocsNav page={page} />
+        </div>
+      </aside>
+
+      <details className="group bg-muted/40 rounded-lg border lg:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+          {current ? current.title : "Overview"}
+          <ChevronDown className="text-muted-foreground size-4 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="border-t px-4 py-4">
+          <DocsNav page={page} />
+        </div>
+      </details>
+
+      <article className="min-w-0 max-w-3xl">
+        {current ? <DocArticle slug={current.slug} /> : <Overview />}
+      </article>
+    </div>
+  );
+}
+
+function DocsNav({ page }: { page: DocsPage }): React.JSX.Element {
+  return (
+    <nav aria-label="Documentation" className="space-y-6 text-sm">
+      <NavLink href={sitePath(page, "docs")} active={page === "docs"}>
+        Overview
+      </NavLink>
+      {DOC_GROUPS.map((group) => (
+        <div key={group.label}>
+          <p className="mb-2 font-semibold">{group.label}</p>
+          <ul className="space-y-0.5 border-l">
+            {group.pages.map((p) => (
+              <li key={p.slug}>
+                <NavLink href={sitePath(page, p.slug)} active={page === p.slug} indent>
+                  {p.title}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+function NavLink({
+  href,
+  active,
+  indent = false,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  indent?: boolean;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <a
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "text-muted-foreground hover:text-foreground block py-1 transition-colors",
+        indent && "-ml-px border-l border-transparent pl-4 hover:border-current",
+        active && "text-foreground font-medium",
+        active && indent && "border-primary hover:border-primary",
+      )}
+    >
+      {children}
+    </a>
+  );
+}
+
+function Overview(): React.JSX.Element {
+  return (
+    <>
+      <PageHeading eyebrow="Documentation" title="User guide">
         <p className="text-muted-foreground mt-4 text-lg text-pretty">
           Everything you need for a first portfolio run. The full technical
           documentation lives in the{" "}
           <A href={repoFile("README.md")}>repository</A>.
         </p>
-      </div>
-
-      <div className="grid gap-10 lg:grid-cols-[13rem_1fr] lg:gap-16">
-        <nav aria-label="Documentation" className="hidden lg:block">
-          <ul className="sticky top-24 space-y-1 border-l text-sm">
-            {DOC_TOPICS.map((item) => (
-              <li key={item.id}>
-                <a
-                  href={`#${item.id}`}
-                  aria-current={active === item.id ? "location" : undefined}
-                  className={cn(
-                    "text-muted-foreground hover:text-foreground hover:border-foreground -ml-px block border-l border-transparent py-1 pl-4 transition-colors",
-                    active === item.id && "border-primary text-foreground font-medium",
-                  )}
-                >
-                  {item.label}
+      </PageHeading>
+      <div className="space-y-12">
+        {DOC_GROUPS.map((group) => (
+          <section key={group.label}>
+            <h2 className="mb-4 text-xl font-semibold tracking-tight">{group.label}</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {group.pages.map((p) => (
+                <a key={p.slug} href={sitePath("docs", p.slug)} className="group">
+                  <Card className="h-full group-hover:shadow-md">
+                    <CardHeader className="gap-2">
+                      <CardTitle className="flex items-center justify-between text-base">
+                        {p.title}
+                        <ArrowRight className="text-muted-foreground group-hover:text-foreground size-4 transition-transform group-hover:translate-x-0.5" />
+                      </CardTitle>
+                      <CardDescription className="leading-relaxed">
+                        {p.blurb}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
                 </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div className="min-w-0 max-w-3xl space-y-14">
-          <nav
-            aria-label="On this page"
-            className="bg-muted/40 rounded-lg border p-4 lg:hidden"
-          >
-            <p className="mb-2 text-sm font-semibold">On this page</p>
-            <ul className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-              {DOC_TOPICS.map((item) => (
-                <li key={item.id}>
-                  <a
-                    href={`#${item.id}`}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    {item.label}
-                  </a>
-                </li>
               ))}
-            </ul>
-          </nav>
-
-          <DocSection id="quick-start" title="Quick start">
-            <ol className="space-y-5">
-              {QUICK_START.map((step, i) => (
-                <li key={step.title} className="flex gap-4">
-                  <span className="bg-primary text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
-                    {i + 1}
-                  </span>
-                  <div>
-                    <h3 className="font-medium">{step.title}</h3>
-                    <p className="text-muted-foreground mt-1">{step.text}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </DocSection>
-
-          <DocSection id="import-format" title="Import format">
-            <p>
-              CSV, TSV (comma, semicolon or tab, detected automatically) and
-              XLSX files are supported. Column names are matched
-              case-insensitively, and German headers such as{" "}
-              <Code>Autohaus</Code>, <Code>Adresse</Code> or <Code>PLZ</Code>{" "}
-              work too.
-            </p>
-            <ul className="text-muted-foreground list-disc space-y-1 pl-5">
-              <li>
-                <Code>name</Code> and <Code>address</Code> (or{" "}
-                <Code>street</Code>, <Code>postcode</Code>, <Code>city</Code>)
-                identify each location.
-              </li>
-              <li>
-                <Code>lat</Code> / <Code>lon</Code> are optional; empty values
-                are geocoded.
-              </li>
-              <li>
-                <Code>value</Code> is the insured value in EUR. Optional:
-                business type, sales partner, subportfolio, group, limit and
-                deductible.
-              </li>
-            </ul>
-            <CodeBlock code={SAMPLE_CSV} plain />
-          </DocSection>
-
-          <DocSection id="detection-model" title="Detection model">
-            <p>
-              Vehicles are counted with a YOLOv26s model fine-tuned on aerial
-              imagery (~36 MB, AGPL-3.0). It is not bundled with the source
-              code. The app installs it on first launch; for a source build,
-              place it at:
-            </p>
-            <CodeBlock
-              code="desktop-app/resources/models/yolov26s_aerial_vehicles.onnx"
-              plain
-            />
-            <p className="text-muted-foreground">
-              Without the model the app still runs, but vehicle counts come from
-              an area-based heuristic and are flagged as such.
-            </p>
-          </DocSection>
-
-          <DocSection id="hail-model" title="How hail risk is scored">
-            <p>
-              The app assesses <strong>hail only</strong>. The hail score (0–100)
-              comes from, in this order: a licensed provider you configure, the
-              GDV hail zone of the postcode, or a weather-based proxy from
-              Open-Meteo convective energy (CAPE).
-            </p>
-            <p>The expected annual loss per location is:</p>
-            <CodeBlock
-              code="EAL = N × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L)"
-              plain
-            />
-            <p className="text-muted-foreground">
-              <Code>N</Code> is the reviewed or detected vehicle count,{" "}
-              <Code>λ_z</Code> the damaging hail events per year in zone{" "}
-              <Code>z</Code>, and <Code>p</Code> / <Code>S</Code> the share and
-              per-vehicle loss of small, medium and large events. Every result
-              stores its inputs, sources, confidence and limitations, so each
-              number can be traced in the location details.
-            </p>
-            <Card className="border-chart-4/40 bg-chart-4/5">
-              <CardContent className="flex gap-3 p-4 text-sm">
-                <AlertTriangle className="text-chart-4 mt-0.5 size-5 shrink-0" />
-                <p>
-                  Results are <strong>screening estimates</strong>, not an
-                  engineering, legal or insurance decision. The default
-                  frequency and severity parameters are uncalibrated
-                  placeholders, and the CAPE proxy reflects a recent 92-day
-                  window rather than a hail climatology. See{" "}
-                  <A href={repoFile("docs/risk-model.md")}>the risk model</A>{" "}
-                  for sources and limitations.
-                </p>
-              </CardContent>
-            </Card>
-          </DocSection>
-
-          <DocSection id="ai-memo" title="AI memo">
-            <p>
-              Underwriting memos, executive summaries and portfolio chat are
-              optional. Choose a provider in the settings: a local runtime
-              (Ollama, LM Studio, llama.cpp), OpenAI, Claude, or a custom
-              endpoint. API keys are encrypted with the operating system's
-              keychain and never stored in plain text. Nothing is sent to an AI
-              provider unless you configure one and request a memo.
-            </p>
-          </DocSection>
-
-          <DocSection id="privacy" title="Privacy & data">
-            <p>
-              There are no accounts, no analytics and no telemetry; the
-              maintainer receives none of your data. Portfolios, results and
-              settings live in a local SQLite database.
-            </p>
-            <p className="text-muted-foreground">
-              To run an analysis, the app contacts third-party services for
-              geocoding (Nominatim, Photon), map data (Overpass, Overture Maps),
-              aerial imagery (Esri, state orthophoto services) and weather
-              (Open-Meteo). These requests contain addresses or coordinates.
-              Do not import confidential customer data unless you may share it
-              with these services. Details: <A href={repoFile("PRIVACY.md")}>privacy policy</A>.
-            </p>
-          </DocSection>
-
-          <DocSection id="build" title="Build from source">
-            <p>
-              Requires Node.js 22 or newer. Native modules are rebuilt against
-              Electron's ABI.
-            </p>
-            <CodeBlock
-              code={`git clone https://github.com/JanisKre/DealerShipRiskMappingApp.git
-cd DealerShipRiskMappingApp/desktop-app
-npm ci
-npm run rebuild
-npm run dev
-# Installer for the current OS (dmg / nsis / AppImage)
-npm run dist`}
-            />
-          </DocSection>
-
-          <DocSection id="further-reading" title="Further reading">
-            <ul className="divide-y rounded-lg border">
-              {FURTHER_READING.map((doc) => (
-                <li key={doc.path}>
-                  <a
-                    href={repoFile(doc.path)}
-                    className="hover:bg-muted/60 flex items-center justify-between gap-4 px-4 py-3 text-sm transition-colors"
-                  >
-                    <span>
-                      <span className="font-medium">{doc.path}</span>
-                      <span className="text-muted-foreground"> — {doc.text}</span>
-                    </span>
-                    <ExternalLink className="text-muted-foreground size-4 shrink-0" />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </DocSection>
-        </div>
+            </div>
+          </section>
+        ))}
       </div>
+    </>
+  );
+}
+
+function PageHeading({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  children?: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="mb-10 border-b pb-8">
+      <p className="text-primary mb-2 text-sm font-semibold tracking-wide uppercase">
+        {eyebrow}
+      </p>
+      <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
+        {title}
+      </h1>
+      {children}
     </div>
   );
 }
 
-function DocSection({
-  id,
-  title,
-  children,
-}: {
-  id: DocTopicId;
-  title: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <section id={id} className="space-y-4 leading-relaxed">
-      <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-      <Separator />
-      {children}
-    </section>
-  );
-}
+function DocArticle({ slug }: { slug: DocSlug }): React.JSX.Element {
+  const index = DOC_PAGES.findIndex((p) => p.slug === slug);
+  const page = DOC_PAGES[index];
+  const prev = DOC_PAGES[index - 1];
+  const next = DOC_PAGES[index + 1];
+  const Content = DOC_CONTENT[slug];
 
-function Code({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
-    <code className="bg-muted rounded px-1.5 py-0.5 text-[0.85em]">
-      {children}
-    </code>
-  );
-}
+    <>
+      <PageHeading eyebrow={page.group} title={page.title} />
+      <div className="space-y-4 leading-relaxed">
+        <Content />
+      </div>
 
-function A({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <a href={href} className="text-primary underline-offset-4 hover:underline">
-      {children}
-    </a>
+      <nav
+        aria-label="Previous and next page"
+        className="mt-16 grid gap-4 border-t pt-6 text-sm sm:grid-cols-2"
+      >
+        {prev ? (
+          <a href={sitePath(slug, prev.slug)} className="group">
+            <span className="text-muted-foreground flex items-center gap-1">
+              <ArrowLeft className="size-3.5" /> Previous
+            </span>
+            <span className="group-hover:text-primary font-medium">{prev.title}</span>
+          </a>
+        ) : (
+          <span />
+        )}
+        {next && (
+          <a href={sitePath(slug, next.slug)} className="group sm:text-right">
+            <span className="text-muted-foreground flex items-center gap-1 sm:justify-end">
+              Next <ArrowRight className="size-3.5" />
+            </span>
+            <span className="group-hover:text-primary font-medium">{next.title}</span>
+          </a>
+        )}
+      </nav>
+    </>
   );
 }

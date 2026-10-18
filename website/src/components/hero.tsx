@@ -15,36 +15,12 @@ import { Button } from "@/components/ui/button";
 import { DOWNLOADS, detectPlatform, REPO_URL, sitePath } from "@/lib/site";
 
 const PIPELINE = [
-  {
-    icon: FileSpreadsheet,
-    title: "Import portfolio",
-    detail: "CSV or single entry, geocoded via Nominatim",
-  },
-  {
-    icon: MapPinned,
-    title: "Detect lot boundaries",
-    detail: "ALKIS → OSM → building footprints, with confidence",
-  },
-  {
-    icon: Car,
-    title: "Count vehicles",
-    detail: "YOLOv26 on aerial imagery, reviewable per site",
-  },
-  {
-    icon: CloudHail,
-    title: "Score hail & EAL",
-    detail: "Hail zone, provider or CAPE proxy → expected annual loss",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "Map & dashboard",
-    detail: "KPIs, charts, filters, portfolio comparison",
-  },
-  {
-    icon: FileText,
-    title: "Memo & export",
-    detail: "AI underwriting memo, PDF, Excel, CSV",
-  },
+  { icon: FileSpreadsheet, title: "Import portfolio" },
+  { icon: MapPinned, title: "Detect lot boundaries" },
+  { icon: Car, title: "Count vehicles" },
+  { icon: CloudHail, title: "Score hail & EAL" },
+  { icon: LayoutDashboard, title: "Map & dashboard" },
+  { icon: FileText, title: "Memo & export" },
 ];
 
 export function Hero(): React.JSX.Element {
@@ -80,10 +56,8 @@ export function Hero(): React.JSX.Element {
           </h1>
 
           <p className="text-muted-foreground max-w-xl text-lg text-pretty">
-            Dealership Risk Mapping is a desktop app that screens car dealership
-            portfolios for hail exposure. It finds each lot, counts the vehicles
-            on aerial imagery and estimates the expected annual hail loss —
-            locally, without accounts or telemetry.
+            A desktop app that screens car dealership portfolios for hail
+            exposure — locally, without accounts or telemetry.
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -138,7 +112,7 @@ function PipelineWindow(): React.JSX.Element {
       </div>
       <ol className="relative p-4 sm:p-5">
         {PIPELINE.map((step, i) => (
-          <li key={step.title} className="relative flex gap-4 pb-5 last:pb-0">
+          <li key={step.title} className="relative flex gap-4 pb-4 last:pb-0">
             {i < PIPELINE.length - 1 && (
               <span
                 aria-hidden
@@ -148,10 +122,7 @@ function PipelineWindow(): React.JSX.Element {
             <span className="bg-accent text-accent-foreground relative flex size-9 shrink-0 items-center justify-center rounded-lg">
               <step.icon className="size-4" />
             </span>
-            <div className="min-w-0 pt-0.5">
-              <div className="text-sm font-medium">{step.title}</div>
-              <div className="text-muted-foreground text-sm">{step.detail}</div>
-            </div>
+            <div className="min-w-0 pt-2 text-sm font-medium">{step.title}</div>
           </li>
         ))}
       </ol>
