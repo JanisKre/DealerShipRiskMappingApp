@@ -2,230 +2,107 @@
 
 # 🚗 Dealership Risk Mapping
 
-**Desktop app for physical risk assessment of dealership portfolios**
+**Desktop app for hail-risk screening of car dealership portfolios — local, single-user, open source**
 
-<br />
+[![Release](https://img.shields.io/github/v/release/JanisKre/DealerShipRiskMappingApp?label=release&color=2563eb)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-macOS_%7C_Windows-2563eb)](#download)
+[![License](https://img.shields.io/badge/license-GPL--3.0--or--later-2563eb)](./LICENSE)
+[![Status](https://img.shields.io/badge/status-work_in_progress-2563eb)](./CHANGELOG.md)
 
-![Electron](https://img.shields.io/badge/Electron-44-47848F?logo=electron&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)
-![electron-vite](https://img.shields.io/badge/electron--vite-5-646CFF?logo=vite&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-better--sqlite3-003B57?logo=sqlite&logoColor=white)
-![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-YOLOv26-005CED?logo=onnx&logoColor=white)
-![Leaflet](https://img.shields.io/badge/Leaflet-1.9-199900?logo=leaflet&logoColor=white)
+**[Homepage](https://janiskre.github.io/DealerShipRiskMappingApp/) · [Docs](https://janiskre.github.io/DealerShipRiskMappingApp/docs/) · [Releases](https://github.com/JanisKre/DealerShipRiskMappingApp/releases)**
 
-![Status](https://img.shields.io/badge/status-work_in_progress-yellow)
-![Version](https://img.shields.io/badge/version-0.2.1-blue)
-![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
-![Type](https://img.shields.io/badge/mode-single--user_·_local-important)
-![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)
+</div>
 
-**[🌐 Homepage](https://janiskre.github.io/DealerShipRiskMappingApp/) · [📖 Docs](https://janiskre.github.io/DealerShipRiskMappingApp/docs/)**
+## Download
 
-### ⬇️ Download
+| Platform              | Installer                                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| macOS (Apple Silicon) | [dealership-risk-desktop-mac-arm64.dmg](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-mac-arm64.dmg) |
+| macOS (Intel)         | [dealership-risk-desktop-mac-x64.dmg](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-mac-x64.dmg)     |
+| Windows (x64)         | [dealership-risk-desktop-win-x64.exe](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-win-x64.exe)     |
 
-[![Download for macOS (Apple Silicon)](https://img.shields.io/badge/macOS-Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-mac-arm64.dmg)
-[![Download for macOS (Intel)](https://img.shields.io/badge/macOS-Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-mac-x64.dmg)
-[![Download for Windows](https://img.shields.io/badge/Windows-x64-0078D6?style=for-the-badge&logo=windowsterminal&logoColor=white)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/dealership-risk-desktop-win-x64.exe)
-
-_Builds are not code-signed (no paid developer certificate). On current macOS
-this makes Gatekeeper report the app as **"damaged"** instead of the older
-"unidentified developer" prompt, and right-click → Open no longer offers a
-bypass. After dragging the app into **Applications**, clear the quarantine
-flag in Terminal, then open it normally:_
+Builds are not code-signed yet. macOS reports the app as **"damaged"**: move
+it to **Applications**, then clear the quarantine flag and open it normally:
 
 ```bash
 xattr -cr "/Applications/Dealership Risk Mapping.app"
 ```
 
-_Windows SmartScreen may warn "Unknown publisher" — click **More info → Run
-anyway**. See [all releases](https://github.com/JanisKre/DealerShipRiskMappingApp/releases)._
+On Windows, SmartScreen may warn "Unknown publisher" — click **More info → Run
+anyway**. Linux: build an AppImage from source (`npm run dist`).
 
-</div>
+## What it does
 
----
+> **Import CSV → detect lot boundaries → count vehicles on aerial imagery →
+> score hail and the hail EAL → map + dashboard → AI memo → export.**
 
-## Contents
+- **Import** — CSV/TSV/Excel or single addresses, geocoded via Nominatim
+- **Lot boundaries** — ALKIS → OSM/Overpass → MS Building Footprints →
+  synthetic circle, with confidence scores and manual correction (Geoman)
+- **Vehicle counts** — YOLOv26 ONNX inference on aerial imagery tiles; edited
+  boundaries can be recounted
+- **Hail risk** — hail only: score from GDV hail zones, a licensed provider or
+  an Open-Meteo CAPE proxy; expected annual loss (EAL), accumulations and
+  hailstorm scenarios
+- **Dashboard** — KPIs, charts, sortable table, location details, portfolio
+  comparison
+- **AI layer (optional)** — underwriting memos, summaries and portfolio chat
+  with a local runtime (Ollama, LM Studio, llama.cpp), OpenAI, Claude or a
+  custom endpoint
+- **Local & exportable** — SQLite in the user data folder, offline API cache;
+  export to PDF, Excel, CSV and `.drm` portfolio files; German, English, French
 
-- [Download](#️-download)
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Getting Started](#getting-started)
-- [ONNX Model (required)](#onnx-model-required)
-- [Scripts](#scripts)
-- [Project Structure](#project-structure)
-- [Security](#security)
-- [Code signing policy](#code-signing-policy)
-- [Privacy](#privacy)
-- [Documentation](#documentation)
-- [License](#license)
+Results are screening estimates, not an engineering, legal or insurance
+decision — see the [risk model](./docs/risk-model.md) for sources and
+limitations.
 
-## Overview
+## Development
 
-**Dealership Risk Mapping** is a standalone Electron desktop app that assesses
-dealership locations for their physical exposure to natural hazards. The app
-runs entirely locally (single-user): location data, analyses, and API keys
-stay on the machine. It is the desktop rebuild of an original web platform —
-without that platform's multi-user infrastructure (OAuth, nginx, sharing,
-rate limiting).
-
-The core workflow in one sentence:
-
-> **Import CSV → automatically detect lot boundaries → count vehicles on
-> aerial imagery via YOLOv26 → score hail and the hail EAL →
-> map + dashboard → AI underwriting memo → export.**
-
-## Features
-
-- 📥 **Data import** — CSV portfolio upload + manual single-entry input with
-  address geocoding (Nominatim)
-- 🗺️ **Lot boundary detection** — fallback chain
-  ALKIS → OSM/Overpass → MS Building Footprints → synthetic circle,
-  with confidence scoring and manual polygon correction (Geoman)
-- 🤖 **AI vehicle detection** — YOLOv26 ONNX inference on aerial imagery tiles
-  (sliding window + soft-NMS); all supported vehicle classes are normalized to
-  one `car` count, with a stub fallback when no model is present
-- ✏️ **Boundary review** — manually edited parking boundaries are rescored
-  immediately and offer an explicit “Update car detection” action for the new
-  area
-- 🧊 **Hail risk scoring** — hail only: hail score from GDV hail zones, a
-  licensed provider or an Open-Meteo CAPE proxy; hail EAL (Expected Annual
-  Loss), accumulations, hailstorm scenario simulation
-- 📊 **Dashboard & analysis** — KPIs, charts (recharts), sortable/filterable
-  table, detail dialog, portfolio comparison
-- 🧠 **LLM layer** — underwriting memos, executive summaries, portfolio chat,
-  and natural-language queries; provider-agnostic (Ollama / OpenAI / Claude /
-  Gemini) with streaming
-- 💾 **Local persistence** — SQLite in the `userData` path + persistent API
-  cache with migrations and offline stale-data fallback
-- 📤 **Export** — PDF, Excel, CSV, plus portfolio file export/import (`.drm`)
-- 🌍 **i18n** — German, English, French
-
-## Tech Stack
-
-| Area           | Choice                                                 |
-| -------------- | ------------------------------------------------------ |
-| Runtime/Shell  | Electron 44                                            |
-| Build/Bundler  | electron-vite 5 + Vite 7                               |
-| Language       | TypeScript 5.8 (strict), separate tsconfigs (node/web) |
-| UI framework   | React 19                                               |
-| UI components  | shadcn/ui + Tailwind CSS 4 (Radix primitives)          |
-| State          | Zustand 5                                              |
-| DB (local)     | better-sqlite3 + Drizzle ORM                           |
-| Maps           | Leaflet + own React bindings + Geoman                  |
-| ML inference   | onnxruntime-node (YOLOv26) in a `utilityProcess`       |
-| LLM            | provider-agnostic (Ollama / OpenAI / Claude / Gemini)  |
-| IPC validation | Zod at the IPC boundary                                |
-| i18n           | i18next + react-i18next (de/en/fr)                     |
-| Packaging      | electron-builder (mac/win/linux)                       |
-
-## Architecture
-
-Strict **3-process model** (Main / Preload / Renderer). The renderer runs
-sandboxed with no Node access; every bit of communication is typed and
-Zod-validated over IPC.
-
-```
-┌──────────────────────────────────────────────┐
-│  RENDERER (sandboxed)                          │
-│  React 19 · shadcn/ui · Zustand · Leaflet      │
-└───────────────────────▲────────────────────────┘
-                         │ window.api.* (contextBridge)
-┌────────────────────────┴────────────────────────┐
-│  PRELOAD (contextIsolation)                       │
-│  only typed, whitelisted IPC channels             │
-└───────────────────────▲────────────────────────┘
-                         │ ipcMain.handle (Zod)
-┌────────────────────────┴────────────────────────┐
-│  MAIN (Node — "backend")                          │
-│  ipc/ · services/ · db/ · workers/ (ONNX) · config│
-└────────────────────────┬────────────────────────┘
-                         │ direct HTTP calls (no CORS)
-              External APIs: Overpass · Nominatim · Buildings · Weather
-```
-
-Details, tech-stack rationale, and the web→Electron translation:
-👉 **[ARCHITECTURE.md](./ARCHITECTURE.md)**
-
-## Getting Started
-
-Requires: **Node.js ≥ 22**.
+Requires **Node.js ≥ 22**. Run from `desktop-app/`:
 
 ```bash
-cd desktop-app
-npm install
-npm run rebuild   # rebuild native modules (better-sqlite3, onnxruntime-node, sharp) against the Electron ABI
-npm run dev       # starts Main + Preload + Renderer with HMR
+npm ci
+npm run rebuild   # native modules (better-sqlite3, onnxruntime-node, sharp) for Electron
+npm run dev       # Main + Preload + Renderer with HMR
 ```
 
-## ONNX Model (required)
+| Script                       | Purpose                                 |
+| ---------------------------- | --------------------------------------- |
+| `npm run typecheck` / `lint` | TypeScript check / ESLint (0 warnings)  |
+| `npm test` / `test:coverage` | Unit tests (Vitest), with coverage      |
+| `npm run build` / `smoke`    | Production build / smoke-test it        |
+| `npm run pack` / `dist`      | Unpacked app / installer (dmg, nsis, AppImage) |
 
-The vehicle detection model — YOLOv26s, fine-tuned on VisDrone (aerial
-vehicle imagery), ~36 MB, see [`dronefreak/visdrone-yolov26s`](https://huggingface.co/dronefreak/visdrone-yolov26s)
-on Hugging Face (AGPL-3.0) — is **not** included in the repo and must be
-placed locally:
+**Detection model:** the YOLOv26s weights
+([`dronefreak/visdrone-yolov26s`](https://huggingface.co/dronefreak/visdrone-yolov26s),
+~36 MB, AGPL-3.0) are not in the repo. Place them at
+`desktop-app/resources/models/yolov26s_aerial_vehicles.onnx`, or let the
+first-run wizard download them. Without the model the app falls back to an
+area-based estimate.
 
-```
-desktop-app/resources/models/yolov26s_aerial_vehicles.onnx
-```
-
-> If the model is missing, the app shows an installation wizard on startup
-> (auto-download once a source is configured) and falls back until then to
-> the `StubVehicleDetector` (an area-based heuristic) — the app still runs,
-> but does not produce real vehicle detections.
-
-## Scripts
-
-Run from `desktop-app/`:
-
-| Script                  | Purpose                                 |
-| ----------------------- | --------------------------------------- |
-| `npm run dev`           | Development mode with HMR               |
-| `npm run build`         | Production build (`out/`)               |
-| `npm run typecheck`     | TypeScript check (node + web)           |
-| `npm run lint`          | ESLint (0 warnings allowed)             |
-| `npm run test`          | Unit tests (Vitest)                     |
-| `npm run test:coverage` | Unit tests with V8 coverage report      |
-| `npm run smoke`         | Smoke-test the built Electron app       |
-| `npm run pack`          | Build unpacked app (`release/`)         |
-| `npm run dist`          | Build installer (dmg / nsis / AppImage) |
-
-External API calls use bounded timeouts and retries for safe idempotent
-requests. Batch analysis can be stopped after the active location; failures
-are retained per location so the remaining portfolio continues processing.
-
-## Project Structure
+**Stack:** Electron 44 · electron-vite 5 · TypeScript 5.8 · React 19 ·
+shadcn/ui + Tailwind CSS 4 · Zustand · better-sqlite3 + Drizzle · Leaflet +
+Geoman · onnxruntime-node · Zod · i18next · electron-builder.
 
 ```
-DealerShipRiskMapping/
-├─ README.md                 # this document
-├─ ARCHITECTURE.md           # target architecture & tech-stack rationale
-├─ CONTRIBUTING.md           # development workflow & conventions
-├─ CHANGELOG.md              # version history
-├─ website/                  # project homepage (Vite + shadcn/ui, GitHub Pages)
-└─ desktop-app/              # the Electron app
-   ├─ src/
-   │  ├─ main/               # IPC handlers, services, DB, ONNX worker
-   │  ├─ preload/            # contextBridge → window.api
-   │  ├─ renderer/           # React UI (components, store, styles)
-   │  └─ shared/             # Zod schemas, types, IPC channels
-   ├─ resources/             # sample_dealerships.csv, models/ (ONNX, gitignored)
-   ├─ electron.vite.config.ts
-   └─ electron-builder.json
+desktop-app/src/
+├─ main/       # IPC handlers, services, DB, ONNX worker
+├─ preload/    # contextBridge → window.api
+├─ renderer/   # React UI
+└─ shared/     # Zod schemas, types, IPC channels
 ```
 
 ## Security
 
-- `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`
-- The renderer reaches Node **only** through channels exposed by the preload
-- IPC payloads are validated at the boundary with **Zod**
-- API keys are stored via `safeStorage` (OS-keychain-encrypted) — never in
+- `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`; the
+  renderer reaches Node only through typed preload channels
+- Every IPC payload is validated with **Zod** in the main process
+- API keys are encrypted with `safeStorage` (OS keychain), never stored in
   plain text
-- ONNX inference runs in a `utilityProcess`, separate from the app/IPC event
-  loop
+- ONNX inference runs in a separate `utilityProcess`
+
+Details: [ARCHITECTURE.md](./ARCHITECTURE.md) · Reporting a vulnerability:
+[SECURITY.md](./SECURITY.md)
 
 ## Code signing policy
 
@@ -244,46 +121,38 @@ code signing provided by [SignPath.io](https://signpath.io), certificate by
   or approve a signing request.
 - Releases include SHA-256 checksums, a CycloneDX SBOM and GitHub build
   provenance attestations.
-- macOS builds are not yet signed or notarized; see the
-  [Download](#️-download) section for how to open them.
+- macOS builds are not yet signed or notarized; see [Download](#download).
 
 ## Privacy
 
 The app is local and single-user: the maintainer receives no data and there is
 no telemetry. It contacts third-party map, imagery, weather and (optionally)
 AI services only for analyses you start, and an AI memo is only generated when
-you configure a provider. Details are in the [privacy policy](./PRIVACY.md).
+you configure a provider. Details: [PRIVACY.md](./PRIVACY.md).
 
-## Documentation
+## More documentation
 
-| Document                                         | Content                              |
-| ------------------------------------------------ | ------------------------------------ |
-| [ARCHITECTURE.md](./ARCHITECTURE.md)             | Target architecture, 3-process model |
-| [CONTRIBUTING.md](./CONTRIBUTING.md)             | Development workflow, conventions    |
-| [CHANGELOG.md](./CHANGELOG.md)                   | Version history                      |
-| [desktop-app/README.md](./desktop-app/README.md) | App-specific details                 |
-| [Homepage](https://janiskre.github.io/DealerShipRiskMappingApp/) | Overview, downloads, quick start |
-| [.github/SUPPORT.md](./.github/SUPPORT.md)       | Support and data-sharing guidance    |
-| [SECURITY.md](./SECURITY.md)                     | Reporting a vulnerability            |
-| [PRIVACY.md](./PRIVACY.md)                       | Privacy policy, external services    |
-| [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)       | Community guidelines                 |
-| [LICENSE](./LICENSE)                             | GPL-3.0-or-later License             |
+[ARCHITECTURE.md](./ARCHITECTURE.md) ·
+[CONTRIBUTING.md](./CONTRIBUTING.md) ·
+[CHANGELOG.md](./CHANGELOG.md) ·
+[desktop-app/README.md](./desktop-app/README.md) ·
+[SUPPORT.md](./.github/SUPPORT.md) ·
+[CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
 
 ## License
 
-GPL-3.0-or-later © [Janis Kretschmann](https://github.com/JanisKre) — see [LICENSE](./LICENSE).
+GPL-3.0-or-later © [Janis Kretschmann](https://github.com/JanisKre) — see
+[LICENSE](./LICENSE). Third-party components keep their own licences:
 
-Third-party components keep their own licences:
-
-- **npm dependencies**: `npm run build` writes their licence texts to
-  `desktop-app/out/licenses/THIRD_PARTY_NOTICES.txt`. Packaged builds ship it
-  next to `LICENSE` in the app's `resources/licenses/` folder.
-- **Vehicle detection model**: Ultralytics-based weights are AGPL-3.0 and are
-  not part of this repository. The training data has its own terms (VisDrone,
-  DOTA and DLR 3K Munich are released for research). Check them before
-  bundling the model with a release or using it commercially. See
+- **npm dependencies** — `npm run build` writes their licence texts to
+  `desktop-app/out/licenses/THIRD_PARTY_NOTICES.txt`; packaged builds ship it
+  in `resources/licenses/`.
+- **Vehicle detection model** — Ultralytics-based weights are AGPL-3.0 and not
+  part of this repository. The training data has its own terms (VisDrone, DOTA
+  and DLR 3K Munich are released for research); check them before bundling the
+  model or using it commercially. See
   [training/README.md](./training/README.md#licences).
-- **Data**: OpenStreetMap (ODbL 1.0), Overture Maps (CDLA Permissive 2.0;
+- **Data** — OpenStreetMap (ODbL 1.0), Overture Maps (CDLA Permissive 2.0;
   Foursquare-sourced places Apache 2.0) and the state orthophoto services
   (dl-de/by-2-0, dl-de/zero-2-0, CC BY 4.0). The app shows the required
   attribution; see [docs/imagery-sources.md](./docs/imagery-sources.md) and
