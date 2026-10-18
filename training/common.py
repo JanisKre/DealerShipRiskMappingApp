@@ -108,6 +108,31 @@ def site_of(path: Path) -> str:
     return path.stem.split("__", 1)[0]
 
 
+# DLR 3K Munich tiles (convert_public.py) are ~0.13 m/px aerial images.
+DLR_GSD_M = 0.13
+NEGATIVE_PREFIX = "neg"
+
+
+def native_gsd(site: str) -> float | None:
+    """Native ground resolution of a site's imagery, before rendering at TARGET_GSD_M.
+
+    Dealership sites are `<state>-<id>` (fetch_tiles.py), negatives `<state>-neg…`,
+    public tiles `DLR-…`. None when the source is unknown.
+    """
+    from fetch_tiles import SERVICES  # lazy: fetch_tiles imports this module
+
+    prefix = site.split("-", 1)[0]
+    if prefix == "DLR":
+        return DLR_GSD_M
+    return SERVICES[prefix][3] if prefix in SERVICES else None
+
+
+def is_negative_site(site: str) -> bool:
+    """Hard-negative sites (select_negatives.py): tiles of rooftop solar and similar
+    vehicle look-alikes, labelled so the model learns not to count them."""
+    return site.split("-", 1)[-1].startswith(NEGATIVE_PREFIX)
+
+
 def obb_corners(cx: float, cy: float, w: float, h: float, angle_rad: float):
     """Corners of a rotated rectangle, in the same units as the inputs."""
     cos, sin = math.cos(angle_rad), math.sin(angle_rad)
