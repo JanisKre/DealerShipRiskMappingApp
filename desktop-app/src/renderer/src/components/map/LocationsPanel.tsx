@@ -46,7 +46,8 @@ import { useAppStore } from "@renderer/store/appStore";
 import { searchBias } from "@renderer/lib/searchBias";
 import { Link } from "react-router-dom";
 import { useDealerDirectoryStore } from "@renderer/store/dealerDirectoryStore";
-import { PlaceSourceTag } from "./PlaceSourceTag";
+import { PlacePortfolioBadge, PlaceSourceTag } from "./PlaceSourceTag";
+import type { PlaceSuggestion } from "@shared/ipc-schema";
 import { nameForPlace } from "@renderer/lib/placeName";
 
 interface Props {
@@ -636,12 +637,7 @@ function Chip({
 const DEBOUNCE_MS = 300;
 const MIN_CHARS = 3;
 
-interface Suggestion {
-  label: string;
-  lat: number;
-  lon: number;
-  source?: "osm" | "overture";
-}
+type Suggestion = PlaceSuggestion;
 
 /**
  * Compact address input field with Photon autocomplete (keyless, like in
@@ -658,6 +654,7 @@ function AddLocationField({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const directoryStatus = useDealerDirectoryStore((s) => s.status);
+  const directoryUpdate = useDealerDirectoryStore((s) => s.update);
   const loadDirectoryStatus = useDealerDirectoryStore((s) => s.loadStatus);
 
   useEffect(() => {
@@ -749,6 +746,16 @@ function AddLocationField({
           </Link>
         </p>
       )}
+      {directoryUpdate?.updateAvailable && trimmed.length >= MIN_CHARS && (
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {t("places.updateAvailable", {
+            release: directoryUpdate.latestRelease,
+          })}{" "}
+          <Link to="/settings" className="underline underline-offset-2">
+            {t("places.updateLink")}
+          </Link>
+        </p>
+      )}
       {suggestions.length > 0 && (
         <ul className="mt-1 max-h-48 overflow-auto rounded-md border bg-popover py-1">
           {suggestions.map((s, i) => (
@@ -759,8 +766,11 @@ function AddLocationField({
                 onClick={() => pick(s)}
               >
                 <MapPin className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                <span className="min-w-0">{s.label}</span>
-                <PlaceSourceTag source={s.source} />
+                <span className="flex min-w-0 flex-col">
+                  <span>{s.label}</span>
+                  <PlacePortfolioBadge portfolio={s.portfolio} />
+                </span>
+                <PlaceSourceTag source={s.source} sources={s.sources} />
               </button>
             </li>
           ))}

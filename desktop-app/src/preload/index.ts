@@ -416,6 +416,10 @@ const api = {
   dealerDirectoryStatus: (): Promise<IpcResponse["dealerDirectory:status"]> =>
     ipcRenderer.invoke(IPC.dealerDirectoryStatus),
 
+  /** Whether Overture has a newer release than the local directory (checked daily). */
+  dealerDirectoryUpdate: (): Promise<IpcResponse["dealerDirectory:update"]> =>
+    ipcRenderer.invoke(IPC.dealerDirectoryUpdate),
+
   /**
    * Downloads the Overture dealer directory. Same streaming pattern as
    * `downloadModel`: `onChunk` receives progress/result, the returned function

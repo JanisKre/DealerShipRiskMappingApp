@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell, nativeImage, session } from "electron";
 import { join } from "path";
 import { pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc";
+import { checkDealerDirectoryUpdate } from "./services/dealer-directory.service";
 import { closeDb, getDb } from "./db/database";
 
 // Unpackaged dev runs are an unsigned generic "Electron", so macOS re-asks for
@@ -97,6 +98,7 @@ function createWindow(): BrowserWindow {
 }
 
 let mainWindow: BrowserWindow | null = null;
+const STARTUP_CHECK_DELAY_MS = 15_000;
 
 app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler(
@@ -124,6 +126,9 @@ app.whenReady().then(() => {
   getDb(); // DB + Tabellen initialisieren
   mainWindow = createWindow();
   registerIpcHandlers(() => mainWindow);
+  // Once the app has settled: does Overture have a newer dealer release?
+  // Throttled to once a day and skipped until a directory was downloaded.
+  setTimeout(() => void checkDealerDirectoryUpdate(), STARTUP_CHECK_DELAY_MS);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();

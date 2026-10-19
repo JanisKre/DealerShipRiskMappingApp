@@ -1,8 +1,17 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const directory = vi.hoisted(() => ({ search: vi.fn(() => []) }));
+const directory = vi.hoisted(() => ({
+  search: vi.fn(() => []),
+  locality: vi.fn(),
+  portfolio: vi.fn(() => []),
+}));
 vi.mock("./dealer-directory.service", () => ({
   searchDealerDirectory: directory.search,
+  resolveQueryLocality: directory.locality,
+}));
+vi.mock("./portfolio-index.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./portfolio-index.service")>()),
+  portfolioEntries: directory.portfolio,
 }));
 
 import {
@@ -11,10 +20,20 @@ import {
   similarBusinessNames,
 } from "./places.service";
 
+function noLocality(query: { nameTokens: string[] }): unknown {
+  return { locality: null, nameTokens: query.nameTokens };
+}
+
+beforeEach(() => {
+  directory.locality.mockImplementation(noLocality as never);
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
   directory.search.mockReset();
   directory.search.mockReturnValue([]);
+  directory.portfolio.mockReset();
+  directory.portfolio.mockReturnValue([]);
 });
 
 function feature(
@@ -185,6 +204,142 @@ describe("OSM + Overture merge", () => {
     const hits = await placesAutocomplete("Auto");
 
     expect(hits).toHaveLength(2);
+  });
+});
+
+describe("ranking", () => {
+  it("marks a place both sources know as confirmed", async () => {
+    photonResponses({
+      dealers: [feature(9, "Autohaus Beispiel", 51.0601, 13.7701)],
+      general: [],
+    });
+    directory.search.mockReturnValue([
+      {
+        id: "o9",
+        name: "Autohaus Beispiel",
+        label: "Autohaus Beispiel, Dresden",
+        street: null,
+        lat: 51.0604,
+        lon: 13.7704,
+      },
+    ] as never);
+
+    const [hit] = await placesAutocomplete("Autohaus Beispiel");
+
+    expect(hit.source).toBe("osm");
+    expect(hit.sources).toEqual(["osm", "overture"]);
+  });
+
+  it("puts an exact Overture dealer above a loose OSM match", async () => {
+    photonResponses({
+      dealers: [],
+      general: [feature(10, "Herzogstraße", 48.1, 11.5)],
+    });
+    directory.search.mockReturnValue([
+      {
+        id: "o10",
+        name: "Autohaus Bernd Herzog",
+        label: "Autohaus Bernd Herzog, Ringweg 1, 01067 Dresden",
+        street: "Ringweg 1",
+        lat: 51.05,
+        lon: 13.74,
+      },
+    ] as never);
+
+    const hits = await placesAutocomplete("Bernd Herzog");
+
+    expect(hits[0].source).toBe("overture");
+  });
+
+  it("treats a postcode as a place, not as a house number", async () => {
+    photonResponses({
+      dealers: [feature(11, "Autohaus Muster", 51.05, 13.74)],
+      general: [
+        feature(12, "", 51.05, 13.74, {
+          street: "Musterweg",
+          housenumber: "7",
+        }),
+      ],
+    });
+
+    const hits = await placesAutocomplete("Autohaus Muster 01067");
+
+    expect(hits[0].label).toBe("Autohaus Muster, Musterstadt");
+  });
+
+  it("biases Photon towards a city named in the query", async () => {
+    const fetchMock = photonResponses({ dealers: [], general: [] });
+    directory.locality.mockReturnValue({
+      locality: {
+        kind: "city",
+        name: "Leipzig",
+        lat: 51.34,
+        lon: 12.37,
+        radiusKm: 30,
+      },
+      nameTokens: ["autohaus", "mueller"],
+    });
+
+    await placesAutocomplete("Autohaus Müller Leipzig", {
+      lat: 53.55,
+      lon: 9.99,
+      zoom: 12,
+    });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("lat")).toBe("51.34");
+    expect(url.searchParams.get("zoom")).toBe("11");
+    expect(directory.search).toHaveBeenCalledWith(
+      expect.objectContaining({ nameTokens: ["autohaus", "mueller"] }),
+    );
+  });
+
+  it("flags and lifts a place that already is a portfolio location", async () => {
+    photonResponses({
+      dealers: [
+        feature(13, "Autohaus Muster Nord", 51.2, 13.7),
+        feature(14, "Autohaus Muster Süd", 51.0, 13.7),
+      ],
+      general: [],
+    });
+    directory.portfolio.mockReturnValue([
+      {
+        sessionId: "s1",
+        sessionName: "Sachsen 2026",
+        dealershipId: "d1",
+        name: "Autohaus Muster Süd",
+        lat: 51.0001,
+        lon: 13.7001,
+        notes: "Besichtigung   im März,\nDach neu",
+      },
+    ] as never);
+
+    const hits = await placesAutocomplete("Autohaus Muster");
+
+    expect(hits[0].label).toBe("Autohaus Muster Süd, Musterstadt");
+    expect(hits[0].portfolio).toEqual([
+      {
+        sessionId: "s1",
+        sessionName: "Sachsen 2026",
+        dealershipId: "d1",
+        name: "Autohaus Muster Süd",
+        notesExcerpt: "Besichtigung im März, Dach neu",
+      },
+    ]);
+    expect(hits[1].portfolio).toBeUndefined();
+  });
+
+  it("still answers when the portfolio lookup fails", async () => {
+    photonResponses({
+      dealers: [feature(15, "Autohaus Muster", 51, 13)],
+      general: [],
+    });
+    directory.portfolio.mockImplementation(() => {
+      throw new Error("db locked");
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await placesAutocomplete("Autohaus Muster")).toHaveLength(1);
   });
 });
 

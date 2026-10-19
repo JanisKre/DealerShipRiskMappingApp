@@ -279,7 +279,9 @@
       "discovering": "Recherche de la version Overture actuelle…",
       "reading": "Chargement… {{pct}} % · {{found}} concessionnaires trouvés",
       "backgroundHint": "Continue en arrière-plan — vous pouvez utiliser l’application.",
-      "attribution": "Données : Overture Maps Foundation, CDLA Permissive 2.0. Contient des données de Foursquare : Copyright 2024 Foursquare Labs, Inc. All rights reserved."
+      "attribution": "Données : Overture Maps Foundation, CDLA Permissive 2.0. Contient des données de Foursquare : Copyright 2024 Foursquare Labs, Inc. All rights reserved.",
+      "updateAvailable": "Nouvelle version Overture {{release}} disponible – Actualiser la télécharge.",
+      "upToDate": "À jour · dernière vérification le {{date}} (Overture publie environ chaque mois ; vérification quotidienne)"
     }
   },
   "model": {
@@ -864,5 +866,11 @@
     "waitForAnalysis": "Veuillez attendre la fin de l’analyse en cours.",
     "cancel": "Annuler",
     "confirm": "Importer {{count}} site(s)"
+  },
+  "places": {
+    "inPortfolio": "Dans le portefeuille : {{portfolio}}",
+    "inPortfolioMore": "Dans le portefeuille : {{portfolio}} +{{count}}",
+    "updateAvailable": "Nouvelle version Overture {{release}} disponible.",
+    "updateLink": "Mettre à jour"
   }
 }

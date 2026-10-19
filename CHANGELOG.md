@@ -9,6 +9,18 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Smarter location search. Queries are understood offline: "Müller" finds
+  "Mueller", "VW" finds "Volkswagen", typos like "Autohaus Mueler" still
+  match, a city or postcode at the end ("Autohaus Müller Dresden") focuses
+  the search on that area, and kind words ("Motorradhändler", "Wohnmobil",
+  "LKW", "Gebrauchtwagen") pick the matching Overture dealers. OSM and
+  Overture hits are now ranked by one explainable score instead of source
+  order, and a place both sources know is tagged "OSM + Overture". A
+  suggestion that already is a saved portfolio location shows "In portfolio"
+  with the start of its note and ranks higher. The app checks once a day
+  whether Overture published a newer dealer release and says so in Settings
+  and under the search results. See `docs/location-search.md`.
+
 - Project homepage in `website/` (Vite, React, Tailwind CSS 4, shadcn/ui)
   with an overview and the download options, plus a user guide split into
   one page per topic under `/docs/` (old `/docs/#topic` links redirect). The

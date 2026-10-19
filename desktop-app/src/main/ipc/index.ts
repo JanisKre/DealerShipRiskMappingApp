@@ -17,6 +17,7 @@ import {
 } from "@shared/ipc-schema";
 import { analyzeDealership } from "../services/analyze.service";
 import {
+  checkDealerDirectoryUpdate,
   dealerDirectoryStatus,
   refreshDealerDirectory,
 } from "../services/dealer-directory.service";
@@ -279,6 +280,7 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.hailZoneOverlay, () => getHailZoneOverlay());
 
   handle(IPC.dealerDirectoryStatus, () => dealerDirectoryStatus());
+  handle(IPC.dealerDirectoryUpdate, () => checkDealerDirectoryUpdate());
 
   registerLlmStreaming();
   registerModelDownload();
