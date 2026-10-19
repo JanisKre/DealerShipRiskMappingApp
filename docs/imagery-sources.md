@@ -56,6 +56,12 @@ over one from a later year. The map uses the same rule at the current map
 zoom (from z15; below that, Esri's overview mosaic). Detection captures at
 the chosen candidate's zoom, so it never mixes Esri's z19 and z20 scenes.
 
+A state orthophoto covers only its own state, so below z15 the map uses
+Esri's national mosaic, including when a site is selected whose vehicles were
+counted on a state orthophoto: that image is shown again once zoomed in to z15
+or more. The switch happens immediately on zooming, without waiting for the
+next lookup.
+
 The settings offer "Automatic" (default), "Esri World Imagery" (Esri only;
 still picks the newer of Esri z19/z20) and a custom WMS/XYZ template, which
 now also accepts `{bbox-epsg-3857}` for plain WMS GetMap URLs.
