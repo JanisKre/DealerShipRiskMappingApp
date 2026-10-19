@@ -552,7 +552,7 @@ Consider: hail EAL, utilisation, hail zone, lot size. The app assesses hail only
       content: `Dealership data: ${JSON.stringify(compactForMemo(dealership))}\nEstimated EAL: ${
         dealership.risk?.eal == null
           ? "not calculated"
-          : `${dealership.risk.eal.toFixed(0)} EUR/year`
+          : `${dealership.risk.eal.toFixed(0)} EUR`
       }`,
     },
   ]);

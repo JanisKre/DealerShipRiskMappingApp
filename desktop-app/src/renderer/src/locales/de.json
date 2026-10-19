@@ -263,6 +263,12 @@
       "formula": "N = auf dem Gelände gezählte Fahrzeuge (keine Schätzung für Fahrzeuge im Gebäude), λ = Ereignisse pro Jahr in der Hagelzone, p·S = erwarteter Schaden je Fahrzeug und Ereignis.",
       "placeholders": "Platzhalterwerte – Kalibrierung durch das Underwriting steht aus. Die EAL ist eine Screening-Schätzung, keine Tarif- oder Zeichnungsentscheidung.",
       "meanSeverity": "Erwarteter Schaden je exponiertem Fahrzeug und Ereignis (Σ p·S): {{value}}",
+      "frequency": "Häufigkeit λ",
+      "probability": "Wahrscheinlichkeit p",
+      "severity": "Schadenhöhe S",
+      "small": "Klein",
+      "medium": "Mittel",
+      "large": "Groß",
       "shareSum": "Die Anteile p summieren sich auf {{sum}} statt 1 – sie werden für die Berechnung auf 1 normiert."
     }
   },
@@ -667,7 +673,6 @@
     "examplePromptClusters": "Kumulationen anzeigen",
     "examplePromptZones": "Hagelzonen-Verteilung anzeigen",
     "kpi": {
-      "perYear": "pro Jahr",
       "largestAccumulation": "Größte Kumulation",
       "accumulationHint_one": "{{count}} Standort · {{radius}} km",
       "accumulationHint_other": "{{count}} Standorte · {{radius}} km",
@@ -734,7 +739,7 @@
       "frequency": "Frequenz (λ)",
       "frequencyValue": "{{frequency}}/Jahr · Zone {{zone}}",
       "severity": "Schaden je Fahrzeug (Σ p·S)",
-      "formula": "{{vehicles}} Fahrzeuge × {{frequency}} Ereignisse/Jahr × {{severity}} = {{eal}} pro Jahr.",
+      "formula": "{{vehicles}} Fahrzeuge × {{frequency}} Ereignisse/Jahr × {{severity}} = {{eal}}.",
       "vehicleSource": {
         "manual": "Fahrzeugzahl manuell geprüft.",
         "detected": "Fahrzeugzahl aus der Luftbild-Erkennung.",
@@ -754,7 +759,7 @@
       "how": "Wie wird es berechnet?",
       "limits": "Einschränkungen",
       "hailEal": {
-        "what": "Erwarteter Hagelschaden pro Jahr (Expected Annual Loss) für die angezeigten Standorte.",
+        "what": "Erwarteter jährlicher Hagelschaden (Expected Annual Loss, EAL) für die angezeigten Standorte.",
         "how": "EAL = N × λ × (p_S·S_S + p_M·S_M + p_L·S_L). N = Fahrzeuge unter freiem Himmel, λ = Hagelereignisse pro Jahr je Hagelzone, p = Anteil kleiner/mittlerer/großer Ereignisse, S = Schaden je Fahrzeug. Werte unter „Parameter → Hagel-EAL“.",
         "limits": "λ, p und S sind unkalibrierte Platzhalter. Screening-Schätzung, keine Tarif-, Zeichnungs- oder Versicherungsentscheidung."
       },
@@ -770,7 +775,7 @@
       },
       "topLocations": {
         "what": "Die Standorte mit dem höchsten erwarteten Hagelschaden pro Jahr.",
-        "how": "Sortiert nach Hagel-EAL (€/Jahr). Das Badge zeigt die Hagelzone; „≈“ = geschätzte Zone.",
+        "how": "Sortiert nach Hagel-EAL (€). Das Badge zeigt die Hagelzone; „≈“ = geschätzte Zone.",
         "limits": "Die EAL hängt stark von der Fahrzeugzahl ab – manuell geprüfte Zahlen verbessern das Ranking."
       },
       "review": {
@@ -1090,7 +1095,7 @@
     "boundaryReviewNeeded": "⚠ Grundstücksgrenze prüfen",
     "confirmBoundary": "✓ Grenze bestätigen",
     "risk": "Risiko",
-    "ealYear": "EAL / Jahr",
+    "ealYear": "EAL",
     "viewDetails": "Details anzeigen →",
     "analyzing": "Wird analysiert…",
     "propertyBoundaryMissing": "⚠ Grundstücksgrenze nicht erkannt",

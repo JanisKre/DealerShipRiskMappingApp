@@ -263,6 +263,12 @@
       "formula": "N = vehicles counted on the lot (no estimate for vehicles inside buildings), λ = events per year in the hail zone, p·S = expected loss per vehicle and event.",
       "placeholders": "Placeholder values – calibration by underwriting is pending. The EAL is a screening estimate, not a tariff or underwriting decision.",
       "meanSeverity": "Expected loss per exposed vehicle and event (Σ p·S): {{value}}",
+      "frequency": "Frequency λ",
+      "probability": "Probability p",
+      "severity": "Severity S",
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large",
       "shareSum": "The shares p add up to {{sum}} instead of 1 – they are normalized to 1 for the calculation."
     }
   },
@@ -667,7 +673,6 @@
     "examplePromptClusters": "Show accumulations",
     "examplePromptZones": "Show hail zone distribution",
     "kpi": {
-      "perYear": "per year",
       "largestAccumulation": "Largest accumulation",
       "accumulationHint_one": "{{count}} location · {{radius}} km",
       "accumulationHint_other": "{{count}} locations · {{radius}} km",
@@ -734,7 +739,7 @@
       "frequency": "Frequency (λ)",
       "frequencyValue": "{{frequency}}/year · zone {{zone}}",
       "severity": "Loss per vehicle (Σ p·S)",
-      "formula": "{{vehicles}} vehicles × {{frequency}} events/year × {{severity}} = {{eal}} per year.",
+      "formula": "{{vehicles}} vehicles × {{frequency}} events/year × {{severity}} = {{eal}}.",
       "vehicleSource": {
         "manual": "Vehicle count reviewed manually.",
         "detected": "Vehicle count from aerial detection.",
@@ -754,7 +759,7 @@
       "how": "How is it calculated?",
       "limits": "Limitations",
       "hailEal": {
-        "what": "Expected hail loss per year (expected annual loss) for the locations shown.",
+        "what": "Expected annual loss (EAL) from hail for the locations shown.",
         "how": "EAL = N × λ × (p_S·S_S + p_M·S_M + p_L·S_L). N = vehicles parked in the open, λ = hail events per year by hail zone, p = share of small/medium/large events, S = loss per vehicle. Values under “Parameters → Hail EAL”.",
         "limits": "λ, p, and S are uncalibrated placeholders. A screening estimate, not a tariff, underwriting, or insurance decision."
       },
@@ -770,7 +775,7 @@
       },
       "topLocations": {
         "what": "The locations with the highest expected hail loss per year.",
-        "how": "Sorted by hail EAL (€/year). The badge shows the hail zone; “≈” = estimated zone.",
+        "how": "Sorted by hail EAL (€). The badge shows the hail zone; “≈” = estimated zone.",
         "limits": "The EAL depends strongly on the vehicle count – manually reviewed counts improve the ranking."
       },
       "review": {
@@ -1090,7 +1095,7 @@
     "boundaryReviewNeeded": "⚠ Review property boundary",
     "confirmBoundary": "✓ Confirm boundary",
     "risk": "Risk",
-    "ealYear": "EAL / year",
+    "ealYear": "EAL",
     "viewDetails": "View details →",
     "analyzing": "Analyzing…",
     "propertyBoundaryMissing": "⚠ Property boundary not detected",

@@ -521,7 +521,7 @@ export const RiskAssessmentSchema = z.object({
   /** Primary dealership score; currently the hail score. */
   overallScore: z.number().min(0).max(100),
   perils: PerilScoresSchema,
-  eal: z.number().nonnegative(), // Expected Annual Loss from hail (EUR/year)
+  eal: z.number().nonnegative(), // Expected Annual Loss from hail (EUR)
   ealBreakdown: EalBreakdownSchema.optional(),
   exposureEur: z.number().nonnegative().optional(), // estimated vehicle value on-site
   utilisation: z.number().min(0).optional(), // utilisation 0..1+ (vehicles / capacity)
