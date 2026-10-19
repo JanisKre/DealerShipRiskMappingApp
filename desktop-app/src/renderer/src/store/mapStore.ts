@@ -45,6 +45,12 @@ interface MapState {
    * silently reappear on the next start.
    */
   pinnedWayback: PinnedWayback | null;
+  /**
+   * Show the image a selected site's vehicles were counted on instead of the
+   * automatic choice (default). The imagery version list can switch it off.
+   * Not persisted.
+   */
+  useCountedImage: boolean;
   editing: boolean;
   detectionEditing: boolean;
   filter: MapFilter;
@@ -62,6 +68,7 @@ interface MapState {
   setBasemap: (basemap: Basemap) => void;
   setSatelliteOpacity: (v: number) => void;
   setPinnedWayback: (v: PinnedWayback | null) => void;
+  setUseCountedImage: (v: boolean) => void;
   setEditing: (v: boolean) => void;
   setDetectionEditing: (v: boolean) => void;
   setFilter: (f: Partial<MapFilter>) => void;
@@ -93,6 +100,7 @@ export const useMapStore = create<MapState>()(
       basemap: "satellite",
       satelliteOpacity: 1,
       pinnedWayback: null,
+      useCountedImage: true,
       editing: false,
       detectionEditing: false,
       filter: DEFAULT_FILTER,
@@ -108,6 +116,7 @@ export const useMapStore = create<MapState>()(
       setBasemap: (basemap) => set({ basemap }),
       setSatelliteOpacity: (satelliteOpacity) => set({ satelliteOpacity }),
       setPinnedWayback: (pinnedWayback) => set({ pinnedWayback }),
+      setUseCountedImage: (useCountedImage) => set({ useCountedImage }),
       setEditing: (editing) => set({ editing }),
       setDetectionEditing: (detectionEditing) => set({ detectionEditing }),
       setFilter: (partial) =>

@@ -924,6 +924,8 @@
       "copyTitle": "Copy to clipboard",
       "imageryVersionLabel": "Imagery version",
       "imageryVersionAuto": "Automatic",
+      "imageryVersionAutoWith": "Automatic · {{summary}}",
+      "imageryVersionCounted": "Vehicle count image · {{summary}}",
       "imageryVersionPublished": "Wayback version of {{date}}",
       "imageryVersionHint_one": "{{count}} Esri image version at the map centre (Esri World Imagery Wayback).",
       "imageryVersionHint_other": "{{count}} Esri image versions at the map centre (Esri World Imagery Wayback).",

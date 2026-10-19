@@ -24,6 +24,7 @@ import type { AnalyzedDealership } from "@shared/types";
 import {
   computeAccumulationClusters,
   effectiveVehicleCount,
+  haversineKm,
 } from "@shared/risk-math";
 import { EmptyState } from "@renderer/components/common/EmptyState";
 import { Button } from "@renderer/components/ui/button";
@@ -276,7 +277,8 @@ export function MapPage(): React.JSX.Element {
     useState<DetectionEditDraft | null>(null);
 
   const [mapView, setMapView] = useState<MapViewPoint | null>(null);
-  const resolvedImagery = useImagerySelection(mapView, basemap === "satellite");
+  const { selection: resolvedImagery, loading: imageryLoading } =
+    useImagerySelection(mapView, basemap === "satellite");
   // A state orthophoto only covers its own state. Zoomed out past a single
   // state the national source (Esri) is used right away, without waiting for
   // the selection of the new view or keeping a stale state choice.
@@ -287,6 +289,7 @@ export function MapPage(): React.JSX.Element {
       ? null
       : resolvedImagery;
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
+  const useCountedImage = useMapStore((s) => s.useCountedImage);
 
   // WMS URL from settings (only for the satellite basemap).
   const [wmsUrl, setWmsUrl] = useState<string | null>(null);
@@ -312,13 +315,13 @@ export function MapPage(): React.JSX.Element {
 
   // While a version is pinned, the legend describes that version's image at
   // the map centre instead of the automatic choice.
+  // A timeline that still belongs to the previous view is not used: it would
+  // show the capture date of another place.
   const pinnedCandidate: ImageryCandidate | null = !pinnedWayback
     ? null
-    : ((imageryTimeline &&
-        waybackCandidateForVersion(
-          imageryTimeline.candidates,
-          pinnedWayback,
-        )) ??
+    : ((imageryTimeline && !imageryTimelineLoading
+        ? waybackCandidateForVersion(imageryTimeline.candidates, pinnedWayback)
+        : null) ??
       (imageryTimelineLoading
         ? null
         : // Outside the resolved timeline (overview zoom, older than the
@@ -346,7 +349,11 @@ export function MapPage(): React.JSX.Element {
             resolvedAt: imagery?.resolvedAt ?? new Date().toISOString(),
           }
         : null
-      : imagery;
+      : // The kept selection of the previous view still draws the basemap, but
+        // it does not describe the map centre any more.
+        imageryLoading
+        ? null
+        : imagery;
 
   const withCoords = useMemo(
     () => dealerships.filter((d) => d.lat != null && d.lon != null),
@@ -398,19 +405,40 @@ export function MapPage(): React.JSX.Element {
     [withCoords, selectedId],
   );
 
-  // The image the selected site's vehicles were counted on. Shown instead of
-  // the automatic choice (unless the user pinned a version or set a WMS), so
-  // the dots sit on the cars they were counted from.
-  const countedSelection =
-    basemap === "satellite" && !wmsUrl && !pinnedWayback && layers.detections
+  // Only while the selected site is in view: its counted image says nothing
+  // about a place the user has panned away to (the legend and the version
+  // list describe the map centre).
+  const siteInView =
+    selectedDealership != null &&
+    mapView != null &&
+    haversineKm(
+      mapView.lat,
+      mapView.lon,
+      selectedDealership.lat,
+      selectedDealership.lon,
+    ) *
+      1000 <=
+      metersPerPixel(mapView.lat, mapView.zoom) * SITE_IN_VIEW_PX;
+
+  // The image the selected site's vehicles were counted on, when it is a
+  // source the map can draw (a state orthophoto only where one is allowed).
+  const countedAvailable =
+    basemap === "satellite" && !wmsUrl && layers.detections && siteInView
       ? (selectedDealership?.detection?.imagery ?? null)
       : null;
-  const countedOn =
-    countedSelection &&
-    ((countedSelection.chosen.kind === "state-dop" && stateImageryAllowed) ||
-      countedSelection.chosen.kind === "esri-wayback")
-      ? countedSelection.chosen
+  const countedCandidate =
+    countedAvailable &&
+    ((countedAvailable.chosen.kind === "state-dop" && stateImageryAllowed) ||
+      countedAvailable.chosen.kind === "esri-wayback")
+      ? countedAvailable.chosen
       : null;
+  // Shown instead of the automatic choice (unless the user pinned a version,
+  // set a WMS or switched it off in the version list), so the dots sit on the
+  // cars they were counted from.
+  const countedActive =
+    countedCandidate != null && useCountedImage && !pinnedWayback;
+  const countedSelection = countedActive ? countedAvailable : null;
+  const countedOn = countedActive ? countedCandidate : null;
   const shownImagery = countedOn ? countedSelection : legendImagery;
   const detectionReviewDealership = useMemo(
     () => withCoords.find((d) => d.id === detectionEditId) ?? null,
@@ -848,6 +876,8 @@ export function MapPage(): React.JSX.Element {
           imageryTimeline={timelineEnabled ? imageryTimeline : null}
           imageryTimelineLoading={timelineEnabled && imageryTimelineLoading}
           imageryTimelineAvailable={basemap === "satellite" && !wmsUrl}
+          countedImagery={countedCandidate}
+          autoImagery={imageryLoading ? null : (imagery?.chosen ?? null)}
         />
       </div>
 
@@ -870,6 +900,14 @@ export function MapPage(): React.JSX.Element {
       )}
     </div>
   );
+}
+
+/** Roughly half a map viewport: a selected site this close to the centre is "in view". */
+const SITE_IN_VIEW_PX = 500;
+
+/** Ground size of one screen pixel in Web Mercator at the given latitude and zoom. */
+function metersPerPixel(lat: number, zoom: number): number {
+  return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom;
 }
 
 /** Remaining-time estimate for a batch analysis, from the average so far. */

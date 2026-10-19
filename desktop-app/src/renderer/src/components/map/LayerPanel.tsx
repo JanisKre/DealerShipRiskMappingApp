@@ -29,6 +29,7 @@ import {
   type ImageryTimeline,
 } from "@shared/imagery-wayback";
 import { imageryCandidateSummary } from "@renderer/lib/imageryFormat";
+import type { ImageryCandidate } from "@shared/imagery-sources";
 import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
 import type { AnalyzedDealership } from "@shared/types";
 import { useMapStore, type Basemap } from "@renderer/store/mapStore";
@@ -129,9 +130,14 @@ export interface LayerPanelProps {
   imageryTimelineLoading: boolean;
   /** False when the basemap is not satellite or a custom WMS replaces Esri. */
   imageryTimelineAvailable: boolean;
+  /** Counted image of the selected site (null when none or out of view). */
+  countedImagery: ImageryCandidate | null;
+  /** What automatic selection yields at the map centre (null while loading). */
+  autoImagery: ImageryCandidate | null;
 }
 
 const AUTO_IMAGERY = "auto";
+const COUNTED_IMAGERY = "counted";
 
 /**
  * Picks which version of the satellite image the map shows: the automatic
@@ -140,47 +146,74 @@ const AUTO_IMAGERY = "auto";
 function ImageryVersionSelect({
   timeline,
   loading,
+  countedImagery,
+  autoImagery,
 }: Readonly<{
   timeline: ImageryTimeline | null;
   loading: boolean;
+  /** Image a selected site's vehicles were counted on, when it can be drawn. */
+  countedImagery: ImageryCandidate | null;
+  /** What "Automatic" resolves to at the map centre (null while it is looked up). */
+  autoImagery: ImageryCandidate | null;
 }>): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const pinned = useMapStore((s) => s.pinnedWayback);
   const setPinned = useMapStore((s) => s.setPinnedWayback);
+  const useCountedImage = useMapStore((s) => s.useCountedImage);
+  const setUseCountedImage = useMapStore((s) => s.setUseCountedImage);
+  // The list always shows what the map really draws: a pinned version, else
+  // the counted image of the selected site, else the automatic choice.
+  const countedActive = countedImagery != null && useCountedImage;
+  const describe = (c: ImageryCandidate): string =>
+    `${c.label}: ${imageryCandidateSummary(c, t, i18n.language)}`;
   const candidates = timeline?.candidates ?? [];
   const pinnedCandidate = pinned
     ? waybackCandidateForVersion(candidates, pinned)
     : null;
   const value = pinned
     ? String(pinnedCandidate?.wayback?.release ?? pinned.release)
-    : AUTO_IMAGERY;
+    : countedActive
+      ? COUNTED_IMAGERY
+      : AUTO_IMAGERY;
 
   return (
     <div className="space-y-1.5">
       <Label htmlFor="imagery-version" className="text-xs">
         {t("map.layerPanel.imageryVersionLabel")}
       </Label>
-      {loading && !timeline ? (
+      {loading ? (
         <Skeleton className="h-9 w-full" />
       ) : (
         <Select
           value={value}
           onValueChange={(v) => {
-            if (v === AUTO_IMAGERY) {
+            if (v === AUTO_IMAGERY || v === COUNTED_IMAGERY) {
               setPinned(null);
+              setUseCountedImage(v === COUNTED_IMAGERY);
               return;
             }
             const c = candidates.find((x) => String(x.wayback?.release) === v);
             if (c?.wayback) setPinned(c.wayback);
           }}
-          disabled={!timeline && !pinned}
+          disabled={!timeline && !pinned && !countedImagery}
         >
           <SelectTrigger id="imagery-version" className="w-full text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={AUTO_IMAGERY}>
-              {t("map.layerPanel.imageryVersionAuto")}
+            {countedImagery && (
+              <SelectItem value={COUNTED_IMAGERY} className="text-xs">
+                {t("map.layerPanel.imageryVersionCounted", {
+                  summary: describe(countedImagery),
+                })}
+              </SelectItem>
+            )}
+            <SelectItem value={AUTO_IMAGERY} className="text-xs">
+              {autoImagery
+                ? t("map.layerPanel.imageryVersionAutoWith", {
+                    summary: describe(autoImagery),
+                  })
+                : t("map.layerPanel.imageryVersionAuto")}
             </SelectItem>
             {pinned && !pinnedCandidate && (
               <SelectItem value={String(pinned.release)}>
@@ -228,6 +261,8 @@ export function LayerPanel({
   imageryTimeline,
   imageryTimelineLoading,
   imageryTimelineAvailable,
+  countedImagery,
+  autoImagery,
 }: LayerPanelProps): React.JSX.Element {
   const { t } = useTranslation();
   const layers = useMapStore((s) => s.layers);
@@ -307,6 +342,8 @@ export function LayerPanel({
                   <ImageryVersionSelect
                     timeline={imageryTimeline}
                     loading={imageryTimelineLoading}
+                    countedImagery={countedImagery}
+                    autoImagery={autoImagery}
                   />
                 )}
               </div>

@@ -924,6 +924,8 @@
       "copyTitle": "In Zwischenablage",
       "imageryVersionLabel": "Bildstand",
       "imageryVersionAuto": "Automatisch",
+      "imageryVersionAutoWith": "Automatisch · {{summary}}",
+      "imageryVersionCounted": "Bild der Fahrzeugzählung · {{summary}}",
       "imageryVersionPublished": "Wayback-Version vom {{date}}",
       "imageryVersionHint_one": "{{count}} Esri-Bildstand an der Kartenmitte (Esri World Imagery Wayback).",
       "imageryVersionHint_other": "{{count}} Esri-Bildstände an der Kartenmitte (Esri World Imagery Wayback).",
