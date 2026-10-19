@@ -282,7 +282,16 @@ export function MapPage(): React.JSX.Element {
     useState<DetectionEditDraft | null>(null);
 
   const [mapView, setMapView] = useState<MapViewPoint | null>(null);
-  const imagery = useImagerySelection(mapView, basemap === "satellite");
+  const resolvedImagery = useImagerySelection(mapView, basemap === "satellite");
+  // A state orthophoto only covers its own state. Zoomed out past a single
+  // state the national source (Esri) is used right away, without waiting for
+  // the selection of the new view or keeping a stale state choice.
+  const stateImageryAllowed =
+    (mapView?.zoom ?? 0) >= IMAGERY_MIN_SELECTION_ZOOM;
+  const imagery =
+    resolvedImagery?.chosen.kind === "state-dop" && !stateImageryAllowed
+      ? null
+      : resolvedImagery;
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
 
   // WMS URL from settings (only for the satellite basemap).
@@ -404,7 +413,7 @@ export function MapPage(): React.JSX.Element {
       : null;
   const countedOn =
     countedSelection &&
-    (countedSelection.chosen.kind === "state-dop" ||
+    ((countedSelection.chosen.kind === "state-dop" && stateImageryAllowed) ||
       countedSelection.chosen.kind === "esri-wayback")
       ? countedSelection.chosen
       : null;
