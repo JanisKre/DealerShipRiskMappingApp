@@ -1,16 +1,12 @@
 import type { AnalyzedDealership, DashboardSpec } from "./types";
 import { computeSeasonalProfile, type SeasonalPoint } from "./analytics";
-import { effectiveVehicleCount } from "./risk-math";
+import { dealershipHailZone, effectiveVehicleCount } from "./risk-math";
 
 /**
  * Deterministic aggregate computation for AI dashboards. Pure function
  * without I/O. The `DashboardRenderer` reads exclusively from this catalog —
  * the LLM only arranges widgets and picks sources (`source`), it never
  * invents numbers.
- *
- * The bucket logic is deliberately duplicated here (instead of being
- * imported from the renderer's `riskColor`) so this module in
- * `shared/` stays free of renderer dependencies.
  */
 
 /** A generic series point for bar/pie/line charts. */
@@ -24,80 +20,62 @@ export interface DashboardData {
     count: number;
     totalEal: number;
     totalExposure: number;
-    avgScore: number;
     totalVehicles: number;
-    extremeCount: number;
+    /** Locations in hail zone 4 or higher. */
+    elevatedZoneCount: number;
   };
-  riskDistribution: SeriesPoint[];
+  hailZoneDistribution: SeriesPoint[];
   topEal: SeriesPoint[];
-  topScore: SeriesPoint[];
+  topHailZone: SeriesPoint[];
   seasonalProfile: SeasonalPoint[];
 }
 
-/** Discrete risk tiers with label and threshold (descending). */
-const RISK_BUCKETS: Array<{ label: string; min: number }> = [
-  { label: "Extreme", min: 75 },
-  { label: "High", min: 50 },
-  { label: "Medium", min: 25 },
-  { label: "Low", min: 0 },
-];
-
-function riskBucketLabel(score: number): string {
-  return RISK_BUCKETS.find((b) => score >= b.min)?.label ?? "Low";
-}
+const HAIL_ZONES = [1, 2, 3, 4, 5, 6] as const;
+const ELEVATED_HAIL_ZONE = 4;
 
 /** Computes the full, fixed aggregate catalog of a portfolio. */
 export function computeDashboardData(
   dealerships: AnalyzedDealership[],
 ): DashboardData {
-  const scored = dealerships.filter((d) => d.risk);
-
   const count = dealerships.length;
   const totalEal = dealerships.reduce((a, d) => a + (d.risk?.eal ?? 0), 0);
   const totalExposure = dealerships.reduce(
     (a, d) => a + (d.risk?.exposureEur ?? 0),
     0,
   );
-  const avgScore =
-    scored.length > 0
-      ? scored.reduce((a, d) => a + (d.risk?.overallScore ?? 0), 0) /
-        scored.length
-      : 0;
   const totalVehicles = dealerships.reduce(
     (a, d) => a + effectiveVehicleCount(d.detection),
     0,
   );
-  const extremeCount = dealerships.filter(
-    (d) => (d.risk?.overallScore ?? 0) >= 75,
+  const zoneOf = (d: AnalyzedDealership): number | undefined =>
+    dealershipHailZone(d)?.zone;
+  const elevatedZoneCount = dealerships.filter(
+    (d) => (zoneOf(d) ?? 0) >= ELEVATED_HAIL_ZONE,
   ).length;
 
-  // Risk distribution: buckets in fixed order, empty ones dropped.
-  const bucketCounts = new Map<string, number>();
-  for (const label of RISK_BUCKETS.map((b) => b.label))
-    bucketCounts.set(label, 0);
-  for (const d of dealerships) {
-    const label = riskBucketLabel(d.risk?.overallScore ?? 0);
-    bucketCounts.set(label, (bucketCounts.get(label) ?? 0) + 1);
-  }
-  const riskDistribution: SeriesPoint[] = RISK_BUCKETS.map((b) => ({
-    label: b.label,
-    value: bucketCounts.get(b.label) ?? 0,
+  // Hail zone distribution: zones in ascending order, empty ones dropped.
+  const hailZoneDistribution: SeriesPoint[] = HAIL_ZONES.map((zone) => ({
+    label: `Zone ${zone}`,
+    value: dealerships.filter((d) => zoneOf(d) === zone).length,
   })).filter((e) => e.value > 0);
 
-  // Top-N by EAL or score (default 10; `limit` only applies in the renderer).
+  // Top-N by EAL or hail zone (default 10; `limit` only applies in the renderer).
   const topEal: SeriesPoint[] = [...dealerships]
     .filter((d) => (d.risk?.eal ?? 0) > 0)
     .sort((a, b) => (b.risk?.eal ?? 0) - (a.risk?.eal ?? 0))
     .slice(0, 10)
     .map((d) => ({ label: d.name, value: Math.round(d.risk?.eal ?? 0) }));
 
-  const topScore: SeriesPoint[] = [...dealerships]
-    .sort((a, b) => (b.risk?.overallScore ?? 0) - (a.risk?.overallScore ?? 0))
+  // Ties on the zone are broken by EAL.
+  const topHailZone: SeriesPoint[] = dealerships
+    .filter((d) => zoneOf(d) != null)
+    .sort(
+      (a, b) =>
+        (zoneOf(b) ?? 0) - (zoneOf(a) ?? 0) ||
+        (b.risk?.eal ?? 0) - (a.risk?.eal ?? 0),
+    )
     .slice(0, 10)
-    .map((d) => ({
-      label: d.name,
-      value: Math.round(d.risk?.overallScore ?? 0),
-    }));
+    .map((d) => ({ label: d.name, value: zoneOf(d) ?? 0 }));
 
   const seasonalProfile = computeSeasonalProfile(dealerships);
 
@@ -106,13 +84,12 @@ export function computeDashboardData(
       count,
       totalEal,
       totalExposure,
-      avgScore,
       totalVehicles,
-      extremeCount,
+      elevatedZoneCount,
     },
-    riskDistribution,
+    hailZoneDistribution,
     topEal,
-    topScore,
+    topHailZone,
     seasonalProfile,
   };
 }
@@ -139,12 +116,6 @@ export function buildDefaultDashboardSpec(): DashboardSpec {
         source: "kpi.totalExposure",
       },
       {
-        id: "kpi-score",
-        type: "kpi",
-        title: "Avg. risk score",
-        source: "kpi.avgScore",
-      },
-      {
         id: "kpi-vehicles",
         type: "kpi",
         title: "Total vehicles",
@@ -153,20 +124,20 @@ export function buildDefaultDashboardSpec(): DashboardSpec {
       {
         id: "kpi-extreme",
         type: "kpi",
-        title: "Extreme risks",
-        source: "kpi.extremeCount",
+        title: "Locations in hail zone 4+",
+        source: "kpi.elevatedZoneCount",
       },
       {
         id: "dist",
         type: "pieChart",
-        title: "Risk distribution",
-        source: "riskDistribution",
+        title: "Hail zone distribution",
+        source: "hailZoneDistribution",
       },
       {
         id: "top-score",
         type: "barChart",
-        title: "Top risk locations",
-        source: "topScore",
+        title: "Locations by hail zone",
+        source: "topHailZone",
         limit: 10,
       },
       { id: "seasonal", type: "seasonal", title: "Hail seasonal profile" },

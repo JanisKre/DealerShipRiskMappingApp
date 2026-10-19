@@ -50,7 +50,7 @@ import { Switch } from "@renderer/components/ui/switch";
 import { Textarea } from "@renderer/components/ui/textarea";
 import { useAppStore } from "@renderer/store/appStore";
 import { eur, num, pct } from "@renderer/lib/format";
-import { riskColor } from "@renderer/lib/riskColor";
+import { hailZoneColor } from "@renderer/lib/riskColor";
 import {
   dealershipHailZone,
   estimateHailZoneFromScore,
@@ -92,7 +92,6 @@ function DetailBody({
   onClose: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
-  const score = d.risk?.overallScore ?? 0;
   const hailZone = dealershipHailZone(d)?.zone;
   const eb = d.risk?.ealBreakdown;
   const { details: osmDetails, loading: osmLoading } = useOsmDetails(
@@ -107,7 +106,13 @@ function DetailBody({
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           {d.name}
-          <Badge style={{ backgroundColor: riskColor(score), color: "white" }}>
+          <Badge
+            style={{
+              backgroundColor:
+                hailZone != null ? hailZoneColor(hailZone) : "#6b7280",
+              color: "white",
+            }}
+          >
             {hailZone != null
               ? t("dashboard.detailDialog.hailZoneLabel", { zone: hailZone })
               : "—"}

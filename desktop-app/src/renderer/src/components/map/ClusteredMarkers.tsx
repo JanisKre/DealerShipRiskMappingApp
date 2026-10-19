@@ -6,7 +6,7 @@ import type { AnalyzedDealership } from "@shared/types";
 import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { isHttpWebsiteUrl, websiteLabel } from "@shared/website";
 import { eur } from "@renderer/lib/format";
-import { hailZoneColor, riskColor, riskLevel } from "@renderer/lib/riskColor";
+import { hailZoneColor } from "@renderer/lib/riskColor";
 import { useMap } from "./leaflet-react";
 import { riskMarkerIcon } from "./markerIcons";
 import { businessType } from "@renderer/store/appStore";
@@ -72,12 +72,10 @@ function popupHtml(
   d: AnalyzedDealership,
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string {
-  const score = d.risk?.overallScore;
-  const color = score != null ? riskColor(score) : "#6b7280";
-  const levelLabel = score != null ? t(`risk.${riskLevel(score)}`) : "—";
   const eal = d.risk?.eal != null ? eur(d.risk.eal) : "—";
   const vehicles = vehicleLabel(d, t);
   const zone = dealershipHailZone(d)?.zone;
+  const color = zone != null ? hailZoneColor(zone) : "#6b7280";
 
   const boundaryWarningHtml =
     d.boundary?.source === "synthetic"
@@ -113,7 +111,7 @@ function popupHtml(
       <div class="popup-row">
         <span>${t("ui.hailRisk")}</span>
         <span style="color:${color};font-weight:600">
-          ${score != null && zone != null ? `${t("dashboard.hailZoneLabel", { zone })} (${levelLabel})` : t("ui.analyzing")}
+          ${zone != null ? t("dashboard.hailZoneLabel", { zone }) : t("ui.analyzing")}
         </span>
       </div>
       ${zone != null ? zoneScaleHtml(zone) : ""}
@@ -156,15 +154,15 @@ export function ClusteredMarkers({
       showCoverageOnHover: false,
       iconCreateFunction(cluster) {
         const count = cluster.getChildCount();
-        // Cluster icon: colored by risk, using the max score among its markers.
+        // Cluster icon: colored by the highest hail zone among its markers.
         const markers = cluster.getAllChildMarkers() as Array<
-          L.Marker & { _riskScore?: number }
+          L.Marker & { _hailZone?: number }
         >;
-        const maxScore = markers.reduce(
-          (mx, m) => Math.max(mx, m._riskScore ?? 0),
+        const maxZone = markers.reduce(
+          (mx, m) => Math.max(mx, m._hailZone ?? 0),
           0,
         );
-        const color = riskColor(maxScore);
+        const color = maxZone > 0 ? hailZoneColor(maxZone) : "#6b7280";
         const label = `${count} ${t("dashboard.locations")}`;
         // Fixed box so Leaflet can anchor it; the pill itself is centered inside.
         const width = 56 + label.length * 7;
@@ -200,28 +198,23 @@ export function ClusteredMarkers({
       const pending = !d.risk || pendingIds.has(d.id);
       const isSelected = d.id === selectedId;
       const marker = L.marker([d.lat, d.lon], {
-        icon: riskMarkerIcon(
-          d.risk?.overallScore ?? null,
-          zoneOf(d),
-          isSelected,
-          businessType(d),
-        ),
+        icon: riskMarkerIcon(zoneOf(d), isSelected, businessType(d)),
         opacity: pending ? 0.6 : 1,
         alt: `${d.name}${zoneOf(d) != null ? ` – ${t("dashboard.hailZoneLabel", { zone: zoneOf(d) })}` : ""}`,
         keyboard: true,
         title: d.name,
         riseOnHover: true,
-      }) as L.Marker & { _riskScore?: number; _dealershipId?: string };
+      }) as L.Marker & { _hailZone?: number; _dealershipId?: string };
 
-      // Store the score on the marker for the cluster icon calculation.
-      marker._riskScore = d.risk?.overallScore ?? 0;
+      // Store the zone on the marker for the cluster icon calculation.
+      marker._hailZone = zoneOf(d) ?? 0;
       marker._dealershipId = d.id;
 
-      // Hover tooltip: hail risk (the map's single score) and vehicle count.
+      // Hover tooltip: hail zone and vehicle count.
       const tooltipText = [
         `<strong>${escapeHtml(d.name)}</strong>`,
-        d.risk
-          ? `${t("dashboard.hailZoneLabel", { zone: zoneOf(d) })} (${t(`risk.${riskLevel(d.risk.overallScore)}`)})`
+        zoneOf(d) != null
+          ? t("dashboard.hailZoneLabel", { zone: zoneOf(d) })
           : t("ui.analyzing"),
         zoneOf(d) != null ? zoneScaleHtml(zoneOf(d)!) : null,
         d.detection ? `${t("common.vehicles")}: ${vehicleLabel(d, t)}` : null,

@@ -7,7 +7,9 @@ import type { AnalyzedDealership, Session } from "@shared/types";
 import { SessionSchema } from "@shared/types";
 import {
   computeAccumulationClusters,
+  dealershipHailZone,
   effectiveVehicleCount,
+  estimateHailZoneFromScore,
 } from "@shared/risk-math";
 import { normalizeRiskParameters } from "@shared/parameters";
 
@@ -103,32 +105,34 @@ interface PortfolioTotals {
   count: number;
   totalExposure: number;
   totalEal: number;
-  avgScore: number;
-  extremeCount: number;
+  /** Locations in hail zone 4 or higher. */
+  elevatedZoneCount: number;
 }
+
+const ELEVATED_HAIL_ZONE = 4;
 
 function portfolioTotals(session: Session): PortfolioTotals {
   const ds = session.dealerships;
   const totalExposure = ds.reduce((s, d) => s + (d.risk?.exposureEur ?? 0), 0);
   const totalEal = ds.reduce((s, d) => s + (d.risk?.eal ?? 0), 0);
-  const scored = ds.filter((d) => d.risk);
-  const avgScore =
-    scored.length > 0
-      ? scored.reduce((s, d) => s + (d.risk?.overallScore ?? 0), 0) /
-        scored.length
-      : 0;
-  const extremeCount = ds.filter(
-    (d) => (d.risk?.overallScore ?? 0) >= 75,
+  const elevatedZoneCount = ds.filter(
+    (d) => (dealershipHailZone(d)?.zone ?? 0) >= ELEVATED_HAIL_ZONE,
   ).length;
-  return { count: ds.length, totalExposure, totalEal, avgScore, extremeCount };
+  return { count: ds.length, totalExposure, totalEal, elevatedZoneCount };
 }
 
-/** RGB color per risk score (0..100) — analogous to riskColor in the original. */
-function scoreRgb(score: number): [number, number, number] {
-  if (score >= 75) return [248, 113, 113]; // EXTREME
-  if (score >= 50) return [251, 146, 60]; // HIGH
-  if (score >= 25) return [251, 191, 36]; // MEDIUM
-  return [52, 211, 153]; // LOW
+/** RGB color per hail zone (1 = green … 5–6 = red), as on the map. */
+function zoneRgb(zone: number): [number, number, number] {
+  if (zone >= 5) return [248, 113, 113];
+  if (zone >= 4) return [251, 146, 60];
+  if (zone >= 3) return [251, 191, 36];
+  return [52, 211, 153];
+}
+
+/** Hail zone as display text; "—" when the location has no zone yet. */
+function zoneText(d: AnalyzedDealership): string {
+  const zone = dealershipHailZone(d)?.zone;
+  return zone == null ? "—" : String(zone);
 }
 
 const eur = (n: number): string =>
@@ -155,8 +159,7 @@ async function writePdf(session: Session, filePath: string): Promise<void> {
     `Locations: ${t.count}`,
     `Total Exposure: ${eur(t.totalExposure)}`,
     `Total EAL: ${eur(t.totalEal)}`,
-    `Avg. Hail Score: ${t.avgScore.toFixed(1)}`,
-    `Extreme (≥75): ${t.extremeCount}`,
+    `Hail zone ${ELEVATED_HAIL_ZONE}+: ${t.elevatedZoneCount}`,
   ];
   summary.forEach((line, i) => doc.text(line, 40, 112 + i * 18));
 
@@ -166,7 +169,7 @@ async function writePdf(session: Session, filePath: string): Promise<void> {
       "Machine Vehicles",
       "Manual Vehicles",
       "Vehicles Used",
-      "Hail Score",
+      "Hail Zone",
       "Exposure",
       "EAL",
     ],
@@ -176,7 +179,7 @@ async function writePdf(session: Session, filePath: string): Promise<void> {
     String(d.detection?.vehicleCount ?? "—"),
     String(d.detection?.manualVehicleCount ?? "—"),
     String(d.detection ? effectiveVehicleCount(d.detection) : "—"),
-    (d.risk?.overallScore ?? 0).toFixed(0),
+    zoneText(d),
     eur(d.risk?.exposureEur ?? 0),
     eur(d.risk?.eal ?? 0),
   ]);
@@ -189,10 +192,10 @@ async function writePdf(session: Session, filePath: string): Promise<void> {
     headStyles: { fillColor: [30, 41, 59], textColor: 255 },
     columnStyles: { 0: { cellWidth: 160 } },
     didParseCell: (data) => {
-      // Color the score column (cell index 2, body only)
-      if (data.section === "body" && data.column.index === 2) {
-        const score = Number(data.cell.raw) || 0;
-        data.cell.styles.fillColor = scoreRgb(score);
+      // Color the hail zone column (cell index 4, body only)
+      if (data.section === "body" && data.column.index === 4) {
+        const zone = Number(data.cell.raw);
+        if (zone >= 1) data.cell.styles.fillColor = zoneRgb(zone);
         data.cell.styles.textColor = 20;
       }
     },
@@ -219,7 +222,7 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
     { header: "Machine Vehicles", key: "machineVehicles", width: 16 },
     { header: "Manual Vehicles", key: "manualVehicles", width: 16 },
     { header: "Vehicles Used", key: "vehicles", width: 14 },
-    { header: "Hail Score", key: "score", width: 10 },
+    { header: "Hail Zone", key: "hailZone", width: 10 },
     { header: "Exposure (EUR)", key: "exposure", width: 16 },
     { header: "EAL (EUR)", key: "eal", width: 14 },
     { header: "Insured", key: "insured", width: 12 },
@@ -242,7 +245,7 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
       machineVehicles: d.detection?.vehicleCount ?? null,
       manualVehicles: d.detection?.manualVehicleCount ?? null,
       vehicles: d.detection ? effectiveVehicleCount(d.detection) : null,
-      score: d.risk?.overallScore ?? null,
+      hailZone: dealershipHailZone(d)?.zone ?? null,
       exposure: d.risk?.exposureEur ?? null,
       eal: d.risk?.eal ?? null,
       insured: d.insured == null ? "" : d.insured ? "yes" : "no",
@@ -253,16 +256,18 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
       deductible: d.deductibleEur ?? null,
       clusterId: clusters.get(d.id) ?? "",
     });
-    // Color the score cell
-    const score = d.risk?.overallScore ?? 0;
-    const [r, g, b] = scoreRgb(score);
-    const hex =
-      `FF${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`.toUpperCase();
-    row.getCell("score").fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: hex },
-    };
+    // Color the hail zone cell
+    const zone = dealershipHailZone(d)?.zone;
+    if (zone != null) {
+      const hex = `FF${zoneRgb(zone)
+        .map((n) => n.toString(16).padStart(2, "0"))
+        .join("")}`.toUpperCase();
+      row.getCell("hailZone").fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: hex },
+      };
+    }
   }
 
   // Bold header row + AutoFilter
@@ -301,7 +306,7 @@ function toCsv(session: Session): string {
     "machineVehicleCount",
     "manualVehicleCount",
     "vehicleCount",
-    "hailScore",
+    "hailZone",
     "eal",
     "insured",
     "salesPartner",
@@ -323,7 +328,7 @@ function toCsv(session: Session): string {
         d.detection?.vehicleCount ?? "",
         d.detection?.manualVehicleCount ?? "",
         d.detection ? effectiveVehicleCount(d.detection) : "",
-        d.risk?.overallScore ?? "",
+        dealershipHailZone(d)?.zone ?? "",
         d.risk?.eal ?? "",
         d.insured == null ? "" : d.insured ? "yes" : "no",
         csv(d.salesPartner ?? ""),
@@ -353,9 +358,9 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Risk color (hex) per score — analogous to scoreRgb. */
-function scoreHex(score: number): string {
-  const [r, g, b] = scoreRgb(score);
+/** Hail zone color (hex) — analogous to zoneRgb. */
+function zoneHex(zone: number): string {
+  const [r, g, b] = zoneRgb(zone);
   return `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
 }
 
@@ -409,15 +414,14 @@ function buildReadonlyHtml(session: Session, snapshotDataUri: string): string {
     parameters,
   ).filter((c) => c.count > 1);
 
-  const peril = (d: AnalyzedDealership, name: string): number =>
-    d.risk?.perils.find((x) => x.peril === name)?.score ?? 0;
-
   const kpis = [
     { label: "Locations", value: String(t.count) },
     { label: "Total Exposure", value: eur(t.totalExposure) },
     { label: "Total EAL", value: eur(t.totalEal) },
-    { label: "Avg. Hail Score", value: t.avgScore.toFixed(1) },
-    { label: "Extreme (≥75)", value: String(t.extremeCount) },
+    {
+      label: `Hail zone ${ELEVATED_HAIL_ZONE}+`,
+      value: String(t.elevatedZoneCount),
+    },
     { label: "Accumulation Clusters", value: String(clusters.length) },
   ];
 
@@ -429,30 +433,30 @@ function buildReadonlyHtml(session: Session, snapshotDataUri: string): string {
     .join("");
 
   const clusterRows = clusters
-    .map(
-      (c) => `<tr>
+    .map((c) => {
+      const zone = estimateHailZoneFromScore(c.maxHailScore);
+      return `<tr>
       <td class="mono">${esc(c.clusterId)}</td>
       <td class="num">${c.count}</td>
       <td class="num">${c.totalVehicles.toLocaleString("de-DE")}</td>
       <td class="num">${eur(c.totalExposureEur)}</td>
-      <td><span class="badge" style="background:${scoreHex(c.maxHailScore)}">${c.maxHailScore.toFixed(0)}</span></td>
+      <td><span class="badge" style="background:${zoneHex(zone)}">${zone}</span></td>
       <td class="num">${eur(c.natCatKpiEur)}</td>
       <td>${esc(c.dominantSalesPartner ?? "–")}</td>
-    </tr>`,
-    )
+    </tr>`;
+    })
     .join("");
 
   const dealerRows = session.dealerships
     .map((d) => {
-      const score = d.risk?.overallScore ?? 0;
+      const zone = dealershipHailZone(d)?.zone;
       return `<tr>
       <td>${esc(d.name)}</td>
       <td>${esc(d.address ?? "")}</td>
       <td class="num">${d.detection?.vehicleCount ?? "–"}</td>
       <td class="num">${d.detection?.manualVehicleCount ?? "–"}</td>
       <td class="num">${d.detection ? effectiveVehicleCount(d.detection) : "–"}</td>
-      <td><span class="badge" style="background:${scoreHex(score)}">${score.toFixed(0)}</span></td>
-      <td class="num">${peril(d, "hail").toFixed(0)}</td>
+      <td>${zone != null ? `<span class="badge" style="background:${zoneHex(zone)}">${zone}</span>` : "–"}</td>
       <td class="num">${eur(d.risk?.exposureEur ?? 0)}</td>
       <td class="num">${eur(d.risk?.eal ?? 0)}</td>
       <td>${d.insured ? "yes" : "–"}</td>
@@ -466,7 +470,7 @@ function buildReadonlyHtml(session: Session, snapshotDataUri: string): string {
   const clusterSection = clusters.length
     ? `<h2>Accumulation Clusters (${clusters.length})</h2>
     <table>
-      <thead><tr><th>Cluster ID</th><th class="num">Locations</th><th class="num">Vehicles</th><th class="num">Value</th><th>Hail</th><th class="num">Nat-Cat KPI</th><th>Sales Partner</th></tr></thead>
+      <thead><tr><th>Cluster ID</th><th class="num">Locations</th><th class="num">Vehicles</th><th class="num">Value</th><th>Max Hail Zone</th><th class="num">Nat-Cat KPI</th><th>Sales Partner</th></tr></thead>
       <tbody>${clusterRows}</tbody>
     </table>`
     : "";
@@ -518,7 +522,7 @@ function buildReadonlyHtml(session: Session, snapshotDataUri: string): string {
 
     <h2>Locations (${session.dealerships.length})</h2>
     <table>
-      <thead><tr><th>Name</th><th>Address</th><th class="num">Machine Vehicles</th><th class="num">Manual Vehicles</th><th class="num">Vehicles Used</th><th>Score</th><th class="num">Hail</th><th class="num">Exposure</th><th class="num">EAL</th><th>Insured</th><th>Partner</th><th>Subportfolio</th><th>Cluster</th></tr></thead>
+      <thead><tr><th>Name</th><th>Address</th><th class="num">Machine Vehicles</th><th class="num">Manual Vehicles</th><th class="num">Vehicles Used</th><th>Hail Zone</th><th class="num">Exposure</th><th class="num">EAL</th><th>Insured</th><th>Partner</th><th>Subportfolio</th><th>Cluster</th></tr></thead>
       <tbody>${dealerRows}</tbody>
     </table>
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Info, Satellite } from "lucide-react";
-import { riskLevelColor, type RiskLevel } from "@renderer/lib/riskColor";
+import { hailZoneColor } from "@renderer/lib/riskColor";
 import { cn } from "@renderer/lib/utils";
 import { sourceColor } from "./BoundaryLayer";
 import type { BoundarySource } from "@shared/types";
@@ -12,7 +12,7 @@ import {
 } from "@shared/imagery-metadata";
 import type { ImagerySelection } from "@shared/imagery-sources";
 
-const RISK_LEVELS: RiskLevel[] = ["LOW", "MEDIUM", "HIGH", "EXTREME"];
+const HAIL_ZONES = [1, 2, 3, 4, 5, 6] as const;
 
 const SOURCES: Array<{
   source: BoundarySource;
@@ -29,7 +29,7 @@ const SOURCES: Array<{
 ];
 
 /**
- * Karten-Legende: Risiko-Skala, Grenzquellen, Fahrzeugklassen und die
+ * Karten-Legende: Hagelzonen-Skala, Grenzquellen, Fahrzeugklassen und die
  * Metadaten des Satellitenbilds mit den wichtigsten Angaben auf der ersten
  * Ebene und weiteren Details hinter einer zweiten Aufklappstufe.
  */
@@ -67,11 +67,11 @@ export function MapLegend({
       {open && (
         <div className="space-y-2 border-t px-3 py-2.5 text-xs">
           <LegendGroup title={t("map.legend.risk")}>
-            {RISK_LEVELS.map((lvl) => (
+            {HAIL_ZONES.map((zone) => (
               <LegendRow
-                key={lvl}
-                color={riskLevelColor(lvl)}
-                label={t(`risk.${lvl}`)}
+                key={zone}
+                color={hailZoneColor(zone)}
+                label={t("dashboard.zoneShort", { zone })}
               />
             ))}
             {showClusterNote && (

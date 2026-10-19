@@ -1,5 +1,9 @@
 import type { AnalyzedDealership } from "@shared/types";
-import { computePML, effectiveVehicleCount } from "@shared/risk-math";
+import {
+  computePML,
+  dealershipHailZone,
+  effectiveVehicleCount,
+} from "@shared/risk-math";
 
 /**
  * Compact portfolio context as a string for the LLM streams (summary/chat).
@@ -13,17 +17,13 @@ export function buildSessionContext(dealerships: AnalyzedDealership[]): string {
     0,
   );
   const totalEal = dealerships.reduce((a, d) => a + (d.risk?.eal ?? 0), 0);
-  const avgScore =
-    count > 0
-      ? dealerships.reduce((a, d) => a + (d.risk?.overallScore ?? 0), 0) / count
-      : 0;
   const pml100 = computePML(dealerships, 100);
 
   const lines = dealerships
     .slice(0, 40)
     .map(
       (d) =>
-        `- ${d.name}: Hail score ${Math.round(d.risk?.overallScore ?? 0)}, Vehicles ${effectiveVehicleCount(
+        `- ${d.name}: Hail zone ${dealershipHailZone(d)?.zone ?? "n/a"}, Vehicles ${effectiveVehicleCount(
           d.detection,
         )}, Hail EAL ${Math.round(d.risk?.eal ?? 0)}€`,
     )
@@ -31,7 +31,7 @@ export function buildSessionContext(dealerships: AnalyzedDealership[]): string {
 
   return [
     `Portfolio with ${count} locations.`,
-    `Total exposure: ${Math.round(totalExposure)}€, Total EAL: ${Math.round(totalEal)}€/year, Avg score: ${avgScore.toFixed(1)}.`,
+    `Total exposure: ${Math.round(totalExposure)}€, Total EAL: ${Math.round(totalEal)}€/year.`,
     `PML (100-year, worst cluster): ${pml100.estimatedLossEur}€ across ${pml100.dealershipsInScenario} locations.`,
     `Locations${count > 40 ? " (first 40)" : ""}:`,
     lines,

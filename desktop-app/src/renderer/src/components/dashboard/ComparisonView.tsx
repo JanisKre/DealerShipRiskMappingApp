@@ -109,7 +109,6 @@ function DiffTable({
       <TableHeader>
         <TableRow>
           <TableHead>{t("dashboard.locations")}</TableHead>
-          <TableHead>Δ {t("common.score")}</TableHead>
           <TableHead>Δ {t("common.vehicles")}</TableHead>
           <TableHead>Δ EAL</TableHead>
         </TableRow>
@@ -117,8 +116,6 @@ function DiffTable({
       <TableBody>
         {current.map((d) => {
           const base = baseMap.get(d.id || d.name);
-          const dScore =
-            (d.risk?.overallScore ?? 0) - (base?.risk?.overallScore ?? 0);
           const dVeh =
             effectiveVehicleCount(d.detection) -
             effectiveVehicleCount(base?.detection);
@@ -126,9 +123,6 @@ function DiffTable({
           return (
             <TableRow key={d.id}>
               <TableCell className="font-medium">{d.name}</TableCell>
-              <TableCell>
-                <Delta value={dScore} fmt={(n) => n.toFixed(0)} />
-              </TableCell>
               <TableCell>
                 <Delta value={dVeh} fmt={(n) => num(n)} />
               </TableCell>
