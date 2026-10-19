@@ -25,7 +25,14 @@ import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Card } from "@renderer/components/ui/card";
 import { Input } from "@renderer/components/ui/input";
-import { Slider } from "@renderer/components/ui/slider";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@renderer/components/ui/table";
 
 type ParameterKey = keyof RiskParameters;
 type UnitKey =
@@ -347,6 +354,112 @@ function HailEalNotice({
   );
 }
 
+type EditorBindings = {
+  parameters: RiskParameters;
+  draft: Record<string, string>;
+  disabled: boolean;
+  label: (field: ParameterField) => string;
+  onDraftChange: (key: ParameterKey, value: string) => void;
+  onCommit: (field: ParameterField, value: number) => void;
+};
+
+/**
+ * Frequency (λ per zone), probability (p per class) and severity (S per
+ * class) as three compact tables: one input row each, instead of twelve cards.
+ */
+function HailEalTables({
+  bindings,
+}: Readonly<{ bindings: EditorBindings }>): React.JSX.Element {
+  const { t } = useTranslation();
+  const riskFields = GROUPS.find((g) => g.id === "risk")!.fields;
+  const fieldOf = (key: ParameterKey): ParameterField =>
+    riskFields.find((f) => f.key === key)!;
+  const cell = (key: ParameterKey): React.JSX.Element => {
+    const field = fieldOf(key);
+    return (
+      <ParameterEditor
+        field={field}
+        label={bindings.label(field)}
+        unit=""
+        value={bindings.draft[key] ?? String(bindings.parameters[key])}
+        onDraftChange={(value) => bindings.onDraftChange(key, value)}
+        onCommit={(value) => bindings.onCommit(field, value)}
+        disabled={bindings.disabled}
+      />
+    );
+  };
+  const classes = [
+    { id: "small", label: t("parameters.hailEal.small") },
+    { id: "medium", label: t("parameters.hailEal.medium") },
+    { id: "large", label: t("parameters.hailEal.large") },
+  ] as const;
+  const section = (
+    title: string,
+    unit: string,
+    columns: Array<{ id: string; label: string; key: ParameterKey }>,
+  ): React.JSX.Element => (
+    <div className="space-y-1">
+      <h4 className="text-sm font-semibold">
+        {title}{" "}
+        <span className="font-normal text-muted-foreground">({unit})</span>
+      </h4>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columns.map((c) => (
+              <TableHead key={c.id} className="h-8 text-right">
+                {c.label}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow className="hover:bg-transparent">
+            {columns.map((c) => (
+              <TableCell key={c.id} className="px-2 py-1.5">
+                {cell(c.key)}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableBody>
+      </Table>
+    </div>
+  );
+  return (
+    <div className="space-y-4">
+      {section(
+        t("parameters.hailEal.frequency"),
+        t("parameters.units.eventsPerYear"),
+        [1, 2, 3, 4, 5, 6].map((zone) => ({
+          id: `z${zone}`,
+          label: t("dashboard.zoneShort", { zone }),
+          key: `hailFrequencyZone${zone}` as ParameterKey,
+        })),
+      )}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {section(
+          t("parameters.hailEal.probability"),
+          t("parameters.units.fraction"),
+          classes.map((c) => ({
+            id: c.id,
+            label: c.label,
+            key: `hailShare${c.id[0].toUpperCase()}${c.id.slice(1)}` as ParameterKey,
+          })),
+        )}
+        {section(
+          t("parameters.hailEal.severity"),
+          t("parameters.units.eurPerVehicle"),
+          classes.map((c) => ({
+            id: c.id,
+            label: c.label,
+            key: `hailSeverity${c.id[0].toUpperCase()}${c.id.slice(1)}Eur` as ParameterKey,
+          })),
+        )}
+      </div>
+    </div>
+  );
+}
+
 function displayValue(value: number): string {
   return String(value);
 }
@@ -370,63 +483,31 @@ function ParameterEditor({
   onDraftChange,
   onCommit,
 }: ParameterEditorProps): React.JSX.Element {
-  const numericValue = Number(value);
-  const sliderEnabled = field.max != null && field.max <= 100;
-  const sliderValue = Number.isFinite(numericValue)
-    ? Math.min(field.max ?? numericValue, Math.max(field.min, numericValue))
-    : field.min;
+  // Unit as an in-field suffix with its own width: units range from
+  // "€" to "Schläge/km²/Jahr", so a fixed right padding can't fit them.
   return (
-    <div className="space-y-2">
-      {sliderEnabled && (
-        <div className="flex items-center gap-3">
-          <Slider
-            aria-label={label}
-            min={field.min}
-            max={field.max}
-            step={field.step}
-            value={sliderValue}
-            onValueChange={(nextValue) => onDraftChange(String(nextValue))}
-            onPointerUp={(event) => onCommit(Number(event.currentTarget.value))}
-            onKeyUp={(event) => {
-              if (
-                event.key === "Enter" ||
-                event.key === "ArrowLeft" ||
-                event.key === "ArrowRight"
-              )
-                onCommit(Number(event.currentTarget.value));
-            }}
-            disabled={disabled}
-            className="min-w-0 flex-1"
-          />
-          <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">
-            {field.unit === "fraction"
-              ? `${Math.round(sliderValue * 100)}%`
-              : Math.round(sliderValue)}
-          </span>
-        </div>
-      )}
-      {/* Unit as an in-field suffix with its own width: units range from
-          "€" to "Schläge/km²/Jahr", so a fixed right padding can't fit them. */}
-      <div className="flex h-9 w-full items-center rounded-md border border-input shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring has-[:disabled]:opacity-50">
-        <Input
-          id={`parameter-${field.key}`}
-          type="number"
-          min={field.min}
-          max={field.max}
-          step={field.step}
-          value={value}
-          onChange={(event) => onDraftChange(event.target.value)}
-          onBlur={() => onCommit(Number(value))}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") event.currentTarget.blur();
-          }}
-          disabled={disabled}
-          className="h-full min-w-0 flex-1 border-0 text-right tabular-nums shadow-none focus-visible:ring-0 disabled:opacity-100"
-        />
-        <span className="shrink-0 whitespace-nowrap pr-3 text-xs text-muted-foreground">
+    <div className="flex h-8 w-full min-w-24 items-center rounded-md border border-input shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring has-[:disabled]:opacity-50">
+      <Input
+        id={`parameter-${field.key}`}
+        aria-label={label}
+        type="number"
+        min={field.min}
+        max={field.max}
+        step={field.step}
+        value={value}
+        onChange={(event) => onDraftChange(event.target.value)}
+        onBlur={() => onCommit(Number(value))}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+        }}
+        disabled={disabled}
+        className="h-full min-w-0 flex-1 border-0 px-2 text-right tabular-nums shadow-none focus-visible:ring-0 disabled:opacity-100"
+      />
+      {unit && (
+        <span className="shrink-0 whitespace-nowrap pr-2 text-xs text-muted-foreground">
           {unit}
         </span>
-      </div>
+      )}
     </div>
   );
 }
@@ -554,6 +635,15 @@ function ParametersContent(): React.JSX.Element {
     t(`parameters.parameterFields.${field.key}.label`);
   const fieldDescription = (field: ParameterField): string =>
     t(`parameters.parameterFields.${field.key}.description`);
+  const bindings: EditorBindings = {
+    parameters,
+    draft,
+    disabled: parametersUpdating,
+    label: fieldLabel,
+    onDraftChange: (key, value) =>
+      setDraft((current) => ({ ...current, [key]: value })),
+    onCommit: (field, value) => void commitValue(field, value),
+  };
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-8">
       <div className="flex flex-col gap-5">
@@ -615,6 +705,7 @@ function ParametersContent(): React.JSX.Element {
           const advancedFields = group.fields.filter(
             (field) => !field.recommended,
           );
+          const recommendedCount = recommendedFields.length;
           return (
             <Card key={group.id} className="overflow-hidden">
               <NativeDetails initiallyOpen={group.defaultOpen}>
@@ -625,10 +716,9 @@ function ParametersContent(): React.JSX.Element {
                       <span className="font-semibold">
                         {t(`parameters.groups.${group.id}.title`)}
                       </span>
-                      {recommendedFields.length > 0 && (
+                      {recommendedCount > 0 && group.id !== "risk" && (
                         <Badge variant="secondary" className="text-[10px]">
-                          {recommendedFields.length}{" "}
-                          {t("parameters.recommended")}
+                          {recommendedCount} {t("parameters.recommended")}
                         </Badge>
                       )}
                     </span>
@@ -638,72 +728,30 @@ function ParametersContent(): React.JSX.Element {
                   </span>
                 </summary>
                 <div className="space-y-4 px-5 pb-5">
-                  {group.id === "risk" && (
-                    <HailEalNotice parameters={parameters} />
-                  )}
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    {recommendedFields.map((field) => (
-                      <div
-                        key={field.key}
-                        className="rounded-lg border border-primary/15 bg-primary/[0.03] p-4"
-                      >
-                        <div className="mb-3 min-w-0">
-                          <label
-                            htmlFor={`parameter-${field.key}`}
-                            className="text-sm font-medium"
-                          >
-                            {fieldLabel(field)}
-                          </label>
-                          <p className="text-xs text-muted-foreground">
-                            {fieldDescription(field)}
-                          </p>
-                        </div>
-                        <ParameterEditor
-                          field={field}
-                          label={fieldLabel(field)}
-                          unit={t(`parameters.units.${field.unit}`)}
-                          value={
-                            draft[field.key] ?? String(parameters[field.key])
-                          }
-                          onDraftChange={(value) =>
-                            setDraft((current) => ({
-                              ...current,
-                              [field.key]: value,
-                            }))
-                          }
-                          onCommit={(value) => commitValue(field, value)}
-                          disabled={parametersUpdating}
-                        />
-                        {field.tip && (
-                          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                            <span className="font-medium text-foreground">
-                              {t("parameters.whatFor")}
-                            </span>{" "}
-                            {t(`parameters.parameterFields.${field.key}.tip`)}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {advancedFields.length > 0 && (
-                    <details className="rounded-lg border bg-muted/20">
-                      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
-                        <ChevronDown className="size-4 text-muted-foreground" />
-                        {t("parameters.advancedParameters")}{" "}
-                        <span className="font-normal text-muted-foreground">
-                          ({advancedFields.length})
-                        </span>
-                      </summary>
-                      <div className="grid gap-4 border-t p-4 lg:grid-cols-2">
-                        {advancedFields.map((field) => (
+                  {group.id === "risk" ? (
+                    <>
+                      <HailEalNotice parameters={parameters} />
+                      <HailEalTables bindings={bindings} />
+                    </>
+                  ) : (
+                    <div className="divide-y rounded-lg border">
+                      {[...recommendedFields, ...advancedFields].map(
+                        (field) => (
                           <div
                             key={field.key}
-                            className="grid gap-2 sm:grid-cols-[1fr_160px] sm:items-center"
+                            className="grid gap-2 px-4 py-2.5 sm:grid-cols-[1fr_180px] sm:items-center"
                           >
                             <div className="min-w-0">
                               <label
                                 htmlFor={`parameter-${field.key}`}
                                 className="text-sm font-medium"
+                                title={
+                                  field.tip
+                                    ? t(
+                                        `parameters.parameterFields.${field.key}.tip`,
+                                      )
+                                    : undefined
+                                }
                               >
                                 {fieldLabel(field)}
                               </label>
@@ -729,9 +777,9 @@ function ParametersContent(): React.JSX.Element {
                               disabled={parametersUpdating}
                             />
                           </div>
-                        ))}
-                      </div>
-                    </details>
+                        ),
+                      )}
+                    </div>
                   )}
                 </div>
               </NativeDetails>
