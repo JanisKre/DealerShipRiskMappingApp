@@ -20,6 +20,7 @@ export function DealerDirectoryCard(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const {
     status,
+    update,
     running,
     progress,
     error,
@@ -61,6 +62,25 @@ export function DealerDirectoryCard(): React.JSX.Element {
               })
             : t("settings.dealerDirectory.notLoaded")}
         </p>
+        {status && update && (
+          <p
+            className={
+              update.updateAvailable
+                ? "text-xs font-medium text-foreground"
+                : "text-xs text-muted-foreground"
+            }
+          >
+            {update.updateAvailable
+              ? t("settings.dealerDirectory.updateAvailable", {
+                  release: update.latestRelease,
+                })
+              : t("settings.dealerDirectory.upToDate", {
+                  date: new Date(update.checkedAt).toLocaleDateString(
+                    i18n.language,
+                  ),
+                })}
+          </p>
+        )}
 
         {running ? (
           <div className="space-y-2">
@@ -81,7 +101,11 @@ export function DealerDirectoryCard(): React.JSX.Element {
             </div>
           </div>
         ) : (
-          <Button variant="outline" size="sm" onClick={startRefresh}>
+          <Button
+            variant={update?.updateAvailable ? "default" : "outline"}
+            size="sm"
+            onClick={startRefresh}
+          >
             {status ? (
               <RefreshCw className="size-3" />
             ) : (

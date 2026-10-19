@@ -47,21 +47,18 @@ the filters.
 
 ## Search and merge
 
-- Every typed word is a prefix match on name, brand, street, postcode and
-  city. Legal forms (GmbH, & Co. KG, …) are dropped first, because OSM and
-  Overture names rarely carry them consistently.
-- Ranking is bm25 (name weighted highest). It is nudged towards the visible
-  map area and towards confident records.
-- A business both sources know (within 150 m, similar name once generic words
-  like "Autohaus" are ignored) is listed once, with the OSM entry kept. Each
-  suggestion shows its source.
+How the directory is searched, merged with OSM and ranked is described in
+[location-search.md](./location-search.md): umlaut, ß and brand spellings,
+typo tolerance from an in-memory index, city and postcode recognition from
+the directory's own addresses, and one score across both sources.
 
 ## Limitations
 
 - Overture positions are point locations of the business. They are not a lot
   boundary; boundary detection still runs on the chosen point.
-- Overture refreshes monthly. The local copy ages until the user refreshes it
-  in Settings.
+- Overture refreshes about monthly. The app checks for a newer release once
+  a day and says so in Settings and under the search results; the copy ages
+  until the user clicks "Refresh".
 - Names come from aggregated commercial and crowd sources. A hit is a
   candidate for the user to pick, not a verified business register entry.
 

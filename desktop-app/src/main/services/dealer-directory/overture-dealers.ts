@@ -133,16 +133,44 @@ function childHref(doc: unknown, title: string): string {
   return link.href;
 }
 
+const RELEASE_ID = /^(\d{4}-\d{2}-\d{2})\.(\d+)$/u;
+
+function latestReleaseOf(root: unknown): string {
+  const latest = (root as { latest?: unknown } | null)?.latest;
+  if (typeof latest !== "string" || !RELEASE_ID.test(latest)) {
+    throw new Error("Overture STAC: latest release missing");
+  }
+  return latest;
+}
+
+/** Id of the release the STAC catalog currently calls latest. */
+export async function fetchLatestRelease(
+  fetchJson: FetchJson = defaultFetchJson,
+): Promise<string> {
+  return latestReleaseOf(await fetchJson(STAC_ROOT));
+}
+
+/**
+ * Whether release `candidate` ("2026-10-21.0") is newer than `current`.
+ * Compares the date, then the patch number numerically; an unparsable id is
+ * never newer.
+ */
+export function isNewerRelease(candidate: string, current: string): boolean {
+  const a = RELEASE_ID.exec(candidate);
+  const b = RELEASE_ID.exec(current);
+  if (!a) return false;
+  if (!b) return true;
+  if (a[1] !== b[1]) return a[1] > b[1];
+  return Number(a[2]) > Number(b[2]);
+}
+
 /** Latest release plus the places files whose bbox overlaps `bbox`. */
 export async function discoverPlaceFiles(
   bbox: Bbox,
   fetchJson: FetchJson = defaultFetchJson,
 ): Promise<{ release: string; files: PlaceFile[] }> {
-  const root = (await fetchJson(STAC_ROOT)) as { latest?: unknown };
-  const release = typeof root.latest === "string" ? root.latest : null;
-  if (!release || !/^\d{4}-\d{2}-\d{2}\.\d+$/u.test(release)) {
-    throw new Error("Overture STAC: latest release missing");
-  }
+  const root = await fetchJson(STAC_ROOT);
+  const release = latestReleaseOf(root);
   const releaseLink = links(root).find(
     (l) => l.rel === "child" && l.href?.includes(`/${release}/`),
   );

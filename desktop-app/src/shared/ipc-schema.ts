@@ -115,6 +115,38 @@ export const DealerDirectoryStatusSchema = z.object({
 });
 export type DealerDirectoryStatus = z.infer<typeof DealerDirectoryStatusSchema>;
 
+export const DealerDirectoryUpdateSchema = z.object({
+  latestRelease: z.string(),
+  checkedAt: z.string(),
+  updateAvailable: z.boolean(),
+});
+export type DealerDirectoryUpdate = z.infer<typeof DealerDirectoryUpdateSchema>;
+
+const PlaceSourceSchema = z.enum(["osm", "overture"]);
+
+export const PlaceSuggestionSchema = z.object({
+  label: z.string(),
+  lat: z.number(),
+  lon: z.number(),
+  /** Source of the label shown next to the suggestion. */
+  source: PlaceSourceSchema.optional(),
+  /** Every source that knows the place; both = confirmed. */
+  sources: z.array(PlaceSourceSchema).optional(),
+  /** Saved portfolio locations this place already is (local notes excerpt). */
+  portfolio: z
+    .array(
+      z.object({
+        sessionId: z.string(),
+        sessionName: z.string(),
+        dealershipId: z.string(),
+        name: z.string(),
+        notesExcerpt: z.string().optional(),
+      }),
+    )
+    .optional(),
+});
+export type PlaceSuggestion = z.infer<typeof PlaceSuggestionSchema>;
+
 /** Location, optional boundary and parameters of a vehicle count. */
 export interface DetectVehiclesRequest {
   lat: number;
@@ -257,6 +289,7 @@ export const ipcRequest = {
   "model:status": z.void(),
   "hailZones:overlay": z.void(),
   "dealerDirectory:status": z.void(),
+  "dealerDirectory:update": z.void(),
 } as const;
 
 export const ipcResponse = {
@@ -265,15 +298,7 @@ export const ipcResponse = {
   "geocode:search": z.array(
     z.object({ label: z.string(), lat: z.number(), lon: z.number() }),
   ),
-  "places:autocomplete": z.array(
-    z.object({
-      label: z.string(),
-      lat: z.number(),
-      lon: z.number(),
-      /** Where the hit came from — shown next to the suggestion. */
-      source: z.enum(["osm", "overture"]).optional(),
-    }),
-  ),
+  "places:autocomplete": z.array(PlaceSuggestionSchema),
   "boundary:detect": BoundaryResultSchema,
   "osm:details": OsmDetailsSchema,
   "detect:vehicles": DetectionResultSchema,
@@ -323,6 +348,7 @@ export const ipcResponse = {
   "imagery:select": ImagerySelectionSchema,
   "imagery:timeline": ImageryTimelineSchema,
   "dealerDirectory:status": DealerDirectoryStatusSchema.nullable(),
+  "dealerDirectory:update": DealerDirectoryUpdateSchema.nullable(),
   "hailZones:overlay": HailZoneOverlaySchema,
   "model:status": z.object({
     available: z.boolean(),

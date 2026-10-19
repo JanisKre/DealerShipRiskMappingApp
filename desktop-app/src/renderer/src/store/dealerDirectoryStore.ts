@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type {
   DealerDirectoryChunk,
   DealerDirectoryStatus,
+  DealerDirectoryUpdate,
 } from "@shared/ipc-schema";
 
 type Progress = Extract<DealerDirectoryChunk, { type: "progress" }>;
@@ -9,6 +10,8 @@ type Progress = Extract<DealerDirectoryChunk, { type: "progress" }>;
 interface DealerDirectoryState {
   /** `undefined` until loaded from main; `null` when never downloaded. */
   status: DealerDirectoryStatus | null | undefined;
+  /** Newest Overture release known to main; `null` when not checked yet. */
+  update: DealerDirectoryUpdate | null;
   running: boolean;
   progress: Progress | null;
   error: string | null;
@@ -27,6 +30,7 @@ let cancelActive: (() => void) | null = null;
 export const useDealerDirectoryStore = create<DealerDirectoryState>(
   (set, get) => ({
     status: undefined,
+    update: null,
     running: false,
     progress: null,
     error: null,
@@ -37,6 +41,13 @@ export const useDealerDirectoryStore = create<DealerDirectoryState>(
       } catch (err) {
         console.error("Dealer directory status failed:", err);
         set({ status: null });
+        return;
+      }
+      // Main answers from its daily cache; only a stale check goes online.
+      try {
+        set({ update: await window.api.dealerDirectoryUpdate() });
+      } catch (err) {
+        console.error("Dealer directory update check failed:", err);
       }
     },
 
@@ -48,7 +59,12 @@ export const useDealerDirectoryStore = create<DealerDirectoryState>(
           set({ progress: chunk });
         } else if (chunk.type === "done") {
           cancelActive = null;
-          set({ running: false, progress: null, status: chunk.status });
+          set((s) => ({
+            running: false,
+            progress: null,
+            status: chunk.status,
+            update: s.update && { ...s.update, updateAvailable: false },
+          }));
         } else {
           cancelActive = null;
           set({ running: false, progress: null, error: chunk.message });

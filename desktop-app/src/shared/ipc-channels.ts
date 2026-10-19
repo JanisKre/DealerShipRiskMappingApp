@@ -106,6 +106,8 @@ export const IPC = {
 
   // Local Overture Maps car-dealer directory (searched next to OSM/Photon)
   dealerDirectoryStatus: "dealerDirectory:status", // invoke -> status | null
+  // Newest Overture release vs. the local copy; checked at most once a day.
+  dealerDirectoryUpdate: "dealerDirectory:update", // invoke -> update | null
   // Streaming like model:download — a multi-minute download with progress.
   dealerDirectoryRefresh: "dealerDirectory:refresh", // renderer -> main (start)
   dealerDirectoryRefreshCancel: "dealerDirectory:refresh:cancel",

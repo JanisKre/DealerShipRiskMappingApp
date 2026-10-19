@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FileMetaData } from "hyparquet";
 import {
+  fetchLatestRelease,
+  isNewerRelease,
   bboxIntersects,
   discoverPlaceFiles,
   GERMANY_BBOX,
@@ -240,5 +242,27 @@ describe("bboxIntersects", () => {
   it("treats touching edges as overlapping", () => {
     expect(bboxIntersects([0, 0, 1, 1], [1, 1, 2, 2])).toBe(true);
     expect(bboxIntersects([0, 0, 1, 1], [1.1, 0, 2, 1])).toBe(false);
+  });
+});
+
+describe("releases", () => {
+  it.each([
+    ["2026-10-21.0", "2026-09-23.1", true],
+    ["2026-09-23.10", "2026-09-23.9", true],
+    ["2026-09-23.1", "2026-09-23.1", false],
+    ["2026-08-20.0", "2026-09-23.1", false],
+    ["garbage", "2026-09-23.1", false],
+    ["2026-09-23.1", "garbage", true],
+  ])("%s newer than %s → %s", (candidate, current, expected) => {
+    expect(isNewerRelease(candidate, current)).toBe(expected);
+  });
+
+  it("reads the latest release from the STAC root", async () => {
+    await expect(
+      fetchLatestRelease(async () => ({ latest: "2026-10-21.0" })),
+    ).resolves.toBe("2026-10-21.0");
+    await expect(
+      fetchLatestRelease(async () => ({ latest: "../evil" })),
+    ).rejects.toThrow("latest release missing");
   });
 });

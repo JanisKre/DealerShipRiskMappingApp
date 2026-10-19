@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import type { TFunction } from "i18next";
 import { Loader2, MapPin, Paperclip, Send, Sparkles } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
@@ -10,7 +11,12 @@ import {
 import { classifyInput } from "@renderer/lib/classifyInput";
 import { cn } from "@renderer/lib/utils";
 import { searchBias } from "@renderer/lib/searchBias";
-import { PlaceSourceTag } from "@renderer/components/map/PlaceSourceTag";
+import {
+  PlacePortfolioBadge,
+  PlaceSourceTag,
+} from "@renderer/components/map/PlaceSourceTag";
+import { useDealerDirectoryStore } from "@renderer/store/dealerDirectoryStore";
+import type { PlaceSuggestion } from "@shared/ipc-schema";
 
 export interface PlacePick {
   label: string;
@@ -38,12 +44,7 @@ interface Props {
   compact?: boolean;
 }
 
-interface Suggestion {
-  label: string;
-  lat: number;
-  lon: number;
-  source?: "osm" | "overture";
-}
+type Suggestion = PlaceSuggestion;
 
 const DEBOUNCE_MS = 300;
 const MIN_CHARS = 3;
@@ -102,8 +103,15 @@ export function Omnibox({
   const [error, setError] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
+  const directoryStatus = useDealerDirectoryStore((s) => s.status);
+  const directoryUpdate = useDealerDirectoryStore((s) => s.update);
+  const loadDirectoryStatus = useDealerDirectoryStore((s) => s.loadStatus);
 
   const isAddress = mode === "address";
+
+  useEffect(() => {
+    if (isAddress && directoryStatus === undefined) void loadDirectoryStatus();
+  }, [isAddress, directoryStatus, loadDirectoryStatus]);
   const trimmed = value.trim();
   // Sending is possible when a suggestion is present in address mode, or
   // text was typed in chat/dashboard mode.
@@ -220,8 +228,11 @@ export function Omnibox({
               onClick={() => pick(s)}
             >
               <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              <span>{s.label}</span>
-              <PlaceSourceTag source={s.source} />
+              <span className="flex min-w-0 flex-col">
+                <span>{s.label}</span>
+                <PlacePortfolioBadge portfolio={s.portfolio} />
+              </span>
+              <PlaceSourceTag source={s.source} sources={s.sources} />
             </button>
           </li>
         ))}
@@ -274,8 +285,22 @@ export function Omnibox({
       {open && isAddress && (trimmed.length >= MIN_CHARS || error) && (
         <div className="absolute bottom-full left-0 z-50 mb-2 w-full overflow-hidden rounded-md border bg-popover shadow-md">
           {dropdownBody}
-          <div className="border-t px-3 py-1 text-right text-[10px] text-muted-foreground">
-            © OpenStreetMap · Photon
+          <div className="flex items-center gap-2 border-t px-3 py-1 text-[10px] text-muted-foreground">
+            {directoryUpdate?.updateAvailable && (
+              <span>
+                {t("places.updateAvailable", {
+                  release: directoryUpdate.latestRelease,
+                })}{" "}
+                <Link to="/settings" className="underline underline-offset-2">
+                  {t("places.updateLink")}
+                </Link>
+              </span>
+            )}
+            <span className="ml-auto">
+              © OpenStreetMap · Photon
+              {suggestions.some((s) => s.sources?.includes("overture")) &&
+                " · Overture Maps"}
+            </span>
           </div>
         </div>
       )}
