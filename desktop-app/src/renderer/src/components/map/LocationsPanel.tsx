@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { AnalyzedDealership } from "@shared/types";
-import { haversineKm, nearbyInsured } from "@shared/risk-math";
+import {
+  dealershipHailZone,
+  haversineKm,
+  nearbyInsured,
+} from "@shared/risk-math";
 import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
 import { Button } from "@renderer/components/ui/button";
 import { Checkbox } from "@renderer/components/ui/checkbox";
@@ -37,7 +41,7 @@ import {
   TooltipTrigger,
 } from "@renderer/components/ui/tooltip";
 import { cn } from "@renderer/lib/utils";
-import { riskLevel, riskLevelColor } from "@renderer/lib/riskColor";
+import { hailZoneColor } from "@renderer/lib/riskColor";
 import { useAppStore } from "@renderer/store/appStore";
 import { searchBias } from "@renderer/lib/searchBias";
 import { Link } from "react-router-dom";
@@ -49,7 +53,7 @@ interface Props {
   /** All locations with coordinates (full registry, independent of map text filters). */
   dealerships: AnalyzedDealership[];
   selectedId: string | null;
-  /** IDs with an ongoing background analysis (spinner instead of score). */
+  /** IDs with an ongoing background analysis (spinner while analysing). */
   analyzingIds: string[];
   onSelect: (id: string) => void;
   onOpenDetails: (id: string) => void;
@@ -67,7 +71,7 @@ interface Row {
 }
 
 /**
- * Locations panel: lists all locations with a risk dot, score, and relationship badges.
+ * Locations panel: lists all locations with a risk dot and relationship badges.
  * Can be embedded as a floating glass pane (`variant="float"`, default) or as a dock
  * (`variant="dock"`) in a panel.
  */
@@ -471,7 +475,7 @@ function neighborSummaryText(t: TFunction, count: number): string {
   return t("map.locationsPanel.neighborSummary.other", { count, radius });
 }
 
-/** A clickable location row with a risk dot, score, and relationship badges. */
+/** A clickable location row with a risk dot and relationship badges. */
 function LocationRow({
   row,
   selected,
@@ -493,8 +497,8 @@ function LocationRow({
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const { d, distanceKm, sameGroup, inRadius } = row;
-  const score = d.risk?.overallScore;
-  const dotColor = score != null ? riskLevelColor(riskLevel(score)) : "#9ca3af";
+  const hailZone = dealershipHailZone(d)?.zone;
+  const dotColor = hailZone != null ? hailZoneColor(hailZone) : "#9ca3af";
 
   return (
     <li className={cn("flex items-stretch", selected && "bg-accent")}>
@@ -520,8 +524,8 @@ function LocationRow({
           className="mt-1 size-2.5 shrink-0 rounded-full"
           style={{ backgroundColor: dotColor }}
           title={
-            score != null
-              ? t(`risk.${riskLevel(score)}`)
+            hailZone != null
+              ? t("dashboard.zoneShort", { zone: hailZone })
               : t("map.locationsPanel.analyzing")
           }
         />
@@ -529,7 +533,7 @@ function LocationRow({
           <div className="flex items-center gap-1.5">
             <span className="truncate font-medium">{d.name}</span>
             <span className="ml-auto shrink-0 tabular-nums text-muted-foreground">
-              <ScoreLabel pending={pending} score={score} />
+              <PendingSpinner pending={pending} />
             </span>
           </div>
           {/* Meta and relationship badges */}
@@ -583,27 +587,24 @@ function LocationRow({
   );
 }
 
-/** Score on the right of the row: spinner during analysis, otherwise the value. */
-function ScoreLabel({
+/** Right side of the row: spinner while the analysis is running. */
+function PendingSpinner({
   pending,
-  score,
 }: Readonly<{
   pending: boolean;
-  score: number | undefined;
-}>): React.JSX.Element {
+}>): React.JSX.Element | null {
   const { t } = useTranslation();
-  if (pending)
-    return (
-      <Tooltip delayDuration={150}>
-        <TooltipTrigger asChild>
-          <Loader2 className="size-3.5 animate-spin" />
-        </TooltipTrigger>
-        <TooltipContent side="left">
-          {t("map.locationsPanel.analyzing")}
-        </TooltipContent>
-      </Tooltip>
-    );
-  return <>{score != null ? Math.round(score) : "…"}</>;
+  if (!pending) return null;
+  return (
+    <Tooltip delayDuration={150}>
+      <TooltipTrigger asChild>
+        <Loader2 className="size-3.5 animate-spin" />
+      </TooltipTrigger>
+      <TooltipContent side="left">
+        {t("map.locationsPanel.analyzing")}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 /** Small info chip; `accent` highlights relationship matches. */

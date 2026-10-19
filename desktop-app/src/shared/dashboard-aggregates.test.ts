@@ -56,24 +56,35 @@ describe("computeDashboardData", () => {
     expect(kpi.count).toBe(2);
     expect(kpi.totalEal).toBe(400);
     expect(kpi.totalExposure).toBe(1500);
-    expect(kpi.avgScore).toBe(50);
     expect(kpi.totalVehicles).toBe(8);
-    expect(kpi.extremeCount).toBe(1); // only score >= 75
+    expect(kpi.elevatedZoneCount).toBe(1); // only zone >= 4 (score 80 -> zone 5)
   });
 
-  it("buckets the risk distribution and drops empty buckets", () => {
+  it("counts locations per hail zone and drops empty zones", () => {
     const ds = [
-      make("1", { score: 90 }), // Extreme
-      make("2", { score: 60 }), // High
-      make("3", { score: 10 }), // Low
+      make("1", { score: 90 }), // zone 6
+      make("2", { score: 60 }), // zone 4
+      make("3", { score: 10 }), // zone 2
+      make("4", { score: 12 }), // zone 2
     ];
-    const { riskDistribution } = computeDashboardData(ds);
+    const { hailZoneDistribution } = computeDashboardData(ds);
     const byLabel = Object.fromEntries(
-      riskDistribution.map((p) => [p.label, p.value]),
+      hailZoneDistribution.map((p) => [p.label, p.value]),
     );
-    expect(byLabel).toEqual({ Extreme: 1, High: 1, Low: 1 });
-    // "Medium" is empty => not included.
-    expect(riskDistribution.some((p) => p.label === "Medium")).toBe(false);
+    expect(byLabel).toEqual({ "Zone 6": 1, "Zone 4": 1, "Zone 2": 2 });
+    // "Zone 3" is empty => not included.
+    expect(hailZoneDistribution.some((p) => p.label === "Zone 3")).toBe(false);
+  });
+
+  it("ranks topHailZone by zone, then by EAL", () => {
+    const ds = [
+      make("1", { name: "A", score: 60, eal: 100 }), // zone 4
+      make("2", { name: "B", score: 60, eal: 500 }), // zone 4, larger EAL
+      make("3", { name: "C", score: 90, eal: 10 }), // zone 6
+    ];
+    const { topHailZone } = computeDashboardData(ds);
+    expect(topHailZone.map((p) => p.label)).toEqual(["C", "B", "A"]);
+    expect(topHailZone.map((p) => p.value)).toEqual([6, 4, 4]);
   });
 
   it("orders topEal descending and caps at 10", () => {
@@ -102,11 +113,10 @@ describe("computeDashboardData", () => {
       count: 0,
       totalEal: 0,
       totalExposure: 0,
-      avgScore: 0,
       totalVehicles: 0,
-      extremeCount: 0,
+      elevatedZoneCount: 0,
     });
-    expect(data.riskDistribution).toEqual([]);
+    expect(data.hailZoneDistribution).toEqual([]);
     expect(data.topEal).toEqual([]);
   });
 });

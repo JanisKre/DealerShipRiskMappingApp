@@ -6,7 +6,7 @@ import {
   computeAccumulationClusters,
   estimateHailZoneFromScore,
 } from "@shared/risk-math";
-import { riskColor } from "@renderer/lib/riskColor";
+import { hailZoneColor } from "@renderer/lib/riskColor";
 import { eur } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
 
@@ -17,7 +17,7 @@ const ACTIVE_FILL_BOOST = 0.15;
 
 /**
  * Draws the accumulation clusters (>= 2 locations) as colored radius circles
- * around their center — color by maximum hail score, opacity by EAL share
+ * around their center — color by maximum hail zone, opacity by EAL share
  * of the portfolio (replaces the earlier separate accumulation heatmap: same
  * message "how much risk sits here", but on the real, radius-based clusters
  * instead of an arbitrary grid). Clicking a circle toggles the cluster
@@ -54,7 +54,7 @@ export function AccumulationClusterLayer({
     <>
       {clusters.map((c) => {
         const active = c.clusterId === activeClusterId;
-        const color = riskColor(c.maxHailScore);
+        const color = hailZoneColor(estimateHailZoneFromScore(c.maxHailScore));
         const ealShare = c.totalEalEur / maxEal;
         const fillOpacity =
           MIN_FILL_OPACITY +

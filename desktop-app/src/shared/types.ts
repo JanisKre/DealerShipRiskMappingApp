@@ -971,17 +971,16 @@ export const DASHBOARD_KPI_KEYS = [
   "kpi.count",
   "kpi.totalEal",
   "kpi.totalExposure",
-  "kpi.avgScore",
   "kpi.totalVehicles",
-  "kpi.extremeCount",
+  "kpi.elevatedZoneCount",
 ] as const;
 export type DashboardKpiKey = (typeof DASHBOARD_KPI_KEYS)[number];
 
 /** Allowed series sources (arrays for charts, via `source`). */
 export const DASHBOARD_SERIES_KEYS = [
-  "riskDistribution",
+  "hailZoneDistribution",
   "topEal",
-  "topScore",
+  "topHailZone",
   "seasonalProfile",
 ] as const;
 export type DashboardSeriesKey = (typeof DASHBOARD_SERIES_KEYS)[number];
@@ -1022,13 +1021,11 @@ export type Dashboard = z.infer<typeof DashboardSchema>;
 export const NlQueryDealershipSchema = z.object({
   id: z.string(),
   name: z.string(),
-  riskLevel: z.enum(["LOW", "MEDIUM", "HIGH", "EXTREME"]).optional(),
-  overallScore: z.number().optional(),
+  hailZone: z.number().int().min(1).max(6).optional(),
   vehicleCount: z.number().optional(),
   utilisation: z.number().optional(),
   eal: z.number().optional(),
   exposureEur: z.number().optional(),
-  hailScore: z.number().optional(),
   boundarySource: z.string().optional(),
   boundaryConfidence: z.number().optional(),
   insured: z.boolean().optional(),

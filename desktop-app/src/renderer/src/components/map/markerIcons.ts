@@ -1,27 +1,24 @@
 import L from "leaflet";
-import { riskColor } from "@renderer/lib/riskColor";
+import { hailZoneColor } from "@renderer/lib/riskColor";
 
 /**
  * Returns a risk-colored teardrop marker icon.
- * `score` null/undefined -> gray pending pin.
+ * `zone` null/undefined -> gray pending pin.
  * `selected` -> additional pulse ring (CSS class `marker-selected`).
- * `zone` -> hail zone (1..6) printed in the pin.
+ * The pin is colored by hail zone (1..6), which is also printed in it.
  * `business` -> existing business is a filled pin, new business a white pin
  * with a thick risk-colored outline and a "+" badge (CSS class
  * `marker-new-business`), so the two read apart without giving up the risk
  * color.
  */
 export function riskMarkerIcon(
-  score: number | undefined | null,
   zone: number | undefined | null,
   selected = false,
   business: "existing" | "new" = "existing",
 ): L.DivIcon {
-  const color = score != null ? riskColor(score) : "#6b7280";
+  const color = zone != null ? hailZoneColor(zone) : "#6b7280";
   const label =
-    score != null && zone != null
-      ? `<span class="marker-label">Z${zone}</span>`
-      : "";
+    zone != null ? `<span class="marker-label">Z${zone}</span>` : "";
   const badge =
     business === "new" ? `<span class="marker-new-badge">+</span>` : "";
   const classes = [

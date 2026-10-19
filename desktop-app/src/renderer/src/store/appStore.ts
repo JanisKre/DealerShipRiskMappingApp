@@ -16,10 +16,9 @@ import {
 } from "@shared/parameters";
 import { boundaryNeedsReview } from "@shared/boundary-review";
 import { dedupeDealerships } from "@shared/dedupe";
-import { effectiveVehicleCount } from "@shared/risk-math";
+import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { attachVehicleTimeline } from "@shared/vehicle-timeline";
 import { normalizeWebsiteUrl } from "@shared/website";
-import { riskLevel } from "@renderer/lib/riskColor";
 
 /**
  * Central renderer store. Holds the active portfolio plus derived UI
@@ -1191,17 +1190,14 @@ async function rescoreWithConcurrency(
 
 /** Flat NL query projection of a dealership (for the filter evaluator in main). */
 export function toNlQueryDealership(d: AnalyzedDealership): NlQueryDealership {
-  const score = d.risk?.overallScore;
   return {
     id: d.id,
     name: d.name,
-    riskLevel: score == null ? undefined : riskLevel(score),
-    overallScore: score,
+    hailZone: dealershipHailZone(d)?.zone,
     vehicleCount: d.detection ? effectiveVehicleCount(d.detection) : undefined,
     utilisation: d.risk?.utilisation,
     eal: d.risk?.eal,
     exposureEur: d.risk?.exposureEur,
-    hailScore: d.risk?.perils.find((p) => p.peril === "hail")?.score,
     boundarySource: d.boundary?.source,
     boundaryConfidence: d.boundary?.confidence,
     insured: d.insured,
