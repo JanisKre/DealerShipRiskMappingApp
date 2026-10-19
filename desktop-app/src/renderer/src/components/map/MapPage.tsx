@@ -241,16 +241,10 @@ export function MapPage(): React.JSX.Element {
   const progress = useAppStore((s) => s.progress);
   const analysisErrors = useAppStore((s) => s.analysisErrors);
   const cancelAnalysis = useAppStore((s) => s.cancelAnalysis);
-  const pendingBoundaryDetectionIds = useAppStore(
-    (s) => s.pendingBoundaryDetectionIds,
-  );
   const detectionUpdateIds = useAppStore((s) => s.detectionUpdateIds);
   const detectionUpdateErrors = useAppStore((s) => s.detectionUpdateErrors);
   const boundaryEditIds = useAppStore((s) => s.boundaryEditIds);
   const boundaryHistory = useAppStore((s) => s.boundaryHistory);
-  const updateDetectionForBoundary = useAppStore(
-    (s) => s.updateDetectionForBoundary,
-  );
   const saveBoundaryEdit = useAppStore((s) => s.saveBoundaryEdit);
   const confirmBoundary = useAppStore((s) => s.confirmBoundary);
   const undoBoundaryEdit = useAppStore((s) => s.undoBoundaryEdit);
@@ -684,7 +678,7 @@ export function MapPage(): React.JSX.Element {
                 disabled={busy}
                 title={t("map.page.saveBoundaryEdit")}
               >
-                <Save />
+                {busy ? <Loader2 className="animate-spin" /> : <Save />}
                 {t("map.page.saveBoundaryEdit")}
               </Button>
               <Button
@@ -709,43 +703,9 @@ export function MapPage(): React.JSX.Element {
                 <RotateCcw />
                 {t("map.page.revertBoundaryDefault")}
               </Button>
-            </div>
-          );
-        })}
-
-        {pendingBoundaryDetectionIds.map((id) => {
-          const dealership = dealerships.find((d) => d.id === id);
-          if (!dealership) return null;
-          const updating = detectionUpdateIds.includes(id);
-          const error = detectionUpdateErrors[id];
-          return (
-            <div
-              key={id}
-              className="glass flex max-w-[min(90vw,34rem)] flex-wrap items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg"
-            >
-              <ScanSearch className="size-4 shrink-0 text-primary" />
-              <span>
-                {t("map.page.boundaryDetectionPrompt", {
-                  name: dealership.name,
-                })}
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={updating}
-                onClick={() => void updateDetectionForBoundary(id)}
-              >
-                {updating ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <RefreshCw />
-                )}
-                {t("map.page.updateCarDetection")}
-              </Button>
-              {error && (
+              {detectionUpdateErrors[id] && (
                 <span className="basis-full text-center text-xs text-destructive">
-                  {error}
+                  {detectionUpdateErrors[id]}
                 </span>
               )}
             </div>

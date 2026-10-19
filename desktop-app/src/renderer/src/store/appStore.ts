@@ -16,6 +16,10 @@ import {
 } from "@shared/parameters";
 import { boundaryNeedsReview } from "@shared/boundary-review";
 import { dedupeDealerships } from "@shared/dedupe";
+import {
+  mergePortfolios,
+  type PortfolioMergeResult,
+} from "@shared/portfolio-merge";
 import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { attachVehicleTimeline } from "@shared/vehicle-timeline";
 import { normalizeWebsiteUrl } from "@shared/website";
@@ -119,7 +123,10 @@ interface AppState {
   ) => Promise<void>;
   /** Re-runs vehicle detection and risk scoring using the current boundary. */
   updateDetectionForBoundary: (id: string) => Promise<void>;
-  /** Persists a manual boundary edit and clears its unsaved marker. */
+  /**
+   * Saves a manual boundary edit and re-runs the car detection for it in one
+   * step. The edit stays marked (and the error visible) if detection fails.
+   */
   saveBoundaryEdit: (id: string) => Promise<void>;
   /** Marks the detected boundary as visually confirmed, clears its review flag and rescores. */
   confirmBoundary: (id: string) => Promise<void>;
@@ -210,6 +217,14 @@ interface AppState {
   setNlQueryMatchedIds: (ids: string[] | null) => void;
   setFilters: (patch: Partial<PortfolioFilters>) => void;
   resetFilters: () => void;
+
+  /** Opens a portfolio file as a new, separate portfolio. */
+  openImportedSession: (session: Session) => Promise<void>;
+  /**
+   * Merges a portfolio file into the open one (added locations, edited
+   * boundaries) and rescores what changed with the current parameters.
+   */
+  mergeSession: (session: Session) => Promise<PortfolioMergeResult>;
 
   currentSession: () => Session;
   /** Persists the current session in SQLite (manually or via autosave). */
@@ -586,6 +601,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   saveBoundaryEdit: async (id) => {
     if (!get().boundaryEditIds.includes(id)) return;
+    if (get().detectionUpdateIds.includes(id)) return;
+    // Persist the edited boundary first so it survives a failing detection.
+    await get().saveSession();
+    await get().updateDetectionForBoundary(id);
+    if (get().detectionUpdateErrors[id]) return;
     await get().saveSession();
     set((s) => ({
       boundaryEditIds: s.boundaryEditIds.filter((editId) => editId !== id),
@@ -670,10 +690,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, risk });
-    await get().saveSession();
-    set((s) => ({
-      boundaryEditIds: s.boundaryEditIds.filter((editId) => editId !== id),
-    }));
   },
   updateDealershipMeta: (id, patch) =>
     set((s) => {
@@ -1017,6 +1033,47 @@ export const useAppStore = create<AppState>((set, get) => ({
       dealerships: s.dealerships,
       parameters: s.parameters,
     };
+  },
+
+  openImportedSession: async (session) => {
+    if (get().dealerships.length > 0) {
+      await get()
+        .saveSession()
+        .catch((err: unknown) => {
+          console.error(
+            "Saving the current portfolio before opening a file failed:",
+            err,
+          );
+        });
+    }
+    resetToBlankPortfolio(set, get);
+    set({ sessionName: session.name });
+    get().setDealerships(session.dealerships);
+    get().setParameters(session.parameters);
+    await get().saveSession();
+  },
+
+  mergeSession: async (session) => {
+    const result = mergePortfolios(get().dealerships, session.dealerships);
+    set({ dealerships: result.dealerships });
+    // Merged data was scored under the other portfolio's parameters.
+    const changedIds = new Set([...result.addedIds, ...result.updatedIds]);
+    const changed = get().dealerships.filter((d) => changedIds.has(d.id));
+    if (changed.length > 0) {
+      const updates = await rescoreWithConcurrency(
+        changed,
+        get().parameters,
+        4,
+      );
+      set((s) => ({
+        dealerships: s.dealerships.map((d) => {
+          const update = updates.find((x) => x.id === d.id);
+          return update ? { ...d, risk: update.risk } : d;
+        }),
+      }));
+    }
+    await get().saveSession();
+    return result;
   },
 
   saveSession: async () => {

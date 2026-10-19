@@ -22,7 +22,17 @@
       "deleteFor": "{{name}} löschen",
       "confirmDelete": "„{{name}}“ löschen? Das kann nicht rückgängig gemacht werden.",
       "deleteConfirmButton": "Löschen",
-      "deleteFailed": "Portfolio konnte nicht gelöscht werden: {{error}}"
+      "deleteFailed": "Portfolio konnte nicht gelöscht werden: {{error}}",
+      "importFile": "Portfolio-Datei importieren …",
+      "importFailed": "Die Portfolio-Datei konnte nicht gelesen werden: {{error}}",
+      "importFound": "„{{name}}“: {{count}} Standorte, davon {{edited}} mit manuell bearbeiteter Grenze oder Fahrzeugzahl.",
+      "importMerge": "In dieses Portfolio zusammenführen",
+      "importMergeHint": "Fügt neue Standorte hinzu und übernimmt bearbeitete Grenzen; eigene Bearbeitungen werden nie überschrieben.",
+      "importOpenNew": "Als neues Portfolio öffnen",
+      "mergeDone": "Zusammengeführt: {{added}} Standorte hinzugefügt, {{updated}} Grenzen übernommen.",
+      "mergeConflicts": "{{count}} Standorte wurden auf beiden Seiten bearbeitet und bleiben hier unverändert: {{names}}",
+      "mergeFailed": "Das Portfolio konnte nicht zusammengeführt werden: {{error}}",
+      "importOpenFailed": "Die Portfolio-Datei konnte nicht geöffnet werden: {{error}}"
     }
   },
   "start": {
@@ -935,12 +945,10 @@
       "durationHours": "{{hours}} Std. {{minutes}} Min.",
       "cancelAnalysis": "Analyse stoppen",
       "analysisErrors": "{{count}} Standorte konnten nicht analysiert werden",
-      "boundaryDetectionPrompt": "Grenze für {{name}} geändert.",
       "boundaryEditedPrompt": "Grenze für {{name}} bearbeitet.",
-      "saveBoundaryEdit": "Änderung speichern",
+      "saveBoundaryEdit": "Speichern & Fahrzeugerkennung aktualisieren",
       "undoBoundaryEdit": "Rückgängig",
       "revertBoundaryDefault": "Auf Standard zurücksetzen",
-      "updateCarDetection": "Fahrzeugerkennung aktualisieren",
       "boundaryWarning": "{{count}}/{{total}} Grundstücksgrenzen prüfen",
       "boundaryWarningHint": "Deckt die farbige Fläche das Betriebsgelände ab? Dann Stecknadel anklicken → „Grenze bestätigen“. Sonst „Grenzen bearbeiten“ und die Eckpunkte verschieben.",
       "dismissHint": "Hinweis ausblenden",

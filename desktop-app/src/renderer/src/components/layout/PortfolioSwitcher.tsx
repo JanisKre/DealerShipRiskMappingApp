@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronsUpDown,
+  FileUp,
   FolderClock,
   Loader2,
   Pencil,
@@ -17,6 +18,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@renderer/components/ui/popover";
+import type { Session } from "@shared/types";
+import { hasManualEdits } from "@shared/portfolio-merge";
 import { useAppStore } from "@renderer/store/appStore";
 import { cn } from "@renderer/lib/utils";
 
@@ -47,11 +50,15 @@ export function PortfolioSwitcher({
   const switchSession = useAppStore((s) => s.switchSession);
   const renameSavedSession = useAppStore((s) => s.renameSavedSession);
   const deleteSavedSession = useAppStore((s) => s.deleteSavedSession);
+  const openImportedSession = useAppStore((s) => s.openImportedSession);
+  const mergeSession = useAppStore((s) => s.mergeSession);
+  const hasLocations = useAppStore((s) => s.dealerships.length > 0);
 
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pendingImport, setPendingImport] = useState<Session | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
@@ -77,6 +84,7 @@ export function PortfolioSwitcher({
     } else {
       setRenamingId(null);
       setConfirmingDeleteId(null);
+      setPendingImport(null);
     }
   }
 
@@ -110,6 +118,68 @@ export function PortfolioSwitcher({
         t("shell.portfolioSwitcher.switchFailed", {
           error: errorMessage(err),
         }),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleImportFile(): Promise<void> {
+    setBusy(true);
+    try {
+      const session = await window.api.importPortfolioFile();
+      if (session) setPendingImport(session);
+    } catch (err) {
+      toast.error(
+        t("shell.portfolioSwitcher.importFailed", { error: errorMessage(err) }),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleOpenImported(): Promise<void> {
+    if (!pendingImport) return;
+    setBusy(true);
+    try {
+      await openImportedSession(pendingImport);
+      setPendingImport(null);
+      setOpen(false);
+      navigate("/");
+    } catch (err) {
+      toast.error(
+        t("shell.portfolioSwitcher.importOpenFailed", {
+          error: errorMessage(err),
+        }),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMergeImported(): Promise<void> {
+    if (!pendingImport) return;
+    setBusy(true);
+    try {
+      const result = await mergeSession(pendingImport);
+      toast.success(
+        t("shell.portfolioSwitcher.mergeDone", {
+          added: result.addedIds.length,
+          updated: result.updatedIds.length,
+        }),
+      );
+      if (result.conflictNames.length > 0)
+        toast.warning(
+          t("shell.portfolioSwitcher.mergeConflicts", {
+            count: result.conflictNames.length,
+            names: result.conflictNames.slice(0, 5).join(", "),
+          }),
+        );
+      setPendingImport(null);
+      setOpen(false);
+    } catch (err) {
+      toast.error(
+        t("shell.portfolioSwitcher.mergeFailed", { error: errorMessage(err) }),
       );
     } finally {
       setBusy(false);
@@ -188,6 +258,58 @@ export function PortfolioSwitcher({
           <Plus className="size-4" />
           {t("shell.portfolioSwitcher.newPortfolio")}
         </button>
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+          onClick={() => void handleImportFile()}
+          disabled={busy}
+        >
+          <FileUp className="size-4" />
+          {t("shell.portfolioSwitcher.importFile")}
+        </button>
+        {pendingImport && (
+          <div className="mx-1 my-1 space-y-2 rounded-md border bg-muted/30 p-2.5 text-xs">
+            <p>
+              {t("shell.portfolioSwitcher.importFound", {
+                name: pendingImport.name,
+                count: pendingImport.dealerships.length,
+                edited: pendingImport.dealerships.filter(hasManualEdits).length,
+              })}
+            </p>
+            {hasLocations && (
+              <>
+                <Button
+                  size="sm"
+                  className="h-7 w-full"
+                  disabled={busy}
+                  onClick={() => void handleMergeImported()}
+                >
+                  {t("shell.portfolioSwitcher.importMerge")}
+                </Button>
+                <p className="text-muted-foreground">
+                  {t("shell.portfolioSwitcher.importMergeHint")}
+                </p>
+              </>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 w-full"
+              disabled={busy}
+              onClick={() => void handleOpenImported()}
+            >
+              {t("shell.portfolioSwitcher.importOpenNew")}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-full"
+              onClick={() => setPendingImport(null)}
+            >
+              {t("common.cancel")}
+            </Button>
+          </div>
+        )}
         <div className="my-1 h-px bg-border" />
         <div className="flex items-center gap-1.5 px-2 py-1 text-sm font-semibold">
           <FolderClock className="size-3.5" />
