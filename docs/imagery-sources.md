@@ -62,6 +62,14 @@ counted on a state orthophoto: that image is shown again once zoomed in to z15
 or more. The switch happens immediately on zooming, without waiting for the
 next lookup.
 
+The map, the legend ("Satellite image (map centre)") and the "Imagery version"
+list always describe the same image. The list shows what is really drawn: a
+pinned Wayback version, else the image a selected site's vehicles were counted
+on ("Vehicle count image", only while that site is near the map centre), else
+"Automatic" with the source and capture date it currently resolves to. While a
+lookup for a new view is running, the legend and the list show a loading state
+instead of the previous place's capture date.
+
 The settings offer "Automatic" (default), "Esri World Imagery" (Esri only;
 still picks the newer of Esri z19/z20) and a custom WMS/XYZ template, which
 now also accepts `{bbox-epsg-3857}` for plain WMS GetMap URLs.
