@@ -388,6 +388,8 @@ const api = {
       zoom,
     } satisfies IpcRequest["imagery:timeline"]),
 
+  hailZoneOverlay: (): Promise<IpcResponse["hailZones:overlay"]> =>
+    ipcRenderer.invoke(IPC.hailZoneOverlay),
   modelStatus: (): Promise<IpcResponse["model:status"]> =>
     ipcRenderer.invoke(IPC.modelStatus),
 

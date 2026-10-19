@@ -6,9 +6,19 @@ export function riskColor(score: number): string {
   return "#dc2626"; // red
 }
 
-/** Traffic-light color for a hail zone (1 = green … 5–6 = red). */
+/** One distinct color per hail zone (1 = green … 6 = dark red). */
+const HAIL_ZONE_COLORS = [
+  "#16a34a", // 1
+  "#84cc16", // 2
+  "#eab308", // 3
+  "#f97316", // 4
+  "#dc2626", // 5
+  "#7f1d1d", // 6
+] as const;
+
 export function hailZoneColor(zone: number): string {
-  return riskColor(((zone - 1) / 5) * 100);
+  const index = Math.min(6, Math.max(1, Math.round(zone))) - 1;
+  return HAIL_ZONE_COLORS[index];
 }
 
 /** Discrete risk level per score (analogous to RiskLevel in the original). */

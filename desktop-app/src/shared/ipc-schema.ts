@@ -14,6 +14,7 @@ import {
   LlmProviderSchema,
   NatCatApiProviderSchema,
   NatCatAssessmentSchema,
+  HailZoneOverlaySchema,
   NlQueryDealershipSchema,
   NlQueryFilterSchema,
   OsmDetailsSchema,
@@ -254,6 +255,7 @@ export const ipcRequest = {
   "imagery:select": ImageryViewRequestSchema,
   "imagery:timeline": ImageryViewRequestSchema,
   "model:status": z.void(),
+  "hailZones:overlay": z.void(),
   "dealerDirectory:status": z.void(),
 } as const;
 
@@ -321,6 +323,7 @@ export const ipcResponse = {
   "imagery:select": ImagerySelectionSchema,
   "imagery:timeline": ImageryTimelineSchema,
   "dealerDirectory:status": DealerDirectoryStatusSchema.nullable(),
+  "hailZones:overlay": HailZoneOverlaySchema,
   "model:status": z.object({
     available: z.boolean(),
     /** Target folder where the install wizard places/expects the model. */

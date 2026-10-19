@@ -880,6 +880,11 @@
       "directoryHintPrefix": "Händler fehlt?",
       "directoryHintLink": "Händlerverzeichnis laden"
     },
+    "hailZones": {
+      "loading": "Postleitzahl-Flächen werden geladen …",
+      "loadFailed": "Die Hagelzonen-Ebene konnte nicht geladen werden. Internetverbindung prüfen und erneut versuchen.",
+      "tooltip": "PLZ {{postcode}} · Hagelzone {{zone}}"
+    },
     "layerPanel": {
       "title": "Ebenen",
       "activeCount": "{{count}} aktiv",
@@ -893,6 +898,7 @@
       "boundariesLayerLabel": "Grundstücke",
       "nearbyInsuredLayerLabel": "Versicherte Nachbarn",
       "accumulationClustersLayerLabel": "Kumul-Cluster",
+      "hailZonesLayerLabel": "Hagelzonen (PLZ)",
       "editingActiveBadge": "aktiv",
       "editBoundariesButton": "Grenzen bearbeiten",
       "stopEditingButton": "Bearbeiten beenden",

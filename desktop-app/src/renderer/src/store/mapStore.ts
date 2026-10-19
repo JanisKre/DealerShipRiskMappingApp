@@ -15,6 +15,8 @@ export interface MapLayers {
   nearbyInsured: boolean;
   /** Accumulation clusters (>= 2 locations) as radius circles, opacity ~ EAL share. */
   accumulationClusters: boolean;
+  /** Postcode areas colored by hail zone (outlines downloaded on first use). */
+  hailZones: boolean;
 }
 
 /** Search and filter options. */
@@ -86,6 +88,7 @@ export const useMapStore = create<MapState>()(
         detections: true,
         nearbyInsured: false,
         accumulationClusters: false,
+        hailZones: false,
       },
       basemap: "satellite",
       satelliteOpacity: 1,

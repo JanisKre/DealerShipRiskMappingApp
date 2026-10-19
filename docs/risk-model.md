@@ -104,6 +104,21 @@ EAL; a change rescores every location.
 - Results stored by an older model version keep their old EAL until they are
   recalculated (the dashboard offers this).
 
+### Hail zone map overlay
+
+The map layer "Hail zones (postcodes)" colors every German postcode area by its
+hail zone 1–6 (green → dark red), using the same table as the EAL
+(`shared/hail-zones.ts`). The outlines come from the OpenStreetMap-derived
+[`yetzt/postleitzahlen`](https://github.com/yetzt/postleitzahlen) release
+(ODbL 1.0, © OpenStreetMap contributors, credited in the map). The first
+activation downloads them (about 14 MB) from GitHub; the main process
+simplifies the shared borders to roughly 130 m, joins the zones and caches the
+result in the user data folder (`hail-zones/overlay-v1.json`), so later use is
+offline. Limitations: the outlines are simplified and not survey-grade; a
+postcode without an entry in the zone table is not drawn; the zone table is
+dated 2024 while the outlines are newer, so recently changed postcodes can be
+missing or differ.
+
 ### Portfolio views
 
 - **Largest accumulations**: single-linkage groups of locations within
