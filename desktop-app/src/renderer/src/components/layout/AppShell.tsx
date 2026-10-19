@@ -185,7 +185,7 @@ export function AppShell(): React.JSX.Element {
               </NavLink>
             </SidebarMenuButton>
             <span className="text-muted-foreground shrink-0 px-1 text-xs group-data-[collapsible=icon]:hidden">
-              v1
+              v{__APP_VERSION__}
             </span>
             <ThemeToggle />
           </div>
