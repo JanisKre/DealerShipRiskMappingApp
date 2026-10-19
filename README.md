@@ -50,7 +50,10 @@ anyway**. Linux: build an AppImage from source (`npm run dist`).
   with a local runtime (Ollama, LM Studio, llama.cpp), OpenAI, Claude or a
   custom endpoint
 - **Local & exportable** — SQLite in the user data folder, offline API cache;
-  export to PDF, Excel, CSV and `.drm` portfolio files; German, English, French
+  export to PDF, Excel, CSV and `.drm` portfolio files; German, English, French.
+  There is no multi-user mode: share a `.drm` file (it carries manually edited
+  boundaries and vehicle counts) and a colleague can open it as a new portfolio
+  or merge it into theirs from the portfolio menu
 
 Results are screening estimates, not an engineering, legal or insurance
 decision — see the [risk model](./docs/risk-model.md) for sources and

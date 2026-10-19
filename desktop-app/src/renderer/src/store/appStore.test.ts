@@ -214,6 +214,98 @@ describe("re-analysis and manual boundaries", () => {
   });
 });
 
+describe("saving a boundary edit", () => {
+  const edited = {
+    ...firstInput,
+    boundary: { source: "manual", areaSqm: 5000, confidence: 0.6 },
+    detection: { vehicleCount: 3, confidence: 0.5, model: "test" },
+  } as unknown as AnalyzedDealership;
+
+  beforeEach(() => {
+    useAppStore.setState({
+      dealerships: [edited],
+      sessionId: "s1",
+      boundaryEditIds: ["one"],
+      detectionUpdateIds: [],
+      detectionUpdateErrors: {},
+      pendingBoundaryDetectionIds: ["one"],
+    });
+  });
+
+  it("saves, re-runs the car detection and clears the edit in one step", async () => {
+    api.detectVehicles.mockResolvedValueOnce({
+      vehicleCount: 9,
+      confidence: 0.8,
+      model: "test",
+    });
+    api.scoreRisk.mockResolvedValueOnce({ overallScore: 30 });
+
+    await useAppStore.getState().saveBoundaryEdit("one");
+
+    const state = useAppStore.getState();
+    expect(api.detectVehicles).toHaveBeenCalledTimes(1);
+    // Once before the detection (edit survives a failure), once after.
+    expect(api.saveSession).toHaveBeenCalledTimes(2);
+    expect(state.dealerships[0].detection?.vehicleCount).toBe(9);
+    expect(state.boundaryEditIds).toEqual([]);
+    expect(state.pendingBoundaryDetectionIds).toEqual([]);
+  });
+
+  it("keeps the edit open and shows the error when the detection fails", async () => {
+    api.detectVehicles.mockRejectedValueOnce(new Error("no imagery"));
+
+    await useAppStore.getState().saveBoundaryEdit("one");
+
+    const state = useAppStore.getState();
+    expect(state.boundaryEditIds).toEqual(["one"]);
+    expect(state.detectionUpdateErrors.one).toBe("no imagery");
+    // The edited boundary was persisted before the detection ran.
+    expect(api.saveSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a second save while the detection is running", async () => {
+    useAppStore.setState({ detectionUpdateIds: ["one"] });
+    await useAppStore.getState().saveBoundaryEdit("one");
+    expect(api.saveSession).not.toHaveBeenCalled();
+    expect(api.detectVehicles).not.toHaveBeenCalled();
+  });
+});
+
+describe("merging a portfolio file", () => {
+  it("adds new locations, takes over edited boundaries and rescores them", async () => {
+    const local = {
+      ...firstInput,
+      risk: { overallScore: 1 },
+    } as AnalyzedDealership;
+    useAppStore.setState({ dealerships: [local], sessionId: "s1" });
+    api.scoreRisk.mockResolvedValue({ overallScore: 42 });
+
+    const result = await useAppStore.getState().mergeSession({
+      id: "other",
+      name: "Shared",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      dealerships: [
+        {
+          ...firstInput,
+          boundary: { source: "manual", areaSqm: 1, confidence: 1 },
+        },
+        { ...secondInput },
+      ],
+    } as never);
+
+    expect(result.addedIds).toEqual(["two"]);
+    expect(result.updatedIds).toEqual(["one"]);
+    const merged = useAppStore.getState().dealerships;
+    expect(merged.map((d) => d.id)).toEqual(["one", "two"]);
+    expect(merged[0].boundary?.source).toBe("manual");
+    expect(merged.every((d) => d.risk?.overallScore === 42)).toBe(true);
+    expect(api.saveSession).toHaveBeenCalled();
+    // The open portfolio stays the open portfolio.
+    expect(useAppStore.getState().sessionId).toBe("s1");
+  });
+});
+
 describe("location removal", () => {
   const seeded = [
     { ...firstInput } as AnalyzedDealership,

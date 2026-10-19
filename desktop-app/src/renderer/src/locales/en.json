@@ -22,7 +22,17 @@
       "deleteFor": "Delete {{name}}",
       "confirmDelete": "Delete \"{{name}}\"? This can't be undone.",
       "deleteConfirmButton": "Delete",
-      "deleteFailed": "Could not delete the portfolio: {{error}}"
+      "deleteFailed": "Could not delete the portfolio: {{error}}",
+      "importFile": "Import portfolio file…",
+      "importFailed": "Could not read the portfolio file: {{error}}",
+      "importFound": "“{{name}}”: {{count}} locations, {{edited}} with manually edited boundaries or vehicle counts.",
+      "importMerge": "Merge into this portfolio",
+      "importMergeHint": "Adds new locations and takes over edited boundaries; your own edits are never overwritten.",
+      "importOpenNew": "Open as new portfolio",
+      "mergeDone": "Merged: {{added}} locations added, {{updated}} boundaries taken over.",
+      "mergeConflicts": "{{count}} locations were edited on both sides and kept as they were here: {{names}}",
+      "mergeFailed": "Could not merge the portfolio: {{error}}",
+      "importOpenFailed": "Could not open the portfolio file: {{error}}"
     }
   },
   "start": {
@@ -935,12 +945,10 @@
       "durationHours": "{{hours}} h {{minutes}} min",
       "cancelAnalysis": "Stop analysis",
       "analysisErrors": "{{count}} locations could not be analyzed",
-      "boundaryDetectionPrompt": "Boundary changed for {{name}}.",
       "boundaryEditedPrompt": "Boundary edited for {{name}}.",
-      "saveBoundaryEdit": "Save edit",
+      "saveBoundaryEdit": "Save & update car detection",
       "undoBoundaryEdit": "Undo",
       "revertBoundaryDefault": "Revert to default",
-      "updateCarDetection": "Update car detection",
       "boundaryWarning": "Review {{count}}/{{total}} property boundaries",
       "boundaryWarningHint": "Does the coloured area cover the dealership lot? Click the pin → “Confirm boundary”. Otherwise use “Edit boundaries” and drag the corner points.",
       "dismissHint": "Dismiss hint",

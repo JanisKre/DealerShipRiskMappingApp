@@ -22,7 +22,17 @@
       "deleteFor": "Supprimer {{name}}",
       "confirmDelete": "Supprimer « {{name}} » ? Cette action est irréversible.",
       "deleteConfirmButton": "Supprimer",
-      "deleteFailed": "Impossible de supprimer le portefeuille : {{error}}"
+      "deleteFailed": "Impossible de supprimer le portefeuille : {{error}}",
+      "importFile": "Importer un fichier de portefeuille…",
+      "importFailed": "Impossible de lire le fichier de portefeuille : {{error}}",
+      "importFound": "« {{name}} » : {{count}} sites, dont {{edited}} avec limite ou nombre de véhicules modifié manuellement.",
+      "importMerge": "Fusionner dans ce portefeuille",
+      "importMergeHint": "Ajoute les nouveaux sites et reprend les limites modifiées ; vos propres modifications ne sont jamais écrasées.",
+      "importOpenNew": "Ouvrir comme nouveau portefeuille",
+      "mergeDone": "Fusionné : {{added}} sites ajoutés, {{updated}} limites reprises.",
+      "mergeConflicts": "{{count}} sites ont été modifiés des deux côtés et restent inchangés ici : {{names}}",
+      "mergeFailed": "Impossible de fusionner le portefeuille : {{error}}",
+      "importOpenFailed": "Impossible d’ouvrir le fichier de portefeuille : {{error}}"
     }
   },
   "start": {
@@ -605,12 +615,10 @@
       "durationHours": "{{hours}} h {{minutes}} min",
       "cancelAnalysis": "Arrêter l'analyse",
       "analysisErrors": "{{count}} sites n'ont pas pu être analysés",
-      "boundaryDetectionPrompt": "Limite modifiée pour {{name}}.",
       "boundaryEditedPrompt": "Limite modifiée pour {{name}}.",
-      "saveBoundaryEdit": "Enregistrer la modification",
+      "saveBoundaryEdit": "Enregistrer et actualiser la détection",
       "undoBoundaryEdit": "Annuler",
       "revertBoundaryDefault": "Rétablir la limite par défaut",
-      "updateCarDetection": "Actualiser la détection des voitures",
       "boundaryWarning": "Vérifier {{count}}/{{total}} limites de terrain",
       "boundaryWarningHint": "La zone colorée couvre-t-elle le site ? Cliquez sur l’épingle → « Confirmer la limite ». Sinon, « Modifier les limites » et déplacez les sommets.",
       "dismissHint": "Masquer l'indication",
