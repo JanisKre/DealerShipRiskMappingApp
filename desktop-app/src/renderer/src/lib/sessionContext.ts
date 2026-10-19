@@ -31,7 +31,7 @@ export function buildSessionContext(dealerships: AnalyzedDealership[]): string {
 
   return [
     `Portfolio with ${count} locations.`,
-    `Total exposure: ${Math.round(totalExposure)}€, Total EAL: ${Math.round(totalEal)}€/year.`,
+    `Total exposure: ${Math.round(totalExposure)}€, Total EAL: ${Math.round(totalEal)}€.`,
     `PML (100-year, worst cluster): ${pml100.estimatedLossEur}€ across ${pml100.dealershipsInScenario} locations.`,
     `Locations${count > 40 ? " (first 40)" : ""}:`,
     lines,

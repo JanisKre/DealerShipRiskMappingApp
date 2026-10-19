@@ -107,7 +107,6 @@ export function SummaryCards({
     {
       label: t("dashboard.hailEal"),
       value: eur(totalEal),
-      hint: t("dashboard.kpi.perYear"),
       icon: CloudHail,
       info: { topic: "hailEal" },
     },
