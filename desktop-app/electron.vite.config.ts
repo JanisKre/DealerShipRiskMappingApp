@@ -1,7 +1,12 @@
+import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+
+const { version } = JSON.parse(
+  readFileSync(resolve(__dirname, 'package.json'), 'utf-8')
+) as { version: string }
 
 export default defineConfig({
   main: {
@@ -46,6 +51,8 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(__dirname, 'src/renderer'),
+    // Shown in the sidebar footer; always the package.json version.
+    define: { __APP_VERSION__: JSON.stringify(version) },
     build: {
       rollupOptions: {
         input: { index: resolve(__dirname, 'src/renderer/index.html') }
