@@ -339,15 +339,6 @@ body {
     0 4px 10px rgba(0, 0, 0, 0.18);
 }
 
-.cluster-icon i {
-  width: 10px;
-  height: 10px;
-  border-radius: 9999px;
-  background: var(--cluster-color, #6b7280);
-  box-shadow: 0 0 0 3px
-    color-mix(in srgb, var(--cluster-color, #6b7280) 25%, transparent);
-}
-
 .cluster-icon svg {
   opacity: 0.6;
 }
