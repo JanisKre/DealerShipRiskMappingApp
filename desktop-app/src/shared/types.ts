@@ -486,6 +486,24 @@ export const HailZoneSchema = z.union([
 ]);
 export type HailZone = z.infer<typeof HailZoneSchema>;
 
+/** One postcode area of the hail zone map overlay (simplified outline). */
+export const HailZoneOverlayAreaSchema = z.object({
+  postcode: z.string(),
+  zone: HailZoneSchema,
+  /** MultiPolygon coordinates: polygons → rings → [lon, lat]. */
+  polygons: z.array(z.array(z.array(z.tuple([z.number(), z.number()])))),
+});
+export type HailZoneOverlayArea = z.infer<typeof HailZoneOverlayAreaSchema>;
+
+export const HailZoneOverlaySchema = z.object({
+  areas: z.array(HailZoneOverlayAreaSchema),
+  /** Attribution and licence of the postcode outlines (OpenStreetMap, ODbL). */
+  attribution: z.string(),
+  /** Publication time of the outline data. */
+  dataDate: z.string().nullable(),
+});
+export type HailZoneOverlay = z.infer<typeof HailZoneOverlaySchema>;
+
 /**
  * Inputs of the hail EAL (`EAL = N × λ_z × Σ p_k·S_k`), kept with the result
  * so the figure stays traceable to its vehicle count and hail-zone source.

@@ -344,6 +344,11 @@ export function LayerPanel({
                   checked={layers.accumulationClusters}
                   onChange={() => toggleLayer("accumulationClusters")}
                 />
+                <LayerToggle
+                  label={t("map.layerPanel.hailZonesLayerLabel")}
+                  checked={layers.hailZones}
+                  onChange={() => toggleLayer("hailZones")}
+                />
                 <PortfolioFilterBar dealerships={dealerships} variant="panel" />
               </div>
             </Section>

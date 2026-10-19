@@ -121,12 +121,18 @@ function portfolioTotals(session: Session): PortfolioTotals {
   return { count: ds.length, totalExposure, totalEal, elevatedZoneCount };
 }
 
-/** RGB color per hail zone (1 = green … 5–6 = red), as on the map. */
+/** RGB color per hail zone (1 = green … 6 = red), lighter than the map's so text stays readable. */
+const ZONE_RGB: Array<[number, number, number]> = [
+  [52, 211, 153], // 1
+  [163, 230, 53], // 2
+  [251, 191, 36], // 3
+  [251, 146, 60], // 4
+  [248, 113, 113], // 5
+  [225, 29, 72], // 6
+];
+
 function zoneRgb(zone: number): [number, number, number] {
-  if (zone >= 5) return [248, 113, 113];
-  if (zone >= 4) return [251, 146, 60];
-  if (zone >= 3) return [251, 191, 36];
-  return [52, 211, 153];
+  return ZONE_RGB[Math.min(6, Math.max(1, Math.round(zone))) - 1];
 }
 
 /** Hail zone as display text; "—" when the location has no zone yet. */

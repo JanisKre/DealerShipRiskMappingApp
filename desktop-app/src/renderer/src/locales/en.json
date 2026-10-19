@@ -880,6 +880,11 @@
       "directoryHintPrefix": "Dealer missing?",
       "directoryHintLink": "Load the dealer directory"
     },
+    "hailZones": {
+      "loading": "Loading postcode outlines…",
+      "loadFailed": "Hail zone overlay could not be loaded. Check the internet connection and try again.",
+      "tooltip": "Postcode {{postcode}} · hail zone {{zone}}"
+    },
     "layerPanel": {
       "title": "Layers",
       "activeCount": "{{count}} active",
@@ -893,6 +898,7 @@
       "boundariesLayerLabel": "Parcels",
       "nearbyInsuredLayerLabel": "Insured Neighbors",
       "accumulationClustersLayerLabel": "Accumulation Clusters",
+      "hailZonesLayerLabel": "Hail zones (postcodes)",
       "editingActiveBadge": "active",
       "editBoundariesButton": "Edit boundaries",
       "stopEditingButton": "Stop editing",

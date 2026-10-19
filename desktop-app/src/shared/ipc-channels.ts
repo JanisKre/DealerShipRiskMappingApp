@@ -95,6 +95,9 @@ export const IPC = {
   // Dated Esri World Imagery Wayback versions at a point (history of the image)
   imageryTimeline: "imagery:timeline",
 
+  // Postcode outlines coloured by hail zone for the map overlay (downloaded once)
+  hailZoneOverlay: "hailZones:overlay",
+
   // Vehicle detection model: status + install wizard download
   modelStatus: "model:status", // invoke -> { available: boolean }
   // Streaming like llm:stream (send/receive), not invoke — long downloads with progress.

@@ -55,6 +55,7 @@ import { BoundaryLayer } from "./BoundaryLayer";
 import { ClusteredMarkers } from "./ClusteredMarkers";
 import { DetectionOverlay, type DetectionEditDraft } from "./DetectionOverlay";
 import { HailstormScenarioLayer } from "./HailstormScenarioLayer";
+import { HailZoneLayer } from "./HailZoneLayer";
 import { LayerPanel } from "./LayerPanel";
 import { MapLegend } from "./MapLegend";
 import { NearbyInsuredLayer } from "./NearbyInsuredLayer";
@@ -582,6 +583,7 @@ export function MapPage(): React.JSX.Element {
         <MapViewReporter onChange={setMapView} />
         <ZoomControl />
 
+        {layers.hailZones && <HailZoneLayer />}
         {layers.accumulationClusters && (
           <AccumulationClusterLayer dealerships={visibleDealerships} />
         )}

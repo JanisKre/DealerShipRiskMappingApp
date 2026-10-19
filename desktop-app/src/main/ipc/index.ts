@@ -42,6 +42,7 @@ import {
   captureMap,
 } from "../services/export.service";
 import { geocode } from "../services/geocoding.service";
+import { getHailZoneOverlay } from "../services/hail-zone-overlay/overlay.service";
 import { getOsmDetails } from "../services/osmDetails.service";
 import { placesAutocomplete } from "../services/places.service";
 import {
@@ -274,6 +275,8 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     installDir: join(modelsDir(), MODEL_FILENAME),
     downloadConfigured: MODEL_DOWNLOAD_URL !== null,
   }));
+
+  handle(IPC.hailZoneOverlay, () => getHailZoneOverlay());
 
   handle(IPC.dealerDirectoryStatus, () => dealerDirectoryStatus());
 

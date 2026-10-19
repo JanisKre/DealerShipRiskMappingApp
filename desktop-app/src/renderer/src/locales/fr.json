@@ -550,6 +550,11 @@
       "directoryHintPrefix": "Concessionnaire introuvable ?",
       "directoryHintLink": "Charger l’annuaire"
     },
+    "hailZones": {
+      "loading": "Chargement des contours des codes postaux…",
+      "loadFailed": "La couche des zones de grêle n’a pas pu être chargée. Vérifiez la connexion Internet et réessayez.",
+      "tooltip": "Code postal {{postcode}} · zone de grêle {{zone}}"
+    },
     "layerPanel": {
       "title": "Couches",
       "activeCount": "{{count}} actives",
@@ -563,6 +568,7 @@
       "boundariesLayerLabel": "Parcelles",
       "nearbyInsuredLayerLabel": "Voisins assurés",
       "accumulationClustersLayerLabel": "Clusters de cumul",
+      "hailZonesLayerLabel": "Zones de grêle (codes postaux)",
       "editingActiveBadge": "actif",
       "editBoundariesButton": "Modifier les limites",
       "stopEditingButton": "Arrêter la modification",
