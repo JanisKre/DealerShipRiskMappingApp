@@ -154,15 +154,6 @@ export function ClusteredMarkers({
       showCoverageOnHover: false,
       iconCreateFunction(cluster) {
         const count = cluster.getChildCount();
-        // Cluster icon: colored by the highest hail zone among its markers.
-        const markers = cluster.getAllChildMarkers() as Array<
-          L.Marker & { _hailZone?: number }
-        >;
-        const maxZone = markers.reduce(
-          (mx, m) => Math.max(mx, m._hailZone ?? 0),
-          0,
-        );
-        const color = maxZone > 0 ? hailZoneColor(maxZone) : "#6b7280";
         const label = `${count} ${t("dashboard.locations")}`;
         // Fixed box so Leaflet can anchor it; the pill itself is centered inside.
         const width = 56 + label.length * 7;
@@ -170,7 +161,7 @@ export function ClusteredMarkers({
           className: "",
           iconSize: [width, 32],
           iconAnchor: [width / 2, 16],
-          html: `<div class="cluster-icon" style="--cluster-color:${color}"><i></i>${CLUSTER_ICON_SVG}<span>${escapeHtml(label)}</span></div>`,
+          html: `<div class="cluster-icon">${CLUSTER_ICON_SVG}<span>${escapeHtml(label)}</span></div>`,
         });
       },
     });
@@ -204,10 +195,8 @@ export function ClusteredMarkers({
         keyboard: true,
         title: d.name,
         riseOnHover: true,
-      }) as L.Marker & { _hailZone?: number; _dealershipId?: string };
+      }) as L.Marker & { _dealershipId?: string };
 
-      // Store the zone on the marker for the cluster icon calculation.
-      marker._hailZone = zoneOf(d) ?? 0;
       marker._dealershipId = d.id;
 
       // Hover tooltip: hail zone and vehicle count.
