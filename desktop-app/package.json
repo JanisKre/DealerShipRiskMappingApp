@@ -79,7 +79,7 @@
     "recharts": "^2.15.4",
     "sharp": "^0.35.5",
     "sonner": "^2.0.6",
-    "zod": "3.25.76",
+    "zod": "4.6.7",
     "zustand": "5.0.7"
   },
   "devDependencies": {
@@ -96,7 +96,7 @@
     "@vitest/coverage-v8": "5.0.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
-    "electron": "44.3.0",
+    "electron": "44.10.2",
     "electron-builder": "26.15.3",
     "electron-vite": "^5.0.0",
     "eslint": "9.32.0",

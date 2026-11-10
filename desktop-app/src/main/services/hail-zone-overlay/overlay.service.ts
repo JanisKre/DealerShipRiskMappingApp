@@ -35,6 +35,7 @@ const TopologyEnvelopeSchema = z.object({
   timestamp: z.string().optional(),
   arcs: z.array(z.array(z.tuple([z.number(), z.number()]))),
   objects: z.record(
+    z.string(),
     z.object({
       geometries: z.array(
         z.object({

@@ -89,7 +89,7 @@ export const NatCatAssessmentSchema = z.object({
   hazards: z.array(NatCatHazardSchema),
   /** Provider-specific classifications that are not directly scoreable. */
   attributes: z
-    .record(z.union([z.string(), z.number(), z.boolean()]))
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
     .default({}),
   evidence: RiskEvidenceSchema,
 });
@@ -781,8 +781,10 @@ export const NatCatSettingsSchema = z.preprocess(
     catnetHasApiKey: z.boolean().optional(),
     /** Source of the hail score. Default: screening. */
     primary: z.enum(["screening", ...NAT_CAT_API_PROVIDERS]).optional(),
+    // Partial on purpose: only configured providers have a connector. zod 4
+    // made enum-keyed `record` exhaustive, which would reject saved settings.
     connectors: z
-      .record(NatCatApiProviderSchema, NatCatConnectorSchema)
+      .partialRecord(NatCatApiProviderSchema, NatCatConnectorSchema)
       .optional(),
   }),
 );

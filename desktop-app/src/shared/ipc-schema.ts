@@ -158,16 +158,13 @@ export interface DetectVehiclesRequest {
 // Explicitly typed and shared by two channels: inlining the boundary and
 // parameter types twice pushes `ipcRequest` past the compiler's
 // serialization limit (TS7056).
-const DetectVehiclesRequestSchema: z.ZodType<
-  DetectVehiclesRequest,
-  z.ZodTypeDef,
-  unknown
-> = z.object({
-  lat: z.number(),
-  lon: z.number(),
-  boundary: BoundaryResultSchema.optional(),
-  parameters: RiskParametersSchema.optional(),
-});
+const DetectVehiclesRequestSchema: z.ZodType<DetectVehiclesRequest, unknown> =
+  z.object({
+    lat: z.number(),
+    lon: z.number(),
+    boundary: BoundaryResultSchema.optional(),
+    parameters: RiskParametersSchema.optional(),
+  });
 
 export const ipcRequest = {
   "csv:parse": z.object({ content: z.string() }),

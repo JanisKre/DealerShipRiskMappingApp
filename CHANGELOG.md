@@ -9,6 +9,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [0.3.0] – 2026-11-10
 
+### Security
+
+- Updated Electron to 44.10.2 and zod to 4.6.7, and refreshed transitive
+  dependencies (dompurify, undici, vite) to clear the critical and high
+  `npm audit` findings that blocked the release. zod 4 treats enum-keyed
+  records as exhaustive, so the NatCat connector map now uses
+  `z.partialRecord` to keep loading settings with only some providers
+  configured.
+
 ### Changed
 
 - Lot boundaries are now found by a source cascade instead of the

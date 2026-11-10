@@ -92,7 +92,7 @@ export function normalizeHazardApiResponse(
       dataVersion: z.string().optional(),
       spatialResolution: z.string().optional(),
       attributes: z
-        .record(z.union([z.string(), z.number(), z.boolean()]))
+        .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
         .optional(),
     })
     .passthrough()
