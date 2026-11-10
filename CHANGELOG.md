@@ -7,6 +7,11 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Website: updated vite to 7.3.7 for the `launch-editor` file-existence check
+  bypass on Windows (development server only).
+
 ### Changed
 
 - Lot boundaries now follow the detected vehicles (source cascade v2). The
