@@ -11,6 +11,11 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 - Website: updated vite to 7.3.7 for the `launch-editor` file-existence check
   bypass on Windows (development server only).
+- Desktop app: updated vitest and @vitest/coverage-v8 to 5.0.5 (mock
+  registration code injection and redirect allowlist bypass), and overrode
+  minimatch to 11.0.5 for typescript-eslint, electron-builder and
+  @electron/universal (globparts denial of service). `npm audit` reports no
+  vulnerabilities. All are development or build-time dependencies.
 
 ### Changed
 
