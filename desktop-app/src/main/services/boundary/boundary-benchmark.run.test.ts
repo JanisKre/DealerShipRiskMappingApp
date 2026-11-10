@@ -56,14 +56,46 @@ vi.mock("../cache.service", () => ({
 vi.mock("../settings.service", () => ({
   getSettings: () => ({
     satelliteProvider: "esri" as const,
-    // BOUNDARY_ENGINE=fused scores the fusion engine instead of the candidate
-    // chain, so the two can be compared on identical inputs.
+    // BOUNDARY_ENGINE=legacy|fused scores an older engine instead of the
+    // source cascade, so engines can be compared on identical inputs.
     boundaryEngine:
       process.env.BOUNDARY_ENGINE === "fused"
         ? ("fused" as const)
-        : ("legacy" as const),
+        : process.env.BOUNDARY_ENGINE === "legacy"
+          ? ("legacy" as const)
+          : ("cascade" as const),
   }),
 }));
+
+/**
+ * The public references *are* OSM dealer areas, and every engine reads OSM.
+ * With BOUNDARY_BENCHMARK_HIDE_REFERENCE=1 the reference object is removed
+ * from the OSM evidence before any engine sees it, which measures what each
+ * engine does on a site whose lot is not mapped — the case that matters.
+ */
+const hidden = vi.hoisted(() => ({
+  current: null as { osmType: string; osmId: number } | null,
+}));
+vi.mock("./osm-evidence.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./osm-evidence.service")>();
+  return {
+    ...actual,
+    fetchOsmEvidence: async (
+      ...args: Parameters<typeof actual.fetchOsmEvidence>
+    ) => {
+      const evidence = await actual.fetchOsmEvidence(...args);
+      const ref = hidden.current;
+      if (!evidence || !ref) return evidence;
+      return {
+        ...evidence,
+        areas: evidence.areas.filter(
+          (area) => !(area.osmType === ref.osmType && area.osmId === ref.osmId),
+        ),
+      };
+    },
+  };
+});
 
 import type { Polygon } from "@shared/types";
 import {
@@ -75,6 +107,8 @@ import { detectBoundary } from "../boundary.service";
 
 interface PublicFixture {
   id: string;
+  osmType: "way" | "relation";
+  osmId: number;
   lat: number;
   lon: number;
   state: string;
@@ -101,6 +135,7 @@ const OUTPUT = resolve(
 );
 
 const enabled = Boolean(process.env.BOUNDARY_BENCHMARK);
+const HIDE_REFERENCE = Boolean(process.env.BOUNDARY_BENCHMARK_HIDE_REFERENCE);
 
 /**
  * Pause between sites. Overpass' public instances rate-limit by IP, and a
@@ -141,8 +176,12 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
       const fixtures = loadFixtures();
       expect(fixtures.length).toBeGreaterThan(0);
       const engine =
-        process.env.BOUNDARY_ENGINE === "fused" ? "fused" : "legacy";
-      console.log(`engine: ${engine}\n`);
+        process.env.BOUNDARY_ENGINE === "fused" ||
+        process.env.BOUNDARY_ENGINE === "legacy"
+          ? process.env.BOUNDARY_ENGINE
+          : "cascade";
+      const variant = HIDE_REFERENCE ? `${engine}+hidden-ref` : engine;
+      console.log(`engine: ${variant}\n`);
 
       const rows: Array<{
         fixture: PublicFixture;
@@ -154,6 +193,9 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
       for (const [position, fixture] of fixtures.entries()) {
         // Sequential and paced on purpose: these are shared public services.
         if (DELAY_MS > 0 && position > 0) await sleep(DELAY_MS);
+        hidden.current = HIDE_REFERENCE
+          ? { osmType: fixture.osmType, osmId: fixture.osmId }
+          : null;
         const boundary = await detectBoundary(fixture.lat, fixture.lon);
         // Which sources actually produced a usable geometry. Without this a run
         // in which Overpass was unreachable looks identical to one in which OSM
@@ -181,13 +223,14 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
             `${Math.round(boundary.areaSqm).toString().padStart(7)} m² ` +
             `(ref ${fixture.areaSqm} m²) conf ${boundary.confidence.toFixed(2)}` +
             `${boundary.reviewRequired ? " REVIEW" : ""}` +
+            `${boundary.quality?.cascadeStage ? ` stage ${boundary.quality.cascadeStage}` : ""}` +
             `  [${candidateSources.join(",") || "no candidates"}]`,
         );
       }
 
       const all = evaluateBoundaryBenchmark(
         rows.map((r) => r.sample),
-        { dataset: `boundary-public-v1/${engine}` },
+        { dataset: `boundary-public-v1/${variant}` },
       );
       const tuning = evaluateBoundaryBenchmark(
         rows.filter((r) => !r.fixture.holdout).map((r) => r.sample),
@@ -231,7 +274,7 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
         OUTPUT,
         `${JSON.stringify(
           {
-            engine,
+            engine: variant,
             all,
             tuning,
             holdout,

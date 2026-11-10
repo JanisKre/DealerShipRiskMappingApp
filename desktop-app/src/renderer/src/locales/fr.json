@@ -368,7 +368,8 @@
       "boundaryEngineUnknownReason": "raison inconnue",
       "boundaryEngine": {
         "legacy": "classement des candidats",
-        "fused": "fusion multi-sources"
+        "fused": "fusion multi-sources",
+        "cascade": "cascade de sources"
       },
       "boundaryReviewLabel": "Vérification requise",
       "boundaryCandidatesTitle": "{{count}} limites candidates",

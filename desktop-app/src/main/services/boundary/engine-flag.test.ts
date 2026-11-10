@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   fromNominatimPolygon: vi.fn(),
   fromOverture: vi.fn(),
   fromAerialSurface: vi.fn(),
+  fetchParcelsNear: vi.fn(),
 }));
 
 vi.mock("../settings.service", () => ({ getSettings: mocks.getSettings }));
@@ -26,7 +27,7 @@ vi.mock("./evidence-sources", () => ({
 }));
 vi.mock("../alkis.service", () => ({
   fromAlkis: mocks.fromAlkis,
-  fetchParcelsNear: vi.fn(),
+  fetchParcelsNear: mocks.fetchParcelsNear,
   PARCEL_SEARCH_RADIUS_M: 250,
 }));
 vi.mock("./osm-evidence.service", () => ({
@@ -105,18 +106,29 @@ beforeEach(() => {
   mocks.fromNominatimPolygon.mockResolvedValue(null);
   mocks.fromOverture.mockResolvedValue(null);
   mocks.fromAerialSurface.mockResolvedValue(null);
+  mocks.fetchParcelsNear.mockResolvedValue({
+    parcels: [],
+    state: null,
+    truncated: false,
+    reachable: false,
+    containsAnchor: false,
+    status: "unsupportedHere",
+  });
 });
 
 describe("boundaryEngine flag", () => {
-  it("defaults to the candidate chain and never calls fusion", async () => {
+  it("defaults to the source cascade and never calls fusion or the chain", async () => {
     const spy = vi.spyOn(fusion, "fuseBoundary");
     const result = await detectBoundary(LAT, LON);
     expect(result.source).toBe("synthetic");
     expect(spy).not.toHaveBeenCalled();
     expect(mocks.collectEvidence).not.toHaveBeenCalled();
-    expect(result.quality?.requestedEngine).toBe("legacy");
-    expect(result.quality?.usedEngine).toBe("legacy");
-    expect(result.quality?.fallbackReason).toBeUndefined();
+    expect(mocks.fromAlkis).not.toHaveBeenCalled();
+    expect(mocks.fromOverture).not.toHaveBeenCalled();
+    expect(result.quality?.requestedEngine).toBe("cascade");
+    expect(result.quality?.usedEngine).toBe("cascade");
+    expect(result.quality?.cascadeStage).toBe(5);
+    expect(result.reviewRequired).toBe(true);
   });
 
   it("stays on the chain when the flag says legacy", async () => {
@@ -209,15 +221,14 @@ describe("boundaryEngine flag", () => {
     expect(result.quality?.fallbackReason).toMatch(/bad geometry/);
   });
 
-  it("falls back to the chain when settings are unreadable", async () => {
+  it("uses the cascade when settings are unreadable", async () => {
     // Settings live in SQLite; detection must still work without it.
     mocks.getSettings.mockImplementation(() => {
       throw new Error("database unavailable");
     });
     const result = await detectBoundary(LAT, LON);
     expect(result.source).toBe("synthetic");
-    expect(result.quality?.usedEngine).toBe("legacy");
-    expect(result.quality?.fallbackReason).toMatch(/settings unavailable/);
+    expect(result.quality?.usedEngine).toBe("cascade");
   });
 
   it("still attaches candidates and a review verdict to a fused result", async () => {
@@ -290,6 +301,11 @@ describe("boundaryEngine flag", () => {
 });
 
 describe("source agreement independence", () => {
+  // Agreement drives the legacy ranking; the cascade does not rank.
+  beforeEach(() => {
+    mocks.getSettings.mockReturnValue({ boundaryEngine: "legacy" });
+  });
+
   it("does not let two OSM readings corroborate each other", async () => {
     // fromOsm and fromOsmBuildings now read one Overpass response, and
     // nominatim-polygon reads the same dataset again. Overlapping geometry
@@ -341,5 +357,57 @@ describe("source agreement independence", () => {
 
     const result = await detectBoundary(LAT, LON);
     expect(result.quality?.sourceAgreement).toBeGreaterThan(0.8);
+  });
+});
+
+describe("source cascade wiring", () => {
+  const dealerArea = {
+    kind: "dealerArea" as const,
+    ring: rect(50, 40),
+    tags: { shop: "car", name: "Autohaus Beispiel" },
+    osmType: "way" as const,
+    osmId: 1,
+  };
+
+  it("takes an OSM dealer area at the point without asking for imagery", async () => {
+    mocks.fetchOsmEvidence.mockResolvedValue({
+      areas: [dealerArea],
+      lines: [],
+      addressNodes: [],
+    });
+    const result = await detectBoundary(LAT, LON, "Autohaus Beispiel");
+    expect(result.quality?.cascadeStage).toBe(1);
+    expect(result.role).toBe("operationalLot");
+    expect(result.confidence).toBeCloseTo(0.85);
+    expect(result.reviewRequired).toBe(false);
+    expect(mocks.fromAerialSurface).not.toHaveBeenCalled();
+    expect(result.candidates?.[0].provider).toBe("osm-dealer-area");
+  });
+
+  it("asks for imagery only when no vector stage accepted", async () => {
+    mocks.fromAerialSurface.mockResolvedValue({
+      source: "aerial",
+      role: "parkingSurface",
+      provider: "aerial-surface",
+      polygon: { type: "Polygon", coordinates: [rect(45, 35)] },
+      areaSqm: 6_300,
+      confidence: 0.7,
+    });
+    const result = await detectBoundary(LAT, LON);
+    expect(mocks.fromAerialSurface).toHaveBeenCalledTimes(1);
+    expect(result.quality?.cascadeStage).toBe(4);
+    expect(result.confidence).toBeCloseTo(0.4);
+    expect(result.reviewRequired).toBe(true);
+    expect(result.quality?.reasons).toContain(
+      "OpenStreetMap unreachable — re-analyse when online",
+    );
+  });
+
+  it("falls through to the synthetic circle when imagery throws", async () => {
+    mocks.fromAerialSurface.mockRejectedValue(new Error("offline"));
+    const result = await detectBoundary(LAT, LON);
+    expect(result.source).toBe("synthetic");
+    expect(result.quality?.cascadeStage).toBe(5);
+    expect(result.evidence?.fallbackUsed).toBe(true);
   });
 });

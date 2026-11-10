@@ -571,7 +571,8 @@
       "boundaryEngineUnknownReason": "Grund unbekannt",
       "boundaryEngine": {
         "legacy": "Kandidatenauswahl",
-        "fused": "Multi-Quellen-Fusion"
+        "fused": "Multi-Quellen-Fusion",
+        "cascade": "Quellen-Kaskade"
       },
       "boundaryReviewLabel": "Prüfung erforderlich",
       "boundaryCandidatesTitle": "{{count}} Grenzkandidaten",

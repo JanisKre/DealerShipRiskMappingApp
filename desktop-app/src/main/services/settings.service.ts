@@ -14,7 +14,7 @@ const SETTINGS_KEY = "app.settings";
 
 // The fusion engine is the supported operational detector. Legacy stays in the
 // schema so benchmarks and tests can still compare both engines.
-const DEFAULTS: Settings = { language: "de", boundaryEngine: "fused" };
+const DEFAULTS: Settings = { language: "de", boundaryEngine: "cascade" };
 
 export function getSettings(): Settings {
   const row = getDb()
@@ -30,9 +30,9 @@ export function getSettings(): Settings {
   }
   const parsed = SettingsSchema.safeParse(raw);
   if (!parsed.success) return DEFAULTS;
-  // The engine is no longer user-selectable; a "legacy" value saved by an
-  // older build must not pin the weaker detector with no way to undo it.
-  return withKeyPresence({ ...parsed.data, boundaryEngine: "fused" });
+  // The engine is no longer user-selectable; a value saved by an older build
+  // ("legacy", "fused") must not pin a retired detector with no way to undo it.
+  return withKeyPresence({ ...parsed.data, boundaryEngine: "cascade" });
 }
 
 export function setSettings(partial: Partial<Settings>): Settings {

@@ -571,7 +571,8 @@
       "boundaryEngineUnknownReason": "reason unknown",
       "boundaryEngine": {
         "legacy": "candidate ranking",
-        "fused": "multi-source fusion"
+        "fused": "multi-source fusion",
+        "cascade": "source cascade"
       },
       "boundaryReviewLabel": "Review required",
       "boundaryCandidatesTitle": "{{count}} boundary candidates",

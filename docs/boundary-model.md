@@ -151,12 +151,59 @@ cause: a dealership is not one parcel.
 prior, so sites reported ~0.8 confidence at ~0.3 IoU. A calibration MAE of 0.40
 means the number cannot be used to triage review.
 
-## The fusion engine
+## Source cascade (current engine)
 
-The app runs the fusion engine (`settings.service.ts` pins `boundaryEngine` to
-`"fused"`); the candidate chain remains the fallback whenever fusion returns
-null. Compare the two with `npm run benchmark:boundary` and
-`npm run benchmark:boundary:fused`.
+Since `CASCADE_VERSION` 1 the app runs the **source cascade**
+(`src/main/services/boundary/cascade.ts`; `settings.service.ts` pins
+`boundaryEngine` to `"cascade"`). It replaced the fusion engine below because
+fusion was frequently wrong in ways nobody could explain: about fifteen
+hand-set weights, a raster, region growing and a cadastral snap all shaped
+every result, so a bad outline had no single cause to fix.
+
+The cascade asks the sources in a fixed order. Each stage has **one
+acceptance rule**, and the first stage that accepts wins. A later source is
+consulted only when every earlier one declined. Nothing is blended, weighted or
+grown, and a result is never enlarged with another source's geometry.
+
+| Stage | Source | Accepted when | Confidence |
+| --- | --- | --- | --- |
+| 1 | OSM car-dealer area (`shop=car` etc., not a building) | contains the point, or matches name/address within `boundaryNearPointDistanceM` | 0.85 matched and inside, 0.75 inside, 0.7 matched nearby, 0.6 inside but named after another business |
+| 2 | ALKIS parcel containing the point | 300–30,000 m²; below 1,500 m² it is joined (one hop) with adjacent parcels that carry an OSM parking or dealer area | 0.6, joined 0.5 |
+| 3 | OSM parking at the point (or nearest within `boundaryNearPointDistanceM`), joined with parking within 10 m; buildings join only with a name/address match | contains parking and is 300 m² up to `boundaryMaxAreaSqm` | 0.45 |
+| 4 | Aerial paved-surface heuristic (`surface-boundary.service.ts`) | at or near the point and within the same area range | ≤ 0.4 |
+| 5 | Synthetic circle of `syntheticBoundaryRadiusM` | always | 0.1 |
+
+OSM and ALKIS are fetched once, in parallel, and cached. Imagery is requested
+only when no vector stage accepted. Nominatim, Overture and vehicle detections
+are not used by the cascade.
+
+**Review.** The confidence values are fixed priors per stage, not calibrated
+probabilities. They are ordered so that only stage 1 clears the default review
+threshold (`boundaryReviewConfidence` 0.7); every parcel, surface, imagery or
+synthetic result is flagged for review. `boundary-review.ts` therefore checks
+only confidence, point relation and vehicles outside the ring for cascade
+results — role, source agreement and top-2 margin describe the ranking the
+cascade replaced.
+
+**Alternatives instead of blending.** Later stages still run on the evidence
+already fetched, and every geometry they produce is kept in `candidates`. When
+stage 1 wins on a dealer area that covers only part of a parcel, the parcel is
+offered as an alternative for the reviewer to switch to, rather than being
+merged in automatically. `quality.reasons` carries one line per consulted
+stage, so the detail dialog shows *why* each earlier stage declined.
+
+**Limitations.** Stage 1 is only as complete as OSM mapping, and an area
+tagged `shop=car` may cover a single forecourt. Stage 2 returns a legal unit,
+which can be larger or smaller than the operational lot. Stage 3 cannot tell
+whose parking it is. The area limits (300 / 1,500 / 30,000 m²) are judgement
+values chosen for typical German dealerships, not fitted to data.
+
+## The fusion engine (superseded)
+
+The fusion engine is kept for comparison until the cascade is confirmed on
+independent references, and is no longer reachable from settings. Compare the
+engines with `npm run benchmark:boundary` (cascade),
+`npm run benchmark:boundary:fused` and `npm run benchmark:boundary:legacy`.
 
 ### How it works
 

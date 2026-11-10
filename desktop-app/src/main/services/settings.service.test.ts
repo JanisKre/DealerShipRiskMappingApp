@@ -58,7 +58,10 @@ describe("settings persistence", () => {
   it("falls back to defaults when the settings JSON is damaged", () => {
     mocks.statement.get.mockReturnValueOnce({ value: "not-json" });
 
-    expect(getSettings()).toEqual({ language: "de", boundaryEngine: "fused" });
+    expect(getSettings()).toEqual({
+      language: "de",
+      boundaryEngine: "cascade",
+    });
     expect(mocks.safeStorage.decryptString).not.toHaveBeenCalled();
   });
 
@@ -69,11 +72,11 @@ describe("settings persistence", () => {
 
     expect(setSettings({ language: "de" })).toEqual({
       language: "de",
-      boundaryEngine: "fused",
+      boundaryEngine: "cascade",
     });
     expect(mocks.statement.run).toHaveBeenCalledWith(
       "app.settings",
-      JSON.stringify({ language: "de", boundaryEngine: "fused" }),
+      JSON.stringify({ language: "de", boundaryEngine: "cascade" }),
     );
   });
 
@@ -95,13 +98,16 @@ describe("settings persistence", () => {
     mocks.statement.get.mockReset();
   });
 
-  it("migrates a stored legacy boundary engine to fusion", () => {
-    mocks.statement.get.mockReturnValueOnce({
-      value: JSON.stringify({ language: "de", boundaryEngine: "legacy" }),
-    });
+  it.each(["legacy", "fused"])(
+    "migrates a stored %s boundary engine to the source cascade",
+    (engine) => {
+      mocks.statement.get.mockReturnValueOnce({
+        value: JSON.stringify({ language: "de", boundaryEngine: engine }),
+      });
 
-    expect(getSettings().boundaryEngine).toBe("fused");
-  });
+      expect(getSettings().boundaryEngine).toBe("cascade");
+    },
+  );
 
   it("reports key presence for the newly selected provider", () => {
     for (const name of [

@@ -199,7 +199,7 @@ export const SourceStatusSchema = z.enum([
 export type SourceStatus = z.infer<typeof SourceStatusSchema>;
 
 /** Lot boundary detection engine. See `Settings.boundaryEngine`. */
-export const BoundaryEngineSchema = z.enum(["legacy", "fused"]);
+export const BoundaryEngineSchema = z.enum(["legacy", "fused", "cascade"]);
 export type BoundaryEngine = z.infer<typeof BoundaryEngineSchema>;
 
 /**
@@ -273,6 +273,8 @@ export const BoundaryQualitySchema = z.object({
    * radius cap — there may be supported evidence this result did not reach.
    */
   possiblyIncomplete: z.boolean().optional(),
+  /** Source-cascade stage (1–5) that produced the result; see boundary/cascade.ts. */
+  cascadeStage: z.number().int().min(1).max(5).optional(),
 });
 export type BoundaryQuality = z.infer<typeof BoundaryQualitySchema>;
 

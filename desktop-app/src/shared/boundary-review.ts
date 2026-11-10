@@ -21,6 +21,18 @@ export function boundaryNeedsReview(
   if (boundary.source === "manual" || boundary.confirmedAt != null)
     return false;
   const quality = boundary.quality;
+  // The source cascade encodes its own trust in a fixed per-stage confidence
+  // (boundary/cascade.ts): only a dealer area at the point clears the default
+  // threshold. Agreement, role and margin describe the ranking it replaced and
+  // would flag every cadastral or single-source result regardless of stage.
+  if (quality?.usedEngine === "cascade") {
+    return (
+      boundary.source === "synthetic" ||
+      boundary.confidence < parameters.boundaryReviewConfidence ||
+      quality.pointRelation === "outside" ||
+      (quality.vehiclesOutsideNearby ?? 0) > MAX_UNEXPLAINED_OUTSIDE_VEHICLES
+    );
+  }
   return (
     boundary.source === "synthetic" ||
     boundary.role !== "operationalLot" ||

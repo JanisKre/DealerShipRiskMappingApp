@@ -6,7 +6,11 @@ import type {
   BoundaryResult,
   Polygon,
 } from "@shared/types";
-import { fromAlkis } from "./alkis.service";
+import {
+  fetchParcelsNear,
+  fromAlkis,
+  PARCEL_SEARCH_RADIUS_M,
+} from "./alkis.service";
 import { polygonAreaSqm } from "./geo-math";
 import {
   geometryAreaSqm,
@@ -22,6 +26,13 @@ import {
 import { fetchOsmEvidence } from "./boundary/osm-evidence.service";
 import { fromNominatimPolygon } from "./boundary/nominatim-polygon";
 import { collectEvidence } from "./boundary/evidence-sources";
+import {
+  CASCADE_CONFIDENCE,
+  CASCADE_LIMITS,
+  finalizeCascadeResult,
+  runVectorCascade,
+  type CascadeStage,
+} from "./boundary/cascade";
 import {
   buildResultFromFusion,
   FUSION_VERSION,
@@ -101,6 +112,9 @@ export async function detectBoundary(
     parameters,
     vehicles,
   } satisfies BoundaryLookupContext;
+  if (selectedEngine() === "cascade") {
+    return detectWithCascade(lat, lon, context, parameters);
+  }
   const settled = await Promise.allSettled(
     BOUNDARY_PROVIDERS.map((provider) => provider.resolve(lat, lon, context)),
   );
@@ -204,6 +218,172 @@ export async function detectBoundary(
           ]
         : [],
     },
+  };
+}
+
+/**
+ * The engine selected in settings. Settings live in SQLite; when that is
+ * unavailable the cascade still works, so it is also the fallback.
+ */
+function selectedEngine(): BoundaryEngine {
+  try {
+    const engine = getSettings().boundaryEngine;
+    return engine === "legacy" || engine === "fused" ? engine : "cascade";
+  } catch {
+    return "cascade";
+  }
+}
+
+/**
+ * Source cascade (boundary/cascade.ts): OSM dealer area → ALKIS parcel → OSM
+ * parking/building → aerial surface → synthetic circle. The first stage that
+ * accepts wins; later sources are consulted only when earlier ones decline.
+ *
+ * OSM and ALKIS are fetched once, in parallel, and both are cached. Imagery is
+ * only requested when no vector stage accepted, because it is the slowest and
+ * least reliable source. Vehicle detections are not used by the cascade.
+ */
+async function detectWithCascade(
+  lat: number,
+  lon: number,
+  context: BoundaryLookupContext,
+  parameters: RiskParameters,
+): Promise<BoundaryResult> {
+  const anchor: LonLat = [lon, lat];
+  const [osmResult, parcelResult] = await Promise.allSettled([
+    fetchOsmEvidence(lat, lon),
+    fetchParcelsNear(lat, lon, PARCEL_SEARCH_RADIUS_M),
+  ]);
+  const osm =
+    osmResult.status === "fulfilled" ? (osmResult.value ?? null) : null;
+  const parcels =
+    parcelResult.status === "fulfilled" ? parcelResult.value : null;
+
+  const vector = runVectorCascade({
+    anchor,
+    name: context.name,
+    address: context.address,
+    osm,
+    parcels: parcels?.parcels ?? [],
+    parcelsTruncated: parcels?.truncated ?? false,
+    parameters,
+  });
+  const trace = [...vector.trace];
+  const alternatives = [...vector.alternatives];
+  let chosen: { result: BoundaryResult; stage: CascadeStage } | null =
+    vector.result && vector.stage
+      ? { result: vector.result, stage: vector.stage }
+      : null;
+
+  if (!chosen) {
+    const aerial = await aerialStage(lat, lon, context, parameters);
+    trace.push(`stage 4: ${aerial.reason}`);
+    if (aerial.result) chosen = { result: aerial.result, stage: 4 };
+  }
+  if (!chosen) {
+    trace.push("stage 5: synthetic circle around the point");
+    chosen = {
+      result: syntheticFallbackBoundary(
+        lat,
+        lon,
+        parameters.syntheticBoundaryRadiusM,
+      ),
+      stage: 5,
+    };
+  }
+  if (!osm) trace.push("OpenStreetMap unreachable — re-analyse when online");
+  if (parcels?.status === "transientFailure") {
+    trace.push("cadastre service unreachable — re-analyse when online");
+  }
+
+  const result = finalizeCascadeResult(
+    chosen.result,
+    chosen.stage,
+    anchor,
+    alternatives,
+    trace,
+    parameters,
+  );
+  const reviewRequired = boundaryNeedsReview(result, parameters);
+  const synthetic = result.source === "synthetic";
+  return {
+    ...result,
+    candidates: [result, ...alternatives].slice(0, 10).map(toBoundaryCandidate),
+    reviewRequired,
+    evidence: {
+      ...(result.evidence ?? {
+        source: result.source.toUpperCase(),
+        retrievedAt: new Date().toISOString(),
+        method: synthetic
+          ? "synthetic radius fallback"
+          : "geospatial boundary lookup",
+        confidence: result.confidence,
+        fallbackUsed: synthetic,
+        limitations: [],
+      }),
+      fallbackUsed: synthetic || chosen.stage >= 4,
+      limitations: [
+        ...(result.evidence?.limitations ?? []),
+        ...(reviewRequired
+          ? [
+              "Automatic boundary candidate; verify coverage before underwriting",
+            ]
+          : []),
+      ],
+    },
+  };
+}
+
+/** Cascade stage 4: the aerial paved-surface heuristic, when it is plausible. */
+async function aerialStage(
+  lat: number,
+  lon: number,
+  context: BoundaryLookupContext,
+  parameters: RiskParameters,
+): Promise<{ result: BoundaryResult | null; reason: string }> {
+  let aerial: BoundaryResult | null;
+  try {
+    aerial = await AERIAL_SURFACE_PROVIDER.resolve(lat, lon, context).then(
+      (value) => (Array.isArray(value) ? (value[0] ?? null) : value),
+    );
+  } catch {
+    return { result: null, reason: "aerial imagery unavailable" };
+  }
+  if (!aerial) return { result: null, reason: "no paved surface found" };
+  const rings = outerRings(aerial.polygon) as LonLat[][];
+  const near = rings.some(
+    (ring) =>
+      booleanPointInPolygon([lon, lat], {
+        type: "Polygon",
+        coordinates: [ring],
+      }) ||
+      distanceToRingM([lon, lat], ring) <=
+        parameters.boundaryNearPointDistanceM,
+  );
+  const areaSqm = geometryAreaSqm(aerial.polygon);
+  if (!near)
+    return { result: null, reason: "paved surface is away from the point" };
+  if (
+    areaSqm < CASCADE_LIMITS.minLotSqm ||
+    areaSqm > parameters.boundaryMaxAreaSqm
+  ) {
+    return {
+      result: null,
+      reason: `paved surface is ${Math.round(areaSqm)} m², outside the plausible range`,
+    };
+  }
+  const confidence = Math.min(aerial.confidence, CASCADE_CONFIDENCE.aerialMax);
+  return {
+    result: {
+      ...aerial,
+      provider: aerial.provider ?? AERIAL_SURFACE_PROVIDER.id,
+      areaSqm,
+      confidence,
+      ...(aerial.evidence
+        ? { evidence: { ...aerial.evidence, confidence } }
+        : {}),
+    },
+    reason: "paved surface in aerial imagery at the point",
   };
 }
 
