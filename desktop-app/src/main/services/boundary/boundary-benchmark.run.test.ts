@@ -226,6 +226,10 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
             `${boundary.quality?.cascadeStage ? ` stage ${boundary.quality.cascadeStage}` : ""}` +
             `  [${candidateSources.join(",") || "no candidates"}]`,
         );
+        // Why each stage accepted or declined, and which sources were down.
+        for (const reason of boundary.quality?.reasons ?? []) {
+          console.log(`    ${reason}`);
+        }
       }
 
       const all = evaluateBoundaryBenchmark(
@@ -307,7 +311,8 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
       // not that the engine regressed.
       expect(all.evaluatedSamples).toBe(rows.length);
     },
-    30 * 60 * 1000,
+    // Public services can be slow; a full run over all sites may need longer.
+    Number(process.env.BOUNDARY_BENCHMARK_TIMEOUT_MIN ?? 30) * 60 * 1000,
   );
 
   it.skipIf(!process.env.BOUNDARY_GROUNDTRUTH)(

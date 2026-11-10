@@ -8,6 +8,7 @@ npm run benchmark:boundary:fused                # superseded fusion engine
 npm run benchmark:boundary:legacy               # candidate ranking
 BOUNDARY_BENCHMARK_LIMIT=3 npm run benchmark:boundary   # quick smoke run
 BOUNDARY_BENCHMARK_HIDE_REFERENCE=1 npm run benchmark:boundary
+BOUNDARY_BENCHMARK_TIMEOUT_MIN=90 npm run benchmark:boundary   # default 30
 ```
 
 The references are OSM dealer areas, and every engine reads OSM, so a plain
