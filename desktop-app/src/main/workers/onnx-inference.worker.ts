@@ -1,13 +1,9 @@
 import * as ort from "onnxruntime-node";
 import type { VehicleModelManifest } from "@shared/model-manifest";
 import {
-  decodeYoloOutput,
-  letterbox,
-  nms,
-  nmsOptionsFor,
-  unletterbox,
-  type VehicleCandidate,
-} from "../services/detection/yolo";
+  inferWindow,
+  type InferWindow,
+} from "../services/detection/onnx-infer";
 
 /**
  * ONNX inference in an Electron utilityProcess (its own Node process, keeping
@@ -20,17 +16,9 @@ import {
  * Result detections are in crop pixels (letterbox already undone).
  */
 
-interface InferRequest {
+interface InferRequest extends InferWindow {
   type: "infer";
   id: string;
-  /** RGBA crop, at most `manifest.imgsz` on each side. */
-  pixels: Uint8ClampedArray;
-  width: number;
-  height: number;
-  /** User's base confidence threshold; per-class offsets come from the manifest. */
-  confidenceThreshold: number;
-  /** Ground resolution of the crop (m/px), for the real-world size filter. */
-  metersPerPixel: number;
 }
 
 type IncomingMessage =
@@ -65,33 +53,9 @@ function runInference(req: InferRequest): void {
     });
     return;
   }
-  const m = manifest;
   const t0 = performance.now();
-  const lb = letterbox(req.pixels, req.width, req.height, m.imgsz);
-  const inputTensor = new ort.Tensor("float32", lb.tensor, [
-    1,
-    3,
-    m.imgsz,
-    m.imgsz,
-  ]);
-
-  session
-    .run({ [session.inputNames[0]]: inputTensor })
-    .then((results) => {
-      const output = results[session!.outputNames[0]];
-      const candidates = decodeYoloOutput(
-        output.data as Float32Array,
-        output.dims,
-        {
-          manifest: m,
-          baseThreshold: req.confidenceThreshold,
-          metersPerModelPixel: req.metersPerPixel / lb.scale,
-        },
-      );
-      const detections: VehicleCandidate[] = nms(
-        candidates,
-        nmsOptionsFor(m.task),
-      ).map((c) => unletterbox(c, lb));
+  inferWindow(ort, session, manifest, req)
+    .then((detections) => {
       port.postMessage({
         type: "result",
         id: req.id,

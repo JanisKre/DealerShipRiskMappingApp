@@ -20,7 +20,11 @@ vi.mock("./cache.service", () => ({
 }));
 vi.mock("./boundary.service", () => ({ fetchOverpass: mocks.fetchOverpass }));
 
-import { getOsmDetails, pickDealershipPoi } from "./osmDetails.service";
+import {
+  getOsmDetails,
+  pickDealershipPoi,
+  websiteFromEvidence,
+} from "./osmDetails.service";
 
 const lat = 48.1374;
 const lon = 11.5755;
@@ -118,5 +122,73 @@ describe("getOsmDetails", () => {
 
     await expect(getOsmDetails(lat, lon, "Autohaus Test")).rejects.toThrow();
     expect(mocks.cacheSet).not.toHaveBeenCalled();
+  });
+});
+
+describe("websiteFromEvidence", () => {
+  const lat = 52.5;
+  const lon = 13.4;
+  const square: Array<[number, number]> = [
+    [lon, lat],
+    [lon + 0.001, lat],
+    [lon + 0.001, lat + 0.001],
+    [lon, lat],
+  ];
+
+  it("reads the website of the matching dealer area", () => {
+    const website = websiteFromEvidence(
+      {
+        areas: [
+          {
+            kind: "dealerArea",
+            ring: square,
+            tags: {
+              shop: "car",
+              name: "Muster Automobile",
+              website: "muster.de",
+            },
+            osmType: "way",
+            osmId: 1,
+          },
+        ],
+        lines: [],
+        addressNodes: [],
+        namedPlaces: [
+          {
+            point: [lon, lat],
+            tags: { amenity: "pharmacy", name: "Apotheke", website: "apo.de" },
+          },
+        ],
+      },
+      lat,
+      lon,
+      "Autohaus Muster GmbH",
+    );
+    expect(website).toBe("https://muster.de/");
+  });
+
+  it("ignores unrelated businesses", () => {
+    expect(
+      websiteFromEvidence(
+        {
+          areas: [],
+          lines: [],
+          addressNodes: [],
+          namedPlaces: [
+            {
+              point: [lon, lat],
+              tags: {
+                amenity: "pharmacy",
+                name: "Apotheke",
+                website: "apo.de",
+              },
+            },
+          ],
+        },
+        lat,
+        lon,
+        "Autohaus Muster",
+      ),
+    ).toBeUndefined();
   });
 });

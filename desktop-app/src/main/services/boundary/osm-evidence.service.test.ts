@@ -22,7 +22,11 @@ vi.mock("../cache.service", () => ({
 }));
 vi.mock("./overpass-client", () => ({ fetchOverpass: mocks.fetchOverpass }));
 
-import { fetchOsmEvidence } from "./osm-evidence.service";
+import {
+  fetchOsmEvidence,
+  OSM_EVIDENCE_BUDGET_MS,
+  osmEvidenceBy,
+} from "./osm-evidence.service";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -132,5 +136,54 @@ describe("fetchOsmEvidence", () => {
     expect(mocks.cacheSet.mock.calls[0][0]).toBe(
       "osm-evidence:v2:300:52.50000,13.40000",
     );
+  });
+});
+
+describe("osmEvidenceBy", () => {
+  it("bounds the background request by the evidence budget", async () => {
+    mocks.fetchOverpass.mockResolvedValue({ elements: [] });
+    await fetchOsmEvidence(52.5, 13.4);
+    expect(mocks.fetchOverpass).toHaveBeenCalledWith(expect.any(String), {
+      budgetMs: OSM_EVIDENCE_BUDGET_MS,
+    });
+  });
+
+  it("stops waiting at the deadline and lets the request finish later", async () => {
+    vi.useFakeTimers();
+    try {
+      let answer!: (value: { elements: [] }) => void;
+      mocks.fetchOverpass.mockReturnValue(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+      const lookup = osmEvidenceBy(52.5, 13.4, Date.now() + 6_000);
+      await vi.advanceTimersByTimeAsync(6_000);
+      expect(await lookup).toEqual({ evidence: null, status: "pending" });
+
+      // A second consumer joins the same request instead of starting one.
+      const later = osmEvidenceBy(52.5, 13.4);
+      answer({ elements: [] });
+      expect((await later).status).toBe("answered");
+      expect(mocks.fetchOverpass).toHaveBeenCalledTimes(1);
+      expect(mocks.cacheSet).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("serves a cached answer even after the deadline", async () => {
+    mocks.cacheGet.mockReturnValue({ areas: [], lines: [], addressNodes: [] });
+    const lookup = await osmEvidenceBy(52.5, 13.4, Date.now() - 1_000);
+    expect(lookup.status).toBe("answered");
+    expect(mocks.fetchOverpass).not.toHaveBeenCalled();
+  });
+
+  it("reports an unreachable Overpass rather than a pending one", async () => {
+    mocks.fetchOverpass.mockResolvedValue(null);
+    expect(await osmEvidenceBy(52.5, 13.4, Date.now() + 6_000)).toEqual({
+      evidence: null,
+      status: "unreachable",
+    });
   });
 });

@@ -3,22 +3,28 @@
 Run it from `desktop-app/`:
 
 ```bash
-npm run benchmark:boundary                      # source cascade (current engine)
-npm run benchmark:boundary:fused                # superseded fusion engine
-npm run benchmark:boundary:legacy               # candidate ranking
+npm run benchmark:boundary                      # source cascade, ~75 s
 BOUNDARY_BENCHMARK_LIMIT=3 npm run benchmark:boundary   # quick smoke run
-BOUNDARY_BENCHMARK_HIDE_REFERENCE=1 npm run benchmark:boundary
 BOUNDARY_BENCHMARK_TIMEOUT_MIN=90 npm run benchmark:boundary   # default 30
+BOUNDARY_BENCHMARK_DUMP=/tmp/inputs.json npm run benchmark:boundary
 ```
 
-The references are OSM dealer areas, and every engine reads OSM, so a plain
-run partly scores a source against itself. `BOUNDARY_BENCHMARK_HIDE_REFERENCE=1`
-removes each site's reference object from the OSM evidence before the engine
-sees it. That measures the sites where the lot is *not* mapped, which is the
-case where boundaries go wrong. Report both runs.
+Each site runs like an analysis in the app: context image, vehicle
+detection, then the boundary. The vehicle model is loaded from the app's data
+directory (`~/Library/Application Support/Dealership Risk Mapping/models`;
+`BOUNDARY_BENCHMARK_USERDATA` points elsewhere) and runs in-process. Without a
+model the run fails, because every site would fall back to the parcel or the
+circle.
 
-It is opt-in (gated on `BOUNDARY_BENCHMARK`) because it queries Overpass, the
-state cadastre services and the imagery provider. It must never gate CI.
+OSM is treated as not cached, which is what the app sees while the public
+Overpass servers are at capacity. The references are OSM dealer areas, so
+using OSM would also grade OSM against itself.
+
+`BOUNDARY_BENCHMARK_DUMP` writes each site's vehicles and parcels to a file, so
+cascade limits can be compared offline without fetching imagery again.
+
+It is opt-in (gated on `BOUNDARY_BENCHMARK`) because it queries the state
+cadastre services and the imagery provider. It must never gate CI.
 
 ## Files here
 

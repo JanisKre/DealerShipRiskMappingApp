@@ -189,10 +189,15 @@ describe("aerial tile mosaics", () => {
       }),
     );
 
-    const capture = await aerialImageForBbox([11.575, 48.137, 11.5752, 48.1372], 20);
+    const capture = await aerialImageForBbox(
+      [11.575, 48.137, 11.5752, 48.1372],
+      20,
+    );
 
     const urls = mocks.fetchWithResilience.mock.calls.map((c) => String(c[0]));
-    expect(urls.every((u) => u.startsWith("https://wmtsod1.bayernwolke.de/"))).toBe(true);
+    expect(
+      urls.every((u) => u.startsWith("https://wmtsod1.bayernwolke.de/")),
+    ).toBe(true);
     const keys = mocks.cacheGet.mock.calls.map((c) => String(c[0]));
     expect(keys.every((k) => k.startsWith("tile:v2:dop:BY:"))).toBe(true);
     expect(capture.imagery?.chosen.id).toBe("dop:BY");
@@ -247,12 +252,12 @@ describe("aerialImageForContext", () => {
     const [west, south, east, north] = capture.bbox;
     const widthM = (east - west) * 111_320 * Math.cos((52.5 * Math.PI) / 180);
     const heightM = (north - south) * 111_320;
-    // 100 m radius on every side (200 m across) — modest on purpose: this
+    // 125 m radius on every side (250 m across) — modest on purpose: this
     // capture runs on every analysis, unlike the occasional wide refinement
     // captures elsewhere, so it must not blow up tile/inference cost.
-    expect(widthM).toBeGreaterThan(190);
+    expect(widthM).toBeGreaterThan(240);
     expect(widthM).toBeLessThan(400);
-    expect(heightM).toBeGreaterThan(190);
+    expect(heightM).toBeGreaterThan(240);
   });
 
   it("does not vary with the coordinates given (no hidden scaling)", async () => {

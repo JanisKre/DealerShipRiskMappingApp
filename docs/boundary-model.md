@@ -153,267 +153,116 @@ means the number cannot be used to triage review.
 
 ## Source cascade (current engine)
 
-Since `CASCADE_VERSION` 1 the app runs the **source cascade**
-(`src/main/services/boundary/cascade.ts`; `settings.service.ts` pins
-`boundaryEngine` to `"cascade"`). It replaced the fusion engine below because
-fusion was frequently wrong in ways nobody could explain: about fifteen
-hand-set weights, a raster, region growing and a cadastral snap all shaped
-every result, so a bad outline had no single cause to fix.
+The app runs the **source cascade** (`src/main/services/boundary/cascade.ts`).
+Version 2 (`CASCADE_VERSION` 2) lets the **detected vehicles decide how far the
+site reaches and the cadastre decide its shape**.
 
-The cascade asks the sources in a fixed order. Each stage has **one
-acceptance rule**, and the first stage that accepts wins. A later source is
-consulted only when every earlier one declined. Nothing is blended, weighted or
-grown, and a result is never enlarged with another source's geometry.
+### Why vehicles
 
-| Stage | Source | Accepted when | Confidence |
+Version 1 asked OSM first, then ALKIS, then OSM parking. In practice it almost
+always returned a single ALKIS parcel, for two reasons:
+
+- **OSM was not available.** The public Overpass servers answer "at capacity"
+  most of the time and ask automated clients to run their own instance, so
+  stages 1 and 3 rarely ran, and joining small parcels depended on OSM parking.
+- **A parcel is not the lot.** Dealers use several adjacent plots (a showroom
+  plot and a yard plot), or one plot of a larger dealer centre. No map source
+  records which plots a dealer actually uses.
+
+What a dealership insures against hail is the stock standing outside, and that
+is exactly what the aerial image shows. The analysis detects the vehicles anyway
+(`detectVehiclesInContext`, about 2–3 s), so version 2 builds on them.
+
+### Stages
+
+Each stage has **one acceptance rule**, and the first stage that accepts wins.
+
+| Stage | Result | Accepted when | Confidence |
 | --- | --- | --- | --- |
-| 1 | OSM car-dealer area (`shop=car` etc., not a building) | contains the point, or matches name/address within `boundaryNearPointDistanceM` | 0.85 matched and inside, 0.75 inside, 0.7 matched nearby, 0.6 inside but named after another business |
-| 2 | ALKIS parcel containing the point | 300–30,000 m²; below 1,500 m² it is joined (one hop) with adjacent parcels that carry an OSM parking or dealer area | 0.6, joined 0.5 |
-| 3 | OSM parking at the point (or nearest within `boundaryNearPointDistanceM`), joined with parking within 10 m; buildings join only with a name/address match | contains parking and is 300 m² up to `boundaryMaxAreaSqm` | 0.45 |
-| 4 | Aerial paved-surface heuristic (`surface-boundary.service.ts`) | at or near the point and within the same area range | ≤ 0.4 |
+| 1 | Parcel at the point plus every adjacent parcel (shared edge) on which ≥ 10 lot vehicles stand; grows parcel by parcel | a vehicle lot exists, the parcel at the point is ≤ 30,000 m² | 0.75 when the parcels hold ≥ 80 % of the lot vehicles, else 0.6 |
+| 2 | Outline of the vehicle lot | no usable parcel at the point, ≥ 20 lot vehicles | 0.55 |
+| 3 | OSM dealer area — only when OSM is already cached | contains the point, or matches name/address within `boundaryNearPointDistanceM` | 0.45–0.65 |
+| 4 | Parcel at the point | no vehicle lot seen, 300–30,000 m² | 0.4 |
 | 5 | Synthetic circle of `syntheticBoundaryRadiusM` | always | 0.1 |
 
-OSM and ALKIS are fetched once, in parallel, and cached. Imagery is requested
-only when no vector stage accepted. Nominatim, Overture and vehicle detections
-are not used by the cascade.
+**Vehicle lot.** Vehicles within 80 m of the point are clustered by single
+linkage with gaps of at most 12 m: a parking row links across an aisle, a lot
+across a road does not. A cluster belongs to the site when it has at least
+3 vehicles and comes within 25 m of the point or stands on the parcel at the
+point. Roofs are masked first when OSM buildings are cached.
+
+**Parcels (stage 1).** Street-like parcels (narrower than 20 m and more than
+six times as long as wide) never join, so a site never jumps a road. Growth
+stops at `boundaryMaxAreaSqm`.
+
+**Outline (stage 2).** Each vehicle is stamped on a 1 m raster as a 20 m disk
+and the mask is shrunk again (a morphological closing). That fills aisles,
+empty bays and a showroom between rows, follows an L-shaped lot, and ends
+about 10 m beyond the outermost vehicles. The outline is squared up along the
+lot's axis. With fewer than 20 vehicles the stock was not seen, and the
+outline of a few cars would be far too small, so the stage declines.
+
+**OSM is never waited for.** The analysis uses OSM only when it is already
+cached (`OSM_WAIT_MS` 0). The request runs in the background for up to 60 s
+(`OSM_EVIDENCE_BUDGET_MS`) and fills the cache for the roof mask, the website
+lookup and stage 3 of a later analysis.
 
 **Review.** The confidence values are fixed priors per stage, not calibrated
-probabilities. They are ordered so that only stage 1 clears the default review
-threshold (`boundaryReviewConfidence` 0.7); every parcel, surface, imagery or
-synthetic result is flagged for review. `boundary-review.ts` therefore checks
-only confidence, point relation and vehicles outside the ring for cascade
-results — role, source agreement and top-2 margin describe the ranking the
-cascade replaced.
+probabilities. Only stage 1 with good vehicle coverage clears the default
+review threshold (`boundaryReviewConfidence` 0.7). A result is also reviewed
+when more than five vehicles stand within 15 m outside it
+(`vehiclesOutsideNearby`), which usually means a clipped lot.
 
-**Alternatives instead of blending.** Later stages still run on the evidence
-already fetched, and every geometry they produce is kept in `candidates`. When
-stage 1 wins on a dealer area that covers only part of a parcel, the parcel is
-offered as an alternative for the reviewer to switch to, rather than being
-merged in automatically. `quality.reasons` carries one line per consulted
-stage, so the detail dialog shows *why* each earlier stage declined.
+**Alternatives.** Later stages still run, and every geometry they produce is
+kept in `candidates`, so a reviewer can switch with one click. `quality.reasons`
+carries one line per consulted stage, for example "parcel at the point + 2
+adjacent parcel(s) hold 67 of 69 lot vehicles (97%)".
 
-**Limitations.** Stage 1 is only as complete as OSM mapping, and an area
-tagged `shop=car` may cover a single forecourt. Stage 2 returns a legal unit,
-which can be larger or smaller than the operational lot. Stage 3 cannot tell
-whose parking it is. The area limits (300 / 1,500 / 30,000 m²) are judgement
-values chosen for typical German dealerships, not fitted to data.
+### Measured
 
-## The fusion engine (superseded)
+`npm run benchmark:boundary`, 17 public sites, 10 November 2026. Each site ran
+like an analysis: context image, detection, boundary; OSM not cached.
 
-The fusion engine is kept for comparison until the cascade is confirmed on
-independent references, and is no longer reachable from settings. Compare the
-engines with `npm run benchmark:boundary` (cascade),
-`npm run benchmark:boundary:fused` and `npm run benchmark:boundary:legacy`.
+| | mean IoU, all | tuning (13) | hold-out (4) | mean area bias |
+| --- | --- | --- | --- | --- |
+| Cascade v1 (reference hidden, OSM partly reachable) | 0.298 | 0.290 | 0.323 | 0.86 |
+| Parcel or circle only (v2 without vehicles) | 0.322 | 0.322 | 0.323 | 0.91 |
+| **Cascade v2** | **0.446** | **0.474** | **0.358** | 1.02 |
 
-### How it works
+Winning stage: 11 sites parcels with vehicles, 4 vehicle outlines, 2 circles.
+Vehicle parcels lifted the sites where the lot spans several plots the most
+(for example 0.19 → 0.78 and 0.27 → 0.85).
 
-1. **Collect** (`boundary/evidence-sources.ts`) — OSM vector evidence,
-   cadastral parcels and an address-matched polygon, in parallel. A source that
-   cannot be reached is recorded as *unavailable*, never as evidence of absence.
-2. **Rasterize** (`boundary/fusion.ts` → `boundary/rasterize.ts`) — every source
-   is drawn into one 0.5 m metric grid over a 400 m window. Areas add signed
-   score; roads, rails and watercourses both subtract and cut; fences and walls
-   only cut.
-3. **Grow** (`boundary/region-grow.ts`) — a hysteresis flood fill from the
-   best-supported cell near the anchor, 4-connected, capped by area and radius.
-4. **Clean** — morphological closing bridges shadow lines between parked rows;
-   enclosed voids up to 2,500 m² are filled; the outline is extended onto the
-   barrier cells that bound it, so it runs *on* the fence.
-5. **Vectorize** (`boundary/vectorize.ts`) — contour tracing, Douglas-Peucker,
-   then squaring up against the ring's own dominant axis.
+**How the limits were set, and what that means for the numbers.** The limits
+were compared offline on the stored inputs of these 17 sites
+(`BOUNDARY_BENCHMARK_DUMP`). The first version (150 m reach, 3 vehicles per
+joined parcel, 4 m outline margin) scored 0.332 with an area bias of 1.6: lots
+chained across business parks, and outlines were too tight. The chosen values
+are round numbers that removed those two failures. The hold-out sites were
+looked at during that comparison, so **0.358 is not an independent hold-out
+result**. A fair check needs new sites.
 
-### Two rules that keep it honest
+**Limitations.**
 
-**Barriers cut; they do not score.** A fence tells you where an edge is, not
-what lies on either side of it. Barriers are rasterized as 4-connected
-one-cell chains and growth is 4-connected, so a fence is provably watertight —
-with 8-connectivity the region would step diagonally through it and every
-barrier in the model would silently stop working. There is a test for that.
+- Vehicles under trees or in shadow, and stock in a hall, are not seen. An
+  empty lot (a Sunday image, a new site) falls back to the parcel.
+- A neighbour's customer car park joins when it shares an edge and holds ten
+  or more cars; the 80 m reach limits but does not prevent this in retail
+  parks.
+- Parcels follow legal lines. Part of a joined parcel can belong to another
+  use.
+- Without a cadastre the result is an outline of the vehicles, not a surveyed
+  boundary; the showroom is only included when it lies between rows.
+- The references are OSM dealer areas, a proxy for the operational lot (see
+  "What the public set deliberately does not measure").
 
-**The cadastre reinforces; it never originates.** The anchor parcel is added
-only to cells that already carry positive evidence
-(`rasterizeReinforcement`). A parcel is a legal unit and is routinely larger
-than the lot — a dealership occupying part of a plot — or smaller — a lot
-spanning several. Drawn as a plain positive it floods the region out to its own
-edges, which is exactly how the baseline over-shot by 90%. The consequence is
-deliberate: with *only* a parcel available, fusion returns null and the
-candidate chain proposes the parcel honestly, flagged for review, rather than
-fusion redrawing it as a confirmed operational lot.
+### Earlier engines (removed)
 
-### Business parks (fusion v3)
-
-Fusion v2 over-shot badly inside commercial estates: one industrial landuse
-polygon, unnamed halls and yards, shared driveways. Each of those is weak
-positive evidence, the growth threshold (0.15) let every one of them carry the
-region, and nothing stopped it short of a public road — the result was the
-dealership plus its neighbours, and vehicles on the neighbours' lots were
-counted as exposure. A regression fixture
-(`fusion.test.ts`, "business park") reproduces it: v2 returned 32,400 m² for a
-6,400 m² dealer parcel. v3 adds four constraints:
-
-- **Site gate.** With cadastral parcels available, positive evidence outside
-  the site parcels is multiplied by `SITE_GATE_FACTOR` (0.3). Site parcels are
-  the anchor parcel plus parcels at least 30% covered by the address-matched
-  polygon or by a dealer area that is not another named operator's, and
-  parcels holding a matched address node. The gate is reported as the
-  `alkis-site-gate` layer.
-- **Growth threshold 0.4** (`boundaryGrowLowThreshold`). A lone landuse (0.35)
-  or roof (0.3) no longer carries growth; stacked evidence or the anchor
-  parcel's reinforcement still does.
-- **Area cap 60,000 m²** (`boundaryMaxAreaSqm`, was 200,000), and the
-  operational-lot plausibility ceiling drops to the same value, so an outsized
-  outline is flagged for review. Sessions that stored the old defaults are
-  migrated (`normalizeRiskParameters`); edited values are kept.
-- **Search widening only for real evidence.** The grid widens after a radius
-  cap only when a cell turned away at the edge reached the confirmation
-  threshold (`GrowResult.capEvidence`), not because a landuse continues.
-
-Limitation: a dealership whose second plot carries no dealer tagging (an
-unnamed overflow car park on the next parcel) is now left out and needs a
-manual edit — the deliberate price of not annexing neighbours.
-
-### Vehicle evidence (fusion v4)
-
-OSM often maps only one forecourt of a dealership, and seven federal states
-have no reachable cadastre, so the mapped evidence routinely stops short of
-the lot. Parked cars are the most direct sign of where the lot really is.
-`analyzeDealership` therefore runs the context-image capture, the YOLO
-detector and the roof mask *before* `detectBoundary`, passes the
-georeferenced boxes in (`FusionBundle.vehicles`), and afterwards only clips
-the same detection to the chosen boundary — one inference, as before.
-
-- **Layer.** Each vehicle is a Gaussian-tapered disk of `VEHICLE_RADIUS_M`
-  (4 m: a stall plus half an aisle), peak `LAYER_WEIGHTS.vehicle` (0.6) ×
-  detector score × `boundaryVehicleEvidenceWeight` (default 1, 0 disables).
-  Rows of cars overlap and add up. Reported as the `yolo-vehicles` layer.
-- **Support, not proof.** Summed vehicle evidence per cell is capped at
-  90% of `boundaryGrowHighThreshold`, so cars can carry growth but never seed
-  or confirm a site on their own. With nothing else at the anchor, growth
-  can at most start from the existing unconfirmed anchor-cell fallback —
-  confidence halved, review required. Combined with real evidence (a mapped
-  car park, the anchor parcel's reinforcement) they extend it.
-- **Not a neighbour's car park.** Vehicles inside another business's area,
-  or within 15 m of its point, are skipped. They are rasterized before the
-  site gate, so vehicles outside the site's parcels are damped by
-  `SITE_GATE_FACTOR` like any other positive evidence, and roads still cut.
-- **Only real detections.** The area-based stub detector has no boxes and
-  contributes nothing; a missing model never becomes evidence.
-
-Limitations: the context image covers about ±100 m around the anchor
-(`CONTEXT_CAPTURE_RADIUS_M`) while the grid covers ±200 m, so vehicles far
-out on a large site are not seen. Empty stalls get no support — an empty lot
-is not penalised, just not helped. The imagery may be months or years old
-(see the imagery provenance on the detection), so the parking pattern can
-differ from today's. Re-detecting the boundary from the UI (the
-`detectBoundary` IPC channel) runs without vehicle evidence; only a full
-analysis passes it.
-
-### Geocoding anchor
-
-Records without coordinates are geocoded with two Nominatim queries — the
-address, and name plus address — and the hits are scored together by
-`pickGeocodeHit` (`geocoding.service.ts`): matching postcode +2, house
-number +1, dealership name +2, vehicle-trade POI type (`shop=car` etc.) +1,
-contradicting postcode −3. Ties keep Nominatim's order, address hits first,
-so the old behaviour is kept whenever nothing distinguishes the hits. When
-the two best hits score within one point and lie more than 100 m apart, the
-reason is added to the boundary's quality reasons and the boundary is sent
-to review.
-
-### Area comes from the mask, not the ring
-
-The polygon carries only an outer ring, so a void that stays open — a pond, an
-enclosed neighbouring plot — cannot be expressed in it. Site area is therefore
-taken from the raster mask, or such a void would be silently counted as lot.
-
-### Failure is always backwards
-
-Fusion returns null on every failure mode: disabled, no reachable evidence,
-nothing defensible to grow from, invalid geometry, or an outright error.
-Detection then falls back to the candidate chain. Fusion is an improvement on
-the ranking, not a replacement for having an answer.
-
-## Current status
-
-Built and tested:
-
-- Evidence collection — combined Overpass query (fences, roads, aisles, rails,
-  water, vegetation, address nodes, multipolygon relations), Nominatim
-  `polygon_geojson`, all cadastral parcels within 250 m.
-- Fusion core — grid, rasterizer, region growing, vectorizer, orchestration,
-  confidence.
-- The flag, with every fallback path covered.
-
-Not yet built (planned):
-
-- **Cadastral snapping** — replacing fuzzy raster edges with the union of
-  parcels the site substantially covers. `cadastreSnapped` is reported as
-  `false` throughout until this lands.
-- **Imagery layers** — paved-surface, vegetation and texture masks at z18.
-- **Perimeter support** — the share of outline actually backed by a fence, road
-  or parcel edge. Until then `barrierSupport` reports layer diversity in its
-  place, which is a weaker but not misleading stand-in.
-
-### Operating against public services
-
-Overpass' public instances rate-limit by IP, and the benchmark makes 17 queries
-per run. Two back-to-back runs are enough to earn an HTTP 429 for a while. Two
-consequences are built in:
-
-- A 429 stands that mirror down for the period its `Retry-After` asks for
-  rather than being retried after 250 ms, which would only burn the remaining
-  quota.
-- "Could not ask" is never cached. It is distinct from "nothing mapped here",
-  which is cached normally.
-
-If a benchmark run reports `sites with a candidate per provider` without an
-`osm-*` entry, the run happened during an outage or a rate limit. Wait, then
-re-run; do not read it as a regression.
-
-### Re-measuring
-
-The baseline numbers have not moved yet: the engine that produces them is still
-`legacy`. A comparison run also needs Overpass to be reachable —
-`coverage/boundary-benchmark.json` records which providers produced a candidate
-at each site, so a run made during an outage is visible as such rather than
-being mistaken for a regression.
-
-## Cadastral snapping
-
-When the grown region and the cadastre describe the same place, the fused
-outline is replaced by the **union of the parcels the site occupies**. The
-grown region knows where the operational site is; the cadastre knows where the
-legal edges are, and surveyed edges beat a 0.5 m raster staircase.
-
-Assembly (`boundary/parcel-assembly.ts`) is two-stage:
-
-1. **Anchors** — parcels containing the geocoded point, plus parcels covering a
-   real share of the mapped footprint *and* lying at least half inside it.
-2. **Expansion** — grow along *shared boundaries* onto parcels that lie at
-   least half inside the fused footprint. Supporting parking or dealer
-   polygons only count when they themselves belong to the footprint, so a
-   neighbour's car park never vouches for the neighbour's plot.
-
-The union is adopted only if it overlaps the fused shape by at least
-`boundaryParcelSnapOverlap`, is at most `MAX_SNAP_GROWTH` (1.25x) its area —
-snapping straightens edges, it must not annex a plot — and never when the
-cadastral response was truncated, since which parcels are missing is
-arbitrary.
-
-### Two things learned building it
-
-**`@turf/intersect` cannot detect adjacency.** Two parcels that abut share a
-boundary of zero area, and intersecting zero-area geometry returns null. Used
-naively it reports every neighbour as non-adjacent while appearing to work.
-Shared boundary length is therefore measured by sampling
-(`sharedBoundaryLengthM`), with a 0.5 m tolerance — neighbouring parcels are
-digitised independently and their shared edge is rarely coordinate-identical.
-
-**Size ratios need a carve-out for showrooms.** A parcel far larger than the
-mapped footprint is normally wrong, but when OSM maps only the showroom
-building (under ~1,000 m²) the true compound can legitimately be far bigger.
-A single tight ratio rejects correct parcels exactly where evidence is thinnest,
-so the limit relaxes to 25x below that threshold.
+Version 0.2 ranked candidates from ALKIS, OSM, Nominatim and Overture; 0.2.x
+also had a fusion engine (an evidence raster with region growing, about fifteen
+hand-set weights, and cadastral snapping). Both are removed from the code. The
+legacy results above remain the baseline; earlier sections of this document
+describe what they found.
 
 ## Verified negative results
 
@@ -448,7 +297,8 @@ first.
   presented as an engineering, legal or underwriting determination of site
   extent.
 - Cadastral coverage exists for 7 of 16 German states; elsewhere the answer
-  rests on OSM and imagery only.
+  is the outline of the detected vehicles, a cached OSM dealer area or the
+  circle.
 - Imagery vintage is provider-dependent and often unknown, so a recently
   rebuilt or extended site may be scored against years-old imagery.
 - OSM reference polygons are mapper-dependent: an IoU of 1.0 against them

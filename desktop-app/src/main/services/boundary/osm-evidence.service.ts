@@ -28,6 +28,15 @@ import {
 // makes the second caller await the first's result instead.
 const inFlight = new Map<string, Promise<OsmEvidence | null>>();
 
+/**
+ * Overall budget for one evidence fetch across all mirrors. A healthy 300 m
+ * query takes 20–30 s, so this leaves room for one mirror switch, but stops
+ * an overloaded Overpass from holding a request for the 4 min the unbounded
+ * mirror walk can take. The analysis itself waits far less (`osmEvidenceBy`);
+ * this only bounds the request that keeps running in the background.
+ */
+export const OSM_EVIDENCE_BUDGET_MS = 60_000;
+
 export async function fetchOsmEvidence(
   lat: number,
   lon: number,
@@ -45,6 +54,7 @@ export async function fetchOsmEvidence(
     try {
       const data = await fetchOverpass<OverpassElement>(
         buildOsmEvidenceQuery(lat, lon, radiusM),
+        { budgetMs: OSM_EVIDENCE_BUDGET_MS },
       );
 
       // Deliberately not written through `cached()`. That helper stores
@@ -63,4 +73,52 @@ export async function fetchOsmEvidence(
   })();
   inFlight.set(key, request);
   return request;
+}
+
+/**
+ * Result of waiting for the evidence until a deadline.
+ *  - `answered`    Overpass answered (possibly with nothing mapped).
+ *  - `unreachable` every mirror failed or stood down.
+ *  - `pending`     still running at the deadline; the request carries on in
+ *                  the background and caches its answer for the next run.
+ */
+export interface OsmEvidenceLookup {
+  evidence: OsmEvidence | null;
+  status: "answered" | "unreachable" | "pending";
+}
+
+/**
+ * The site's evidence, or `pending` at `deadline` (epoch ms). Every consumer
+ * of one analysis passes the same deadline and joins the same in-flight
+ * request, so a slow Overpass costs the analysis that wait once, not once per
+ * consumer. Without a finite deadline it waits for the request to finish.
+ */
+export async function osmEvidenceBy(
+  lat: number,
+  lon: number,
+  deadline: number = Infinity,
+): Promise<OsmEvidenceLookup> {
+  const request = fetchOsmEvidence(lat, lon).then(
+    (evidence): OsmEvidenceLookup => ({
+      evidence,
+      status: evidence ? "answered" : "unreachable",
+    }),
+    (): OsmEvidenceLookup => ({ evidence: null, status: "unreachable" }),
+  );
+  // `setTimeout(…, Infinity)` fires at once, so an open deadline needs no timer.
+  if (!Number.isFinite(deadline)) return request;
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<OsmEvidenceLookup>((resolve) => {
+    timer = setTimeout(
+      () => resolve({ evidence: null, status: "pending" }),
+      Math.max(0, deadline - Date.now()),
+    );
+  });
+  try {
+    // A cached answer settles in a microtask and wins even a past deadline.
+    return await Promise.race([request, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }

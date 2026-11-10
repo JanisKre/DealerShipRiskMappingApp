@@ -1,18 +1,19 @@
 import type { DetectionResult } from "@shared/types";
-import { fetchOsmEvidence } from "../boundary/osm-evidence.service";
+import { osmEvidenceBy } from "../boundary/osm-evidence.service";
 import { excludeRoofDetections, roofRings } from "./roof-mask";
 
 /**
- * Applies the roof mask with the site's OSM buildings. Reuses the cached
- * evidence the boundary step already fetched for the same point, so it costs
- * no extra Overpass query in the normal case; when OSM is unreachable the
- * detection passes through unchanged.
+ * Applies the roof mask with the site's OSM buildings. Joins the one evidence
+ * request the boundary step also uses, so it costs no extra Overpass query;
+ * when OSM is unreachable, or has not answered by `osmDeadline` (epoch ms),
+ * the detection passes through unchanged.
  */
 export async function maskRoofDetections(
   detection: DetectionResult,
   lat: number,
   lon: number,
+  osmDeadline?: number,
 ): Promise<DetectionResult> {
-  const evidence = await fetchOsmEvidence(lat, lon).catch(() => null);
+  const { evidence } = await osmEvidenceBy(lat, lon, osmDeadline);
   return excludeRoofDetections(detection, roofRings(evidence));
 }

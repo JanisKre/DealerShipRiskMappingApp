@@ -2,6 +2,7 @@ import type { AnalyzedDealership, DealershipInput } from "@shared/types";
 import { hailZoneToRiskTier } from "@shared/risk-math";
 import { lookupHailZone } from "@shared/hail-zones";
 import { detectBoundary } from "./boundary.service";
+import { osmEvidenceBy } from "./boundary/osm-evidence.service";
 import {
   attachImageryProvenance,
   detectVehicles,
@@ -10,7 +11,7 @@ import {
 } from "./detection.service";
 import { maskRoofDetections } from "./detection/roof-mask.service";
 import { geocodeCandidates, pickGeocodeHit } from "./geocoding.service";
-import { getOsmDetails } from "./osmDetails.service";
+import { websiteFromEvidence } from "./osmDetails.service";
 import { scoreRisk } from "./risk.service";
 import { aerialImageForContext } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
@@ -19,7 +20,7 @@ import type {
   DetectionResult,
   RiskParameters,
 } from "@shared/types";
-import type { VehicleEvidence } from "./boundary/fusion";
+import type { LonLat } from "./boundary-geometry";
 import { resolveNatCat } from "./natcat.service";
 
 /** Extracts a 5-digit postal code from a German address string. */
@@ -30,22 +31,49 @@ function extractPostalCode(address: string | undefined): string | null {
 }
 
 /**
- * Website for a location without one, via the OSM dealership lookup (also
- * used by the detail view, so its cache serves both). Best effort: an
- * Overpass failure must never fail the analysis.
+ * How long one analysis waits for OpenStreetMap: not at all. The public
+ * Overpass servers are mostly at capacity, and the boundary no longer depends
+ * on OSM. Every consumer uses OSM only when it is already cached; the request
+ * keeps running in the background and fills the cache for the next analysis.
+ */
+export const OSM_WAIT_MS = 0;
+
+/** Step durations of one analysis, logged so slow sites can be diagnosed. */
+class StepTimer {
+  private readonly started = Date.now();
+  private readonly steps: string[] = [];
+
+  async time<T>(label: string, work: Promise<T>): Promise<T> {
+    const start = Date.now();
+    try {
+      return await work;
+    } finally {
+      this.steps.push(`${label} ${Date.now() - start} ms`);
+    }
+  }
+
+  log(name: string): void {
+    console.info(
+      `Analysis '${name}': ${Date.now() - this.started} ms (${this.steps.join(", ")})`,
+    );
+  }
+}
+
+/**
+ * Website for a location without one, from the OSM evidence the boundary
+ * already waits for. Best effort: no OSM answer means no website.
  */
 async function detectWebsite(
   lat: number,
   lon: number,
   input: DealershipInput,
+  osmDeadline: number,
 ): Promise<string | undefined> {
   if (input.website) return undefined;
-  try {
-    return (await getOsmDetails(lat, lon, input.name, input.address)).website;
-  } catch (error) {
-    console.warn(`Website lookup failed for '${input.name}':`, error);
-    return undefined;
-  }
+  const { evidence } = await osmEvidenceBy(lat, lon, osmDeadline);
+  return evidence
+    ? websiteFromEvidence(evidence, lat, lon, input.name, input.address)
+    : undefined;
 }
 
 /**
@@ -90,18 +118,25 @@ function withAnchorAmbiguity(
 /**
  * Core workflow for one record:
  *   (geocoding if needed) → aerial image → vehicle detection → boundary
- *   (with the vehicles as evidence) → website → vehicles clipped to the
- *   boundary → risk.
+ *   (the vehicles decide how far the lot reaches) → vehicles clipped to the
+ *   boundary → risk. Website and NatCat run alongside.
+ *
+ * OSM is used only when cached (`OSM_WAIT_MS`), so a slow Overpass never
+ * delays an analysis.
  */
 export async function analyzeDealership(
   input: DealershipInput,
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): Promise<AnalyzedDealership> {
+  const timer = new StepTimer();
   let { lat, lon } = input;
   let anchorAmbiguity: string | undefined;
 
   if ((lat == null || lon == null) && input.address) {
-    const anchor = await geocodeDealership(input.address, input.name);
+    const anchor = await timer.time(
+      "geocode",
+      geocodeDealership(input.address, input.name),
+    );
     lat = anchor.lat;
     lon = anchor.lon;
     anchorAmbiguity = anchor.ambiguity;
@@ -111,54 +146,76 @@ export async function analyzeDealership(
       `No location for '${input.name}' (neither coordinates nor address)`,
     );
   }
+  const siteLat = lat;
+  const siteLon = lon;
 
   // Extract postal code from the address and look up the hail zone.
   const postalCode = extractPostalCode(input.address);
   const hailZone = postalCode ? lookupHailZone(postalCode) : null;
 
-  // Context image and detection run before the boundary and independently
-  // of it (P5): a too-tight boundary must not also hide vehicles from the
-  // model, and the vehicles are evidence for the boundary itself. Roofs are
-  // masked first so a car park on a roof deck cannot pull the lot onto a
-  // building. Everything stays sequential, so one site never fires its
-  // Overpass queries in parallel.
-  const contextImage = await aerialImageForContext(lat, lon);
-  const contextDetection = await maskRoofDetections(
-    await detectVehiclesInContext(contextImage, parameters),
-    lat,
-    lon,
-  );
-  const boundary = withAnchorAmbiguity(
-    await detectBoundary(
-      lat,
-      lon,
-      input.name,
-      input.address,
-      parameters,
-      vehicleEvidence(contextDetection),
+  const osmDeadline = Date.now() + OSM_WAIT_MS;
+
+  // Detection uses the whole context image, independently of the boundary
+  // (P5): the vehicles are what the boundary is built from, so a boundary
+  // must never decide which vehicles the model gets to see. Roofs are masked
+  // first so a car park on a roof deck cannot pull the lot onto a building.
+  const contextTask = (async () => {
+    const image = await timer.time(
+      "imagery",
+      aerialImageForContext(siteLat, siteLon),
+    );
+    const detected = await timer.time(
+      "detection",
+      detectVehiclesInContext(image, parameters),
+    );
+    const masked = await timer.time(
+      "roof mask",
+      maskRoofDetections(detected, siteLat, siteLon, osmDeadline),
+    );
+    return { image, detection: masked };
+  })();
+  const boundaryTask = contextTask.then(({ detection }) =>
+    timer.time(
+      "boundary",
+      detectBoundary(
+        siteLat,
+        siteLon,
+        input.name,
+        input.address,
+        parameters,
+        vehicleCentres(detection),
+        { osmDeadline },
+      ),
     ),
-    anchorAmbiguity,
-  );
-  const website = await detectWebsite(lat, lon, input);
-  // The boundary is applied only as a spatial filter, reusing the same
-  // detection rather than re-running it.
-  const detection = attachImageryProvenance(
-    filterDetectionToBoundary(contextDetection, boundary) ??
-      (await maskRoofDetections(
-        await detectVehicles(contextImage, boundary, parameters),
-        lat,
-        lon,
-      )),
-    contextImage.imagery,
   );
   // Resolved on every analysis, so a changed hail source (or a reset to
   // screening) takes effect and stale API values are never re-used. A failed
   // source falls back to screening.
-  const natCat = await resolveNatCat(lat, lon);
+  const [context, rawBoundary, website, natCat] = await Promise.all([
+    contextTask,
+    boundaryTask,
+    detectWebsite(siteLat, siteLon, input, osmDeadline),
+    timer.time("natcat", resolveNatCat(siteLat, siteLon)),
+  ]);
+  const contextImage = context.image;
+  const boundary = withAnchorAmbiguity(rawBoundary, anchorAmbiguity);
+
+  // The boundary is applied only as a spatial filter, reusing the same
+  // detection rather than re-running it.
+  const detection = attachImageryProvenance(
+    filterDetectionToBoundary(context.detection, boundary) ??
+      (await maskRoofDetections(
+        await detectVehicles(contextImage, boundary, parameters),
+        siteLat,
+        siteLon,
+        osmDeadline,
+      )),
+    contextImage.imagery,
+  );
 
   const risk = await scoreRisk(
-    lat,
-    lon,
+    siteLat,
+    siteLon,
     input.assetValue,
     detection,
     boundary,
@@ -166,13 +223,14 @@ export async function analyzeDealership(
     parameters,
     natCat,
   );
+  timer.log(input.name);
 
   const hailRiskTier = hailZone ? hailZoneToRiskTier(hailZone) : undefined;
 
   return {
     ...input,
-    lat,
-    lon,
+    lat: siteLat,
+    lon: siteLon,
     boundary,
     detection,
     risk,
@@ -184,16 +242,13 @@ export async function analyzeDealership(
 }
 
 /**
- * Georeferenced boxes as boundary evidence. Undefined when the detector
- * produced no boxes — the area-based fallback estimate is not evidence.
+ * Georeferenced vehicle centres for the boundary. Null when the detector
+ * produced no boxes (no model, no image) — the area-based fallback estimate
+ * says nothing about where the vehicles stand.
  */
-function vehicleEvidence(
-  detection: DetectionResult,
-): VehicleEvidence[] | undefined {
-  if (!detection.boxes) return undefined;
+function vehicleCentres(detection: DetectionResult): LonLat[] | null {
+  if (!detection.boxes) return null;
   return detection.boxes.flatMap((box) =>
-    box.lon == null || box.lat == null
-      ? []
-      : [{ point: [box.lon, box.lat] as [number, number], score: box.score }],
+    box.lon == null || box.lat == null ? [] : [[box.lon, box.lat] as LonLat],
   );
 }

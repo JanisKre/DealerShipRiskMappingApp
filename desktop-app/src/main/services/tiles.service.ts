@@ -178,7 +178,10 @@ async function captureWithSelectedSource(
  * that unconditionally on every analysis (this used to be an occasional
  * refinement step, not a per-analysis one) made a normal run visibly stall.
  */
-const CONTEXT_CAPTURE_RADIUS_M = 100;
+// 125 m since cascade v2: the vehicles in this image decide how far the lot
+// reaches, so it must hold a large dealer centre with its yards. 150 m would
+// cost about 2.3× the tiles and inference time of the old 100 m.
+const CONTEXT_CAPTURE_RADIUS_M = 125;
 
 /**
  * Captures around the geocoded point with a fixed, boundary-independent

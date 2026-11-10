@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   maskRoofDetections: vi.fn(),
   geocodeCandidates: vi.fn(),
   aerialImageForContext: vi.fn(),
+  osmEvidenceBy: vi.fn(),
+  websiteFromEvidence: vi.fn(),
   order: [] as string[],
 }));
 
@@ -39,13 +41,16 @@ vi.mock("./geocoding.service", async (importOriginal) => {
 vi.mock("./tiles.service", () => ({
   aerialImageForContext: mocks.aerialImageForContext,
 }));
+vi.mock("./boundary/osm-evidence.service", () => ({
+  osmEvidenceBy: mocks.osmEvidenceBy,
+}));
 vi.mock("./osmDetails.service", () => ({
-  getOsmDetails: async () => ({}),
+  websiteFromEvidence: mocks.websiteFromEvidence,
 }));
 vi.mock("./natcat.service", () => ({ resolveNatCat: async () => undefined }));
 vi.mock("./risk.service", () => ({ scoreRisk: async () => ({}) }));
 
-import { analyzeDealership } from "./analyze.service";
+import { analyzeDealership, OSM_WAIT_MS } from "./analyze.service";
 
 const LAT = 51.05;
 const LON = 13.7;
@@ -89,7 +94,16 @@ beforeEach(() => {
   mocks.detectVehiclesInContext.mockResolvedValue(detection);
   mocks.maskRoofDetections.mockImplementation(async (d: DetectionResult) => d);
   mocks.detectBoundary.mockResolvedValue(boundary);
+  mocks.osmEvidenceBy.mockResolvedValue({ evidence: null, status: "pending" });
+  mocks.websiteFromEvidence.mockReturnValue(undefined);
 });
+
+const record = {
+  id: "1",
+  name: "Autohaus Test",
+  lat: LAT,
+  lon: LON,
+} as Parameters<typeof analyzeDealership>[0];
 
 describe("analyzeDealership", () => {
   it("detects vehicles once, before the boundary, and passes them as evidence", async () => {
@@ -105,8 +119,8 @@ describe("analyzeDealership", () => {
     expect(mocks.detectVehicles).not.toHaveBeenCalled();
     const vehicles = mocks.detectBoundary.mock.calls[0][5];
     expect(vehicles).toEqual([
-      { point: [LON, LAT], score: 0.9 },
-      { point: [LON + 0.01, LAT], score: 0.7 },
+      [LON, LAT],
+      [LON + 0.01, LAT],
     ]);
     // The boundary still clips the count afterwards.
     expect(result.detection?.boxes).toHaveLength(1);
@@ -121,7 +135,7 @@ describe("analyzeDealership", () => {
       lat: LAT,
       lon: LON,
     } as Parameters<typeof analyzeDealership>[0]);
-    expect(mocks.detectBoundary.mock.calls[0][5]).toBeUndefined();
+    expect(mocks.detectBoundary.mock.calls[0][5]).toBeNull();
   });
 
   it("anchors on the scored geocoding hit and flags ambiguity for review", async () => {
@@ -145,5 +159,36 @@ describe("analyzeDealership", () => {
     expect(result.boundary?.quality?.reasons.join(" ")).toMatch(
       /geocoding ambiguous/,
     );
+  });
+
+  it("never waits for OpenStreetMap", async () => {
+    const before = Date.now();
+    await analyzeDealership(record);
+    const [, , , , , , options] = mocks.detectBoundary.mock.calls[0];
+    expect(OSM_WAIT_MS).toBe(0);
+    expect(options.osmDeadline).toBeGreaterThanOrEqual(before);
+    expect(options.osmDeadline).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("gives every OSM consumer the same deadline", async () => {
+    mocks.osmEvidenceBy.mockResolvedValue({
+      evidence: { areas: [], lines: [], addressNodes: [], namedPlaces: [] },
+      status: "answered",
+    });
+    mocks.websiteFromEvidence.mockReturnValue("https://autohaus-test.de/");
+    const result = await analyzeDealership(record);
+
+    const roofDeadline = mocks.maskRoofDetections.mock.calls[0][3];
+    expect(mocks.detectBoundary.mock.calls[0][6].osmDeadline).toBe(
+      roofDeadline,
+    );
+    expect(mocks.osmEvidenceBy).toHaveBeenCalledWith(LAT, LON, roofDeadline);
+    expect(result.website).toBe("https://autohaus-test.de/");
+    expect(result.websiteSource).toBe("osm");
+  });
+
+  it("does not look up a website the record already has", async () => {
+    await analyzeDealership({ ...record, website: "https://known.de/" });
+    expect(mocks.websiteFromEvidence).not.toHaveBeenCalled();
   });
 });

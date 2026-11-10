@@ -1,12 +1,9 @@
-import { centroid } from "@turf/centroid";
-import { distance } from "@turf/distance";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
-import { point as turfPoint, polygon as turfPolygon } from "@turf/helpers";
-import type { BoundaryResult, Polygon, SourceStatus } from "@shared/types";
+import { point as turfPoint } from "@turf/helpers";
+import type { SourceStatus } from "@shared/types";
 import { cacheGet, cacheSet, TTL } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
-import { polygonAreaSqm } from "./geo-math";
-import { checkRing, distanceToRingM, type LonLat } from "./boundary-geometry";
+import { checkRing, type LonLat } from "./boundary-geometry";
 import { createCircuitBreaker } from "./boundary/circuit-breaker";
 
 /**
@@ -403,54 +400,6 @@ export async function fetchParcelsNear(
   };
 }
 
-/**
- * Single containing parcel, as a boundary candidate.
- *
- * Kept as a thin wrapper over `fetchParcelsNear` so the existing ranking chain
- * is unchanged. A parcel is legal context, not an operational footprint — the
- * multi-parcel assembly that turns these into a site lives in the fusion
- * engine.
- */
-export async function fromAlkis(
-  lat: number,
-  lon: number,
-): Promise<BoundaryResult | null> {
-  const lookup = await fetchParcelsNear(lat, lon);
-  if (lookup.parcels.length === 0) return null;
-  const chosen = pickRingForPoint(
-    lookup.parcels.map((parcel) => parcel.ring),
-    lat,
-    lon,
-  );
-  if (!chosen) return null;
-
-  const polygon: Polygon = { type: "Polygon", coordinates: [chosen] };
-  return {
-    source: "alkis",
-    role: "parcel",
-    provider: `alkis:${lookup.state ?? "de"}`,
-    polygon,
-    areaSqm: polygonAreaSqm(chosen),
-    confidence: 0.9,
-    evidence: {
-      source: "German cadastral service / ALKIS",
-      retrievedAt: new Date().toISOString(),
-      method: "INSPIRE/ALKIS cadastral parcel lookup",
-      confidence: 0.9,
-      fallbackUsed: false,
-      limitations: [
-        "A cadastral parcel is not necessarily the dealership's operational lot",
-        ...(lookup.truncated
-          ? ["Cadastral response was truncated; nearby parcels may be missing"]
-          : []),
-        ...(lookup.containsAnchor
-          ? []
-          : ["Reference point lies outside every returned parcel"]),
-      ],
-    },
-  } satisfies BoundaryResult;
-}
-
 /** "error" = network/HTTP error (counts toward the circuit breaker); null = reachable, but no hit. */
 async function fetchAlkisXml(
   endpoint: AlkisEndpoint,
@@ -536,29 +485,4 @@ export function parcelContainsPoint(
   return parcels.some((parcel) =>
     booleanPointInPolygon(pt, { type: "Polygon", coordinates: [parcel.ring] }),
   );
-}
-
-/** Picks a containing ring; nearest rings are accepted only within 35 m. */
-function pickRingForPoint(
-  rings: [number, number][][],
-  lat: number,
-  lon: number,
-): [number, number][] | null {
-  if (rings.length === 0) return null;
-  const pt = turfPoint([lon, lat]);
-  const containing = rings.find((r) =>
-    booleanPointInPolygon(pt, { type: "Polygon", coordinates: [r] }),
-  );
-  if (containing) return containing;
-
-  let best: [number, number][] | null = null;
-  let bestDist = Infinity;
-  for (const r of rings) {
-    const d = distance(pt, centroid(turfPolygon([r])));
-    if (d < bestDist && distanceToRingM([lon, lat], r) <= 35) {
-      bestDist = d;
-      best = r;
-    }
-  }
-  return best;
 }

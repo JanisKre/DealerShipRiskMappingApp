@@ -7,6 +7,37 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Lot boundaries now follow the detected vehicles (source cascade v2). The
+  boundary is the cadastral parcel at the location plus every adjacent parcel
+  on which at least ten detected vehicles stand. Where there is no cadastre,
+  it is the outline of the vehicle lot. A cached OSM dealer area and the bare
+  parcel are only used when no vehicles were seen. On the 17-site benchmark
+  the mean overlap with the reference rose from 0.298 to 0.446. The limits
+  were chosen on these same sites, so the gain still needs confirming on new
+  ones. See "Source cascade" in `docs/boundary-model.md`.
+- The analysis no longer waits for OpenStreetMap at all and uses it only when
+  it is already cached. The boundary now waits for vehicle detection again.
+- The context image for vehicle detection now covers 125 m around the
+  location instead of 100 m, so large dealer centres fit.
+- The boundary benchmark runs vehicle detection in-process with the installed
+  model and no longer queries Overpass.
+- An analysis no longer waits minutes for an overloaded Overpass. The roof
+  mask, the boundary and the website lookup share one OSM request, which runs
+  in the background for at most 60 s and is cached for the next analysis.
+- The website lookup and the NatCat lookup run in parallel with imagery,
+  detection and the boundary.
+- The website comes from the boundary's OSM data instead of a separate
+  Overpass query. It now searches 300 m around the site instead of 500 m.
+- Each analysis logs its total time and the time of every step.
+
+### Removed
+
+- The fusion engine, the legacy candidate ranking and their sources (Nominatim
+  polygons, the Overture CLI adapter, the aerial paved-surface heuristic),
+  together with `@turf/centroid`, `@turf/distance` and `@turf/intersect`.
+
 ## [0.3.0] – 2026-11-10
 
 ### Security

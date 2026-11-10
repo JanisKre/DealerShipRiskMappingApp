@@ -3,6 +3,7 @@ import { haversineKm } from "@shared/risk-math";
 import { normalizeWebsiteUrl } from "@shared/website";
 import { cached, TTL } from "./cache.service";
 import { fetchOverpass } from "./boundary.service";
+import type { OsmEvidence } from "./boundary/osm-overpass";
 
 /**
  * OSM extra info for a location (website, phone, opening hours, ...):
@@ -118,6 +119,50 @@ export async function getOsmDetails(
       },
     };
   });
+}
+
+/**
+ * Website of the dealership POI in the site's boundary evidence, so the
+ * analysis needs no Overpass query of its own. The evidence covers 300 m
+ * (`getOsmDetails` covers 500 m) and holds the same shop/amenity points and
+ * dealer areas, picked by the same rule.
+ */
+export function websiteFromEvidence(
+  evidence: OsmEvidence,
+  lat: number,
+  lon: number,
+  name?: string,
+  address?: string,
+): string | undefined {
+  const isPoi = (tags: Record<string, string>): boolean =>
+    Boolean(tags.shop || tags.amenity);
+  const elements: OverpassPoiElement[] = [
+    ...(evidence.namedPlaces ?? [])
+      .filter((place) => isPoi(place.tags))
+      .map((place) => ({
+        lon: place.point[0],
+        lat: place.point[1],
+        tags: place.tags,
+      })),
+    ...evidence.areas
+      .filter((area) => isPoi(area.tags) && area.ring.length > 0)
+      .map((area) => ({ center: ringCenter(area.ring), tags: area.tags })),
+  ];
+  const tags = pickDealershipPoi(elements, lat, lon, name, address)?.tags;
+  return normalizeWebsiteUrl(tags?.website ?? tags?.["contact:website"]);
+}
+
+/** Vertex mean; enough for a proximity score within a few hundred metres. */
+function ringCenter(ring: Array<[number, number]>): {
+  lat: number;
+  lon: number;
+} {
+  const vertices = ring.length > 1 ? ring.slice(0, -1) : ring;
+  const sum = vertices.reduce(
+    (acc, [lon, lat]) => ({ lat: acc.lat + lat, lon: acc.lon + lon }),
+    { lat: 0, lon: 0 },
+  );
+  return { lat: sum.lat / vertices.length, lon: sum.lon / vertices.length };
 }
 
 /**

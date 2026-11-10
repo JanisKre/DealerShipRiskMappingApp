@@ -1,8 +1,9 @@
 /**
  * Opt-in boundary benchmark runner.
  *
- * Skipped by default: it talks to Overpass, the state cadastre services and the
- * imagery provider, so it must never gate CI. Run it deliberately:
+ * Skipped by default: it talks to the state cadastre services and the imagery
+ * provider and runs the vehicle model, so it must never gate CI. Run it
+ * deliberately:
  *
  *   npm run benchmark:boundary
  *   BOUNDARY_BENCHMARK_LIMIT=5 BOUNDARY_BENCHMARK_DELAY_MS=8000 npm run benchmark:boundary
@@ -12,6 +13,13 @@
  * It reports the tuning and hold-out strata separately. The hold-out stratum is
  * the one that decides whether a change is an improvement — tuning against the
  * same sites you measure on produces numbers that only describe themselves.
+ *
+ * Each site runs like an analysis in the app: context image → vehicle
+ * detection → boundary. The model is loaded from the app's data directory
+ * (`BOUNDARY_BENCHMARK_USERDATA` overrides it) and runs in-process instead of
+ * in a utilityProcess. OSM is treated as not cached, which is what the app sees
+ * while the public Overpass servers are at capacity; the reference polygons
+ * are OSM dealer areas, so using OSM here would also grade OSM against itself.
  *
  * The SQLite cache and settings are replaced with in-memory stubs so the run
  * needs no Electron app directory, and so a re-run inside one session reuses
@@ -54,45 +62,86 @@ vi.mock("../cache.service", () => ({
 }));
 
 vi.mock("../settings.service", () => ({
-  getSettings: () => ({
-    satelliteProvider: "esri" as const,
-    // BOUNDARY_ENGINE=legacy|fused scores an older engine instead of the
-    // source cascade, so engines can be compared on identical inputs.
-    boundaryEngine:
-      process.env.BOUNDARY_ENGINE === "fused"
-        ? ("fused" as const)
-        : process.env.BOUNDARY_ENGINE === "legacy"
-          ? ("legacy" as const)
-          : ("cascade" as const),
-  }),
+  getSettings: () => ({ satelliteProvider: "esri" as const }),
+}));
+
+vi.mock("./osm-evidence.service", () => ({
+  osmEvidenceBy: async () => ({ evidence: null, status: "pending" }),
+  fetchOsmEvidence: async () => null,
 }));
 
 /**
- * The public references *are* OSM dealer areas, and every engine reads OSM.
- * With BOUNDARY_BENCHMARK_HIDE_REFERENCE=1 the reference object is removed
- * from the OSM evidence before any engine sees it, which measures what each
- * engine does on a site whose lot is not mapped — the case that matters.
+ * In-process stand-in for the inference utilityProcess: same protocol, same
+ * window inference (`detection/onnx-infer.ts`), plain Node.
  */
-const hidden = vi.hoisted(() => ({
-  current: null as { osmType: string; osmId: number } | null,
-}));
-vi.mock("./osm-evidence.service", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("./osm-evidence.service")>();
+vi.mock("electron", async () => {
+  const { homedir } = await import("node:os");
+  const { join } = await import("node:path");
+  const userData =
+    process.env.BOUNDARY_BENCHMARK_USERDATA ??
+    join(homedir(), "Library/Application Support/Dealership Risk Mapping");
   return {
-    ...actual,
-    fetchOsmEvidence: async (
-      ...args: Parameters<typeof actual.fetchOsmEvidence>
-    ) => {
-      const evidence = await actual.fetchOsmEvidence(...args);
-      const ref = hidden.current;
-      if (!evidence || !ref) return evidence;
-      return {
-        ...evidence,
-        areas: evidence.areas.filter(
-          (area) => !(area.osmType === ref.osmType && area.osmId === ref.osmId),
-        ),
-      };
+    app: { getPath: () => userData, getAppPath: () => userData },
+    utilityProcess: {
+      fork: () => {
+        const listeners: Array<(message: unknown) => void> = [];
+        const emit = (message: unknown): void => {
+          setImmediate(() =>
+            listeners.forEach((listener) => listener(message)),
+          );
+        };
+        let ready: Promise<{
+          ort: typeof import("onnxruntime-node");
+          session: import("onnxruntime-node").InferenceSession;
+          manifest: import("@shared/model-manifest").VehicleModelManifest;
+        }> | null = null;
+        return {
+          on(event: string, listener: (message: unknown) => void) {
+            if (event === "message") listeners.push(listener);
+          },
+          postMessage(message: Record<string, unknown>) {
+            if (message.type === "init") {
+              ready = (async () => {
+                const ort = await import("onnxruntime-node");
+                const session = await ort.InferenceSession.create(
+                  message.modelPath as string,
+                  { executionProviders: ["cpu"] },
+                );
+                return {
+                  ort,
+                  session,
+                  manifest:
+                    message.manifest as import("@shared/model-manifest").VehicleModelManifest,
+                };
+              })();
+              ready.then(
+                () => emit({ type: "ready" }),
+                (error: unknown) =>
+                  emit({ type: "error", error: String(error) }),
+              );
+              return;
+            }
+            void (async () => {
+              const { inferWindow } = await import("../detection/onnx-infer");
+              try {
+                const { ort, session, manifest } = await ready!;
+                const detections = await inferWindow(
+                  ort,
+                  session,
+                  manifest,
+                  message as unknown as import("../detection/onnx-infer").InferWindow,
+                );
+                emit({ type: "result", id: message.id, detections });
+              } catch (error) {
+                emit({ type: "result", id: message.id, error: String(error) });
+              }
+            })();
+          },
+          kill() {
+            // Nothing to stop: inference runs in this process.
+          },
+        };
+      },
     },
   };
 });
@@ -104,6 +153,13 @@ import {
   type BoundaryBenchmarkSample,
 } from "../boundary-benchmark";
 import { detectBoundary } from "../boundary.service";
+import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
+import {
+  detectVehiclesInContext,
+  isModelAvailable,
+} from "../detection.service";
+import { aerialImageForContext } from "../tiles.service";
+import type { LonLat } from "../boundary-geometry";
 
 interface PublicFixture {
   id: string;
@@ -135,14 +191,8 @@ const OUTPUT = resolve(
 );
 
 const enabled = Boolean(process.env.BOUNDARY_BENCHMARK);
-const HIDE_REFERENCE = Boolean(process.env.BOUNDARY_BENCHMARK_HIDE_REFERENCE);
 
-/**
- * Pause between sites. Overpass' public instances rate-limit by IP, and a
- * benchmark run is a burst of identical-looking queries — exactly what that
- * limit exists to stop. Pacing costs wall-clock time and buys a run that
- * actually completes with evidence.
- */
+/** Optional pause between sites, to go easy on the public services. */
 const DELAY_MS = Number(process.env.BOUNDARY_BENCHMARK_DELAY_MS ?? 0);
 
 const sleep = (ms: number): Promise<void> =>
@@ -175,14 +225,13 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
     async () => {
       const fixtures = loadFixtures();
       expect(fixtures.length).toBeGreaterThan(0);
-      const engine =
-        process.env.BOUNDARY_ENGINE === "fused" ||
-        process.env.BOUNDARY_ENGINE === "legacy"
-          ? process.env.BOUNDARY_ENGINE
-          : "cascade";
-      const variant = HIDE_REFERENCE ? `${engine}+hidden-ref` : engine;
+      // Without the model every site would fall back to the parcel or circle,
+      // which measures nothing about the cascade.
+      expect(isModelAvailable()).toBe(true);
+      const variant = "cascade-v2";
       console.log(`engine: ${variant}\n`);
 
+      const dump: unknown[] = [];
       const rows: Array<{
         fixture: PublicFixture;
         sample: BoundaryBenchmarkSample;
@@ -193,10 +242,35 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
       for (const [position, fixture] of fixtures.entries()) {
         // Sequential and paced on purpose: these are shared public services.
         if (DELAY_MS > 0 && position > 0) await sleep(DELAY_MS);
-        hidden.current = HIDE_REFERENCE
-          ? { osmType: fixture.osmType, osmId: fixture.osmId }
+        const image = await aerialImageForContext(fixture.lat, fixture.lon);
+        const detection = await detectVehiclesInContext(
+          image,
+          DEFAULT_RISK_PARAMETERS,
+        );
+        const vehicles: LonLat[] | null = detection.boxes
+          ? detection.boxes.flatMap((box) =>
+              box.lon == null || box.lat == null
+                ? []
+                : [[box.lon, box.lat] as LonLat],
+            )
           : null;
-        const boundary = await detectBoundary(fixture.lat, fixture.lon);
+        if (process.env.BOUNDARY_BENCHMARK_DUMP) {
+          const { fetchParcelsNear } = await import("../alkis.service");
+          const parcels = await fetchParcelsNear(
+            fixture.lat,
+            fixture.lon,
+          ).catch(() => null);
+          dump.push({ fixture, vehicles, parcels: parcels?.parcels ?? [] });
+        }
+        const boundary = await detectBoundary(
+          fixture.lat,
+          fixture.lon,
+          undefined,
+          undefined,
+          DEFAULT_RISK_PARAMETERS,
+          vehicles,
+          { osmDeadline: Date.now() },
+        );
         // Which sources actually produced a usable geometry. Without this a run
         // in which Overpass was unreachable looks identical to one in which OSM
         // was consulted and lost — and those demand opposite conclusions.
@@ -224,6 +298,7 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
             `(ref ${fixture.areaSqm} m²) conf ${boundary.confidence.toFixed(2)}` +
             `${boundary.reviewRequired ? " REVIEW" : ""}` +
             `${boundary.quality?.cascadeStage ? ` stage ${boundary.quality.cascadeStage}` : ""}` +
+            ` vehicles ${vehicles?.length ?? "-"}` +
             `  [${candidateSources.join(",") || "no candidates"}]`,
         );
         // Why each stage accepted or declined, and which sources were down.
@@ -274,6 +349,12 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
       );
 
       mkdirSync(dirname(OUTPUT), { recursive: true });
+      if (process.env.BOUNDARY_BENCHMARK_DUMP) {
+        writeFileSync(
+          process.env.BOUNDARY_BENCHMARK_DUMP,
+          JSON.stringify(dump),
+        );
+      }
       writeFileSync(
         OUTPUT,
         `${JSON.stringify(
@@ -297,6 +378,7 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
               cadastreAvailable: r.fixture.cadastreAvailable,
               source: r.sample.predictedSource,
               confidence: r.sample.predictedConfidence,
+              iou: evaluateBoundaryBenchmark([r.sample]).meanIoU,
               candidateSources: r.candidateSources,
               reasons: r.reasons,
             })),
