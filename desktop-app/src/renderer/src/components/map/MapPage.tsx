@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import "@geoman-io/leaflet-geoman-free";
 import {
+  ArrowRight,
+  Check,
   Info,
   Loader2,
   MapPinned,
@@ -14,6 +16,7 @@ import {
   RotateCcw,
   ScanSearch,
   Save,
+  Settings,
   Square,
   Trash2,
   TriangleAlert,
@@ -28,6 +31,9 @@ import {
 } from "@shared/risk-math";
 import { EmptyState } from "@renderer/components/common/EmptyState";
 import { Button } from "@renderer/components/ui/button";
+import { Progress } from "@renderer/components/ui/progress";
+import { cn } from "@renderer/lib/utils";
+import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@renderer/store/appStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import {
@@ -236,6 +242,7 @@ export function MapPage(): React.JSX.Element {
   const setScenario = useAppStore((s) => s.setScenario);
   const selectedId = useAppStore((s) => s.selectedId);
   const select = useAppStore((s) => s.select);
+  const navigate = useNavigate();
   const lastAddedIds = useAppStore((s) => s.lastAddedIds);
   const analyzingIds = useAppStore((s) => s.analyzingIds);
   const analyzing = useAppStore((s) => s.analyzing);
@@ -272,6 +279,7 @@ export function MapPage(): React.JSX.Element {
   const [boundaryWarningDismissed, setBoundaryWarningDismissed] =
     useState(false);
   const [modelWarningDismissed, setModelWarningDismissed] = useState(false);
+  const [errorsDismissed, setErrorsDismissed] = useState(false);
   const [detectionEditId, setDetectionEditId] = useState<string | null>(null);
   const [detectionDraft, setDetectionDraft] =
     useState<DetectionEditDraft | null>(null);
@@ -365,12 +373,42 @@ export function MapPage(): React.JSX.Element {
 
   const visibleDealerships = portfolioFiltered;
 
+  // Which boundary sources the map shows, so the legend can highlight them.
+  const boundarySourcesOnMap = useMemo(
+    () =>
+      layers.boundaries
+        ? [
+            ...new Set(
+              visibleDealerships.flatMap((d) =>
+                d.boundary ? [d.boundary.source] : [],
+              ),
+            ),
+          ]
+        : [],
+    [layers.boundaries, visibleDealerships],
+  );
+
   // Surface every low-confidence/estimated boundary, not only synthetic buffers.
   // This makes regional source gaps and weak OSM matches visible to the underwriter.
-  const boundaryReviewCount = useMemo(
-    () => withCoords.filter((d) => d.boundary?.reviewRequired).length,
+  const boundaryReviewIds = useMemo(
+    () => withCoords.filter((d) => d.boundary?.reviewRequired).map((d) => d.id),
     [withCoords],
   );
+  const boundaryReviewCount = boundaryReviewIds.length;
+  // The location the review banner talks about: the selected one, when it
+  // needs a check.
+  const reviewTarget =
+    selectedId && boundaryReviewIds.includes(selectedId)
+      ? (withCoords.find((d) => d.id === selectedId) ?? null)
+      : null;
+  const nameOf = (id: string): string =>
+    dealerships.find((d) => d.id === id)?.name ?? id;
+  const analyzingNames = analyzingIds.map(nameOf);
+  const failedNames = Object.keys(analysisErrors).map(nameOf);
+  // A new batch brings new errors to read.
+  useEffect(() => {
+    if (analyzing) setErrorsDismissed(false);
+  }, [analyzing]);
 
   // Locations whose vehicle count is only estimated because no ONNX model
   // is available (StubVehicleDetector) — otherwise placeholder values would be mistaken for real detections.
@@ -466,6 +504,19 @@ export function MapPage(): React.JSX.Element {
     if (detectionEditing) cancelDetectionEditing();
     setLayers({ boundaries: true });
     setEditing(true);
+  }
+
+  /** Selects (and flies to) the next location whose boundary needs a check. */
+  function reviewNextBoundary(): void {
+    if (boundaryReviewIds.length === 0) return;
+    const current = selectedId ? boundaryReviewIds.indexOf(selectedId) : -1;
+    select(boundaryReviewIds[(current + 1) % boundaryReviewIds.length]);
+  }
+
+  async function confirmAndContinue(id: string): Promise<void> {
+    await confirmBoundary(id);
+    const remaining = boundaryReviewIds.filter((other) => other !== id);
+    if (remaining.length > 0) select(remaining[0]);
   }
 
   function cancelDetectionEditing(): void {
@@ -741,108 +792,208 @@ export function MapPage(): React.JSX.Element {
         })}
 
         {analyzing && progress && progress.total > 0 && (
-          <div className="glass flex w-[min(94vw,26rem)] items-center gap-3 rounded-lg border px-3 py-2 text-sm shadow-lg">
-            <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="whitespace-nowrap font-medium tabular-nums">
+          <div className={NOTICE_CLASS}>
+            <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="font-medium tabular-nums">
                   {t("map.page.analyzingProgress", {
                     done: progress.done,
                     total: progress.total,
                   })}
                 </span>
-                <span className="truncate text-xs text-muted-foreground tabular-nums">
+                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                   {remainingLabel(t, progress)}
                 </span>
               </div>
-              <div className="h-1 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary transition-[width]"
-                  style={{
-                    width: `${(progress.done / progress.total) * 100}%`,
-                  }}
-                />
-              </div>
+              {analyzingNames.length > 0 && (
+                <p className="truncate text-xs text-muted-foreground">
+                  {analyzingNames.join(" · ")}
+                </p>
+              )}
+              <Progress
+                value={(progress.done / progress.total) * 100}
+                className="h-1"
+              />
             </div>
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              className="shrink-0"
+              className="h-7 shrink-0 text-xs"
               onClick={cancelAnalysis}
-              title={t("map.page.cancelAnalysis")}
             >
-              <Square />
+              <Square className="size-3" />
               {t("map.page.cancelAnalysis")}
             </Button>
           </div>
         )}
 
-        {!analyzing && Object.keys(analysisErrors).length > 0 && (
-          <div className="glass flex items-center gap-2 rounded-full border border-destructive/40 px-3 py-1.5 text-sm shadow-lg">
-            <TriangleAlert className="size-4 shrink-0 text-destructive" />
-            {t("map.page.analysisErrors", {
-              count: Object.keys(analysisErrors).length,
-            })}
-          </div>
-        )}
-
-        {!analyzing && !boundaryWarningDismissed && boundaryReviewCount > 0 && (
-          <div className="glass flex max-w-[min(94vw,36rem)] items-start gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-500" />
-            <div className="min-w-0 space-y-1">
-              <div className="font-medium">
-                {t("map.page.boundaryWarning", {
-                  count: boundaryReviewCount,
-                  total: withCoords.length,
-                })}
-              </div>
-              <p className="text-xs leading-snug text-muted-foreground">
-                {t("map.page.boundaryWarningHint")}
-              </p>
-              {!editing && (
+        {!analyzing &&
+          !errorsDismissed &&
+          Object.keys(analysisErrors).length > 0 && (
+            <div className={cn(NOTICE_CLASS, "border-destructive/40")}>
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="font-medium">
+                  {t("map.page.analysisErrors", {
+                    count: Object.keys(analysisErrors).length,
+                  })}
+                </div>
+                <p className="line-clamp-2 text-xs text-muted-foreground">
+                  {failedNames.join(" · ")}
+                </p>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs"
-                  onClick={startBoundaryEditing}
+                  onClick={() => {
+                    for (const id of Object.keys(analysisErrors)) {
+                      void reanalyzeDealership(id);
+                    }
+                  }}
                 >
-                  <Pencil className="size-3" />
-                  {t("map.layerPanel.editBoundariesButton")}
+                  <RefreshCw className="size-3" />
+                  {t("map.page.retryAnalysis")}
                 </Button>
-              )}
+              </div>
+              <DismissButton
+                label={t("map.page.dismissHint")}
+                onClick={() => setErrorsDismissed(true)}
+              />
             </div>
-            <button
+          )}
+
+        {editing && boundaryEditIds.length === 0 && (
+          <div className={NOTICE_CLASS}>
+            <Pencil className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="font-medium">{t("map.page.editingTitle")}</div>
+              <p className="text-xs leading-snug text-muted-foreground">
+                {t("map.page.editingHint")}
+              </p>
+            </div>
+            <Button
               type="button"
-              className="shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={() => setBoundaryWarningDismissed(true)}
-              title={t("map.page.dismissHint")}
-              aria-label={t("map.page.dismissHint")}
+              size="sm"
+              className="h-7 shrink-0 text-xs"
+              onClick={() => setEditing(false)}
             >
-              <X className="size-3.5" />
-            </button>
+              <Check className="size-3" />
+              {t("map.page.editingDone")}
+            </Button>
           </div>
         )}
 
+        {!analyzing &&
+          !editing &&
+          !boundaryWarningDismissed &&
+          boundaryReviewCount > 0 && (
+            <div className={NOTICE_CLASS}>
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-500" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="font-medium">
+                  {t("map.page.boundaryWarning", {
+                    count: boundaryReviewCount,
+                  })}
+                </div>
+                {reviewTarget ? (
+                  <>
+                    <p className="text-xs leading-snug text-muted-foreground">
+                      {t("map.page.boundaryReviewQuestion", {
+                        name: reviewTarget.name,
+                        position:
+                          boundaryReviewIds.indexOf(reviewTarget.id) + 1,
+                        count: boundaryReviewCount,
+                      })}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => void confirmAndContinue(reviewTarget.id)}
+                      >
+                        <Check className="size-3" />
+                        {t("map.page.boundaryConfirm")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={startBoundaryEditing}
+                      >
+                        <Pencil className="size-3" />
+                        {t("map.page.boundaryCorrect")}
+                      </Button>
+                      {boundaryReviewCount > 1 && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={reviewNextBoundary}
+                        >
+                          {t("map.page.boundaryNext")}
+                          <ArrowRight className="size-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs leading-snug text-muted-foreground">
+                      {t("map.page.boundaryWarningHint")}
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={reviewNextBoundary}
+                    >
+                      {t("map.page.boundaryStartReview")}
+                      <ArrowRight className="size-3" />
+                    </Button>
+                  </>
+                )}
+              </div>
+              <DismissButton
+                label={t("map.page.dismissHint")}
+                onClick={() => setBoundaryWarningDismissed(true)}
+              />
+            </div>
+          )}
+
         {!analyzing && !modelWarningDismissed && stubDetectionCount > 0 && (
-          <div className="glass flex max-w-[min(82vw,32rem)] items-start gap-2 rounded-lg border px-3 py-2 text-xs leading-snug shadow-lg">
-            <TriangleAlert className="size-4 shrink-0 text-amber-500" />
-            <span className="min-w-0">
-              {t("map.page.detectionWarning", {
-                count: stubDetectionCount,
-                total: withCoords.length,
-              })}
-            </span>
-            <button
-              type="button"
-              className="shrink-0 text-muted-foreground hover:text-foreground"
+          <div className={NOTICE_CLASS}>
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-500" />
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="font-medium">
+                {t("map.page.detectionWarning", {
+                  count: stubDetectionCount,
+                  total: withCoords.length,
+                })}
+              </div>
+              <p className="text-xs leading-snug text-muted-foreground">
+                {t("map.page.detectionWarningHint")}
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => navigate("/settings")}
+              >
+                <Settings className="size-3" />
+                {t("map.page.openSettings")}
+              </Button>
+            </div>
+            <DismissButton
+              label={t("map.page.dismissHint")}
               onClick={() => setModelWarningDismissed(true)}
-              title={t("map.page.dismissHint")}
-              aria-label={t("map.page.dismissHint")}
-            >
-              <X className="size-3.5" />
-            </button>
+            />
           </div>
         )}
 
@@ -884,6 +1035,7 @@ export function MapPage(): React.JSX.Element {
       {/* Legend bottom left; portfolio filters live in the layer panel */}
       <div className="absolute bottom-6 left-3 z-[1000] flex flex-col gap-2">
         <MapLegend
+          boundarySources={boundarySourcesOnMap}
           showClusterNote={layers.accumulationClusters}
           imagery={shownImagery}
           showImagery={basemap === "satellite"}
@@ -902,8 +1054,34 @@ export function MapPage(): React.JSX.Element {
   );
 }
 
-/** Roughly half a map viewport: a selected site this close to the centre is "in view". */
-const SITE_IN_VIEW_PX = 500;
+/** Shared look of the status notices at the top of the map. */
+const NOTICE_CLASS =
+  "glass flex w-[min(94vw,28rem)] items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm shadow-lg";
+
+function DismissButton({
+  label,
+  onClick,
+}: Readonly<{ label: string; onClick: () => void }>): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="shrink-0 text-muted-foreground hover:text-foreground"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+    >
+      <X className="size-3.5" />
+    </button>
+  );
+}
+
+/**
+ * A selected site this close to the map centre counts as "in view", and the
+ * map keeps showing the image its vehicles were counted on. About one and a
+ * half viewports: at half a viewport, an ordinary pan around the site switched
+ * the basemap back and forth between the counted and the automatic image.
+ */
+const SITE_IN_VIEW_PX = 1500;
 
 /** Ground size of one screen pixel in Web Mercator at the given latitude and zoom. */
 function metersPerPixel(lat: number, zoom: number): number {

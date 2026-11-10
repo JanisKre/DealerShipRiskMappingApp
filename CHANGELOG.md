@@ -31,6 +31,19 @@ the project follows [Semantic Versioning](https://semver.org/).
 - The website comes from the boundary's OSM data instead of a separate
   Overpass query. It now searches 300 m around the site instead of 500 m.
 - Each analysis logs its total time and the time of every step.
+- Map notices share one layout with a concrete action each. Boundaries to
+  check are walked through one by one ("Yes, confirm", "Correct", "Next").
+  Editing shows its own notice with "Done", failed analyses offer "Try
+  again", and the missing-model notice links to the settings.
+- "Edit boundaries" and "Correct" open the layer panel at the boundaries
+  section instead of leaving the editing controls hidden.
+- The imagery version select is never disabled or replaced by a
+  placeholder while archive versions load. It matches the basemap select and
+  shows the drawn image's date and source below it. The counted image stays
+  on while the selected site is within about one and a half viewports.
+- The legend names boundary sources like the detail dialog, highlights the
+  ones on the map, and lists retired sources only when such a boundary is
+  shown.
 
 ### Removed
 

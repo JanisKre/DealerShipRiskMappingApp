@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Info, Satellite } from "lucide-react";
 import { hailZoneColor } from "@renderer/lib/riskColor";
 import { cn } from "@renderer/lib/utils";
+import { boundarySourceLabel } from "@renderer/lib/boundarySource";
 import { sourceColor } from "./BoundaryLayer";
 import type { BoundarySource } from "@shared/types";
 import {
@@ -14,18 +15,13 @@ import type { ImagerySelection } from "@shared/imagery-sources";
 
 const HAIL_ZONES = [1, 2, 3, 4, 5, 6] as const;
 
-const SOURCES: Array<{
-  source: BoundarySource;
-  labelKey?: string;
-  label?: string;
-}> = [
-  { source: "fused", labelKey: "map.legend.fused" },
-  { source: "alkis", label: "ALKIS" },
-  { source: "osm", label: "OSM" },
-  { source: "overture", label: "Overture" },
-  { source: "aerial", label: "Aerial surface" },
-  { source: "synthetic", labelKey: "map.legend.estimated" },
-  { source: "manual", labelKey: "map.legend.manual" },
+/** Sources the current boundary engine produces, in cascade order. */
+const CURRENT_SOURCES: BoundarySource[] = [
+  "alkis",
+  "aerial",
+  "osm",
+  "synthetic",
+  "manual",
 ];
 
 /**
@@ -37,6 +33,7 @@ export function MapLegend({
   imagery,
   showImagery = false,
   showClusterNote = false,
+  boundarySources = [],
 }: Readonly<{
   /** Metadata at the map centre; null while the first lookup is pending. */
   imagery?: ImagerySelection | null;
@@ -44,9 +41,17 @@ export function MapLegend({
   showImagery?: boolean;
   /** Accumulation clusters are shown: explain their opacity. */
   showClusterNote?: boolean;
+  /** Sources of the boundaries on the map; older ones are listed only then. */
+  boundarySources?: BoundarySource[];
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  // Boundaries from engines that no longer exist keep their colour, so they
+  // are explained only while such a boundary is on the map.
+  const sources = [
+    ...CURRENT_SOURCES,
+    ...boundarySources.filter((s) => !CURRENT_SOURCES.includes(s)),
+  ];
 
   return (
     <div className="glass w-64 rounded-lg border shadow-lg">
@@ -87,13 +92,14 @@ export function MapLegend({
             />
             <BusinessLegendRow hollow label={t("map.legend.newBusiness")} />
           </LegendGroup>
-          <LegendGroup title={t("map.legend.boundarySource")}>
-            {SOURCES.map((s) => (
+          <LegendGroup title={t("map.legend.boundarySource")} single>
+            {sources.map((source) => (
               <LegendRow
-                key={s.source}
-                color={sourceColor(s.source)}
-                label={s.labelKey ? t(s.labelKey) : s.label!}
+                key={source}
+                color={sourceColor(source)}
+                label={boundarySourceLabel(t, source)}
                 outline
+                muted={!boundarySources.includes(source)}
               />
             ))}
           </LegendGroup>
@@ -340,16 +346,27 @@ function LegendRow({
   label,
   outline,
   dot,
+  muted,
 }: Readonly<{
   color: string;
   label: string;
   outline?: boolean;
   dot?: boolean;
+  /** Not on the map right now: listed for reference, visually stepped back. */
+  muted?: boolean;
 }>): React.JSX.Element {
   return (
-    <div className="flex items-center gap-1.5">
+    <div
+      className={cn(
+        "flex items-center gap-1.5",
+        muted && "text-muted-foreground opacity-60",
+      )}
+    >
       <span
-        className={dot ? "size-2 rounded-full" : "size-3 rounded-sm"}
+        className={cn(
+          "shrink-0",
+          dot ? "size-2 rounded-full" : "size-3 rounded-sm",
+        )}
         style={
           outline
             ? { border: `2px solid ${color}`, backgroundColor: `${color}33` }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
@@ -19,11 +19,12 @@ import { Label } from "@renderer/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@renderer/components/ui/select";
-import { Skeleton } from "@renderer/components/ui/skeleton";
 import {
   waybackCandidateForVersion,
   type ImageryTimeline,
@@ -61,15 +62,21 @@ function Section({
   title,
   badge,
   defaultOpen = false,
+  forceOpen = false,
   children,
 }: Readonly<{
   icon?: React.ReactNode;
   title: string;
   badge?: string;
   defaultOpen?: boolean;
+  /** Opens the section when it turns true (e.g. editing started elsewhere). */
+  forceOpen?: boolean;
   children: React.ReactNode;
 }>): React.JSX.Element {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(defaultOpen || forceOpen);
+  useEffect(() => {
+    if (forceOpen) setOpen(true);
+  }, [forceOpen]);
   return (
     <div className="border-t first:border-t-0">
       <button
@@ -136,12 +143,38 @@ export interface LayerPanelProps {
   autoImagery: ImageryCandidate | null;
 }
 
+/** One look for every select in this panel. */
+const CONTROL_TRIGGER_CLASS = "h-8 w-full bg-background px-2.5 text-sm";
+
 const AUTO_IMAGERY = "auto";
 const COUNTED_IMAGERY = "counted";
 
+/** Two-line entry: what it is, then the image it stands for. */
+function ImageryOption({
+  title,
+  detail,
+}: Readonly<{ title: string; detail?: string }>): React.JSX.Element {
+  return (
+    <span className="flex min-w-0 flex-col text-left">
+      <span className="truncate font-medium">{title}</span>
+      {detail && (
+        <span className="truncate text-[11px] text-muted-foreground">
+          {detail}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /**
- * Picks which version of the satellite image the map shows: the automatic
- * per-location choice, or an archived Esri Wayback version.
+ * Picks which version of the satellite image the map shows: the image the
+ * selected site's vehicles were counted on, the automatic per-location
+ * choice, or an archived Esri Wayback version.
+ *
+ * The control is never disabled and never swapped for a placeholder: the
+ * archive list depends on the map centre and zoom and is looked up after
+ * every pan, but "Automatic" is always a valid choice. While the archive is
+ * looked up, the previous list stays and a spinner says so.
  */
 function ImageryVersionSelect({
   timeline,
@@ -164,9 +197,9 @@ function ImageryVersionSelect({
   // The list always shows what the map really draws: a pinned version, else
   // the counted image of the selected site, else the automatic choice.
   const countedActive = countedImagery != null && useCountedImage;
-  const describe = (c: ImageryCandidate): string =>
-    `${c.label}: ${imageryCandidateSummary(c, t, i18n.language)}`;
-  const candidates = timeline?.candidates ?? [];
+  const summary = (c: ImageryCandidate): string =>
+    `${imageryCandidateSummary(c, t, i18n.language)} · ${c.label}`;
+  const candidates = (timeline?.candidates ?? []).filter((c) => c.wayback);
   const pinnedCandidate = pinned
     ? waybackCandidateForVersion(candidates, pinned)
     : null;
@@ -176,73 +209,144 @@ function ImageryVersionSelect({
       ? COUNTED_IMAGERY
       : AUTO_IMAGERY;
 
+  const autoDetail = autoImagery
+    ? summary(autoImagery)
+    : t("map.layerPanel.imageryVersionResolving");
+  const current: { title: string; detail: string } = pinned
+    ? {
+        title: t("map.layerPanel.imageryVersionArchiveTitle"),
+        detail: pinnedCandidate
+          ? imageryCandidateSummary(pinnedCandidate, t, i18n.language)
+          : t("map.layerPanel.imageryVersionPublished", {
+              date: pinned.publishedAt,
+            }),
+      }
+    : countedActive
+      ? {
+          title: t("map.layerPanel.imageryVersionCountedTitle"),
+          detail: summary(countedImagery),
+        }
+      : { title: t("map.layerPanel.imageryVersionAuto"), detail: autoDetail };
+
+  const archiveStatus = !timeline
+    ? loading
+      ? t("map.layerPanel.imageryVersionLoading")
+      : t("map.layerPanel.imageryVersionZoomHint")
+    : candidates.length === 0
+      ? t("map.layerPanel.imageryVersionNone")
+      : t("map.layerPanel.imageryVersionHint", { count: candidates.length });
+
   return (
     <div className="space-y-1.5">
-      <Label htmlFor="imagery-version" className="text-xs">
-        {t("map.layerPanel.imageryVersionLabel")}
-      </Label>
-      {loading ? (
-        <Skeleton className="h-9 w-full" />
-      ) : (
-        <Select
-          value={value}
-          onValueChange={(v) => {
-            if (v === AUTO_IMAGERY || v === COUNTED_IMAGERY) {
-              setPinned(null);
-              setUseCountedImage(v === COUNTED_IMAGERY);
-              return;
-            }
-            const c = candidates.find((x) => String(x.wayback?.release) === v);
-            if (c?.wayback) setPinned(c.wayback);
-          }}
-          disabled={!timeline && !pinned && !countedImagery}
+      <div className="flex min-h-6 items-center justify-between gap-2">
+        <Label
+          htmlFor="imagery-version"
+          className="flex items-center gap-1.5 text-xs"
         >
-          <SelectTrigger id="imagery-version" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
+          {t("map.layerPanel.imageryVersionLabel")}
+          {loading && (
+            <Loader2
+              className="size-3 animate-spin text-muted-foreground"
+              aria-label={t("map.layerPanel.imageryVersionLoading")}
+            />
+          )}
+        </Label>
+        {pinned && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-[11px]"
+            onClick={() => {
+              setPinned(null);
+              setUseCountedImage(true);
+            }}
+          >
+            {t("map.layerPanel.imageryVersionReset")}
+          </Button>
+        )}
+      </div>
+      <Select
+        value={value}
+        onValueChange={(v) => {
+          if (v === AUTO_IMAGERY || v === COUNTED_IMAGERY) {
+            setPinned(null);
+            setUseCountedImage(v === COUNTED_IMAGERY);
+            return;
+          }
+          const c = candidates.find((x) => String(x.wayback?.release) === v);
+          if (c?.wayback) setPinned(c.wayback);
+        }}
+      >
+        <SelectTrigger
+          id="imagery-version"
+          className={CONTROL_TRIGGER_CLASS}
+          title={`${current.title} · ${current.detail}`}
+        >
+          <SelectValue>{current.title}</SelectValue>
+        </SelectTrigger>
+        <SelectContent className="max-w-[min(24rem,90vw)] text-xs">
+          <SelectGroup>
             {countedImagery && (
               <SelectItem value={COUNTED_IMAGERY} className="text-xs">
-                {t("map.layerPanel.imageryVersionCounted", {
-                  summary: describe(countedImagery),
-                })}
+                <ImageryOption
+                  title={t("map.layerPanel.imageryVersionCountedTitle")}
+                  detail={summary(countedImagery)}
+                />
               </SelectItem>
             )}
             <SelectItem value={AUTO_IMAGERY} className="text-xs">
-              {autoImagery
-                ? t("map.layerPanel.imageryVersionAutoWith", {
-                    summary: describe(autoImagery),
-                  })
-                : t("map.layerPanel.imageryVersionAuto")}
+              <ImageryOption
+                title={t("map.layerPanel.imageryVersionAuto")}
+                detail={autoDetail}
+              />
             </SelectItem>
+          </SelectGroup>
+          <SelectGroup>
+            <SelectLabel>
+              {t("map.layerPanel.imageryVersionArchiveGroup")}
+            </SelectLabel>
             {pinned && !pinnedCandidate && (
-              <SelectItem value={String(pinned.release)}>
-                {t("map.layerPanel.imageryVersionPublished", {
-                  date: pinned.publishedAt,
-                })}
+              <SelectItem value={String(pinned.release)} className="text-xs">
+                <ImageryOption
+                  title={t("map.layerPanel.imageryVersionPublished", {
+                    date: pinned.publishedAt,
+                  })}
+                />
               </SelectItem>
             )}
-            {candidates.map((c) =>
-              c.wayback ? (
-                <SelectItem
-                  key={c.id}
-                  value={String(c.wayback.release)}
-                  className="text-xs"
-                >
-                  {imageryCandidateSummary(c, t, i18n.language)}
-                </SelectItem>
-              ) : null,
+            {candidates.map((c) => (
+              <SelectItem
+                key={c.id}
+                value={String(c.wayback!.release)}
+                className="text-xs"
+              >
+                <ImageryOption
+                  title={imageryCandidateSummary(c, t, i18n.language)}
+                  detail={t("map.layerPanel.imageryVersionPublished", {
+                    date: c.wayback!.publishedAt,
+                  })}
+                />
+              </SelectItem>
+            ))}
+            {candidates.length === 0 && (
+              <p className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                {archiveStatus}
+              </p>
             )}
-          </SelectContent>
-        </Select>
-      )}
-      <p className="text-[10px] leading-snug text-muted-foreground">
-        {timeline
-          ? t("map.layerPanel.imageryVersionHint", {
-              count: candidates.length,
-            })
-          : t("map.layerPanel.imageryVersionZoomHint")}
-      </p>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      <div className="space-y-0.5 text-[11px] leading-snug">
+        <dl className="flex gap-1.5">
+          <dt className="shrink-0 text-muted-foreground">
+            {t("map.layerPanel.imageryVersionShown")}
+          </dt>
+          <dd className="min-w-0 truncate" title={current.detail}>
+            {current.detail}
+          </dd>
+        </dl>
+        <p className="text-[10px] text-muted-foreground">{archiveStatus}</p>
+      </div>
     </div>
   );
 }
@@ -275,6 +379,10 @@ export function LayerPanel({
 
   const activeLayerCount = Object.values(layers).filter(Boolean).length;
   const [open, setOpen] = useState(false);
+  // Editing started from a map notice must not stay hidden in a closed panel.
+  useEffect(() => {
+    if (editing || detectionEditing) setOpen(true);
+  }, [editing, detectionEditing]);
   const bmLabels = basemapLabels(t);
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
   // The year the pinned image was taken, not when Esri published the
@@ -326,18 +434,24 @@ export function LayerPanel({
               defaultOpen={pinnedWayback != null}
             >
               <div className="space-y-2">
-                <select
+                <Select
                   value={basemap}
-                  onChange={(e) => setBasemap(e.target.value as Basemap)}
-                  className="w-full rounded-md border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  aria-label={t("map.layerPanel.basemapSelectAriaLabel")}
+                  onValueChange={(v) => setBasemap(v as Basemap)}
                 >
-                  {BASEMAP_ORDER.map((bm) => (
-                    <option key={bm} value={bm}>
-                      {bmLabels[bm]}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    className={CONTROL_TRIGGER_CLASS}
+                    aria-label={t("map.layerPanel.basemapSelectAriaLabel")}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BASEMAP_ORDER.map((bm) => (
+                      <SelectItem key={bm} value={bm}>
+                        {bmLabels[bm]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {imageryTimelineAvailable && (
                   <ImageryVersionSelect
                     timeline={imageryTimeline}
@@ -397,6 +511,7 @@ export function LayerPanel({
               badge={
                 editing ? t("map.layerPanel.editingActiveBadge") : undefined
               }
+              forceOpen={editing}
             >
               <Button
                 variant={editing ? "default" : "outline"}
@@ -425,6 +540,7 @@ export function LayerPanel({
                   ? t("map.layerPanel.detectionEditingActiveBadge")
                   : undefined
               }
+              forceOpen={detectionEditing}
             >
               <Button
                 variant={detectionEditing ? "default" : "outline"}
