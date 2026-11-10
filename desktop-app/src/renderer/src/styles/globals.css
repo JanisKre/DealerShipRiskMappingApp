@@ -406,32 +406,71 @@ body {
   transition: width 0.3s;
 }
 
+/* Popup actions match the app's Button (size sm): outline for details,
+   primary for the one confirming action. */
 .drm-popup .popup-details-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
+  height: 2rem;
   margin-top: 8px;
-  padding: 5px 0;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: #2563eb;
-  border: 1px solid #2563eb22;
-  border-radius: 6px;
-  background: #2563eb0a;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--background);
   cursor: pointer;
-  transition: background 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .drm-popup .popup-details-btn:hover {
-  background: #2563eb18;
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.drm-popup .popup-details-btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 .drm-popup .popup-confirm-boundary-btn {
-  color: #15803d;
-  border-color: #15803d33;
-  background: #15803d0d;
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+  background: var(--primary);
 }
 
 .drm-popup .popup-confirm-boundary-btn:hover {
-  background: #15803d1f;
+  color: var(--primary-foreground);
+  background: color-mix(in oklch, var(--primary) 90%, black);
+}
+
+/* Disclosure rows (<details>) use the same chevron as the panel sections
+   instead of the browser's triangle. Summaries with their own icon opt out
+   with `list-none`. */
+details > summary:not(.list-none) {
+  list-style: none;
+  cursor: pointer;
+}
+details > summary:not(.list-none)::-webkit-details-marker {
+  display: none;
+}
+details > summary:not(.list-none)::before {
+  content: "";
+  display: inline-block;
+  width: 0.4em;
+  height: 0.4em;
+  margin: 0 0.55em 0.1em 0.1em;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+  vertical-align: middle;
+}
+details[open] > summary:not(.list-none)::before {
+  transform: rotate(45deg);
 }

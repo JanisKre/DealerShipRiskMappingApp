@@ -54,6 +54,16 @@ the project follows [Semantic Versioning](https://semver.org/).
 - The legend names boundary sources like the detail dialog, highlights the
   ones on the map, and lists retired sources only when such a boundary is
   shown.
+- Map section made consistent after a full walk-through: layer-panel section
+  titles in sentence case without wrapping, one style for every select and
+  input, disabled actions explain why, marker popup buttons match the app's
+  buttons, disclosure rows use the same chevron everywhere, all top notices
+  share one layout and keep clear of the zoom control, and the locations
+  header wraps its actions instead of clipping them.
+- Deleting a location from the marker's context menu now asks for
+  confirmation, like deleting from the list.
+- The detail dialog's OpenStreetMap lookup gives up after 15 s instead of
+  showing "loading" for minutes while Overpass is overloaded.
 
 ### Removed
 

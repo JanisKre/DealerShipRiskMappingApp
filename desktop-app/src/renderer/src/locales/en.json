@@ -547,7 +547,7 @@
       "imageryUnrecorded": "Image source of the vehicle count not recorded (analysis predates automatic source selection) – re-analyse to get the capture date.",
       "machineVehicleCount": "Machine-detected vehicles",
       "manualVehicleCount": "Human-adjusted vehicle count",
-      "manualVehicleCountPlaceholder": "Enter count…",
+      "manualVehicleCountPlaceholder": "Count",
       "saveManualVehicleCount": "Save count",
       "manualVehicleCountNotSet": "No manual override",
       "manualVehicleCountSaved": "Saved count: {{count}}",
@@ -912,10 +912,10 @@
       "editingActiveBadge": "active",
       "editBoundariesButton": "Edit boundaries",
       "stopEditingButton": "Stop editing",
-      "detectionEditingTitle": "Manual vehicle review",
+      "detectionEditingTitle": "Vehicle review",
       "detectionEditingActiveBadge": "active",
-      "editDetectionsButton": "Edit vehicle detections",
-      "saveDetectionEditsButton": "Save detection edits",
+      "editDetectionsButton": "Review vehicles",
+      "saveDetectionEditsButton": "Save review",
       "cancelDetectionEditsButton": "Cancel changes",
       "detectionEditingHint": "Click inside the selected lot to add a vehicle. Click a blue dot to remove it; click a red dot to restore it.",
       "drawingBadge": "drawing",
@@ -936,7 +936,10 @@
       "imageryVersionLoading": "Looking up archive images …",
       "imageryVersionNone": "No older Esri images at the map centre.",
       "imageryVersionReset": "Reset",
-      "imageryVersionShown": "Shown:"
+      "imageryVersionShown": "Shown:",
+      "boundariesLayerOffHint": "Turn on the “Parcels” layer to edit boundaries.",
+      "detectionNeedsSelectionHint": "Select a location on the map or in the list.",
+      "detectionLayerOffHint": "Turn on the “Vehicles” layer to review vehicles."
     },
     "page": {
       "attributionOsm": "OpenStreetMap contributors",
@@ -975,7 +978,9 @@
       "boundaryCorrect": "Correct",
       "boundaryNext": "Next",
       "detectionWarningHint": "No AI model is installed. Install it in the settings, then re-analyse.",
-      "openSettings": "Open settings"
+      "openSettings": "Open settings",
+      "deleteConfirmTitle": "Delete location?",
+      "deleteConfirmDescription": "“{{name}}” is removed from this portfolio together with its analysis and notes. This cannot be undone."
     }
   },
   "ai": {
@@ -1127,10 +1132,10 @@
     "hailRisk": "Hail risk",
     "estimated": "estimated",
     "boundaryReviewNeeded": "⚠ Review property boundary",
-    "confirmBoundary": "✓ Confirm boundary",
+    "confirmBoundary": "Confirm boundary",
     "risk": "Risk",
     "ealYear": "EAL",
-    "viewDetails": "View details →",
+    "viewDetails": "View details",
     "analyzing": "Analyzing…",
     "propertyBoundaryMissing": "⚠ Property boundary not detected",
     "vehicleCountEstimated": "⚠ Vehicle count estimated (no AI model)",

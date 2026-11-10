@@ -16,7 +16,12 @@ import {
 import { eur, num } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
 import { INTENSITY_LEVELS } from "./HailstormScenarioLayer";
-import { PANEL_ACTION_CLASS } from "./panelStyles";
+import {
+  PANEL_ACTION_CLASS,
+  PANEL_CONTROL_CLASS,
+  PANEL_HINT_CLASS,
+  PANEL_LABEL_CLASS,
+} from "./panelStyles";
 
 /**
  * Control panel for the hailstorm scenario: draw a corridor, adjust width
@@ -77,17 +82,16 @@ export function ScenarioBuilder({
         )}
       </div>
 
-      {drawing && (
-        <p className="text-xs text-muted-foreground">{t("ui.drawingHint")}</p>
-      )}
+      {drawing && <p className={PANEL_HINT_CLASS}>{t("ui.drawingHint")}</p>}
 
       {scenario && (
         <>
           <div className="space-y-1.5">
-            <Label htmlFor="scenario-width">
+            <Label htmlFor="scenario-width" className={PANEL_LABEL_CLASS}>
               {t("ui.width")}: {num(scenario.widthKm)} km
             </Label>
             <Input
+              className={PANEL_CONTROL_CLASS}
               id="scenario-width"
               type="number"
               min={1}
@@ -100,7 +104,7 @@ export function ScenarioBuilder({
           </div>
 
           <div className="space-y-1.5">
-            <Label>{t("ui.intensity")}</Label>
+            <Label className={PANEL_LABEL_CLASS}>{t("ui.intensity")}</Label>
             <Select
               value={scenario.intensityLevel}
               onValueChange={(v) =>
@@ -109,7 +113,7 @@ export function ScenarioBuilder({
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className={PANEL_CONTROL_CLASS}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -124,7 +128,10 @@ export function ScenarioBuilder({
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1.5">
-              <Label htmlFor="scenario-return-period">
+              <Label
+                htmlFor="scenario-return-period"
+                className={PANEL_LABEL_CLASS}
+              >
                 {t("ui.returnPeriod")}
               </Label>
               <Select
@@ -133,7 +140,10 @@ export function ScenarioBuilder({
                   patch({ returnPeriodYears: Number(v) as 10 | 50 | 100 })
                 }
               >
-                <SelectTrigger id="scenario-return-period">
+                <SelectTrigger
+                  id="scenario-return-period"
+                  className={PANEL_CONTROL_CLASS}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -146,10 +156,14 @@ export function ScenarioBuilder({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="scenario-exposure-multiplier">
+              <Label
+                htmlFor="scenario-exposure-multiplier"
+                className={PANEL_LABEL_CLASS}
+              >
                 {t("ui.exposureMultiplier")}
               </Label>
               <Input
+                className={PANEL_CONTROL_CLASS}
                 id="scenario-exposure-multiplier"
                 type="number"
                 min={0.1}

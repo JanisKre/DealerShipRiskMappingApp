@@ -21,6 +21,7 @@ vi.mock("./cache.service", () => ({
 vi.mock("./boundary.service", () => ({ fetchOverpass: mocks.fetchOverpass }));
 
 import {
+  OSM_DETAILS_BUDGET_MS,
   getOsmDetails,
   pickDealershipPoi,
   websiteFromEvidence,
@@ -190,5 +191,15 @@ describe("websiteFromEvidence", () => {
         "Autohaus Muster",
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("getOsmDetails time budget", () => {
+  it("bounds the Overpass lookup so the dialog does not wait for minutes", async () => {
+    mocks.fetchOverpass.mockResolvedValue({ elements: [] });
+    await getOsmDetails(48.5, 9.5, "Budget Test");
+    expect(mocks.fetchOverpass).toHaveBeenCalledWith(expect.any(String), {
+      budgetMs: OSM_DETAILS_BUDGET_MS,
+    });
   });
 });

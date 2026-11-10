@@ -208,11 +208,13 @@ export function LocationsPanel({
         )}
       >
         {/* Header — always visible */}
-        <div className="flex shrink-0 items-center gap-1.5 px-2.5 py-2">
+        {/* In a narrow dock the actions wrap below the title instead of
+            clipping it or being clipped. */}
+        <div className="flex shrink-0 flex-wrap items-center gap-x-1.5 gap-y-1 px-2.5 py-2">
           <button
             type="button"
             onClick={toggleOpen}
-            className="flex flex-1 items-center gap-1.5 text-sm font-semibold"
+            className="flex flex-1 items-center gap-1.5 whitespace-nowrap text-sm font-semibold"
             aria-expanded={open}
             aria-label={t("map.locationsPanel.toggleAriaLabel")}
           >
@@ -222,67 +224,69 @@ export function LocationsPanel({
               <ChevronRight className="size-4 shrink-0" />
             )}
             <MapPin className="size-4 shrink-0" />
-            {t("dashboard.locations")}
+            <span>{t("dashboard.locations")}</span>
             <span className="text-muted-foreground">
               ({dealerships.length})
             </span>
           </button>
-          {onUploadFile && (
-            <>
-              <input
-                ref={uploadRef}
-                type="file"
-                accept=".csv,.tsv,.txt,.xlsx"
-                className="hidden"
-                onChange={onFileChange}
-              />
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            {onUploadFile && (
+              <>
+                <input
+                  ref={uploadRef}
+                  type="file"
+                  accept=".csv,.tsv,.txt,.xlsx"
+                  className="hidden"
+                  onChange={onFileChange}
+                />
+                <HintButton
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-6 shrink-0"
+                  onClick={() => uploadRef.current?.click()}
+                  aria-label={t("map.locationsPanel.importPortfolio")}
+                >
+                  <Paperclip className="size-3.5" />
+                </HintButton>
+              </>
+            )}
+            {dealerships.length > 0 && (
               <HintButton
                 type="button"
                 size="icon"
-                variant="ghost"
+                variant={selectMode ? "default" : "ghost"}
                 className="size-6 shrink-0"
-                onClick={() => uploadRef.current?.click()}
-                aria-label={t("map.locationsPanel.importPortfolio")}
+                onClick={toggleSelectMode}
+                aria-label={t(
+                  selectMode
+                    ? "map.locationsPanel.selectModeExit"
+                    : "map.locationsPanel.selectModeEnter",
+                )}
+                aria-pressed={selectMode}
               >
-                <Paperclip className="size-3.5" />
+                {selectMode ? (
+                  <X className="size-3.5" />
+                ) : (
+                  <CheckSquare className="size-3.5" />
+                )}
               </HintButton>
-            </>
-          )}
-          {dealerships.length > 0 && (
+            )}
             <HintButton
               type="button"
               size="icon"
-              variant={selectMode ? "default" : "ghost"}
+              variant={adding ? "default" : "ghost"}
               className="size-6 shrink-0"
-              onClick={toggleSelectMode}
-              aria-label={t(
-                selectMode
-                  ? "map.locationsPanel.selectModeExit"
-                  : "map.locationsPanel.selectModeEnter",
-              )}
-              aria-pressed={selectMode}
+              onClick={() => setAdding((v) => !v)}
+              aria-label={t("map.locationsPanel.addAddress")}
             >
-              {selectMode ? (
+              {adding ? (
                 <X className="size-3.5" />
               ) : (
-                <CheckSquare className="size-3.5" />
+                <Plus className="size-3.5" />
               )}
             </HintButton>
-          )}
-          <HintButton
-            type="button"
-            size="icon"
-            variant={adding ? "default" : "ghost"}
-            className="size-6 shrink-0"
-            onClick={() => setAdding((v) => !v)}
-            aria-label={t("map.locationsPanel.addAddress")}
-          >
-            {adding ? (
-              <X className="size-3.5" />
-            ) : (
-              <Plus className="size-3.5" />
-            )}
-          </HintButton>
+          </div>
         </div>
 
         {/* Add address */}
@@ -426,15 +430,18 @@ function HintButton({
   );
 }
 
-/** Confirmation dialog for permanently removing the selected locations. */
-function DeleteSelectedDialog({
+/** Confirmation dialog for permanently removing locations (list selection or one marker). */
+export function DeleteSelectedDialog({
   open,
   count,
+  name,
   onOpenChange,
   onConfirm,
 }: Readonly<{
   open: boolean;
   count: number;
+  /** Single location by name (map context menu) instead of a count. */
+  name?: string;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
 }>): React.JSX.Element {
@@ -444,12 +451,16 @@ function DeleteSelectedDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {t("map.locationsPanel.deleteSelectedConfirmTitle")}
+            {name
+              ? t("map.page.deleteConfirmTitle")
+              : t("map.locationsPanel.deleteSelectedConfirmTitle")}
           </DialogTitle>
           <DialogDescription>
-            {t("map.locationsPanel.deleteSelectedConfirmDescription", {
-              count,
-            })}
+            {name
+              ? t("map.page.deleteConfirmDescription", { name })
+              : t("map.locationsPanel.deleteSelectedConfirmDescription", {
+                  count,
+                })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

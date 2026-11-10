@@ -210,7 +210,10 @@ export function ClusteredMarkers({
         d.boundary?.reviewRequired ? t("ui.boundaryReviewNeeded") : null,
       ]
         .filter(Boolean)
-        .join("<br>");
+        // One block per line: the zone bar is a block itself, and a <br>
+        // after it left an empty line.
+        .map((line) => `<div>${line}</div>`)
+        .join("");
       marker.bindTooltip(tooltipText, {
         direction: "top",
         offset: [0, -34],

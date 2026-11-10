@@ -35,7 +35,11 @@ import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilt
 import type { AnalyzedDealership } from "@shared/types";
 import { useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { ScenarioBuilder } from "./ScenarioBuilder";
-import { PANEL_ACTION_CLASS } from "./panelStyles";
+import {
+  PANEL_ACTION_CLASS,
+  PANEL_CONTROL_CLASS,
+  PANEL_HINT_CLASS,
+} from "./panelStyles";
 
 const BASEMAP_ORDER: Basemap[] = [
   "satellite",
@@ -89,7 +93,7 @@ function Section({
           className={`size-3 shrink-0 text-muted-foreground transition-transform duration-150 ${open ? "rotate-90" : ""}`}
         />
         {icon && <span className="text-muted-foreground">{icon}</span>}
-        <span className="flex-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-muted-foreground">
           {title}
         </span>
         {badge && !open && (
@@ -142,9 +146,6 @@ export interface LayerPanelProps {
   /** What automatic selection yields at the map centre (null while loading). */
   autoImagery: ImageryCandidate | null;
 }
-
-/** One look for every select in this panel. */
-const CONTROL_TRIGGER_CLASS = "h-8 w-full bg-background px-2.5 text-sm";
 
 const AUTO_IMAGERY = "auto";
 const COUNTED_IMAGERY = "counted";
@@ -279,7 +280,7 @@ function ImageryVersionSelect({
       >
         <SelectTrigger
           id="imagery-version"
-          className={CONTROL_TRIGGER_CLASS}
+          className={PANEL_CONTROL_CLASS}
           title={`${current.title} · ${current.detail}`}
         >
           <SelectValue>{current.title}</SelectValue>
@@ -345,7 +346,9 @@ function ImageryVersionSelect({
             {current.detail}
           </dd>
         </dl>
-        <p className="text-[10px] text-muted-foreground">{archiveStatus}</p>
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          {archiveStatus}
+        </p>
       </div>
     </div>
   );
@@ -439,7 +442,7 @@ export function LayerPanel({
                   onValueChange={(v) => setBasemap(v as Basemap)}
                 >
                   <SelectTrigger
-                    className={CONTROL_TRIGGER_CLASS}
+                    className={PANEL_CONTROL_CLASS}
                     aria-label={t("map.layerPanel.basemapSelectAriaLabel")}
                   >
                     <SelectValue />
@@ -529,6 +532,11 @@ export function LayerPanel({
                   ? t("map.layerPanel.stopEditingButton")
                   : t("map.layerPanel.editBoundariesButton")}
               </Button>
+              {!layers.boundaries && (
+                <p className={PANEL_HINT_CLASS}>
+                  {t("map.layerPanel.boundariesLayerOffHint")}
+                </p>
+              )}
             </Section>
 
             {/* Manual vehicle review — explicit mode so ordinary map clicks stay safe. */}
@@ -560,6 +568,13 @@ export function LayerPanel({
                   ? t("map.layerPanel.saveDetectionEditsButton")
                   : t("map.layerPanel.editDetectionsButton")}
               </Button>
+              {!detectionEditing && (!layers.detections || !selectedId) && (
+                <p className={PANEL_HINT_CLASS}>
+                  {!layers.detections
+                    ? t("map.layerPanel.detectionLayerOffHint")
+                    : t("map.layerPanel.detectionNeedsSelectionHint")}
+                </p>
+              )}
               {detectionEditing && (
                 <>
                   <Button
@@ -570,7 +585,7 @@ export function LayerPanel({
                   >
                     {t("map.layerPanel.cancelDetectionEditsButton")}
                   </Button>
-                  <p className="mt-1.5 text-[10px] text-muted-foreground">
+                  <p className={PANEL_HINT_CLASS}>
                     {t("map.layerPanel.detectionEditingHint")}
                   </p>
                 </>

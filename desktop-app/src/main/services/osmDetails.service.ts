@@ -15,6 +15,9 @@ import type { OsmEvidence } from "./boundary/osm-overpass";
  * an outage is never cached as "no details".
  */
 
+/** Longest the detail dialog waits for the OSM lookup before giving up. */
+export const OSM_DETAILS_BUDGET_MS = 15_000;
+
 export interface OverpassPoiElement {
   lat?: number;
   lon?: number;
@@ -91,7 +94,12 @@ export async function getOsmDetails(
         nwr(around:500,${lat},${lon})["amenity"];
       );
       out center tags;`;
-    const data = await fetchOverpass<OverpassPoiElement>(query);
+    // Bounded like every Overpass call on a user path: the detail dialog
+    // otherwise shows "loading" for minutes while the public servers are at
+    // capacity.
+    const data = await fetchOverpass<OverpassPoiElement>(query, {
+      budgetMs: OSM_DETAILS_BUDGET_MS,
+    });
     if (!data) throw new Error("Overpass unavailable for OSM details");
 
     const tags = pickDealershipPoi(

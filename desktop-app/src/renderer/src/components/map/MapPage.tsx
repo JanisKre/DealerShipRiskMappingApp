@@ -64,6 +64,7 @@ import { DetectionOverlay, type DetectionEditDraft } from "./DetectionOverlay";
 import { HailstormScenarioLayer } from "./HailstormScenarioLayer";
 import { HailZoneLayer } from "./HailZoneLayer";
 import { LayerPanel } from "./LayerPanel";
+import { DeleteSelectedDialog } from "./LocationsPanel";
 import { MapLegend } from "./MapLegend";
 import { NearbyInsuredLayer } from "./NearbyInsuredLayer";
 import { ViewPersistence } from "./ViewPersistence";
@@ -276,6 +277,9 @@ export function MapPage(): React.JSX.Element {
   const [drawingScenario, setDrawingScenario] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<AnalyzedDealership | null>(
+    null,
+  );
   const [boundaryWarningDismissed, setBoundaryWarningDismissed] =
     useState(false);
   const [modelWarningDismissed, setModelWarningDismissed] = useState(false);
@@ -721,18 +725,24 @@ export function MapPage(): React.JSX.Element {
       </MapContainer>
 
       {/* Status banner top center: analysis progress + data quality hints (stacked) */}
-      <div className="absolute left-1/2 top-3 z-[1000] flex -translate-x-1/2 flex-col items-center gap-2">
+      <div className="pointer-events-none absolute inset-x-0 top-3 z-[1000] flex flex-col items-center gap-2 px-14 [&>*]:pointer-events-auto">
         {detectionEditing && detectionDraft && detectionReviewDealership && (
-          <div className="glass flex max-w-[min(94vw,44rem)] flex-wrap items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg">
-            <ScanSearch className="size-4 shrink-0 text-primary" />
-            <span>
-              {t("map.page.detectionReviewSummary", {
-                machine: detectionReviewDealership.detection?.vehicleCount ?? 0,
-                added: detectionDraft.manualVehiclePoints.length,
-                removed: detectionDraft.manualVehicleRemovedPoints.length,
-                total: detectionDraft.manualVehicleCount,
-              })}
-            </span>
+          <div className={NOTICE_CLASS}>
+            <ScanSearch className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="font-medium">
+                {detectionReviewDealership.name}
+              </div>
+              <p className="text-xs leading-snug text-muted-foreground">
+                {t("map.page.detectionReviewSummary", {
+                  machine:
+                    detectionReviewDealership.detection?.vehicleCount ?? 0,
+                  added: detectionDraft.manualVehiclePoints.length,
+                  removed: detectionDraft.manualVehicleRemovedPoints.length,
+                  total: detectionDraft.manualVehicleCount,
+                })}
+              </p>
+            </div>
           </div>
         )}
         {boundaryEditIds.map((id) => {
@@ -742,51 +752,58 @@ export function MapPage(): React.JSX.Element {
           const hasDefault = dealership.boundaryBeforeManualEdit != null;
           const busy = detectionUpdateIds.includes(id);
           return (
-            <div
-              key={`edit-${id}`}
-              className="glass flex max-w-[min(94vw,44rem)] flex-wrap items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg"
-            >
-              <Save className="size-4 shrink-0 text-primary" />
-              <span>
-                {t("map.page.boundaryEditedPrompt", { name: dealership.name })}
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => void saveBoundaryEdit(id)}
-                disabled={busy}
-                title={t("map.page.saveBoundaryEdit")}
-              >
-                {busy ? <Loader2 className="animate-spin" /> : <Save />}
-                {t("map.page.saveBoundaryEdit")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => void undoBoundaryEdit(id)}
-                disabled={!hasHistory || busy}
-                title={t("map.page.undoBoundaryEdit")}
-              >
-                <Undo2 />
-                {t("map.page.undoBoundaryEdit")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => void revertBoundaryToDefault(id)}
-                disabled={!hasDefault || busy}
-                title={t("map.page.revertBoundaryDefault")}
-              >
-                <RotateCcw />
-                {t("map.page.revertBoundaryDefault")}
-              </Button>
-              {detectionUpdateErrors[id] && (
-                <span className="basis-full text-center text-xs text-destructive">
-                  {detectionUpdateErrors[id]}
-                </span>
-              )}
+            <div key={`edit-${id}`} className={NOTICE_CLASS}>
+              <Save className="mt-0.5 size-4 shrink-0 text-primary" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="font-medium">
+                  {t("map.page.boundaryEditedPrompt", {
+                    name: dealership.name,
+                  })}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => void saveBoundaryEdit(id)}
+                    disabled={busy}
+                  >
+                    {busy ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Save className="size-3" />
+                    )}
+                    {t("map.page.saveBoundaryEdit")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => void undoBoundaryEdit(id)}
+                    disabled={!hasHistory || busy}
+                  >
+                    <Undo2 className="size-3" />
+                    {t("map.page.undoBoundaryEdit")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={() => void revertBoundaryToDefault(id)}
+                    disabled={!hasDefault || busy}
+                  >
+                    <RotateCcw className="size-3" />
+                    {t("map.page.revertBoundaryDefault")}
+                  </Button>
+                </div>
+                {detectionUpdateErrors[id] && (
+                  <p className="text-xs text-destructive">
+                    {detectionUpdateErrors[id]}
+                  </p>
+                )}
+              </div>
             </div>
           );
         })}
@@ -1000,13 +1017,13 @@ export function MapPage(): React.JSX.Element {
         {layers.accumulationClusters &&
           visibleDealerships.length > 0 &&
           accumulationClusterCount === 0 && (
-            <div className="glass flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm shadow-lg">
-              <Info className="size-4 shrink-0 text-muted-foreground" />
-              <span>
+            <div className={NOTICE_CLASS}>
+              <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <p className="min-w-0 flex-1 text-xs leading-snug text-muted-foreground">
                 {t("map.page.noClustersInfo", {
                   radius: parameters.accumulationRadiusKm,
                 })}
-              </span>
+              </p>
             </div>
           )}
       </div>
@@ -1047,16 +1064,31 @@ export function MapPage(): React.JSX.Element {
           state={contextMenu}
           onClose={() => setContextMenu(null)}
           onReanalyze={reanalyzeDealership}
-          onDelete={removeDealership}
+          onDelete={(id) =>
+            setPendingDelete(dealerships.find((d) => d.id === id) ?? null)
+          }
         />
       )}
+      {/* Same confirmation as deleting from the locations list. */}
+      <DeleteSelectedDialog
+        open={pendingDelete != null}
+        count={1}
+        name={pendingDelete?.name}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        onConfirm={() => {
+          if (pendingDelete) removeDealership(pendingDelete.id);
+          setPendingDelete(null);
+        }}
+      />
     </div>
   );
 }
 
 /** Shared look of the status notices at the top of the map. */
 const NOTICE_CLASS =
-  "glass flex w-[min(94vw,28rem)] items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm shadow-lg";
+  "glass flex w-full max-w-[28rem] items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm shadow-lg";
 
 function DismissButton({
   label,

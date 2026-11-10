@@ -547,7 +547,7 @@
       "imageryUnrecorded": "Bildquelle der Fahrzeugzählung nicht erfasst (Analyse vor der automatischen Quellenwahl) – für das Aufnahmedatum neu analysieren.",
       "machineVehicleCount": "Maschinell erkannte Fahrzeuge",
       "manualVehicleCount": "Manuell angepasste Fahrzeugzahl",
-      "manualVehicleCountPlaceholder": "Anzahl eingeben…",
+      "manualVehicleCountPlaceholder": "Anzahl",
       "saveManualVehicleCount": "Zahl speichern",
       "manualVehicleCountNotSet": "Keine manuelle Anpassung",
       "manualVehicleCountSaved": "Gespeicherte Zahl: {{count}}",
@@ -912,10 +912,10 @@
       "editingActiveBadge": "aktiv",
       "editBoundariesButton": "Grenzen bearbeiten",
       "stopEditingButton": "Bearbeiten beenden",
-      "detectionEditingTitle": "Manuelle Fahrzeugprüfung",
+      "detectionEditingTitle": "Fahrzeugprüfung",
       "detectionEditingActiveBadge": "aktiv",
-      "editDetectionsButton": "Fahrzeugerkennung bearbeiten",
-      "saveDetectionEditsButton": "Erkennungsänderungen speichern",
+      "editDetectionsButton": "Fahrzeuge prüfen",
+      "saveDetectionEditsButton": "Prüfung speichern",
       "cancelDetectionEditsButton": "Änderungen verwerfen",
       "detectionEditingHint": "In die ausgewählte Fläche klicken, um ein Fahrzeug hinzuzufügen. Auf einen blauen Punkt klicken, um ihn zu entfernen, auf einen roten, um ihn wiederherzustellen.",
       "drawingBadge": "zeichnet",
@@ -936,7 +936,10 @@
       "imageryVersionLoading": "Archivbilder werden gesucht …",
       "imageryVersionNone": "An der Kartenmitte gibt es keine älteren Esri-Bilder.",
       "imageryVersionReset": "Zurücksetzen",
-      "imageryVersionShown": "Angezeigt:"
+      "imageryVersionShown": "Angezeigt:",
+      "boundariesLayerOffHint": "Blende die Ebene „Grundstücke“ ein, um Grenzen zu bearbeiten.",
+      "detectionNeedsSelectionHint": "Wähle einen Standort auf der Karte oder in der Liste.",
+      "detectionLayerOffHint": "Blende die Ebene „Fahrzeuge“ ein, um Fahrzeuge zu prüfen."
     },
     "page": {
       "attributionOsm": "OpenStreetMap-Mitwirkende",
@@ -975,7 +978,9 @@
       "boundaryCorrect": "Korrigieren",
       "boundaryNext": "Nächste",
       "detectionWarningHint": "Es ist kein KI-Modell installiert. Installiere es in den Einstellungen und analysiere danach neu.",
-      "openSettings": "Einstellungen öffnen"
+      "openSettings": "Einstellungen öffnen",
+      "deleteConfirmTitle": "Standort löschen?",
+      "deleteConfirmDescription": "„{{name}}“ wird mit Analyse und Notizen aus diesem Portfolio entfernt. Das lässt sich nicht rückgängig machen."
     }
   },
   "ai": {
@@ -1127,10 +1132,10 @@
     "hailRisk": "Hagelrisiko",
     "estimated": "geschätzt",
     "boundaryReviewNeeded": "⚠ Grundstücksgrenze prüfen",
-    "confirmBoundary": "✓ Grenze bestätigen",
+    "confirmBoundary": "Grenze bestätigen",
     "risk": "Risiko",
     "ealYear": "EAL",
-    "viewDetails": "Details anzeigen →",
+    "viewDetails": "Details anzeigen",
     "analyzing": "Wird analysiert…",
     "propertyBoundaryMissing": "⚠ Grundstücksgrenze nicht erkannt",
     "vehicleCountEstimated": "⚠ Fahrzeugzahl geschätzt (kein KI-Modell)",

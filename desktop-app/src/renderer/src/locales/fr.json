@@ -344,7 +344,7 @@
       "imageryUnrecorded": "Source d'image du comptage non enregistrée (analyse antérieure à la sélection automatique) – relancer l'analyse pour obtenir la date de prise de vue.",
       "machineVehicleCount": "Véhicules détectés par la machine",
       "manualVehicleCount": "Nombre de véhicules ajusté manuellement",
-      "manualVehicleCountPlaceholder": "Saisir le nombre…",
+      "manualVehicleCountPlaceholder": "Nombre",
       "saveManualVehicleCount": "Enregistrer le nombre",
       "manualVehicleCountNotSet": "Aucun ajustement manuel",
       "manualVehicleCountSaved": "Nombre enregistré : {{count}}",
@@ -582,10 +582,10 @@
       "editingActiveBadge": "actif",
       "editBoundariesButton": "Modifier les limites",
       "stopEditingButton": "Arrêter la modification",
-      "detectionEditingTitle": "Révision manuelle des véhicules",
+      "detectionEditingTitle": "Vérification des véhicules",
       "detectionEditingActiveBadge": "actif",
-      "editDetectionsButton": "Modifier les détections",
-      "saveDetectionEditsButton": "Enregistrer les modifications",
+      "editDetectionsButton": "Vérifier les véhicules",
+      "saveDetectionEditsButton": "Enregistrer la vérification",
       "cancelDetectionEditsButton": "Annuler les changements",
       "detectionEditingHint": "Cliquez dans la parcelle sélectionnée pour ajouter un véhicule. Cliquez sur un point bleu pour le supprimer ou sur un point rouge pour le restaurer.",
       "drawingBadge": "dessin en cours",
@@ -606,7 +606,10 @@
       "imageryVersionLoading": "Recherche des images d’archive …",
       "imageryVersionNone": "Aucune image Esri plus ancienne au centre de la carte.",
       "imageryVersionReset": "Réinitialiser",
-      "imageryVersionShown": "Affichée :"
+      "imageryVersionShown": "Affichée :",
+      "boundariesLayerOffHint": "Affichez la couche « Parcelles » pour modifier les limites.",
+      "detectionNeedsSelectionHint": "Sélectionnez un site sur la carte ou dans la liste.",
+      "detectionLayerOffHint": "Affichez la couche « Véhicules » pour vérifier les véhicules."
     },
     "page": {
       "attributionOsm": "contributeurs d'OpenStreetMap",
@@ -645,7 +648,9 @@
       "boundaryCorrect": "Corriger",
       "boundaryNext": "Suivante",
       "detectionWarningHint": "Aucun modèle d’IA n’est installé. Installez-le dans les paramètres, puis relancez l’analyse.",
-      "openSettings": "Ouvrir les paramètres"
+      "openSettings": "Ouvrir les paramètres",
+      "deleteConfirmTitle": "Supprimer le site ?",
+      "deleteConfirmDescription": "« {{name}} » est retiré de ce portefeuille avec son analyse et ses notes. Cette action est irréversible."
     }
   },
   "ai": {
@@ -797,10 +802,10 @@
     "hailRisk": "Risque de grêle",
     "estimated": "estimé",
     "boundaryReviewNeeded": "⚠ Vérifier la limite du terrain",
-    "confirmBoundary": "✓ Confirmer la limite",
+    "confirmBoundary": "Confirmer la limite",
     "risk": "Risque",
     "ealYear": "EAL",
-    "viewDetails": "Voir les détails →",
+    "viewDetails": "Voir les détails",
     "analyzing": "Analyse en cours…",
     "propertyBoundaryMissing": "⚠ Limite de propriété non détectée",
     "vehicleCountEstimated": "⚠ Nombre de véhicules estimé (sans modèle IA)",
