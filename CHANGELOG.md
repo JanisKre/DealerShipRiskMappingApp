@@ -7,6 +7,22 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] – 2026-11-10
+
+### Changed
+
+- Lot boundaries are now found by a source cascade instead of the
+  multi-source fusion engine. The sources are asked in a fixed order: OSM
+  car-dealer area at the point, the ALKIS parcel containing the point, OSM
+  parking at the point, the aerial paved surface, and finally a 100 m circle.
+  The first source whose rule matches wins. Nothing is blended or enlarged
+  automatically; geometries from later sources are offered as alternatives
+  in the candidate list. Only an OSM dealer area at the point passes without
+  review. The detail dialog shows "Engine: Quellen-Kaskade" and one line per
+  consulted source explaining why it was or was not used. Saved boundaries
+  are kept; re-analyse a location to get a cascade result. See "Source
+  cascade" in `docs/boundary-model.md`.
+
 ### Added
 
 - Smarter location search. Queries are understood offline: "Müller" finds
@@ -375,7 +391,8 @@ the project follows [Semantic Versioning](https://semver.org/).
 - Export as PDF, Excel, CSV, plus portfolio file (`.drm`).
 - i18n (de / en / fr).
 
-[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.3.0
 [0.2.1]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.2.1
 [0.2.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.2.0
 [0.1.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.1.0

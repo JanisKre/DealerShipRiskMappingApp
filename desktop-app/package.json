@@ -1,7 +1,7 @@
 {
   "name": "dealership-risk-desktop",
   "productName": "Dealership Risk Mapping",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Desktop app for physical risk assessment of car dealership portfolios",
   "main": "./out/main/index.cjs",
   "author": "Janis Kretschmann",
@@ -28,6 +28,7 @@
     "dist": "npm run build && electron-builder",
     "benchmark:boundary": "BOUNDARY_BENCHMARK=1 vitest run src/main/services/boundary/boundary-benchmark.run.test.ts",
     "benchmark:boundary:fused": "BOUNDARY_BENCHMARK=1 BOUNDARY_ENGINE=fused vitest run src/main/services/boundary/boundary-benchmark.run.test.ts",
+    "benchmark:boundary:legacy": "BOUNDARY_BENCHMARK=1 BOUNDARY_ENGINE=legacy vitest run src/main/services/boundary/boundary-benchmark.run.test.ts",
     "notices": "node scripts/generate-third-party-notices.mjs"
   },
   "dependencies": {
