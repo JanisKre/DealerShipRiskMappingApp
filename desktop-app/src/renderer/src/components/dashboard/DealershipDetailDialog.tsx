@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   ExternalLink,
   FileText,
@@ -11,21 +14,25 @@ import {
   Loader2,
   Mail,
   MapPin,
+  MoreHorizontal,
   Pencil,
   Phone,
   RefreshCw,
   RotateCcw,
-  Save,
   StickyNote,
   Tag,
+  Trash2,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import area from "@turf/area";
 import type {
   AnalyzedDealership,
+  BoundaryCandidate,
   BoundaryResult,
   EalBreakdown,
   OsmDetails,
+  RiskParameters,
   StructuredMemo,
 } from "@shared/types";
 import { asPolygon, outerRings } from "@shared/boundary-geometry-utils";
@@ -47,53 +54,111 @@ import { Input } from "@renderer/components/ui/input";
 import { Label } from "@renderer/components/ui/label";
 import { Separator } from "@renderer/components/ui/separator";
 import { Switch } from "@renderer/components/ui/switch";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@renderer/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@renderer/components/ui/dropdown-menu";
+import { useMapStore } from "@renderer/store/mapStore";
+import { DeleteSelectedDialog } from "@renderer/components/map/LocationsPanel";
+import {
+  IMAGERY_STALE_AFTER_YEARS,
+  imageryAgeYears,
+} from "@shared/imagery-metadata";
 import { Textarea } from "@renderer/components/ui/textarea";
 import { useAppStore } from "@renderer/store/appStore";
 import { eur, num, pct } from "@renderer/lib/format";
 import { hailZoneColor } from "@renderer/lib/riskColor";
 import {
   dealershipHailZone,
+  effectiveVehicleCount,
   estimateHailZoneFromScore,
 } from "@shared/risk-math";
-import { UnderwritingMessages } from "./UnderwritingMessages";
+import { buildUnderwritingMessages } from "./UnderwritingMessages";
 import { DetectionImageryNote } from "./DetectionImageryNote";
 import { ImageryHistorySection } from "./ImageryHistorySection";
 
 /**
- * Detail dialog for a location: area/capacity/utilisation, hail EAL
- * breakdown, boundary source, and on-demand AI (structured memo + boundary
- * refinement). Controlled via `open`/`onOpenChange`.
+ * Detail dialog for a location, built for progressive disclosure:
+ *
+ *  1. Always visible: name, badges, the four numbers that matter (hail EAL,
+ *     vehicles, exposure, boundary status) and only those notices that ask
+ *     for an action.
+ *  2. Tabs: overview (EAL derivation, memo), site & vehicles (boundary
+ *     actions, vehicle count, imagery), contract & notes, sources.
+ *  3. Disclosures inside the tabs for expert detail (image history, boundary
+ *     internals, model limitations).
+ *
+ * `onNavigate` adds previous/next arrows to step through the portfolio.
  */
 export function DealershipDetailDialog({
   dealership,
   open,
   onOpenChange,
+  onNavigate,
 }: {
   dealership: AnalyzedDealership | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onNavigate?: (id: string) => void;
 }): React.JSX.Element {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-auto">
+      <DialogContent
+        className="max-h-[85vh] max-w-2xl overflow-auto"
+        // Focus would land on the first control (the "previous" arrow) and
+        // read as a highlighted button; Tab still starts inside the dialog.
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
         {dealership && (
-          <DetailBody d={dealership} onClose={() => onOpenChange(false)} />
+          <DetailBody
+            d={dealership}
+            onClose={() => onOpenChange(false)}
+            onNavigate={onNavigate}
+          />
         )}
       </DialogContent>
     </Dialog>
   );
 }
 
+type DetailTab = "overview" | "site" | "contract" | "sources";
+
+interface Attention {
+  key: string;
+  tone: "warning" | "danger";
+  title: string;
+  detail?: string;
+  action?: { label: string; run: () => void };
+}
+
 function DetailBody({
   d,
   onClose,
+  onNavigate,
 }: {
   d: AnalyzedDealership;
   onClose: () => void;
+  onNavigate?: (id: string) => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const dealerships = useAppStore((s) => s.dealerships);
+  const parameters = useAppStore((s) => s.parameters);
+  const reanalyze = useAppStore((s) => s.reanalyzeDealership);
+  const select = useAppStore((s) => s.select);
+  const removeDealership = useAppStore((s) => s.removeDealership);
+  const [tab, setTab] = useState<DetailTab>("overview");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const hailZone = dealershipHailZone(d)?.zone;
-  const eb = d.risk?.ealBreakdown;
   const { details: osmDetails, loading: osmLoading } = useOsmDetails(
     d.lat,
     d.lon,
@@ -101,113 +166,463 @@ function DetailBody({
     d.address,
   );
 
+  const located = dealerships.filter((x) => x.lat != null && x.lon != null);
+  const position = located.findIndex((x) => x.id === d.id);
+  const step = (delta: number): void => {
+    if (!onNavigate || located.length < 2) return;
+    const next = located[(position + delta + located.length) % located.length];
+    onNavigate(next.id);
+  };
+
+  function showOnMap(editBoundary = false): void {
+    select(d.id);
+    if (editBoundary) {
+      useMapStore.getState().setLayers({ boundaries: true });
+      useMapStore.getState().setEditing(true);
+    }
+    onClose();
+    navigate("/");
+  }
+
+  const attention = buildAttention(
+    t,
+    d,
+    dealerships,
+    parameters,
+    () => setTab("site"),
+    () => {
+      onClose();
+      navigate("/settings");
+    },
+  );
+  const vehicles = d.detection ? effectiveVehicleCount(d.detection) : null;
+  const manualCount = d.detection?.manualVehicleCount != null;
+  const rank = portfolioRank(d, dealerships);
+  const boundary = d.boundary;
+  const boundaryStatus = !boundary
+    ? "—"
+    : boundary.source === "manual" || boundary.confirmedAt
+      ? t("dashboard.detailDialog.boundaryStatusConfirmed")
+      : boundary.reviewRequired
+        ? t("dashboard.detailDialog.boundaryStatusReview")
+        : t("dashboard.detailDialog.boundaryStatusAutomatic");
+  const imageDate = d.detection?.imagery?.chosen.capturedAt;
+
   return (
     <>
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          {d.name}
-          <Badge
-            style={{
-              backgroundColor:
-                hailZone != null ? hailZoneColor(hailZone) : "#6b7280",
-              color: "white",
-            }}
-          >
-            {hailZone != null
-              ? t("dashboard.detailDialog.hailZoneLabel", { zone: hailZone })
-              : "—"}
-          </Badge>
-        </DialogTitle>
+      <DialogHeader className="space-y-1.5">
+        <div className="flex items-start gap-2 pr-8">
+          <DialogTitle className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <span className="min-w-0 break-words">{d.name}</span>
+            <Badge
+              style={{
+                backgroundColor:
+                  hailZone != null ? hailZoneColor(hailZone) : "#6b7280",
+                color: "white",
+              }}
+            >
+              {hailZone != null
+                ? t("dashboard.detailDialog.hailZoneLabel", { zone: hailZone })
+                : "—"}
+            </Badge>
+            <Badge variant="outline" className="font-normal">
+              {d.insured
+                ? t("dashboard.detailDialog.businessExisting")
+                : t("dashboard.detailDialog.businessNew")}
+            </Badge>
+          </DialogTitle>
+          {onNavigate && located.length > 1 && (
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={() => step(-1)}
+                aria-label={t("dashboard.detailDialog.previousLocation")}
+                title={t("dashboard.detailDialog.previousLocation")}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {position + 1}/{located.length}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={() => step(1)}
+                aria-label={t("dashboard.detailDialog.nextLocation")}
+                title={t("dashboard.detailDialog.nextLocation")}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          )}
+        </div>
         <DialogDescription>
           {d.address ?? `${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}`}
         </DialogDescription>
+        {(imageDate || d.risk?.modelVersion) && (
+          <p className="text-xs text-muted-foreground">
+            {[
+              imageDate
+                ? t("dashboard.detailDialog.metaImage", {
+                    date: formatIsoDate(imageDate),
+                  })
+                : null,
+              d.risk?.modelVersion
+                ? t("dashboard.detailDialog.metaModel", {
+                    version: d.risk.modelVersion,
+                  })
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
       </DialogHeader>
 
-      <QuickLinksRow d={d} />
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="outline" onClick={() => showOnMap()}>
+          <MapPin className="size-3.5" />
+          {t("dashboard.detailDialog.showOnMap")}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void reanalyze(d.id)}
+        >
+          <RefreshCw className="size-3.5" />
+          {t("map.page.reanalyze")}
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto"
+              aria-label={t("dashboard.detailDialog.moreActions")}
+              title={t("dashboard.detailDialog.moreActions")}
+            >
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <a href={googleMapsUrl(d)} target="_blank" rel="noreferrer">
+                <MapPin className="size-3.5" />
+                Google Maps
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a
+                href={openStreetMapUrl(d.lat, d.lon)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ExternalLink className="size-3.5" />
+                OpenStreetMap
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="size-3.5" />
+              {t("map.page.delete")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
-      <WebsiteRow
-        d={d}
-        detectedWebsite={osmDetails?.website}
-        detecting={osmLoading}
-      />
-
-      <OsmDetailsSection details={osmDetails} loading={osmLoading} />
-
-      <PortfolioMetaSection d={d} />
-
-      <NotesSection d={d} />
-
-      <NatCatSection d={d} />
-
-      <UnderwritingMessages d={d} />
-
-      <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-        <Metric
-          label={t("dashboard.detailDialog.machineVehicleCount")}
-          value={num(d.detection?.vehicleCount)}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <KeyFigure
+          label={t("dashboard.detailDialog.kpiHailEal")}
+          value={eur(d.risk?.eal)}
+          hint={
+            rank != null ? t("dashboard.detailDialog.kpiRank", rank) : undefined
+          }
         />
-        <ManualVehicleCountEditor d={d} />
-        <Metric
-          label={t("dashboard.capacity")}
-          value={num(d.risk?.capacityEstimate)}
+        <KeyFigure
+          label={t("common.vehicles")}
+          value={num(vehicles ?? undefined)}
+          hint={
+            manualCount
+              ? t("dashboard.detailDialog.kpiVehiclesManual")
+              : d.detection?.model === "stub-area-heuristic"
+                ? t("dashboard.detailDialog.kpiVehiclesEstimated")
+                : t("dashboard.detailDialog.kpiVehiclesDetected")
+          }
         />
-        <Metric
-          label={t("dashboard.utilisation")}
-          value={pct(d.risk?.utilisation, 0)}
-        />
-        <Metric
-          label={t("dashboard.area")}
-          value={`${num(d.boundary?.areaSqm)} m²`}
-        />
-        <Metric
+        <KeyFigure
           label={t("dashboard.detailDialog.exposureLabel")}
           value={eur(d.risk?.exposureEur)}
+          hint={`${num(boundary?.areaSqm)} m²`}
         />
-        <Metric
-          label={t("dashboard.detailDialog.totalEalLabel")}
-          value={eur(d.risk?.eal)}
+        <KeyFigure
+          label={t("dashboard.detailDialog.boundaryTitle")}
+          value={boundaryStatus}
+          hint={
+            boundary
+              ? `${candidateLabel(t, boundary)} · ${pct(boundary.confidence, 0)}`
+              : undefined
+          }
+          tone={boundary?.reviewRequired ? "warning" : undefined}
         />
       </div>
 
-      <DetectionImageryNote detection={d.detection} />
-
-      <ImageryHistorySection d={d} onClose={onClose} />
-
-      <Separator />
-
-      <div className="space-y-2">
-        <h4 className="text-sm font-semibold">
-          {t("dashboard.detailDialog.mainScoreTitle")}
-        </h4>
-        {d.hailZone != null && (
-          <div className="flex items-center gap-2 rounded-md border bg-amber-50 px-3 py-2 text-sm dark:bg-amber-950/20">
-            <span className="text-lg">🌨</span>
-            <div>
-              <span className="font-semibold">
-                {t("dashboard.detailDialog.hailZoneLabel", {
-                  zone: d.hailZone,
-                })}
-              </span>
-              <span className="ml-2 text-muted-foreground">
-                {t("dashboard.detailDialog.hailZoneKasko", {
-                  tier: d.hailRiskTier,
-                })}
-              </span>
+      {attention.length > 0 && (
+        <div className="space-y-1.5">
+          {attention.map((item) => (
+            <div
+              key={item.key}
+              className={`flex items-start gap-2 rounded-lg border border-l-4 bg-muted/30 px-3 py-2 text-sm ${
+                item.tone === "danger"
+                  ? "border-l-destructive"
+                  : "border-l-amber-500"
+              }`}
+            >
+              <TriangleAlert
+                className={`mt-0.5 size-4 shrink-0 ${
+                  item.tone === "danger" ? "text-destructive" : "text-amber-500"
+                }`}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">{item.title}</div>
+                {item.detail && (
+                  <p className="text-xs text-muted-foreground">{item.detail}</p>
+                )}
+              </div>
+              {item.action && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 shrink-0 text-xs"
+                  onClick={item.action.run}
+                >
+                  {item.action.label}
+                </Button>
+              )}
             </div>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {eb && <HailEalSection eb={eb} />}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as DetailTab)}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">
+            {t("dashboard.detailDialog.tabOverview")}
+          </TabsTrigger>
+          <TabsTrigger value="site">
+            {t("dashboard.detailDialog.tabSite")}
+          </TabsTrigger>
+          <TabsTrigger value="contract">
+            {t("dashboard.detailDialog.tabContract")}
+          </TabsTrigger>
+          <TabsTrigger value="sources">
+            {t("dashboard.detailDialog.tabSources")}
+          </TabsTrigger>
+        </TabsList>
 
-      <BoundarySummary d={d} />
+        <TabsContent value="overview" className="space-y-4 pt-2">
+          <HailOverview d={d} />
+          <Separator />
+          <AiSection d={d} />
+        </TabsContent>
 
-      <ModelConfidenceSummary d={d} />
+        <TabsContent value="site" className="space-y-4 pt-2">
+          <BoundaryPanel d={d} onEditOnMap={() => showOnMap(true)} />
+          <Separator />
+          <VehiclePanel d={d} />
+          <DetectionImageryNote detection={d.detection} />
+          <details className="rounded-md border text-sm">
+            <summary className="px-3 py-2 font-medium text-muted-foreground">
+              {t("dashboard.detailDialog.imageryHistoryToggle")}
+            </summary>
+            <div className="border-t p-3">
+              <ImageryHistorySection d={d} onClose={onClose} />
+            </div>
+          </details>
+        </TabsContent>
 
-      <Separator />
+        <TabsContent value="contract" className="space-y-4 pt-2">
+          <PortfolioMetaSection d={d} />
+          <NotesSection d={d} />
+          <WebsiteRow
+            d={d}
+            detectedWebsite={osmDetails?.website}
+            detecting={osmLoading}
+          />
+          <OsmDetailsSection details={osmDetails} loading={false} />
+        </TabsContent>
 
-      <AiSection d={d} />
+        <TabsContent value="sources" className="space-y-4 pt-2">
+          <ModelConfidenceSummary d={d} />
+          <NatCatSection d={d} />
+        </TabsContent>
+      </Tabs>
+
+      <DeleteSelectedDialog
+        open={confirmDelete}
+        count={1}
+        name={d.name}
+        onOpenChange={setConfirmDelete}
+        onConfirm={() => {
+          setConfirmDelete(false);
+          onClose();
+          removeDealership(d.id);
+        }}
+      />
     </>
+  );
+}
+
+/** One of the four numbers in the dialog header. */
+function KeyFigure({
+  label,
+  value,
+  hint,
+  tone,
+}: Readonly<{
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "warning";
+}>): React.JSX.Element {
+  return (
+    <div
+      className={`rounded-lg border p-2.5 ${
+        tone === "warning" ? "border-amber-500/60 bg-amber-500/5" : ""
+      }`}
+    >
+      <div className="truncate text-xs text-muted-foreground">{label}</div>
+      <div className="mt-0.5 truncate text-base font-semibold">{value}</div>
+      {hint && (
+        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+          {hint}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Notices that ask for an action. Positive or purely descriptive messages
+ * ("low hail risk") are left out: the numbers above already say that.
+ */
+function buildAttention(
+  t: TFunction,
+  d: AnalyzedDealership,
+  dealerships: AnalyzedDealership[],
+  parameters: RiskParameters,
+  openSite: () => void,
+  openSettings: () => void,
+): Attention[] {
+  const items: Attention[] = [];
+  if (d.boundary?.reviewRequired) {
+    items.push({
+      key: "boundary",
+      tone: "warning",
+      title: t("dashboard.detailDialog.attentionBoundaryTitle"),
+      detail: t("dashboard.detailDialog.attentionBoundaryDetail"),
+      action: {
+        label: t("dashboard.detailDialog.attentionBoundaryAction"),
+        run: openSite,
+      },
+    });
+  }
+  if (d.detection?.model === "stub-area-heuristic") {
+    items.push({
+      key: "model",
+      tone: "warning",
+      title: t("dashboard.detailDialog.attentionModelTitle"),
+      detail: t("dashboard.detailDialog.attentionModelDetail"),
+      action: { label: t("map.page.openSettings"), run: openSettings },
+    });
+  }
+  const capturedAt = d.detection?.imagery?.chosen.capturedAt;
+  const age = capturedAt ? imageryAgeYears(capturedAt) : null;
+  if (age != null && age >= IMAGERY_STALE_AFTER_YEARS) {
+    items.push({
+      key: "imagery",
+      tone: "warning",
+      title: t("dashboard.detailDialog.attentionImageryTitle", { count: age }),
+      detail: t("dashboard.detailDialog.attentionImageryDetail"),
+      action: {
+        label: t("dashboard.detailDialog.attentionImageryAction"),
+        run: openSite,
+      },
+    });
+  }
+  for (const [index, message] of buildUnderwritingMessages(
+    t,
+    d,
+    dealerships,
+    parameters,
+  ).entries()) {
+    if (message.severity !== "warning" && message.severity !== "danger") {
+      continue;
+    }
+    items.push({
+      key: `uw-${index}`,
+      tone: message.severity,
+      title: message.title,
+      detail: message.detail,
+    });
+  }
+  return items;
+}
+
+/**
+ * Position of this location when the portfolio is sorted by hail EAL,
+ * highest first. Null below three locations, where a rank says nothing.
+ */
+function portfolioRank(
+  d: AnalyzedDealership,
+  dealerships: AnalyzedDealership[],
+): { rank: number; total: number } | null {
+  const own = d.risk?.eal;
+  if (own == null) return null;
+  const eals = dealerships
+    .map((x) => x.risk?.eal)
+    .filter((eal): eal is number => eal != null);
+  if (eals.length < 3) return null;
+  return {
+    rank: eals.filter((eal) => eal > own).length + 1,
+    total: eals.length,
+  };
+}
+
+function formatIsoDate(iso: string): string {
+  const date = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(date.getTime())
+    ? iso
+    : date.toLocaleDateString(undefined, { timeZone: "UTC" });
+}
+
+/** Hail zone and how the EAL in the header was derived. */
+function HailOverview({ d }: { d: AnalyzedDealership }): React.JSX.Element {
+  const { t } = useTranslation();
+  const eb = d.risk?.ealBreakdown;
+  return (
+    <div className="space-y-3 text-sm">
+      {d.hailZone != null && (
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <span className="font-semibold">
+            {t("dashboard.detailDialog.hailZoneLabel", { zone: d.hailZone })}
+          </span>
+          {d.hailRiskTier && (
+            <span className="text-muted-foreground">
+              {t("dashboard.detailDialog.hailZoneKasko", {
+                tier: d.hailRiskTier,
+              })}
+            </span>
+          )}
+        </div>
+      )}
+      {eb && <HailEalSection eb={eb} />}
+    </div>
   );
 }
 
@@ -224,7 +639,7 @@ function HailEalSection({
       </h4>
       {detail ? (
         <>
-          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+          <div className="grid grid-cols-3 gap-2 text-sm">
             <Metric
               label={t("dashboard.hailEalDetail.vehicles")}
               value={num(detail.vehicles)}
@@ -240,7 +655,6 @@ function HailEalSection({
               label={t("dashboard.hailEalDetail.severity")}
               value={eur(detail.meanSeverityEur)}
             />
-            <Metric label={t("dashboard.hailEal")} value={eur(eb.hail)} />
           </div>
           <p className="text-xs text-muted-foreground">
             {t("dashboard.hailEalDetail.formula", {
@@ -310,138 +724,271 @@ function withoutExtraComponents(boundary: BoundaryResult): BoundaryResult {
   return { ...boundary, source: "manual", polygon, areaSqm };
 }
 
+/** Display name of a boundary candidate, from its provider rather than the engine's English label. */
+function candidateLabel(
+  t: TFunction,
+  candidate: { provider?: string; source: string; label?: string },
+): string {
+  const key: Record<string, string> = {
+    "alkis-vehicle-parcels": "dashboard.detailDialog.candidate.vehicleParcels",
+    "vehicle-hull": "dashboard.detailDialog.candidate.vehicleHull",
+    "alkis-parcel": "dashboard.detailDialog.candidate.parcel",
+    "osm-dealer-area": "dashboard.detailDialog.candidate.osmDealerArea",
+    synthetic: "dashboard.detailDialog.candidate.synthetic",
+  };
+  const k = candidate.provider ? key[candidate.provider] : undefined;
+  if (!k) return candidate.label ?? boundarySourceLabel(t, candidate.source);
+  const name = t(k);
+  return candidate.provider === "osm-dealer-area" && candidate.label
+    ? `${name} · ${candidate.label}`
+    : name;
+}
+
+function sameGeometry(a: BoundaryCandidate, b: BoundaryResult): boolean {
+  return (
+    a.provider === b.provider &&
+    Math.abs(a.areaSqm - b.areaSqm) < 1 &&
+    a.source === b.source
+  );
+}
+
 /**
- * Boundary provenance: one always-visible summary line (source, confidence,
- * a review badge when needed) plus every other technical detail — role,
- * source agreement, alternative candidates — behind a single "Show details"
- * disclosure. The data itself isn't reduced, just not all shown at once.
+ * The boundary with the actions a reviewer needs: confirm it, edit it on the
+ * map, or take one of the other candidates the cascade already computed.
+ * Technical detail (role, agreement, engine, stage reasons) sits behind a
+ * disclosure.
  */
-function BoundarySummary({ d }: { d: AnalyzedDealership }): React.JSX.Element {
+function BoundaryPanel({
+  d,
+  onEditOnMap,
+}: {
+  d: AnalyzedDealership;
+  onEditOnMap: () => void;
+}): React.JSX.Element {
   const { t } = useTranslation();
+  const confirmBoundary = useAppStore((s) => s.confirmBoundary);
+  const updateBoundary = useAppStore((s) => s.updateBoundaryAndRescore);
+  const saveBoundaryEdit = useAppStore((s) => s.saveBoundaryEdit);
+  const [busy, setBusy] = useState(false);
   const boundary = d.boundary;
-  const hasDetails =
-    !!boundary?.role ||
-    !!boundary?.quality ||
-    boundary?.polygon.type === "MultiPolygon" ||
-    (boundary?.candidates?.length ?? 0) > 1;
+  if (!boundary) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t("dashboard.detailDialog.boundaryNone")}
+      </p>
+    );
+  }
+  const confirmed =
+    boundary.source === "manual" || boundary.confirmedAt != null;
+  const others = (boundary.candidates ?? []).filter(
+    (candidate) => !sameGeometry(candidate, boundary),
+  );
+
+  async function run(work: () => Promise<void>): Promise<void> {
+    setBusy(true);
+    try {
+      await work();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function adopt(candidate: BoundaryCandidate): Promise<void> {
+    // Choosing a computed candidate is a reviewer's decision: it counts as
+    // confirmed, and the vehicles are recounted inside it.
+    return run(async () => {
+      await updateBoundary(d.id, {
+        ...boundary!,
+        source: candidate.source,
+        role: candidate.role,
+        provider: candidate.provider,
+        polygon: candidate.polygon,
+        areaSqm: candidate.areaSqm,
+        confidence: candidate.confidence,
+        label: candidate.label,
+        evidence: candidate.evidence ?? boundary!.evidence,
+        quality: candidate.quality ?? boundary!.quality,
+        reviewRequired: false,
+        confirmedAt: new Date().toISOString(),
+      });
+      await saveBoundaryEdit(d.id);
+    });
+  }
 
   return (
-    <div className="space-y-1.5 text-sm">
-      <div className="flex items-center justify-between gap-2">
+    <div className="space-y-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="font-semibold">
           {t("dashboard.detailDialog.boundaryTitle")}
         </h4>
-        {boundary?.reviewRequired && (
+        {boundary.reviewRequired ? (
           <Badge variant="outline" className="border-amber-500 text-amber-600">
             {t("dashboard.detailDialog.boundaryReviewLabel")}
           </Badge>
-        )}
+        ) : confirmed ? (
+          <Badge variant="outline" className="gap-1">
+            <Check className="size-3" />
+            {t("dashboard.detailDialog.boundaryStatusConfirmed")}
+          </Badge>
+        ) : null}
       </div>
       <p className="text-muted-foreground">
-        {t("dashboard.detailDialog.boundarySummary", {
-          source: boundarySourceLabel(t, boundary?.source),
-          confidence: pct(boundary?.confidence, 0),
+        {candidateLabel(t, boundary)} · {num(boundary.areaSqm)} m² ·{" "}
+        {t("dashboard.detailDialog.confidenceValue", {
+          value: pct(boundary.confidence, 0),
         })}
       </p>
-      {hasDetails && (
-        <details className="rounded-md border bg-muted/20 text-xs">
-          <summary className="cursor-pointer px-2 py-1.5 font-medium text-muted-foreground">
-            {t("dashboard.detailDialog.showDetails")}
-          </summary>
-          <div className="space-y-1.5 border-t px-2 py-2 text-muted-foreground">
-            {boundary?.role && (
-              <div>
-                {t("dashboard.detailDialog.boundaryRoleLabel", {
-                  role: boundaryRoleLabel(t, boundary.role),
-                })}
-              </div>
-            )}
-            {boundary?.quality && (
-              <div>
-                {t("dashboard.detailDialog.boundaryAgreementLabel", {
-                  agreement: pct(boundary.quality.sourceAgreement, 0),
-                })}
-              </div>
-            )}
-            {boundary?.quality?.usedEngine && (
-              <div>
-                {t("dashboard.detailDialog.boundaryEngineLabel", {
-                  engine: t(
-                    `dashboard.detailDialog.boundaryEngine.${boundary.quality.usedEngine}`,
-                  ),
-                })}
-                {boundary.quality.requestedEngine &&
-                  boundary.quality.requestedEngine !==
-                    boundary.quality.usedEngine && (
-                    <span>
-                      {" "}
-                      {t(
-                        "dashboard.detailDialog.boundaryEngineFallbackSuffix",
-                        {
-                          requested: t(
-                            `dashboard.detailDialog.boundaryEngine.${boundary.quality.requestedEngine}`,
-                          ),
-                          reason:
-                            boundary.quality.fallbackReason ??
-                            t(
-                              "dashboard.detailDialog.boundaryEngineUnknownReason",
-                            ),
-                        },
-                      )}
-                    </span>
-                  )}
-              </div>
-            )}
-            {boundary?.polygon.type === "MultiPolygon" && (
-              <div className="flex items-center justify-between gap-2 border-t pt-1.5">
-                <span>
-                  {t("dashboard.detailDialog.boundaryMultiPartLabel", {
-                    count: boundary.polygon.coordinates.length,
-                  })}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 shrink-0 px-2 text-xs"
-                  onClick={() =>
-                    void useAppStore
-                      .getState()
-                      .updateBoundaryAndRescore(
-                        d.id,
-                        withoutExtraComponents(boundary),
-                      )
-                  }
-                >
-                  {t("dashboard.detailDialog.boundaryExcludePartAction")}
-                </Button>
-              </div>
-            )}
-            {boundary?.candidates && boundary.candidates.length > 1 && (
-              <div className="space-y-1 border-t pt-1.5">
-                <div className="font-medium text-foreground">
-                  {t("dashboard.detailDialog.boundaryCandidatesTitle", {
-                    count: boundary.candidates.length,
-                  })}
-                </div>
-                {boundary.candidates.slice(0, 5).map((candidate, index) => (
-                  <div
-                    key={`${candidate.source}-${candidate.label ?? "candidate"}-${index}`}
-                    className="flex items-center justify-between gap-2"
-                  >
-                    <span className="truncate">
-                      {candidate.label ??
-                        boundarySourceLabel(t, candidate.source)}
-                    </span>
-                    <span className="shrink-0">
-                      {num(candidate.areaSqm)} m² ·{" "}
-                      {pct(candidate.confidence, 0)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+      <div className="flex flex-wrap gap-2">
+        {!confirmed && (
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() => void run(() => confirmBoundary(d.id))}
+          >
+            <Check className="size-3.5" />
+            {t("dashboard.detailDialog.boundaryConfirm")}
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={onEditOnMap}>
+          <Pencil className="size-3.5" />
+          {t("dashboard.detailDialog.boundaryEditOnMap")}
+        </Button>
+        {boundary.polygon.type === "MultiPolygon" && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            onClick={() =>
+              void run(() =>
+                updateBoundary(d.id, withoutExtraComponents(boundary)),
+              )
+            }
+          >
+            {t("dashboard.detailDialog.boundaryExcludePartAction")}
+          </Button>
+        )}
+      </div>
+
+      {others.length > 0 && (
+        <div className="space-y-1 rounded-md border p-2">
+          <div className="text-xs font-medium text-muted-foreground">
+            {t("dashboard.detailDialog.boundaryAlternatives")}
           </div>
-        </details>
+          {others.slice(0, 4).map((candidate, index) => (
+            <div
+              key={`${candidate.provider ?? candidate.source}-${index}`}
+              className="flex items-center justify-between gap-2"
+            >
+              <span className="min-w-0 truncate">
+                {candidateLabel(t, candidate)}
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {num(candidate.areaSqm)} m² · {pct(candidate.confidence, 0)}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 shrink-0 text-xs"
+                disabled={busy}
+                onClick={() => void adopt(candidate)}
+              >
+                {t("dashboard.detailDialog.boundaryAdopt")}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <details className="rounded-md border bg-muted/20 text-xs">
+        <summary className="px-2 py-1.5 font-medium text-muted-foreground">
+          {t("dashboard.detailDialog.showDetails")}
+        </summary>
+        <div className="space-y-1.5 border-t px-2 py-2 text-muted-foreground">
+          {boundary.role && (
+            <div>
+              {t("dashboard.detailDialog.boundaryRoleLabel", {
+                role: boundaryRoleLabel(t, boundary.role),
+              })}
+            </div>
+          )}
+          {boundary.quality && (
+            <div>
+              {t("dashboard.detailDialog.boundaryAgreementLabel", {
+                agreement: pct(boundary.quality.sourceAgreement, 0),
+              })}
+            </div>
+          )}
+          {boundary.quality?.usedEngine && (
+            <div>
+              {t("dashboard.detailDialog.boundaryEngineLabel", {
+                engine: t(
+                  `dashboard.detailDialog.boundaryEngine.${boundary.quality.usedEngine}`,
+                ),
+              })}
+            </div>
+          )}
+          {(boundary.quality?.reasons.length ?? 0) > 0 && (
+            <ul className="list-disc space-y-0.5 border-t pl-4 pt-1.5">
+              {boundary.quality!.reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+/** Detected and manual vehicle count, capacity and utilisation. */
+function VehiclePanel({ d }: { d: AnalyzedDealership }): React.JSX.Element {
+  const { t } = useTranslation();
+  const [adjusting, setAdjusting] = useState(false);
+  const manual = d.detection?.manualVehicleCount;
+  useEffect(() => setAdjusting(false), [d.id]);
+  return (
+    <div className="space-y-2 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="font-semibold">{t("common.vehicles")}</h4>
+        {!adjusting && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs"
+            onClick={() => setAdjusting(true)}
+          >
+            <Pencil className="size-3" />
+            {manual != null
+              ? t("dashboard.detailDialog.vehiclesChangeManual")
+              : t("dashboard.detailDialog.vehiclesAdjust")}
+          </Button>
+        )}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <Metric
+          label={t("dashboard.detailDialog.machineVehicleCount")}
+          value={num(d.detection?.vehicleCount)}
+        />
+        <Metric
+          label={t("dashboard.capacity")}
+          value={num(d.risk?.capacityEstimate)}
+        />
+        <Metric
+          label={t("dashboard.utilisation")}
+          value={pct(d.risk?.utilisation, 0)}
+        />
+      </div>
+      {manual != null && !adjusting && (
+        <p className="text-xs text-muted-foreground">
+          {t("dashboard.detailDialog.manualVehicleCountSaved", {
+            count: manual,
+          })}
+        </p>
+      )}
+      {adjusting && (
+        <ManualVehicleCountEditor d={d} onDone={() => setAdjusting(false)} />
       )}
     </div>
   );
@@ -461,51 +1008,59 @@ function ModelConfidenceSummary({
   if (!d.risk) return null;
   const limitations = d.risk.limitations ?? [];
   const evidence = d.risk.evidence ?? [];
-  const hasDetails = limitations.length > 0 || evidence.length > 0;
 
   return (
-    <div className="space-y-1.5 rounded-md border bg-muted/20 p-3 text-sm">
+    <div className="space-y-3 text-sm">
       <div className="flex items-center justify-between gap-3">
-        <span className="font-semibold">{t("ui.modelConfidence")}</span>
+        <h4 className="font-semibold">{t("ui.modelConfidence")}</h4>
         <span className="text-muted-foreground">
           {pct(d.risk.confidence, 0)}
+          {d.risk.modelVersion ? ` · ${d.risk.modelVersion}` : ""}
         </span>
       </div>
-      {hasDetails && (
-        <details className="text-xs">
-          <summary className="cursor-pointer font-medium text-muted-foreground">
-            {t("dashboard.detailDialog.showDetails")}
-          </summary>
-          <div className="mt-1.5 space-y-2 border-t pt-2">
-            {d.risk.modelVersion && (
-              <div className="text-muted-foreground">
-                {t("dashboard.detailDialog.modelVersionLabel", {
-                  version: d.risk.modelVersion,
-                })}
-              </div>
-            )}
-            {limitations.length > 0 && (
-              <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
-                {limitations.map((limitation) => (
-                  <li key={limitation}>{localizedRiskText(t, limitation)}</li>
-                ))}
-              </ul>
-            )}
-            {evidence.length > 0 && (
-              <div className="space-y-1 border-t pt-1.5 text-muted-foreground">
-                {evidence.map((item) => (
-                  <div key={`${item.source}-${item.method}`}>
-                    {localizedRiskText(t, item.source)} ·{" "}
-                    {localizedRiskText(t, item.method)} ·{" "}
-                    {pct(item.confidence, 0)}
+      {evidence.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-muted-foreground">
+            {t("dashboard.detailDialog.sourcesUsed")}
+          </div>
+          <ul className="space-y-1 text-xs">
+            {evidence.map((item) => (
+              <li
+                key={`${item.source}-${item.method}`}
+                className="flex justify-between gap-3"
+              >
+                <span className="min-w-0">
+                  <span className="font-medium">
+                    {localizedRiskText(t, item.source)}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {localizedRiskText(t, item.method)}
                     {item.fallbackUsed
                       ? t("dashboard.detailDialog.evidenceFallbackSuffix")
                       : ""}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  </span>
+                </span>
+                <span className="shrink-0 tabular-nums text-muted-foreground">
+                  {pct(item.confidence, 0)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {limitations.length > 0 && (
+        <details className="rounded-md border text-xs">
+          <summary className="px-2 py-1.5 font-medium text-muted-foreground">
+            {t("dashboard.detailDialog.limitationsToggle", {
+              count: limitations.length,
+            })}
+          </summary>
+          <ul className="list-disc space-y-1 border-t py-2 pl-6 pr-2 text-muted-foreground">
+            {limitations.map((limitation) => (
+              <li key={limitation}>{localizedRiskText(t, limitation)}</li>
+            ))}
+          </ul>
         </details>
       )}
     </div>
@@ -551,6 +1106,14 @@ function localizedRiskText(t: TFunction, text: string): string {
       "dashboard.detailDialog.riskText.postcodeHailZoneMethod",
     "hail zone estimated from weather-based hail score":
       "dashboard.detailDialog.riskText.estimatedHailZoneMethod",
+    "cascade stage 1: cadastral parcels holding the vehicle lot":
+      "dashboard.detailDialog.riskText.cascadeVehicleParcels",
+    "cascade stage 2: outline of the detected vehicle lot":
+      "dashboard.detailDialog.riskText.cascadeVehicleHull",
+    "cascade stage 3: car-dealer area at the point":
+      "dashboard.detailDialog.riskText.cascadeOsmDealerArea",
+    "cascade stage 4: cadastral parcel containing the point":
+      "dashboard.detailDialog.riskText.cascadeParcel",
   };
   const key = exact[text];
   if (key) return t(key);
@@ -558,6 +1121,13 @@ function localizedRiskText(t: TFunction, text: string): string {
   if (screening)
     return t("dashboard.detailDialog.riskText.screeningModel", {
       version: screening[1],
+    });
+  const confirmed = text.match(
+    /^Boundary confirmed by visual review on (\d{4}-\d{2}-\d{2}), not a cadastral survey$/,
+  );
+  if (confirmed)
+    return t("dashboard.detailDialog.riskText.boundaryConfirmed", {
+      date: formatIsoDate(confirmed[1]),
     });
   const role = text.match(
     /^Boundary represents (.+), not a confirmed operational lot$/,
@@ -587,15 +1157,15 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-2 rounded-md border bg-muted/20 p-3 text-sm">
+    <div className="space-y-2 text-sm">
       <div className="flex items-center justify-between gap-2">
         <h4 className="font-semibold">
           {t("dashboard.detailDialog.natCatTitle")}
         </h4>
         <Button
           size="sm"
-          variant="outline"
-          className="h-8 gap-1 text-xs"
+          variant="ghost"
+          className="h-7 gap-1 text-xs"
           disabled={refreshing}
           onClick={() => void refresh()}
         >
@@ -608,7 +1178,9 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
         </Button>
       </div>
       {!assessment ? (
-        <p className="text-xs text-muted-foreground">—</p>
+        <p className="text-xs text-muted-foreground">
+          {t("dashboard.detailDialog.natCatNone")}
+        </p>
       ) : (
         <>
           <div className="text-xs text-muted-foreground">
@@ -657,8 +1229,10 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
 
 function ManualVehicleCountEditor({
   d,
+  onDone,
 }: {
   d: AnalyzedDealership;
+  onDone: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
   const updateManualVehicleCount = useAppStore(
@@ -669,67 +1243,70 @@ function ManualVehicleCountEditor({
   );
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setDraft(d.detection?.manualVehicleCount?.toString() ?? "");
-  }, [d.id, d.detection?.manualVehicleCount]);
-
   const parsed = draft.trim() === "" ? null : Number(draft);
   const valid = parsed === null || (Number.isInteger(parsed) && parsed >= 0);
 
-  async function save(): Promise<void> {
+  async function save(value: number | null): Promise<void> {
     if (!valid) return;
     setSaving(true);
     try {
-      await updateManualVehicleCount(d.id, parsed);
+      await updateManualVehicleCount(d.id, value);
+      onDone();
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="rounded-lg border p-2.5">
-      <div className="text-xs text-muted-foreground">
+    <form
+      className="space-y-1 rounded-md border p-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save(parsed);
+      }}
+    >
+      <Label htmlFor={`manual-count-${d.id}`} className="text-xs">
         {t("dashboard.detailDialog.manualVehicleCount")}
-      </div>
-      <div className="mt-1 flex items-center gap-2">
+      </Label>
+      <div className="flex items-center gap-2">
         <Input
+          id={`manual-count-${d.id}`}
+          autoFocus
           type="number"
           min={0}
           step={1}
           value={draft}
+          className="h-8"
           placeholder={t(
             "dashboard.detailDialog.manualVehicleCountPlaceholder",
           )}
-          aria-label={t("dashboard.detailDialog.manualVehicleCount")}
           aria-invalid={!valid}
           onChange={(event) => setDraft(event.target.value)}
         />
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={saving || !valid}
-          onClick={() => void save()}
-          title={t("dashboard.detailDialog.saveManualVehicleCount")}
-        >
-          <Save className="size-3.5" />
-          <span className="sr-only">
-            {t("dashboard.detailDialog.saveManualVehicleCount")}
-          </span>
+        <Button type="submit" size="sm" disabled={saving || !valid}>
+          {t("dashboard.detailDialog.websiteSave")}
+        </Button>
+        {d.detection?.manualVehicleCount != null && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={saving}
+            onClick={() => void save(null)}
+          >
+            {t("dashboard.detailDialog.vehiclesUseDetected")}
+          </Button>
+        )}
+        <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+          {t("dashboard.detailDialog.websiteCancel")}
         </Button>
       </div>
-      <div className="mt-1 text-[10px] text-muted-foreground">
-        {parsed === null
-          ? t("dashboard.detailDialog.manualVehicleCountNotSet")
-          : t("dashboard.detailDialog.manualVehicleCountSaved", {
-              count: parsed,
-            })}
-      </div>
       {!valid && (
-        <div className="mt-1 text-[10px] text-destructive">
+        <p className="text-xs text-destructive">
           {t("dashboard.detailDialog.manualCountInvalid")}
-        </div>
+        </p>
       )}
-    </div>
+    </form>
   );
 }
 
@@ -779,35 +1356,6 @@ function googleMapsUrl(d: AnalyzedDealership): string {
 /** OpenStreetMap link for the coordinate. */
 function openStreetMapUrl(lat: number, lon: number): string {
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}`;
-}
-
-/**
- * Always-visible link row: a dealership-specific Google Maps search and the
- * coordinate-based OpenStreetMap view.
- */
-function QuickLinksRow({ d }: { d: AnalyzedDealership }): React.JSX.Element {
-  return (
-    <div className="flex flex-wrap items-center gap-3 text-sm">
-      <a
-        href={googleMapsUrl(d)}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center gap-1.5 text-primary hover:underline"
-      >
-        <MapPin className="size-3.5" />
-        Google Maps
-      </a>
-      <a
-        href={openStreetMapUrl(d.lat, d.lon)}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center gap-1.5 text-primary hover:underline"
-      >
-        <ExternalLink className="size-3.5" />
-        OpenStreetMap
-      </a>
-    </div>
-  );
 }
 
 /**
@@ -1104,7 +1652,7 @@ function PortfolioMetaSection({
   );
 
   return (
-    <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
           <Label htmlFor={`insured-${d.id}`} className="text-sm font-semibold">
@@ -1146,10 +1694,13 @@ function PortfolioMetaSection({
   );
 }
 
+/** Pause after typing before notes are saved on their own. */
+const NOTES_AUTOSAVE_MS = 800;
+
 /**
  * Free-text underwriting notes for one location, stored with the portfolio.
- * Saves on the button, on blur, and when the dialog closes with unsaved
- * changes, so closing via Escape never discards typed text.
+ * Saved automatically a moment after typing stops, on blur, and when the
+ * dialog closes, so there is no save button to forget.
  */
 function NotesSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -1182,7 +1733,7 @@ function NotesSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
     if (!dirty) return;
     setSaving(true);
     try {
-      await updateNotes(d.id, draft);
+      await updateNotes(d.id, draftRef.current);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -1190,31 +1741,23 @@ function NotesSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
     }
   }
 
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = window.setTimeout(() => void save(), NOTES_AUTOSAVE_MS);
+    return () => window.clearTimeout(timer);
+    // `save` reads the latest draft through the ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, dirty]);
+
   return (
-    <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
-      <div className="flex items-center justify-between gap-2">
-        <Label
-          htmlFor={`notes-${d.id}`}
-          className="flex items-center gap-1.5 text-sm font-semibold"
-        >
-          <StickyNote className="size-3.5 text-muted-foreground" />
-          {t("dashboard.detailDialog.notesTitle")}
-        </Label>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 gap-1 text-xs"
-          disabled={saving || !dirty}
-          onClick={() => void save()}
-        >
-          {saving ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Save className="size-3.5" />
-          )}
-          {t("dashboard.detailDialog.notesSave")}
-        </Button>
-      </div>
+    <div className="space-y-1.5">
+      <Label
+        htmlFor={`notes-${d.id}`}
+        className="flex items-center gap-1.5 text-sm font-semibold"
+      >
+        <StickyNote className="size-3.5 text-muted-foreground" />
+        {t("dashboard.detailDialog.notesTitle")}
+      </Label>
       <Textarea
         id={`notes-${d.id}`}
         value={draft}
@@ -1224,9 +1767,9 @@ function NotesSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => void save()}
       />
-      <p className="text-[10px] text-muted-foreground">
-        {dirty
-          ? t("dashboard.detailDialog.notesUnsaved")
+      <p className="text-[11px] text-muted-foreground">
+        {saving || dirty
+          ? t("dashboard.detailDialog.notesSaving")
           : !d.notes
             ? t("dashboard.detailDialog.notesEmpty")
             : d.notesUpdatedAt

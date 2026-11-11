@@ -64,6 +64,14 @@ the project follows [Semantic Versioning](https://semver.org/).
   confirmation, like deleting from the list.
 - The detail dialog's OpenStreetMap lookup gives up after 15 s instead of
   showing "loading" for minutes while Overpass is overloaded.
+- Location detail dialog rebuilt for progressive disclosure: name, badges,
+  four key figures (hail EAL with portfolio rank, vehicles, exposure,
+  boundary status) and only actionable notices on top; overview, site,
+  contract and sources tabs below. Boundaries can be confirmed, edited on
+  the map or swapped for another computed candidate from the dialog,
+  previous/next arrows step through the portfolio, and notes save
+  automatically. Duplicate figures, positive "system messages" and the
+  empty hail-source block are gone; candidate labels are translated.
 
 ### Removed
 

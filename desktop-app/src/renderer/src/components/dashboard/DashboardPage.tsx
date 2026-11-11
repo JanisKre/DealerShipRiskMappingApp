@@ -230,9 +230,7 @@ export function DashboardPage(): React.JSX.Element {
                 }
               />
             ) : (
-              <div
-                className="grid grid-cols-1 items-start gap-4 @3xl:grid-cols-2 @5xl:grid-cols-3"
-              >
+              <div className="grid grid-cols-1 items-start gap-4 @3xl:grid-cols-2 @5xl:grid-cols-3">
                 {tileOrder.map((id) => (
                   <DashboardTile
                     key={id}
@@ -279,6 +277,10 @@ export function DashboardPage(): React.JSX.Element {
             setDetailId(null);
             select(null);
           }
+        }}
+        onNavigate={(id) => {
+          setDetailId(id);
+          select(id);
         }}
       />
     </div>

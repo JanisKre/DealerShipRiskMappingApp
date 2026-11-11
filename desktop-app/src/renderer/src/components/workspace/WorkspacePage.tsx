@@ -31,6 +31,8 @@ export function WorkspacePage(): React.JSX.Element {
   const chatPanelOpen = useMapStore((s) => s.chatPanelOpen);
   const detailDialogId = useMapStore((s) => s.detailDialogId);
   const closeDetailDialog = useMapStore((s) => s.closeDetailDialog);
+  const openDetailDialog = useMapStore((s) => s.openDetailDialog);
+  const selectDealership = useAppStore((s) => s.select);
   const detailDealership = useMemo(
     () => dealerships.find((d) => d.id === detailDialogId) ?? null,
     [dealerships, detailDialogId],
@@ -123,6 +125,11 @@ export function WorkspacePage(): React.JSX.Element {
         open={detailDealership !== null}
         onOpenChange={(o) => {
           if (!o) closeDetailDialog();
+        }}
+        onNavigate={(id) => {
+          openDetailDialog(id);
+          // The map behind the dialog follows along.
+          selectDealership(id);
         }}
       />
     </>
