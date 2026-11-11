@@ -21,6 +21,8 @@ export interface UseChat {
  */
 export function useChat(): UseChat {
   const dealerships = useAppStore((s) => s.dealerships);
+  const parameters = useAppStore((s) => s.parameters);
+  const selectedId = useAppStore((s) => s.selectedId);
   const messages = useConversationStore((s) => s.messages);
   const activeId = useConversationStore((s) => s.activeId);
   const { text, streaming, error, start } = useLlmStream();
@@ -46,7 +48,10 @@ export function useChat(): UseChat {
     start({
       kind: "chat",
       messages: useConversationStore.getState().messages.slice(-20),
-      sessionContext: buildSessionContext(dealerships),
+      sessionContext: buildSessionContext(dealerships, {
+        parameters,
+        selectedId,
+      }),
     });
     // Persist the user message immediately -> conversation appears in the list.
     void store.persistActive();

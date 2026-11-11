@@ -375,11 +375,14 @@ export type IpcResponse = {
  * The renderer starts a stream with one of these payloads; the main process
  * sends chunks back (see LlmStreamChunkSchema).
  */
+/** Upper bound for the portfolio context a stream request may carry. */
+export const LLM_CONTEXT_MAX_CHARS = 60_000;
+
 export const llmStreamRequest = {
   chat: z.object({
     kind: z.literal("chat"),
     messages: z.array(ChatMessageSchema).max(20),
-    sessionContext: z.string().optional(),
+    sessionContext: z.string().max(LLM_CONTEXT_MAX_CHARS).optional(),
   }),
   summary: z.object({
     kind: z.literal("summary"),

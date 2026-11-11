@@ -20,15 +20,15 @@ dealership names, and image tiles or captured images of a location. Those
 services receive your IP address and are governed by their own privacy
 policies.
 
-| Purpose                           | Services                                                                                | Data sent                                                           |
-| --------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Geocoding                         | Nominatim (OpenStreetMap), Photon (Komoot), state address services (ALKIS)              | Address or search text; street, house number and area of an address |
-| Lot boundaries and buildings      | Overpass API, Overture Maps, state cadastre (ALKIS) services                            | Bounding box or coordinates                                         |
-| Aerial and satellite imagery      | Esri World Imagery, state orthophoto services, NASA HLS                                 | Tile coordinates and image requests around a location               |
-| Basemaps and parcel overlay       | Esri, OpenStreetMap, OpenTopoMap, basemap.de (BKG), state cadastre (ALKIS) map services | Tile coordinates or bounding boxes of the visible map               |
-| Weather and hazard inputs         | Open-Meteo                                                                              | Coordinates                                                         |
-| AI underwriting memo (optional)   | Anthropic, OpenAI or a custom provider URL you configure                                | Analysis summary and location details; your own API key             |
-| Detection model lookup (optional) | Hugging Face                                                                            | Model search queries                                                |
+| Purpose                           | Services                                                                                | Data sent                                                                                                                          |
+| --------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Geocoding                         | Nominatim (OpenStreetMap), Photon (Komoot), state address services (ALKIS)              | Address or search text; street, house number and area of an address                                                                |
+| Lot boundaries and buildings      | Overpass API, Overture Maps, state cadastre (ALKIS) services                            | Bounding box or coordinates                                                                                                        |
+| Aerial and satellite imagery      | Esri World Imagery, state orthophoto services, NASA HLS                                 | Tile coordinates and image requests around a location                                                                              |
+| Basemaps and parcel overlay       | Esri, OpenStreetMap, OpenTopoMap, basemap.de (BKG), state cadastre (ALKIS) map services | Tile coordinates or bounding boxes of the visible map                                                                              |
+| Weather and hazard inputs         | Open-Meteo                                                                              | Coordinates                                                                                                                        |
+| AI chat and memo (optional)       | Anthropic, OpenAI or a custom provider URL you configure                                | Portfolio figures and location details (name, postcode and town, group, sales partner); never underwriting notes; your own API key |
+| Detection model lookup (optional) | Hugging Face                                                                            | Model search queries                                                                                                               |
 
 The complete list of imagery sources is in
 [docs/imagery-sources.md](./docs/imagery-sources.md). AI memos are only
