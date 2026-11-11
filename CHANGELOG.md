@@ -7,6 +7,14 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Licence: the project is licensed under PolyForm Noncommercial 1.0.0. Use,
+  study, changes and sharing are free for any noncommercial purpose (personal
+  use, research, teaching, charities, public institutions); commercial use
+  needs a separate licence from the author. Contributions are accepted under
+  the terms in CONTRIBUTING.md.
+
 ## [0.4.0] – 2026-11-11
 
 ### Added

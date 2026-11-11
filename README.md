@@ -2,7 +2,7 @@
 
 # 🚗 Dealership Risk Mapping
 
-**Desktop app for hail-risk screening of car dealership portfolios — local, single-user, open source**
+**Desktop app for hail-risk screening of car dealership portfolios — local, single-user, source-available**
 
 [![Release](https://img.shields.io/github/v/release/JanisKre/DealerShipRiskMappingApp?label=release&color=2563eb)](https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest)
 [![Platform](https://img.shields.io/badge/platform-macOS_%7C_Windows-2563eb)](#download)
@@ -144,8 +144,14 @@ you configure a provider. Details: [PRIVACY.md](./PRIVACY.md).
 
 ## License
 
-PolyForm Noncommercial 1.0.0 © [Janis Kretschmann](https://github.com/JanisKre) — see
-[LICENSE](./LICENSE). Third-party components keep their own licences:
+[PolyForm Noncommercial 1.0.0](./LICENSE) © [Janis Kretschmann](https://github.com/JanisKre).
+You may use, study, change and share the app and its code for any
+noncommercial purpose: personal use, research, teaching, and use by
+universities, charities, public research and government institutions.
+**Commercial use is not permitted** without a separate licence; ask the
+author.
+
+Third-party components keep their own licences:
 
 - **npm dependencies** — `npm run build` writes their licence texts to
   `desktop-app/out/licenses/THIRD_PARTY_NOTICES.txt`; packaged builds ship it

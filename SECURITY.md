@@ -21,7 +21,7 @@ If that isn't available, open a regular issue asking for a private contact
 channel, without describing the vulnerability itself.
 
 You can expect an initial response within a few days. This is a solo/small
-open-source project maintained outside of working hours, so please be patient.
+source-available project maintained outside of working hours, so please be patient.
 
 ## Scope & Design Notes
 

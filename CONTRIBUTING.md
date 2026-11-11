@@ -6,6 +6,16 @@ single-user Electron app; there is no backend deployment.
 By participating in this project, you agree to abide by the
 [Code of Conduct](./CODE_OF_CONDUCT.md).
 
+## Licence of contributions
+
+The project is licensed under
+[PolyForm Noncommercial 1.0.0](./LICENSE). By submitting a contribution
+(code, documentation, data or other material), you confirm that you have the
+right to do so and you grant Janis Kretschmann a perpetual, worldwide,
+non-exclusive, royalty-free licence to use, change, sublicense and
+distribute it under PolyForm Noncommercial 1.0.0 and under any other terms,
+including commercial licences. You keep the copyright in your contribution.
+
 ## Setup
 
 Requires: **Node.js ≥ 22**.
