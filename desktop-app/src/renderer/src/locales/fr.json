@@ -38,15 +38,7 @@
   "start": {
     "title": "Portefeuille et analyse",
     "subtitle": "Ajoutez une adresse ou interrogez l'IA — le champ de saisie est en bas.",
-    "emptyTitle": "Comment puis-je vous aider ?",
-    "emptyDescription": "Ajoutez une adresse, importez un fichier CSV/Excel ou interrogez le portefeuille — p. ex. « Quels sites déterminent l'EAL ? »",
-    "inputHint": "Saisissez une adresse ou une question · importez via 📎 CSV, TSV ou Excel (.xlsx) · colonnes : name, address, lat, lon, value",
-    "duplicatesSkipped": "{{count}} sites en double détectés et ignorés.",
-    "importQuality": "Qualité de l'import",
-    "imported": "importés",
-    "skipped": "ignorés",
-    "duplicates": "doublons",
-    "issues": "problèmes"
+    "duplicatesSkipped": "{{count}} sites en double détectés et ignorés."
   },
   "command": {
     "title": "Palette de commandes",
@@ -185,7 +177,7 @@
     },
     "llmReady": "Configuré",
     "llmNotReady": "Non configuré",
-    "llmSetupHint": "Requis pour le chat, la synthèse exécutive et la note de souscription : choisissez un fournisseur, saisissez un modèle et – pour OpenAI/Claude – enregistrez une clé API. Un modèle local n’a pas besoin de clé.",
+    "llmSetupHint": "Requis pour le chat et la note de souscription : choisissez un fournisseur, saisissez un modèle et – pour OpenAI/Claude – enregistrez une clé API. Un modèle local n’a pas besoin de clé.",
     "local": {
       "description": "L’application recherche automatiquement les runtimes actifs sur cet ordinateur. Les données du portefeuille ne quittent pas l’appareil.",
       "checking": "Vérification …",
@@ -749,7 +741,6 @@
   "ai": {
     "memo": "Note de souscription",
     "chat": "Chat du portefeuille",
-    "summary": "Résumé exécutif",
     "nlQuery": "Requête en langage naturel",
     "naturalLanguageQuery": "Requête en langage naturel",
     "queryInputPlaceholder": "Posez une question en langage naturel…",
@@ -833,15 +824,11 @@
     }
   },
   "ui": {
-    "conversations": "Conversations",
     "breadcrumb": "Fil d’Ariane",
     "more": "Plus",
     "sidebar": "Barre latérale",
     "mobileSidebar": "Affiche la barre latérale mobile.",
     "toggleSidebar": "Afficher ou masquer la barre latérale",
-    "newConversation": "Nouvelle conversation",
-    "search": "Rechercher…",
-    "noConversations": "Aucune conversation pour l'instant.",
     "noDashboards": "Aucun tableau de bord pour l'instant.",
     "noMatches": "Aucun résultat.",
     "delete": "Supprimer",
@@ -853,10 +840,6 @@
     "deleteThread": "Supprimer la conversation",
     "emptyChat": "Interrogez le portefeuille ou demandez un tableau de bord IA.",
     "dismiss": "Masquer",
-    "dismissSummary": "Masquer le résumé exécutif",
-    "concentration": "Concentration : {{value}}",
-    "summaryDescription": "Génère un résumé prêt pour la direction : principaux risques, concentrations et recommandation de réassurance.",
-    "generate": "Générer",
     "answering": "Réponse en cours…",
     "error": "Erreur : {{error}}",
     "modelConfidence": "Confiance du modèle",

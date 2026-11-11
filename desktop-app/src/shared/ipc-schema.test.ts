@@ -15,7 +15,7 @@ describe("streaming IPC envelopes", () => {
     expect(
       LlmStreamEnvelopeSchema.safeParse({
         streamId,
-        req: { kind: "summary", sessionContext: "portfolio" },
+        req: { kind: "chat", messages: [], sessionContext: "portfolio" },
       }).success,
     ).toBe(true);
   });
@@ -24,7 +24,7 @@ describe("streaming IPC envelopes", () => {
     expect(
       LlmStreamEnvelopeSchema.safeParse({
         streamId: "llm:stream:../../settings",
-        req: { kind: "summary", sessionContext: "portfolio" },
+        req: { kind: "chat", messages: [], sessionContext: "portfolio" },
       }).success,
     ).toBe(false);
     expect(

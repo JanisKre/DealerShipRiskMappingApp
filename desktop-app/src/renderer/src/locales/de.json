@@ -38,15 +38,7 @@
   "start": {
     "title": "Portfolio & Analyse",
     "subtitle": "Adresse hinzufügen oder die KI fragen – das Eingabefeld ist unten.",
-    "emptyTitle": "Wie kann ich helfen?",
-    "emptyDescription": "Adresse hinzufügen, CSV/Excel importieren oder zum Portfolio fragen – z. B. „Welche Standorte treiben die EAL?“",
-    "inputHint": "Adresse oder Frage eingeben · über 📎 CSV, TSV oder Excel (.xlsx) importieren · Spalten: name, address, lat, lon, value",
-    "duplicatesSkipped": "{{count}} doppelte Standorte erkannt und übersprungen.",
-    "importQuality": "Importqualität",
-    "imported": "importiert",
-    "skipped": "übersprungen",
-    "duplicates": "Duplikate",
-    "issues": "Hinweise"
+    "duplicatesSkipped": "{{count}} doppelte Standorte erkannt und übersprungen."
   },
   "command": {
     "title": "Befehlspalette",
@@ -380,7 +372,7 @@
     },
     "llmReady": "Eingerichtet",
     "llmNotReady": "Nicht eingerichtet",
-    "llmSetupHint": "Für Chat, Executive Summary und Underwriting-Memo: Provider wählen, Modell eintragen und – bei OpenAI/Claude – API-Key speichern. Ein lokales Modell braucht keinen Key.",
+    "llmSetupHint": "Für Chat und Underwriting-Memo: Provider wählen, Modell eintragen und – bei OpenAI/Claude – API-Key speichern. Ein lokales Modell braucht keinen Key.",
     "local": {
       "description": "Die App sucht automatisch nach laufenden Laufzeiten auf diesem Rechner. Portfoliodaten verlassen das Gerät nicht.",
       "checking": "Wird geprüft …",
@@ -1079,7 +1071,6 @@
   "ai": {
     "memo": "Underwriting-Memo",
     "chat": "Portfolio-Chat",
-    "summary": "Management-Zusammenfassung",
     "nlQuery": "Natürliche Abfrage",
     "naturalLanguageQuery": "Natürliche Abfrage",
     "queryInputPlaceholder": "Frage in natürlicher Sprache stellen…",
@@ -1163,15 +1154,11 @@
     }
   },
   "ui": {
-    "conversations": "Konversationen",
     "breadcrumb": "Brotkrümelnavigation",
     "more": "Mehr",
     "sidebar": "Seitenleiste",
     "mobileSidebar": "Zeigt die mobile Seitenleiste an.",
     "toggleSidebar": "Seitenleiste ein-/ausblenden",
-    "newConversation": "Neue Konversation",
-    "search": "Suchen…",
-    "noConversations": "Noch keine Konversationen.",
     "noDashboards": "Noch keine Dashboards.",
     "noMatches": "Keine Treffer.",
     "delete": "Löschen",
@@ -1183,10 +1170,6 @@
     "deleteThread": "Konversation löschen",
     "emptyChat": "Portfolio fragen oder ein KI-Dashboard erstellen lassen.",
     "dismiss": "Ausblenden",
-    "dismissSummary": "Management-Zusammenfassung ausblenden",
-    "concentration": "Konzentration: {{value}}",
-    "summaryDescription": "Erstellt eine managementtaugliche Zusammenfassung mit Top-Risiken, Konzentrationen und Rückversicherungsempfehlung.",
-    "generate": "Generieren",
     "answering": "Antwortet…",
     "error": "Fehler: {{error}}",
     "modelConfidence": "Modellkonfidenz",

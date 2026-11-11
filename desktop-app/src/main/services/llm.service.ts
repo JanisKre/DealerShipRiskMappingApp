@@ -37,7 +37,7 @@ import { fetchWithResilience, HttpRequestError } from "./http.service";
  *
  * Agent functions (prompts ported from `server/routes/agents.ts`):
  *   generateMemo                       → structured JSON (invoke)
- *   executiveSummary, portfolioChat    → token stream
+ *   portfolioChat                      → token stream
  *   nlQuery                            → 2-phase: filter JSON → applyFilter → stream
  */
 
@@ -629,30 +629,6 @@ IMPORTANT: Never output concrete figures or values. You only arrange widgets; th
     // No/invalid LLM output → deterministic default layout.
     return buildDefaultDashboardSpec();
   }
-}
-
-// --- Agent: executive summary (stream) --------------------------------------
-
-export function executiveSummaryStream(
-  sessionContext: string,
-  signal?: AbortSignal,
-): AsyncGenerator<string, void, unknown> {
-  return chatCompleteStream(
-    [
-      {
-        role: "system",
-        content: `You are a senior underwriter preparing an executive summary for board reporting.
-Write a concise portfolio analysis in ${responseLanguageName()}, in markdown:
-- Overall summary (2 sentences)
-- Top 3 risk locations with rationale
-- Geographic concentration risks
-- Reinsurance retention recommendation
-Use ## for sections. Be specific, not generic.`,
-      },
-      { role: "user", content: sessionContext },
-    ],
-    signal,
-  );
 }
 
 // --- Agent: portfolio chat (stream, with history) ---------------------------

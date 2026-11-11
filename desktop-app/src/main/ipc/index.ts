@@ -52,7 +52,6 @@ import {
 } from "../services/csv.service";
 import { resolveNatCat, testNatCatConnector } from "../services/natcat.service";
 import {
-  executiveSummaryStream,
   generateDashboardSpec,
   detectLocalRuntimes,
   generateMemo,
@@ -445,13 +444,6 @@ async function runStream(
   if (req.kind === "chat") {
     for await (const token of portfolioChatStream(
       req.messages,
-      req.sessionContext,
-      signal,
-    )) {
-      send({ type: "token", token });
-    }
-  } else if (req.kind === "summary") {
-    for await (const token of executiveSummaryStream(
       req.sessionContext,
       signal,
     )) {

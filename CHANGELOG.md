@@ -43,10 +43,18 @@ the project follows [Semantic Versioning](https://semver.org/).
   needs a separate licence from the author. Contributions are accepted under
   the terms in CONTRIBUTING.md.
 
+### Fixed
+
+- Dashboard → Export → PDF report always failed with "autoTable is not a
+  function": the bundled main process called the `jspdf-autotable` module
+  object instead of its function. All five export types (PDF, Excel, CSV,
+  read-only view, portfolio file) are now covered by a test.
+
 ### Removed
 
 - The executive summary at the top of the AI chat panel. The chat now opens
-  empty and answers only what is asked.
+  empty and answers only what is asked. Its now unused code (summary stream,
+  prompt, the unrouted start page and conversation sidebar) is gone too.
 - The "Light" and "Dark" basemaps. Satellite, Streets and Terrain remain; a
   saved light or dark choice opens as Streets.
 

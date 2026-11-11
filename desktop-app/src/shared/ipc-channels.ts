@@ -77,7 +77,6 @@ export const IPC = {
   llmStream: "llm:stream", // generic start channel (renderer -> main)
   // Sub-actions of the streaming channel (payload.kind)
   llmStreamChat: "chat", // portfolio chat with history
-  llmStreamSummary: "summary", // executive summary
   llmStreamNlQuery: "nlquery", // 2-phase NL query (filter + summary)
 
   // Settings
@@ -117,5 +116,5 @@ export const IPC = {
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
 
 /** Streaming actions that run over the `llm:stream` channel. */
-export const LLM_STREAM_KINDS = ["chat", "summary", "nlquery"] as const;
+export const LLM_STREAM_KINDS = ["chat", "nlquery"] as const;
 export type LlmStreamKind = (typeof LLM_STREAM_KINDS)[number];

@@ -384,10 +384,6 @@ export const llmStreamRequest = {
     messages: z.array(ChatMessageSchema).max(20),
     sessionContext: z.string().max(LLM_CONTEXT_MAX_CHARS).optional(),
   }),
-  summary: z.object({
-    kind: z.literal("summary"),
-    sessionContext: z.string(),
-  }),
   nlquery: z.object({
     kind: z.literal("nlquery"),
     question: z.string().min(1),
@@ -398,7 +394,6 @@ export const llmStreamRequest = {
 
 export const LlmStreamRequestSchema = z.discriminatedUnion("kind", [
   llmStreamRequest.chat,
-  llmStreamRequest.summary,
   llmStreamRequest.nlquery,
 ]);
 export type LlmStreamRequest = z.infer<typeof LlmStreamRequestSchema>;

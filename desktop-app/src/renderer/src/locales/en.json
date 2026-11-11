@@ -38,15 +38,7 @@
   "start": {
     "title": "Portfolio & Analysis",
     "subtitle": "Add an address or ask the AI — the input field is at the bottom.",
-    "emptyTitle": "How can I help?",
-    "emptyDescription": "Add an address, import a CSV/Excel file, or ask about the portfolio — e.g. \"Which locations drive the EAL?\"",
-    "inputHint": "Enter an address or question · import via 📎 CSV, TSV, or Excel (.xlsx) · columns: name, address, lat, lon, value",
-    "duplicatesSkipped": "{{count}} duplicate locations detected and skipped.",
-    "importQuality": "Import quality",
-    "imported": "imported",
-    "skipped": "skipped",
-    "duplicates": "duplicates",
-    "issues": "issues"
+    "duplicatesSkipped": "{{count}} duplicate locations detected and skipped."
   },
   "command": {
     "title": "Command Palette",
@@ -380,7 +372,7 @@
     },
     "llmReady": "Set up",
     "llmNotReady": "Not set up",
-    "llmSetupHint": "Needed for chat, executive summary and underwriting memo: pick a provider, enter a model and – for OpenAI/Claude – save an API key. A local model needs no key.",
+    "llmSetupHint": "Needed for chat and underwriting memo: pick a provider, enter a model and – for OpenAI/Claude – save an API key. A local model needs no key.",
     "local": {
       "description": "The app looks for running runtimes on this computer automatically. Portfolio data never leaves the device.",
       "checking": "Checking …",
@@ -1079,7 +1071,6 @@
   "ai": {
     "memo": "Underwriting Memo",
     "chat": "Portfolio Chat",
-    "summary": "Executive Summary",
     "nlQuery": "Natural Language Query",
     "naturalLanguageQuery": "Natural-language query",
     "queryInputPlaceholder": "Ask a question in natural language…",
@@ -1163,15 +1154,11 @@
     }
   },
   "ui": {
-    "conversations": "Conversations",
     "breadcrumb": "Breadcrumb",
     "more": "More",
     "sidebar": "Sidebar",
     "mobileSidebar": "Displays the mobile sidebar.",
     "toggleSidebar": "Toggle sidebar",
-    "newConversation": "New conversation",
-    "search": "Search…",
-    "noConversations": "No conversations yet.",
     "noDashboards": "No dashboards yet.",
     "noMatches": "No matches.",
     "delete": "Delete",
@@ -1183,10 +1170,6 @@
     "deleteThread": "Delete thread",
     "emptyChat": "Ask about the portfolio or have an AI dashboard generated for you.",
     "dismiss": "Dismiss",
-    "dismissSummary": "Dismiss executive summary",
-    "concentration": "Concentration: {{value}}",
-    "summaryDescription": "Generates a board-ready summary: top risks, concentrations, and reinsurance recommendation.",
-    "generate": "Generate",
     "answering": "Answering…",
     "error": "Error: {{error}}",
     "modelConfidence": "Model confidence",
