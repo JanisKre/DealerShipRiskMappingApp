@@ -1,8 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, MessageSquare, Plus, Trash2 } from "lucide-react";
-import { useAppStore } from "@renderer/store/appStore";
-import { ExecutiveSummary } from "@renderer/components/ai/ExecutiveSummary";
 import {
   LlmErrorMessage,
   LlmSetupNotice,
@@ -26,12 +24,11 @@ import { useConversationStore } from "@renderer/store/conversationStore";
  *
  * Layout (similar to the Claude Code extension):
  *   - Header: active thread name + "+ New" + thread dropdown
- *   - Transcript: ExecutiveSummary (if data present), then messages
+ *   - Transcript: the thread's messages
  *   - Composer at the bottom: Omnibox in chat mode
  */
 export function ChatPanel(): React.JSX.Element {
   const { t } = useTranslation();
-  const hasData = useAppStore((s) => s.dealerships.length > 0);
   const loadList = useConversationStore((s) => s.loadList);
   const list = useConversationStore((s) => s.list);
   const activeId = useConversationStore((s) => s.activeId);
@@ -124,23 +121,21 @@ export function ChatPanel(): React.JSX.Element {
         </Button>
       </div>
 
-      {/* Transcript + ExecutiveSummary */}
+      {/* Transcript */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         {llmReady === false ? (
           <div className="flex h-full items-center justify-center px-4">
             <LlmSetupNotice />
           </div>
-        ) : chatEmpty && !hasData ? (
+        ) : chatEmpty ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
             <MessageSquare className="size-8 text-muted-foreground/40" />
             <p className="text-xs text-muted-foreground">{t("ui.emptyChat")}</p>
           </div>
         ) : (
           <div className="space-y-4 px-4 py-4">
-            {hasData && <ExecutiveSummary />}
-
             {(messages.length > 0 || streaming) && (
-              <div className="space-y-3 border-t pt-4">
+              <div className="space-y-3">
                 {messages.map((m, i) => (
                   <MessageBubble
                     key={`${activeId}-${i}-${m.role}`}
