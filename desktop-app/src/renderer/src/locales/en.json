@@ -477,6 +477,20 @@
       "attribution": "Data: Overture Maps Foundation, CDLA Permissive 2.0. Contains data from Foursquare: Copyright 2024 Foursquare Labs, Inc. All rights reserved.",
       "updateAvailable": "New Overture release {{release}} available – Refresh downloads it.",
       "upToDate": "Up to date · last checked {{date}} (Overture releases about monthly; checked daily)"
+    },
+    "osmSource": {
+      "title": "OpenStreetMap data",
+      "urlLabel": "Own Overpass server (optional)",
+      "statusPublic": "Empty: the app uses the public Overpass servers. They are often at capacity; OSM data then only comes from the cache.",
+      "statusOwn": "The app asks this server first and the public ones only if it fails. With a local server, roof masking, website lookup and OSM dealer areas are used in every analysis.",
+      "errors": {
+        "empty": "Please enter an address.",
+        "too-long": "The address is too long.",
+        "invalid-url": "This is not a valid address.",
+        "not-https": "HTTPS only, or HTTP on this machine (localhost).",
+        "credentials": "Credentials in the address are not allowed.",
+        "query-or-fragment": "Please enter the server address only, without “?” or “#”."
+      }
     }
   },
   "model": {
@@ -735,7 +749,21 @@
       "boundaryAdoptTitle": "Replace the boundary?",
       "boundaryAdoptDescription": "The vehicles are recounted inside the new boundary. You can undo this afterwards.",
       "boundaryCurrent": "Current boundary",
-      "boundaryAdoptWeaker": "This suggestion is less certain than the current boundary."
+      "boundaryAdoptWeaker": "This suggestion is less certain than the current boundary.",
+      "history": {
+        "title": "Change history",
+        "empty": "No changes recorded yet. Analyses, confirmed or changed boundaries and adjusted vehicle counts appear here.",
+        "analyzed": "Analysed",
+        "vehicles_one": "{{count}} vehicle",
+        "vehicles_other": "{{count}} vehicles",
+        "boundaryConfirmed": "Boundary confirmed",
+        "boundaryChanged": "Boundary changed",
+        "vehicleCountSet": "Vehicle count set manually: {{from}} → {{to}}",
+        "vehicleCountCleared": "Manual vehicle count removed (was {{from}})",
+        "vehiclesReviewed": "Vehicles reviewed on the map: {{from}} → {{to}}",
+        "markedExisting": "Marked as existing business",
+        "markedNew": "Marked as new business"
+      }
     },
     "hailEal": "Hail EAL",
     "hailZone": "Hail zone",

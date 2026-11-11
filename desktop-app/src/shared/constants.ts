@@ -31,6 +31,9 @@ export const RISK_MODEL_VERSION = "screening-0.5.0";
 /** Upper bound for a dealership's free-text underwriting notes. */
 export const DEALERSHIP_NOTES_MAX_LENGTH = 10_000;
 
+/** Change-history entries kept per location; older ones drop off. */
+export const DEALERSHIP_HISTORY_MAX = 50;
+
 // --- Hail EAL: EAL = N × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L) -------------
 //
 // Uncalibrated screening placeholders, agreed as starting values until the

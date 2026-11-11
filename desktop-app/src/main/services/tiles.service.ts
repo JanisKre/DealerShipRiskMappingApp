@@ -183,6 +183,25 @@ async function captureWithSelectedSource(
 // cost about 2.3× the tiles and inference time of the old 100 m.
 const CONTEXT_CAPTURE_RADIUS_M = 125;
 
+/** Background prefetches allowed at once; analyses themselves come first. */
+const MAX_PREFETCHES = 2;
+const prefetching = new Set<string>();
+
+/**
+ * Loads the context image of a location into the persistent tile cache
+ * without keeping the mosaic, so the analysis that follows finds every tile
+ * cached. Fire and forget: a failed prefetch only means the analysis loads
+ * the tiles itself.
+ */
+export function prefetchContextImagery(lat: number, lon: number): void {
+  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  if (prefetching.has(key) || prefetching.size >= MAX_PREFETCHES) return;
+  prefetching.add(key);
+  void aerialImageForContext(lat, lon)
+    .catch(() => undefined)
+    .finally(() => prefetching.delete(key));
+}
+
 /**
  * Captures around the geocoded point with a fixed, boundary-independent
  * radius — deliberately not sized from a detected boundary

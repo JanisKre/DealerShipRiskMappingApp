@@ -22,7 +22,13 @@ interface InferRequest extends InferWindow {
 }
 
 type IncomingMessage =
-  | { type: "init"; modelPath: string; manifest: VehicleModelManifest }
+  | {
+      type: "init";
+      modelPath: string;
+      manifest: VehicleModelManifest;
+      /** Threads for this session; several workers share the cores. */
+      intraOpNumThreads?: number;
+    }
   | InferRequest;
 
 let session: ort.InferenceSession | null = null;
@@ -34,10 +40,12 @@ const port = process.parentPort;
 async function loadSession(
   modelPath: string,
   m: VehicleModelManifest,
+  intraOpNumThreads?: number,
 ): Promise<void> {
   session = await ort.InferenceSession.create(modelPath, {
     executionProviders: ["cpu"],
     graphOptimizationLevel: "all",
+    ...(intraOpNumThreads ? { intraOpNumThreads } : {}),
     enableCpuMemArena: true,
   });
   manifest = m;
@@ -71,12 +79,14 @@ function runInference(req: InferRequest): void {
 port.on("message", (e: { data: IncomingMessage }) => {
   const msg = e.data;
   if (msg.type === "init") {
-    loadSession(msg.modelPath, msg.manifest).catch((err: unknown) => {
-      port.postMessage({
-        type: "error",
-        error: `Model load failed: ${String(err)}`,
-      });
-    });
+    loadSession(msg.modelPath, msg.manifest, msg.intraOpNumThreads).catch(
+      (err: unknown) => {
+        port.postMessage({
+          type: "error",
+          error: `Model load failed: ${String(err)}`,
+        });
+      },
+    );
   } else if (msg.type === "infer") {
     runInference(msg);
   }

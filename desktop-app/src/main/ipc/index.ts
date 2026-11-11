@@ -78,7 +78,11 @@ import {
   setNatCatApiKey,
   setSettings,
 } from "../services/settings.service";
-import { aerialImageForBoundary } from "../services/tiles.service";
+import {
+  aerialImageForBoundary,
+  prefetchContextImagery,
+} from "../services/tiles.service";
+import { configureCustomOverpass } from "../services/boundary/overpass-client";
 import { fetchWeather } from "../services/weather.service";
 import { selectImageryForView } from "../services/imagery-source.service";
 import { waybackTimeline } from "../services/wayback.service";
@@ -249,7 +253,11 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.hfModelFiles, ({ repoId }) => getGgufFiles(repoId));
 
   handle(IPC.getSettings, () => getSettings());
-  handle(IPC.setSettings, ({ settings }) => setSettings(settings));
+  handle(IPC.setSettings, ({ settings }) => {
+    const saved = setSettings(settings);
+    configureCustomOverpass(saved.overpassUrl);
+    return saved;
+  });
   handle(IPC.setLlmApiKey, ({ provider, apiKey }) => {
     setLlmApiKey(provider, apiKey);
     return { ok: true };
@@ -270,6 +278,10 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.imageryTimeline, ({ lat, lon, zoom }) =>
     waybackTimeline(lat, lon, zoom),
   );
+  handle(IPC.imageryPrefetch, ({ lat, lon }) => {
+    prefetchContextImagery(lat, lon);
+    return null;
+  });
 
   handle(IPC.modelStatus, () => ({
     available: isModelAvailable(),

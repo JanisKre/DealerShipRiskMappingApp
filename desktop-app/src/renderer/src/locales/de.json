@@ -477,6 +477,20 @@
       "attribution": "Daten: Overture Maps Foundation, CDLA Permissive 2.0. Enthält Daten von Foursquare: Copyright 2024 Foursquare Labs, Inc. All rights reserved.",
       "updateAvailable": "Neues Overture-Release {{release}} verfügbar – Aktualisieren lädt es herunter.",
       "upToDate": "Aktuell · zuletzt geprüft am {{date}} (Overture erscheint etwa monatlich, geprüft wird täglich)"
+    },
+    "osmSource": {
+      "title": "OpenStreetMap-Daten",
+      "urlLabel": "Eigener Overpass-Server (optional)",
+      "statusPublic": "Leer: Die App nutzt die öffentlichen Overpass-Server. Diese sind oft ausgelastet; OSM-Daten kommen dann nur aus dem Cache.",
+      "statusOwn": "Die App fragt zuerst diesen Server und nur bei einem Ausfall die öffentlichen. Mit einem lokalen Server werden Dachmaske, Website-Suche und OSM-Händlerflächen bei jeder Analyse genutzt.",
+      "errors": {
+        "empty": "Bitte eine Adresse eingeben.",
+        "too-long": "Die Adresse ist zu lang.",
+        "invalid-url": "Das ist keine gültige Adresse.",
+        "not-https": "Nur HTTPS, oder HTTP auf diesem Rechner (localhost).",
+        "credentials": "Zugangsdaten in der Adresse sind nicht erlaubt.",
+        "query-or-fragment": "Bitte nur die Server-Adresse ohne „?“ oder „#“ angeben."
+      }
     }
   },
   "model": {
@@ -735,7 +749,21 @@
       "boundaryAdoptTitle": "Grenze ersetzen?",
       "boundaryAdoptDescription": "Die Fahrzeuge werden in der neuen Grenze neu gezählt. Du kannst das danach rückgängig machen.",
       "boundaryCurrent": "Aktuelle Grenze",
-      "boundaryAdoptWeaker": "Der Vorschlag ist weniger sicher als die aktuelle Grenze."
+      "boundaryAdoptWeaker": "Der Vorschlag ist weniger sicher als die aktuelle Grenze.",
+      "history": {
+        "title": "Änderungsverlauf",
+        "empty": "Noch keine Änderungen aufgezeichnet. Analysen, bestätigte oder geänderte Grenzen und angepasste Fahrzeugzahlen erscheinen hier.",
+        "analyzed": "Analysiert",
+        "vehicles_one": "{{count}} Fahrzeug",
+        "vehicles_other": "{{count}} Fahrzeuge",
+        "boundaryConfirmed": "Grenze bestätigt",
+        "boundaryChanged": "Grenze geändert",
+        "vehicleCountSet": "Fahrzeugzahl manuell gesetzt: {{from}} → {{to}}",
+        "vehicleCountCleared": "Manuelle Fahrzeugzahl entfernt (vorher {{from}})",
+        "vehiclesReviewed": "Fahrzeuge auf der Karte geprüft: {{from}} → {{to}}",
+        "markedExisting": "Als Bestandsgeschäft markiert",
+        "markedNew": "Als Neugeschäft markiert"
+      }
     },
     "hailEal": "Hagel-EAL",
     "hailZone": "Hagelzone",

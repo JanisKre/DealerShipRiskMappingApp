@@ -2,6 +2,7 @@ import { safeStorage } from "electron";
 import type { LlmProvider, NatCatApiProvider, Settings } from "@shared/types";
 import { SettingsSchema } from "@shared/types";
 import { validateTileTemplate } from "@shared/tile-template";
+import { validateOverpassUrl } from "@shared/overpass-url";
 import { getDb } from "../db/database";
 
 /**
@@ -44,6 +45,19 @@ export function setSettings(partial: Partial<Settings>): Settings {
       throw new Error(`Invalid tile template (${check.problem})`);
     }
     partial = { ...partial, wmsTileUrl: check.template };
+  }
+  // The Overpass server is queried by the main process: same rule.
+  // An empty value clears it (an undefined key would not survive IPC).
+  if (partial.overpassUrl !== undefined) {
+    if (partial.overpassUrl.trim() === "") {
+      partial = { ...partial, overpassUrl: undefined };
+    } else {
+      const check = validateOverpassUrl(partial.overpassUrl);
+      if (!check.ok) {
+        throw new Error(`Invalid Overpass server (${check.problem})`);
+      }
+      partial = { ...partial, overpassUrl: check.url };
+    }
   }
   const merged = { ...getSettings(), ...partial };
   const validated = SettingsSchema.parse(merged);

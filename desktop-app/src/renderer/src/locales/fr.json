@@ -282,6 +282,20 @@
       "attribution": "Données : Overture Maps Foundation, CDLA Permissive 2.0. Contient des données de Foursquare : Copyright 2024 Foursquare Labs, Inc. All rights reserved.",
       "updateAvailable": "Nouvelle version Overture {{release}} disponible – Actualiser la télécharge.",
       "upToDate": "À jour · dernière vérification le {{date}} (Overture publie environ chaque mois ; vérification quotidienne)"
+    },
+    "osmSource": {
+      "title": "Données OpenStreetMap",
+      "urlLabel": "Serveur Overpass propre (facultatif)",
+      "statusPublic": "Vide : l’application utilise les serveurs Overpass publics. Ils sont souvent saturés ; les données OSM proviennent alors uniquement du cache.",
+      "statusOwn": "L’application interroge d’abord ce serveur, puis les serveurs publics en cas de panne. Avec un serveur local, le masque des toits, la recherche du site web et les zones concession OSM sont utilisés à chaque analyse.",
+      "errors": {
+        "empty": "Veuillez saisir une adresse.",
+        "too-long": "L’adresse est trop longue.",
+        "invalid-url": "Adresse invalide.",
+        "not-https": "HTTPS uniquement, ou HTTP sur cette machine (localhost).",
+        "credentials": "Les identifiants dans l’adresse ne sont pas autorisés.",
+        "query-or-fragment": "Indiquez seulement l’adresse du serveur, sans « ? » ni « # »."
+      }
     }
   },
   "model": {
@@ -526,7 +540,21 @@
       "boundaryAdoptTitle": "Remplacer la limite ?",
       "boundaryAdoptDescription": "Les véhicules sont recomptés dans la nouvelle limite. Vous pourrez annuler ensuite.",
       "boundaryCurrent": "Limite actuelle",
-      "boundaryAdoptWeaker": "Cette proposition est moins sûre que la limite actuelle."
+      "boundaryAdoptWeaker": "Cette proposition est moins sûre que la limite actuelle.",
+      "history": {
+        "title": "Historique des modifications",
+        "empty": "Aucune modification enregistrée. Les analyses, limites confirmées ou modifiées et nombres de véhicules ajustés apparaissent ici.",
+        "analyzed": "Analysé",
+        "vehicles_one": "{{count}} véhicule",
+        "vehicles_other": "{{count}} véhicules",
+        "boundaryConfirmed": "Limite confirmée",
+        "boundaryChanged": "Limite modifiée",
+        "vehicleCountSet": "Nombre de véhicules saisi manuellement : {{from}} → {{to}}",
+        "vehicleCountCleared": "Nombre manuel supprimé (avant {{from}})",
+        "vehiclesReviewed": "Véhicules vérifiés sur la carte : {{from}} → {{to}}",
+        "markedExisting": "Marqué comme portefeuille",
+        "markedNew": "Marqué comme affaire nouvelle"
+      }
     }
   },
   "map": {

@@ -283,6 +283,10 @@ export const ipcRequest = {
   }),
   "imagery:select": ImageryViewRequestSchema,
   "imagery:timeline": ImageryViewRequestSchema,
+  "imagery:prefetch": z.object({
+    lat: z.number().finite().min(-90).max(90),
+    lon: z.number().finite().min(-180).max(180),
+  }),
   "model:status": z.void(),
   "hailZones:overlay": z.void(),
   "dealerDirectory:status": z.void(),
@@ -344,6 +348,7 @@ export const ipcResponse = {
   "map:capture": z.object({ path: z.string().nullable(), ok: z.boolean() }),
   "imagery:select": ImagerySelectionSchema,
   "imagery:timeline": ImageryTimelineSchema,
+  "imagery:prefetch": z.null(),
   "dealerDirectory:status": DealerDirectoryStatusSchema.nullable(),
   "dealerDirectory:update": DealerDirectoryUpdateSchema.nullable(),
   "hailZones:overlay": HailZoneOverlaySchema,

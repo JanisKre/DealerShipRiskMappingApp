@@ -3,6 +3,7 @@ import {
   fetchParcelsNear,
   isTruncated,
   parseExteriorRings,
+  toUtm32,
   parseWfsCounts,
 } from "./alkis.service";
 
@@ -159,5 +160,43 @@ describe("WFS feature counts", () => {
       returned: null,
     });
     expect(isTruncated("<wfs:FeatureCollection/>", 250)).toBe(false);
+  });
+});
+
+describe("curve-segment rings (Hamburg)", () => {
+  it("joins the segments of a gml:Ring into one closed ring", () => {
+    const xml = `<gml:Surface><gml:patches><gml:PolygonPatch><gml:exterior><gml:Ring>
+      <gml:curveMember><gml:Curve><gml:segments><gml:LineStringSegment>
+        <gml:posList>53.0 10.0 53.0 10.001</gml:posList>
+      </gml:LineStringSegment></gml:segments></gml:Curve></gml:curveMember>
+      <gml:curveMember><gml:Curve><gml:segments><gml:LineStringSegment>
+        <gml:posList>53.0 10.001 53.001 10.001 53.0 10.0</gml:posList>
+      </gml:LineStringSegment></gml:segments></gml:Curve></gml:curveMember>
+    </gml:Ring></gml:exterior></gml:PolygonPatch></gml:patches></gml:Surface>`;
+    expect(parseExteriorRings(xml)).toEqual([
+      [
+        [10.0, 53.0],
+        [10.001, 53.0],
+        [10.001, 53.001],
+        [10.0, 53.0],
+      ],
+    ]);
+  });
+});
+
+describe("toUtm32", () => {
+  it("matches the published UTM values on the central meridian", () => {
+    // EPSG:25832 reference: 50° N on 9° E is E 500000, N 5538630.70.
+    const [east, north] = toUtm32(50, 9);
+    expect(east).toBeCloseTo(500_000, 1);
+    expect(north).toBeCloseTo(5_538_630.7, 0);
+  });
+
+  it("puts Erfurt where the Thüringen service finds its parcels", () => {
+    const [east, north] = toUtm32(50.9787, 11.0328);
+    expect(east).toBeGreaterThan(642_600);
+    expect(east).toBeLessThan(642_800);
+    expect(north).toBeGreaterThan(5_649_300);
+    expect(north).toBeLessThan(5_649_500);
   });
 });

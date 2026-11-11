@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { DEALERSHIP_HISTORY_MAX } from "@shared/constants";
 import type {
   AnalyzedDealership,
   BoundaryResult,
@@ -9,6 +10,7 @@ import type {
   ManualVehiclePoint,
   RiskParameters,
   Session,
+  DealershipChange,
 } from "@shared/types";
 import {
   DEFAULT_RISK_PARAMETERS,
@@ -577,7 +579,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       confirmedAt: new Date().toISOString(),
       reviewRequired: false,
     };
-    get().upsertDealership({ ...d, boundary });
+    get().upsertDealership(
+      withChange(
+        { ...d, boundary },
+        {
+          kind: "boundaryConfirmed",
+          value: boundary.provider ?? boundary.source,
+          area: Math.round(boundary.areaSqm),
+        },
+      ),
+    );
     // Evidence limitations depend on the review flag, so rescore.
     try {
       const risk = await window.api.scoreRisk(
@@ -611,6 +622,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().saveSession();
     await get().updateDetectionForBoundary(id);
     if (get().detectionUpdateErrors[id]) return;
+    const saved = get().dealerships.find((d) => d.id === id);
+    if (saved?.boundary) {
+      get().upsertDealership(
+        withChange(saved, {
+          kind: "boundaryChanged",
+          value: saved.boundary.provider ?? saved.boundary.source,
+          area: Math.round(saved.boundary.areaSqm),
+          ...(saved.detection ? { to: saved.detection.vehicleCount } : {}),
+        }),
+      );
+    }
     await get().saveSession();
     set((s) => ({
       boundaryEditIds: s.boundaryEditIds.filter((editId) => editId !== id),
@@ -698,9 +720,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   updateDealershipMeta: (id, patch) =>
     set((s) => {
-      const copy = s.dealerships.map((d) =>
-        d.id === id ? { ...d, ...patch } : d,
-      );
+      const copy = s.dealerships.map((d) => {
+        if (d.id !== id) return d;
+        const next = { ...d, ...patch };
+        return patch.insured !== undefined &&
+          Boolean(patch.insured) !== Boolean(d.insured)
+          ? withChange(next, {
+              kind: "businessTypeChanged",
+              value: patch.insured ? "existing" : "new",
+            })
+          : next;
+      });
       return { dealerships: copy };
     }),
   updateDealershipNotes: async (id, notes) => {
@@ -739,7 +769,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       const idSet = new Set(ids);
       return {
         dealerships: s.dealerships.map((d) =>
-          idSet.has(d.id) ? { ...d, insured } : d,
+          idSet.has(d.id) && Boolean(d.insured) !== insured
+            ? withChange(
+                { ...d, insured },
+                {
+                  kind: "businessTypeChanged",
+                  value: insured ? "existing" : "new",
+                },
+              )
+            : d,
         ),
       };
     }),
@@ -768,7 +806,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       current.hailZone,
     );
     const latest = get().dealerships.find((d) => d.id === id);
-    if (latest) get().upsertDealership({ ...latest, detection, risk });
+    if (latest)
+      get().upsertDealership(
+        withChange(
+          { ...latest, detection, risk },
+          {
+            kind: "vehicleCountChanged",
+            from:
+              current.detection.manualVehicleCount ??
+              current.detection.vehicleCount,
+            ...(count != null ? { to: count } : {}),
+          },
+        ),
+      );
     await get().saveSession();
   },
   saveManualVehicleDetection: async (id, count, points, removedPoints) => {
@@ -793,7 +843,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       current.hailZone,
     );
     const latest = get().dealerships.find((d) => d.id === id);
-    if (latest) get().upsertDealership({ ...latest, detection, risk });
+    if (latest)
+      get().upsertDealership(
+        withChange(
+          { ...latest, detection, risk },
+          {
+            kind: "vehiclesReviewed",
+            from: current.detection.vehicleCount,
+            to: count,
+          },
+        ),
+      );
     await get().saveSession();
   },
   countVehicleTimeline: async (id) => {
@@ -898,7 +958,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().upsertDealership(
         latest
           ? {
-              ...result,
+              ...withChange(
+                { ...result, history: latest.history },
+                analyzedChange(result),
+              ),
               notes: latest.notes,
               notesUpdatedAt: latest.notesUpdatedAt,
               // A link found by this run fills an empty slot only.
@@ -907,7 +970,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 ? latest.websiteSource
                 : result.websiteSource,
             }
-          : result,
+          : withChange(result, analyzedChange(result)),
       );
     } catch (err) {
       console.error(`Re-analysis failed for ${d.name}:`, err);
@@ -1153,6 +1216,30 @@ const ANALYSIS_CHECKPOINT_EVERY = 25;
  * batch, so it checkpoints the session periodically — a crash hours into a
  * large import must not lose everything already analysed.
  */
+/** Appends a change-history entry, keeping the last DEALERSHIP_HISTORY_MAX. */
+export function withChange(
+  d: AnalyzedDealership,
+  change: Omit<DealershipChange, "at">,
+  at: string = new Date().toISOString(),
+): AnalyzedDealership {
+  return {
+    ...d,
+    history: [...(d.history ?? []), { at, ...change }].slice(
+      -DEALERSHIP_HISTORY_MAX,
+    ),
+  };
+}
+
+/** History entry for a finished analysis. */
+function analyzedChange(d: AnalyzedDealership): Omit<DealershipChange, "at"> {
+  return {
+    kind: "analyzed",
+    value: d.boundary?.provider ?? d.boundary?.source,
+    ...(d.boundary ? { area: Math.round(d.boundary.areaSqm) } : {}),
+    ...(d.detection ? { to: d.detection.vehicleCount } : {}),
+  };
+}
+
 async function runAnalysisQueue(
   inputs: DealershipInput[],
   set: StoreSet,
@@ -1165,6 +1252,13 @@ async function runAnalysisQueue(
   async function worker(): Promise<void> {
     while (next < inputs.length && !get().analysisCancelRequested) {
       const input = inputs[next++];
+      // While this one runs, the next location's tiles load into the cache.
+      const upcoming = inputs[next];
+      if (upcoming?.lat != null && upcoming.lon != null) {
+        void window.api
+          .prefetchImagery(upcoming.lat, upcoming.lon)
+          .catch(() => undefined);
+      }
       set((s) => ({
         analyzingIds: [...s.analyzingIds, input.id],
         analysisErrors: withoutKey(s.analysisErrors, input.id),
@@ -1174,7 +1268,7 @@ async function runAnalysisQueue(
           input,
           get().parameters,
         );
-        get().upsertDealership(result);
+        get().upsertDealership(withChange(result, analyzedChange(result)));
       } catch (err) {
         const message = errorMessage(err);
         console.error(`Analysis failed for ${input.name}:`, err);

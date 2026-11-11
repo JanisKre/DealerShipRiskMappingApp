@@ -264,6 +264,23 @@ hand-set weights, and cadastral snapping). Both are removed from the code. The
 legacy results above remain the baseline; earlier sections of this document
 describe what they found.
 
+## Cadastre coverage
+
+`alkis.service.ts` queries one open WFS per state. Each was probed with
+GetCapabilities and a live GetFeature at a known point before it was added:
+
+| States | Service type | Notes |
+| --- | --- | --- |
+| Sachsen, Niedersachsen, Schleswig-Holstein, Sachsen-Anhalt, Brandenburg, Hessen, Baden-Württemberg, Hamburg, Mecklenburg-Vorpommern | INSPIRE `cp:CadastralParcel`, EPSG:4258 | Hamburg encodes rings as chains of curve segments; the parser joins them. |
+| NRW, Rheinland-Pfalz | AdV `ave:Flurstueck`, EPSG:4326 | |
+| Thüringen | AdV `ave:Flurstueck`, EPSG:4326 | Filters only on a UTM 32 box (EPSG:25832); the search box is converted (`toUtm32`). |
+| Bremen (city and Bremerhaven) | AdV `adv:AX_Flurstueck` (simple features), EPSG:4258 | Served by LGLN Niedersachsen. |
+| Berlin | `alkis_flurstuecke:flurstuecke`, EPSG:4326 | |
+
+Missing, as of November 2026: **Bayern** (the INSPIRE and AdV services
+answer 401/403 without a login) and **Saarland** (the registered WFS returns
+an empty response).
+
 ## Verified negative results
 
 Recorded so they are not rediscovered. Both were probed live on 14 Sep 2026.
@@ -296,9 +313,9 @@ first.
 - The engine produces a **screening estimate**, not a survey. It must not be
   presented as an engineering, legal or underwriting determination of site
   extent.
-- Cadastral coverage exists for 7 of 16 German states; elsewhere the answer
-  is the outline of the detected vehicles, a cached OSM dealer area or the
-  circle.
+- Cadastral coverage exists for 14 of 16 German states (see "Cadastre
+  coverage"); in Bayern, Saarland and Austria the answer is the outline of
+  the detected vehicles, a cached OSM dealer area or the circle.
 - Imagery vintage is provider-dependent and often unknown, so a recently
   rebuilt or extended site may be scored against years-old imagery.
 - OSM reference polygons are mapper-dependent: an IoU of 1.0 against them

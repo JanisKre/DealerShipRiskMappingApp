@@ -5,7 +5,9 @@ import {
   DEFAULT_PORTFOLIO_NAME,
   applyBusinessClassification,
   useAppStore,
+  withChange,
 } from "./appStore";
+import { DEALERSHIP_HISTORY_MAX } from "@shared/constants";
 import { applyMetaFilters } from "@renderer/components/dashboard/PortfolioFilterBar";
 
 const api = {
@@ -15,6 +17,7 @@ const api = {
   deleteSession: vi.fn(),
   detectVehicles: vi.fn(),
   scoreRisk: vi.fn(),
+  prefetchImagery: vi.fn(async (_lat: number, _lon: number) => null),
 };
 
 const firstInput: DealershipInput = {
@@ -32,6 +35,7 @@ const secondInput: DealershipInput = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  api.prefetchImagery.mockImplementation(async () => null);
   vi.stubGlobal("window", { api });
   useAppStore.setState({
     dealerships: [],
@@ -911,5 +915,141 @@ describe("rescoring keeps the postcode hail zone", () => {
 
     expect(api.scoreRisk).toHaveBeenCalledTimes(1);
     expect(api.scoreRisk.mock.calls[0].at(-1)).toBe(4);
+  });
+});
+
+describe("imagery prefetch", () => {
+  it("loads the next location's tiles while the current one is analysed", async () => {
+    const inputs: DealershipInput[] = [1, 2, 3, 4, 5].map((n) => ({
+      id: `p${n}`,
+      name: `Site ${n}`,
+      lat: 50 + n / 10,
+      lon: 8,
+    }));
+    api.analyzeDealership.mockImplementation(
+      async (input: DealershipInput) => ({
+        ...input,
+        lat: input.lat!,
+        lon: input.lon!,
+      }),
+    );
+    await useAppStore.getState().addAndAnalyze(inputs);
+    const prefetched = api.prefetchImagery.mock.calls.map(([lat]) => lat);
+    // Three run at once; the fourth and fifth are fetched ahead.
+    expect(prefetched).toEqual(expect.arrayContaining([50.4, 50.5]));
+    expect(prefetched).not.toContain(50.1);
+  });
+});
+
+describe("change history", () => {
+  const boundary = {
+    source: "alkis",
+    provider: "alkis-vehicle-parcels",
+    polygon: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [7, 51],
+          [7.001, 51],
+          [7.001, 51.001],
+          [7, 51],
+        ],
+      ],
+    },
+    areaSqm: 4125.4,
+    confidence: 0.75,
+  } as AnalyzedDealership["boundary"];
+
+  it("keeps only the most recent entries", () => {
+    let d = { ...firstInput, lat: 51, lon: 7 } as AnalyzedDealership;
+    for (let i = 0; i < DEALERSHIP_HISTORY_MAX + 5; i += 1) {
+      d = withChange(d, { kind: "vehiclesReviewed", to: i });
+    }
+    expect(d.history).toHaveLength(DEALERSHIP_HISTORY_MAX);
+    expect(d.history?.at(-1)?.to).toBe(DEALERSHIP_HISTORY_MAX + 4);
+  });
+
+  it("records a confirmed boundary", async () => {
+    api.scoreRisk.mockResolvedValue({ overallScore: 10 });
+    useAppStore.setState({
+      dealerships: [
+        { ...firstInput, lat: 51, lon: 7, boundary } as AnalyzedDealership,
+      ],
+    });
+    await useAppStore.getState().confirmBoundary("one");
+    const entry = useAppStore.getState().dealerships[0].history?.at(-1);
+    expect(entry).toMatchObject({
+      kind: "boundaryConfirmed",
+      value: "alkis-vehicle-parcels",
+      area: 4125,
+    });
+  });
+
+  it("records a manual vehicle count with the value it replaced", async () => {
+    api.scoreRisk.mockResolvedValue({ overallScore: 10 });
+    useAppStore.setState({
+      dealerships: [
+        {
+          ...firstInput,
+          lat: 51,
+          lon: 7,
+          detection: { vehicleCount: 42, confidence: 0.8, model: "test" },
+        } as AnalyzedDealership,
+      ],
+    });
+    await useAppStore.getState().updateManualVehicleCount("one", 50);
+    expect(useAppStore.getState().dealerships[0].history?.at(-1)).toMatchObject(
+      {
+        kind: "vehicleCountChanged",
+        from: 42,
+        to: 50,
+      },
+    );
+  });
+
+  it("keeps the history across a re-analysis and adds the run", async () => {
+    const earlier = {
+      at: "2026-11-01T10:00:00.000Z",
+      kind: "boundaryConfirmed" as const,
+    };
+    const existing = {
+      ...firstInput,
+      lat: 51,
+      lon: 7,
+      boundary,
+      history: [earlier],
+    } as AnalyzedDealership;
+    useAppStore.setState({ dealerships: [existing] });
+    api.analyzeDealership.mockResolvedValueOnce({
+      ...existing,
+      history: undefined,
+      detection: { vehicleCount: 9, confidence: 0.9, model: "test" },
+    } as AnalyzedDealership);
+    await useAppStore.getState().reanalyzeDealership("one");
+    const history = useAppStore.getState().dealerships[0].history ?? [];
+    expect(history[0]).toEqual(earlier);
+    expect(history.at(-1)).toMatchObject({ kind: "analyzed", to: 9 });
+  });
+
+  it("records a change of business type only when it changes", () => {
+    useAppStore.setState({
+      dealerships: [
+        {
+          ...firstInput,
+          lat: 51,
+          lon: 7,
+          insured: false,
+        } as AnalyzedDealership,
+      ],
+    });
+    useAppStore.getState().updateDealershipMeta("one", { insured: true });
+    useAppStore.getState().updateDealershipMeta("one", { insured: true });
+    useAppStore.getState().updateDealershipMeta("one", { group: "Nord" });
+    const history = useAppStore.getState().dealerships[0].history ?? [];
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      kind: "businessTypeChanged",
+      value: "existing",
+    });
   });
 });

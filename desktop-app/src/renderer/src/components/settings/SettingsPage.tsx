@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { validateTileTemplate } from "@shared/tile-template";
+import { validateOverpassUrl } from "@shared/overpass-url";
 import { useSearchParams } from "react-router-dom";
 import { Loader2, Monitor, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ export function SettingsPage(): React.JSX.Element {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   // Local draft for text fields — persist only onBlur (no toast per keystroke).
   const [wmsTileUrl, setWmsTileUrl] = useState("");
+  const [overpassUrl, setOverpassUrl] = useState("");
   // `?section=ai` (from the AI setup prompt) scrolls to and highlights the
   // LLM card.
   const [searchParams] = useSearchParams();
@@ -66,6 +68,12 @@ export function SettingsPage(): React.JSX.Element {
   }, [settings?.wmsTileUrl]);
 
   // Checked as the user types; only a valid template (or none) is saved.
+  useEffect(() => {
+    setOverpassUrl(settings?.overpassUrl ?? "");
+  }, [settings?.overpassUrl]);
+  const overpassCheck =
+    overpassUrl.trim() === "" ? null : validateOverpassUrl(overpassUrl);
+
   const wmsCheck =
     wmsTileUrl.trim() === "" ? null : validateTileTemplate(wmsTileUrl);
 
@@ -271,6 +279,42 @@ export function SettingsPage(): React.JSX.Element {
               </p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            {t("settings.osmSource.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <label htmlFor="overpass-url" className="text-sm font-medium">
+            {t("settings.osmSource.urlLabel")}
+          </label>
+          <Input
+            id="overpass-url"
+            value={overpassUrl}
+            placeholder="http://localhost:12345/api/interpreter"
+            aria-invalid={overpassCheck?.ok === false}
+            onChange={(e) => setOverpassUrl(e.target.value)}
+            onBlur={() => {
+              if (overpassCheck?.ok === false) return;
+              const next = overpassCheck?.ok ? overpassCheck.url : "";
+              if (next !== (settings.overpassUrl ?? ""))
+                void update({ overpassUrl: next });
+            }}
+          />
+          {overpassCheck?.ok === false && (
+            <p className="text-xs text-destructive">
+              {t(`settings.osmSource.errors.${overpassCheck.problem}`)}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {settings.overpassUrl
+              ? t("settings.osmSource.statusOwn")
+              : t("settings.osmSource.statusPublic")}
+          </p>
         </CardContent>
       </Card>
     </div>

@@ -4,7 +4,11 @@
  * across all mirrors for optional lookups.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchOverpass, resetOverpassCircuits } from "./overpass-client";
+import {
+  configureCustomOverpass,
+  fetchOverpass,
+  resetOverpassCircuits,
+} from "./overpass-client";
 
 /** A response whose headers arrive at once but whose body never completes. */
 function stalledBodyResponse(): Response {
@@ -18,6 +22,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  configureCustomOverpass(null);
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -53,5 +58,37 @@ describe("fetchOverpass", () => {
     await expect(pending).resolves.toBeNull();
     // One attempt consumed the whole budget; without it, 8 attempts × 30 s.
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("own Overpass server", () => {
+  const ok = (): Response =>
+    new Response(JSON.stringify({ elements: [{ id: 7 }] }), { status: 200 });
+
+  it("asks the own server first", async () => {
+    const fetchMock = vi.fn((_url: string) => Promise.resolve(ok()));
+    vi.stubGlobal("fetch", fetchMock);
+    configureCustomOverpass("http://localhost:12345/api/interpreter");
+
+    await expect(fetchOverpass("[out:json];node(7);out;")).resolves.toEqual({
+      elements: [{ id: 7 }],
+    });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toMatch(
+      /^http:\/\/localhost:12345\/api\/interpreter\?data=/,
+    );
+  });
+
+  it("falls back to the public servers when the own one is down", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("connect ECONNREFUSED"))
+      .mockResolvedValueOnce(ok());
+    vi.stubGlobal("fetch", fetchMock);
+    configureCustomOverpass("http://localhost:12345/api/interpreter");
+
+    await expect(fetchOverpass("[out:json];node(7);out;")).resolves.toEqual({
+      elements: [{ id: 7 }],
+    });
+    expect(String(fetchMock.mock.calls[1]?.[0])).toMatch(/overpass-api\.de/);
   });
 });

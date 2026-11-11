@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { utilityProcess } from "electron";
 import type { BoundaryResult, DetectionResult } from "@shared/types";
 
 vi.mock("electron", () => ({
@@ -14,6 +15,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { LEGACY_VISDRONE_MANIFEST } from "@shared/model-manifest";
 import {
+  inferencePoolSize,
+  OnnxYoloDetector,
   attachImageryProvenance,
   detectVehiclesInContext,
   filterDetectionToBoundary,
@@ -247,5 +250,48 @@ describe("attachImageryProvenance", () => {
 
   it("leaves detections without a capture record untouched", () => {
     expect(attachImageryProvenance(base, undefined)).toBe(base);
+  });
+});
+
+describe("inference pool", () => {
+  it("uses two processes on machines with at least four cores", () => {
+    expect(inferencePoolSize(8)).toBe(2);
+    expect(inferencePoolSize(4)).toBe(2);
+    expect(inferencePoolSize(2)).toBe(1);
+  });
+
+  it("starts every worker on warm-up and shares the cores between them", async () => {
+    const fork = vi.mocked(utilityProcess.fork);
+    fork.mockReset();
+    const sent: unknown[] = [];
+    fork.mockImplementation(() => {
+      const listeners: Array<(message: unknown) => void> = [];
+      return {
+        on(event: string, listener: (message: unknown) => void) {
+          if (event === "message") listeners.push(listener);
+        },
+        postMessage(message: unknown) {
+          sent.push(message);
+          queueMicrotask(() => listeners.forEach((l) => l({ type: "ready" })));
+        },
+      } as never;
+    });
+    const detector = new OnnxYoloDetector(
+      "/models/test.onnx",
+      LEGACY_VISDRONE_MANIFEST,
+    );
+    await detector.warmUp();
+    const size = inferencePoolSize();
+    expect(fork).toHaveBeenCalledTimes(size);
+    expect(sent).toHaveLength(size);
+    for (const message of sent) {
+      expect(message).toMatchObject({
+        type: "init",
+        intraOpNumThreads: expect.any(Number),
+      });
+    }
+    // A second warm-up reuses the running workers.
+    await detector.warmUp();
+    expect(fork).toHaveBeenCalledTimes(size);
   });
 });

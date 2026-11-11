@@ -36,6 +36,28 @@ const OVERPASS_ENDPOINTS = [
 const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
 
 /**
+ * The user's own Overpass server (settings), validated by
+ * `validateOverpassUrl` before it gets here. It is asked first; the public
+ * mirrors stay as the fallback, so everything still works online only.
+ */
+let customEndpoint: string | null = null;
+
+export function configureCustomOverpass(url: string | null | undefined): void {
+  customEndpoint = url ? url : null;
+}
+
+/** Whether an own Overpass server is configured. */
+export function hasCustomOverpass(): boolean {
+  return customEndpoint != null;
+}
+
+function endpoints(): string[] {
+  return customEndpoint
+    ? [customEndpoint, ...OVERPASS_ENDPOINTS]
+    : OVERPASS_ENDPOINTS;
+}
+
+/**
  * Longest query we will put in a URL. Overpass accepts far more, but beyond
  * this the request falls back to POST rather than risking a proxy truncating
  * it silently.
@@ -125,7 +147,7 @@ export async function fetchOverpass<T>(
     options.budgetMs != null ? Date.now() + options.budgetMs : Infinity;
 
   for (let pass = 0; pass < MIRROR_PASSES; pass += 1) {
-    for (const url of OVERPASS_ENDPOINTS) {
+    for (const url of endpoints()) {
       if (breaker.isOpen(url)) continue;
       const remainingMs = deadline - Date.now();
       // Out of budget is "could not ask", like every mirror failing — callers

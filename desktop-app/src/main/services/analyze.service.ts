@@ -3,6 +3,7 @@ import { hailZoneToRiskTier } from "@shared/risk-math";
 import { lookupHailZone } from "@shared/hail-zones";
 import { detectBoundary } from "./boundary.service";
 import { osmEvidenceBy } from "./boundary/osm-evidence.service";
+import { hasCustomOverpass } from "./boundary/overpass-client";
 import {
   attachImageryProvenance,
   detectVehicles,
@@ -31,12 +32,15 @@ function extractPostalCode(address: string | undefined): string | null {
 }
 
 /**
- * How long one analysis waits for OpenStreetMap: not at all. The public
- * Overpass servers are mostly at capacity, and the boundary no longer depends
- * on OSM. Every consumer uses OSM only when it is already cached; the request
- * keeps running in the background and fills the cache for the next analysis.
+ * How long one analysis waits for OpenStreetMap. With only the public
+ * Overpass servers: not at all — they are mostly at capacity, and the
+ * boundary does not depend on OSM; cached OSM is used and the request fills
+ * the cache in the background. With an own server (settings), which answers
+ * in well under a second, the analysis waits briefly so roof mask, website
+ * and the cached-OSM stage get fresh data.
  */
 export const OSM_WAIT_MS = 0;
+export const OSM_WAIT_OWN_SERVER_MS = 3_000;
 
 /** Step durations of one analysis, logged so slow sites can be diagnosed. */
 class StepTimer {
@@ -153,7 +157,8 @@ export async function analyzeDealership(
   const postalCode = extractPostalCode(input.address);
   const hailZone = postalCode ? lookupHailZone(postalCode) : null;
 
-  const osmDeadline = Date.now() + OSM_WAIT_MS;
+  const osmDeadline =
+    Date.now() + (hasCustomOverpass() ? OSM_WAIT_OWN_SERVER_MS : OSM_WAIT_MS);
 
   // Detection uses the whole context image, independently of the boundary
   // (P5): the vehicles are what the boundary is built from, so a boundary

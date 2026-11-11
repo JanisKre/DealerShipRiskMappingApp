@@ -388,6 +388,16 @@ const api = {
       zoom,
     } satisfies IpcRequest["imagery:timeline"]),
 
+  /** Loads the context image of a location into the tile cache, in the background. */
+  prefetchImagery: (
+    lat: number,
+    lon: number,
+  ): Promise<IpcResponse["imagery:prefetch"]> =>
+    ipcRenderer.invoke(IPC.imageryPrefetch, {
+      lat,
+      lon,
+    } satisfies IpcRequest["imagery:prefetch"]),
+
   hailZoneOverlay: (): Promise<IpcResponse["hailZones:overlay"]> =>
     ipcRenderer.invoke(IPC.hailZoneOverlay),
   modelStatus: (): Promise<IpcResponse["model:status"]> =>

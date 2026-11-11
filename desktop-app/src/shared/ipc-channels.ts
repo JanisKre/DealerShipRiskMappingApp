@@ -94,6 +94,7 @@ export const IPC = {
   imagerySelect: "imagery:select",
   // Dated Esri World Imagery Wayback versions at a point (history of the image)
   imageryTimeline: "imagery:timeline",
+  imageryPrefetch: "imagery:prefetch", // invoke -> null (fire and forget)
 
   // Postcode outlines coloured by hail zone for the map overlay (downloaded once)
   hailZoneOverlay: "hailZones:overlay",

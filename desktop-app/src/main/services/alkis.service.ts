@@ -91,6 +91,11 @@ interface AlkisEndpoint {
   typeName: string;
   /** EPSG code for BBOX filter and response geometry (states require different CRS). */
   crs: number;
+  /**
+   * Some services (Thüringen) ignore a geographic BBOX and only filter on
+   * their native UTM zone 32 grid; the response still comes in `crs`.
+   */
+  bboxUtm32?: true;
 }
 
 const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
@@ -143,6 +148,35 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
     typeName: "cp:CadastralParcel",
     crs: 4258,
   },
+  // Added November 2026 after probing GetCapabilities and a live GetFeature
+  // (docs/boundary-model.md, "Cadastre coverage"). Bayern (login required)
+  // and Saarland (empty response) are still missing.
+  Hamburg: {
+    url: "https://geodienste.hamburg.de/HH_WFS_INSPIRE_Flurstuecke",
+    typeName: "cp:CadastralParcel",
+    crs: 4258,
+  },
+  Bremen: {
+    url: "https://opendata.lgln.niedersachsen.de/doorman/noauth/alkishb_wfs_sf",
+    typeName: "adv:AX_Flurstueck",
+    crs: 4258,
+  },
+  "Mecklenburg-Vorpommern": {
+    url: "https://www.geodaten-mv.de/dienste/inspire_cp_alkis_download",
+    typeName: "cp:CadastralParcel",
+    crs: 4258,
+  },
+  Thüringen: {
+    url: "https://www.geoproxy.geoportal-th.de/geoproxy/services/adv_alkis_wfs",
+    typeName: "ave:Flurstueck",
+    crs: 4326,
+    bboxUtm32: true,
+  },
+  "Rheinland-Pfalz": {
+    url: "https://geo5.service24.rlp.de/wfs/alkis_rp.fcgi",
+    typeName: "ave:Flurstueck",
+    crs: 4326,
+  },
 };
 
 /** Rough state bounding boxes — only for the 7 states listed above, smallest (city-states) first. */
@@ -155,6 +189,17 @@ interface StateBbox {
 }
 
 const STATE_BBOXES: StateBbox[] = [
+  // City-states first: their boxes lie inside their neighbours' boxes.
+  {
+    state: "Hamburg",
+    minLat: 53.39,
+    maxLat: 53.75,
+    minLon: 9.73,
+    maxLon: 10.33,
+  },
+  // Bremen city and Bremerhaven.
+  { state: "Bremen", minLat: 53.01, maxLat: 53.23, minLon: 8.48, maxLon: 8.99 },
+  { state: "Bremen", minLat: 53.46, maxLat: 53.61, minLon: 8.48, maxLon: 8.65 },
   {
     state: "Berlin",
     minLat: 52.33,
@@ -211,6 +256,27 @@ const STATE_BBOXES: StateBbox[] = [
     maxLat: 49.79,
     minLon: 7.51,
     maxLon: 10.5,
+  },
+  {
+    state: "Mecklenburg-Vorpommern",
+    minLat: 53.11,
+    maxLat: 54.69,
+    minLon: 10.59,
+    maxLon: 14.41,
+  },
+  {
+    state: "Thüringen",
+    minLat: 50.2,
+    maxLat: 51.65,
+    minLon: 9.87,
+    maxLon: 12.65,
+  },
+  {
+    state: "Rheinland-Pfalz",
+    minLat: 48.97,
+    maxLat: 50.94,
+    minLon: 6.11,
+    maxLon: 8.51,
   },
 ];
 
@@ -400,6 +466,40 @@ export async function fetchParcelsNear(
   };
 }
 
+/**
+ * Geographic (ETRS89) to UTM zone 32N (EPSG:25832), easting and northing in
+ * metres. Krüger series to third order: millimetre accuracy within the zone,
+ * far below what a search box needs.
+ */
+export function toUtm32(lat: number, lon: number): [number, number] {
+  const a = 6_378_137;
+  const f = 1 / 298.257222101;
+  const k0 = 0.9996;
+  const n = f / (2 - f);
+  const bigA = (a / (1 + n)) * (1 + (n * n) / 4 + n ** 4 / 64);
+  const phi = (lat * Math.PI) / 180;
+  const dLam = ((lon - 9) * Math.PI) / 180;
+  const c = (2 * Math.sqrt(n)) / (1 + n);
+  const t = Math.sinh(
+    Math.atanh(Math.sin(phi)) - c * Math.atanh(c * Math.sin(phi)),
+  );
+  const xi = Math.atan(t / Math.cos(dLam));
+  const eta = Math.atanh(Math.sin(dLam) / Math.sqrt(1 + t * t));
+  const alpha = [
+    n / 2 - (2 * n * n) / 3 + (5 * n ** 3) / 16,
+    (13 * n * n) / 48 - (3 * n ** 3) / 5,
+    (61 * n ** 3) / 240,
+  ];
+  let e = eta;
+  let nn = xi;
+  alpha.forEach((al, j) => {
+    const k = 2 * (j + 1);
+    e += al * Math.cos(k * xi) * Math.sinh(k * eta);
+    nn += al * Math.sin(k * xi) * Math.cosh(k * eta);
+  });
+  return [500_000 + k0 * bigA * e, k0 * bigA * nn];
+}
+
 /** "error" = network/HTTP error (counts toward the circuit breaker); null = reachable, but no hit. */
 async function fetchAlkisXml(
   endpoint: AlkisEndpoint,
@@ -410,7 +510,11 @@ async function fetchAlkisXml(
   const dLat = radiusM / 111_320;
   const dLon = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
   const crsUrn = `urn:ogc:def:crs:EPSG::${endpoint.crs}`;
-  const bbox = `${lat - dLat},${lon - dLon},${lat + dLat},${lon + dLon},${crsUrn}`;
+  let bbox = `${lat - dLat},${lon - dLon},${lat + dLat},${lon + dLon},${crsUrn}`;
+  if (endpoint.bboxUtm32) {
+    const [east, north] = toUtm32(lat, lon);
+    bbox = `${east - radiusM},${north - radiusM},${east + radiusM},${north + radiusM},urn:ogc:def:crs:EPSG::25832`;
+  }
   const url =
     `${endpoint.url}?service=WFS&version=2.0.0&request=GetFeature` +
     `&typeNames=${encodeURIComponent(endpoint.typeName)}&count=${PARCEL_REQUEST_LIMIT}` +
@@ -448,15 +552,24 @@ export function parseExteriorRings(xml: string): [number, number][][] {
     /<(?:[\w.-]+:)?(?:PolygonPatch|Polygon)\b[\s\S]*?<\/(?:[\w.-]+:)?(?:PolygonPatch|Polygon)>/g;
   for (const match of xml.matchAll(polygonRe)) {
     const exterior = match[0].match(
-      /<(?:[\w.-]+:)?exterior>[\s\S]*?<(?:[\w.-]+:)?posList[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?posList>/,
+      /<(?:[\w.-]+:)?exterior>([\s\S]*?)<\/(?:[\w.-]+:)?exterior>/,
     );
     if (!exterior) continue;
-    const nums = exterior[1].trim().split(/\s+/).map(Number);
+    // A LinearRing has one posList; a Ring (e.g. Hamburg) is a chain of
+    // curve segments, each with its own posList, joined end to start.
     const ring: [number, number][] = [];
-    for (let i = 0; i + 1 < nums.length; i += 2) {
-      const la = nums[i];
-      const lo = nums[i + 1];
-      if (Number.isFinite(la) && Number.isFinite(lo)) ring.push([lo, la]);
+    for (const list of exterior[1].matchAll(
+      /<(?:[\w.-]+:)?posList[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?posList>/g,
+    )) {
+      const nums = list[1].trim().split(/\s+/).map(Number);
+      for (let i = 0; i + 1 < nums.length; i += 2) {
+        const la = nums[i];
+        const lo = nums[i + 1];
+        if (!Number.isFinite(la) || !Number.isFinite(lo)) continue;
+        const prev = ring[ring.length - 1];
+        if (prev && prev[0] === lo && prev[1] === la) continue;
+        ring.push([lo, la]);
+      }
     }
     if (ring.length < 3) continue;
     const first = ring[0];

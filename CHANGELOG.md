@@ -7,6 +7,20 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Change history per location (detail dialog → Sources): analyses, confirmed
+  and changed boundaries, manual and reviewed vehicle counts and changes of
+  business type, with time and values. Kept with the portfolio, last 50
+  entries.
+- Optional own Overpass server (Settings → OpenStreetMap data), asked first
+  with the public servers as fallback. With one, analyses wait up to 3 s for
+  OSM so roof masking, website lookup and OSM dealer areas work every time.
+  See `docs/local-overpass.md`.
+- Cadastral parcels for Hamburg, Bremen, Mecklenburg-Vorpommern, Thüringen
+  and Rheinland-Pfalz (14 of 16 states). Bayern and Saarland have no open
+  service yet.
+
 ### Security
 
 - Website: updated vite to 7.3.7 for the `launch-editor` file-existence check
@@ -19,6 +33,12 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The vehicle model loads in the background at app start, so the first
+  analysis does not wait for it.
+- Vehicle detection runs on two inference processes on machines with four or
+  more cores, each with half of the cores.
+- During a batch analysis the next location's aerial tiles load into the
+  cache while the current one is analysed.
 - Lot boundaries now follow the detected vehicles (source cascade v2). The
   boundary is the cadastral parcel at the location plus every adjacent parcel
   on which at least ten detected vehicles stand. Where there is no cadastre,

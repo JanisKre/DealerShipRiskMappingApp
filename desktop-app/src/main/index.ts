@@ -3,6 +3,9 @@ import { join } from "path";
 import { pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc";
 import { checkDealerDirectoryUpdate } from "./services/dealer-directory.service";
+import { warmUpDetector } from "./services/detection.service";
+import { configureCustomOverpass } from "./services/boundary/overpass-client";
+import { getSettings } from "./services/settings.service";
 import { closeDb, getDb } from "./db/database";
 
 // Unpackaged dev runs are an unsigned generic "Electron", so macOS re-asks for
@@ -99,6 +102,8 @@ function createWindow(): BrowserWindow {
 
 let mainWindow: BrowserWindow | null = null;
 const STARTUP_CHECK_DELAY_MS = 15_000;
+/** After the window is up, so loading the model does not slow the first paint. */
+const DETECTOR_WARM_UP_DELAY_MS = 1_500;
 
 app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler(
@@ -124,11 +129,19 @@ app.whenReady().then(() => {
   });
 
   getDb(); // DB + Tabellen initialisieren
+  try {
+    configureCustomOverpass(getSettings().overpassUrl);
+  } catch (error) {
+    console.warn("Reading the Overpass setting failed:", error);
+  }
   mainWindow = createWindow();
   registerIpcHandlers(() => mainWindow);
   // Once the app has settled: does Overture have a newer dealer release?
   // Throttled to once a day and skipped until a directory was downloaded.
   setTimeout(() => void checkDealerDirectoryUpdate(), STARTUP_CHECK_DELAY_MS);
+  // Load the vehicle model while the user is still looking at the map, so
+  // the first analysis does not wait for the inference processes to start.
+  setTimeout(() => warmUpDetector(), DETECTOR_WARM_UP_DELAY_MS);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();

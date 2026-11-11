@@ -1,6 +1,7 @@
 import { basename, join } from "path";
 import { app, utilityProcess, type UtilityProcess } from "electron";
 import { existsSync, readFileSync } from "fs";
+import { cpus } from "os";
 import sharp from "sharp";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { point as turfPoint } from "@turf/helpers";
@@ -41,6 +42,8 @@ import {
  */
 export interface VehicleDetector {
   readonly modelName: string;
+  /** Loads the model ahead of the first detection (optional). */
+  warmUp?(): Promise<void>;
   detect(
     image: AerialImage,
     boundary?: BoundaryResult,
@@ -176,29 +179,69 @@ function emptyCounts(): Record<VehicleClass, number> {
  * inference, deduplicates with hard NMS, clips to the boundary polygon, and
  * converts the centers to lon/lat.
  */
-export class OnnxYoloDetector implements VehicleDetector {
-  readonly modelName: string;
-  private proc: UtilityProcess | null = null;
-  private ready: Promise<void> | null = null;
-  private readonly modelPath: string;
-  private readonly manifest: VehicleModelManifest;
-  private seq = 0;
-  private readonly pending = new Map<
+/** One inference utilityProcess with its own ONNX session. */
+interface InferenceWorker {
+  proc: UtilityProcess | null;
+  ready: Promise<void> | null;
+  pending: Map<
     string,
     { resolve: (r: WorkerResult) => void; reject: (e: Error) => void }
-  >();
+  >;
+  /** Windows run one at a time per worker; this chains them. */
+  tail: Promise<unknown>;
+}
+
+/**
+ * How many inference processes to run. Windows of one image are independent,
+ * so two sessions roughly halve detection time on a multi-core machine; each
+ * gets half the cores so they do not compete for the same threads. Single-
+ * and dual-core machines keep one process.
+ */
+export function inferencePoolSize(cpuCount: number = cpus().length): number {
+  return cpuCount >= 4 ? 2 : 1;
+}
+
+/**
+ * YOLO ONNX detector (axis-aligned or oriented boxes, per manifest). Runs a
+ * small pool of persistent utilityProcesses, resamples the RGBA mosaic to the
+ * model's training resolution, slices it into overlapping full-size windows,
+ * spreads the windows over the pool, deduplicates with hard NMS, clips to the
+ * boundary polygon, and converts the centers to lon/lat.
+ */
+export class OnnxYoloDetector implements VehicleDetector {
+  readonly modelName: string;
+  private readonly modelPath: string;
+  private readonly manifest: VehicleModelManifest;
+  private readonly workers: InferenceWorker[];
+  private readonly threadsPerWorker: number;
+  private seq = 0;
 
   constructor(modelPath: string, manifest: VehicleModelManifest) {
     this.modelPath = modelPath;
     this.manifest = manifest;
     this.modelName = manifest.name;
+    const size = inferencePoolSize();
+    this.threadsPerWorker = Math.max(1, Math.floor(cpus().length / size));
+    this.workers = Array.from({ length: size }, () => ({
+      proc: null,
+      ready: null,
+      pending: new Map(),
+      tail: Promise.resolve(),
+    }));
   }
 
-  private ensureStarted(): Promise<void> {
-    if (this.ready) return this.ready;
-    this.ready = new Promise<void>((resolve, reject) => {
+  /** Starts every worker and loads the model, so the first analysis does not wait for it. */
+  warmUp(): Promise<void> {
+    return Promise.all(this.workers.map((w) => this.start(w))).then(
+      () => undefined,
+    );
+  }
+
+  private start(worker: InferenceWorker): Promise<void> {
+    if (worker.ready) return worker.ready;
+    worker.ready = new Promise<void>((resolve, reject) => {
       const proc = utilityProcess.fork(resolveWorkerPath());
-      this.proc = proc;
+      worker.proc = proc;
       let initialized = false;
 
       proc.on(
@@ -215,9 +258,9 @@ export class OnnxYoloDetector implements VehicleDetector {
           }
           if (msg.type === "result") {
             const res = msg as WorkerResult;
-            const entry = this.pending.get(res.id);
+            const entry = worker.pending.get(res.id);
             if (entry) {
-              this.pending.delete(res.id);
+              worker.pending.delete(res.id);
               entry.resolve(res);
             }
           }
@@ -225,42 +268,54 @@ export class OnnxYoloDetector implements VehicleDetector {
       );
 
       proc.on("exit", () => {
-        this.proc = null;
-        this.ready = null;
-        for (const [, entry] of this.pending)
+        worker.proc = null;
+        worker.ready = null;
+        for (const [, entry] of worker.pending)
           entry.reject(new Error("Worker exited"));
-        this.pending.clear();
+        worker.pending.clear();
       });
 
       proc.postMessage({
         type: "init",
         modelPath: this.modelPath,
         manifest: this.manifest,
+        intraOpNumThreads: this.threadsPerWorker,
       });
     });
-    return this.ready;
+    // A failed start must be retried on the next call, not cached.
+    worker.ready.catch(() => {
+      worker.ready = null;
+    });
+    return worker.ready;
   }
 
   private runWindow(
+    worker: InferenceWorker,
     pixels: Uint8ClampedArray,
     width: number,
     height: number,
     confidenceThreshold: number,
     metersPerPixel: number,
   ): Promise<WorkerResult> {
-    const id = `${this.seq++}`;
-    return new Promise<WorkerResult>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.proc!.postMessage({
-        type: "infer",
-        id,
-        pixels,
-        width,
-        height,
-        confidenceThreshold,
-        metersPerPixel,
+    const run = async (): Promise<WorkerResult> => {
+      await this.start(worker);
+      const id = `${this.seq++}`;
+      return new Promise<WorkerResult>((resolve, reject) => {
+        worker.pending.set(id, { resolve, reject });
+        worker.proc!.postMessage({
+          type: "infer",
+          id,
+          pixels,
+          width,
+          height,
+          confidenceThreshold,
+          metersPerPixel,
+        });
       });
-    });
+    };
+    const result = worker.tail.then(run, run);
+    worker.tail = result.catch(() => undefined);
+    return result;
   }
 
   async detect(
@@ -284,7 +339,6 @@ export class OnnxYoloDetector implements VehicleDetector {
         },
       };
     }
-    await this.ensureStarted();
 
     // Bring the imagery to the model's training resolution, so vehicles have
     // the pixel size the model learned regardless of zoom 19/20 or DOP source.
@@ -308,20 +362,25 @@ export class OnnxYoloDetector implements VehicleDetector {
 
     const window = this.manifest.imgsz;
     const stride = windowStride(window, metersPerPixel);
-    const allCandidates: VehicleCandidate[] = [];
     let totalInferenceMs = 0;
 
-    // Windows sequentially (single-session worker); inference itself is the
-    // bottleneck, not the JS slicing.
-    for (const c of planCrops(width, height, window, stride)) {
-      const cropBuf = this.extractCrop(rgba, width, c.cropX, c.cropY, c.w, c.h);
-      const res = await this.runWindow(
-        cropBuf,
-        c.w,
-        c.h,
-        parameters.detectionConfidence,
-        metersPerPixel,
-      );
+    // Windows are independent: spread them over the pool, each worker
+    // working through its share one window at a time.
+    const crops = planCrops(width, height, window, stride);
+    const results = await Promise.all(
+      crops.map((c, index) =>
+        this.runWindow(
+          this.workers[index % this.workers.length],
+          this.extractCrop(rgba, width, c.cropX, c.cropY, c.w, c.h),
+          c.w,
+          c.h,
+          parameters.detectionConfidence,
+          metersPerPixel,
+        ).then((res) => ({ res, c })),
+      ),
+    );
+    const allCandidates: VehicleCandidate[] = [];
+    for (const { res, c } of results) {
       if (res.error || !res.detections) continue;
       totalInferenceMs += res.inferenceMs ?? 0;
       for (const d of res.detections) {
@@ -512,6 +571,19 @@ let detector: VehicleDetector | null = null;
 function getDetector(): VehicleDetector {
   if (!detector) detector = createDetector();
   return detector;
+}
+
+/**
+ * Loads the detection model in the background, so the first analysis of a
+ * session does not pay for starting the inference processes. Best effort:
+ * a failure here only means the first detection starts them itself.
+ */
+export function warmUpDetector(): void {
+  void getDetector()
+    .warmUp?.()
+    .catch((error: unknown) => {
+      console.warn("Detector warm-up failed:", error);
+    });
 }
 
 /**

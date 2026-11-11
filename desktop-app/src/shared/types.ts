@@ -97,6 +97,33 @@ export type NatCatAssessment = z.infer<typeof NatCatAssessmentSchema>;
 
 // --- Dealership (input data) ------------------------------------------
 
+/**
+ * One entry of a location's change history: what a person (or a new
+ * analysis) changed, and when. Kept with the portfolio for traceability.
+ */
+export const DealershipChangeKindSchema = z.enum([
+  "analyzed",
+  "boundaryConfirmed",
+  "boundaryChanged",
+  "vehicleCountChanged",
+  "vehiclesReviewed",
+  "businessTypeChanged",
+]);
+export type DealershipChangeKind = z.infer<typeof DealershipChangeKindSchema>;
+
+export const DealershipChangeSchema = z.object({
+  at: z.string().max(40),
+  kind: DealershipChangeKindSchema,
+  /** Boundary provider/source, or "existing"/"new" for the business type. */
+  value: z.string().max(80).optional(),
+  /** Boundary area in m². */
+  area: z.number().nonnegative().optional(),
+  /** Vehicle count before and after. */
+  from: z.number().int().nonnegative().optional(),
+  to: z.number().int().nonnegative().optional(),
+});
+export type DealershipChange = z.infer<typeof DealershipChangeSchema>;
+
 export const DealershipInputSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
@@ -130,6 +157,12 @@ export const DealershipInputSchema = z.object({
   notes: z.string().max(DEALERSHIP_NOTES_MAX_LENGTH).optional(),
   /** ISO timestamp of the last notes change. */
   notesUpdatedAt: z.string().optional(),
+  /**
+   * Change history, oldest first. The store keeps the last
+   * DEALERSHIP_HISTORY_MAX entries; the schema allows more so an older or
+   * hand-edited portfolio still loads.
+   */
+  history: z.array(DealershipChangeSchema).max(500).optional(),
   /** Dealership website (absolute http(s) URL). */
   website: z
     .string()
@@ -804,6 +837,11 @@ export const SettingsSchema = z.object({
   satelliteProvider: z.enum(["auto", "esri", "wms"]).optional(),
   /** XYZ/WMS tile template with {z}/{x}/{y} placeholders (for provider 'wms'). */
   wmsTileUrl: z.string().optional(),
+  /**
+   * Own Overpass server (e.g. a local instance with a regional extract). Asked
+   * first; the public servers stay the fallback. Unset: public servers only.
+   */
+  overpassUrl: z.string().max(500).optional(),
   /**
    * Lot boundary engine. "legacy" ranks candidate polygons and picks one;
    * "fused" rasterizes every source into one evidence grid and grows the site
