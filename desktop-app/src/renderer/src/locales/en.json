@@ -728,7 +728,14 @@
         "parcel": "Parcel at the point",
         "osmDealerArea": "OSM dealer area",
         "synthetic": "Circle around the point"
-      }
+      },
+      "boundaryAdopted": "“{{label}}” applied; the vehicles were recounted.",
+      "boundaryRestore": "Original boundary",
+      "boundaryRestoreHint": "Back to “{{label}}” ({{area}} m²) and recount the vehicles",
+      "boundaryAdoptTitle": "Replace the boundary?",
+      "boundaryAdoptDescription": "The vehicles are recounted inside the new boundary. You can undo this afterwards.",
+      "boundaryCurrent": "Current boundary",
+      "boundaryAdoptWeaker": "This suggestion is less certain than the current boundary."
     },
     "hailEal": "Hail EAL",
     "hailZone": "Hail zone",

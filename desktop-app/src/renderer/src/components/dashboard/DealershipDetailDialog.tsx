@@ -744,6 +744,23 @@ function candidateLabel(
     : name;
 }
 
+/**
+ * The vehicle outline is only a fallback for sites without a usable cadastre.
+ * Next to parcels that already hold most of the vehicles (full stage-1
+ * confidence) it is always the worse choice — it follows parked cars into the
+ * street — so it is not offered there.
+ */
+function weakerVehicleOutline(
+  candidate: BoundaryCandidate,
+  current: BoundaryResult,
+): boolean {
+  return (
+    candidate.provider === "vehicle-hull" &&
+    current.provider === "alkis-vehicle-parcels" &&
+    current.confidence >= 0.75
+  );
+}
+
 function sameGeometry(a: BoundaryCandidate, b: BoundaryResult): boolean {
   return (
     a.provider === b.provider &&
@@ -769,7 +786,10 @@ function BoundaryPanel({
   const confirmBoundary = useAppStore((s) => s.confirmBoundary);
   const updateBoundary = useAppStore((s) => s.updateBoundaryAndRescore);
   const saveBoundaryEdit = useAppStore((s) => s.saveBoundaryEdit);
+  const undoBoundaryEdit = useAppStore((s) => s.undoBoundaryEdit);
+  const revertBoundaryToDefault = useAppStore((s) => s.revertBoundaryToDefault);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<BoundaryCandidate | null>(null);
   const boundary = d.boundary;
   if (!boundary) {
     return (
@@ -781,7 +801,9 @@ function BoundaryPanel({
   const confirmed =
     boundary.source === "manual" || boundary.confirmedAt != null;
   const others = (boundary.candidates ?? []).filter(
-    (candidate) => !sameGeometry(candidate, boundary),
+    (candidate) =>
+      !sameGeometry(candidate, boundary) &&
+      !weakerVehicleOutline(candidate, boundary),
   );
 
   async function run(work: () => Promise<void>): Promise<void> {
@@ -809,10 +831,37 @@ function BoundaryPanel({
         confidence: candidate.confidence,
         label: candidate.label,
         evidence: candidate.evidence ?? boundary!.evidence,
-        quality: candidate.quality ?? boundary!.quality,
+        quality: {
+          ...(candidate.quality ?? boundary!.quality ?? { reasons: [] }),
+          reasons: [
+            `chosen manually from the boundary suggestions (${candidate.provider ?? candidate.source})`,
+          ],
+        } as BoundaryResult["quality"],
         reviewRequired: false,
         confirmedAt: new Date().toISOString(),
       });
+      await saveBoundaryEdit(d.id);
+      toast.success(
+        t("dashboard.detailDialog.boundaryAdopted", {
+          label: candidateLabel(t, candidate),
+        }),
+        {
+          action: {
+            label: t("map.page.undoBoundaryEdit"),
+            onClick: () =>
+              void run(async () => {
+                await undoBoundaryEdit(d.id);
+                await saveBoundaryEdit(d.id);
+              }),
+          },
+        },
+      );
+    });
+  }
+
+  function restoreOriginal(): Promise<void> {
+    return run(async () => {
+      await revertBoundaryToDefault(d.id);
       await saveBoundaryEdit(d.id);
     });
   }
@@ -855,6 +904,21 @@ function BoundaryPanel({
           <Pencil className="size-3.5" />
           {t("dashboard.detailDialog.boundaryEditOnMap")}
         </Button>
+        {d.boundaryBeforeManualEdit && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => void restoreOriginal()}
+            title={t("dashboard.detailDialog.boundaryRestoreHint", {
+              label: candidateLabel(t, d.boundaryBeforeManualEdit),
+              area: num(d.boundaryBeforeManualEdit.areaSqm),
+            })}
+          >
+            <RotateCcw className="size-3.5" />
+            {t("dashboard.detailDialog.boundaryRestore")}
+          </Button>
+        )}
         {boundary.polygon.type === "MultiPolygon" && (
           <Button
             size="sm"
@@ -892,7 +956,7 @@ function BoundaryPanel({
                 variant="ghost"
                 className="h-7 shrink-0 text-xs"
                 disabled={busy}
-                onClick={() => void adopt(candidate)}
+                onClick={() => setPending(candidate)}
               >
                 {t("dashboard.detailDialog.boundaryAdopt")}
               </Button>
@@ -900,6 +964,55 @@ function BoundaryPanel({
           ))}
         </div>
       )}
+
+      <Dialog
+        open={pending != null}
+        onOpenChange={(open) => {
+          if (!open) setPending(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {t("dashboard.detailDialog.boundaryAdoptTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("dashboard.detailDialog.boundaryAdoptDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          {pending && (
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <Metric
+                label={t("dashboard.detailDialog.boundaryCurrent")}
+                value={`${num(boundary.areaSqm)} m² · ${pct(boundary.confidence, 0)}`}
+              />
+              <Metric
+                label={candidateLabel(t, pending)}
+                value={`${num(pending.areaSqm)} m² · ${pct(pending.confidence, 0)}`}
+              />
+            </div>
+          )}
+          {pending && pending.confidence < boundary.confidence && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {t("dashboard.detailDialog.boundaryAdoptWeaker")}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setPending(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={() => {
+                const candidate = pending;
+                setPending(null);
+                if (candidate) void adopt(candidate);
+              }}
+            >
+              {t("dashboard.detailDialog.boundaryAdopt")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <details className="rounded-md border bg-muted/20 text-xs">
         <summary className="px-2 py-1.5 font-medium text-muted-foreground">

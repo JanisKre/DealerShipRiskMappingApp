@@ -676,7 +676,8 @@ export function parcelStage(input: CascadeInput): StageOutcome {
 /**
  * Runs stages 1–4 in order and stops at the first that accepts. Later stages
  * still run so their geometry can be offered as an alternative, but they never
- * change the chosen result.
+ * change the chosen result. The vehicle outline is not offered next to
+ * well-covering parcels.
  */
 export function runCascade(input: CascadeInput): CascadeOutcome {
   const trace: string[] = [];
@@ -692,7 +693,15 @@ export function runCascade(input: CascadeInput): CascadeOutcome {
     const outcome = run(input);
     alternatives.push(...outcome.alternatives);
     if (chosen) {
-      if (outcome.result) alternatives.push(outcome.result);
+      // Parcels that hold most of the lot leave the vehicle outline nothing
+      // to add: it only follows parked cars into the street.
+      const outlineAfterGoodParcels =
+        stage === 2 &&
+        chosen.stage === 1 &&
+        chosen.result.confidence >= CASCADE_CONFIDENCE.vehicleParcels;
+      if (outcome.result && !outlineAfterGoodParcels) {
+        alternatives.push(outcome.result);
+      }
       continue;
     }
     trace.push(`stage ${stage}: ${outcome.reason}`);

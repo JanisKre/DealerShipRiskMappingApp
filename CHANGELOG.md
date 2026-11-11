@@ -72,6 +72,13 @@ the project follows [Semantic Versioning](https://semver.org/).
   previous/next arrows step through the portfolio, and notes save
   automatically. Duplicate figures, positive "system messages" and the
   empty hail-source block are gone; candidate labels are translated.
+- Taking another boundary suggestion now asks first (area and confidence of
+  both, with a warning when it is less certain), offers "Undo" afterwards,
+  and records that it was chosen manually. "Original boundary" restores the
+  automatic result and recounts the vehicles. The vehicle outline is no
+  longer offered next to parcels that already hold most of the vehicles,
+  and a reviewer's earlier choice no longer replaces the original as the
+  restore target.
 
 ### Removed
 

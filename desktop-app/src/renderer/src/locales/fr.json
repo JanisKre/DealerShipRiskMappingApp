@@ -519,7 +519,14 @@
         "parcel": "Parcelle au point",
         "osmDealerArea": "Zone concession OSM",
         "synthetic": "Cercle autour du point"
-      }
+      },
+      "boundaryAdopted": "« {{label}} » appliqué ; les véhicules ont été recomptés.",
+      "boundaryRestore": "Limite d’origine",
+      "boundaryRestoreHint": "Revenir à « {{label}} » ({{area}} m²) et recompter les véhicules",
+      "boundaryAdoptTitle": "Remplacer la limite ?",
+      "boundaryAdoptDescription": "Les véhicules sont recomptés dans la nouvelle limite. Vous pourrez annuler ensuite.",
+      "boundaryCurrent": "Limite actuelle",
+      "boundaryAdoptWeaker": "Cette proposition est moins sûre que la limite actuelle."
     }
   },
   "map": {

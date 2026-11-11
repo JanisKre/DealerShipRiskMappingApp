@@ -450,10 +450,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateBoundaryAndRescore: async (id, boundary) => {
     const before = get().dealerships.find((x) => x.id === id);
     if (!before?.boundary) return;
-    const baseBoundary =
-      before.boundary.source === "manual"
-        ? (before.boundaryBeforeManualEdit ?? before.boundary)
-        : before.boundary;
+    // A reviewer's earlier change (a manual edit, or a confirmed choice of
+    // another suggestion) must not become the revert target: keep the
+    // original automatic boundary across several changes.
+    const reviewed =
+      before.boundary.source === "manual" ||
+      before.boundary.confirmedAt != null;
+    const baseBoundary = reviewed
+      ? (before.boundaryBeforeManualEdit ?? before.boundary)
+      : before.boundary;
 
     // 1) Write the boundary + area back immediately so it's visible and keep
     // the first non-manual boundary as the durable revert target.

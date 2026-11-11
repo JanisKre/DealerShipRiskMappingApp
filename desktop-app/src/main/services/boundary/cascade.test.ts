@@ -276,6 +276,20 @@ describe("cascade order", () => {
     );
   });
 
+  it("does not offer the vehicle outline next to well-covering parcels", () => {
+    const outcome = runCascade(
+      input({
+        parcels: [parcel(rect(-30, -30, 30, 30))],
+        vehicles: cars(-25, -25, 25, 25),
+      }),
+    );
+    expect(outcome.stage).toBe(1);
+    expect(outcome.result?.confidence).toBe(CASCADE_CONFIDENCE.vehicleParcels);
+    expect(outcome.alternatives.map((a) => a.provider)).not.toContain(
+      "vehicle-hull",
+    );
+  });
+
   it("outlines the vehicles where there is no cadastre", () => {
     const outcome = runCascade(input({ vehicles: cars(-25, -25, 25, 25) }));
     expect(outcome.stage).toBe(2);

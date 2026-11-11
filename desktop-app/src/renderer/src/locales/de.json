@@ -728,7 +728,14 @@
         "parcel": "Flurstück am Punkt",
         "osmDealerArea": "OSM-Händlerfläche",
         "synthetic": "Kreis um den Punkt"
-      }
+      },
+      "boundaryAdopted": "„{{label}}“ übernommen; die Fahrzeuge wurden neu gezählt.",
+      "boundaryRestore": "Ursprüngliche Grenze",
+      "boundaryRestoreHint": "Zurück zu „{{label}}“ ({{area}} m²) und Fahrzeuge neu zählen",
+      "boundaryAdoptTitle": "Grenze ersetzen?",
+      "boundaryAdoptDescription": "Die Fahrzeuge werden in der neuen Grenze neu gezählt. Du kannst das danach rückgängig machen.",
+      "boundaryCurrent": "Aktuelle Grenze",
+      "boundaryAdoptWeaker": "Der Vorschlag ist weniger sicher als die aktuelle Grenze."
     },
     "hailEal": "Hagel-EAL",
     "hailZone": "Hagelzone",
