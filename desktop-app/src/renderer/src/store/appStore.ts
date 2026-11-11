@@ -45,6 +45,13 @@ interface AppState {
   progress: { done: number; total: number; startedAt: number } | null;
   /** Last error per location from a batch analysis. */
   analysisErrors: Record<string, string>;
+  /**
+   * The input of every failed analysis, by id. A row that never got
+   * coordinates is not in `dealerships`, so its name and its retry need it.
+   */
+  failedInputs: Record<string, DealershipInput>;
+  /** Analyses every failed location again (also those never placed on the map). */
+  retryFailedAnalyses: () => Promise<void>;
   /** Requests that the current batch stop after the active item. */
   analysisCancelRequested: boolean;
   /** IDs whose background analysis is currently running (pin feedback). */
@@ -297,6 +304,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   analyzing: false,
   progress: null,
   analysisErrors: {},
+  failedInputs: {},
   analysisCancelRequested: false,
   analyzingIds: [],
   pendingBoundaryDetectionIds: [],
@@ -428,6 +436,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       detectionUpdateIds: [],
       detectionUpdateErrors: {},
       analysisErrors: {},
+      failedInputs: {},
       analysisCancelRequested: false,
     }),
   upsertDealership: (d) =>
@@ -894,6 +903,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         analysisErrors: Object.fromEntries(
           Object.entries(s.analysisErrors).filter(([id]) => !idSet.has(id)),
         ),
+        failedInputs: Object.fromEntries(
+          Object.entries(s.failedInputs).filter(([id]) => !idSet.has(id)),
+        ),
       };
     }),
 
@@ -1013,12 +1025,28 @@ export const useAppStore = create<AppState>((set, get) => ({
       dealerships: [],
       analyzingIds: [],
       analysisErrors: {},
+      failedInputs: {},
       analysisCancelRequested: false,
     });
     await runAnalysisQueue(inputs, set, get);
   },
 
   cancelAnalysis: () => set({ analysisCancelRequested: true }),
+
+  retryFailedAnalyses: async () => {
+    const { analysisErrors, failedInputs, dealerships } = get();
+    const inputs = Object.keys(analysisErrors).flatMap((id) => {
+      const input = failedInputs[id] ?? dealerships.find((d) => d.id === id);
+      return input ? [input] : [];
+    });
+    if (inputs.length === 0 || get().analyzing) return;
+    set({
+      analyzing: true,
+      progress: { done: 0, total: inputs.length, startedAt: Date.now() },
+      analysisCancelRequested: false,
+    });
+    await runAnalysisQueue(inputs, set, get);
+  },
 
   addAndAnalyze: async (inputs) => {
     // Deduplicate new locations against the existing set: existing entries
@@ -1181,10 +1209,10 @@ function resetToBlankPortfolio(
   get().setParameters(DEFAULT_RISK_PARAMETERS);
 }
 
-function withoutKey(
-  values: Record<string, string>,
+function withoutKey<T>(
+  values: Record<string, T>,
   key: string,
-): Record<string, string> {
+): Record<string, T> {
   if (!(key in values)) return values;
   const copy = { ...values };
   delete copy[key];
@@ -1262,6 +1290,7 @@ async function runAnalysisQueue(
       set((s) => ({
         analyzingIds: [...s.analyzingIds, input.id],
         analysisErrors: withoutKey(s.analysisErrors, input.id),
+        failedInputs: withoutKey(s.failedInputs, input.id),
       }));
       try {
         const result = await window.api.analyzeDealership(
@@ -1274,6 +1303,7 @@ async function runAnalysisQueue(
         console.error(`Analysis failed for ${input.name}:`, err);
         set((s) => ({
           analysisErrors: { ...s.analysisErrors, [input.id]: message },
+          failedInputs: { ...s.failedInputs, [input.id]: input },
         }));
       }
       done++;

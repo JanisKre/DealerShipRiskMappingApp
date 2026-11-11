@@ -6,6 +6,7 @@ import { cn } from "@renderer/lib/utils";
 import { boundarySourceLabel } from "@renderer/lib/boundarySource";
 import { sourceColor } from "./BoundaryLayer";
 import type { BoundarySource } from "@shared/types";
+import type { LegendPresence } from "@renderer/lib/legendPresence";
 import {
   IMAGERY_STALE_AFTER_YEARS,
   imageryAgeYears,
@@ -21,7 +22,6 @@ const CURRENT_SOURCES: BoundarySource[] = [
   "aerial",
   "osm",
   "synthetic",
-  "manual",
 ];
 
 /**
@@ -33,7 +33,7 @@ export function MapLegend({
   imagery,
   showImagery = false,
   showClusterNote = false,
-  boundarySources = [],
+  present,
 }: Readonly<{
   /** Metadata at the map centre; null while the first lookup is pending. */
   imagery?: ImagerySelection | null;
@@ -41,16 +41,30 @@ export function MapLegend({
   showImagery?: boolean;
   /** Accumulation clusters are shown: explain their opacity. */
   showClusterNote?: boolean;
-  /** Sources of the boundaries on the map; older ones are listed only then. */
-  boundarySources?: BoundarySource[];
+  /**
+   * What the locations in view show. Entries they don't use are greyed out;
+   * older boundary sources are listed only then. Undefined: nothing greyed.
+   */
+  present?: LegendPresence;
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const boundarySources = present?.boundarySources ?? [];
+  const absent = {
+    zone: (zone: number) =>
+      present != null && !present.hailZones.includes(zone),
+    business: (type: "existing" | "new") =>
+      present != null && !present.business.includes(type),
+    source: (source: BoundarySource) =>
+      present != null && !boundarySources.includes(source),
+  };
   // Boundaries from engines that no longer exist keep their colour, so they
   // are explained only while such a boundary is on the map.
-  const sources = [
+  const automaticSources = [
     ...CURRENT_SOURCES,
-    ...boundarySources.filter((s) => !CURRENT_SOURCES.includes(s)),
+    ...boundarySources.filter(
+      (s) => s !== "manual" && !CURRENT_SOURCES.includes(s),
+    ),
   ];
 
   return (
@@ -77,6 +91,7 @@ export function MapLegend({
                 key={zone}
                 color={hailZoneColor(zone)}
                 label={t("dashboard.zoneShort", { zone })}
+                muted={absent.zone(zone)}
               />
             ))}
             {showClusterNote && (
@@ -89,17 +104,33 @@ export function MapLegend({
             <BusinessLegendRow
               hollow={false}
               label={t("map.legend.existingBusiness")}
+              muted={absent.business("existing")}
             />
-            <BusinessLegendRow hollow label={t("map.legend.newBusiness")} />
+            <BusinessLegendRow
+              hollow
+              label={t("map.legend.newBusiness")}
+              muted={absent.business("new")}
+            />
           </LegendGroup>
           <LegendGroup title={t("map.legend.boundarySource")} single>
-            {sources.map((source) => (
+            {/* A boundary someone edited is drawn as manual whatever its
+                source was; every other boundary in its source's colour. */}
+            <LegendRow
+              color={sourceColor("manual")}
+              label={t("map.legend.boundaryManual")}
+              outline
+              muted={absent.source("manual")}
+            />
+            <div className="mt-1 text-muted-foreground">
+              {t("map.legend.boundaryAutomatic")}
+            </div>
+            {automaticSources.map((source) => (
               <LegendRow
                 key={source}
                 color={sourceColor(source)}
                 label={boundarySourceLabel(t, source)}
                 outline
-                muted={!boundarySources.includes(source)}
+                muted={absent.source(source)}
               />
             ))}
           </LegendGroup>
@@ -108,6 +139,7 @@ export function MapLegend({
               color="#2563eb"
               label={t("map.legend.carCategory")}
               dot
+              muted={present != null && !present.vehicles}
             />
           </LegendGroup>
           {showImagery && (
@@ -382,10 +414,20 @@ function LegendRow({
 function BusinessLegendRow({
   hollow,
   label,
-}: Readonly<{ hollow: boolean; label: string }>): React.JSX.Element {
+  muted,
+}: Readonly<{
+  hollow: boolean;
+  label: string;
+  muted?: boolean;
+}>): React.JSX.Element {
   const color = hollow ? "#a21caf" : "#1d4ed8";
   return (
-    <div className="flex items-center gap-1.5">
+    <div
+      className={cn(
+        "flex items-center gap-1.5",
+        muted && "text-muted-foreground opacity-60",
+      )}
+    >
       <span
         aria-hidden
         className="mx-0.5 size-2.5 shrink-0 -rotate-45"

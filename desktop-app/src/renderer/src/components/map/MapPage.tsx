@@ -66,6 +66,7 @@ import { HailZoneLayer } from "./HailZoneLayer";
 import { LayerPanel } from "./LayerPanel";
 import { DeleteSelectedDialog } from "./LocationsPanel";
 import { MapLegend } from "./MapLegend";
+import { legendPresence, type ViewBounds } from "@renderer/lib/legendPresence";
 import { NearbyInsuredLayer } from "./NearbyInsuredLayer";
 import { ViewPersistence } from "./ViewPersistence";
 
@@ -104,10 +105,17 @@ const BBOX_TEMPLATE_OPTION = {
 /** Max zoom of the base TileLayer; imagery metadata is resolved at the level actually drawn. */
 const BASEMAP_MAX_ZOOM = 19;
 
-/** Reports the map centre + zoom once on mount and after every pan/zoom. */
+/**
+ * Reports the map centre + zoom, and the visible area, once on mount and
+ * after every pan/zoom.
+ */
 function MapViewReporter({
   onChange,
-}: Readonly<{ onChange: (view: MapViewPoint) => void }>): null {
+  onBounds,
+}: Readonly<{
+  onChange: (view: MapViewPoint) => void;
+  onBounds: (bounds: ViewBounds) => void;
+}>): null {
   const map = useMapEvents({ moveend: () => report() });
   function report(): void {
     const c = map.getCenter();
@@ -115,6 +123,13 @@ function MapViewReporter({
       lat: c.lat,
       lon: c.lng,
       zoom: Math.min(BASEMAP_MAX_ZOOM, Math.round(map.getZoom())),
+    });
+    const b = map.getBounds();
+    onBounds({
+      south: b.getSouth(),
+      west: b.getWest(),
+      north: b.getNorth(),
+      east: b.getEast(),
     });
   }
   useEffect(report, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -249,6 +264,8 @@ export function MapPage(): React.JSX.Element {
   const analyzing = useAppStore((s) => s.analyzing);
   const progress = useAppStore((s) => s.progress);
   const analysisErrors = useAppStore((s) => s.analysisErrors);
+  const failedInputs = useAppStore((s) => s.failedInputs);
+  const retryFailedAnalyses = useAppStore((s) => s.retryFailedAnalyses);
   const cancelAnalysis = useAppStore((s) => s.cancelAnalysis);
   const detectionUpdateIds = useAppStore((s) => s.detectionUpdateIds);
   const detectionUpdateErrors = useAppStore((s) => s.detectionUpdateErrors);
@@ -289,6 +306,7 @@ export function MapPage(): React.JSX.Element {
     useState<DetectionEditDraft | null>(null);
 
   const [mapView, setMapView] = useState<MapViewPoint | null>(null);
+  const [viewBounds, setViewBounds] = useState<ViewBounds | null>(null);
   const { selection: resolvedImagery, loading: imageryLoading } =
     useImagerySelection(mapView, basemap === "satellite");
   // A state orthophoto only covers its own state. Zoomed out past a single
@@ -377,19 +395,16 @@ export function MapPage(): React.JSX.Element {
 
   const visibleDealerships = portfolioFiltered;
 
-  // Which boundary sources the map shows, so the legend can highlight them.
-  const boundarySourcesOnMap = useMemo(
+  // What the locations in view show, so the legend can grey out the rest.
+  const presence = useMemo(
     () =>
-      layers.boundaries
-        ? [
-            ...new Set(
-              visibleDealerships.flatMap((d) =>
-                d.boundary ? [d.boundary.source] : [],
-              ),
-            ),
-          ]
-        : [],
-    [layers.boundaries, visibleDealerships],
+      legendPresence(visibleDealerships, {
+        bounds: viewBounds,
+        zoom: mapView?.zoom ?? 0,
+        selectedId,
+        layers,
+      }),
+    [visibleDealerships, viewBounds, mapView?.zoom, selectedId, layers],
   );
 
   // Surface every low-confidence/estimated boundary, not only synthetic buffers.
@@ -406,7 +421,7 @@ export function MapPage(): React.JSX.Element {
       ? (withCoords.find((d) => d.id === selectedId) ?? null)
       : null;
   const nameOf = (id: string): string =>
-    dealerships.find((d) => d.id === id)?.name ?? id;
+    dealerships.find((d) => d.id === id)?.name ?? failedInputs[id]?.name ?? id;
   const analyzingNames = analyzingIds.map(nameOf);
   const failedNames = Object.keys(analysisErrors).map(nameOf);
   // A new batch brings new errors to read.
@@ -635,9 +650,43 @@ export function MapPage(): React.JSX.Element {
   // conspicuous "max zoom / layer = 17" error tiles.
   const tileMaxNativeZoom = basemap === "terrain" ? 17 : undefined;
 
+  // Shown on the map and on the empty state: when every imported row fails,
+  // nothing reaches the map, and this is the only way back.
+  const errorNotice =
+    !analyzing && !errorsDismissed && Object.keys(analysisErrors).length > 0 ? (
+      <div className={cn(NOTICE_CLASS, "border-destructive/40")}>
+        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="font-medium">
+            {t("map.page.analysisErrors", {
+              count: Object.keys(analysisErrors).length,
+            })}
+          </div>
+          <p className="line-clamp-2 text-xs text-muted-foreground">
+            {failedNames.join(" · ")}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={() => void retryFailedAnalyses()}
+          >
+            <RefreshCw className="size-3" />
+            {t("map.page.retryAnalysis")}
+          </Button>
+        </div>
+        <DismissButton
+          label={t("map.page.dismissHint")}
+          onClick={() => setErrorsDismissed(true)}
+        />
+      </div>
+    ) : null;
+
   if (withCoords.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
+        {errorNotice}
         <EmptyState
           icon={MapPinned}
           title={t("map.page.emptyTitle")}
@@ -666,7 +715,7 @@ export function MapPage(): React.JSX.Element {
           {...BBOX_TEMPLATE_OPTION}
         />
         <MapResizer />
-        <MapViewReporter onChange={setMapView} />
+        <MapViewReporter onChange={setMapView} onBounds={setViewBounds} />
         <ZoomControl />
 
         {layers.hailZones && <HailZoneLayer />}
@@ -846,41 +895,7 @@ export function MapPage(): React.JSX.Element {
           </div>
         )}
 
-        {!analyzing &&
-          !errorsDismissed &&
-          Object.keys(analysisErrors).length > 0 && (
-            <div className={cn(NOTICE_CLASS, "border-destructive/40")}>
-              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="font-medium">
-                  {t("map.page.analysisErrors", {
-                    count: Object.keys(analysisErrors).length,
-                  })}
-                </div>
-                <p className="line-clamp-2 text-xs text-muted-foreground">
-                  {failedNames.join(" · ")}
-                </p>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={() => {
-                    for (const id of Object.keys(analysisErrors)) {
-                      void reanalyzeDealership(id);
-                    }
-                  }}
-                >
-                  <RefreshCw className="size-3" />
-                  {t("map.page.retryAnalysis")}
-                </Button>
-              </div>
-              <DismissButton
-                label={t("map.page.dismissHint")}
-                onClick={() => setErrorsDismissed(true)}
-              />
-            </div>
-          )}
+        {errorNotice}
 
         {editing && boundaryEditIds.length === 0 && (
           <div className={NOTICE_CLASS}>
@@ -1052,7 +1067,7 @@ export function MapPage(): React.JSX.Element {
       {/* Legend bottom left; portfolio filters live in the layer panel */}
       <div className="absolute bottom-6 left-3 z-[1000] flex flex-col gap-2">
         <MapLegend
-          boundarySources={boundarySourcesOnMap}
+          present={presence}
           showClusterNote={layers.accumulationClusters}
           imagery={shownImagery}
           showImagery={basemap === "satellite"}

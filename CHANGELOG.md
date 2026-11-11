@@ -7,6 +7,8 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] – 2026-11-11
+
 ### Added
 
 - Change history per location (detail dialog → Sources): analyses, confirmed
@@ -21,6 +23,14 @@ the project follows [Semantic Versioning](https://semver.org/).
   and Rheinland-Pfalz (14 of 16 states). Bayern and Saarland have no open
   service yet.
 
+### Fixed
+
+- Import: a row that could not be analysed (for example an address that
+  cannot be found) is now named in the error notice instead of showing an
+  internal ID, and "Retry" analyses it again. Before, retry did nothing for
+  rows that never reached the map. When every row fails, the notice now also
+  shows on the empty map.
+
 ### Security
 
 - Website: updated vite to 7.3.7 for the `launch-editor` file-existence check
@@ -33,6 +43,13 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Map legend: boundary sources are split into "Manually adjusted" (green;
+  every boundary someone edited on the map, whatever its source was) and
+  "Automatic, by source" (cadastre, vehicle outline, OSM, estimated circle).
+- Map legend: hail zones, business types, boundary sources and vehicles that
+  no location in the current map view uses are greyed out. Zoomed in on one
+  location, only its entries stay active; zoomed out, those of every location
+  in view. With the hail-zone layer on, all zones stay active.
 - The vehicle model loads in the background at app start, so the first
   analysis does not wait for it.
 - Vehicle detection runs on two inference processes on machines with four or
@@ -499,7 +516,8 @@ the project follows [Semantic Versioning](https://semver.org/).
 - Export as PDF, Excel, CSV, plus portfolio file (`.drm`).
 - i18n (de / en / fr).
 
-[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.4.0
 [0.3.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.3.0
 [0.2.1]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.2.1
 [0.2.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.2.0

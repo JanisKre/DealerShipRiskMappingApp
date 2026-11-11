@@ -4,6 +4,7 @@ import type { LatLngBounds } from "leaflet";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { point as turfPoint } from "@turf/helpers";
 import type { AnalyzedDealership, ManualVehiclePoint } from "@shared/types";
+import { ALL_DETECTIONS_MIN_ZOOM } from "@renderer/lib/legendPresence";
 
 /** In-memory changes made while the map review mode is active. */
 export interface DetectionEditDraft {
@@ -11,13 +12,6 @@ export interface DetectionEditDraft {
   manualVehiclePoints: ManualVehiclePoint[];
   manualVehicleRemovedPoints: ManualVehiclePoint[];
 }
-
-/**
- * Below this zoom only the selected location's vehicles are drawn. Dots are
- * illegible further out anyway, and a large portfolio has tens of thousands
- * of them — drawing every one as an SVG circle freezes the renderer.
- */
-const ALL_DETECTIONS_MIN_ZOOM = 15;
 
 function samePoint(a: ManualVehiclePoint, b: ManualVehiclePoint): boolean {
   return (

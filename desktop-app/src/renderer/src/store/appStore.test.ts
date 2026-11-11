@@ -43,6 +43,7 @@ beforeEach(() => {
     progress: null,
     analyzingIds: [],
     analysisErrors: {},
+    failedInputs: {},
     analysisCancelRequested: false,
   });
 });
@@ -63,6 +64,32 @@ describe("analysis batch controls", () => {
       one: "network unavailable",
     });
     expect(useAppStore.getState().dealerships).toHaveLength(1);
+    expect(useAppStore.getState().analyzing).toBe(false);
+  });
+
+  it("retries a failed location that never reached the map", async () => {
+    api.analyzeDealership.mockRejectedValueOnce(new Error("not geocoded"));
+    await useAppStore.getState().analyzeAll([firstInput]);
+    expect(useAppStore.getState().dealerships).toHaveLength(0);
+    expect(useAppStore.getState().failedInputs.one?.name).toBe(
+      "First dealership",
+    );
+
+    api.analyzeDealership.mockResolvedValueOnce({
+      ...firstInput,
+      risk: { overallScore: 20 },
+    } as AnalyzedDealership);
+    await useAppStore.getState().retryFailedAnalyses();
+
+    expect(api.analyzeDealership).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "one", name: "First dealership" }),
+      expect.anything(),
+    );
+    expect(useAppStore.getState().dealerships.map((d) => d.id)).toEqual([
+      "one",
+    ]);
+    expect(useAppStore.getState().analysisErrors).toEqual({});
+    expect(useAppStore.getState().failedInputs).toEqual({});
     expect(useAppStore.getState().analyzing).toBe(false);
   });
 
