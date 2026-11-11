@@ -1,7 +1,9 @@
 import { BrowserWindow, ClipboardItem, clipboard, dialog } from "electron";
 import { readFile, writeFile } from "fs/promises";
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+// Named import: the CJS build Electron loads exports `autoTable` and a
+// `default` property, so a default import calls the module object itself.
+import { autoTable } from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import type { AnalyzedDealership, Session } from "@shared/types";
 import { SessionSchema } from "@shared/types";
