@@ -1,7 +1,7 @@
 import { Loader2, Sparkles, User } from "lucide-react";
 import type { ChatMessage } from "@shared/types";
 import { cn } from "@renderer/lib/utils";
-import { Markdown } from "@renderer/components/ai/ExecutiveSummary";
+import { Markdown } from "@renderer/components/ai/Markdown";
 
 /**
  * Eine Chat-Blase (User rechts, Assistent links). User-Text wird literal

@@ -14,7 +14,7 @@ import { Input } from "@renderer/components/ui/input";
 import { buildSessionContext } from "@renderer/lib/sessionContext";
 import { useLlmStream } from "@renderer/lib/useLlmStream";
 import { toNlQueryDealership, useAppStore } from "@renderer/store/appStore";
-import { Markdown } from "./ExecutiveSummary";
+import { Markdown } from "./Markdown";
 
 const EXAMPLE_KEYS = [
   "ai.exampleHighHail",

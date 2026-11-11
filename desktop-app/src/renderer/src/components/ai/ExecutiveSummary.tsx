@@ -14,6 +14,7 @@ import { buildSessionContext } from "@renderer/lib/sessionContext";
 import { useLlmStream } from "@renderer/lib/useLlmStream";
 import { useAppStore } from "@renderer/store/appStore";
 import { computeClusterRisk } from "@shared/risk-math";
+import { Markdown } from "./Markdown";
 
 /** Minimum number of analyzed locations from which the concentration metric is meaningful. */
 const MIN_ANALYZED_FOR_SUMMARY = 2;
@@ -119,42 +120,4 @@ function concentrationBadge(
     }).format(share),
     severe: share >= 0.5,
   };
-}
-
-/**
- * Minimal markdown renderer for streamed output (## headings, lists,
- * paragraphs). Deliberately lightweight — no external dependency.
- */
-export function Markdown({ text }: { text: string }): React.JSX.Element {
-  const blocks = text.split("\n").map((line, i) => {
-    const key = `${i}-${line.slice(0, 8)}`;
-    if (line.startsWith("## ")) {
-      return (
-        <h3 key={key} className="mt-3 text-sm font-semibold">
-          {line.slice(3)}
-        </h3>
-      );
-    }
-    if (line.startsWith("# ")) {
-      return (
-        <h2 key={key} className="mt-3 text-base font-semibold">
-          {line.slice(2)}
-        </h2>
-      );
-    }
-    if (/^\s*[-*]\s+/.test(line)) {
-      return (
-        <li key={key} className="ml-4 list-disc text-sm">
-          {line.replace(/^\s*[-*]\s+/, "")}
-        </li>
-      );
-    }
-    if (line.trim() === "") return <div key={key} className="h-2" />;
-    return (
-      <p key={key} className="text-sm">
-        {line}
-      </p>
-    );
-  });
-  return <div className="space-y-0.5">{blocks}</div>;
 }

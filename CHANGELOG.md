@@ -24,20 +24,31 @@ the project follows [Semantic Versioning](https://semver.org/).
   match of street, number and postcode replaces Nominatim's point, which
   often lies on the street. The boundary's provenance names the source.
 
+### Changed
+
+- AI chat answers are short and stick to the question: lead with the
+  answer, about 120 words at most unless more detail is asked for, no
+  unasked summaries or recommendations, and a hard cap of 1,024 tokens.
+  The chat now also knows each location's status, hail zone, vehicle count
+  with its source and image date, exposure, EAL, review flag, the largest
+  accumulation clusters and which location is selected on the map.
+  Underwriting notes are still never sent.
+- AI answers render Markdown fully: bold, italic, strikethrough, inline code,
+  numbered and nested lists, tables, quotes and code blocks. Previously
+  `**bold**` showed its asterisks. Links show their text, with the address
+  as tooltip.
+- Licence: the project is licensed under PolyForm Noncommercial 1.0.0. Use,
+  study, changes and sharing are free for any noncommercial purpose (personal
+  use, research, teaching, charities, public institutions); commercial use
+  needs a separate licence from the author. Contributions are accepted under
+  the terms in CONTRIBUTING.md.
+
 ### Removed
 
 - The executive summary at the top of the AI chat panel. The chat now opens
   empty and answers only what is asked.
 - The "Light" and "Dark" basemaps. Satellite, Streets and Terrain remain; a
   saved light or dark choice opens as Streets.
-
-### Changed
-
-- Licence: the project is licensed under PolyForm Noncommercial 1.0.0. Use,
-  study, changes and sharing are free for any noncommercial purpose (personal
-  use, research, teaching, charities, public institutions); commercial use
-  needs a separate licence from the author. Contributions are accepted under
-  the terms in CONTRIBUTING.md.
 
 ## [0.4.0] – 2026-11-11
 
