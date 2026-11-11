@@ -77,6 +77,15 @@ const VEHICLE_TRADE_TYPES = new Set([
   "amenity:car_rental",
 ]);
 
+/** A vehicle-trade POI carrying the dealership's name: the site itself. */
+export function isSitePoi(hit: GeocodeCandidate, name?: string): boolean {
+  return (
+    VEHICLE_TRADE_TYPES.has(`${hit.category}:${hit.type}`) &&
+    hit.name != null &&
+    matchesSite({ name: hit.name }, name)
+  );
+}
+
 /** Below this score gap, two hits further apart than `AMBIGUOUS_DISTANCE_M` are ambiguous. */
 const AMBIGUOUS_SCORE_GAP = 1;
 const AMBIGUOUS_DISTANCE_M = 100;

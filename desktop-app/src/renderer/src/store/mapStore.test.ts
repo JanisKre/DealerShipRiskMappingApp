@@ -18,7 +18,7 @@ describe("mergePersistedMapState", () => {
     },
   );
 
-  it.each(["satellite", "streets", "terrain"] as const)(
+  it.each(["satellite", "official", "streets", "terrain"] as const)(
     "keeps the saved basemap %s",
     (basemap) => {
       expect(mergePersistedMapState({ basemap }, current()).basemap).toBe(

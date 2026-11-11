@@ -661,6 +661,7 @@
       "activeCount": "{{count}} actives",
       "basemapSectionTitle": "Fond de carte",
       "basemapSelectAriaLabel": "Choisir le fond de carte",
+      "basemapOfficial": "Carte officielle (basemap.de)",
       "basemapTerrain": "Relief",
       "parcelsLayerLabel": "Parcelles cadastrales (ALKIS)",
       "parcelsLayerHint": "Limites parcellaires officielles des Länder, visibles à partir du zoom 17. À titre indicatif, sans valeur juridique. Pas de service ouvert pour la Sarre.",

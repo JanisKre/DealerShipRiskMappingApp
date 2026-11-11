@@ -75,6 +75,11 @@ import { ViewPersistence } from "./ViewPersistence";
 const TILE_URLS: Record<Basemap, string> = {
   satellite:
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  // basemap.de Web Raster (BKG/AdV): the official German topographic map,
+  // built from ALKIS buildings, so it lines up with the parcel overlay.
+  // Germany only; elsewhere the tiles are empty.
+  official:
+    "https://sgx.geodatenzentrum.de/wmts_basemapde/tile/1.0.0/de_basemapde_web_raster_farbe/default/GLOBAL_WEBMERCATOR/{z}/{y}/{x}.png",
   streets: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
   terrain: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
 };
@@ -84,6 +89,7 @@ function tileAttributions(t: TFunction): Record<Basemap, string> {
   const osm = t("map.page.attributionOsm");
   return {
     satellite: "&copy; Esri World Imagery",
+    official: `&copy; GeoBasis-DE / BKG (${new Date().getFullYear()}) CC BY 4.0`,
     streets: `&copy; ${osm}`,
     terrain: `&copy; ${osm}, SRTM; &copy; OpenTopoMap`,
   };

@@ -11,7 +11,13 @@ import {
   filterDetectionToBoundary,
 } from "./detection.service";
 import { maskRoofDetections } from "./detection/roof-mask.service";
-import { geocodeCandidates, pickGeocodeHit } from "./geocoding.service";
+import { fetchOfficialBuildings } from "./alkis-buildings.service";
+import { officialHouseCoordinate } from "./house-coordinates.service";
+import {
+  geocodeCandidates,
+  isSitePoi,
+  pickGeocodeHit,
+} from "./geocoding.service";
 import { websiteFromEvidence } from "./osmDetails.service";
 import { scoreRisk } from "./risk.service";
 import { aerialImageForContext } from "./tiles.service";
@@ -85,18 +91,49 @@ async function detectWebsite(
  * the dealership POI where the address query only finds the street; both are
  * scored together (`pickGeocodeHit`), address hits first so ties keep the old
  * behaviour. The name query is best effort.
+ *
+ * Where the state publishes house coordinates, an exact match of street,
+ * number and postcode near the pick replaces it: Nominatim often lands on
+ * the street or interpolates the number. The dealership's own POI is kept,
+ * since it marks the lot rather than the address building.
  */
 async function geocodeDealership(
   address: string,
   name?: string,
-): Promise<{ lat: number; lon: number; ambiguity?: string }> {
+): Promise<{ lat: number; lon: number; ambiguity?: string; source?: string }> {
   const byAddress = await geocodeCandidates(address);
   const byName = name
     ? await geocodeCandidates(`${name}, ${address}`).catch(() => [])
     : [];
   const pick = pickGeocodeHit([...byAddress, ...byName], { name, address });
   if (!pick) throw new Error(`Address could not be resolved: ${address}`);
+  if (!isSitePoi(pick.hit, name)) {
+    const official = await officialHouseCoordinate(address, pick.hit);
+    if (official) {
+      return {
+        lat: official.lat,
+        lon: official.lon,
+        ambiguity: pick.ambiguity,
+        source: `official house coordinate (ALKIS ${official.state})`,
+      };
+    }
+  }
   return { lat: pick.hit.lat, lon: pick.hit.lon, ambiguity: pick.ambiguity };
+}
+
+/** Notes on the boundary's provenance where the anchor came from. */
+function withAnchorSource(
+  boundary: BoundaryResult,
+  source: string | undefined,
+): BoundaryResult {
+  if (!source || !boundary.evidence) return boundary;
+  return {
+    ...boundary,
+    evidence: {
+      ...boundary.evidence,
+      method: `${boundary.evidence.method}; anchor: ${source}`,
+    },
+  };
 }
 
 /** Records an ambiguous anchor on the boundary and sends it to review. */
@@ -135,6 +172,7 @@ export async function analyzeDealership(
   const timer = new StepTimer();
   let { lat, lon } = input;
   let anchorAmbiguity: string | undefined;
+  let anchorSource: string | undefined;
 
   if ((lat == null || lon == null) && input.address) {
     const anchor = await timer.time(
@@ -144,6 +182,7 @@ export async function analyzeDealership(
     lat = anchor.lat;
     lon = anchor.lon;
     anchorAmbiguity = anchor.ambiguity;
+    anchorSource = anchor.source;
   }
   if (lat == null || lon == null) {
     throw new Error(
@@ -159,6 +198,9 @@ export async function analyzeDealership(
 
   const osmDeadline =
     Date.now() + (hasCustomOverpass() ? OSM_WAIT_OWN_SERVER_MS : OSM_WAIT_MS);
+  // Started now so the official footprints are usually in by the time the
+  // roof mask runs after imagery and detection; the mask joins this request.
+  void fetchOfficialBuildings(siteLat, siteLon);
 
   // Detection uses the whole context image, independently of the boundary
   // (P5): the vehicles are what the boundary is built from, so a boundary
@@ -203,7 +245,10 @@ export async function analyzeDealership(
     timer.time("natcat", resolveNatCat(siteLat, siteLon)),
   ]);
   const contextImage = context.image;
-  const boundary = withAnchorAmbiguity(rawBoundary, anchorAmbiguity);
+  const boundary = withAnchorSource(
+    withAnchorAmbiguity(rawBoundary, anchorAmbiguity),
+    anchorSource,
+  );
 
   // The boundary is applied only as a spatial filter, reusing the same
   // detection rather than re-running it.

@@ -281,7 +281,7 @@ const STATE_BBOXES: StateBbox[] = [
 ];
 
 /** Candidate states for a coordinate, smallest (enclaves) first — bboxes deliberately overlap. */
-function statesForPoint(lat: number, lon: number): string[] {
+export function statesForPoint(lat: number, lon: number): string[] {
   return STATE_BBOXES.filter(
     (b) =>
       lat >= b.minLat && lat <= b.maxLat && lon >= b.minLon && lon <= b.maxLon,

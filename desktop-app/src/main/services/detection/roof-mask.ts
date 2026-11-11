@@ -1,6 +1,7 @@
 import type { DetectionBox, DetectionResult } from "@shared/types";
 import { distanceToRingM, type LonLat } from "../boundary-geometry";
 import type { OsmEvidence } from "../boundary/osm-overpass";
+import type { OfficialBuilding } from "../alkis-buildings.service";
 
 /**
  * Roof masking for vehicle detections.
@@ -9,6 +10,8 @@ import type { OsmEvidence } from "../boundary/osm-overpass";
  * solar panel rows, roof vents and parked-car-sized roof fixtures as vehicles,
  * and those false positives inflate exposure directly. Detections whose
  * centre lies on a mapped building footprint are therefore dropped.
+ * Footprints come from OSM and, where a state publishes them, from the
+ * official cadastre (ALKIS), which also records buildings OSM lacks.
  *
  * Kept deliberately conservative:
  * - A detection is only removed when it sits at least `ROOF_INSET_M` inside
@@ -16,6 +19,9 @@ import type { OsmEvidence } from "../boundary/osm-overpass";
  *   cars parked along a wall must survive a metre or two of offset.
  * - Multi-storey and rooftop car parks are not masked; there, vehicles on the
  *   roof are real.
+ *   The cadastre names them by function (Parkhaus, Parkdeck, Tiefgarage);
+ *   INSPIRE-only states do not, so there an official footprint that overlaps
+ *   an OSM car park is not masked either.
  * - Without footprints (Overpass unreachable, building not mapped) nothing is
  *   removed; the mask only ever narrows a count, it never invents one.
  */
@@ -40,6 +46,46 @@ export function roofRings(evidence: OsmEvidence | null): LonLat[][] {
       return area.ring.length >= 4;
     })
     .map((area) => area.ring);
+}
+
+function isOsmParkingArea(tags: Record<string, string>): boolean {
+  if (tags.building && PARKING_ROOF_BUILDINGS.has(tags.building)) return true;
+  return tags.parking != null && PARKING_ROOF_TYPES.has(tags.parking);
+}
+
+function centroid(ring: LonLat[]): LonLat {
+  let lon = 0;
+  let lat = 0;
+  const n = ring.length - 1 || 1;
+  for (let i = 0; i < n; i++) {
+    lon += ring[i][0];
+    lat += ring[i][1];
+  }
+  return [lon / n, lat / n];
+}
+
+/**
+ * Official (ALKIS) footprints that cannot carry parked vehicles: car parks
+ * by cadastral function are left out, and so are footprints of unknown
+ * function that overlap an OSM car park (centre of either inside the other).
+ */
+export function officialRoofRings(
+  buildings: OfficialBuilding[],
+  evidence: OsmEvidence | null,
+): LonLat[][] {
+  const osmParking = (evidence?.areas ?? [])
+    .filter((area) => area.ring.length >= 4 && isOsmParkingArea(area.tags))
+    .map((area) => area.ring);
+  return buildings
+    .filter((b) => {
+      if (b.parkingRoof) return false;
+      if (b.functionKnown) return true;
+      const c = centroid(b.ring);
+      return !osmParking.some(
+        (p) => ringContains(p, c) || ringContains(b.ring, centroid(p)),
+      );
+    })
+    .map((b) => b.ring);
 }
 
 interface IndexedRing {
@@ -102,6 +148,8 @@ export function excludeRoofDetections(
   detection: DetectionResult,
   roofs: LonLat[][],
   insetM = ROOF_INSET_M,
+  /** Where the footprints came from, for the provenance line. */
+  source = "OSM buildings",
 ): DetectionResult {
   if (!detection.boxes || roofs.length === 0) return detection;
   const indexed = index(roofs);
@@ -136,7 +184,7 @@ export function excludeRoofDetections(
       ? {
           ...detection.evidence,
           confidence,
-          method: `${detection.evidence.method}, roof mask (OSM buildings)`,
+          method: `${detection.evidence.method}, roof mask (${source})`,
           limitations: [
             ...detection.evidence.limitations,
             `${removed} detection(s) on mapped building roofs removed`,

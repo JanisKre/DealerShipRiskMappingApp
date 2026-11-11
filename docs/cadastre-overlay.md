@@ -44,6 +44,15 @@ layer of Saxony only draw below 1:2,000 (zoom 19+), and the full ALKIS maps of
 Hessen (`he_alk`) and Lower Saxony (`alkis_wms`) cover the basemap with
 land-use colours.
 
+## Official basemap
+
+The basemap "Official map (basemap.de)" is the basemap.de Web Raster of the
+BKG and the state surveying offices (WMTS `de_basemapde_web_raster_farbe`,
+Web Mercator, CC BY 4.0, "© GeoBasis-DE / BKG"). Its buildings come from the
+same cadastre, so they line up with the parcel overlay (checked in Leaflet
+over Dresden-Reick, 11 November 2026). It covers Germany only; elsewhere the
+tiles are empty.
+
 ## How it is drawn
 
 - Leaflet requests one WMS GetMap tile per 256 px map tile, with the bounding

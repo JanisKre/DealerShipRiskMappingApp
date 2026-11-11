@@ -991,6 +991,7 @@
       "activeCount": "{{count}} active",
       "basemapSectionTitle": "Basemap",
       "basemapSelectAriaLabel": "Select basemap",
+      "basemapOfficial": "Official map (basemap.de)",
       "basemapTerrain": "Terrain",
       "parcelsLayerLabel": "Parcels (ALKIS)",
       "parcelsLayerHint": "Official cadastral parcel lines from the German states, shown from zoom 17. For orientation only, not a legal boundary record. Saarland has no open service.",

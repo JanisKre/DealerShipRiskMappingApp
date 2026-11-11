@@ -4,9 +4,14 @@ import type { PinnedWayback } from "@shared/imagery-wayback";
 import type { RiskLevel } from "@renderer/lib/riskColor";
 
 /** Basemap variants. WMS override (from settings) only applies to "satellite". */
-export type Basemap = "satellite" | "streets" | "terrain";
+export type Basemap = "satellite" | "official" | "streets" | "terrain";
 
-export const BASEMAPS: readonly Basemap[] = ["satellite", "streets", "terrain"];
+export const BASEMAPS: readonly Basemap[] = [
+  "satellite",
+  "official",
+  "streets",
+  "terrain",
+];
 
 function isBasemap(value: unknown): value is Basemap {
   return (BASEMAPS as readonly unknown[]).includes(value);

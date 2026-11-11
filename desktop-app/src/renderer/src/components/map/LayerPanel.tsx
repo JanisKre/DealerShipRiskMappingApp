@@ -45,6 +45,7 @@ import {
 function basemapLabels(t: TFunction): Record<Basemap, string> {
   return {
     satellite: t("map.satellite"),
+    official: t("map.layerPanel.basemapOfficial"),
     streets: t("map.street"),
     terrain: t("map.layerPanel.basemapTerrain"),
   };

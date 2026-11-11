@@ -205,7 +205,8 @@ outline of a few cars would be far too small, so the stage declines.
 **OSM is never waited for.** The analysis uses OSM only when it is already
 cached (`OSM_WAIT_MS` 0). The request runs in the background for up to 60 s
 (`OSM_EVIDENCE_BUDGET_MS`) and fills the cache for the roof mask, the website
-lookup and stage 3 of a later analysis.
+lookup and stage 3 of a later analysis. The roof mask also uses official
+ALKIS footprints where a state publishes them (`docs/official-buildings.md`).
 
 **Review.** The confidence values are fixed priors per stage, not calibrated
 probabilities. Only stage 1 with good vehicle coverage clears the default

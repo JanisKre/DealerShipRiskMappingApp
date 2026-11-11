@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   detectVehicles: vi.fn(),
   maskRoofDetections: vi.fn(),
   geocodeCandidates: vi.fn(),
+  officialHouseCoordinate: vi.fn(),
   aerialImageForContext: vi.fn(),
   osmEvidenceBy: vi.fn(),
   websiteFromEvidence: vi.fn(),
@@ -33,6 +34,13 @@ vi.mock("./detection.service", async (importOriginal) => {
 });
 vi.mock("./detection/roof-mask.service", () => ({
   maskRoofDetections: mocks.maskRoofDetections,
+}));
+vi.mock("./house-coordinates.service", () => ({
+  officialHouseCoordinate: mocks.officialHouseCoordinate,
+}));
+vi.mock("./alkis-buildings.service", () => ({
+  fetchOfficialBuildings: () =>
+    Promise.resolve({ buildings: [], state: null, truncated: false }),
 }));
 vi.mock("./geocoding.service", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./geocoding.service")>();
@@ -96,6 +104,7 @@ beforeEach(() => {
   mocks.detectBoundary.mockResolvedValue(boundary);
   mocks.osmEvidenceBy.mockResolvedValue({ evidence: null, status: "pending" });
   mocks.websiteFromEvidence.mockReturnValue(undefined);
+  mocks.officialHouseCoordinate.mockResolvedValue(null);
 });
 
 const record = {
@@ -159,6 +168,66 @@ describe("analyzeDealership", () => {
     expect(result.boundary?.quality?.reasons.join(" ")).toMatch(
       /geocoding ambiguous/,
     );
+  });
+
+  it("moves the anchor to the official house coordinate and says so", async () => {
+    mocks.geocodeCandidates.mockImplementation(async (query: string) =>
+      query.startsWith("Autohaus")
+        ? []
+        : [{ label: "street", lat: LAT, lon: LON, postcode: "01159" }],
+    );
+    mocks.officialHouseCoordinate.mockResolvedValue({
+      lat: LAT + 0.001,
+      lon: LON,
+      state: "Sachsen",
+    });
+    mocks.detectBoundary.mockResolvedValue({
+      ...boundary,
+      evidence: {
+        source: "test",
+        retrievedAt: "2026-11-11T00:00:00Z",
+        method: "parcel union",
+        confidence: 0.8,
+        fallbackUsed: false,
+        limitations: [],
+      },
+    });
+    const result = await analyzeDealership({
+      id: "1",
+      name: "Autohaus Test",
+      address: "Industriestraße 12, 01159 Dresden",
+    } as Parameters<typeof analyzeDealership>[0]);
+
+    expect(result.lat).toBe(LAT + 0.001);
+    expect(result.boundary?.evidence?.method).toBe(
+      "parcel union; anchor: official house coordinate (ALKIS Sachsen)",
+    );
+  });
+
+  it("keeps the dealership's own POI over a house coordinate", async () => {
+    mocks.geocodeCandidates.mockImplementation(async (query: string) =>
+      query.startsWith("Autohaus")
+        ? [
+            {
+              label: "poi",
+              lat: LAT,
+              lon: LON,
+              name: "Autohaus Test",
+              category: "shop",
+              type: "car",
+              postcode: "01159",
+            },
+          ]
+        : [],
+    );
+    const result = await analyzeDealership({
+      id: "1",
+      name: "Autohaus Test",
+      address: "Industriestraße 12, 01159 Dresden",
+    } as Parameters<typeof analyzeDealership>[0]);
+
+    expect(mocks.officialHouseCoordinate).not.toHaveBeenCalled();
+    expect(result.lat).toBe(LAT);
   });
 
   it("never waits for OpenStreetMap", async () => {

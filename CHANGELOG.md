@@ -14,9 +14,20 @@ the project follows [Semantic Versioning](https://semver.org/).
   Saarland), from zoom 17, over any basemap: as published (mostly yellow)
   on Satellite, in one red on Streets and Terrain. Display only; see
   `docs/cadastre-overlay.md`.
+- "Official map (basemap.de)" basemap: the official German topographic map
+  of the BKG and the states, built from the same cadastre as the parcel
+  overlay. Germany only.
+- Roof mask with official building footprints (ALKIS) from 13 states, in
+  addition to OSM. Car parks are recognised by their cadastral function and
+  never masked. See `docs/official-buildings.md`.
+- Official house coordinates for address-only records in 8 states: an exact
+  match of street, number and postcode replaces Nominatim's point, which
+  often lies on the street. The boundary's provenance names the source.
 
 ### Removed
 
+- The executive summary at the top of the AI chat panel. The chat now opens
+  empty and answers only what is asked.
 - The "Light" and "Dark" basemaps. Satellite, Streets and Terrain remain; a
   saved light or dark choice opens as Streets.
 

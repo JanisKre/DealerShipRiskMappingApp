@@ -991,6 +991,7 @@
       "activeCount": "{{count}} aktiv",
       "basemapSectionTitle": "Basiskarte",
       "basemapSelectAriaLabel": "Basiskarte wählen",
+      "basemapOfficial": "Amtliche Karte (basemap.de)",
       "basemapTerrain": "Gelände",
       "parcelsLayerLabel": "Flurstücke (ALKIS)",
       "parcelsLayerHint": "Amtliche Flurstücksgrenzen der Länder, sichtbar ab Zoomstufe 17. Nur zur Orientierung, kein amtlicher Nachweis. Saarland ohne offenen Dienst.",
