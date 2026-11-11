@@ -4,7 +4,13 @@ import type { PinnedWayback } from "@shared/imagery-wayback";
 import type { RiskLevel } from "@renderer/lib/riskColor";
 
 /** Basemap variants. WMS override (from settings) only applies to "satellite". */
-export type Basemap = "satellite" | "streets" | "light" | "dark" | "terrain";
+export type Basemap = "satellite" | "streets" | "terrain";
+
+export const BASEMAPS: readonly Basemap[] = ["satellite", "streets", "terrain"];
+
+function isBasemap(value: unknown): value is Basemap {
+  return (BASEMAPS as readonly unknown[]).includes(value);
+}
 
 /** Layer visibilities. */
 export interface MapLayers {
@@ -17,6 +23,8 @@ export interface MapLayers {
   accumulationClusters: boolean;
   /** Postcode areas colored by hail zone (outlines downloaded on first use). */
   hailZones: boolean;
+  /** Cadastral parcel (Flurstück) outlines from the state WMS, zoom 17+. */
+  parcels: boolean;
 }
 
 /** Search and filter options. */
@@ -80,6 +88,37 @@ interface MapState {
   closeDetailDialog: () => void;
 }
 
+const DEFAULT_LAYERS: MapLayers = {
+  satellite: true,
+  boundaries: true,
+  detections: true,
+  nearbyInsured: false,
+  accumulationClusters: false,
+  hailZones: false,
+  parcels: false,
+};
+
+/**
+ * Merges the persisted UI state into the defaults. Layers saved before a
+ * layer existed keep its default, and basemaps that were removed (the
+ * former "light" and "dark" CARTO maps) fall back to streets.
+ */
+export function mergePersistedMapState<
+  T extends { layers: MapLayers; basemap: Basemap },
+>(persisted: unknown, current: T): T {
+  if (!persisted || typeof persisted !== "object") return current;
+  const saved = persisted as { layers?: unknown; basemap?: unknown };
+  const layers =
+    saved.layers && typeof saved.layers === "object"
+      ? { ...current.layers, ...saved.layers }
+      : current.layers;
+  let basemap = current.basemap;
+  if (saved.basemap !== undefined) {
+    basemap = isBasemap(saved.basemap) ? saved.basemap : "streets";
+  }
+  return { ...current, ...persisted, layers, basemap };
+}
+
 const DEFAULT_FILTER: MapFilter = {
   query: "",
   riskLevels: [],
@@ -89,14 +128,7 @@ const DEFAULT_FILTER: MapFilter = {
 export const useMapStore = create<MapState>()(
   persist(
     (set) => ({
-      layers: {
-        satellite: true,
-        boundaries: true,
-        detections: true,
-        nearbyInsured: false,
-        accumulationClusters: false,
-        hailZones: false,
-      },
+      layers: DEFAULT_LAYERS,
       basemap: "satellite",
       satelliteOpacity: 1,
       pinnedWayback: null,
@@ -131,6 +163,7 @@ export const useMapStore = create<MapState>()(
     }),
     {
       name: "drm-map-ui",
+      merge: (persisted, current) => mergePersistedMapState(persisted, current),
       // Only persistent fields — view/filter/layers/basemap/opacity.
       // `editing` is always false on startup (no persisted edit mode).
       partialize: (s) => ({

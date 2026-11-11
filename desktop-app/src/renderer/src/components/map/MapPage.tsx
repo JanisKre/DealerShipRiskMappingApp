@@ -59,6 +59,7 @@ import {
 import { useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { AccumulationClusterLayer } from "./AccumulationClusterLayer";
 import { BoundaryLayer } from "./BoundaryLayer";
+import { CadastreLayer } from "./CadastreLayer";
 import { ClusteredMarkers } from "./ClusteredMarkers";
 import { DetectionOverlay, type DetectionEditDraft } from "./DetectionOverlay";
 import { HailstormScenarioLayer } from "./HailstormScenarioLayer";
@@ -75,8 +76,6 @@ const TILE_URLS: Record<Basemap, string> = {
   satellite:
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   streets: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
   terrain: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
 };
 
@@ -86,8 +85,6 @@ function tileAttributions(t: TFunction): Record<Basemap, string> {
   return {
     satellite: "&copy; Esri World Imagery",
     streets: `&copy; ${osm}`,
-    light: `&copy; ${osm} &copy; CARTO`,
-    dark: `&copy; ${osm} &copy; CARTO`,
     terrain: `&copy; ${osm}, SRTM; &copy; OpenTopoMap`,
   };
 }
@@ -718,6 +715,12 @@ export function MapPage(): React.JSX.Element {
         <MapViewReporter onChange={setMapView} onBounds={setViewBounds} />
         <ZoomControl />
 
+        {layers.parcels && (
+          <CadastreLayer
+            bounds={viewBounds}
+            overImagery={basemap === "satellite"}
+          />
+        )}
         {layers.hailZones && <HailZoneLayer />}
         {layers.accumulationClusters && (
           <AccumulationClusterLayer dealerships={visibleDealerships} />

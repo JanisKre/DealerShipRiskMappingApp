@@ -343,6 +343,12 @@ body {
   opacity: 0.6;
 }
 
+/* Parcel overlay over streets and terrain: one colour for every state
+   (SVG filter in CadastreLayer.tsx keeps only the tiles' alpha). */
+.cadastre-recolor {
+  filter: url(#cadastre-recolor);
+}
+
 /* ── Karten-Popup ─────────────────────────────────────────────────────── */
 .drm-popup-wrapper .leaflet-popup-content-wrapper {
   border-radius: 10px;

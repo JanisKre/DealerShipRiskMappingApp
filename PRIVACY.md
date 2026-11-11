@@ -25,6 +25,7 @@ policies.
 | Geocoding                         | Nominatim (OpenStreetMap), Photon (Komoot)               | Address or search text                                  |
 | Lot boundaries and buildings      | Overpass API, Overture Maps                              | Bounding box or coordinates                             |
 | Aerial and satellite imagery      | Esri World Imagery, state orthophoto services, NASA HLS  | Tile coordinates and image requests around a location   |
+| Parcel overlay (optional)         | State cadastre (ALKIS) map services                      | Tile bounding boxes of the visible map                  |
 | Weather and hazard inputs         | Open-Meteo                                               | Coordinates                                             |
 | AI underwriting memo (optional)   | Anthropic, OpenAI or a custom provider URL you configure | Analysis summary and location details; your own API key |
 | Detection model lookup (optional) | Hugging Face                                             | Model search queries                                    |

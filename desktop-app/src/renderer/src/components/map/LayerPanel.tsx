@@ -33,7 +33,7 @@ import { imageryCandidateSummary } from "@renderer/lib/imageryFormat";
 import type { ImageryCandidate } from "@shared/imagery-sources";
 import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
 import type { AnalyzedDealership } from "@shared/types";
-import { useMapStore, type Basemap } from "@renderer/store/mapStore";
+import { BASEMAPS, useMapStore, type Basemap } from "@renderer/store/mapStore";
 import { ScenarioBuilder } from "./ScenarioBuilder";
 import {
   PANEL_ACTION_CLASS,
@@ -41,21 +41,11 @@ import {
   PANEL_HINT_CLASS,
 } from "./panelStyles";
 
-const BASEMAP_ORDER: Basemap[] = [
-  "satellite",
-  "streets",
-  "light",
-  "dark",
-  "terrain",
-];
-
 /** Basemap display labels, translated. */
 function basemapLabels(t: TFunction): Record<Basemap, string> {
   return {
     satellite: t("map.satellite"),
     streets: t("map.street"),
-    light: t("map.layerPanel.basemapLight"),
-    dark: t("map.layerPanel.basemapDark"),
     terrain: t("map.layerPanel.basemapTerrain"),
   };
 }
@@ -448,13 +438,23 @@ export function LayerPanel({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {BASEMAP_ORDER.map((bm) => (
+                    {BASEMAPS.map((bm) => (
                       <SelectItem key={bm} value={bm}>
                         {bmLabels[bm]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <LayerToggle
+                  label={t("map.layerPanel.parcelsLayerLabel")}
+                  checked={layers.parcels}
+                  onChange={() => toggleLayer("parcels")}
+                />
+                {layers.parcels && (
+                  <p className={PANEL_HINT_CLASS}>
+                    {t("map.layerPanel.parcelsLayerHint")}
+                  </p>
+                )}
                 {imageryTimelineAvailable && (
                   <ImageryVersionSelect
                     timeline={imageryTimeline}

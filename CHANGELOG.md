@@ -7,6 +7,19 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Parcel overlay (layer panel → Basemap → "Parcels (ALKIS)"): official
+  Flurstück outlines from the open map services of 15 states (all except
+  Saarland), from zoom 17, over any basemap: as published (mostly yellow)
+  on Satellite, in one red on Streets and Terrain. Display only; see
+  `docs/cadastre-overlay.md`.
+
+### Removed
+
+- The "Light" and "Dark" basemaps. Satellite, Streets and Terrain remain; a
+  saved light or dark choice opens as Streets.
+
 ### Changed
 
 - Licence: the project is licensed under PolyForm Noncommercial 1.0.0. Use,
