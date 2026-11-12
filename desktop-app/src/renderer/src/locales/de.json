@@ -1305,7 +1305,9 @@
     "newBusiness": "Neugeschäft",
     "noOtherSessions": "Noch keine weitere gespeicherte Sitzung zum Vergleichen.",
     "clusterFilterLabel": "Kumulation: {{name}}",
-    "newConversation": "Neue Konversation"
+    "newConversation": "Neue Konversation",
+    "chatHistory": "Bisherige Konversationen",
+    "deleteThreadConfirm": "„{{name}}“ löschen?"
   },
   "aiSetup": {
     "missingTitle": "KI-Assistent noch nicht eingerichtet",

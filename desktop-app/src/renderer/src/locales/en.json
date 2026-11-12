@@ -1305,7 +1305,9 @@
     "newBusiness": "New business",
     "noOtherSessions": "No other saved session to compare with yet.",
     "clusterFilterLabel": "Accumulation: {{name}}",
-    "newConversation": "New conversation"
+    "newConversation": "New conversation",
+    "chatHistory": "Previous conversations",
+    "deleteThreadConfirm": "Delete “{{name}}”?"
   },
   "aiSetup": {
     "missingTitle": "AI assistant not set up yet",

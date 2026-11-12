@@ -1,6 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, MessageSquare, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronsUpDown,
+  History,
+  MessageSquare,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import {
   LlmErrorMessage,
   LlmSetupNotice,
@@ -9,11 +15,10 @@ import { MessageBubble } from "@renderer/components/chat/MessageBubble";
 import { useChat } from "@renderer/components/chat/useChat";
 import { Button } from "@renderer/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@renderer/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@renderer/components/ui/popover";
 import { Omnibox } from "@renderer/components/upload/Omnibox";
 import { useLlmReady } from "@renderer/lib/useLlmReady";
 import { cn } from "@renderer/lib/utils";
@@ -31,7 +36,7 @@ import {
  *   - Composer at the bottom: Omnibox in chat mode
  */
 export function ChatPanel(): React.JSX.Element {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const loadList = useConversationStore((s) => s.loadList);
   const list = useConversationStore((s) => s.list);
   const activeId = useConversationStore((s) => s.activeId);
@@ -63,71 +68,14 @@ export function ChatPanel(): React.JSX.Element {
     <div className="flex h-full min-w-0 flex-col border-l bg-card overflow-hidden">
       {/* Header: active thread + dropdown + new */}
       <div className="flex min-w-0 shrink-0 items-center gap-1 border-b px-3 py-2">
-        <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-medium hover:text-foreground"
-              title={t("ui.switchThread")}
-            >
-              {/* The store keeps an English sentinel for unnamed threads. */}
-              <span className="truncate">
-                {activeName === NEW_CONVERSATION_TITLE
-                  ? t("ui.newConversation")
-                  : activeName}
-              </span>
-              <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            {recentThreads.length === 0 ? (
-              <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                {t("ui.noThreads")}
-              </p>
-            ) : (
-              recentThreads.map((conversation) => (
-                <DropdownMenuItem
-                  key={conversation.id}
-                  onSelect={() => void selectConversation(conversation.id)}
-                  className={cn(
-                    "group justify-between gap-2",
-                    conversation.id === activeId && "font-medium",
-                  )}
-                >
-                  {/* Same-named threads ("hallo", "hallo") are told apart by
-                      their date; the open one carries a check mark. */}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate">
-                      {conversation.id === activeId && "✓ "}
-                      {conversation.name === NEW_CONVERSATION_TITLE
-                        ? t("ui.newConversation")
-                        : conversation.name}
-                    </span>
-                    <span className="block text-[11px] font-normal text-muted-foreground">
-                      {new Date(conversation.updatedAt).toLocaleString(
-                        i18n.language,
-                        { dateStyle: "short", timeStyle: "short" },
-                      )}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={t("ui.deleteThread")}
-                    title={t("ui.delete")}
-                    className="shrink-0 rounded p-0.5 opacity-0 hover:text-destructive group-hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void deleteConversation(conversation.id);
-                    }}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <ConversationPicker
+          conversations={recentThreads}
+          activeId={activeId}
+          activeName={activeName}
+          onSelect={(id) => void selectConversation(id)}
+          onNew={newConversation}
+          onDelete={(id) => void deleteConversation(id)}
+        />
 
         <Button
           type="button"
@@ -191,5 +139,166 @@ export function ChatPanel(): React.JSX.Element {
         />
       </div>
     </div>
+  );
+}
+
+/** Display name of a thread; the store keeps an English sentinel for new ones. */
+function threadName(
+  name: string,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  return name === NEW_CONVERSATION_TITLE ? t("ui.newConversation") : name;
+}
+
+/**
+ * Thread picker built like the portfolio switcher: a two-line trigger, a
+ * "new" action on top, then the history with name + date per thread, the
+ * open one highlighted and a confirmed delete on hover.
+ */
+function ConversationPicker({
+  conversations,
+  activeId,
+  activeName,
+  onSelect,
+  onNew,
+  onDelete,
+}: Readonly<{
+  conversations: Array<{ id: string; name: string; updatedAt: string }>;
+  activeId: string | null;
+  activeName: string;
+  onSelect: (id: string) => void;
+  onNew: () => void;
+  onDelete: (id: string) => void;
+}>): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
+    null,
+  );
+  const formatDate = (iso: string): string =>
+    new Date(iso).toLocaleString(i18n.language, {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setConfirmingDeleteId(null);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-accent"
+          aria-label={t("ui.switchThread")}
+        >
+          <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight">
+            {threadName(activeName, t)}
+          </span>
+          <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+      </PopoverTrigger>
+      {/* Right-aligned with collision padding: the chat dock sits at the
+          window's right edge, so a left-aligned menu ran off-screen. */}
+      <PopoverContent
+        align="end"
+        collisionPadding={8}
+        className="w-80 max-w-[calc(100vw-1rem)] p-1"
+      >
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+          onClick={() => {
+            onNew();
+            setOpen(false);
+          }}
+        >
+          <Plus className="size-4" />
+          {t("ui.newConversation")}
+        </button>
+        <div className="my-1 h-px bg-border" />
+        <div className="flex items-center gap-1.5 px-2 py-1 text-sm font-semibold">
+          <History className="size-3.5" />
+          {t("ui.chatHistory")}
+        </div>
+        <div className="max-h-72 overflow-y-auto">
+          {conversations.length === 0 && (
+            <p className="px-2 py-2 text-xs text-muted-foreground">
+              {t("ui.noThreads")}
+            </p>
+          )}
+          {conversations.map((conversation) => (
+            <div
+              key={conversation.id}
+              className={cn(
+                "group rounded-sm px-2 py-1.5",
+                conversation.id === activeId && "bg-accent",
+              )}
+            >
+              {confirmingDeleteId === conversation.id ? (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate text-destructive">
+                    {t("ui.deleteThreadConfirm", {
+                      name: threadName(conversation.name, t),
+                    })}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-7 shrink-0 px-2"
+                    onClick={() => {
+                      onDelete(conversation.id);
+                      setConfirmingDeleteId(null);
+                    }}
+                  >
+                    {t("ui.delete")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 shrink-0 px-2"
+                    onClick={() => setConfirmingDeleteId(null)}
+                  >
+                    {t("common.cancel")}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => {
+                      onSelect(conversation.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="block truncate text-sm font-medium">
+                      {threadName(conversation.name, t)}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {formatDate(conversation.updatedAt)}
+                    </span>
+                  </button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="size-7 shrink-0 text-destructive opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+                    onClick={() => setConfirmingDeleteId(conversation.id)}
+                    aria-label={`${t("ui.deleteThread")}: ${threadName(conversation.name, t)}`}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

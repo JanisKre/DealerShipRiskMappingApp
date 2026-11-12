@@ -951,7 +951,9 @@
     "newBusiness": "Affaire nouvelle",
     "noOtherSessions": "Aucune autre session enregistrée à comparer.",
     "clusterFilterLabel": "Cumul : {{name}}",
-    "newConversation": "Nouvelle conversation"
+    "newConversation": "Nouvelle conversation",
+    "chatHistory": "Conversations précédentes",
+    "deleteThreadConfirm": "Supprimer « {{name}} » ?"
   },
   "aiSetup": {
     "missingTitle": "Assistant IA pas encore configuré",
