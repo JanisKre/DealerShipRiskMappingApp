@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -55,7 +56,10 @@ import {
 import { Input } from "@renderer/components/ui/input";
 import { Label } from "@renderer/components/ui/label";
 import { Separator } from "@renderer/components/ui/separator";
-import { Switch } from "@renderer/components/ui/switch";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@renderer/components/ui/toggle-group";
 import {
   Tabs,
   TabsContent,
@@ -100,11 +104,12 @@ const RISK_TIER_KEYS: Record<HailRiskTier, string> = {
 /**
  * Detail dialog for a location, built for progressive disclosure:
  *
- *  1. Always visible: name, badges, the four numbers that matter (hail EAL,
- *     vehicles, exposure, boundary status) and only those notices that ask
- *     for an action.
- *  2. Tabs: overview (EAL derivation, memo), site & vehicles (boundary
- *     actions, vehicle count, imagery), contract & notes, sources.
+ *  1. Always visible, kept short: name, zone and business badges (plus a
+ *     "check boundary" badge only when needed), the address with the main
+ *     actions, three key figures (hail EAL, vehicles, exposure) and the
+ *     notices that ask for an action, one line each.
+ *  2. Tabs named after tasks: risk (EAL derivation, memo), site & vehicles
+ *     (boundary, vehicle count, imagery), contract & notes, sources.
  *  3. Disclosures inside the tabs for expert detail (image history, boundary
  *     internals, model limitations).
  *
@@ -211,18 +216,9 @@ function DetailBody({
   const manualCount = d.detection?.manualVehicleCount != null;
   const rank = portfolioRank(d, dealerships);
   const boundary = d.boundary;
-  const boundaryStatus = !boundary
-    ? "—"
-    : boundary.source === "manual" || boundary.confirmedAt
-      ? t("dashboard.detailDialog.boundaryStatusConfirmed")
-      : boundary.reviewRequired
-        ? t("dashboard.detailDialog.boundaryStatusReview")
-        : t("dashboard.detailDialog.boundaryStatusAutomatic");
-  const imageDate = d.detection?.imagery?.chosen.capturedAt;
-
   return (
     <>
-      <DialogHeader className="space-y-1.5">
+      <DialogHeader className="space-y-1">
         <div className="flex items-start gap-2 pr-8">
           <DialogTitle className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             <span className="min-w-0 break-words">{d.name}</span>
@@ -239,6 +235,16 @@ function DetailBody({
                 ? t("dashboard.detailDialog.businessExisting")
                 : t("dashboard.detailDialog.businessNew")}
             </Badge>
+            {boundary?.reviewRequired && (
+              <button type="button" onClick={() => setTab("site")}>
+                <Badge
+                  variant="outline"
+                  className="border-amber-500 font-normal text-amber-700 dark:text-amber-400"
+                >
+                  {t("dashboard.detailDialog.boundaryReviewBadge")}
+                </Badge>
+              </button>
+            )}
           </DialogTitle>
           {onNavigate && located.length > 1 && (
             <div className="flex shrink-0 items-center gap-0.5">
@@ -268,84 +274,74 @@ function DetailBody({
             </div>
           )}
         </div>
-        <DialogDescription>
-          {d.address ?? `${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}`}
-        </DialogDescription>
-        {(imageDate || d.risk?.modelVersion) && (
-          <p className="text-xs text-muted-foreground">
-            {[
-              imageDate
-                ? t("dashboard.detailDialog.metaImage", {
-                    date: formatIsoDate(imageDate),
-                  })
-                : null,
-              d.risk?.modelVersion
-                ? t("dashboard.detailDialog.metaModel", {
-                    version: d.risk.modelVersion,
-                  })
-                : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        )}
-      </DialogHeader>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" onClick={() => showOnMap()}>
-          <MapPin className="size-3.5" />
-          {t("dashboard.detailDialog.showOnMap")}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => void reanalyze(d.id)}
-        >
-          <RefreshCw className="size-3.5" />
-          {t("map.page.reanalyze")}
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        {/* Address and the main actions share one row; the image date and
+            model version live in "Gelände & Fahrzeuge" and "Quellen". */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <DialogDescription className="min-w-0 flex-1">
+            {addressLine(d)}
+          </DialogDescription>
+          <div className="flex shrink-0 items-center">
             <Button
               size="sm"
               variant="ghost"
-              className="ml-auto"
-              aria-label={t("dashboard.detailDialog.moreActions")}
-              title={t("dashboard.detailDialog.moreActions")}
+              className="h-7 gap-1 px-2 text-xs"
+              onClick={() => showOnMap()}
             >
-              <MoreHorizontal className="size-4" />
+              <MapPin className="size-3.5" />
+              {t("dashboard.detailDialog.showOnMapShort")}
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <a href={googleMapsUrl(d)} target="_blank" rel="noreferrer">
-                <MapPin className="size-3.5" />
-                Google Maps
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a
-                href={openStreetMapUrl(d.lat, d.lon)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <ExternalLink className="size-3.5" />
-                OpenStreetMap
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onSelect={() => setConfirmDelete(true)}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 px-2 text-xs"
+              onClick={() => void reanalyze(d.id)}
             >
-              <Trash2 className="size-3.5" />
-              {t("map.page.delete")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+              <RefreshCw className="size-3.5" />
+              {t("map.page.reanalyze")}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2"
+                  aria-label={t("dashboard.detailDialog.moreActions")}
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <a href={googleMapsUrl(d)} target="_blank" rel="noreferrer">
+                    <MapPin className="size-3.5" />
+                    Google Maps
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a
+                    href={openStreetMapUrl(d.lat, d.lon)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ExternalLink className="size-3.5" />
+                    OpenStreetMap
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onSelect={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="size-3.5" />
+                  {t("map.page.delete")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </DialogHeader>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-3 gap-2">
         <KeyFigure
           label={t("dashboard.detailDialog.kpiHailEal")}
           value={eur(d.risk?.eal)}
@@ -369,51 +365,12 @@ function DetailBody({
           value={eur(d.risk?.exposureEur)}
           hint={`${num(boundary?.areaSqm)} m²`}
         />
-        <KeyFigure
-          label={t("dashboard.detailDialog.boundaryTitle")}
-          value={boundaryStatus}
-          hint={
-            boundary
-              ? `${candidateLabel(t, boundary)} · ${pct(boundary.confidence, 0)}`
-              : undefined
-          }
-          tone={boundary?.reviewRequired ? "warning" : undefined}
-        />
       </div>
 
       {attention.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           {attention.map((item) => (
-            <div
-              key={item.key}
-              className={`flex items-start gap-2 rounded-lg border border-l-4 bg-muted/30 px-3 py-2 text-sm ${
-                item.tone === "danger"
-                  ? "border-l-destructive"
-                  : "border-l-amber-500"
-              }`}
-            >
-              <TriangleAlert
-                className={`mt-0.5 size-4 shrink-0 ${
-                  item.tone === "danger" ? "text-destructive" : "text-amber-500"
-                }`}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="font-medium">{item.title}</div>
-                {item.detail && (
-                  <p className="text-xs text-muted-foreground">{item.detail}</p>
-                )}
-              </div>
-              {item.action && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 shrink-0 text-xs"
-                  onClick={item.action.run}
-                >
-                  {item.action.label}
-                </Button>
-              )}
-            </div>
+            <AttentionRow key={item.key} item={item} />
           ))}
         </div>
       )}
@@ -456,8 +413,8 @@ function DetailBody({
         </TabsContent>
 
         <TabsContent value="contract" className="space-y-4 pt-2">
-          <PortfolioMetaSection d={d} />
           <NotesSection d={d} />
+          <PortfolioMetaSection d={d} />
           <WebsiteRow
             d={d}
             detectedWebsite={osmDetails?.website}
@@ -581,6 +538,73 @@ function HistorySection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
 }
 
 /** One of the four numbers in the dialog header. */
+/** Address without a leading copy of the name ("Autohaus X, 01219 …"). */
+function addressLine(d: AnalyzedDealership): string {
+  const address = d.address ?? `${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}`;
+  const prefix = `${d.name}, `;
+  return address.startsWith(prefix) ? address.slice(prefix.length) : address;
+}
+
+/**
+ * One notice as a single line: what is wrong and what to do. The longer
+ * explanation opens on demand instead of filling the dialog by default.
+ */
+function AttentionRow({
+  item,
+}: Readonly<{ item: Attention }>): React.JSX.Element {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const danger = item.tone === "danger";
+  return (
+    <div
+      className={`rounded-md border-l-4 bg-muted/30 px-2.5 py-1.5 text-sm ${
+        danger ? "border-l-destructive" : "border-l-amber-500"
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <TriangleAlert
+          className={`size-3.5 shrink-0 ${
+            danger ? "text-destructive" : "text-amber-500"
+          }`}
+        />
+        <span className="min-w-0 flex-1 truncate font-medium">
+          {item.title}
+        </span>
+        {item.detail && (
+          <button
+            type="button"
+            className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+          >
+            {t("dashboard.detailDialog.attentionWhy")}
+            {open ? (
+              <ChevronDown className="size-3" />
+            ) : (
+              <ChevronRight className="size-3" />
+            )}
+          </button>
+        )}
+        {item.action && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 shrink-0 px-2 text-xs"
+            onClick={item.action.run}
+          >
+            {item.action.label}
+          </Button>
+        )}
+      </div>
+      {open && item.detail && (
+        <p className="mt-1 pl-5.5 text-xs text-muted-foreground">
+          {item.detail}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function KeyFigure({
   label,
   value,
@@ -594,7 +618,7 @@ function KeyFigure({
 }>): React.JSX.Element {
   return (
     <div
-      className={`rounded-lg border p-2.5 ${
+      className={`rounded-lg border px-2.5 py-2 ${
         tone === "warning" ? "border-amber-500/60 bg-amber-500/5" : ""
       }`}
     >
@@ -709,23 +733,18 @@ function HailOverview({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   const eb = d.risk?.ealBreakdown;
   return (
     <div className="space-y-3 text-sm">
-      {d.hailZone != null && (
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-semibold">
-            {t("dashboard.detailDialog.hailZoneLabel", { zone: d.hailZone })}
-          </span>
-          {d.hailRiskTier && (
-            <span className="text-muted-foreground">
-              {t("dashboard.detailDialog.hailZoneKasko", {
-                tier: t(
-                  `dashboard.detailDialog.riskTier.${RISK_TIER_KEYS[d.hailRiskTier]}`,
-                ),
-              })}
-            </span>
-          )}
-        </div>
-      )}
       {eb && <HailEalSection eb={eb} />}
+      {/* The zone itself is the badge in the header; only the tariff class
+          adds information here. */}
+      {d.hailRiskTier && (
+        <p className="text-xs text-muted-foreground">
+          {t("dashboard.detailDialog.hailZoneKasko", {
+            tier: t(
+              `dashboard.detailDialog.riskTier.${RISK_TIER_KEYS[d.hailRiskTier]}`,
+            ),
+          })}
+        </p>
+      )}
     </div>
   );
 }
@@ -743,32 +762,19 @@ function HailEalSection({
       </h4>
       {detail ? (
         <>
-          <div className="grid grid-cols-3 gap-2 text-sm">
-            <Metric
-              label={t("dashboard.hailEalDetail.vehicles")}
-              value={num(detail.vehicles)}
-            />
-            <Metric
-              label={t("dashboard.hailEalDetail.frequency")}
-              value={t("dashboard.hailEalDetail.frequencyValue", {
-                frequency: num(detail.frequency, 3),
-                zone: detail.zone,
-              })}
-            />
-            <Metric
-              label={t("dashboard.hailEalDetail.severity")}
-              value={eur(detail.meanSeverityEur)}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
+          {/* One line instead of three cards that repeated the sentence. */}
+          <p className="rounded-md bg-muted/40 px-3 py-2 font-medium tabular-nums">
             {t("dashboard.hailEalDetail.formula", {
               vehicles: num(detail.vehicles),
               frequency: num(detail.frequency, 3),
               severity: eur(detail.meanSeverityEur),
               eal: eur(eb.hail),
-            })}{" "}
+            })}
+          </p>
+          <p className="text-xs text-muted-foreground">
             {t(`dashboard.hailEalDetail.vehicleSource.${detail.vehicleSource}`)}{" "}
-            {t(`dashboard.hailEalDetail.zoneSource.${detail.zoneSource}`)}
+            {t(`dashboard.hailEalDetail.zoneSource.${detail.zoneSource}`)}{" "}
+            {t("dashboard.hailEalDetail.severityNote")}
           </p>
         </>
       ) : (
@@ -841,7 +847,19 @@ function candidateLabel(
     synthetic: "dashboard.detailDialog.candidate.synthetic",
   };
   const k = candidate.provider ? key[candidate.provider] : undefined;
-  if (!k) return candidate.label ?? boundarySourceLabel(t, candidate.source);
+  if (!k) {
+    // Labels written by the boundary engine in English (stored per site).
+    const parcels = candidate.label?.match(
+      /^ALKIS parcel(?: \+ (\d+) with vehicles)?$/,
+    );
+    if (parcels)
+      return parcels[1]
+        ? t("dashboard.detailDialog.candidate.parcelPlusVehicles", {
+            count: Number(parcels[1]),
+          })
+        : t("dashboard.detailDialog.candidate.parcel");
+    return candidate.label ?? boundarySourceLabel(t, candidate.source);
+  }
   const name = t(k);
   return candidate.provider === "osm-dealer-area" && candidate.label
     ? `${name} · ${candidate.label}`
@@ -1040,33 +1058,40 @@ function BoundaryPanel({
       </div>
 
       {others.length > 0 && (
-        <div className="space-y-1 rounded-md border p-2">
-          <div className="text-xs font-medium text-muted-foreground">
-            {t("dashboard.detailDialog.boundaryAlternatives")}
-          </div>
-          {others.slice(0, 4).map((candidate, index) => (
-            <div
-              key={`${candidate.provider ?? candidate.source}-${index}`}
-              className="flex items-center justify-between gap-2"
-            >
-              <span className="min-w-0 truncate">
-                {candidateLabel(t, candidate)}
-              </span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {num(candidate.areaSqm)} m² · {pct(candidate.confidence, 0)}
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 shrink-0 text-xs"
-                disabled={busy}
-                onClick={() => setPending(candidate)}
+        <details
+          className="rounded-md border text-sm"
+          open={boundary.reviewRequired}
+        >
+          <summary className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+            {t("dashboard.detailDialog.boundaryAlternativesCount", {
+              count: Math.min(others.length, 4),
+            })}
+          </summary>
+          <div className="space-y-1 border-t p-2">
+            {others.slice(0, 4).map((candidate, index) => (
+              <div
+                key={`${candidate.provider ?? candidate.source}-${index}`}
+                className="flex items-center justify-between gap-2"
               >
-                {t("dashboard.detailDialog.boundaryAdopt")}
-              </Button>
-            </div>
-          ))}
-        </div>
+                <span className="min-w-0 truncate">
+                  {candidateLabel(t, candidate)}
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {num(candidate.areaSqm)} m² · {pct(candidate.confidence, 0)}
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 shrink-0 text-xs"
+                  disabled={busy}
+                  onClick={() => setPending(candidate)}
+                >
+                  {t("dashboard.detailDialog.boundaryAdopt")}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
 
       <Dialog
@@ -1236,11 +1261,13 @@ function ModelConfidenceSummary({
         </span>
       </div>
       {evidence.length > 0 && (
-        <div className="space-y-1">
-          <div className="text-xs font-medium text-muted-foreground">
-            {t("dashboard.detailDialog.sourcesUsed")}
-          </div>
-          <ul className="space-y-1 text-xs">
+        <details className="rounded-md border text-xs">
+          <summary className="px-2 py-1.5 font-medium text-muted-foreground">
+            {t("dashboard.detailDialog.sourcesUsedCount", {
+              count: evidence.length,
+            })}
+          </summary>
+          <ul className="space-y-1 border-t px-2 py-2">
             {evidence.map((item) => (
               <li
                 key={`${item.source}-${item.method}`}
@@ -1264,7 +1291,7 @@ function ModelConfidenceSummary({
               </li>
             ))}
           </ul>
-        </div>
+        </details>
       )}
       {limitations.length > 0 && (
         <details className="rounded-md border text-xs">
@@ -1334,6 +1361,17 @@ function localizedRiskText(t: TFunction, text: string): string {
   };
   const key = exact[text];
   if (key) return t(key);
+  // The vehicle detector describes itself technically ("dealer_vehicles
+  // ONNX", "sliding-window oriented aerial vehicle detection at 0.1 m/px…").
+  if (/^dealer_vehicles\b/.test(text))
+    return t("dashboard.detailDialog.riskText.vehicleDetectorSource");
+  const detector = text.match(
+    /^sliding-window oriented aerial vehicle detection at ([\d.]+) m\/px/,
+  );
+  if (detector)
+    return t("dashboard.detailDialog.riskText.vehicleDetectorMethod", {
+      resolution: detector[1].replace(".", ","),
+    });
   const screening = text.match(/^Risk model (.+) is a screening model$/);
   if (screening)
     return t("dashboard.detailDialog.riskText.screeningModel", {
@@ -1373,73 +1411,78 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
     }
   }
 
+  const refreshButton = (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-7 shrink-0 gap-1 text-xs"
+      disabled={refreshing}
+      onClick={() => void refresh()}
+    >
+      <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+      {refreshing
+        ? t("dashboard.detailDialog.natCatRefreshing")
+        : t("dashboard.detailDialog.natCatRefresh")}
+    </Button>
+  );
+
+  // Without an external source there is nothing to show but that fact.
+  if (!assessment)
+    return (
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span>{t("dashboard.detailDialog.natCatNone")}</span>
+        {refreshButton}
+      </div>
+    );
+
   return (
     <div className="space-y-2 text-sm">
       <div className="flex items-center justify-between gap-2">
         <h4 className="font-semibold">
           {t("dashboard.detailDialog.natCatTitle")}
         </h4>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 gap-1 text-xs"
-          disabled={refreshing}
-          onClick={() => void refresh()}
-        >
-          <RefreshCw
-            className={`size-3.5 ${refreshing ? "animate-spin" : ""}`}
-          />
-          {refreshing
-            ? t("dashboard.detailDialog.natCatRefreshing")
-            : t("dashboard.detailDialog.natCatRefresh")}
-        </Button>
+        {refreshButton}
       </div>
-      {!assessment ? (
-        <p className="text-xs text-muted-foreground">
-          {t("dashboard.detailDialog.natCatNone")}
-        </p>
-      ) : (
-        <>
-          <div className="text-xs text-muted-foreground">
-            {assessment.evidence.source} · {assessment.dataVersion ?? "unknown"}
-          </div>
-          <div className="grid gap-1 text-xs sm:grid-cols-2">
-            {assessment.hazards.map((hazard) => (
-              <div key={`${hazard.peril}-${hazard.unit}`}>
-                {t("dashboard.detailDialog.natCatHazard", {
-                  peril: hazard.peril,
-                  zone: estimateHailZoneFromScore(hazard.score),
-                  unit: hazard.unit,
-                })}
-                {/* Source per value in assessments combined by older builds. */}
-                {assessment.provider === "composite" && hazard.provider && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    · {sourceLabel(hazard.provider)}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-          {assessment.evidence.fallbackUsed && (
-            <ul className="list-inside list-disc text-xs text-amber-700 dark:text-amber-400">
-              {assessment.evidence.limitations
-                .filter((note) => note.includes(" used instead"))
-                .map((note) => (
-                  <li key={note}>{note}</li>
-                ))}
-            </ul>
-          )}
-          {Object.entries(assessment.attributes).map(([name, value]) => (
-            <div key={name} className="text-xs text-muted-foreground">
-              {t("dashboard.detailDialog.natCatAttribute", {
-                name,
-                value: String(value),
+      <>
+        <div className="text-xs text-muted-foreground">
+          {assessment.evidence.source} · {assessment.dataVersion ?? "unknown"}
+        </div>
+        <div className="grid gap-1 text-xs sm:grid-cols-2">
+          {assessment.hazards.map((hazard) => (
+            <div key={`${hazard.peril}-${hazard.unit}`}>
+              {t("dashboard.detailDialog.natCatHazard", {
+                peril: hazard.peril,
+                zone: estimateHailZoneFromScore(hazard.score),
+                unit: hazard.unit,
               })}
+              {/* Source per value in assessments combined by older builds. */}
+              {assessment.provider === "composite" && hazard.provider && (
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {sourceLabel(hazard.provider)}
+                </span>
+              )}
             </div>
           ))}
-        </>
-      )}
+        </div>
+        {assessment.evidence.fallbackUsed && (
+          <ul className="list-inside list-disc text-xs text-amber-700 dark:text-amber-400">
+            {assessment.evidence.limitations
+              .filter((note) => note.includes(" used instead"))
+              .map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+          </ul>
+        )}
+        {Object.entries(assessment.attributes).map(([name, value]) => (
+          <div key={name} className="text-xs text-muted-foreground">
+            {t("dashboard.detailDialog.natCatAttribute", {
+              name,
+              value: String(value),
+            })}
+          </div>
+        ))}
+      </>
     </div>
   );
 }
@@ -1870,10 +1913,12 @@ function PortfolioMetaSection({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      {/* A two-way choice instead of a switch whose label ("Bestand") and
+          description ("Neugeschäft") contradicted each other when off. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="space-y-0.5">
-          <Label htmlFor={`insured-${d.id}`} className="text-sm font-semibold">
-            {t("dashboard.detailDialog.insuredLabel")}
+          <Label className="text-sm font-semibold">
+            {t("dashboard.detailDialog.businessTypeLabel")}
           </Label>
           <p className="text-xs text-muted-foreground">
             {d.insured
@@ -1881,11 +1926,22 @@ function PortfolioMetaSection({
               : t("dashboard.detailDialog.insuredNoDesc")}
           </p>
         </div>
-        <Switch
-          id={`insured-${d.id}`}
-          checked={d.insured ?? false}
-          onCheckedChange={(v) => updateMeta(d.id, { insured: v })}
-        />
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={d.insured ? "existing" : "new"}
+          onValueChange={(v) =>
+            v && updateMeta(d.id, { insured: v === "existing" })
+          }
+        >
+          <ToggleGroupItem value="new" className="px-3">
+            {t("dashboard.detailDialog.businessNew")}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="existing" className="px-3">
+            {t("dashboard.detailDialog.businessExisting")}
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

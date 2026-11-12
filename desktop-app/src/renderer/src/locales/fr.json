@@ -442,7 +442,9 @@
         "cascadeVehicleHull": "contour des véhicules détectés",
         "cascadeOsmDealerArea": "zone de concession issue d’OpenStreetMap",
         "cascadeParcel": "parcelle au point",
-        "boundaryConfirmed": "Limite confirmée visuellement le {{date}}, pas un levé cadastral"
+        "boundaryConfirmed": "Limite confirmée visuellement le {{date}}, pas un levé cadastral",
+        "vehicleDetectorSource": "Détection de véhicules (modèle IA)",
+        "vehicleDetectorMethod": "Véhicules détectés sur l’image aérienne ({{resolution}} m par pixel)"
       },
       "osmLoading": "Chargement des infos OSM…",
       "osmHeading": "Depuis OpenStreetMap",
@@ -522,9 +524,9 @@
       "attentionImageryTitle_other": "L’image aérienne a {{count}} ans",
       "attentionImageryDetail": "Le stock peut être différent aujourd’hui. L’historique d’images permet de compter d’autres versions.",
       "attentionImageryAction": "Historique",
-      "tabOverview": "Aperçu",
-      "tabSite": "Site",
-      "tabContract": "Contrat",
+      "tabOverview": "Risque",
+      "tabSite": "Site & véhicules",
+      "tabContract": "Contrat & notes",
       "tabSources": "Sources",
       "imageryHistoryToggle": "Historique d’images et autres versions",
       "boundaryNone": "Ce site n’a pas encore de limite.",
@@ -546,7 +548,9 @@
         "vehicleHull": "Contour des véhicules",
         "parcel": "Parcelle au point",
         "osmDealerArea": "Zone concession OSM",
-        "synthetic": "Cercle autour du point"
+        "synthetic": "Cercle autour du point",
+        "parcelPlusVehicles_one": "Parcelle au point + {{count}} parcelle avec véhicules",
+        "parcelPlusVehicles_other": "Parcelle au point + {{count}} parcelles avec véhicules"
       },
       "boundaryAdopted": "« {{label}} » appliqué ; les véhicules ont été recomptés.",
       "boundaryRestore": "Limite d’origine",
@@ -575,7 +579,18 @@
         "moderate": "Modéré",
         "high": "Élevé",
         "veryHigh": "Très élevé"
-      }
+      },
+      "showOnMapShort": "Carte",
+      "boundaryReviewBadge": "Vérifier la limite",
+      "attentionWhy": "Pourquoi ?",
+      "businessTypeLabel": "Type d’activité",
+      "boundaryAlternativesCount_one": "{{count}} autre proposition de limite",
+      "boundaryAlternativesCount_other": "{{count}} autres propositions de limite",
+      "sourcesUsedCount_one": "{{count}} source utilisée",
+      "sourcesUsedCount_other": "{{count}} sources utilisées"
+    },
+    "hailEalDetail": {
+      "severityNote": "λ = événements de grêle par an dans la zone ; le dommage par véhicule est la perte attendue par événement."
     }
   },
   "map": {

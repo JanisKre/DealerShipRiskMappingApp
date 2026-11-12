@@ -665,7 +665,9 @@
         "cascadeVehicleHull": "outline of the detected vehicles",
         "cascadeOsmDealerArea": "dealer area from OpenStreetMap",
         "cascadeParcel": "parcel at the point",
-        "boundaryConfirmed": "Boundary visually confirmed on {{date}}, not a cadastral survey"
+        "boundaryConfirmed": "Boundary visually confirmed on {{date}}, not a cadastral survey",
+        "vehicleDetectorSource": "Vehicle detection (AI model)",
+        "vehicleDetectorMethod": "Vehicles detected in the aerial image ({{resolution}} m per pixel)"
       },
       "osmLoading": "Loading OSM info…",
       "osmHeading": "From OpenStreetMap",
@@ -745,9 +747,9 @@
       "attentionImageryTitle_other": "Aerial image is {{count}} years old",
       "attentionImageryDetail": "The stock may look different today. The image history lets you count other versions.",
       "attentionImageryAction": "Image history",
-      "tabOverview": "Overview",
-      "tabSite": "Site",
-      "tabContract": "Contract",
+      "tabOverview": "Risk",
+      "tabSite": "Site & vehicles",
+      "tabContract": "Contract & notes",
       "tabSources": "Sources",
       "imageryHistoryToggle": "Image history and other versions",
       "boundaryNone": "This location has no boundary yet.",
@@ -769,7 +771,9 @@
         "vehicleHull": "Vehicle outline",
         "parcel": "Parcel at the point",
         "osmDealerArea": "OSM dealer area",
-        "synthetic": "Circle around the point"
+        "synthetic": "Circle around the point",
+        "parcelPlusVehicles_one": "Parcel at the point + {{count}} parcel with vehicles",
+        "parcelPlusVehicles_other": "Parcel at the point + {{count}} parcels with vehicles"
       },
       "boundaryAdopted": "“{{label}}” applied; the vehicles were recounted.",
       "boundaryRestore": "Original boundary",
@@ -798,7 +802,15 @@
         "moderate": "Moderate",
         "high": "High",
         "veryHigh": "Very high"
-      }
+      },
+      "showOnMapShort": "Map",
+      "boundaryReviewBadge": "Check boundary",
+      "attentionWhy": "Why?",
+      "businessTypeLabel": "Business type",
+      "boundaryAlternativesCount_one": "{{count}} other boundary suggestion",
+      "boundaryAlternativesCount_other": "{{count}} other boundary suggestions",
+      "sourcesUsedCount_one": "{{count}} source used",
+      "sourcesUsedCount_other": "{{count}} sources used"
     },
     "hailEal": "Hail EAL",
     "hailZone": "Hail zone",
@@ -889,7 +901,8 @@
         "provider": "Hail zone derived from the NatCat provider score.",
         "estimated": "Hail zone estimated from weather data (no postcode zone)."
       },
-      "legacy": "Scored with an older model ({{eal}}). Choose “Recalculate” on the dashboard to get the hail EAL."
+      "legacy": "Scored with an older model ({{eal}}). Choose “Recalculate” on the dashboard to get the hail EAL.",
+      "severityNote": "λ = hail events per year in the zone; damage per vehicle is the expected loss per event."
     },
     "info": {
       "label": "What does this mean?",

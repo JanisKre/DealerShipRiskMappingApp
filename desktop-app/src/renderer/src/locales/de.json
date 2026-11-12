@@ -665,7 +665,9 @@
         "cascadeVehicleHull": "Umriss der erkannten Fahrzeuge",
         "cascadeOsmDealerArea": "Händlerfläche aus OpenStreetMap",
         "cascadeParcel": "Flurstück am Punkt",
-        "boundaryConfirmed": "Grenze am {{date}} visuell bestätigt, keine Katastervermessung"
+        "boundaryConfirmed": "Grenze am {{date}} visuell bestätigt, keine Katastervermessung",
+        "vehicleDetectorSource": "Fahrzeugerkennung (KI-Modell)",
+        "vehicleDetectorMethod": "Fahrzeuge im Luftbild erkannt ({{resolution}} m pro Pixel)"
       },
       "osmLoading": "OSM-Infos werden geladen…",
       "osmHeading": "Aus OpenStreetMap",
@@ -745,9 +747,9 @@
       "attentionImageryTitle_other": "Luftbild ist {{count}} Jahre alt",
       "attentionImageryDetail": "Der Bestand kann heute anders aussehen. In der Bildhistorie lassen sich andere Stände zählen.",
       "attentionImageryAction": "Bildhistorie",
-      "tabOverview": "Übersicht",
-      "tabSite": "Gelände",
-      "tabContract": "Vertrag",
+      "tabOverview": "Risiko",
+      "tabSite": "Gelände & Fahrzeuge",
+      "tabContract": "Vertrag & Notizen",
       "tabSources": "Quellen",
       "imageryHistoryToggle": "Bildhistorie und weitere Bildstände",
       "boundaryNone": "Für diesen Standort gibt es noch keine Grenze.",
@@ -769,7 +771,9 @@
         "vehicleHull": "Fahrzeug-Umriss",
         "parcel": "Flurstück am Punkt",
         "osmDealerArea": "OSM-Händlerfläche",
-        "synthetic": "Kreis um den Punkt"
+        "synthetic": "Kreis um den Punkt",
+        "parcelPlusVehicles_one": "Flurstück am Punkt + {{count}} Flurstück mit Fahrzeugen",
+        "parcelPlusVehicles_other": "Flurstück am Punkt + {{count}} Flurstücke mit Fahrzeugen"
       },
       "boundaryAdopted": "„{{label}}“ übernommen; die Fahrzeuge wurden neu gezählt.",
       "boundaryRestore": "Ursprüngliche Grenze",
@@ -798,7 +802,15 @@
         "moderate": "Mittel",
         "high": "Hoch",
         "veryHigh": "Sehr hoch"
-      }
+      },
+      "showOnMapShort": "Karte",
+      "boundaryReviewBadge": "Grenze prüfen",
+      "attentionWhy": "Warum?",
+      "businessTypeLabel": "Geschäftsart",
+      "boundaryAlternativesCount_one": "{{count}} anderer Grenzvorschlag",
+      "boundaryAlternativesCount_other": "{{count}} andere Grenzvorschläge",
+      "sourcesUsedCount_one": "{{count}} verwendete Quelle",
+      "sourcesUsedCount_other": "{{count}} verwendete Quellen"
     },
     "hailEal": "Hagel-EAL",
     "hailZone": "Hagelzone",
@@ -889,7 +901,8 @@
         "provider": "Hagelzone aus dem NatCat-Anbieter-Score abgeleitet.",
         "estimated": "Hagelzone aus Wetterdaten geschätzt (keine PLZ-Zone)."
       },
-      "legacy": "Mit einem älteren Modell berechnet ({{eal}}). Im Dashboard „Neu berechnen“ wählen, um die Hagel-EAL zu erhalten."
+      "legacy": "Mit einem älteren Modell berechnet ({{eal}}). Im Dashboard „Neu berechnen“ wählen, um die Hagel-EAL zu erhalten.",
+      "severityNote": "λ = Hagelereignisse pro Jahr in der Zone, der Schaden je Fahrzeug ist der erwartete Schaden pro Ereignis."
     },
     "info": {
       "label": "Was bedeutet das?",
