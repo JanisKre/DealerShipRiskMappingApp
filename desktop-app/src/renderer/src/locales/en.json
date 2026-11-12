@@ -1358,5 +1358,37 @@
     "inPortfolioMore": "In portfolio: {{portfolio}} +{{count}}",
     "updateAvailable": "New Overture release {{release}} available.",
     "updateLink": "Update"
+  },
+  "chat": {
+    "copy": "Copy answer",
+    "copied": "Answer copied.",
+    "copyFailed": "Could not copy.",
+    "regenerate": "Regenerate answer",
+    "stop": "Stop answer",
+    "needsAi": "Set up an AI provider in Settings to ask questions. Commands like “open …” work without one.",
+    "provenance": "The AI answers from this portfolio's screening data (model {{model}}; the hail EAL still uses placeholder values) and this conversation. Its answers are an assessment, not an underwriting decision.",
+    "context_one": "About: {{portfolio}} · {{count}} location",
+    "context_other": "About: {{portfolio}} · {{count}} locations",
+    "contextSelected": "selected: {{name}}",
+    "renameFor": "Rename “{{name}}”",
+    "prompts": {
+      "whyLocation": "What is the hail risk of {{name}}?",
+      "compareNeighbours": "Compare {{name}} with nearby locations",
+      "topEal": "Which 3 locations drive the hail EAL?",
+      "summary": "Summarise the portfolio briefly"
+    },
+    "actions": {
+      "opened": "Opened {{name}}.",
+      "shown": "Showing {{name}} on the map.",
+      "exported": "Report saved: {{path}}",
+      "exportCancelled": "Export cancelled.",
+      "failed": "That did not work: {{error}}",
+      "layer": {
+        "accumulationClusters": "Accumulations shown on the map.",
+        "hailZones": "Hail zones shown on the map."
+      }
+    },
+    "provenanceLabel": "What are the answers based on?",
+    "emptyChat": "Ask the AI about your portfolio – or control the app directly, e.g. “open …” or “show accumulations on the map”."
   }
 }

@@ -166,6 +166,9 @@ const DetectVehiclesRequestSchema: z.ZodType<DetectVehiclesRequest, unknown> =
     parameters: RiskParametersSchema.optional(),
   });
 
+/** Longest text the renderer may put on the clipboard (a long chat answer). */
+export const CLIPBOARD_TEXT_MAX_CHARS = 100_000;
+
 export const ipcRequest = {
   "csv:parse": z.object({ content: z.string() }),
   "xlsx:parse": z.object({ base64: z.string() }),
@@ -268,6 +271,10 @@ export const ipcRequest = {
   "settings:deleteNatCatApiKey": z.object({
     provider: NatCatApiProviderSchema,
   }),
+  "clipboard:writeText": z.object({
+    /** Plain text only, bounded: no HTML, images or file references. */
+    text: z.string().min(1).max(CLIPBOARD_TEXT_MAX_CHARS),
+  }),
   "map:capture": z.object({
     /** Optional crop rect in CSS pixels (renderer coordinates). */
     rect: z
@@ -346,6 +353,7 @@ export const ipcResponse = {
   "settings:setNatCatApiKey": z.object({ ok: z.boolean() }),
   "settings:deleteNatCatApiKey": z.object({ ok: z.boolean() }),
   "map:capture": z.object({ path: z.string().nullable(), ok: z.boolean() }),
+  "clipboard:writeText": z.object({ ok: z.boolean() }),
   "imagery:select": ImagerySelectionSchema,
   "imagery:timeline": ImageryTimelineSchema,
   "imagery:prefetch": z.null(),

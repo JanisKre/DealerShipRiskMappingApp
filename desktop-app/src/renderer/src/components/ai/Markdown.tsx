@@ -1,4 +1,38 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+import { LOCATION_LINK_SCHEME } from "@renderer/lib/chatAssist";
+
+/**
+ * Handler for in-app location links (`drm-location:<id>`), provided by the
+ * chat. Without it, or for any other URL, links stay plain text: the
+ * renderer never navigates.
+ */
+export const LocationLinkContext = createContext<((id: string) => void) | null>(
+  null,
+);
+
+function MarkdownLink({
+  href,
+  children,
+}: Readonly<{ href: string; children: ReactNode }>): React.JSX.Element {
+  const openLocation = useContext(LocationLinkContext);
+  if (openLocation && href.startsWith(LOCATION_LINK_SCHEME)) {
+    const id = href.slice(LOCATION_LINK_SCHEME.length);
+    return (
+      <button
+        type="button"
+        className="font-medium text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary"
+        onClick={() => openLocation(id)}
+      >
+        {children}
+      </button>
+    );
+  }
+  return (
+    <span className="underline decoration-dotted" title={href}>
+      {children}
+    </span>
+  );
+}
 
 /**
  * Markdown for LLM answers (chat, NL query), rendered as React elements:
@@ -49,9 +83,9 @@ const INLINE_RULES: Array<{
   {
     re: /\[([^\]\n]+)\]\(([^)\s]+)\)/,
     render: (m, key) => (
-      <span key={key} className="underline decoration-dotted" title={m[2]}>
+      <MarkdownLink key={key} href={m[2]}>
         {renderInline(m[1], key)}
-      </span>
+      </MarkdownLink>
     ),
   },
 ];

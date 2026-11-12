@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from "electron";
+import { BrowserWindow, clipboard, ipcMain } from "electron";
 import { join } from "path";
 import { z } from "zod";
 import { IPC } from "@shared/ipc-channels";
@@ -271,6 +271,10 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   });
 
   handle(IPC.mapCapture, ({ rect, mode }) => captureMap(rect, mode));
+  handle(IPC.clipboardWriteText, ({ text }) => {
+    clipboard.writeText(text);
+    return { ok: true };
+  });
   handle(IPC.imagerySelect, ({ lat, lon, zoom }) =>
     selectImageryForView(lat, lon, zoom),
   );

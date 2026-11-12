@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ChatMessage, Conversation } from "@shared/types";
+import { deriveConversationTitle, isGreeting } from "@renderer/lib/chatAssist";
 
 /**
  * Store for the persisted chat history: a list of persisted conversations
@@ -21,6 +22,8 @@ interface ConversationState {
   list: ConversationMeta[];
   activeId: string | null;
   activeName: string;
+  /** Name was derived automatically and may still improve (e.g. "hallo"). */
+  activeNameAuto: boolean;
   activeCreatedAt: string | null;
   messages: ChatMessage[];
 
@@ -29,22 +32,23 @@ interface ConversationState {
   newConversation: () => void;
   appendMessage: (m: ChatMessage) => void;
   replaceLast: (content: string) => void;
+  /** Drops everything after the last user message (for "regenerate"). */
+  truncateAfterLastUser: () => void;
+  renameConversation: (id: string, name: string) => Promise<void>;
   persistActive: () => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
 }
 
-/** Title heuristic: first line of the first user message, truncated to ~40 characters. */
+/** Title heuristic: the first real question (greetings skipped), ~40 chars. */
 function deriveTitle(messages: ChatMessage[]): string {
-  const firstUser = messages.find((m) => m.role === "user");
-  const line = firstUser?.content.split("\n")[0]?.trim() ?? "";
-  if (!line) return NEW_CONVERSATION_TITLE;
-  return line.length > 40 ? `${line.slice(0, 40).trimEnd()}…` : line;
+  return deriveConversationTitle(messages, NEW_CONVERSATION_TITLE);
 }
 
 export const useConversationStore = create<ConversationState>((set, get) => ({
   list: [],
   activeId: null,
   activeName: NEW_CONVERSATION_TITLE,
+  activeNameAuto: true,
   activeCreatedAt: null,
   messages: [],
 
@@ -59,6 +63,8 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     set({
       activeId: conv.id,
       activeName: conv.name,
+      // A greeting title ("hallo") is replaced once a real question follows.
+      activeNameAuto: isGreeting(conv.name),
       activeCreatedAt: conv.createdAt,
       messages: conv.messages,
     });
@@ -68,6 +74,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     set({
       activeId: crypto.randomUUID(),
       activeName: NEW_CONVERSATION_TITLE,
+      activeNameAuto: true,
       activeCreatedAt: new Date().toISOString(),
       messages: [],
     });
@@ -83,14 +90,37 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       return { messages: copy };
     }),
 
+  truncateAfterLastUser: () =>
+    set((s) => {
+      let last = s.messages.length - 1;
+      while (last >= 0 && s.messages[last].role !== "user") last--;
+      return { messages: s.messages.slice(0, last + 1) };
+    }),
+
+  renameConversation: async (id, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (id === get().activeId) {
+      set({ activeName: trimmed, activeNameAuto: false });
+      if (get().messages.length > 0) await get().persistActive();
+      return;
+    }
+    const conv = await window.api.loadConversation(id);
+    if (!conv) return;
+    await window.api.saveConversation({ ...conv, name: trimmed });
+    await get().loadList();
+  },
+
   persistActive: async () => {
-    const { activeId, activeName, activeCreatedAt, messages } = get();
+    const { activeId, activeName, activeNameAuto, activeCreatedAt, messages } =
+      get();
     if (messages.length === 0) return;
     const now = new Date().toISOString();
     const id = activeId ?? crypto.randomUUID();
-    // Title from the first question on the first exchange.
+    // Title from the first real question; an automatic title keeps
+    // improving (a "hallo" opener is replaced by the next question).
     const name =
-      activeName === NEW_CONVERSATION_TITLE
+      activeName === NEW_CONVERSATION_TITLE || activeNameAuto
         ? deriveTitle(messages)
         : activeName;
     const conversation: Conversation = {
@@ -115,6 +145,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       set({
         activeId: null,
         activeName: NEW_CONVERSATION_TITLE,
+        activeNameAuto: true,
         activeCreatedAt: null,
         messages: [],
       });

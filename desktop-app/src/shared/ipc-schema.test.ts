@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEALERSHIP_NOTES_MAX_LENGTH } from "./constants";
 import {
+  CLIPBOARD_TEXT_MAX_CHARS,
   LlmStreamEnvelopeSchema,
   ModelDownloadEnvelopeSchema,
   OllamaPullEnvelopeSchema,
@@ -132,5 +133,26 @@ describe("dealership website in saved sessions", () => {
       ipcRequest["sessions:save"].safeParse(session("javascript:alert(1)"))
         .success,
     ).toBe(false);
+  });
+});
+
+describe("clipboard:writeText", () => {
+  const schema = ipcRequest["clipboard:writeText"];
+
+  it("accepts plain text up to the limit", () => {
+    expect(schema.safeParse({ text: "Antwort" }).success).toBe(true);
+    expect(
+      schema.safeParse({ text: "x".repeat(CLIPBOARD_TEXT_MAX_CHARS) }).success,
+    ).toBe(true);
+  });
+
+  it("rejects empty, oversized and non-text payloads", () => {
+    expect(schema.safeParse({ text: "" }).success).toBe(false);
+    expect(
+      schema.safeParse({ text: "x".repeat(CLIPBOARD_TEXT_MAX_CHARS + 1) })
+        .success,
+    ).toBe(false);
+    expect(schema.safeParse({ text: 42 }).success).toBe(false);
+    expect(schema.safeParse({}).success).toBe(false);
   });
 });

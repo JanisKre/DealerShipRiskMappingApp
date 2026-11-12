@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import type { TFunction } from "i18next";
-import { Loader2, MapPin, Paperclip, Send, Sparkles } from "lucide-react";
+import {
+  Loader2,
+  MapPin,
+  Paperclip,
+  Send,
+  Sparkles,
+  Square,
+} from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
 import {
   ToggleGroup,
@@ -40,6 +47,11 @@ interface Props {
    */
   modes?: OmniMode[];
   disabled?: boolean;
+  /**
+   * While an answer streams: the send button becomes a stop button in the
+   * same place (as in Claude), instead of a separate button above the input.
+   */
+  onStop?: () => void;
   /** Smaller variant for the chat dock (narrower than the large start omnibox). */
   compact?: boolean;
 }
@@ -86,6 +98,7 @@ export function Omnibox({
   onUploadFile,
   modes,
   disabled,
+  onStop,
   compact,
 }: Readonly<Props>): React.JSX.Element {
   const { t } = useTranslation();
@@ -363,19 +376,35 @@ export function Omnibox({
               </Button>
             </>
           )}
-          <Button
-            size="icon"
-            className={cn(
-              "shrink-0 rounded-full",
-              compact ? "size-7" : "size-9",
-            )}
-            onClick={submit}
-            disabled={!canSend}
-            title={t("upload.omnibox.send")}
-            aria-label={t("upload.omnibox.send")}
-          >
-            <Send className={compact ? "size-3.5" : "size-4"} />
-          </Button>
+          {onStop ? (
+            <Button
+              size="icon"
+              className={cn(
+                "shrink-0 rounded-full",
+                compact ? "size-7" : "size-9",
+              )}
+              onClick={onStop}
+              aria-label={t("chat.stop")}
+            >
+              <Square
+                className={cn("fill-current", compact ? "size-3" : "size-3.5")}
+              />
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              className={cn(
+                "shrink-0 rounded-full",
+                compact ? "size-7" : "size-9",
+              )}
+              onClick={submit}
+              disabled={!canSend}
+              title={t("upload.omnibox.send")}
+              aria-label={t("upload.omnibox.send")}
+            >
+              <Send className={compact ? "size-3.5" : "size-4"} />
+            </Button>
+          )}
         </div>
       </div>
     </div>

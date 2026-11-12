@@ -1004,5 +1004,37 @@
     "inPortfolioMore": "Dans le portefeuille : {{portfolio}} +{{count}}",
     "updateAvailable": "Nouvelle version Overture {{release}} disponible.",
     "updateLink": "Mettre à jour"
+  },
+  "chat": {
+    "copy": "Copier la réponse",
+    "copied": "Réponse copiée.",
+    "copyFailed": "Copie impossible.",
+    "regenerate": "Régénérer la réponse",
+    "stop": "Arrêter la réponse",
+    "needsAi": "Configurez un fournisseur d’IA dans les réglages pour poser des questions. Les commandes comme « ouvrir … » fonctionnent sans.",
+    "provenance": "L’IA répond à partir des données de screening de ce portefeuille (modèle {{model}} ; l’EAL grêle utilise encore des valeurs provisoires) et de cette conversation. Ses réponses sont une appréciation, pas une décision de souscription.",
+    "context_one": "Concerne : {{portfolio}} · {{count}} site",
+    "context_other": "Concerne : {{portfolio}} · {{count}} sites",
+    "contextSelected": "sélection : {{name}}",
+    "renameFor": "Renommer « {{name}} »",
+    "prompts": {
+      "whyLocation": "Quel est le risque de grêle de {{name}} ?",
+      "compareNeighbours": "Comparer {{name}} avec les sites voisins",
+      "topEal": "Quels 3 sites pèsent le plus dans l’EAL grêle ?",
+      "summary": "Résumer brièvement le portefeuille"
+    },
+    "actions": {
+      "opened": "{{name}} ouvert.",
+      "shown": "{{name}} affiché sur la carte.",
+      "exported": "Rapport enregistré : {{path}}",
+      "exportCancelled": "Export annulé.",
+      "failed": "Cela n’a pas fonctionné : {{error}}",
+      "layer": {
+        "accumulationClusters": "Cumuls affichés sur la carte.",
+        "hailZones": "Zones de grêle affichées sur la carte."
+      }
+    },
+    "provenanceLabel": "Sur quoi reposent les réponses ?",
+    "emptyChat": "Interrogez l’IA sur votre portefeuille – ou pilotez l’application, p. ex. « open … »."
   }
 }

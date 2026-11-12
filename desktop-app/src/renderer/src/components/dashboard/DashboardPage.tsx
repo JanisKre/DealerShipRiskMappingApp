@@ -267,6 +267,7 @@ export function DashboardPage(): React.JSX.Element {
           <DashboardAssistant
             onClose={() => setAssistantOpen(false)}
             onDashboardCommand={handleDashboardCommand}
+            onOpenLocation={(id) => setDetailId(id)}
           />
         </div>
       )}

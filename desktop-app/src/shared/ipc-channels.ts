@@ -89,6 +89,11 @@ export const IPC = {
   // Map screenshot (Electron capturePage)
   mapCapture: "map:capture",
 
+  // Plain text to the clipboard (chat "copy answer"). The renderer's
+  // navigator.clipboard is blocked because every permission request is
+  // denied, so the main process writes it.
+  clipboardWriteText: "clipboard:writeText",
+
   // Imagery source for the map view (Esri vs. state orthophoto) incl. capture dates
   imagerySelect: "imagery:select",
   // Dated Esri World Imagery Wayback versions at a point (history of the image)

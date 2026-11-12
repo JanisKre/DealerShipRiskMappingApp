@@ -1358,5 +1358,37 @@
     "inPortfolioMore": "Im Portfolio: {{portfolio}} +{{count}}",
     "updateAvailable": "Neues Overture-Release {{release}} verfügbar.",
     "updateLink": "Aktualisieren"
+  },
+  "chat": {
+    "copy": "Antwort kopieren",
+    "copied": "Antwort kopiert.",
+    "copyFailed": "Kopieren nicht möglich.",
+    "regenerate": "Antwort neu erzeugen",
+    "stop": "Antwort stoppen",
+    "needsAi": "Für Fragen an die KI zuerst einen KI-Anbieter in den Einstellungen einrichten. Befehle wie „öffne …“ funktionieren auch ohne.",
+    "provenance": "Die KI antwortet auf Basis der Screening-Daten dieses Portfolios (Modell {{model}}; die Hagel-EAL nutzt noch Platzhalterwerte) und dieses Gesprächs. Ihre Antworten sind eine Einschätzung, keine Zeichnungsentscheidung.",
+    "context_one": "Bezieht sich auf: {{portfolio}} · {{count}} Standort",
+    "context_other": "Bezieht sich auf: {{portfolio}} · {{count}} Standorte",
+    "contextSelected": "ausgewählt: {{name}}",
+    "renameFor": "„{{name}}“ umbenennen",
+    "prompts": {
+      "whyLocation": "Wie ist das Hagelrisiko von {{name}}?",
+      "compareNeighbours": "Vergleiche {{name}} mit den Standorten in der Nähe",
+      "topEal": "Welche 3 Standorte treiben die Hagel-EAL?",
+      "summary": "Fasse das Portfolio kurz zusammen"
+    },
+    "actions": {
+      "opened": "{{name}} geöffnet.",
+      "shown": "{{name}} auf der Karte gezeigt.",
+      "exported": "Bericht gespeichert: {{path}}",
+      "exportCancelled": "Export abgebrochen.",
+      "failed": "Das hat nicht geklappt: {{error}}",
+      "layer": {
+        "accumulationClusters": "Kumulationen auf der Karte eingeblendet.",
+        "hailZones": "Hagelzonen auf der Karte eingeblendet."
+      }
+    },
+    "provenanceLabel": "Worauf beruhen die Antworten?",
+    "emptyChat": "Frag die KI zu deinem Portfolio – oder steuere die App direkt, z. B. „öffne Autohaus …“ oder „zeige Kumulationen auf der Karte“."
   }
 }

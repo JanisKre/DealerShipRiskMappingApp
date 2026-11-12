@@ -357,6 +357,13 @@ const api = {
       provider,
     } satisfies IpcRequest["settings:deleteNatCatApiKey"]),
 
+  writeClipboardText: (
+    text: string,
+  ): Promise<IpcResponse["clipboard:writeText"]> =>
+    ipcRenderer.invoke(IPC.clipboardWriteText, {
+      text,
+    } satisfies IpcRequest["clipboard:writeText"]),
+
   captureMap: (
     rect: IpcRequest["map:capture"]["rect"],
     mode: IpcRequest["map:capture"]["mode"],
