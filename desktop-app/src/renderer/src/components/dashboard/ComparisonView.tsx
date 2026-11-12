@@ -37,6 +37,7 @@ import { useAppStore } from "@renderer/store/appStore";
 export function ComparisonView(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
+  const sessionId = useAppStore((s) => s.sessionId);
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<
     Array<{ id: string; name: string; updatedAt: string }>
@@ -46,7 +47,9 @@ export function ComparisonView(): React.JSX.Element {
 
   async function openDialog(): Promise<void> {
     setOpen(true);
-    setSessions(await window.api.listSessions());
+    // The active portfolio is the comparison target, not a baseline.
+    const all = await window.api.listSessions();
+    setSessions(all.filter((s) => s.id !== sessionId));
   }
 
   async function pick(id: string): Promise<void> {
@@ -71,7 +74,12 @@ export function ComparisonView(): React.JSX.Element {
           <DialogDescription>{t("ui.compareDescription")}</DialogDescription>
         </DialogHeader>
 
-        <Select onValueChange={pick}>
+        {sessions.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            {t("ui.noOtherSessions")}
+          </p>
+        )}
+        <Select onValueChange={pick} disabled={sessions.length === 0}>
           <SelectTrigger className="max-w-sm">
             <SelectValue placeholder={t("ui.selectBaseline")} />
           </SelectTrigger>

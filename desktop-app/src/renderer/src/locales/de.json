@@ -755,6 +755,13 @@
         "vehiclesReviewed": "Fahrzeuge auf der Karte geprüft: {{from}} → {{to}}",
         "markedExisting": "Als Bestandsgeschäft markiert",
         "markedNew": "Als Neugeschäft markiert"
+      },
+      "riskTier": {
+        "veryLow": "Sehr gering",
+        "low": "Gering",
+        "moderate": "Mittel",
+        "high": "Hoch",
+        "veryHigh": "Sehr hoch"
       }
     },
     "hailEal": "Hagel-EAL",
@@ -800,9 +807,10 @@
     },
     "topLocations": {
       "title": "Top-Standorte nach Hagel-EAL",
-      "description": "Die {{count}} Standorte mit dem höchsten erwarteten Hagelschaden pro Jahr.",
       "empty": "Noch keine Standorte mit Hagel-EAL.",
-      "share": "{{share}} der Portfolio-EAL"
+      "share": "{{share}} der Portfolio-EAL",
+      "description_one": "Der Standort mit dem höchsten erwarteten Hagelschaden pro Jahr.",
+      "description_other": "Die {{count}} Standorte mit dem höchsten erwarteten Hagelschaden pro Jahr."
     },
     "review": {
       "title": "Prüfhinweise",
@@ -876,7 +884,16 @@
         "what": "Standorte, die ein Underwriter genauer ansehen sollte, mit der Regel, die den Hinweis ausgelöst hat.",
         "how": "Kritisch: Hagelzone ≥ {{zone}}; Anteil an der Portfolio-EAL ≥ {{share}}; Kumulation im {{radius}}-km-Umkreis mit Exposure ≥ {{threshold}}. Datenqualität: Auslastung > {{utilisation}}, Grenz-Konfidenz ≤ {{confidence}}, 0 erkannte Fahrzeuge, geschätzte Hagelzone. Schwellen unter „Parameter“.",
         "limits": "Regelbasiert und ohne Gewichtung – ein Hinweis ist ein Prüfauftrag, keine Ablehnung."
+      },
+      "table": {
+        "what": "Alle Standorte des Portfolios mit Hagelzone, Fahrzeugen, Exposure und Hagel-EAL.",
+        "how": "Spaltenköpfe anklicken zum Sortieren. Das Suchfeld durchsucht nur diese Tabelle; die übrigen Kacheln folgen den Portfolio-Filtern oberhalb.",
+        "limits": "Fahrzeugzahl und EAL stammen aus der Luftbild-Erkennung und sind Screening-Schätzungen."
       }
+    },
+    "table": {
+      "description": "Alle Standorte mit Hagelzone, Fahrzeugen, Exposure und Hagel-EAL. Zeile anklicken für Details.",
+      "search": "In Tabelle suchen…"
     }
   },
   "map": {
@@ -1248,7 +1265,9 @@
     "businessType": "Geschäftsart",
     "allBusiness": "Alle Geschäftsarten",
     "existingBusiness": "Bestandsgeschäft",
-    "newBusiness": "Neugeschäft"
+    "newBusiness": "Neugeschäft",
+    "noOtherSessions": "Noch keine weitere gespeicherte Sitzung zum Vergleichen.",
+    "clusterFilterLabel": "Kumulation: {{name}}"
   },
   "aiSetup": {
     "missingTitle": "KI-Assistent noch nicht eingerichtet",

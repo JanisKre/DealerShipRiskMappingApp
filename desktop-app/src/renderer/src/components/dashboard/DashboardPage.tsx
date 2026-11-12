@@ -214,7 +214,9 @@ export function DashboardPage(): React.JSX.Element {
           </div>
         </header>
 
-        <main className="@container min-h-0 flex-1 overflow-y-auto">
+        {/* Not a <main>: the app shell already provides the page's main
+            landmark, and landmarks must not nest. */}
+        <div className="@container min-h-0 flex-1 overflow-y-auto">
           <div className="space-y-5 p-4 sm:p-6 lg:p-8">
             <ModelVersionBanner dealerships={dealerships} />
             <PortfolioFilterBar dealerships={dealerships} />
@@ -257,7 +259,7 @@ export function DashboardPage(): React.JSX.Element {
               </div>
             )}
           </div>
-        </main>
+        </div>
       </div>
 
       {assistantOpen && (
@@ -379,7 +381,9 @@ function DashboardTile({
       onDrop={onDrop}
       aria-label={label}
     >
-      <div className="pointer-events-none invisible absolute right-2 top-2 z-20 flex items-center gap-1 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+      {/* Sits on the tile's top border, not inside it, so it never covers
+          the tile title or its ⓘ button. */}
+      <div className="pointer-events-none invisible absolute -top-3 right-3 z-20 flex items-center gap-1 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
         <span
           className="pointer-events-auto rounded-md border bg-background/95 p-1 text-muted-foreground shadow-sm"
           title={t("dashboard.dragTile")}
@@ -429,6 +433,8 @@ function TileMenu({
             key={tile.id}
             checked={tileOrder.includes(tile.id)}
             onCheckedChange={(checked) => onToggle(tile.id, checked)}
+            // Keep the menu open so several tiles can be toggled in a row.
+            onSelect={(event) => event.preventDefault()}
           >
             {tileLabels.get(tile.id)}
           </DropdownMenuCheckboxItem>

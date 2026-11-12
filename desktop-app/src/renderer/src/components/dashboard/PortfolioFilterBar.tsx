@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
+import { computeAccumulationClusters } from "@shared/risk-math";
 import { Button } from "@renderer/components/ui/button";
 import {
   Select,
@@ -60,15 +61,48 @@ export function PortfolioFilterBar({
   const groups = useMemo(() => distinct(dealerships, "group"), [dealerships]);
   const businessCounts = useBusinessCounts(dealerships);
   const mixedBusiness = businessCounts.existing > 0 && businessCounts.fresh > 0;
+  const parameters = useAppStore((s) => s.parameters);
+  // Readable name for an active cluster filter ("Autohaus X + 1 weiterer")
+  // instead of the internal cluster id.
+  const clusterName = useMemo(() => {
+    if (!filters.clusterId) return null;
+    const located = dealerships.filter((d) => d.lat != null && d.lon != null);
+    const cluster = computeAccumulationClusters(
+      located,
+      parameters.accumulationRadiusKm,
+      parameters,
+    ).find((c) => c.clusterId === filters.clusterId);
+    if (!cluster) return null;
+    const largest = cluster.memberIds
+      .map((id) => located.find((d) => d.id === id))
+      .filter((d): d is AnalyzedDealership => d != null)
+      .sort(
+        (a, b) => (b.risk?.exposureEur ?? 0) - (a.risk?.exposureEur ?? 0),
+      )[0];
+    if (!largest) return null;
+    return cluster.count > 1
+      ? `${largest.name} ${t("dashboard.accumulations.more", { count: cluster.count - 1 })}`
+      : largest.name;
+  }, [dealerships, filters.clusterId, parameters, t]);
   const fallbackCount = useMemo(
     () => dealerships.filter((d) => d.boundary?.source === "synthetic").length,
     [dealerships],
   );
 
-  // Nothing to show if no metadata is present.
+  const active =
+    filters.business ||
+    filters.subPortfolio ||
+    filters.salesPartner ||
+    filters.group ||
+    filters.clusterId ||
+    filters.boundarySource;
+
+  // Nothing to show if no metadata is present — unless a filter is active
+  // (e.g. a cluster set from "Show on map"), which must stay visible and
+  // resettable even when the tile that set it is hidden.
   if (
+    !active &&
     !mixedBusiness &&
-    !filters.business &&
     partners.length === 0 &&
     subs.length === 0 &&
     groups.length === 0 &&
@@ -78,13 +112,6 @@ export function PortfolioFilterBar({
 
   const panel = variant === "panel";
   const selectClass = panel ? "h-8 w-full bg-background text-xs" : undefined;
-  const active =
-    filters.business ||
-    filters.subPortfolio ||
-    filters.salesPartner ||
-    filters.group ||
-    filters.clusterId ||
-    filters.boundarySource;
 
   return (
     <div
@@ -145,8 +172,10 @@ export function PortfolioFilterBar({
         </Select>
       )}
       {filters.clusterId && (
-        <span className="rounded-md border bg-muted px-2 py-1 font-mono text-xs">
-          {t("ui.clusterLabel", { id: filters.clusterId })}
+        <span className="rounded-md border bg-muted px-2 py-1 text-xs">
+          {clusterName
+            ? t("ui.clusterFilterLabel", { name: clusterName })
+            : t("ui.clusterLabel", { id: filters.clusterId })}
         </span>
       )}
       {active && (

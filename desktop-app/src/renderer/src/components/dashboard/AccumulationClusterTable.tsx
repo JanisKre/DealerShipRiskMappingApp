@@ -127,11 +127,19 @@ export function AccumulationClusterTable({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8" />
-                <TableHead>{t("dashboard.accumulations.name")}</TableHead>
-                <TableHead className="text-right">
+                {/* Takes the remaining width; `max-w-0` on its cells lets long
+                    names and addresses truncate instead of pushing the
+                    numeric columns out of view. */}
+                <TableHead className="w-full">
+                  {t("dashboard.accumulations.name")}
+                </TableHead>
+                {/* Secondary columns drop out on narrow tiles so the key
+                    figures (exposure, EAL, zone) stay visible without
+                    horizontal scrolling. */}
+                <TableHead className="hidden @3xl:table-cell text-right">
                   {t("dashboard.locations")}
                 </TableHead>
-                <TableHead className="text-right">
+                <TableHead className="hidden @3xl:table-cell text-right">
                   {t("common.vehicles")}
                 </TableHead>
                 <TableHead className="text-right">
@@ -141,7 +149,7 @@ export function AccumulationClusterTable({
                   {t("dashboard.hailEal")}
                 </TableHead>
                 <TableHead>{t("dashboard.accumulations.maxZone")}</TableHead>
-                <TableHead className="text-right">
+                <TableHead className="hidden @3xl:table-cell text-right">
                   {t("dashboard.accumulations.scenario", {
                     share: pct(parameters.scenarioDamageMedium),
                   })}
@@ -171,7 +179,7 @@ export function AccumulationClusterTable({
                           className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
                         />
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="max-w-0 font-medium">
                         <span className="mr-2 text-muted-foreground tabular-nums">
                           {index + 1}.
                         </span>
@@ -185,10 +193,10 @@ export function AccumulationClusterTable({
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="hidden @3xl:table-cell text-right tabular-nums">
                         {c.count}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="hidden @3xl:table-cell text-right tabular-nums">
                         {num(c.totalVehicles)}
                       </TableCell>
                       <TableCell className="text-right font-medium tabular-nums">
@@ -200,7 +208,7 @@ export function AccumulationClusterTable({
                       <TableCell>
                         {maxZone > 0 ? <HailZoneBadge zone={maxZone} /> : "–"}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="hidden @3xl:table-cell text-right tabular-nums">
                         {eur(c.natCatKpiEur)}
                       </TableCell>
                       <TableCell className="text-right">
@@ -226,16 +234,21 @@ export function AccumulationClusterTable({
                             onClick={() => onSelect(d)}
                           >
                             <TableCell />
-                            <TableCell className="pl-8">
-                              <span className="text-foreground">{d.name}</span>
+                            <TableCell className="max-w-0 pl-8">
+                              <span className="block break-words text-foreground">
+                                {d.name}
+                              </span>
                               {d.address && (
-                                <span className="block truncate text-xs">
+                                <span
+                                  className="line-clamp-2 break-words text-xs"
+                                  title={d.address}
+                                >
                                   {d.address}
                                 </span>
                               )}
                             </TableCell>
-                            <TableCell />
-                            <TableCell className="text-right tabular-nums">
+                            <TableCell className="hidden @3xl:table-cell" />
+                            <TableCell className="hidden @3xl:table-cell text-right tabular-nums">
                               {num(effectiveVehicleCount(d.detection))}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
@@ -254,7 +267,7 @@ export function AccumulationClusterTable({
                                 "–"
                               )}
                             </TableCell>
-                            <TableCell />
+                            <TableCell className="hidden @3xl:table-cell" />
                             <TableCell />
                           </TableRow>
                         );

@@ -50,7 +50,9 @@ export function TopLocationsChart({
           <TileInfo topic="topLocations" />
         </CardTitle>
         <CardDescription>
-          {t("dashboard.topLocations.description", { count: TOP_N })}
+          {t("dashboard.topLocations.description", {
+            count: Math.max(top.length, 1),
+          })}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -71,33 +73,35 @@ export function TopLocationsChart({
                     className="grid min-w-0 flex-1 grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-x-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
                     title={
                       totalEal > 0
-                        ? t("dashboard.topLocations.share", {
+                        ? `${d.name} · ${t("dashboard.topLocations.share", {
                             share: pct(eal / totalEal),
-                          })
-                        : undefined
+                          })}`
+                        : d.name
                     }
                   >
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {index + 1}
                     </span>
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate">{d.name}</span>
+                    <span className="truncate">{d.name}</span>
+                    <span className="text-right font-medium tabular-nums">
+                      {eur(eal)}
+                    </span>
+                    {/* Second line: bar plus the zone badge in a fixed
+                        right-hand column, so badges line up across rows. */}
+                    <span />
+                    <span className="h-1.5 rounded-full bg-muted">
+                      <span
+                        className="block h-full rounded-full bg-primary"
+                        style={{ width: `${max > 0 ? (eal / max) * 100 : 0}%` }}
+                      />
+                    </span>
+                    <span className="mt-1 flex justify-end">
                       {zone && (
                         <HailZoneBadge
                           zone={zone.zone}
                           estimated={zone.source === "estimated"}
                         />
                       )}
-                    </span>
-                    <span className="text-right font-medium tabular-nums">
-                      {eur(eal)}
-                    </span>
-                    <span />
-                    <span className="col-span-2 mt-1 h-1.5 rounded-full bg-muted">
-                      <span
-                        className="block h-full rounded-full bg-primary"
-                        style={{ width: `${max > 0 ? (eal / max) * 100 : 0}%` }}
-                      />
                     </span>
                   </button>
                   <button

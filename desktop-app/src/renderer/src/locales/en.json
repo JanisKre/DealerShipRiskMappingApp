@@ -755,6 +755,13 @@
         "vehiclesReviewed": "Vehicles reviewed on the map: {{from}} → {{to}}",
         "markedExisting": "Marked as existing business",
         "markedNew": "Marked as new business"
+      },
+      "riskTier": {
+        "veryLow": "Very low",
+        "low": "Low",
+        "moderate": "Moderate",
+        "high": "High",
+        "veryHigh": "Very high"
       }
     },
     "hailEal": "Hail EAL",
@@ -800,9 +807,10 @@
     },
     "topLocations": {
       "title": "Top locations by hail EAL",
-      "description": "The {{count}} locations with the highest expected hail loss per year.",
       "empty": "No locations with a hail EAL yet.",
-      "share": "{{share}} of the portfolio EAL"
+      "share": "{{share}} of the portfolio EAL",
+      "description_one": "The location with the highest expected hail loss per year.",
+      "description_other": "The {{count}} locations with the highest expected hail loss per year."
     },
     "review": {
       "title": "Review notes",
@@ -876,7 +884,16 @@
         "what": "Locations an underwriter should look at more closely, with the rule that raised the note.",
         "how": "Critical: hail zone ≥ {{zone}}; share of the portfolio EAL ≥ {{share}}; accumulation within {{radius}} km with exposure ≥ {{threshold}}. Data quality: utilisation > {{utilisation}}, boundary confidence ≤ {{confidence}}, 0 detected vehicles, estimated hail zone. Thresholds under “Parameters”.",
         "limits": "Rule-based and unweighted – a note is a request to review, not a decline."
+      },
+      "table": {
+        "what": "All portfolio locations with hail zone, vehicles, exposure and hail EAL.",
+        "how": "Click a column header to sort. The search field only searches this table; the other tiles follow the portfolio filters above.",
+        "limits": "Vehicle counts and EAL come from aerial-image detection and are screening estimates."
       }
+    },
+    "table": {
+      "description": "All locations with hail zone, vehicles, exposure and hail EAL. Click a row for details.",
+      "search": "Search table…"
     }
   },
   "map": {
@@ -1248,7 +1265,9 @@
     "businessType": "Business type",
     "allBusiness": "All business types",
     "existingBusiness": "Existing business",
-    "newBusiness": "New business"
+    "newBusiness": "New business",
+    "noOtherSessions": "No other saved session to compare with yet.",
+    "clusterFilterLabel": "Accumulation: {{name}}"
   },
   "aiSetup": {
     "missingTitle": "AI assistant not set up yet",

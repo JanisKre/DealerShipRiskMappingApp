@@ -142,7 +142,9 @@ export function SummaryCards({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 @xl:grid-cols-3 @5xl:grid-cols-6">
+    // Six columns only from 80rem of tile width: below that, euro values such
+    // as "24.675.000 €" no longer fit a sixth of the row and were clipped.
+    <div className="grid grid-cols-2 gap-4 @xl:grid-cols-3 @7xl:grid-cols-6">
       {stats.map((s) => {
         const tone = toneClasses[s.tone ?? "default"];
         const Icon = s.icon;
@@ -151,7 +153,9 @@ export function SummaryCards({
             <CardContent className="p-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                  <span className="truncate">{s.label}</span>
+                  <span className="truncate" title={s.label}>
+                    {s.label}
+                  </span>
                   {s.info && (
                     <TileInfo topic={s.info.topic} values={s.info.values} />
                   )}
@@ -160,14 +164,18 @@ export function SummaryCards({
               </div>
               <div
                 className={cn(
-                  "mt-2 text-xl font-semibold tabular-nums",
+                  "mt-2 truncate text-xl font-semibold tabular-nums",
                   tone.value,
                 )}
+                title={s.value}
               >
                 {s.value}
               </div>
               {s.hint && (
-                <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                <div
+                  className="mt-0.5 truncate text-xs text-muted-foreground"
+                  title={s.hint}
+                >
                   {s.hint}
                 </div>
               )}

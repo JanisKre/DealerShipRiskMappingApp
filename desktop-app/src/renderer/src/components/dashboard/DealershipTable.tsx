@@ -13,7 +13,13 @@ import { ArrowUpDown, AlertTriangle, MapPin } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { alertIdSet, generateAlerts } from "@shared/analytics";
-import { Badge } from "@renderer/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@renderer/components/ui/card";
 import { Input } from "@renderer/components/ui/input";
 import {
   Table,
@@ -24,8 +30,9 @@ import {
   TableRow,
 } from "@renderer/components/ui/table";
 import { eur, num } from "@renderer/lib/format";
-import { hailZoneColor } from "@renderer/lib/riskColor";
 import { useAppStore } from "@renderer/store/appStore";
+import { HailZoneBadge } from "./HailZoneBadge";
+import { TileInfo } from "./TileInfo";
 
 const columnHelper = createColumnHelper<AnalyzedDealership>();
 
@@ -33,8 +40,10 @@ const columnHelper = createColumnHelper<AnalyzedDealership>();
 const NUMERIC_COLUMNS = new Set(["vehicles", "exposure", "eal"]);
 
 /**
- * Sortable and filterable portfolio table (@tanstack/react-table).
- * Clicking a row opens the detail dialog (via `onSelect`).
+ * Sortable and searchable portfolio table (@tanstack/react-table) as a
+ * dashboard tile. The search only narrows this table; the portfolio filters
+ * above the tiles apply to every tile. Clicking a row opens the detail
+ * dialog (via `onSelect`).
  */
 export function DealershipTable({
   dealerships,
@@ -81,15 +90,7 @@ export function DealershipTable({
           if (zone === 0) return "–";
           const estimated =
             dealershipHailZone(info.row.original)?.source === "estimated";
-          return (
-            <Badge
-              style={{ backgroundColor: hailZoneColor(zone), color: "white" }}
-              title={estimated ? t("dashboard.hailZoneEstimated") : undefined}
-            >
-              {estimated ? "≈" : ""}
-              {zone}
-            </Badge>
-          );
+          return <HailZoneBadge zone={zone} estimated={estimated} />;
         },
       }),
       columnHelper.accessor((d) => effectiveVehicleCount(d.detection), {
@@ -144,100 +145,114 @@ export function DealershipTable({
   const highlight = highlightIds ? new Set(highlightIds) : null;
 
   return (
-    <div className="space-y-3">
-      <Input
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        placeholder={t("ui.filterLocations")}
-        className="max-w-xs"
-      />
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id}>
-                {hg.headers.map((header) => {
-                  const numeric = NUMERIC_COLUMNS.has(header.column.id);
-                  return (
-                    <TableHead
-                      key={header.id}
-                      className={numeric ? "text-right" : ""}
-                      aria-sort={
-                        header.column.getIsSorted() === "asc"
-                          ? "ascending"
-                          : header.column.getIsSorted() === "desc"
-                            ? "descending"
-                            : "none"
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-1.5 text-base">
+          {t("dashboard.tiles.table")}
+          <TileInfo topic="table" />
+        </CardTitle>
+        <CardDescription>{t("dashboard.table.description")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Input
+          type="search"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder={t("dashboard.table.search")}
+          aria-label={t("dashboard.table.search")}
+          className="max-w-xs"
+        />
+        <div className="rounded-lg border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((hg) => (
+                <TableRow key={hg.id}>
+                  {hg.headers.map((header) => {
+                    const numeric = NUMERIC_COLUMNS.has(header.column.id);
+                    return (
+                      <TableHead
+                        key={header.id}
+                        className={numeric ? "text-right" : ""}
+                        aria-sort={
+                          header.column.getIsSorted() === "asc"
+                            ? "ascending"
+                            : header.column.getIsSorted() === "desc"
+                              ? "descending"
+                              : "none"
+                        }
+                      >
+                        {header.isPlaceholder ? null : (
+                          <button
+                            type="button"
+                            className={`inline-flex items-center gap-1 hover:text-foreground ${
+                              numeric ? "flex-row-reverse" : ""
+                            }`}
+                            onClick={header.column.getToggleSortingHandler()}
+                            title={
+                              header.column.getIsSorted() === "asc"
+                                ? t("dashboard.sortAscending")
+                                : header.column.getIsSorted() === "desc"
+                                  ? t("dashboard.sortDescending")
+                                  : t("dashboard.sortNone")
+                            }
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                            {header.column.getCanSort() && (
+                              <ArrowUpDown className="size-3" />
+                            )}
+                          </button>
+                        )}
+                      </TableHead>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  onClick={() => onSelect(row.original)}
+                  className={`cursor-pointer ${
+                    highlight?.has(row.original.id)
+                      ? "bg-primary/10"
+                      : "even:bg-muted/30"
+                  }`}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      className={
+                        NUMERIC_COLUMNS.has(cell.column.id)
+                          ? "text-right tabular-nums"
+                          : ""
                       }
                     >
-                      {header.isPlaceholder ? null : (
-                        <button
-                          type="button"
-                          className={`inline-flex items-center gap-1 hover:text-foreground ${
-                            numeric ? "flex-row-reverse" : ""
-                          }`}
-                          onClick={header.column.getToggleSortingHandler()}
-                          title={
-                            header.column.getIsSorted() === "asc"
-                              ? t("dashboard.sortAscending")
-                              : header.column.getIsSorted() === "desc"
-                                ? t("dashboard.sortDescending")
-                                : t("dashboard.sortNone")
-                          }
-                        >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                          {header.column.getCanSort() && (
-                            <ArrowUpDown className="size-3" />
-                          )}
-                        </button>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
                       )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                onClick={() => onSelect(row.original)}
-                className={`cursor-pointer ${
-                  highlight?.has(row.original.id)
-                    ? "bg-primary/10"
-                    : "even:bg-muted/30"
-                }`}
-              >
-                {row.getVisibleCells().map((cell) => (
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+              {table.getRowModel().rows.length === 0 && (
+                <TableRow>
                   <TableCell
-                    key={cell.id}
-                    className={
-                      NUMERIC_COLUMNS.has(cell.column.id)
-                        ? "text-right tabular-nums"
-                        : ""
-                    }
+                    colSpan={columns.length}
+                    className="text-center text-muted-foreground"
                   >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    {t("ui.noMatches")}
                   </TableCell>
-                ))}
-              </TableRow>
-            ))}
-            {table.getRowModel().rows.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="text-center text-muted-foreground"
-                >
-                  {t("ui.noMatches")}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

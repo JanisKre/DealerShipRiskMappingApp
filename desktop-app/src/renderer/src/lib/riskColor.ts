@@ -21,6 +21,15 @@ export function hailZoneColor(zone: number): string {
   return HAIL_ZONE_COLORS[index];
 }
 
+/**
+ * Readable text color on a `hailZoneColor` background. Zones 1–4 are light
+ * (green, lime, yellow, orange), where white text falls below WCAG AA, so
+ * they get near-black text; zones 5–6 are dark enough for white.
+ */
+export function hailZoneTextColor(zone: number): string {
+  return Math.round(zone) >= 5 ? "#ffffff" : "#1c1917";
+}
+
 /** Discrete risk level per score (analogous to RiskLevel in the original). */
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "EXTREME";
 

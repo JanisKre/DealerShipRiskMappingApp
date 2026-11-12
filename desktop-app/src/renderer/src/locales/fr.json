@@ -546,6 +546,13 @@
         "vehiclesReviewed": "Véhicules vérifiés sur la carte : {{from}} → {{to}}",
         "markedExisting": "Marqué comme portefeuille",
         "markedNew": "Marqué comme affaire nouvelle"
+      },
+      "riskTier": {
+        "veryLow": "Très faible",
+        "low": "Faible",
+        "moderate": "Modéré",
+        "high": "Élevé",
+        "veryHigh": "Très élevé"
       }
     }
   },
@@ -918,7 +925,9 @@
     "businessType": "Type d’affaire",
     "allBusiness": "Tous types d’affaire",
     "existingBusiness": "Portefeuille existant",
-    "newBusiness": "Affaire nouvelle"
+    "newBusiness": "Affaire nouvelle",
+    "noOtherSessions": "Aucune autre session enregistrée à comparer.",
+    "clusterFilterLabel": "Cumul : {{name}}"
   },
   "aiSetup": {
     "missingTitle": "Assistant IA pas encore configuré",

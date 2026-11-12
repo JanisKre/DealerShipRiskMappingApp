@@ -32,6 +32,7 @@ import type {
   DealershipChange,
   BoundaryResult,
   EalBreakdown,
+  HailRiskTier,
   OsmDetails,
   RiskParameters,
   StructuredMemo,
@@ -77,7 +78,7 @@ import {
 import { Textarea } from "@renderer/components/ui/textarea";
 import { useAppStore } from "@renderer/store/appStore";
 import { eur, num, pct } from "@renderer/lib/format";
-import { hailZoneColor } from "@renderer/lib/riskColor";
+import { HailZoneBadge } from "./HailZoneBadge";
 import {
   dealershipHailZone,
   effectiveVehicleCount,
@@ -86,6 +87,15 @@ import {
 import { buildUnderwritingMessages } from "./UnderwritingMessages";
 import { DetectionImageryNote } from "./DetectionImageryNote";
 import { ImageryHistorySection } from "./ImageryHistorySection";
+
+/** Locale keys for the stored (English) hail risk tier values. */
+const RISK_TIER_KEYS: Record<HailRiskTier, string> = {
+  "Very Low": "veryLow",
+  Low: "low",
+  Moderate: "moderate",
+  High: "high",
+  "Very High": "veryHigh",
+};
 
 /**
  * Detail dialog for a location, built for progressive disclosure:
@@ -159,7 +169,8 @@ function DetailBody({
   const removeDealership = useAppStore((s) => s.removeDealership);
   const [tab, setTab] = useState<DetailTab>("overview");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const hailZone = dealershipHailZone(d)?.zone;
+  const zoneInfo = dealershipHailZone(d);
+  const hailZone = zoneInfo?.zone;
   const { details: osmDetails, loading: osmLoading } = useOsmDetails(
     d.lat,
     d.lon,
@@ -215,17 +226,14 @@ function DetailBody({
         <div className="flex items-start gap-2 pr-8">
           <DialogTitle className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             <span className="min-w-0 break-words">{d.name}</span>
-            <Badge
-              style={{
-                backgroundColor:
-                  hailZone != null ? hailZoneColor(hailZone) : "#6b7280",
-                color: "white",
-              }}
-            >
-              {hailZone != null
-                ? t("dashboard.detailDialog.hailZoneLabel", { zone: hailZone })
-                : "—"}
-            </Badge>
+            {hailZone != null ? (
+              <HailZoneBadge
+                zone={hailZone}
+                estimated={zoneInfo?.source === "estimated"}
+              />
+            ) : (
+              <Badge variant="outline">—</Badge>
+            )}
             <Badge variant="outline" className="font-normal">
               {d.insured
                 ? t("dashboard.detailDialog.businessExisting")
@@ -709,7 +717,9 @@ function HailOverview({ d }: { d: AnalyzedDealership }): React.JSX.Element {
           {d.hailRiskTier && (
             <span className="text-muted-foreground">
               {t("dashboard.detailDialog.hailZoneKasko", {
-                tier: d.hailRiskTier,
+                tier: t(
+                  `dashboard.detailDialog.riskTier.${RISK_TIER_KEYS[d.hailRiskTier]}`,
+                ),
               })}
             </span>
           )}
