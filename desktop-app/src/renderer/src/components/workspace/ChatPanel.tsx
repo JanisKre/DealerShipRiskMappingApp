@@ -17,7 +17,10 @@ import {
 import { Omnibox } from "@renderer/components/upload/Omnibox";
 import { useLlmReady } from "@renderer/lib/useLlmReady";
 import { cn } from "@renderer/lib/utils";
-import { useConversationStore } from "@renderer/store/conversationStore";
+import {
+  NEW_CONVERSATION_TITLE,
+  useConversationStore,
+} from "@renderer/store/conversationStore";
 
 /**
  * Right-hand chat dock in the workspace.
@@ -28,7 +31,7 @@ import { useConversationStore } from "@renderer/store/conversationStore";
  *   - Composer at the bottom: Omnibox in chat mode
  */
 export function ChatPanel(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const loadList = useConversationStore((s) => s.loadList);
   const list = useConversationStore((s) => s.list);
   const activeId = useConversationStore((s) => s.activeId);
@@ -68,7 +71,12 @@ export function ChatPanel(): React.JSX.Element {
               className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-medium hover:text-foreground"
               title={t("ui.switchThread")}
             >
-              <span className="truncate">{activeName}</span>
+              {/* The store keeps an English sentinel for unnamed threads. */}
+              <span className="truncate">
+                {activeName === NEW_CONVERSATION_TITLE
+                  ? t("ui.newConversation")
+                  : activeName}
+              </span>
               <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
@@ -87,8 +95,21 @@ export function ChatPanel(): React.JSX.Element {
                     conversation.id === activeId && "font-medium",
                   )}
                 >
-                  <span className="min-w-0 flex-1 truncate">
-                    {conversation.name}
+                  {/* Same-named threads ("hallo", "hallo") are told apart by
+                      their date; the open one carries a check mark. */}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">
+                      {conversation.id === activeId && "✓ "}
+                      {conversation.name === NEW_CONVERSATION_TITLE
+                        ? t("ui.newConversation")
+                        : conversation.name}
+                    </span>
+                    <span className="block text-[11px] font-normal text-muted-foreground">
+                      {new Date(conversation.updatedAt).toLocaleString(
+                        i18n.language,
+                        { dateStyle: "short", timeStyle: "short" },
+                      )}
+                    </span>
                   </span>
                   <button
                     type="button"

@@ -670,7 +670,8 @@
       "markInsuredToast": "{{count}} site(s) marqué(s) comme portefeuille existant",
       "markNotInsuredToast": "{{count}} site(s) marqué(s) comme affaire nouvelle",
       "directoryHintPrefix": "Concessionnaire introuvable ?",
-      "directoryHintLink": "Charger l’annuaire"
+      "directoryHintLink": "Charger l’annuaire",
+      "distanceChip": "à {{distance}} km"
     },
     "hailZones": {
       "loading": "Chargement des contours des codes postaux…",
@@ -949,7 +950,8 @@
     "existingBusiness": "Portefeuille existant",
     "newBusiness": "Affaire nouvelle",
     "noOtherSessions": "Aucune autre session enregistrée à comparer.",
-    "clusterFilterLabel": "Cumul : {{name}}"
+    "clusterFilterLabel": "Cumul : {{name}}",
+    "newConversation": "Nouvelle conversation"
   },
   "aiSetup": {
     "missingTitle": "Assistant IA pas encore configuré",

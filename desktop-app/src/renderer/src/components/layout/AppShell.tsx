@@ -202,20 +202,17 @@ export function AppShell(): React.JSX.Element {
           {showPortfolioSwitcher && (
             <PortfolioSwitcher descriptionKey={activeDescKey} />
           )}
-          {/* Page name as a secondary separator, when on a workspace route */}
-          {pathname !== "/" && (
-            <>
-              {showPortfolioSwitcher && (
-                <Separator
-                  orientation="vertical"
-                  className="mx-1 data-[orientation=vertical]:h-4"
-                />
-              )}
-              <h1 className="hidden truncate text-sm leading-tight font-semibold sm:block">
-                {t(activeTitleKey)}
-              </h1>
-            </>
+          {/* Page name after the portfolio, on every page (the map included,
+              so the header reads the same everywhere). */}
+          {showPortfolioSwitcher && (
+            <Separator
+              orientation="vertical"
+              className="mx-1 data-[orientation=vertical]:h-4"
+            />
           )}
+          <h1 className="hidden truncate text-sm leading-tight font-semibold sm:block">
+            {t(activeTitleKey)}
+          </h1>
           {lastSavedAt && (
             <span
               className="ml-auto hidden shrink-0 text-xs text-muted-foreground md:block"

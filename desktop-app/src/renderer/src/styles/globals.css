@@ -137,12 +137,20 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Border-Default + dünne, token-gefärbte Scrollbars (aus joule übernommen) */
-* {
-  border-color: var(--border);
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent)
-    transparent;
+/* Border-Default + dünne, token-gefärbte Scrollbars (aus joule übernommen).
+   In @layer base: unlayered, this rule beat every Tailwind border-colour
+   utility (border-primary, border-amber-500/30, …), so all borders were grey. */
+@layer base {
+  * {
+    border-color: var(--border);
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(
+        in srgb,
+        var(--muted-foreground) 35%,
+        transparent
+      )
+      transparent;
+  }
 }
 
 body {

@@ -42,6 +42,7 @@ import {
 } from "@renderer/components/ui/tooltip";
 import { cn } from "@renderer/lib/utils";
 import { hailZoneColor } from "@renderer/lib/riskColor";
+import { num } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
 import { searchBias } from "@renderer/lib/searchBias";
 import { Link } from "react-router-dom";
@@ -223,7 +224,8 @@ export function LocationsPanel({
             ) : (
               <ChevronRight className="size-4 shrink-0" />
             )}
-            <MapPin className="size-4 shrink-0" />
+            {/* No extra pin icon: it pushed the actions onto a second row
+                at the default dock width. */}
             <span>{t("dashboard.locations")}</span>
             <span className="text-muted-foreground">
               ({dealerships.length})
@@ -565,7 +567,13 @@ function LocationRow({
             {d.boundary?.source === "synthetic" && (
               <Chip warning>{t("ui.fallbackBoundary")}</Chip>
             )}
-            {distanceKm != null && <Chip>{distanceKm.toFixed(1)}&nbsp;km</Chip>}
+            {distanceKm != null && (
+              <Chip>
+                {t("map.locationsPanel.distanceChip", {
+                  distance: num(distanceKm, 1),
+                })}
+              </Chip>
+            )}
             {sameGroup && (
               <Chip accent>{t("map.locationsPanel.sameGroupChip")}</Chip>
             )}

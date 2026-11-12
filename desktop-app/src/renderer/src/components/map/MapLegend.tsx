@@ -68,11 +68,11 @@ export function MapLegend({
   ];
 
   return (
-    <div className="glass w-64 rounded-lg border shadow-lg">
+    <div className="glass pointer-events-auto flex max-h-full min-h-0 w-full flex-col rounded-lg border shadow-lg">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-semibold"
+        className="flex shrink-0 items-center gap-1.5 px-3 py-2.5 text-sm font-semibold"
         aria-expanded={open}
       >
         <Info className="size-4" />
@@ -84,7 +84,7 @@ export function MapLegend({
         )}
       </button>
       {open && (
-        <div className="space-y-2 border-t px-3 py-2.5 text-xs">
+        <div className="min-h-0 space-y-2 overflow-y-auto border-t px-3 py-2.5 text-xs">
           <LegendGroup title={t("map.legend.risk")}>
             {HAIL_ZONES.map((zone) => (
               <LegendRow

@@ -1052,35 +1052,38 @@ export function MapPage(): React.JSX.Element {
           )}
       </div>
 
-      {/* Layer control bottom right, collapsible */}
-      <div className="pointer-events-none absolute bottom-6 right-3 top-3 z-[1000] flex w-60 flex-col justify-end">
-        <LayerPanel
-          drawing={drawingScenario}
-          dealerships={withCoords}
-          onToggleDraw={() => setDrawingScenario((d) => !d)}
-          capturing={capturing}
-          onExport={exportMap}
-          selectedId={selectedId}
-          detectionEditing={detectionEditing}
-          onStartDetectionEditing={startDetectionEditing}
-          onSaveDetectionEdits={() => void saveDetectionEdits()}
-          onCancelDetectionEdits={cancelDetectionEditing}
-          imageryTimeline={timelineEnabled ? imageryTimeline : null}
-          imageryTimelineLoading={timelineEnabled && imageryTimelineLoading}
-          imageryTimelineAvailable={basemap === "satellite" && !wmsUrl}
-          countedImagery={countedCandidate}
-          autoImagery={imageryLoading ? null : (imagery?.chosen ?? null)}
-        />
-      </div>
-
-      {/* Legend bottom left; portfolio filters live in the layer panel */}
-      <div className="absolute bottom-6 left-3 z-[1000] flex flex-col gap-2">
-        <MapLegend
-          present={presence}
-          showClusterNote={layers.accumulationClusters}
-          imagery={shownImagery}
-          showImagery={basemap === "satellite"}
-        />
+      {/* Legend (left) and layer control (right) share one bottom bar: as
+          separate absolutely positioned boxes they overlapped on narrow
+          maps. Each shrinks to half the width at most and opens upwards,
+          stopping below the zoom control. */}
+      <div className="pointer-events-none absolute inset-x-3 bottom-6 top-24 z-[1000] flex items-end justify-between gap-2">
+        <div className="flex max-h-full min-h-0 w-64 min-w-0 shrink flex-col justify-end">
+          <MapLegend
+            present={presence}
+            showClusterNote={layers.accumulationClusters}
+            imagery={shownImagery}
+            showImagery={basemap === "satellite"}
+          />
+        </div>
+        <div className="flex max-h-full min-h-0 w-60 min-w-0 shrink flex-col justify-end">
+          <LayerPanel
+            drawing={drawingScenario}
+            dealerships={withCoords}
+            onToggleDraw={() => setDrawingScenario((d) => !d)}
+            capturing={capturing}
+            onExport={exportMap}
+            selectedId={selectedId}
+            detectionEditing={detectionEditing}
+            onStartDetectionEditing={startDetectionEditing}
+            onSaveDetectionEdits={() => void saveDetectionEdits()}
+            onCancelDetectionEdits={cancelDetectionEditing}
+            imageryTimeline={timelineEnabled ? imageryTimeline : null}
+            imageryTimelineLoading={timelineEnabled && imageryTimelineLoading}
+            imageryTimelineAvailable={basemap === "satellite" && !wmsUrl}
+            countedImagery={countedCandidate}
+            autoImagery={imageryLoading ? null : (imagery?.chosen ?? null)}
+          />
+        </div>
       </div>
 
       {contextMenu && (

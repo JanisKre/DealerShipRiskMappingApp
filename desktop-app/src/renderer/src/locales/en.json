@@ -1024,7 +1024,8 @@
       "markInsuredToast": "Marked {{count}} location(s) as existing business",
       "markNotInsuredToast": "Marked {{count}} location(s) as new business",
       "directoryHintPrefix": "Dealer missing?",
-      "directoryHintLink": "Load the dealer directory"
+      "directoryHintLink": "Load the dealer directory",
+      "distanceChip": "{{distance}} km away"
     },
     "hailZones": {
       "loading": "Loading postcode outlines…",
@@ -1303,7 +1304,8 @@
     "existingBusiness": "Existing business",
     "newBusiness": "New business",
     "noOtherSessions": "No other saved session to compare with yet.",
-    "clusterFilterLabel": "Accumulation: {{name}}"
+    "clusterFilterLabel": "Accumulation: {{name}}",
+    "newConversation": "New conversation"
   },
   "aiSetup": {
     "missingTitle": "AI assistant not set up yet",

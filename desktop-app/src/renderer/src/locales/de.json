@@ -946,7 +946,7 @@
       "boundaryManual": "Manuell angepasst",
       "boundaryAutomatic": "Automatisch, nach Quelle:",
       "vehicles": "Fahrzeuge",
-      "carCategory": "Fahrzeug / Car",
+      "carCategory": "Fahrzeug",
       "imageryTitle": "Satellitenbild (Kartenmitte)",
       "imageryLoading": "Metadaten werden geladen…",
       "imageryNoMetadataWms": "Die eigene WMS-Quelle stellt keine Bildmetadaten bereit; das Aufnahmedatum ist unbekannt.",
@@ -1024,7 +1024,8 @@
       "markInsuredToast": "{{count}} Standort(e) als Bestandsgeschäft markiert",
       "markNotInsuredToast": "{{count}} Standort(e) als Neugeschäft markiert",
       "directoryHintPrefix": "Händler fehlt?",
-      "directoryHintLink": "Händlerverzeichnis laden"
+      "directoryHintLink": "Händlerverzeichnis laden",
+      "distanceChip": "{{distance}} km entfernt"
     },
     "hailZones": {
       "loading": "Postleitzahl-Flächen werden geladen …",
@@ -1044,7 +1045,7 @@
       "satelliteOpacityAriaLabel": "Satelliten-Deckkraft",
       "boundariesLayerLabel": "Grundstücke",
       "nearbyInsuredLayerLabel": "Versicherte Nachbarn",
-      "accumulationClustersLayerLabel": "Kumul-Cluster",
+      "accumulationClustersLayerLabel": "Kumulationen",
       "hailZonesLayerLabel": "Hagelzonen (PLZ)",
       "editingActiveBadge": "aktiv",
       "editBoundariesButton": "Grenzen bearbeiten",
@@ -1102,7 +1103,7 @@
       "dismissHint": "Hinweis ausblenden",
       "detectionWarning": "Fahrzeugzahlen für {{count}} von {{total}} Standorten nur geschätzt",
       "detectionReviewSummary": "Maschine: {{machine}} · Hinzugefügt: +{{added}} · Entfernt: −{{removed}} · Geprüfte Summe: {{total}}",
-      "noClustersInfo": "Keine Kumul-Cluster — dafür braucht es mindestens 2 Standorte innerhalb von {{radius}} km zueinander",
+      "noClustersInfo": "Keine Kumulationen – dafür braucht es mindestens 2 Standorte innerhalb von {{radius}} km zueinander.",
       "defaultScenarioName": "Hagelkorridor",
       "retryAnalysis": "Erneut versuchen",
       "editingTitle": "Grenzen bearbeiten",
@@ -1280,7 +1281,7 @@
     "drawCorridor": "Korridor zeichnen",
     "drawingHint": "Wegpunkte auf der Karte anklicken; Doppelklick beendet den Pfad.",
     "opacityEalShare": "Deckkraft ∝ EAL-Anteil",
-    "accumulationClusters": "Kumul-Cluster",
+    "accumulationClusters": "Kumulationen",
     "filterLocations": "Standorte filtern…",
     "showOnMap": "Auf Karte anzeigen",
     "subPortfolio": "Teilportfolio",
@@ -1303,7 +1304,8 @@
     "existingBusiness": "Bestandsgeschäft",
     "newBusiness": "Neugeschäft",
     "noOtherSessions": "Noch keine weitere gespeicherte Sitzung zum Vergleichen.",
-    "clusterFilterLabel": "Kumulation: {{name}}"
+    "clusterFilterLabel": "Kumulation: {{name}}",
+    "newConversation": "Neue Konversation"
   },
   "aiSetup": {
     "missingTitle": "KI-Assistent noch nicht eingerichtet",

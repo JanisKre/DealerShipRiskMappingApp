@@ -6,7 +6,7 @@ import type { AnalyzedDealership } from "@shared/types";
 import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { isHttpWebsiteUrl, websiteLabel } from "@shared/website";
 import { eur } from "@renderer/lib/format";
-import { hailZoneColor } from "@renderer/lib/riskColor";
+import { hailZoneColor, hailZoneTextColor } from "@renderer/lib/riskColor";
 import { useMap } from "./leaflet-react";
 import { riskMarkerIcon } from "./markerIcons";
 import { businessType } from "@renderer/store/appStore";
@@ -110,13 +110,15 @@ function popupHtml(
       <div class="popup-title">${escapeHtml(d.name)}</div>
       <div class="popup-row">
         <span>${t("ui.hailRisk")}</span>
-        <span style="color:${color};font-weight:600">
-          ${zone != null ? t("dashboard.hailZoneLabel", { zone }) : t("ui.analyzing")}
-        </span>
+        ${
+          zone != null
+            ? `<span style="background:${color};color:${hailZoneTextColor(zone)};font-weight:600;border-radius:4px;padding:0 6px">${t("dashboard.hailZoneLabel", { zone })}</span>`
+            : `<span>${t("ui.analyzing")}</span>`
+        }
       </div>
       ${zone != null ? zoneScaleHtml(zone) : ""}
       <div class="popup-row">
-        <span>${t("ui.ealYear")}</span><span>${eal}</span>
+        <span>${t("dashboard.hailEal")}</span><span>${eal}</span>
       </div>
       <div class="popup-row">
         <span>${t("common.vehicles")}</span><span>${vehicles}</span>
