@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import {
+  ELEVATED_HAIL_ZONE,
   computeAccumulationClusters,
   dealershipHailZone,
   effectiveVehicleCount,
@@ -20,9 +21,6 @@ import { eur, num, pct } from "@renderer/lib/format";
 import { cn } from "@renderer/lib/utils";
 import { useAppStore } from "@renderer/store/appStore";
 import { TileInfo } from "./TileInfo";
-
-/** Hail zones from which a location counts as "elevated" in the KPI row. */
-const ELEVATED_HAIL_ZONE = 4;
 
 type Stat = {
   label: string;

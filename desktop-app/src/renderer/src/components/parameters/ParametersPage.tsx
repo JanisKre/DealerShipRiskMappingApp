@@ -2,7 +2,6 @@ import {
   Component,
   useCallback,
   useEffect,
-  useMemo,
   useState,
   type ErrorInfo,
   type ReactNode,
@@ -18,13 +17,31 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { RiskParameters } from "@shared/types";
+import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import { meanHailSeverityEur } from "@shared/risk-math";
-import { eur } from "@renderer/lib/format";
+import { eur, pct } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Card } from "@renderer/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@renderer/components/ui/dialog";
 import { Input } from "@renderer/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@renderer/components/ui/popover";
+import {
+  parameterInputError,
+  zonesWithFallingFrequency,
+} from "./parameterInput";
 import {
   Table,
   TableBody,
@@ -51,6 +68,8 @@ type ParameterField = {
   min: number;
   max?: number;
   step: number;
+  /** Only whole numbers are valid (e.g. a hail zone). */
+  integer?: boolean;
   recommended?: boolean;
   tip?: boolean;
 };
@@ -259,6 +278,7 @@ const GROUPS: ParameterGroup[] = [
         min: 1,
         max: 6,
         step: 1,
+        integer: true,
         recommended: true,
         tip: true,
       },
@@ -330,6 +350,14 @@ function HailEalNotice({
     parameters.hailShareMedium +
     parameters.hailShareLarge;
   const mean = meanHailSeverityEur(parameters);
+  const fallingZones = zonesWithFallingFrequency([
+    parameters.hailFrequencyZone1,
+    parameters.hailFrequencyZone2,
+    parameters.hailFrequencyZone3,
+    parameters.hailFrequencyZone4,
+    parameters.hailFrequencyZone5,
+    parameters.hailFrequencyZone6,
+  ]);
   return (
     <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
       <p className="font-mono text-xs">
@@ -350,6 +378,14 @@ function HailEalNotice({
           })}
         </p>
       )}
+      {fallingZones.length > 0 && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          {t("parameters.hailEal.frequencyOrder", {
+            count: fallingZones.length,
+            zones: fallingZones.join(", "),
+          })}
+        </p>
+      )}
     </div>
   );
 }
@@ -360,7 +396,7 @@ type EditorBindings = {
   disabled: boolean;
   label: (field: ParameterField) => string;
   onDraftChange: (key: ParameterKey, value: string) => void;
-  onCommit: (field: ParameterField, value: number) => void;
+  onCommit: (field: ParameterField, raw: string) => void;
 };
 
 /**
@@ -383,8 +419,9 @@ function HailEalTables({
         unit=""
         value={bindings.draft[key] ?? String(bindings.parameters[key])}
         onDraftChange={(value) => bindings.onDraftChange(key, value)}
-        onCommit={(value) => bindings.onCommit(field, value)}
+        onCommit={(raw) => bindings.onCommit(field, raw)}
         disabled={bindings.disabled}
+        compact
       />
     );
   };
@@ -396,6 +433,7 @@ function HailEalTables({
   const section = (
     title: string,
     unit: string,
+    hint: string,
     columns: Array<{ id: string; label: string; key: ParameterKey }>,
   ): React.JSX.Element => (
     <div className="space-y-1">
@@ -403,6 +441,7 @@ function HailEalTables({
         {title}{" "}
         <span className="font-normal text-muted-foreground">({unit})</span>
       </h4>
+      <p className="text-xs text-muted-foreground">{hint}</p>
       <Table>
         <TableHeader>
           <TableRow>
@@ -430,6 +469,7 @@ function HailEalTables({
       {section(
         t("parameters.hailEal.frequency"),
         t("parameters.units.eventsPerYear"),
+        t("parameters.hailEal.frequencyHint"),
         [1, 2, 3, 4, 5, 6].map((zone) => ({
           id: `z${zone}`,
           label: t("dashboard.zoneShort", { zone }),
@@ -440,6 +480,7 @@ function HailEalTables({
         {section(
           t("parameters.hailEal.probability"),
           t("parameters.units.fraction"),
+          t("parameters.hailEal.probabilityHint"),
           classes.map((c) => ({
             id: c.id,
             label: c.label,
@@ -449,6 +490,7 @@ function HailEalTables({
         {section(
           t("parameters.hailEal.severity"),
           t("parameters.units.eurPerVehicle"),
+          t("parameters.hailEal.severityHint"),
           classes.map((c) => ({
             id: c.id,
             label: c.label,
@@ -464,6 +506,18 @@ function displayValue(value: number): string {
   return String(value);
 }
 
+/**
+ * The value as the rest of the app shows it, under the raw number field:
+ * a number input can't group thousands ("50000000") or show percentages,
+ * while the dashboard reads "50.000.000 €" and "15 %".
+ */
+function readableValue(field: ParameterField, value: number): string | null {
+  if (!Number.isFinite(value)) return null;
+  if (field.unit === "eur" && Math.abs(value) >= 10_000) return eur(value);
+  if (field.unit === "fraction") return pct(value, 1);
+  return null;
+}
+
 type ParameterEditorProps = {
   field: ParameterField;
   label: string;
@@ -471,7 +525,10 @@ type ParameterEditorProps = {
   value: string;
   disabled: boolean;
   onDraftChange: (value: string) => void;
-  onCommit: (value: number) => void;
+  /** Receives the raw field text so an empty field isn't read as 0. */
+  onCommit: (raw: string) => void;
+  /** Narrow table cell: smaller minimum width, no readable-value line. */
+  compact?: boolean;
 };
 
 function ParameterEditor({
@@ -482,33 +539,109 @@ function ParameterEditor({
   disabled,
   onDraftChange,
   onCommit,
+  compact = false,
 }: ParameterEditorProps): React.JSX.Element {
+  const readable = compact ? null : readableValue(field, Number(value));
   // Unit as an in-field suffix with its own width: units range from
   // "€" to "Schläge/km²/Jahr", so a fixed right padding can't fit them.
   return (
-    <div className="flex h-8 w-full min-w-24 items-center rounded-md border border-input shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring has-[:disabled]:opacity-50">
-      <Input
-        id={`parameter-${field.key}`}
-        aria-label={label}
-        type="number"
-        min={field.min}
-        max={field.max}
-        step={field.step}
-        value={value}
-        onChange={(event) => onDraftChange(event.target.value)}
-        onBlur={() => onCommit(Number(value))}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
-        }}
-        disabled={disabled}
-        className="h-full min-w-0 flex-1 border-0 px-2 text-right tabular-nums shadow-none focus-visible:ring-0 disabled:opacity-100"
-      />
-      {unit && (
-        <span className="shrink-0 whitespace-nowrap pr-2 text-xs text-muted-foreground">
-          {unit}
-        </span>
+    <div className="space-y-0.5">
+      <div
+        className={`flex h-8 w-full items-center rounded-md border border-input shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring has-[:disabled]:opacity-50 ${
+          compact ? "min-w-14" : "min-w-24"
+        }`}
+      >
+        <Input
+          id={`parameter-${field.key}`}
+          aria-label={label}
+          type="number"
+          min={field.min}
+          max={field.max}
+          step={field.step}
+          value={value}
+          onChange={(event) => onDraftChange(event.target.value)}
+          onBlur={() => onCommit(value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
+          disabled={disabled}
+          className="h-full min-w-0 flex-1 border-0 px-2 text-right tabular-nums shadow-none focus-visible:ring-0 disabled:opacity-100"
+        />
+        {unit && (
+          <span className="shrink-0 whitespace-nowrap pr-2 text-xs text-muted-foreground">
+            {unit}
+          </span>
+        )}
+      </div>
+      {readable && (
+        <p className="pr-2 text-right text-xs text-muted-foreground tabular-nums">
+          = {readable}
+        </p>
       )}
     </div>
+  );
+}
+
+/** ⓘ next to a field label; opens the field's tip (same pattern as the dashboard tiles). */
+function FieldTip({
+  label,
+  text,
+}: Readonly<{ label: string; text: string }>): React.JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label={`${t("dashboard.info.label")}: ${label}`}
+        >
+          <Info className="size-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-72 p-3 text-xs leading-relaxed"
+      >
+        {text}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Confirms a reset that would overwrite values differing from the defaults. */
+function ResetDialog({
+  open,
+  changedCount,
+  onOpenChange,
+  onConfirm,
+}: Readonly<{
+  open: boolean;
+  changedCount: number;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}>): React.JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("parameters.resetConfirmTitle")}</DialogTitle>
+          <DialogDescription>
+            {t("parameters.resetConfirmDescription", { count: changedCount })}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="destructive" onClick={onConfirm}>
+            <RotateCcw className="size-4" />
+            {t("parameters.reset")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -589,8 +722,8 @@ function ParametersContent(): React.JSX.Element {
   const updateParameters = useAppStore((s) => s.updateParameters);
   const resetParameters = useAppStore((s) => s.resetParameters);
   const saveSession = useAppStore((s) => s.saveSession);
-  const lastSavedAt = useAppStore((s) => s.lastSavedAt);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [confirmReset, setConfirmReset] = useState(false);
   useEffect(() => {
     setDraft(
       Object.fromEntries(
@@ -601,31 +734,74 @@ function ParametersContent(): React.JSX.Element {
       ),
     );
   }, [parameters]);
-  const fieldCount = useMemo(
-    () => GROUPS.reduce((sum, group) => sum + group.fields.length, 0),
-    [],
-  );
+  function revertDraft(field: ParameterField): void {
+    setDraft((current) => ({
+      ...current,
+      [field.key]: String(parameters[field.key]),
+    }));
+  }
+  function ruleText(field: ParameterField): string {
+    const fmt = (n: number): string => n.toLocaleString("de-DE");
+    if (field.max == null)
+      return t("parameters.validation.atLeast", { min: fmt(field.min) });
+    return t(
+      field.integer
+        ? "parameters.validation.wholeBetween"
+        : "parameters.validation.between",
+      { min: fmt(field.min), max: fmt(field.max) },
+    );
+  }
   async function commitValue(
     field: ParameterField,
-    value: number,
+    raw: string,
   ): Promise<void> {
-    if (
-      !Number.isFinite(value) ||
-      value < field.min ||
-      (field.max != null && value > field.max)
-    ) {
-      setDraft((current) => ({
-        ...current,
-        [field.key]: String(parameters[field.key]),
-      }));
+    const error = parameterInputError(raw, field);
+    if (error) {
+      revertDraft(field);
+      // Say why the value jumped back instead of reverting silently.
+      toast.error(
+        t(`parameters.validation.${error}`, {
+          label: fieldLabel(field),
+          rule: ruleText(field),
+          value: String(parameters[field.key]).replace(".", ","),
+        }),
+      );
       return;
     }
-    if (value !== parameters[field.key])
+    const value = Number(raw.trim());
+    if (value === parameters[field.key]) return;
+    try {
       await updateParameters({ [field.key]: value } as Partial<RiskParameters>);
+    } catch (err) {
+      revertDraft(field);
+      toast.error(
+        t("parameters.validation.rejected", {
+          label: fieldLabel(field),
+          error: (err as Error).message,
+        }),
+      );
+    }
+  }
+  const changedFromDefaults = (
+    Object.keys(DEFAULT_RISK_PARAMETERS) as ParameterKey[]
+  ).filter((key) => parameters[key] !== DEFAULT_RISK_PARAMETERS[key]).length;
+  function requestReset(): void {
+    if (changedFromDefaults === 0) {
+      toast.info(t("parameters.resetNothing"));
+      return;
+    }
+    setConfirmReset(true);
   }
   async function reset(): Promise<void> {
+    setConfirmReset(false);
+    const previous = parameters;
     await resetParameters();
-    toast.success(t("parameters.resetDone"));
+    toast.success(t("parameters.resetDone"), {
+      action: {
+        label: t("parameters.resetUndo"),
+        onClick: () => void updateParameters(previous),
+      },
+    });
   }
   async function save(): Promise<void> {
     await saveSession();
@@ -642,7 +818,7 @@ function ParametersContent(): React.JSX.Element {
     label: fieldLabel,
     onDraftChange: (key, value) =>
       setDraft((current) => ({ ...current, [key]: value })),
-    onCommit: (field, value) => void commitValue(field, value),
+    onCommit: (field, raw) => void commitValue(field, raw),
   };
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-8">
@@ -656,23 +832,19 @@ function ParametersContent(): React.JSX.Element {
             {t("parameters.description")}
           </p>
         </div>
+        {/* Save state lives in the header ("Automatisch gespeichert · …");
+            this bar only adds the recalculation state and the actions. */}
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card/60 p-2">
-          <Badge variant="outline">
-            {fieldCount} {t("parameters.fields")}
-          </Badge>
           {parametersUpdating && (
             <Badge variant="secondary">
               <Loader2 className="mr-1 size-3 animate-spin" />
               {t("parameters.recalculating")}
             </Badge>
           )}
-          {!parametersUpdating && lastSavedAt && (
-            <Badge variant="secondary">{t("parameters.autosaved")}</Badge>
-          )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Button
               variant="ghost"
-              onClick={() => void reset()}
+              onClick={requestReset}
               disabled={parametersUpdating}
             >
               <RotateCcw className="mr-2 size-4" />
@@ -742,19 +914,32 @@ function ParametersContent(): React.JSX.Element {
                             className="grid gap-2 px-4 py-2.5 sm:grid-cols-[1fr_180px] sm:items-center"
                           >
                             <div className="min-w-0">
-                              <label
-                                htmlFor={`parameter-${field.key}`}
-                                className="text-sm font-medium"
-                                title={
-                                  field.tip
-                                    ? t(
-                                        `parameters.parameterFields.${field.key}.tip`,
-                                      )
-                                    : undefined
-                                }
-                              >
-                                {fieldLabel(field)}
-                              </label>
+                              {/* Tips sit behind an ⓘ popover: Electron
+                                  doesn't show native `title` tooltips. */}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <label
+                                  htmlFor={`parameter-${field.key}`}
+                                  className="text-sm font-medium"
+                                >
+                                  {fieldLabel(field)}
+                                </label>
+                                {field.recommended && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[10px]"
+                                  >
+                                    {t("parameters.recommended")}
+                                  </Badge>
+                                )}
+                                {field.tip && (
+                                  <FieldTip
+                                    label={fieldLabel(field)}
+                                    text={t(
+                                      `parameters.parameterFields.${field.key}.tip`,
+                                    )}
+                                  />
+                                )}
+                              </div>
                               <p className="text-xs text-muted-foreground">
                                 {fieldDescription(field)}
                               </p>
@@ -773,7 +958,7 @@ function ParametersContent(): React.JSX.Element {
                                   [field.key]: value,
                                 }))
                               }
-                              onCommit={(value) => commitValue(field, value)}
+                              onCommit={(raw) => void commitValue(field, raw)}
                               disabled={parametersUpdating}
                             />
                           </div>
@@ -787,6 +972,12 @@ function ParametersContent(): React.JSX.Element {
           );
         })}
       </div>
+      <ResetDialog
+        open={confirmReset}
+        changedCount={changedFromDefaults}
+        onOpenChange={setConfirmReset}
+        onConfirm={() => void reset()}
+      />
     </div>
   );
 }

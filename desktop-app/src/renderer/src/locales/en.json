@@ -66,19 +66,14 @@
   },
   "parameters": {
     "title": "Model parameters",
-    "description": "Adjust risk, exposure, portfolio and data-quality parameters for this session. Changes are applied to existing scores after leaving a field and saved automatically.",
-    "fields": "fields",
-    "cardDescription": "Changes apply to the next calculation.",
+    "description": "Adjust risk, exposure, portfolio and data-quality parameters for this portfolio. Changes are applied to existing scores after leaving a field and saved automatically.",
     "reset": "Reset to defaults",
-    "resetDone": "Parameters reset to sensible defaults.",
+    "resetDone": "Parameters reset to defaults.",
     "recalculating": "Recalculating scores…",
-    "autosaved": "Session saved",
     "startHereTitle": "Start here",
-    "startHereDescription": "For most portfolios, the marked settings are enough. They directly affect exposure, EAL, or alerts; everything else remains available under “Advanced parameters”.",
-    "fractionHint": "Guidance: enter fractions as decimals — 0.15 means 15%. Changes are applied when you leave a field.",
+    "startHereDescription": "For most portfolios, the fields marked “important” are enough. They directly affect exposure, EAL or review notes; the other fields are only needed in special cases. All hail EAL values are important.",
+    "fractionHint": "Enter fractions as decimals (0.15 = 15%); the percentage is shown under the field. Changes are applied when you leave a field.",
     "recommended": "important",
-    "advancedParameters": "Advanced parameters",
-    "whatFor": "Why it matters:",
     "retry": "Try again",
     "loadErrorTitle": "Parameters could not be loaded",
     "loadErrorDescription": "The rest of the app remains available. Try loading the parameters page again.",
@@ -145,7 +140,7 @@
       },
       "accumulationRadiusKm": {
         "label": "Accumulation radius",
-        "description": "Distance within which sites are grouped.",
+        "description": "Distance within which locations are grouped into one accumulation.",
         "tip": "Sets how close several sites must be to count as one concentration risk."
       },
       "accumulationReinsureThresholdEur": {
@@ -195,11 +190,11 @@
         "description": "Minimum agreement between independent geometries."
       },
       "boundaryNearPointDistanceM": {
-        "label": "Boundary proximity to reference point",
-        "description": "Maximum distance for the relationship 'near'."
+        "label": "Maximum distance to the address point",
+        "description": "Up to this distance a parcel still counts as near the location's address point."
       },
       "syntheticBoundaryRadiusM": {
-        "label": "Synthetic boundary radius",
+        "label": "Fallback boundary radius",
         "description": "Fallback radius when no geometry is available."
       },
       "detectionConfidence": {
@@ -258,7 +253,7 @@
       "alertHailZone": {
         "label": "Hail-zone review threshold",
         "description": "Locations in this hail zone or above get a critical review note.",
-        "tip": "Lower means more notes; 5 flags zones 5 and 6."
+        "tip": "Lower means more notes; 5 flags zones 5 and 6. The “In hail zone ≥ 4” figure on the dashboard and in reports always counts from zone 4."
       }
     },
     "hailEal": {
@@ -271,7 +266,27 @@
       "small": "Small",
       "medium": "Medium",
       "large": "Large",
-      "shareSum": "The shares p add up to {{sum}} instead of 1 – they are normalized to 1 for the calculation."
+      "shareSum": "The shares p add up to {{sum}} instead of 1 – they are normalized to 1 for the calculation.",
+      "frequencyHint": "How often per year a hail event hits a location in that zone.",
+      "probabilityHint": "Share of events per size class; together 1.",
+      "severityHint": "Damage per vehicle when an event of that class occurs.",
+      "frequencyOrder_one": "λ in zone {{zones}} is lower than in the zone below – please check.",
+      "frequencyOrder_other": "λ in zones {{zones}} is lower than in the zone below each – please check."
+    },
+    "resetUndo": "Undo",
+    "resetNothing": "All values already match the defaults.",
+    "resetConfirmTitle": "Reset to defaults?",
+    "resetConfirmDescription_one": "{{count}} value differs from the defaults and will be overwritten. All scores are then recalculated.",
+    "resetConfirmDescription_other": "{{count}} values differ from the defaults and will be overwritten. All scores are then recalculated.",
+    "validation": {
+      "empty": "“{{label}}” can't be empty. The previous value {{value}} is kept.",
+      "notANumber": "“{{label}}”: please enter a number. The previous value {{value}} is kept.",
+      "notInteger": "“{{label}}”: allowed is {{rule}}. The previous value {{value}} is kept.",
+      "outOfRange": "“{{label}}”: allowed is {{rule}}. The previous value {{value}} is kept.",
+      "rejected": "“{{label}}” could not be applied: {{error}}",
+      "between": "a value between {{min}} and {{max}}",
+      "atLeast": "a value of at least {{min}}",
+      "wholeBetween": "a whole number between {{min}} and {{max}}"
     }
   },
   "settings": {

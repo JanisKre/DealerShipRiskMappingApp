@@ -1,6 +1,10 @@
 import type { AnalyzedDealership, DashboardSpec } from "./types";
 import { computeSeasonalProfile, type SeasonalPoint } from "./analytics";
-import { dealershipHailZone, effectiveVehicleCount } from "./risk-math";
+import {
+  ELEVATED_HAIL_ZONE,
+  dealershipHailZone,
+  effectiveVehicleCount,
+} from "./risk-math";
 
 /**
  * Deterministic aggregate computation for AI dashboards. Pure function
@@ -31,7 +35,6 @@ export interface DashboardData {
 }
 
 const HAIL_ZONES = [1, 2, 3, 4, 5, 6] as const;
-const ELEVATED_HAIL_ZONE = 4;
 
 /** Computes the full, fixed aggregate catalog of a portfolio. */
 export function computeDashboardData(

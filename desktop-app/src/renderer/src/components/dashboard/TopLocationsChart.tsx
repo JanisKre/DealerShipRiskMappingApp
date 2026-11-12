@@ -82,7 +82,9 @@ export function TopLocationsChart({
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {index + 1}
                     </span>
-                    <span className="truncate">{d.name}</span>
+                    {/* Wraps to two lines instead of truncating: Electron shows no
+                        native `title` tooltip, so a cut-off name stays hidden. */}
+                    <span className="line-clamp-2 break-words">{d.name}</span>
                     <span className="text-right font-medium tabular-nums">
                       {eur(eal)}
                     </span>

@@ -67,17 +67,18 @@
   "parameters": {
     "title": "Paramètres du modèle",
     "description": "Ajustez les paramètres de risque, d’exposition, de portefeuille et de qualité des données pour cette session. Les scores existants sont recalculés après la sortie d’un champ et les changements sont enregistrés automatiquement.",
-    "fields": "champs",
-    "cardDescription": "Les changements s’appliquent au prochain calcul.",
     "reset": "Réinitialiser les valeurs",
     "resetDone": "Paramètres réinitialisés.",
     "recalculating": "Recalcul des scores…",
-    "autosaved": "Session enregistrée",
     "startHereTitle": "Commencer ici",
-    "startHereDescription": "Pour la plupart des portefeuilles, les réglages marqués suffisent. Ils influencent directement l’exposition, l’EAL ou les alertes ; le reste est disponible dans « Paramètres avancés ».",
+    "startHereDescription": "Pour la plupart des portefeuilles, les champs marqués « important » suffisent. Ils influencent directement l’exposition, l’EAL ou les alertes ; les autres ne servent que dans des cas particuliers.",
     "fractionHint": "Repère : saisissez les proportions sous forme décimale — 0,15 correspond à 15 %. Les changements sont appliqués en quittant le champ.",
     "recommended": "important",
-    "advancedParameters": "Paramètres avancés"
+    "resetUndo": "Annuler",
+    "resetNothing": "Toutes les valeurs correspondent déjà aux valeurs par défaut.",
+    "resetConfirmTitle": "Réinitialiser les valeurs ?",
+    "resetConfirmDescription_one": "{{count}} valeur diffère des valeurs par défaut et sera écrasée. Tous les scores sont ensuite recalculés.",
+    "resetConfirmDescription_other": "{{count}} valeurs diffèrent des valeurs par défaut et seront écrasées. Tous les scores sont ensuite recalculés."
   },
   "settings": {
     "title": "Paramètres",

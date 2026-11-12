@@ -8,6 +8,7 @@ import ExcelJS from "exceljs";
 import type { AnalyzedDealership, Session } from "@shared/types";
 import { SessionSchema } from "@shared/types";
 import {
+  ELEVATED_HAIL_ZONE,
   computeAccumulationClusters,
   dealershipHailZone,
   effectiveVehicleCount,
@@ -110,8 +111,6 @@ interface PortfolioTotals {
   /** Locations in hail zone 4 or higher. */
   elevatedZoneCount: number;
 }
-
-const ELEVATED_HAIL_ZONE = 4;
 
 function portfolioTotals(session: Session): PortfolioTotals {
   const ds = session.dealerships;

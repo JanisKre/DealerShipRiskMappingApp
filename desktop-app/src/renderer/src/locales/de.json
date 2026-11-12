@@ -66,19 +66,14 @@
   },
   "parameters": {
     "title": "Modellparameter",
-    "description": "Passe Risiko-, Expositions-, Portfolio- und Datenqualitätsparameter für diese Session an. Änderungen werden nach dem Verlassen eines Feldes sofort auf bestehende Scores angewendet und automatisch gespeichert.",
-    "fields": "Felder",
-    "cardDescription": "Änderungen werden auf die nächste Berechnung angewendet.",
-    "reset": "Auf Defaults zurücksetzen",
-    "resetDone": "Parameter auf sinnvolle Defaults zurückgesetzt.",
+    "description": "Passe Risiko-, Expositions-, Portfolio- und Datenqualitätsparameter für dieses Portfolio an. Änderungen werden nach dem Verlassen eines Feldes sofort auf bestehende Scores angewendet und automatisch gespeichert.",
+    "reset": "Auf Standardwerte zurücksetzen",
+    "resetDone": "Parameter auf Standardwerte zurückgesetzt.",
     "recalculating": "Scores werden neu berechnet…",
-    "autosaved": "Session gespeichert",
     "startHereTitle": "Hier beginnen",
-    "startHereDescription": "Für die meisten Portfolios reichen die markierten Einstellungen. Sie beeinflussen direkt Exposure, EAL oder Warnungen; alles Weitere bleibt unter „Erweiterte Parameter“ verfügbar.",
-    "fractionHint": "Orientierung: Ein Anteil wird als Dezimalzahl eingegeben — 0,15 entspricht 15 %. Änderungen werden beim Verlassen eines Feldes übernommen.",
+    "startHereDescription": "Für die meisten Portfolios reichen die mit „wichtig“ markierten Felder. Sie beeinflussen direkt Exposure, EAL oder Prüfhinweise; die übrigen Felder brauchst du nur in Sonderfällen. Die Hagel-EAL-Werte sind alle wichtig.",
+    "fractionHint": "Anteile werden als Dezimalzahl eingegeben (0,15 = 15 %); unter dem Feld steht der Wert in Prozent. Änderungen werden beim Verlassen eines Feldes übernommen.",
     "recommended": "wichtig",
-    "advancedParameters": "Erweiterte Parameter",
-    "whatFor": "Wofür?",
     "retry": "Erneut laden",
     "loadErrorTitle": "Parameter konnten nicht geladen werden",
     "loadErrorDescription": "Die übrige App bleibt verfügbar. Versuche, die Parameterseite erneut zu laden.",
@@ -144,13 +139,13 @@
         "description": "Radius für die größte PML-Exposition."
       },
       "accumulationRadiusKm": {
-        "label": "Akkumulationsradius",
-        "description": "Entfernung, in der Standorte zusammengefasst werden.",
-        "tip": "Legt fest, ab welcher Nähe mehrere Standorte als ein Konzentrationsrisiko betrachtet werden."
+        "label": "Kumulationsradius",
+        "description": "Entfernung, bis zu der Standorte zu einer Kumulation zusammengefasst werden.",
+        "tip": "Legt fest, ab welcher Nähe mehrere Standorte als eine Kumulation (ein gemeinsames Konzentrationsrisiko) gelten."
       },
       "accumulationReinsureThresholdEur": {
         "label": "Rückversicherungs-Schwelle",
-        "description": "Ab dieser akkumulierten Exposition wird Rückversicherung empfohlen.",
+        "description": "Ab diesem Exposure einer Kumulation wird Rückversicherung empfohlen.",
         "tip": "Dient als organisatorischer Schwellenwert für die Rückversicherungswarnung."
       },
       "scenarioDamageLow": {
@@ -175,7 +170,7 @@
         "tip": "1,0 entspricht 100 % Auslastung. Werte über 1,0 erlauben den entsprechenden Puffer."
       },
       "alertLowBoundaryConfidence": {
-        "label": "Warnschwelle Boundary-Konfidenz",
+        "label": "Warnschwelle Konfidenz Grundstücksgrenze",
         "description": "Darunter gilt die Grundstücksgrenze als unsicher."
       },
       "alertEalPortfolioShare": {
@@ -183,24 +178,24 @@
         "description": "Portfolioanteil, ab dem ein Standort hervorgehoben wird."
       },
       "boundaryReviewConfidence": {
-        "label": "Boundary-Review-Konfidenz",
-        "description": "Unterhalb dieser Konfidenz ist eine Prüfung erforderlich."
+        "label": "Prüfschwelle Konfidenz Grundstücksgrenze",
+        "description": "Unterhalb dieser Konfidenz muss die Grundstücksgrenze geprüft werden."
       },
       "boundaryReviewTop2Margin": {
-        "label": "Boundary-Review Top-2-Abstand",
-        "description": "Mindestabstand zwischen bestem und zweitbestem Kandidaten."
+        "label": "Prüfschwelle Abstand zum zweitbesten Vorschlag",
+        "description": "Liegen bester und zweitbester Grenzvorschlag enger beieinander, ist eine Prüfung nötig."
       },
       "boundaryReviewSourceAgreement": {
-        "label": "Boundary-Review Quellenübereinstimmung",
-        "description": "Mindestübereinstimmung unabhängiger Geometrien."
+        "label": "Prüfschwelle Quellenübereinstimmung",
+        "description": "Mindestübereinstimmung unabhängiger Quellen für die Grundstücksgrenze."
       },
       "boundaryNearPointDistanceM": {
-        "label": "Boundary-Nähe zum Referenzpunkt",
-        "description": "Maximale Distanz für die Relation nahe."
+        "label": "Maximaler Abstand zum Adresspunkt",
+        "description": "Bis zu diesem Abstand gilt eine Grundstücksfläche noch als nahe am Adresspunkt des Standorts."
       },
       "syntheticBoundaryRadiusM": {
-        "label": "Synthetischer Boundary-Radius",
-        "description": "Fallback-Radius, wenn keine Geometrie verfügbar ist."
+        "label": "Radius der Ersatzgrenze",
+        "description": "Kreisradius um den Adresspunkt, wenn keine Grundstücksgeometrie gefunden wird."
       },
       "detectionConfidence": {
         "label": "Erkennungs-Konfidenz",
@@ -258,7 +253,7 @@
       "alertHailZone": {
         "label": "Prüfschwelle Hagelzone",
         "description": "Ab dieser Hagelzone erzeugt ein Standort einen kritischen Prüfhinweis.",
-        "tip": "Niedriger = mehr Hinweise; 5 markiert die Zonen 5 und 6."
+        "tip": "Niedriger = mehr Hinweise; 5 markiert die Zonen 5 und 6. Die Kennzahl „In Hagelzone ≥ 4“ im Dashboard und in Berichten zählt unabhängig davon fest ab Zone 4."
       }
     },
     "hailEal": {
@@ -271,7 +266,27 @@
       "small": "Klein",
       "medium": "Mittel",
       "large": "Groß",
-      "shareSum": "Die Anteile p summieren sich auf {{sum}} statt 1 – sie werden für die Berechnung auf 1 normiert."
+      "shareSum": "Die Anteile p summieren sich auf {{sum}} statt 1 – sie werden für die Berechnung auf 1 normiert.",
+      "frequencyHint": "Wie oft pro Jahr ein Hagelereignis einen Standort der jeweiligen Zone trifft.",
+      "probabilityHint": "Anteil der Ereignisse je Größenklasse; zusammen 1.",
+      "severityHint": "Schaden je Fahrzeug, wenn ein Ereignis dieser Klasse eintritt.",
+      "frequencyOrder_one": "λ in Zone {{zones}} ist kleiner als in der Zone darunter – bitte prüfen.",
+      "frequencyOrder_other": "λ in den Zonen {{zones}} ist kleiner als in der jeweils niedrigeren Zone – bitte prüfen."
+    },
+    "resetUndo": "Rückgängig",
+    "resetNothing": "Alle Werte entsprechen bereits den Standardwerten.",
+    "resetConfirmTitle": "Auf Standardwerte zurücksetzen?",
+    "resetConfirmDescription_one": "{{count}} Wert weicht von den Standardwerten ab und wird überschrieben. Danach werden alle Scores neu berechnet.",
+    "resetConfirmDescription_other": "{{count}} Werte weichen von den Standardwerten ab und werden überschrieben. Danach werden alle Scores neu berechnet.",
+    "validation": {
+      "empty": "„{{label}}“ darf nicht leer sein. Der bisherige Wert {{value}} bleibt.",
+      "notANumber": "„{{label}}“: Bitte eine Zahl eingeben. Der bisherige Wert {{value}} bleibt.",
+      "notInteger": "„{{label}}“: erlaubt ist {{rule}}. Der bisherige Wert {{value}} bleibt.",
+      "outOfRange": "„{{label}}“: erlaubt ist {{rule}}. Der bisherige Wert {{value}} bleibt.",
+      "rejected": "„{{label}}“ konnte nicht übernommen werden: {{error}}",
+      "between": "ein Wert zwischen {{min}} und {{max}}",
+      "atLeast": "ein Wert ab {{min}}",
+      "wholeBetween": "eine ganze Zahl zwischen {{min}} und {{max}}"
     }
   },
   "settings": {

@@ -557,6 +557,13 @@ export function estimateHailZoneFromScore(score: number): HailZone {
 }
 
 /**
+ * Hail zone from which a location counts as "elevated" in the KPI row, the
+ * report totals and the AI context. Fixed on purpose and separate from the
+ * configurable `alertHailZone`, which only drives critical review notes.
+ */
+export const ELEVATED_HAIL_ZONE = 4;
+
+/**
  * Hail zone of an analyzed location: the zone the EAL was computed with,
  * else the postcode zone, else an estimate from the stored hail score
  * (portfolios scored before screening-0.4.0).
