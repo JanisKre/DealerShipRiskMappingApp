@@ -292,7 +292,7 @@
   "settings": {
     "title": "Einstellungen",
     "language": "Sprache",
-    "llmProvider": "LLM-Provider",
+    "llmProvider": "KI-Assistent",
     "model": "Modell",
     "apiKey": "API-Key",
     "apiKeyHint": "Über safeStorage im OS-Keychain abgelegt — nie im Klartext.",
@@ -341,7 +341,8 @@
           "moodys": "Risk-Scores für über 100 Länder; die App nutzt den Hagel-Score.",
           "verisk": "Europa: Gewitter/Hagel für 22 Länder.",
           "custom": "Jeder andere Dienst, der das Hazard-API-Format der App liefert – z. B. ein eigener Übersetzungsdienst."
-        }
+        },
+        "screeningName": "Screening: Open-Meteo + GDV-Hagelzonen"
       },
       "connector": {
         "edit": "Bearbeiten",
@@ -376,11 +377,12 @@
         "placeholder-in-host": "Platzhalter sind nur im Pfad oder in der Abfrage erlaubt, nicht im Servernamen.",
         "unknown-placeholder": "Unbekannter Platzhalter. Erlaubt sind {z}, {x}, {y}, {bbox-epsg-3857} und {time}.",
         "missing-placeholders": "Es fehlen {z}/{x}/{y} oder {bbox-epsg-3857}."
-      }
+      },
+      "description": "Luftbilder für die Kartenansicht und die Fahrzeugerkennung."
     },
     "appearance": {
       "title": "Darstellung",
-      "description": "Erscheinungsbild der Anwendung anpassen.",
+      "description": "Hell, dunkel oder wie im Betriebssystem eingestellt.",
       "light": "Hell",
       "dark": "Dunkel",
       "system": "System"
@@ -483,7 +485,10 @@
       "backgroundHint": "Läuft im Hintergrund weiter – du kannst die App normal nutzen.",
       "attribution": "Daten: Overture Maps Foundation, CDLA Permissive 2.0. Enthält Daten von Foursquare: Copyright 2024 Foursquare Labs, Inc. All rights reserved.",
       "updateAvailable": "Neues Overture-Release {{release}} verfügbar – Aktualisieren lädt es herunter.",
-      "upToDate": "Aktuell · zuletzt geprüft am {{date}} (Overture erscheint etwa monatlich, geprüft wird täglich)"
+      "upToDate": "Aktuell · zuletzt geprüft am {{date}} (Overture erscheint etwa monatlich, geprüft wird täglich)",
+      "badgeNotLoaded": "Nicht geladen",
+      "badgeUpdate": "Update verfügbar",
+      "badgeLoaded": "{{total}} Händler"
     },
     "osmSource": {
       "title": "OpenStreetMap-Daten",
@@ -497,7 +502,23 @@
         "not-https": "Nur HTTPS, oder HTTP auf diesem Rechner (localhost).",
         "credentials": "Zugangsdaten in der Adresse sind nicht erlaubt.",
         "query-or-fragment": "Bitte nur die Server-Adresse ohne „?“ oder „#“ angeben."
-      }
+      },
+      "description": "Gebäude, Flächen und Händler-Einträge aus OpenStreetMap.",
+      "badgePublic": "Öffentliche Server",
+      "badgeOwn": "Eigener Server"
+    },
+    "subtitle": "App-weite Einstellungen. Sie gelten für alle Portfolios auf diesem Rechner.",
+    "tabs": {
+      "general": "Allgemein",
+      "ai": "KI-Assistent",
+      "data": "Datenquellen"
+    },
+    "general": {
+      "description": "Aussehen und Sprache der App.",
+      "languageHint": "Sprache der Oberfläche."
+    },
+    "data": {
+      "description": "Woher die App Hagel-, Luftbild- und Standortdaten bezieht."
     }
   },
   "model": {

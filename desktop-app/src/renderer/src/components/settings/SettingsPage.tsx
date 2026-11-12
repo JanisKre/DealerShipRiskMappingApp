@@ -3,19 +3,35 @@ import { useTranslation } from "react-i18next";
 import { validateTileTemplate } from "@shared/tile-template";
 import { validateOverpassUrl } from "@shared/overpass-url";
 import { useSearchParams } from "react-router-dom";
-import { Loader2, Monitor, Moon, Sun } from "lucide-react";
+import {
+  Database,
+  Loader2,
+  Monitor,
+  Moon,
+  Settings2,
+  Sparkles,
+  Sun,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { Settings } from "@shared/types";
 import i18n from "@renderer/i18n";
 import { useTheme, type Theme } from "@renderer/components/theme/ThemeProvider";
+import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@renderer/components/ui/card";
 import { Input } from "@renderer/components/ui/input";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@renderer/components/ui/tabs";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -30,6 +46,41 @@ function errorMessage(error: unknown): string {
     : "The operation could not be completed.";
 }
 
+/** The settings are split into three tabs instead of one long page. */
+const SECTIONS = ["general", "ai", "data"] as const;
+type Section = (typeof SECTIONS)[number];
+
+function isSection(value: string | null): value is Section {
+  return (SECTIONS as readonly string[]).includes(value ?? "");
+}
+
+const LANGUAGE_NAMES: Record<Settings["language"], string> = {
+  de: "Deutsch",
+  en: "English",
+  fr: "Français",
+};
+
+/** One labelled setting: label and hint on the left, the control on the right. */
+function SettingRow({
+  label,
+  hint,
+  children,
+}: Readonly<{
+  label: string;
+  hint: string;
+  children: React.ReactNode;
+}>): React.JSX.Element {
+  return (
+    <div className="grid gap-3 py-4 first:pt-0 last:pb-0 sm:grid-cols-[1fr_auto] sm:items-center">
+      <div className="min-w-0">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export function SettingsPage(): React.JSX.Element {
   const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
@@ -38,11 +89,17 @@ export function SettingsPage(): React.JSX.Element {
   // Local draft for text fields — persist only onBlur (no toast per keystroke).
   const [wmsTileUrl, setWmsTileUrl] = useState("");
   const [overpassUrl, setOverpassUrl] = useState("");
-  // `?section=ai` (from the AI setup prompt) scrolls to and highlights the
-  // LLM card.
-  const [searchParams] = useSearchParams();
-  const focusAi = searchParams.get("section") === "ai";
+  // `?section=…` picks the tab; `?section=ai` (from the AI setup prompt)
+  // also highlights the AI card.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sectionParam = searchParams.get("section");
+  const section: Section = isSection(sectionParam) ? sectionParam : "general";
+  const focusAi = sectionParam === "ai";
   const aiCardRef = useRef<HTMLDivElement>(null);
+  function selectSection(next: string): void {
+    if (!isSection(next)) return;
+    setSearchParams({ section: next }, { replace: true });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -129,194 +186,236 @@ export function SettingsPage(): React.JSX.Element {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-8">
-      <h2 className="text-2xl font-semibold">{t("settings.title")}</h2>
+      <div>
+        <h2 className="text-2xl font-semibold">{t("settings.title")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("settings.subtitle")}
+        </p>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            {t("settings.appearance.title")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={theme}
-            onValueChange={(v) => v && setTheme(v as Theme)}
-            className="w-full"
-          >
-            {themeOptions.map(({ value, label, icon: Icon }) => (
-              <ToggleGroupItem key={value} value={value} className="gap-2">
-                <Icon className="size-4" />
-                {label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </CardContent>
-      </Card>
+      <Tabs value={section} onValueChange={selectSection}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="general" className="gap-2">
+            <Settings2 className="size-4" />
+            {t("settings.tabs.general")}
+          </TabsTrigger>
+          <TabsTrigger value="ai" className="gap-2">
+            <Sparkles className="size-4" />
+            {t("settings.tabs.ai")}
+          </TabsTrigger>
+          <TabsTrigger value="data" className="gap-2">
+            <Database className="size-4" />
+            {t("settings.tabs.data")}
+          </TabsTrigger>
+        </TabsList>
 
-      <NatCatSettingsCard settings={settings} onSettingsChange={setSettings} />
+        <TabsContent value="general" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                {t("settings.tabs.general")}
+              </CardTitle>
+              <CardDescription>
+                {t("settings.general.description")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="divide-y">
+              <SettingRow
+                label={t("settings.appearance.title")}
+                hint={t("settings.appearance.description")}
+              >
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  value={theme}
+                  onValueChange={(v) => v && setTheme(v as Theme)}
+                >
+                  {themeOptions.map(({ value, label, icon: Icon }) => (
+                    <ToggleGroupItem
+                      key={value}
+                      value={value}
+                      className="gap-2 px-3"
+                    >
+                      <Icon className="size-4" />
+                      {label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </SettingRow>
+              <SettingRow
+                label={t("settings.language")}
+                hint={t("settings.general.languageHint")}
+              >
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  value={settings.language}
+                  onValueChange={(v) =>
+                    v && update({ language: v as Settings["language"] })
+                  }
+                >
+                  {(["de", "en", "fr"] as const).map((lng) => (
+                    <ToggleGroupItem key={lng} value={lng} className="px-3">
+                      {LANGUAGE_NAMES[lng]}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </SettingRow>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      <DealerDirectoryCard />
+        <TabsContent value="ai" className="mt-6">
+          <LlmSettingsCard
+            ref={aiCardRef}
+            settings={settings}
+            onSettingsChange={setSettings}
+            highlight={focusAi}
+          />
+        </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("settings.language")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={settings.language}
-            onValueChange={(v) =>
-              v && update({ language: v as Settings["language"] })
-            }
-          >
-            {(["de", "en", "fr"] as const).map((lng) => (
-              <ToggleGroupItem key={lng} value={lng} className="px-4">
-                {lng.toUpperCase()}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </CardContent>
-      </Card>
+        <TabsContent value="data" className="mt-6 space-y-6">
+          <p className="text-sm text-muted-foreground">
+            {t("settings.data.description")}
+          </p>
 
-      <LlmSettingsCard
-        ref={aiCardRef}
-        settings={settings}
-        onSettingsChange={setSettings}
-        highlight={focusAi}
-      />
+          <NatCatSettingsCard
+            settings={settings}
+            onSettingsChange={setSettings}
+          />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            {t("settings.satelliteSource.title")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={settings.satelliteProvider ?? "auto"}
-            onValueChange={(v) =>
-              v &&
-              update({ satelliteProvider: v as Settings["satelliteProvider"] })
-            }
-            className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3"
-          >
-            <ToggleGroupItem
-              value="auto"
-              className="h-auto min-h-14 rounded-md px-3 py-2 text-center whitespace-normal leading-tight first:rounded-md last:rounded-md"
-            >
-              <span className="flex flex-col items-center gap-0.5">
-                <span className="font-medium">
-                  {t("settings.satelliteSource.autoOption")}
-                </span>
-                <span className="text-[11px] font-normal opacity-75">
-                  {t("settings.satelliteSource.autoShort")}
-                </span>
-              </span>
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="esri"
-              className="h-auto min-h-14 rounded-md px-3 py-2 text-center whitespace-normal leading-tight first:rounded-md last:rounded-md"
-            >
-              <span className="flex flex-col items-center gap-0.5">
-                <span className="font-medium">
-                  {t("settings.satelliteSource.esriOption")}
-                </span>
-                <span className="text-[11px] font-normal opacity-75">
-                  {t("settings.satelliteSource.esriShort")}
-                </span>
-              </span>
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="wms"
-              className="h-auto min-h-14 rounded-md px-3 py-2 text-center whitespace-normal leading-tight first:rounded-md last:rounded-md"
-            >
-              <span className="flex flex-col items-center gap-0.5">
-                <span className="font-medium">
-                  {t("settings.satelliteSource.customOption")}
-                </span>
-                <span className="text-[11px] font-normal opacity-75">
-                  {t("settings.satelliteSource.customShort")}
-                </span>
-              </span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-          {(settings.satelliteProvider ?? "auto") === "auto" && (
-            <p className="text-xs text-muted-foreground">
-              {t("settings.satelliteSource.autoHint")}
-            </p>
-          )}
-          {settings.satelliteProvider === "wms" && (
-            <div className="space-y-1">
-              <label className="text-sm font-medium">
-                {t("settings.satelliteSource.tileTemplateLabel")}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                {t("settings.satelliteSource.title")}
+              </CardTitle>
+              <CardDescription>
+                {t("settings.satelliteSource.description")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={settings.satelliteProvider ?? "auto"}
+                onValueChange={(v) =>
+                  v &&
+                  update({
+                    satelliteProvider: v as Settings["satelliteProvider"],
+                  })
+                }
+                className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3"
+              >
+                {(
+                  [
+                    ["auto", "autoOption", "autoShort"],
+                    ["esri", "esriOption", "esriShort"],
+                    ["wms", "customOption", "customShort"],
+                  ] as const
+                ).map(([value, option, short]) => (
+                  <ToggleGroupItem
+                    key={value}
+                    value={value}
+                    className="h-auto min-h-14 rounded-md px-3 py-2 text-center whitespace-normal leading-tight first:rounded-md last:rounded-md"
+                  >
+                    <span className="flex flex-col items-center gap-0.5">
+                      <span className="font-medium">
+                        {t(`settings.satelliteSource.${option}`)}
+                      </span>
+                      <span className="text-[11px] font-normal opacity-75">
+                        {t(`settings.satelliteSource.${short}`)}
+                      </span>
+                    </span>
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              {(settings.satelliteProvider ?? "auto") === "auto" && (
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.satelliteSource.autoHint")}
+                </p>
+              )}
+              {settings.satelliteProvider === "wms" && (
+                <div className="space-y-1">
+                  <label htmlFor="wms-tile-url" className="text-sm font-medium">
+                    {t("settings.satelliteSource.tileTemplateLabel")}
+                  </label>
+                  <Input
+                    id="wms-tile-url"
+                    value={wmsTileUrl}
+                    placeholder="https://…/{z}/{x}/{y}.png"
+                    aria-invalid={wmsCheck?.ok === false}
+                    onChange={(e) => setWmsTileUrl(e.target.value)}
+                    onBlur={() => {
+                      if (wmsCheck?.ok === false) return;
+                      const next = wmsCheck?.ok ? wmsCheck.template : undefined;
+                      if (next !== settings.wmsTileUrl)
+                        void update({ wmsTileUrl: next });
+                    }}
+                  />
+                  {wmsCheck?.ok === false && (
+                    <p className="text-xs text-destructive">
+                      {t(
+                        `settings.satelliteSource.tileTemplateErrors.${wmsCheck.problem}`,
+                      )}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {t("settings.satelliteSource.tileTemplateHint")}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <DealerDirectoryCard />
+
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-base">
+                  {t("settings.osmSource.title")}
+                </CardTitle>
+                <Badge variant={settings.overpassUrl ? "secondary" : "outline"}>
+                  {settings.overpassUrl
+                    ? t("settings.osmSource.badgeOwn")
+                    : t("settings.osmSource.badgePublic")}
+                </Badge>
+              </div>
+              <CardDescription>
+                {t("settings.osmSource.description")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              <label htmlFor="overpass-url" className="text-sm font-medium">
+                {t("settings.osmSource.urlLabel")}
               </label>
               <Input
-                value={wmsTileUrl}
-                placeholder="https://…/{z}/{x}/{y}.png"
-                aria-invalid={wmsCheck?.ok === false}
-                onChange={(e) => setWmsTileUrl(e.target.value)}
+                id="overpass-url"
+                value={overpassUrl}
+                placeholder="http://localhost:12345/api/interpreter"
+                aria-invalid={overpassCheck?.ok === false}
+                onChange={(e) => setOverpassUrl(e.target.value)}
                 onBlur={() => {
-                  if (wmsCheck?.ok === false) return;
-                  const next = wmsCheck?.ok ? wmsCheck.template : undefined;
-                  if (next !== settings.wmsTileUrl)
-                    void update({ wmsTileUrl: next });
+                  if (overpassCheck?.ok === false) return;
+                  const next = overpassCheck?.ok ? overpassCheck.url : "";
+                  if (next !== (settings.overpassUrl ?? ""))
+                    void update({ overpassUrl: next });
                 }}
               />
-              {wmsCheck?.ok === false && (
+              {overpassCheck?.ok === false && (
                 <p className="text-xs text-destructive">
-                  {t(
-                    `settings.satelliteSource.tileTemplateErrors.${wmsCheck.problem}`,
-                  )}
+                  {t(`settings.osmSource.errors.${overpassCheck.problem}`)}
                 </p>
               )}
               <p className="text-xs text-muted-foreground">
-                {t("settings.satelliteSource.tileTemplateHint")}
+                {settings.overpassUrl
+                  ? t("settings.osmSource.statusOwn")
+                  : t("settings.osmSource.statusPublic")}
               </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            {t("settings.osmSource.title")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1">
-          <label htmlFor="overpass-url" className="text-sm font-medium">
-            {t("settings.osmSource.urlLabel")}
-          </label>
-          <Input
-            id="overpass-url"
-            value={overpassUrl}
-            placeholder="http://localhost:12345/api/interpreter"
-            aria-invalid={overpassCheck?.ok === false}
-            onChange={(e) => setOverpassUrl(e.target.value)}
-            onBlur={() => {
-              if (overpassCheck?.ok === false) return;
-              const next = overpassCheck?.ok ? overpassCheck.url : "";
-              if (next !== (settings.overpassUrl ?? ""))
-                void update({ overpassUrl: next });
-            }}
-          />
-          {overpassCheck?.ok === false && (
-            <p className="text-xs text-destructive">
-              {t(`settings.osmSource.errors.${overpassCheck.problem}`)}
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            {settings.overpassUrl
-              ? t("settings.osmSource.statusOwn")
-              : t("settings.osmSource.statusPublic")}
-          </p>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

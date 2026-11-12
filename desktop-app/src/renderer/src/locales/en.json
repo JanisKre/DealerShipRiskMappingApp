@@ -292,7 +292,7 @@
   "settings": {
     "title": "Settings",
     "language": "Language",
-    "llmProvider": "LLM Provider",
+    "llmProvider": "AI assistant",
     "model": "Model",
     "apiKey": "API Key",
     "apiKeyHint": "Stored via safeStorage in the OS keychain — never in plaintext.",
@@ -341,7 +341,8 @@
           "moodys": "Risk scores for more than 100 countries; the app uses the hail score.",
           "verisk": "Europe: severe thunderstorm/hail for 22 countries.",
           "custom": "Any other service that answers in the app's hazard API format – e.g. your own translation service."
-        }
+        },
+        "screeningName": "Screening: Open-Meteo + GDV hail zones"
       },
       "connector": {
         "edit": "Edit",
@@ -376,11 +377,12 @@
         "placeholder-in-host": "Placeholders are only allowed in the path or query, not in the server name.",
         "unknown-placeholder": "Unknown placeholder. Allowed are {z}, {x}, {y}, {bbox-epsg-3857} and {time}.",
         "missing-placeholders": "{z}/{x}/{y} or {bbox-epsg-3857} is missing."
-      }
+      },
+      "description": "Aerial imagery for the map view and vehicle detection."
     },
     "appearance": {
       "title": "Appearance",
-      "description": "Customize how the application looks.",
+      "description": "Light, dark or the operating system setting.",
       "light": "Light",
       "dark": "Dark",
       "system": "System"
@@ -483,7 +485,10 @@
       "backgroundHint": "Keeps running in the background — you can keep using the app.",
       "attribution": "Data: Overture Maps Foundation, CDLA Permissive 2.0. Contains data from Foursquare: Copyright 2024 Foursquare Labs, Inc. All rights reserved.",
       "updateAvailable": "New Overture release {{release}} available – Refresh downloads it.",
-      "upToDate": "Up to date · last checked {{date}} (Overture releases about monthly; checked daily)"
+      "upToDate": "Up to date · last checked {{date}} (Overture releases about monthly; checked daily)",
+      "badgeNotLoaded": "Not loaded",
+      "badgeUpdate": "Update available",
+      "badgeLoaded": "{{total}} dealers"
     },
     "osmSource": {
       "title": "OpenStreetMap data",
@@ -497,7 +502,23 @@
         "not-https": "HTTPS only, or HTTP on this machine (localhost).",
         "credentials": "Credentials in the address are not allowed.",
         "query-or-fragment": "Please enter the server address only, without “?” or “#”."
-      }
+      },
+      "description": "Buildings, areas and dealer entries from OpenStreetMap.",
+      "badgePublic": "Public servers",
+      "badgeOwn": "Own server"
+    },
+    "subtitle": "App-wide settings. They apply to every portfolio on this computer.",
+    "tabs": {
+      "general": "General",
+      "ai": "AI assistant",
+      "data": "Data sources"
+    },
+    "general": {
+      "description": "How the app looks and which language it uses.",
+      "languageHint": "Language of the interface."
+    },
+    "data": {
+      "description": "Where the app gets hail, imagery and location data."
     }
   },
   "model": {

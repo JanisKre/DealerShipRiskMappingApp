@@ -34,6 +34,7 @@ import { Button } from "@renderer/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@renderer/components/ui/card";
@@ -152,12 +153,9 @@ export function NatCatSettingsCard({
             </Button>
           </div>
         </div>
+        <CardDescription>{t("settings.natCat.intro")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <p className="text-sm text-muted-foreground">
-          {t("settings.natCat.intro")}
-        </p>
-
         <HailSourceSelect
           routing={routing}
           connected={connected}
@@ -363,9 +361,11 @@ function CatalogRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-medium">
-              {entry.vendor === "—"
-                ? t("settings.natCat.catalog.customName")
-                : `${entry.vendor} ${entry.name}`}
+              {entry.kind === "builtin"
+                ? t("settings.natCat.catalog.screeningName")
+                : entry.vendor === "—"
+                  ? t("settings.natCat.catalog.customName")
+                  : `${entry.vendor} ${entry.name}`}
             </span>
             {entry.website && (
               <a

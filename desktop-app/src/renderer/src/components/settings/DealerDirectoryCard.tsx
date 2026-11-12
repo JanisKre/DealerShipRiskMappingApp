@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Database, Download, Loader2, RefreshCw, X } from "lucide-react";
+import { Download, Loader2, RefreshCw, X } from "lucide-react";
+import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import {
   Card,
@@ -42,10 +43,25 @@ export function DealerDirectoryCard(): React.JSX.Element {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Database className="size-4" />
-          {t("settings.dealerDirectory.title")}
-        </CardTitle>
+        {/* Same header as the other data-source cards: title, status badge. */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base">
+            {t("settings.dealerDirectory.title")}
+          </CardTitle>
+          <Badge
+            variant={
+              !status || update?.updateAvailable ? "secondary" : "outline"
+            }
+          >
+            {!status
+              ? t("settings.dealerDirectory.badgeNotLoaded")
+              : update?.updateAvailable
+                ? t("settings.dealerDirectory.badgeUpdate")
+                : t("settings.dealerDirectory.badgeLoaded", {
+                    total: number.format(status.count),
+                  })}
+          </Badge>
+        </div>
         <CardDescription>
           {t("settings.dealerDirectory.description")}
         </CardDescription>

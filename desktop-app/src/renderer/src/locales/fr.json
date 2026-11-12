@@ -83,7 +83,7 @@
   "settings": {
     "title": "Paramètres",
     "language": "Langue",
-    "llmProvider": "Fournisseur LLM",
+    "llmProvider": "Assistant IA",
     "model": "Modèle",
     "apiKey": "Clé API",
     "apiKeyHint": "Stockée via safeStorage dans le trousseau du système — jamais en clair.",
@@ -132,7 +132,8 @@
           "moodys": "Scores de risque pour plus de 100 pays ; l’application utilise le score grêle.",
           "verisk": "Europe : orages/grêle pour 22 pays.",
           "custom": "Tout autre service répondant au format hazard API de l’application – p. ex. votre propre service de traduction."
-        }
+        },
+        "screeningName": "Screening : Open-Meteo + zones de grêle GDV"
       },
       "connector": {
         "edit": "Modifier",
@@ -167,11 +168,12 @@
         "placeholder-in-host": "Les espaces réservés ne sont autorisés que dans le chemin ou la requête, pas dans le nom du serveur.",
         "unknown-placeholder": "Espace réservé inconnu. Autorisés : {z}, {x}, {y}, {bbox-epsg-3857} et {time}.",
         "missing-placeholders": "Il manque {z}/{x}/{y} ou {bbox-epsg-3857}."
-      }
+      },
+      "description": "Imagerie aérienne pour la carte et la détection des véhicules."
     },
     "appearance": {
       "title": "Apparence",
-      "description": "Personnalisez l'apparence de l'application.",
+      "description": "Clair, sombre ou selon le système.",
       "light": "Clair",
       "dark": "Sombre",
       "system": "Système"
@@ -274,7 +276,10 @@
       "backgroundHint": "Continue en arrière-plan — vous pouvez utiliser l’application.",
       "attribution": "Données : Overture Maps Foundation, CDLA Permissive 2.0. Contient des données de Foursquare : Copyright 2024 Foursquare Labs, Inc. All rights reserved.",
       "updateAvailable": "Nouvelle version Overture {{release}} disponible – Actualiser la télécharge.",
-      "upToDate": "À jour · dernière vérification le {{date}} (Overture publie environ chaque mois ; vérification quotidienne)"
+      "upToDate": "À jour · dernière vérification le {{date}} (Overture publie environ chaque mois ; vérification quotidienne)",
+      "badgeNotLoaded": "Non chargé",
+      "badgeUpdate": "Mise à jour disponible",
+      "badgeLoaded": "{{total}} concessionnaires"
     },
     "osmSource": {
       "title": "Données OpenStreetMap",
@@ -288,7 +293,23 @@
         "not-https": "HTTPS uniquement, ou HTTP sur cette machine (localhost).",
         "credentials": "Les identifiants dans l’adresse ne sont pas autorisés.",
         "query-or-fragment": "Indiquez seulement l’adresse du serveur, sans « ? » ni « # »."
-      }
+      },
+      "description": "Bâtiments, surfaces et concessionnaires issus d’OpenStreetMap.",
+      "badgePublic": "Serveurs publics",
+      "badgeOwn": "Serveur propre"
+    },
+    "subtitle": "Réglages de l’application. Ils s’appliquent à tous les portefeuilles sur cet ordinateur.",
+    "tabs": {
+      "general": "Général",
+      "ai": "Assistant IA",
+      "data": "Sources de données"
+    },
+    "general": {
+      "description": "Apparence et langue de l’application.",
+      "languageHint": "Langue de l’interface."
+    },
+    "data": {
+      "description": "Origine des données de grêle, d’imagerie et de localisation."
     }
   },
   "model": {
