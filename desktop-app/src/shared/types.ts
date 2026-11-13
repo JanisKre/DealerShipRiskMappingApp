@@ -313,11 +313,17 @@ export type BoundaryGrowthStop = z.infer<typeof BoundaryGrowthStopSchema>;
  * - noLotAtPoint: vehicles were detected, but none form a lot at the point —
  *   the point may not be where the dealership is.
  * - winterImagery: the image was taken in winter; long shadows hide vehicles.
+ * - anchorOffLot: the parcel at the point holds little of the vehicle lot —
+ *   the point may be on a neighbouring plot.
+ * - staleImagery: the image is older than the review limit; the site may
+ *   have changed since.
  */
 export const BoundaryReviewFlagSchema = z.enum([
   "cadastreIncomplete",
   "noLotAtPoint",
   "winterImagery",
+  "anchorOffLot",
+  "staleImagery",
 ]);
 export type BoundaryReviewFlag = z.infer<typeof BoundaryReviewFlagSchema>;
 

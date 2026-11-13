@@ -320,7 +320,7 @@ where listed here.
 | --- | --- | --- | --- |
 | P1 | **Complete cadastre.** Parcel queries page with `startIndex` (up to 4 × 250 features). A page that adds nothing new means the service ignores paging (Niedersachsen does); then a second query with 100 m radius is merged in. `completeRadiusM` records how far the answer is complete; a capped answer without the parcel at the point flags `cadastreIncomplete`. | `alkis.service.ts` `fetchParcelRings`, `fetchParcelsNear` | 27 of 57 cached NRW answers were capped at 250 parcels; in 7 the parcel at the point was missing and the cascade fell back to the outline or the circle. |
 | P2 | **Street test by length.** A parcel is street-like only when 2·area/perimeter < 20 m *and* its minimum bounding rectangle is longer than 150 m (or 2·area/perimeter < 10 m). | `cascade.ts` `isStreetLike` | The old elongation test rejected L-shaped and deep yards (39 × 97 m with 64 dealer cars). |
-| P3 | **Empty-parcel test.** An adjacent parcel joins only with at least 3 lot vehicles per 1,000 m² of its *unbuilt* area (parcel minus building footprints, at least 20 % of the parcel). | `vehicleParcelStage`, `unbuiltAreaSqm` | A 12,000 m² meadow joined because ten cars stood at its edge (confidence 0.75). A plain density rule was rejected: it drops showroom parcels, which are mostly roof. |
+| P3 | **Empty-parcel test.** An adjacent parcel joins only with at least 3 (5 above 10,000 m² unbuilt since v4) lot vehicles per 1,000 m² of its *unbuilt* area (parcel minus building footprints, at least 20 % of the parcel). | `vehicleParcelStage`, `unbuiltAreaSqm` | A 12,000 m² meadow joined because ten cars stood at its edge (confidence 0.75). A plain density rule was rejected: it drops showroom parcels, which are mostly roof. |
 | P3b | **Small lots.** The join threshold is 10 vehicles or 30 % of the lot, whichever is smaller (at least 3). | `vehicleParcelStage` | A small dealer's yard never holds ten cars; the result was the building parcel alone. |
 | P4 | **Named review reasons and calibrated outside rule.** `boundaryReviewReasons` returns why a result needs review (`synthetic`, `lowConfidence`, `pointOutside`, `vehiclesOutside`, `cadastreIncomplete`, `noLotAtPoint`, `winterImagery`, `legacyEngine`); the detail dialog shows them. With a known lot size, vehicles outside count only as ≥ 10 *and* ≥ 15 % of the lot; vehicles on street-like parcels never count. The outline's confidence drops from 0.55 to 0.45. Winter imagery (November–February) sends a result to review. | `shared/boundary-review.ts`, `finalizeCascadeResult`, `analyze.service.ts` | 44 of 61 portfolio results were flagged by the same two signals; the outline scored a mean IoU of 0.23 at confidence 0.55. |
 | P5 | **Anchor reach.** A cluster belongs to the lot within 40 m of the point (was 25 m), or within 25 m of the edge of the building the point lies in. Detected vehicles without any lot at the point flag `noLotAtPoint`. | `vehicleLot`, `runCascade` | A point on a 50–80 m showroom roof reached the cars on one side only, or none. |
@@ -391,6 +391,49 @@ failures, not fitted.
   parcels with few cars outside may not join.
 - A geocoded point inside a block of street-parked cars can still form a
   lot; `noLotAtPoint` only catches points where no lot forms at all.
+
+## Cascade v4 (November 2026, second check)
+
+`CASCADE_VERSION` 4. A second check on 25 further portfolio sites from 13
+states (13 November 2026, imagery `auto`) judged 16 boundaries plausible,
+4 partial, 4 wrong and 1 unclear; all 8 flawed ones were flagged for review,
+as were 9 of the 16 plausible ones. It found patterns the first audit had
+not shown; v4 addresses three of them.
+
+| Change | Where | Failure it addresses |
+| --- | --- | --- |
+| **Field strips.** A street-like parcel with at least two parallel (≤ 15°) street-like neighbours is a field strip, not a street. A point on a field strip declines stage 1, so the vehicle outline (with buildings) is used. Field strips are not removed from outlines; they still never join a parcel union, and their vehicles, like kerbside ones, do not count as outside vehicles. | `isFieldStrip`, `streetParcels`, `vehicleParcelStage`, `completeOutline` | A dealership across five 10–15 m strips (Sachsen-Anhalt) became one strip running 150 m into the field; the neighbouring strips with 21 cars counted as streets. |
+| **Point off the lot.** When the parcel at the point holds under 25 % and the result under 50 % of the lot vehicles that are not on a street, the result is kept but flagged `anchorOffLot`, and the parcels grown from the parcel holding most of the lot are offered as an alternative. | `anchorOffLot` in `cascade.ts` | The point lay on a warehouse holding 3 of 18 lot vehicles, or in a row of houses on a main road; the only review reason was "low confidence". |
+| **Stale imagery.** Imagery four or more years old sends the result to review (`staleImagery`, `STALE_IMAGERY_REVIEW_YEARS`). | `analyze.service.ts` | Sachsen-Anhalt fell back to 2020 Esri imagery showing a construction site. |
+| **Empty-parcel test for large areas:** 5 instead of 3 lot vehicles per 1,000 m² when a parcel's unbuilt area exceeds 10,000 m². | `CASCADE_LIMITS.parcelMinVehiclesPer1000SqmLarge`, `largeUnbuiltSqm` | In the 50-site run a 13,900 m² sand lot with 49 scattered detections (3.5 per 1,000 m²) joined a Berlin dealership at confidence 0.75; real yards stand at 20–70. Rejected alternatives: a global 5 cut a dealer's own yard where the lot reached only part of its rows; counting every vehicle on the parcel let dense inner-city street parking join (Hannover 0.90 → 0.34). |
+| **Minimum area in stage 1:** a parcel at the point under 300 m² with nothing joined declines stage 1. | `vehicleParcelStage` | A 128 m² town-centre plot was returned as the lot. |
+| Bounding-box pre-check for parcel adjacency. | `isAdjacent` | Field-strip detection compares parcels pairwise; with the pre-check the cascade is faster than v3 on the replayed sites. |
+
+Replayed on the frozen inputs of all 107 sites so far (15 + 25 + 50 audit
+sites, 17 public fixtures), v4 against v3: the German fixtures move from
+0.475 to 0.476 mean IoU; the field-strip site becomes an outline of showroom
+and car park (1,627 → 4,258 m²), the 128 m² plot an outline (3,817 m²), the
+Berlin sand lot leaves (37,978 → 24,137 m²), an oversized Sachsen-Anhalt
+fixture halves (46,819 → 22,364 m²), three outlines change slightly because
+field strips are no longer cut out, and 14 sites gain `anchorOffLot`.
+Review flags: 77 of 107 (v3: 75).
+
+The 50-site run itself (13 November 2026, emphasis on the eastern states and
+Bayern) found no failure mode beyond those above; the recurring weakness is
+Bayern, where without parcels or building footprints the vehicle outline
+leaves the showroom out or runs across a road (of 10 Bayern sites: 2 plausible, 6 partial, 1 wrong, 1 unclear).
+
+**Simulated and rejected** in the same check: removing kerbside cars from the
+lot changed no geometry but raised confidence to 0.75 on boundaries known to
+be wrong; clipping oversized parcel unions to the vehicle outline lowered
+the German fixtures from 0.444 to 0.406 (Dresden 0.94 → 0.36, because the
+outline only knows vehicles within 80 m). Oversized unions (Leipzig,
+Dortmund-Nord, Berlin-West, Sachsen-Anhalt) stay open.
+
+**Limitations.** The field-strip test needs at least two parallel
+neighbours in the cadastre answer; a strip at the edge of the search box may
+be missed. `anchorOffLot` cannot catch a wrong point inside a block of
+street-parked cars that forms a lot of its own.
 
 ### Earlier engines (removed)
 

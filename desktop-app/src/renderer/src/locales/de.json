@@ -863,7 +863,9 @@
         "cadastreIncomplete": "Kataster unvollständig, das Flurstück am Punkt fehlt",
         "noLotAtPoint": "am Punkt stehen keine Fahrzeuge eines Betriebs – Lage des Punkts prüfen",
         "winterImagery": "Winterbild: Fahrzeuge im Schatten können fehlen",
-        "legacyEngine": "mit einer älteren Version erkannt – neu analysieren"
+        "legacyEngine": "mit einer älteren Version erkannt – neu analysieren",
+        "anchorOffLot": "der Punkt liegt neben dem Fahrzeug-Lot – Grundstück prüfen",
+        "staleImagery": "Luftbild ist mehrere Jahre alt – das Gelände kann sich verändert haben"
       },
       "boundaryReviewBecause": "Prüfen, weil: {{reasons}}"
     },

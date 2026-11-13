@@ -9,6 +9,12 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Lot boundary, cascade v4 (`docs/boundary-model.md`, "Cascade v4"): a
+  dealership standing across field strips is outlined from its vehicles
+  instead of returning one strip running into the field; a point that lies
+  beside the vehicle lot is flagged ("the point lies beside the vehicle lot")
+  with the lot's parcels offered as an alternative; imagery four or more
+  years old sends the boundary to review.
 - Fallback boundary: the octagon around the point now has a 160 m corner
   radius instead of 100 m. Calibrated on the 17 public boundary fixtures so it
   holds the whole lot on 16 of 17 (100 m: 6 of 17); a test recomputes the

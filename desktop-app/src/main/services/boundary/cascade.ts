@@ -68,8 +68,12 @@ import { matchesSite } from "./site-membership";
  * 3: complete cadastre, street test by length, empty-parcel test, anchor
  * reach from the building edge, bounded lot extension, outline with
  * buildings (docs/boundary-model.md, "Cascade v3").
+ * 4: field strips (a point on one declines stage 1; they are not streets),
+ * `anchorOffLot` flag with the lot's parcels as an alternative, stricter
+ * empty-parcel test for large areas, minimum area in stage 1
+ * (docs/boundary-model.md, "Cascade v4").
  */
-export const CASCADE_VERSION = 3;
+export const CASCADE_VERSION = 4;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -128,6 +132,16 @@ export const CASCADE_LIMITS = {
    * parcel, mostly roof, still joins.
    */
   parcelMinVehiclesPer1000Sqm: 3,
+  /**
+   * … or this many when the unbuilt area exceeds `largeUnbuiltSqm`. In the
+   * 50-site run a 13,900 m² sand lot with 49 scattered detections (3.5)
+   * joined a Berlin site at confidence 0.75; real yards stand at 20–70. A
+   * global 5 cut a dealer's own yard where the lot reached only part of its
+   * rows, and counting every vehicle on the parcel let dense street parking
+   * of inner-city neighbours join (Hannover 0.90 → 0.34).
+   */
+  parcelMinVehiclesPer1000SqmLarge: 5,
+  largeUnbuiltSqm: 10_000,
   /** Unbuilt area is never taken as less than this share of the parcel. */
   minUnbuiltShare: 0.2,
   /** Vertex distance at which two parcels count as neighbours. */
@@ -142,6 +156,17 @@ export const CASCADE_LIMITS = {
   streetMaxWidthM: 20,
   streetMinLengthM: 150,
   streetNarrowM: 10,
+  /** A street-like parcel with this many parallel street-like neighbours … */
+  fieldStripMinNeighbours: 2,
+  /** … within this angle is a field strip, not a street. */
+  fieldStripMaxAngleDeg: 15,
+  /**
+   * The point is "off the lot" when the parcel at the point holds less than
+   * this share of the lot vehicles off the street …
+   */
+  anchorOffLotShare: 0.25,
+  /** … and the chosen parcels less than this share. */
+  anchorOffLotResultShare: 0.5,
   /**
    * Margin around the outermost vehicle centres in the outline: half a car,
    * a driving lane and the forecourt edge.
@@ -218,6 +243,8 @@ export interface StageOutcome {
   alternatives: BoundaryResult[];
   /** Vehicles the stage counted as the lot, when it formed one. */
   lotVehicles?: number;
+  /** Review conditions the stage found, kept only for the chosen stage. */
+  flags?: BoundaryReviewFlag[];
 }
 
 export interface CascadeOutcome {
@@ -385,8 +412,20 @@ export function extendLot(
 
 /** Length of the minimum-area bounding rectangle, in metres. */
 function boundingLengthM(xy: Array<[number, number]>): number {
+  return boundingBox(xy).length;
+}
+
+/**
+ * Minimum-area bounding rectangle: its long side and the direction of that
+ * side in radians, folded into [0, π).
+ */
+function boundingBox(xy: Array<[number, number]>): {
+  length: number;
+  angle: number;
+} {
   let bestArea = Infinity;
   let length = 0;
+  let longAngle = 0;
   for (let i = 1; i < xy.length; i += 1) {
     const angle = Math.atan2(xy[i][1] - xy[i - 1][1], xy[i][0] - xy[i - 1][0]);
     const c = Math.cos(angle);
@@ -408,9 +447,65 @@ function boundingLengthM(xy: Array<[number, number]>): number {
     if (a * b < bestArea) {
       bestArea = a * b;
       length = Math.max(a, b);
+      const axis = a >= b ? angle : angle + Math.PI / 2;
+      longAngle = ((axis % Math.PI) + Math.PI) % Math.PI;
     }
   }
-  return length;
+  return { length, angle: longAngle };
+}
+
+const angleCache = new WeakMap<LonLat[], number>();
+
+/** Direction of a ring's long axis, cached per ring. */
+function longAxisAngle(ring: LonLat[]): number {
+  const hit = angleCache.get(ring);
+  if (hit !== undefined) return hit;
+  const angle = boundingBox(ring.map((p) => projectPoint(p, ring[0]))).angle;
+  angleCache.set(ring, angle);
+  return angle;
+}
+
+/**
+ * A strip of farmland or a deep plot in a row of equal strips (a "Gewann"):
+ * street-like by shape, but with at least `fieldStripMinNeighbours` adjacent
+ * street-like parcels running parallel to it. Streets meet other parcels at
+ * an angle or run alongside building plots; field strips lie side by side. In
+ * the November audit a dealership stood across five such strips, and the
+ * result was one 10 m strip running into the field.
+ */
+export function isFieldStrip(
+  parcel: ParcelFeature,
+  parcels: ParcelFeature[],
+): boolean {
+  if (!isStreetLike(parcel.ring)) return false;
+  const own = longAxisAngle(parcel.ring);
+  let parallel = 0;
+  for (const other of parcels) {
+    if (other === parcel || !isStreetLike(other.ring)) continue;
+    if (!isAdjacent(other, parcel) && !isAdjacent(parcel, other)) continue;
+    const diff = Math.abs(longAxisAngle(other.ring) - own);
+    const deviation = Math.min(diff, Math.PI - diff);
+    if (deviation <= (CASCADE_LIMITS.fieldStripMaxAngleDeg * Math.PI) / 180) {
+      parallel += 1;
+      if (parallel >= CASCADE_LIMITS.fieldStripMinNeighbours) return true;
+    }
+  }
+  return false;
+}
+
+const streetCache = new WeakMap<ParcelFeature[], Set<ParcelFeature>>();
+
+/** Street-like parcels that are streets, not field strips; cached per parcel set. */
+export function streetParcels(parcels: ParcelFeature[]): Set<ParcelFeature> {
+  const hit = streetCache.get(parcels);
+  if (hit) return hit;
+  const streets = new Set(
+    parcels.filter(
+      (parcel) => isStreetLike(parcel.ring) && !isFieldStrip(parcel, parcels),
+    ),
+  );
+  streetCache.set(parcels, streets);
+  return streets;
 }
 
 /**
@@ -422,7 +517,17 @@ function boundingLengthM(xy: Array<[number, number]>): number {
  * found yards of 39 × 97 m with 64 dealer vehicles rejected by the old
  * elongation test.
  */
+const streetLikeCache = new WeakMap<LonLat[], boolean>();
+
 export function isStreetLike(ring: LonLat[]): boolean {
+  const hit = streetLikeCache.get(ring);
+  if (hit !== undefined) return hit;
+  const value = streetLikeShape(ring);
+  streetLikeCache.set(ring, value);
+  return value;
+}
+
+function streetLikeShape(ring: LonLat[]): boolean {
   const origin = ring[0];
   const xy = ring.map((p) => projectPoint(p, origin));
   let perimeter = 0;
@@ -472,7 +577,47 @@ function anchorBuildingOf(input: CascadeInput): LonLat[] | undefined {
   return (input.buildings ?? []).find((ring) => contains(ring, input.anchor));
 }
 
+const boundsCache = new WeakMap<LonLat[], [number, number, number, number]>();
+
+/** [minLon, minLat, maxLon, maxLat] of a ring, cached per ring. */
+function ringBounds(ring: LonLat[]): [number, number, number, number] {
+  const hit = boundsCache.get(ring);
+  if (hit) return hit;
+  let minLon = Infinity;
+  let minLat = Infinity;
+  let maxLon = -Infinity;
+  let maxLat = -Infinity;
+  for (const [lon, lat] of ring) {
+    minLon = Math.min(minLon, lon);
+    minLat = Math.min(minLat, lat);
+    maxLon = Math.max(maxLon, lon);
+    maxLat = Math.max(maxLat, lat);
+  }
+  const bounds: [number, number, number, number] = [
+    minLon,
+    minLat,
+    maxLon,
+    maxLat,
+  ];
+  boundsCache.set(ring, bounds);
+  return bounds;
+}
+
 function isAdjacent(a: ParcelFeature, b: ParcelFeature): boolean {
+  // Cheap reject first: boxes further apart than the adjacency distance.
+  const [aw, as, ae, an] = ringBounds(a.ring);
+  const [bw, bs, be, bn] = ringBounds(b.ring);
+  const marginLat = CASCADE_LIMITS.adjacentParcelM / 111_320;
+  const marginLon =
+    marginLat / Math.max(0.1, Math.cos((((as + an) / 2) * Math.PI) / 180));
+  if (
+    aw > be + marginLon ||
+    bw > ae + marginLon ||
+    as > bn + marginLat ||
+    bs > an + marginLat
+  ) {
+    return false;
+  }
   return a.ring.some(
     (point) => distanceToRingM(point, b.ring) <= CASCADE_LIMITS.adjacentParcelM,
   );
@@ -551,6 +696,14 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
       alternatives: [],
     };
   }
+  if (isFieldStrip(anchor, input.parcels)) {
+    return {
+      result: null,
+      reason:
+        "parcel at the point is a field strip; the cadastre does not outline the site here",
+      alternatives: [],
+    };
+  }
   const buildings = input.buildings ?? [];
   const firstLot = vehicleLot(
     input.vehicles,
@@ -566,7 +719,10 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     };
   }
 
-  const grow = (lot: LonLat[]): ParcelFeature[] => {
+  const grow = (
+    lot: LonLat[],
+    seed: ParcelFeature = anchor,
+  ): ParcelFeature[] => {
     const vehiclesOn = (parcel: ParcelFeature): number =>
       lot.filter((v) => contains(parcel.ring, v)).length;
     const minVehicles = Math.max(
@@ -576,9 +732,9 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         Math.ceil(CASCADE_LIMITS.parcelMinLotShare * lot.length),
       ),
     );
-    const members: ParcelFeature[] = [anchor];
-    let areaSqm = anchor.areaSqm;
-    const queue = [anchor];
+    const members: ParcelFeature[] = [seed];
+    let areaSqm = seed.areaSqm;
+    const queue = [seed];
     while (queue.length > 0) {
       const current = queue.shift()!;
       for (const parcel of input.parcels) {
@@ -587,12 +743,12 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         if (count < minVehicles) continue;
         if (parcel.areaSqm > CASCADE_LIMITS.maxParcelSqm) continue;
         if (isStreetLike(parcel.ring)) continue;
-        if (
-          (count / unbuiltAreaSqm(parcel, buildings)) * 1000 <
-          CASCADE_LIMITS.parcelMinVehiclesPer1000Sqm
-        ) {
-          continue;
-        }
+        const unbuilt = unbuiltAreaSqm(parcel, buildings);
+        const minDensity =
+          unbuilt > CASCADE_LIMITS.largeUnbuiltSqm
+            ? CASCADE_LIMITS.parcelMinVehiclesPer1000SqmLarge
+            : CASCADE_LIMITS.parcelMinVehiclesPer1000Sqm;
+        if ((count / unbuilt) * 1000 < minDensity) continue;
         if (areaSqm + parcel.areaSqm > input.parameters.boundaryMaxAreaSqm) {
           continue;
         }
@@ -638,6 +794,23 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
   if (!first) {
     return { result: null, reason: "parcel union failed", alternatives: [] };
   }
+  if (first.areaSqm < CASCADE_LIMITS.minLotSqm) {
+    // A sliver at the point (a 128 m² town-centre plot in the 50-site run)
+    // with nothing joined is not a lot; the vehicle outline does better.
+    return {
+      result: null,
+      reason: `parcel at the point is ${Math.round(first.areaSqm)} m² and nothing joined, too small for a lot`,
+      alternatives: [],
+    };
+  }
+  const offLot = anchorOffLot(
+    input,
+    anchor,
+    firstLot,
+    first.result,
+    grow,
+    build,
+  );
   // Second pass: rows cut off at `maxReachM`, and vehicles on parcels the lot
   // already holds, continue the lot up to `extendedReachM`.
   const lot = extendLot(
@@ -652,28 +825,108 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
       ? build(lot, extendedMembers)
       : null;
   if (!extended) {
-    return { ...first, alternatives: [], lotVehicles: firstLot.length };
+    return {
+      ...first,
+      reason: first.reason + offLot.note,
+      alternatives: offLot.alternatives,
+      lotVehicles: firstLot.length,
+      flags: offLot.flags,
+    };
   }
   const added = extended.areaSqm / first.areaSqm - 1;
   const note = `lot continued beyond ${CASCADE_LIMITS.maxReachM} m by ${lot.length - firstLot.length} vehicles adds ${Math.round(added * 100)}% area`;
   if (added <= CASCADE_LIMITS.maxExtensionShare) {
     return {
       result: extended.result,
-      reason: `${extended.reason}; ${note}`,
-      alternatives: [],
+      reason: `${extended.reason}; ${note}${offLot.note}`,
+      alternatives: offLot.alternatives,
       lotVehicles: lot.length,
+      flags: offLot.flags,
     };
   }
   return {
     result: first.result,
-    reason: `${first.reason}; ${note}, offered as an alternative`,
+    reason: `${first.reason}; ${note}, offered as an alternative${offLot.note}`,
     alternatives: [
       {
         ...extended.result,
         label: `${extended.result.label ?? "ALKIS parcels"} (lot beyond ${CASCADE_LIMITS.maxReachM} m)`,
       },
+      ...offLot.alternatives,
     ],
     lotVehicles: firstLot.length,
+    flags: offLot.flags,
+  };
+}
+
+/**
+ * Whether the point lies off the vehicle lot: the parcel at the point holds
+ * less than `anchorOffLotShare`, and the chosen parcels less than
+ * `anchorOffLotResultShare`, of the lot vehicles that are not on a street
+ * (kerbside cars say nothing about which plot is the dealer's). The point is
+ * then often on a neighbouring plot or in the wrong building; the result is
+ * kept, flagged `anchorOffLot`, and the parcels around the parcel holding
+ * most of the lot are offered as an alternative.
+ */
+function anchorOffLot(
+  input: CascadeInput,
+  anchor: ParcelFeature,
+  lot: LonLat[],
+  result: BoundaryResult,
+  grow: (lot: LonLat[], seed?: ParcelFeature) => ParcelFeature[],
+  build: (
+    lot: LonLat[],
+    members: ParcelFeature[],
+  ) => { areaSqm: number; result: BoundaryResult; reason: string } | null,
+): {
+  flags: BoundaryReviewFlag[];
+  alternatives: BoundaryResult[];
+  note: string;
+} {
+  const none = { flags: [], alternatives: [], note: "" };
+  const streets = streetParcels(input.parcels);
+  const offStreet = lot.filter(
+    (v) => ![...streets].some((street) => contains(street.ring, v)),
+  );
+  if (offStreet.length < CASCADE_LIMITS.minLotVehicles) return none;
+  const onAnchor = offStreet.filter((v) => contains(anchor.ring, v)).length;
+  const onResult = offStreet.filter((v) =>
+    geometryContains(result.polygon, v),
+  ).length;
+  if (
+    onAnchor / offStreet.length >= CASCADE_LIMITS.anchorOffLotShare ||
+    onResult / offStreet.length >= CASCADE_LIMITS.anchorOffLotResultShare
+  ) {
+    return none;
+  }
+  const note = `; the point lies off the lot (its parcel holds ${onAnchor} of ${offStreet.length} lot vehicles off the street)`;
+  const seed = input.parcels
+    .filter(
+      (parcel) =>
+        parcel !== anchor &&
+        parcel.areaSqm <= CASCADE_LIMITS.maxParcelSqm &&
+        !isStreetLike(parcel.ring),
+    )
+    .map((parcel) => ({
+      parcel,
+      count: offStreet.filter((v) => contains(parcel.ring, v)).length,
+    }))
+    .sort((a, b) => b.count - a.count)[0];
+  const alternative =
+    seed && seed.count >= CASCADE_LIMITS.minLotVehicles
+      ? build(lot, grow(lot, seed.parcel))
+      : null;
+  return {
+    flags: ["anchorOffLot"],
+    alternatives: alternative
+      ? [
+          {
+            ...alternative.result,
+            label: "ALKIS parcels holding the vehicle lot",
+          },
+        ]
+      : [],
+    note,
   };
 }
 
@@ -888,8 +1141,9 @@ function completeOutline(
     mask.set(erode(spec, dilate(spec, mask, HULL_JOIN_CELLS), HULL_JOIN_CELLS));
   }
   fillHoles(spec, mask);
+  const streets = streetParcels(input.parcels);
   for (const parcel of input.parcels) {
-    if (!isStreetLike(parcel.ring)) continue;
+    if (!streets.has(parcel)) continue;
     const cells = new Uint8Array(mask.length);
     rasterizeMaskPolygon(spec, parcel.ring, cells);
     for (let i = 0; i < cells.length; i += 1) if (cells[i]) mask[i] = 0;
@@ -1070,6 +1324,7 @@ export function runCascade(input: CascadeInput): CascadeOutcome {
   ];
   let chosen: { result: BoundaryResult; stage: CascadeStage } | null = null;
   let lotVehicles: number | undefined;
+  let stageFlags: BoundaryReviewFlag[] = [];
   for (const [stage, run] of stages) {
     const outcome = run(input);
     alternatives.push(...outcome.alternatives);
@@ -1087,9 +1342,12 @@ export function runCascade(input: CascadeInput): CascadeOutcome {
       continue;
     }
     trace.push(`stage ${stage}: ${outcome.reason}`);
-    if (outcome.result) chosen = { result: outcome.result, stage };
+    if (outcome.result) {
+      chosen = { result: outcome.result, stage };
+      stageFlags = outcome.flags ?? [];
+    }
   }
-  const flags: BoundaryReviewFlag[] = [];
+  const flags: BoundaryReviewFlag[] = [...stageFlags];
   const anchorParcel = anchorParcelOf(input);
   if (input.parcelsTruncated && !anchorParcel) {
     // The service capped its answer and the parcel at the point is missing;
@@ -1139,6 +1397,10 @@ export function finalizeCascadeResult(
   } = {},
 ): BoundaryResult {
   const rings = outerRings(result.polygon) as LonLat[][];
+  // Every street-like parcel, field strips included: the cars at a kerb, or
+  // on a strip beside the lot, are not a clipped lot. (Telling strips from
+  // streets here made parallel footpath parcels count as strips and their
+  // kerbside cars as outside vehicles.)
   const streets = (context.parcels ?? [])
     .filter((parcel) => isStreetLike(parcel.ring))
     .map((parcel) => parcel.ring);

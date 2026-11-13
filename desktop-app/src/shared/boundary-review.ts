@@ -12,6 +12,8 @@ export const BOUNDARY_REVIEW_REASONS = [
   "cadastreIncomplete",
   "noLotAtPoint",
   "winterImagery",
+  "anchorOffLot",
+  "staleImagery",
   /** A result of the removed fusion/legacy engines failed one of their checks. */
   "legacyEngine",
 ] as const;

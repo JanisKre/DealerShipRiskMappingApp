@@ -16,6 +16,7 @@ import {
 } from "./detection/roof-mask.service";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { boundaryNeedsReview } from "@shared/boundary-review";
+import { imageryAgeYears } from "@shared/imagery-metadata";
 import { fetchOfficialBuildings } from "./alkis-buildings.service";
 import { officialHouseCoordinate } from "./house-coordinates.service";
 import {
@@ -33,6 +34,7 @@ import {
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type {
   BoundaryResult,
+  BoundaryReviewFlag,
   DetectionResult,
   RiskParameters,
 } from "@shared/types";
@@ -332,31 +334,50 @@ export async function analyzeDealership(
 /** Months whose imagery is flagged: long shadows hide parked vehicles. */
 const WINTER_MONTHS = new Set([11, 12, 1, 2]);
 
-/** Sends a boundary built on winter imagery to review, with that reason. */
+/**
+ * Imagery at least this old sends the boundary to review: a site may have
+ * been built, extended or vacated since. Official orthophotos are flown
+ * every two to three years, so four years means a fallback image (the
+ * November audit found Esri 2020 imagery in Sachsen-Anhalt). The detail
+ * view's softer age note starts at `IMAGERY_STALE_AFTER_YEARS`.
+ */
+export const STALE_IMAGERY_REVIEW_YEARS = 4;
+
+/** Sends a boundary built on winter or stale imagery to review, with the reason. */
 function withImageryFlags(
   boundary: BoundaryResult,
   capturedAt: string | null,
   parameters: RiskParameters,
+  now: Date = new Date(),
 ): BoundaryResult {
-  const month = capturedAt ? Number(capturedAt.slice(5, 7)) : NaN;
-  if (
-    !WINTER_MONTHS.has(month) ||
-    !boundary.quality ||
-    boundary.source === "synthetic"
-  ) {
+  if (!capturedAt || !boundary.quality || boundary.source === "synthetic") {
     return boundary;
   }
+  const added: Array<{ flag: BoundaryReviewFlag; reason: string }> = [];
+  if (WINTER_MONTHS.has(Number(capturedAt.slice(5, 7)))) {
+    added.push({
+      flag: "winterImagery",
+      reason: `imagery taken in winter (${capturedAt}); vehicles in shadow may be missing`,
+    });
+  }
+  const age = imageryAgeYears(capturedAt, now);
+  if (age >= STALE_IMAGERY_REVIEW_YEARS) {
+    added.push({
+      flag: "staleImagery",
+      reason: `imagery is ${age} years old (${capturedAt}); the site may have changed`,
+    });
+  }
   const flags = boundary.quality.reviewFlags ?? [];
+  const fresh = added.filter(({ flag }) => !flags.includes(flag));
+  if (fresh.length === 0) return boundary;
   const next: BoundaryResult = {
     ...boundary,
     quality: {
       ...boundary.quality,
-      reviewFlags: flags.includes("winterImagery")
-        ? flags
-        : [...flags, "winterImagery"],
+      reviewFlags: [...flags, ...fresh.map(({ flag }) => flag)],
       reasons: [
         ...boundary.quality.reasons,
-        `imagery taken in winter (${capturedAt}); vehicles in shadow may be missing`,
+        ...fresh.map(({ reason }) => reason),
       ],
     },
   };

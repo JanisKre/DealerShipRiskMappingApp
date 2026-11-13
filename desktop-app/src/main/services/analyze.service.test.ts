@@ -302,10 +302,24 @@ describe("cascade v3 analysis steps", () => {
     expect(result.boundary?.reviewRequired).toBe(true);
   });
 
+  it("sends a boundary on imagery four or more years old to review", async () => {
+    mocks.detectBoundary.mockResolvedValue(cascadeBoundary(1));
+    mocks.aerialImageForContext.mockResolvedValue({
+      imagery: { chosen: { capturedAt: "2020-05-01" } },
+    });
+    const result = await analyzeDealership(record);
+    expect(result.boundary?.quality?.reviewFlags).toContain("staleImagery");
+    expect(result.boundary?.reviewRequired).toBe(true);
+  });
+
   it("does not flag spring imagery", async () => {
     mocks.detectBoundary.mockResolvedValue(cascadeBoundary(1));
     mocks.aerialImageForContext.mockResolvedValue({
-      imagery: { chosen: { capturedAt: "2024-04-12" } },
+      imagery: {
+        chosen: {
+          capturedAt: `${new Date().getUTCFullYear() - 1}-04-12`,
+        },
+      },
     });
     const result = await analyzeDealership(record);
     expect(result.boundary?.quality?.reviewFlags).toBeUndefined();

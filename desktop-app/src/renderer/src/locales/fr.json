@@ -640,7 +640,9 @@
         "cadastreIncomplete": "cadastre incomplet, la parcelle au point manque",
         "noLotAtPoint": "aucun véhicule de concession au point – vérifiez l’emplacement du point",
         "winterImagery": "image d’hiver : des véhicules à l’ombre peuvent manquer",
-        "legacyEngine": "détectée par une version antérieure – relancez l’analyse"
+        "legacyEngine": "détectée par une version antérieure – relancez l’analyse",
+        "anchorOffLot": "le point se trouve à côté du parc de véhicules – vérifiez la parcelle",
+        "staleImagery": "l’image aérienne date de plusieurs années – le site a pu changer"
       },
       "boundaryReviewBecause": "À vérifier car : {{reasons}}"
     },

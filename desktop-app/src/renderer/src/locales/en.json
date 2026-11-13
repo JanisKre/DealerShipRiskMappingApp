@@ -863,7 +863,9 @@
         "cadastreIncomplete": "cadastre incomplete, the parcel at the point is missing",
         "noLotAtPoint": "no dealership vehicles at the point – check where the point is",
         "winterImagery": "winter image: vehicles in shadow may be missing",
-        "legacyEngine": "detected by an older version – re-analyse"
+        "legacyEngine": "detected by an older version – re-analyse",
+        "anchorOffLot": "the point lies beside the vehicle lot – check the plot",
+        "staleImagery": "the aerial image is several years old – the site may have changed"
       },
       "boundaryReviewBecause": "Check because: {{reasons}}"
     },

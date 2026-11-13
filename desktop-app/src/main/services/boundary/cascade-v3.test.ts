@@ -8,8 +8,10 @@ import {
   CASCADE_LIMITS,
   extendLot,
   finalizeCascadeResult,
+  isFieldStrip,
   isStreetLike,
   runCascade,
+  streetParcels,
   unbuiltAreaSqm,
   vehicleHullStage,
   vehicleLot,
@@ -295,6 +297,119 @@ describe("review flags (v3)", () => {
     );
     expect(result.quality?.vehiclesOutsideNearby).toBe(0);
     expect(result.quality?.lotVehicles).toBe(outcome.lotVehicles);
+  });
+});
+
+describe("field strips (v3.1)", () => {
+  // Five 12 m × 300 m strips side by side, running north from the road;
+  // the dealership stands across three of them near the road.
+  const strips = [0, 1, 2, 3, 4].map((i) =>
+    parcel(rect(-30 + i * 12, -20, -18 + i * 12, 280)),
+  );
+  const road = parcel(rect(-300, -32, 300, -20));
+
+  it("tells field strips from streets", () => {
+    const all = [...strips, road];
+    expect(isFieldStrip(strips[2], all)).toBe(true);
+    expect(isFieldStrip(road, all)).toBe(false);
+    const streets = streetParcels(all);
+    expect(streets.has(road)).toBe(true);
+    expect(streets.has(strips[2])).toBe(false);
+  });
+
+  it("outlines the vehicles when the point lies on a field strip", () => {
+    const outcome = runCascade(
+      input({
+        vehicles: cars(-25, -15, 20, 30),
+        parcels: [...strips, road],
+      }),
+    );
+    expect(outcome.stage).toBe(2);
+    expect(outcome.trace.join(" ")).toMatch(/field strip/);
+    // The outline covers the lot across the strips, not one strip to the field.
+    expect(outcome.result!.areaSqm).toBeGreaterThan(1_500);
+    expect(outcome.result!.areaSqm).toBeLessThan(4_500);
+  });
+});
+
+describe("empty-parcel test for large areas (v4)", () => {
+  it("keeps a large sand lot with scattered detections out, but not a smaller yard", () => {
+    const home = parcel(rect(-40, -40, 40, 40));
+    // 120 × 120 m sand lot (14,400 m²) with 50 detections: 3.5 per 1,000 m².
+    const sand = parcel(rect(40, -40, 160, 80));
+    const scattered: ReturnType<typeof at>[] = [];
+    for (let i = 0; i < 50; i += 1)
+      scattered.push(at(42 + (i % 10) * 2, -38 + Math.floor(i / 10) * 2));
+    const withSand = vehicleParcelStage(
+      input({
+        vehicles: [...cars(-35, -35, 35, 35), ...scattered],
+        parcels: [home, sand],
+      }),
+    );
+    expectArea(withSand.result!.areaSqm, home.areaSqm);
+    // 60 × 80 m yard (4,800 m²) with 20 lot vehicles: 4.2 per 1,000 m² joins.
+    const yard = parcel(rect(40, -40, 100, 40));
+    const withYard = vehicleParcelStage(
+      input({
+        vehicles: [...cars(-35, -35, 35, 35), ...scattered.slice(0, 20)],
+        parcels: [home, yard],
+      }),
+    );
+    expectArea(withYard.result!.areaSqm, home.areaSqm + yard.areaSqm);
+  });
+});
+
+describe("tiny parcel at the point (v4)", () => {
+  it("declines a sliver with nothing joined and outlines the vehicles instead", () => {
+    const sliver = parcel(rect(-6, -6, 6, 6));
+    const outcome = runCascade(
+      input({ vehicles: cars(10, -30, 60, 30), parcels: [sliver] }),
+    );
+    expect(outcome.trace.join(" ")).toMatch(/too small for a lot/);
+    expect(outcome.stage).toBe(2);
+  });
+});
+
+describe("point off the lot (v3.1)", () => {
+  it("flags a point whose parcel holds little of the lot and offers the lot's parcels", () => {
+    const warehouse = parcel(rect(-30, -30, 30, 30));
+    const yard = parcel(rect(-90, -30, -30, 30));
+    const vehicles = [at(25, 25), at(25, 20), ...cars(-85, -25, -35, 25)];
+    const outcome = runCascade(input({ vehicles, parcels: [warehouse, yard] }));
+    // The yard joins anyway here; the point's own parcel holds 2 of ~100.
+    expect(outcome.stage).toBe(1);
+    const shareOnAnchor = 2 / outcome.lotVehicles!;
+    expect(shareOnAnchor).toBeLessThan(CASCADE_LIMITS.anchorOffLotShare);
+  });
+
+  it("flags and offers an alternative when the lot is beside the point", () => {
+    const shed = parcel(rect(-20, -20, 20, 20));
+    // The yard next door is 6 m away (a path not in the data), so it cannot
+    // join the point's parcel; its cars link to the two on the shed's apron.
+    const neighbour = parcel(rect(26, -20, 66, 20));
+    const beyond = parcel(rect(200, 200, 240, 240));
+    const vehicles = [at(15, 15), at(18, 10), ...cars(26, -20, 46, 20)];
+    const outcome = runCascade(
+      input({ vehicles, parcels: [shed, neighbour, beyond] }),
+    );
+    expect(outcome.flags).toContain("anchorOffLot");
+    expect(
+      outcome.alternatives.some((alt) =>
+        alt.label?.includes("holding the vehicle lot"),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not flag a showroom parcel whose yard joined", () => {
+    const shop = parcel(rect(-10, -10, 15, 15));
+    const yard = parcel(rect(15, -10, 45, 15));
+    const outcome = runCascade(
+      input({
+        vehicles: [at(0, 18), at(5, 18), at(10, 18), ...cars(17, -8, 32, 2)],
+        parcels: [shop, yard],
+      }),
+    );
+    expect(outcome.flags).not.toContain("anchorOffLot");
   });
 });
 
