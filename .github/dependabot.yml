@@ -1,0 +1,54 @@
+# Dependabot version updates. Security updates (Dependabot alerts with
+# automatic fix PRs) are enabled in the repository settings as well.
+# Minor and patch updates are grouped per ecosystem to keep the PR count low;
+# majors arrive as single PRs. Every PR runs CI (typecheck, lint, tests,
+# build) and dependency review before it can be merged.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /desktop-app
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      desktop-minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: npm
+    directory: /website
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      website-minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "chore(deps-website)"
+
+  - package-ecosystem: pip
+    directory: /training
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      training-minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "chore(deps-training)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(ci)"

@@ -50,8 +50,9 @@ with `package.json` and run `npm audit` for dependency changes.
 - Use the PR template and explain user impact, risk, and verification.
 - Releases are tag-driven. Generate checksums, the SBOM, and build provenance;
   code signing is optional until certificates are available.
-- Dependabot automatic PRs are intentionally disabled. Do not add a
-  Dependabot update configuration unless the maintainer explicitly requests it.
+- Dependabot is enabled (`.github/dependabot.yml`, plus Dependabot alerts and
+  security updates in the repository settings). Keep it running; review its
+  PRs like any other dependency change and do not disable it.
 
 ## Data and risk-model changes
 

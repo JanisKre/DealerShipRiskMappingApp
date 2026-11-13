@@ -31,7 +31,9 @@ describe("ZIP reader and writer (property)", () => {
       fc.property(fc.array(entry, { maxLength: 8 }), (entries) => {
         const read = readZipEntries(writeZip(entries));
         expect(read.map((e) => e.name)).toEqual(entries.map((e) => e.name));
-        read.forEach((e, i) => expect(e.read().equals(entries[i].data)).toBe(true));
+        read.forEach((e, i) =>
+          expect(e.read().equals(entries[i].data)).toBe(true),
+        );
       }),
       params,
     );
@@ -85,9 +87,27 @@ describe("SpreadsheetML normalisation (property)", () => {
   });
 
   it("leaves XML without a prefixed SpreadsheetML namespace untouched", () => {
+    // XML-like fragments with other namespaces; none can spell the
+    // SpreadsheetML URI, so nothing may change.
+    const fragment = fc.constantFrom(
+      "<",
+      ">",
+      "/",
+      " ",
+      '"',
+      "=",
+      "x:",
+      "mc:",
+      "row",
+      "xmlns",
+      "xmlns:x=",
+      "http://example.org/ns",
+      "urn:other",
+      "\uFEFF",
+    );
     fc.assert(
-      fc.property(fc.string({ maxLength: 300 }), (text) => {
-        fc.pre(!text.includes(MAIN));
+      fc.property(fc.array(fragment, { maxLength: 60 }), (parts) => {
+        const text = parts.join("");
         expect(normalizeSpreadsheetXml(text)).toBe(text);
       }),
       params,
@@ -99,7 +119,9 @@ describe("SpreadsheetML normalisation (property)", () => {
       fc.property(fc.webUrl(), (url) => {
         const target = url.replace(/"/g, "");
         const rels = `<Relationships><Relationship TargetMode="External" Target="${target}" Id="x"/></Relationships>`;
-        expect(normalizeRelationships(rels, "xl/_rels/workbook.xml.rels")).toBe(rels);
+        expect(normalizeRelationships(rels, "xl/_rels/workbook.xml.rels")).toBe(
+          rels,
+        );
       }),
       params,
     );

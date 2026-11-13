@@ -1,6 +1,6 @@
 ---
 name: dependency-hygiene
-description: Review npm and GitHub Actions dependency changes without creating unrequested update PRs.
+description: Review npm and GitHub Actions dependency changes and Dependabot update PRs.
 ---
 
 # Dependency hygiene
@@ -13,5 +13,7 @@ description: Review npm and GitHub Actions dependency changes without creating u
 - Keep dependency-review checks on incoming PRs.
 - GitHub Actions must be pinned to full commit SHAs and granted the minimum
   permissions they need.
-- Automatic Dependabot PRs are disabled in this repository; report or document
-  alerts, but do not re-enable PR generation implicitly.
+- Dependabot version and security updates are enabled
+  (`.github/dependabot.yml`). Review its PRs with the same checks; keep
+  native-module rebuilds in mind for Electron, `better-sqlite3`,
+  `onnxruntime-node` and `sharp` bumps.
