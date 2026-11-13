@@ -1,5 +1,7 @@
 import { randomUUID } from "crypto";
 import ExcelJS from "exceljs";
+import { normalizeWebsiteUrl } from "@shared/website";
+import { normalizeXlsx } from "./xlsx-normalize";
 import type {
   DealershipInput,
   ImportResult,
@@ -20,10 +22,11 @@ export function parseCsv(content: string): DealershipInput[] {
 
 /** CSV/TSV import with row-level diagnostics and a reproducible mapping report. */
 export function parseCsvWithReport(content: string): ImportResult {
-  const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length === 0) return emptyResult("csv");
+  // Blank lines stay (rowsFromMatrix skips them) so row numbers match the file.
+  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/);
+  if (lines.every((l) => l.trim().length === 0)) return emptyResult("csv");
 
-  const delimiter = detectDelimiter(lines[0]);
+  const delimiter = chooseDelimiter(lines);
   const matrix = lines.map((l) => splitLine(l, delimiter));
   return rowsFromMatrix(matrix, delimiter === "\t" ? "tsv" : "csv");
 }
@@ -39,21 +42,50 @@ export async function parseXlsxWithReport(
 ): Promise<ImportResult> {
   const wb = new ExcelJS.Workbook();
   // exceljs typings expect an older Buffer type → cast at the boundary.
-  await wb.xlsx.load(Buffer.from(base64, "base64") as unknown as ArrayBuffer);
-  const ws = wb.worksheets[0];
-  if (!ws) return emptyResult("xlsx");
-
-  const matrix: string[][] = [];
-  ws.eachRow((row) => {
-    const cells: string[] = [];
-    // values[0] is reserved; the real columns start at index 1.
-    const values = row.values as unknown[];
-    for (let i = 1; i < values.length; i++) {
-      cells.push(cellToString(values[i]));
-    }
-    matrix.push(cells);
-  });
+  // Files with namespace-prefixed XML (Open XML SDK) are rewritten first.
+  await wb.xlsx.load(
+    normalizeXlsx(Buffer.from(base64, "base64")) as unknown as ArrayBuffer,
+  );
+  // The sheet with the clearest header wins (a "Notes" sheet may come
+  // first); rows keep their sheet row numbers, blank ones included.
+  let best: { matrix: string[][]; score: number } | null = null;
+  for (const ws of wb.worksheets) {
+    const matrix: string[][] = [];
+    ws.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+      const cells: string[] = [];
+      // values[0] is reserved; the real columns start at index 1.
+      const values = row.values as unknown[];
+      for (let i = 1; i < values.length; i++) {
+        cells.push(cellToString(values[i]));
+      }
+      matrix[rowNumber - 1] = cells;
+    });
+    for (let i = 0; i < matrix.length; i++) matrix[i] ??= [];
+    const score = headerScore(matrix);
+    if (!best || score > best.score) best = { matrix, score };
+  }
+  if (!best) return emptyResult("xlsx");
+  const matrix = best.matrix;
   return rowsFromMatrix(matrix, "xlsx");
+}
+
+/**
+ * The delimiter that makes some top line read as column names (a title line
+ * above the header has none); without any known header, the most frequent
+ * delimiter of the first non-empty line.
+ */
+function chooseDelimiter(lines: string[]): string {
+  const top = lines.filter((l) => l.trim()).slice(0, HEADER_SEARCH_ROWS);
+  let best: { delimiter: string; fields: number } | null = null;
+  for (const delimiter of ["\t", ";", ","]) {
+    const fields = Math.max(
+      0,
+      ...top.map((line) => knownFields(splitLine(line, delimiter))),
+    );
+    if (fields > 0 && (!best || fields > best.fields))
+      best = { delimiter, fields };
+  }
+  return best?.delimiter ?? detectDelimiter(top[0] ?? "");
 }
 
 /** Selects the most frequent delimiter in the header row from tab/semicolon/comma. */
@@ -73,24 +105,13 @@ function occurrences(s: string, ch: string): number {
   return n;
 }
 
-/** Shared row/column mapping for CSV, TSV, and XLSX. */
-function rowsFromMatrix(
-  matrix: string[][],
-  format: ImportReport["format"],
-): ImportResult {
-  if (matrix.length === 0) return emptyResult(format);
-  const rawHeader = matrix[0].map((h) => h.trim());
-  const header = rawHeader.map(normaliseHeader);
-  const idx = (names: string[]): number =>
-    header.findIndex((h) => names.includes(h));
-
-  // NOTE: the alias lists below intentionally include German column-header
-  // variants (e.g. "haendler", "laenge") as recognized input data, so that
-  // German-language spreadsheets can still be imported. These are data
-  // values, not descriptive text, and are left untranslated on purpose.
-  // Aliases are compared after `normaliseHeader`, so they must be written in
-  // that form: lower-case ASCII, umlauts transliterated, no spaces.
-  const nameIdx = idx([
+/**
+ * Recognised column headers per field, compared after `normaliseHeader`
+ * (lower-case ASCII, umlauts transliterated, no spaces). German variants
+ * such as "haendler" or "laenge" are data values, not text to translate.
+ */
+const HEADER_ALIASES = {
+  name: [
     "name",
     "dealership",
     "dealershipname",
@@ -107,26 +128,135 @@ function rowsFromMatrix(
     "standort",
     "standortname",
     "bezeichnung",
-  ]);
-  const addrIdx = idx(["address", "adresse", "anschrift", "location"]);
+  ],
+  addr: ["address", "adresse", "anschrift", "location"],
+  street: ["street", "strasse", "streetname"],
+  houseNumber: ["housenumber", "hausnummer", "hausnr", "streetnumber"],
+  postalCode: ["postalcode", "postcode", "zip", "zipcode", "plz"],
+  city: ["city", "ort", "stadt", "town", "gemeinde"],
+  lat: ["lat", "latitude", "breite", "breitengrad"],
+  lon: ["lon", "lng", "longitude", "laenge", "laengengrad"],
+  val: ["value", "assetvalue", "wert", "suminsured"],
+  insured: [
+    "insured",
+    "versichert",
+    "policy",
+    "status",
+    "businesstype",
+    "business",
+    "geschaeftsart",
+    "geschaeftstyp",
+    "bestand",
+    "bestandneu",
+    "bestandoderneu",
+    "bestandneugeschaeft",
+    "kundenstatus",
+    "vertragsstatus",
+  ],
+  partner: ["salespartner", "partner", "vertriebspartner", "agent"],
+  subPortfolio: ["subportfolio", "portfolio", "teilportfolio", "segment"],
+  group: ["group", "gruppe", "konzern"],
+  limit: [
+    "limit",
+    "productlimit",
+    "productlimiteur",
+    "limiteur",
+    "cap",
+    "versicherungssumme",
+    "maxindemnity",
+    "maximumindemnity",
+    "indemnitylimit",
+    "maxindemnitylimit",
+    "maximumindemnitylimit",
+    "hoechstentschaedigung",
+    "hoechstentschaedigungeur",
+    "hoechstentschaedigungsgrenze",
+    "entschaedigungsgrenze",
+    "haftungshoechstgrenze",
+    "hoechsthaftung",
+    "hoechstgrenze",
+    "jahreshoechstentschaedigung",
+  ],
+  deductible: [
+    "deductible",
+    "deductibleeur",
+    "excess",
+    "selbstbehalt",
+    "selbstbehalteur",
+    "selbstbeteiligung",
+    "selbstbeteiligungeur",
+    "sb",
+    "sbeur",
+  ],
+  website: ["website", "webseite", "homepage", "internetseite", "web", "url"],
+} satisfies Record<string, string[]>;
+
+/** Every recognised header, for finding the header row. */
+const KNOWN_HEADERS = new Map(
+  Object.entries(HEADER_ALIASES).flatMap(([field, names]) =>
+    names.map((name) => [name, field] as const),
+  ),
+);
+
+/** Rows searched for the header (title and note lines may come first). */
+const HEADER_SEARCH_ROWS = 20;
+
+/**
+ * Index of the header row: the first row among the top rows that names the
+ * most known fields. Exports often start with a title, a note or an empty
+ * line; a row of repeated merged-cell text names no field. Falls back to
+ * the first row when no row names a field.
+ */
+export function findHeaderRow(matrix: string[][]): number {
+  let best = 0;
+  let bestScore = 0;
+  for (let i = 0; i < Math.min(matrix.length, HEADER_SEARCH_ROWS); i++) {
+    const score = knownFields(matrix[i]);
+    if (score > bestScore) {
+      best = i;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+/** Number of distinct fields a row names as column headers. */
+function knownFields(row: string[]): number {
+  return new Set(
+    row
+      .map((cell) => KNOWN_HEADERS.get(normaliseHeader(cell ?? "")))
+      .filter((field): field is string => field != null),
+  ).size;
+}
+
+/** How clearly a sheet carries an import table (its best header row). */
+function headerScore(matrix: string[][]): number {
+  const row = matrix[findHeaderRow(matrix)];
+  return row ? knownFields(row) : 0;
+}
+
+/** Shared row/column mapping for CSV, TSV, and XLSX. */
+function rowsFromMatrix(
+  matrix: string[][],
+  format: ImportReport["format"],
+): ImportResult {
+  if (matrix.length === 0) return emptyResult(format);
+  // Title or note lines above the column names are skipped.
+  const headerRow = findHeaderRow(matrix);
+  const rawHeader = matrix[headerRow].map((h) => h.trim());
+  const header = rawHeader.map(normaliseHeader);
+  const idx = (names: string[]): number =>
+    header.findIndex((h) => names.includes(h));
+
+  const nameIdx = idx(HEADER_ALIASES.name);
+  const addrIdx = idx(HEADER_ALIASES.addr);
   // Split address columns, combined when there is no single address column.
-  const streetIdx = idx(["street", "strasse", "streetname"]);
-  const houseNumberIdx = idx([
-    "housenumber",
-    "hausnummer",
-    "hausnr",
-    "streetnumber",
-  ]);
-  const postalCodeIdx = idx([
-    "postalcode",
-    "postcode",
-    "zip",
-    "zipcode",
-    "plz",
-  ]);
-  const cityIdx = idx(["city", "ort", "stadt", "town", "gemeinde"]);
-  const latIdx = idx(["lat", "latitude", "breite", "breitengrad"]);
-  const lonIdx = idx(["lon", "lng", "longitude", "laenge", "laengengrad"]);
+  const streetIdx = idx(HEADER_ALIASES.street);
+  const houseNumberIdx = idx(HEADER_ALIASES.houseNumber);
+  const postalCodeIdx = idx(HEADER_ALIASES.postalCode);
+  const cityIdx = idx(HEADER_ALIASES.city);
+  const latIdx = idx(HEADER_ALIASES.lat);
+  const lonIdx = idx(HEADER_ALIASES.lon);
   // Without a name column, use the first column that is not a row id —
   // otherwise every location would be called "1", "2", "3", ….
   const fallbackNameIdx = header.findIndex(
@@ -160,78 +290,28 @@ function rowsFromMatrix(
       : [streetIdx, houseNumberIdx, postalCodeIdx, cityIdx].filter(
           (i) => i >= 0,
         );
-  const valIdx = idx(["value", "assetvalue", "wert", "suminsured"]);
+  const valIdx = idx(HEADER_ALIASES.val);
   // Existing vs. new business ("Bestand"/"Neugeschäft", yes/no, …).
-  const insuredIdx = idx([
-    "insured",
-    "versichert",
-    "policy",
-    "status",
-    "businesstype",
-    "business",
-    "geschaeftsart",
-    "geschaeftstyp",
-    "bestand",
-    "bestandneu",
-    "bestandoderneu",
-    "bestandneugeschaeft",
-    "kundenstatus",
-    "vertragsstatus",
-  ]);
-  const partnerIdx = idx([
-    "salespartner",
-    "partner",
-    "vertriebspartner",
-    "agent",
-  ]);
-  const subPortfolioIdx = idx([
-    "subportfolio",
-    "portfolio",
-    "teilportfolio",
-    "segment",
-  ]);
-  const groupIdx = idx(["group", "gruppe", "konzern"]);
+  const insuredIdx = idx(HEADER_ALIASES.insured);
+  const partnerIdx = idx(HEADER_ALIASES.partner);
+  const subPortfolioIdx = idx(HEADER_ALIASES.subPortfolio);
+  const groupIdx = idx(HEADER_ALIASES.group);
   // Maximum indemnity per location (stored as `productLimitEur`).
-  const limitIdx = idx([
-    "limit",
-    "productlimit",
-    "productlimiteur",
-    "limiteur",
-    "cap",
-    "versicherungssumme",
-    "maxindemnity",
-    "maximumindemnity",
-    "indemnitylimit",
-    "maxindemnitylimit",
-    "maximumindemnitylimit",
-    "hoechstentschaedigung",
-    "hoechstentschaedigungeur",
-    "hoechstentschaedigungsgrenze",
-    "entschaedigungsgrenze",
-    "haftungshoechstgrenze",
-    "hoechsthaftung",
-    "hoechstgrenze",
-    "jahreshoechstentschaedigung",
-  ]);
-  const deductibleIdx = idx([
-    "deductible",
-    "deductibleeur",
-    "excess",
-    "selbstbehalt",
-    "selbstbehalteur",
-    "selbstbeteiligung",
-    "selbstbeteiligungeur",
-    "sb",
-    "sbeur",
-  ]);
+  const limitIdx = idx(HEADER_ALIASES.limit);
+  const deductibleIdx = idx(HEADER_ALIASES.deductible);
+  const websiteIdx = idx(HEADER_ALIASES.website);
   const rows: DealershipInput[] = [];
   /** Source row (1-based, header = 1) of each entry in `rows`. */
   const rowNumbers: number[] = [];
   const issues: ImportReport["issues"] = [];
   const seen = new Set<string>();
   let duplicateRows = 0;
-  for (let i = 1; i < matrix.length; i++) {
+  let dataRows = 0;
+  for (let i = headerRow + 1; i < matrix.length; i++) {
     const cols = matrix[i];
+    // Blank lines (spacers, trailing rows) are neither data nor errors.
+    if (cols.every((cell) => !cell?.trim())) continue;
+    dataRows++;
     const name = (nameCol >= 0 ? cols[nameCol] : cols[0])?.trim();
     const address = composeAddress(cols);
     const rowNumber = i + 1;
@@ -318,6 +398,7 @@ function rowsFromMatrix(
       group: groupIdx >= 0 ? cols[groupIdx]?.trim() || undefined : undefined,
       productLimitEur: productLimitEur != null ? productLimitEur : undefined,
       deductibleEur: deductibleEur != null ? deductibleEur : undefined,
+      ...websiteFields(websiteIdx >= 0 ? cols[websiteIdx] : undefined),
     });
   }
 
@@ -335,9 +416,9 @@ function rowsFromMatrix(
     rowNumbers,
     report: {
       format,
-      totalRows: Math.max(0, matrix.length - 1),
+      totalRows: dataRows,
       importedRows: rows.length,
-      skippedRows: Math.max(0, matrix.length - 1 - rows.length),
+      skippedRows: Math.max(0, dataRows - rows.length),
       duplicateRows,
       columnMapping: {
         name: rawHeader[nameCol] ?? null,
@@ -354,12 +435,21 @@ function rowsFromMatrix(
         group: rawHeader[groupIdx] ?? null,
         productLimitEur: rawHeader[limitIdx] ?? null,
         deductibleEur: rawHeader[deductibleIdx] ?? null,
+        website: rawHeader[websiteIdx] ?? null,
       },
       issues,
       warnings,
       createdAt: new Date().toISOString(),
     },
   };
+}
+
+/** A website from the file counts as entered by the user (never replaced). */
+function websiteFields(
+  raw: string | undefined,
+): { website: string; websiteSource: "manual" } | Record<string, never> {
+  const website = normalizeWebsiteUrl(raw?.trim());
+  return website ? { website, websiteSource: "manual" } : {};
 }
 
 function cellToString(v: unknown): string {

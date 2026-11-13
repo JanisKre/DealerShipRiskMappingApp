@@ -58,6 +58,7 @@ const MAPPED_FIELDS = [
   "insured",
   "productLimitEur",
   "deductibleEur",
+  "website",
   "salesPartner",
   "subPortfolio",
   "group",
@@ -92,11 +93,12 @@ export function usePortfolioImport(onImported?: () => void): {
       }
       setPending({ fileName: file.name, result });
     } catch (error) {
-      toast.error(
-        t("portfolioImport.parseFailed", {
+      // The technical reason stays available, below a plain explanation.
+      toast.error(t("portfolioImport.parseFailedTitle"), {
+        description: t("portfolioImport.parseFailed", {
           error: error instanceof Error ? error.message : String(error),
         }),
-      );
+      });
     }
   }
 

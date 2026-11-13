@@ -1344,7 +1344,7 @@
     "summary": "{{file}}: {{imported}} von {{total}} Zeilen erkannt.",
     "skipped": "{{count}} Zeile(n) übersprungen.",
     "issues": "{{count}} Hinweis(e) im Importbericht.",
-    "parseFailed": "Datei konnte nicht gelesen werden: {{error}}",
+    "parseFailed": "Technischer Grund: {{error}}",
     "detectedColumns": "Erkannte Spalten",
     "noTermsColumns": "Keine Spalten für Höchstentschädigung oder Selbstbehalt erkannt – diese Angaben lassen sich später je Standort ergänzen.",
     "field": {
@@ -1358,7 +1358,8 @@
       "deductibleEur": "Selbstbehalt",
       "salesPartner": "Vertriebspartner",
       "subPortfolio": "Teilportfolio",
-      "group": "Gruppe"
+      "group": "Gruppe",
+      "website": "Website"
     },
     "targetTitle": "Ziel",
     "targetNew": "Neues Portfolio anlegen",
@@ -1374,7 +1375,8 @@
     "businessRequired": "Bitte die Geschäftsart wählen – sie bestimmt Darstellung und Bewertung.",
     "waitForAnalysis": "Bitte warten, bis die laufende Analyse abgeschlossen ist.",
     "cancel": "Abbrechen",
-    "confirm": "{{count}} Standort(e) importieren"
+    "confirm": "{{count}} Standort(e) importieren",
+    "parseFailedTitle": "Die Datei konnte nicht gelesen werden. Speichere sie in Excel bitte erneut als .xlsx-Arbeitsmappe oder exportiere sie als CSV."
   },
   "places": {
     "inPortfolio": "Im Portfolio: {{portfolio}}",

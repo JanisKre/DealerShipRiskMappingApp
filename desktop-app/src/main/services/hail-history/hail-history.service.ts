@@ -7,7 +7,7 @@ import {
 import { haversineMeters } from "@shared/dedupe";
 import { cached } from "../cache.service";
 import { fetchWithResilience } from "../http.service";
-import { readZipEntries } from "./zip";
+import { readZipEntries } from "../zip";
 
 /**
  * Hail history near a location from the DWD Climate Data Center: the daily

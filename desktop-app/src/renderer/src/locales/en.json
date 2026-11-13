@@ -1344,7 +1344,7 @@
     "summary": "{{file}}: {{imported}} of {{total}} rows recognised.",
     "skipped": "{{count}} row(s) skipped.",
     "issues": "{{count}} note(s) in the import report.",
-    "parseFailed": "Could not read the file: {{error}}",
+    "parseFailed": "Technical reason: {{error}}",
     "detectedColumns": "Detected columns",
     "noTermsColumns": "No maximum indemnity or deductible column detected – these can be added per location later.",
     "field": {
@@ -1358,7 +1358,8 @@
       "deductibleEur": "Deductible",
       "salesPartner": "Sales partner",
       "subPortfolio": "Sub-portfolio",
-      "group": "Group"
+      "group": "Group",
+      "website": "Website"
     },
     "targetTitle": "Destination",
     "targetNew": "Create a new portfolio",
@@ -1374,7 +1375,8 @@
     "businessRequired": "Please choose the business type – it determines how locations are shown and assessed.",
     "waitForAnalysis": "Please wait until the running analysis has finished.",
     "cancel": "Cancel",
-    "confirm": "Import {{count}} location(s)"
+    "confirm": "Import {{count}} location(s)",
+    "parseFailedTitle": "The file could not be read. Please save it again in Excel as an .xlsx workbook or export it as CSV."
   },
   "places": {
     "inPortfolio": "In portfolio: {{portfolio}}",

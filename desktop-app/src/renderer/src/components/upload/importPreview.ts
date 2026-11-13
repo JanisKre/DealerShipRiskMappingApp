@@ -30,9 +30,9 @@ export function placement(row: DealershipInput): Placement {
 }
 
 /**
- * Builds the preview rows. Rows that cannot be placed or repeat a portfolio
- * location start unticked: the analysis could not place the first, and the
- * import would skip the second anyway.
+ * Builds the preview rows. Rows that cannot be placed, repeat a portfolio
+ * location or repeat an earlier row of the file start unticked: the
+ * analysis could not place the first, and the import skips repeats anyway.
  */
 export function buildPreviewRows(
   rows: DealershipInput[],
@@ -69,7 +69,7 @@ export function buildPreviewRows(
       issues: sourceRow != null ? (issuesByRow.get(sourceRow) ?? []) : [],
       ...(existingMatch ? { duplicateOfExisting: existingMatch.name } : {}),
       ...(fileMatch != null ? { duplicateOfRow: fileMatch } : {}),
-      include: where !== "missing" && !existingMatch,
+      include: where !== "missing" && !existingMatch && fileMatch == null,
     };
   });
 }

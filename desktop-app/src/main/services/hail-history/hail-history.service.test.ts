@@ -8,7 +8,7 @@ import {
   parseStationList,
   summarizeHail,
 } from "./hail-history.service";
-import { readZipEntries, ZIP_MAX_ENTRY_BYTES } from "./zip";
+import { readZipEntries, ZIP_MAX_ENTRY_BYTES } from "../zip";
 
 const STATIONS = [
   "Stations_id von_datum bis_datum Stationshoehe geoBreite geoLaenge Stationsname Bundesland Abgabe",

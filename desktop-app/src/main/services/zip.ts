@@ -1,10 +1,10 @@
-import { inflateRawSync } from "node:zlib";
+import { crc32, deflateRawSync, inflateRawSync } from "node:zlib";
 
 /**
- * Minimal ZIP reader for the DWD station archives (a handful of small text
- * files, stored or deflated). Reads the central directory, so it does not
- * depend on local-header sizes, and caps the inflated size so a malformed
- * or hostile archive cannot exhaust memory.
+ * Minimal ZIP reader and writer: DWD station archives (hail history) and
+ * XLSX packages (spreadsheet import). The reader uses the central directory,
+ * so it does not depend on local-header sizes, and caps the inflated size so
+ * a malformed or hostile archive cannot exhaust memory.
  */
 
 const EOCD_SIGNATURE = 0x06054b50;
@@ -80,4 +80,49 @@ function readEntry(
   if (method === 8)
     return inflateRawSync(data, { maxOutputLength: ZIP_MAX_ENTRY_BYTES });
   throw new Error(`Unsupported ZIP compression method ${method}`);
+}
+
+/** Writes a ZIP archive with every entry deflated. */
+export function writeZip(
+  entries: Array<{ name: string; data: Buffer }>,
+): Buffer {
+  const locals: Buffer[] = [];
+  const centrals: Buffer[] = [];
+  let offset = 0;
+  for (const { name, data } of entries) {
+    const nameBytes = Buffer.from(name, "utf8");
+    const compressed = deflateRawSync(data);
+    const checksum = crc32(data);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(LOCAL_SIGNATURE, 0);
+    local.writeUInt16LE(20, 4); // version needed
+    local.writeUInt16LE(0x0800, 6); // UTF-8 names
+    local.writeUInt16LE(8, 8); // deflate
+    local.writeUInt32LE(checksum, 14);
+    local.writeUInt32LE(compressed.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(nameBytes.length, 26);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(CENTRAL_SIGNATURE, 0);
+    central.writeUInt16LE(20, 4); // version made by
+    central.writeUInt16LE(20, 6); // version needed
+    central.writeUInt16LE(0x0800, 8);
+    central.writeUInt16LE(8, 10);
+    central.writeUInt32LE(checksum, 16);
+    central.writeUInt32LE(compressed.length, 20);
+    central.writeUInt32LE(data.length, 24);
+    central.writeUInt16LE(nameBytes.length, 28);
+    central.writeUInt32LE(offset, 42);
+    locals.push(local, nameBytes, compressed);
+    centrals.push(central, nameBytes);
+    offset += 30 + nameBytes.length + compressed.length;
+  }
+  const centralSize = centrals.reduce((n, b) => n + b.length, 0);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(EOCD_SIGNATURE, 0);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(centralSize, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, ...centrals, end]);
 }

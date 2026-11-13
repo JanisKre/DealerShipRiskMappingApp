@@ -47,11 +47,12 @@ describe("import preview", () => {
 
   it("attaches notes, duplicates and default ticks", () => {
     const preview = buildPreviewRows(rows, rowNumbers, issues, existing);
+    // Rows 3 (no place), 4 (repeats row 2) and 5 (in the portfolio) start off.
     expect(preview.map((r) => r.include)).toEqual([
       true,
       true,
       false,
-      true,
+      false,
       false,
     ]);
     expect(preview[1].issues.map((i) => i.message)).toEqual([
