@@ -68,11 +68,11 @@ export function MapLegend({
   ];
 
   return (
-    <div className="glass pointer-events-auto flex max-h-full min-h-0 w-full flex-col rounded-lg border shadow-lg">
+    <div className="pointer-events-auto flex max-h-full min-h-0 w-full flex-col rounded-lg border bg-card shadow-lg">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex shrink-0 items-center gap-1.5 px-3 py-2.5 text-sm font-semibold"
+        className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         aria-expanded={open}
       >
         <Info className="size-4" />
@@ -222,17 +222,14 @@ function ImageryDetails({
       <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
         <MetaRow label={t("map.legend.imageryDate")}>
           <span
-            className={cn(
-              "font-semibold",
-              stale && "text-amber-600 dark:text-amber-400",
-            )}
+            className={cn("font-semibold", stale && "text-warning-foreground")}
           >
             {chosen.capturedAt
               ? formatDate(chosen.capturedAt)
               : t("map.legend.imageryUnknown")}
           </span>
           {stale && (
-            <span className="text-amber-600 dark:text-amber-400">
+            <span className="text-warning-foreground">
               {" "}
               ({t("map.legend.imageryAge", { count: ageYears })})
             </span>

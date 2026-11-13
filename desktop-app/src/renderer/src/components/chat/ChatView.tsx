@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Database, Info, MessageSquare, Plus, X } from "lucide-react";
+import { Database, MessageSquare, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { RISK_MODEL_VERSION } from "@shared/constants";
 import { defaultDashboardSurface } from "@shared/a2ui";
@@ -10,12 +10,8 @@ import {
   LlmSetupNotice,
 } from "@renderer/components/ai/LlmSetupNotice";
 import { LocationLinkContext } from "@renderer/components/ai/Markdown";
-import { Button } from "@renderer/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@renderer/components/ui/popover";
+import { TileInfo } from "@renderer/components/dashboard/TileInfo";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import { Omnibox } from "@renderer/components/upload/Omnibox";
 import {
   linkifyLocations,
@@ -124,14 +120,25 @@ export function ChatView({
   const selected = dealerships.find((d) => d.id === selectedId) ?? null;
 
   // Context-aware starters: about the selected location, else the portfolio.
+  // Without an AI provider only commands the app runs itself are offered
+  // (see `parseChatAction`), so every chip works.
   const prompts = [
     ...extraPrompts,
-    ...(selected
+    ...(llmReady === false
       ? [
-          t("chat.prompts.whyLocation", { name: selected.name }),
-          t("chat.prompts.compareNeighbours", { name: selected.name }),
+          ...(selected
+            ? [t("chat.commandPrompts.open", { name: selected.name })]
+            : []),
+          t("chat.commandPrompts.clusters"),
+          t("chat.commandPrompts.hailZones"),
+          t("chat.commandPrompts.exportPdf"),
         ]
-      : [t("chat.prompts.topEal"), t("chat.prompts.summary")]),
+      : selected
+        ? [
+            t("chat.prompts.whyLocation", { name: selected.name }),
+            t("chat.prompts.compareNeighbours", { name: selected.name }),
+          ]
+        : [t("chat.prompts.topEal"), t("chat.prompts.summary")]),
   ];
 
   async function runAction(action: ChatAction): Promise<string> {
@@ -206,10 +213,13 @@ export function ChatView({
     );
   }
 
-  /** Local commands answer instantly; everything else goes to the AI. */
-  function submit(prompt: string): void {
+  /**
+   * Local commands answer instantly; everything else goes to the AI.
+   * Returns false when the message was not taken (the composer keeps it).
+   */
+  function submit(prompt: string): boolean {
     const text = prompt.trim();
-    if (!text || streaming || actionPending) return;
+    if (!text || streaming || actionPending) return false;
     const commandReply = onCommand?.(text) ?? null;
     const action = commandReply
       ? null
@@ -226,11 +236,11 @@ export function ChatView({
           ? Promise.resolve(commandReply)
           : runAction(action as ChatAction),
       );
-      return;
+      return true;
     }
     if (llmReady === false) {
       toast.info(t("chat.needsAi"));
-      return;
+      return false;
     }
     // Wording alone was not clear: with a dashboard on screen (or when the
     // message is about dashboards) a short AI call decides whether it asks
@@ -249,9 +259,10 @@ export function ChatView({
             reply(buildDashboard(text, intent));
           }
         });
-      return;
+      return true;
     }
     send(text);
+    return true;
   }
 
   /** Shows an app reply (command, action) once it is ready. */
@@ -287,6 +298,28 @@ export function ChatView({
     return true;
   }
   const empty = messages.length === 0 && !streaming && !actionPending;
+  const contextLine = [
+    t("chat.context", {
+      portfolio: portfolioName(sessionName, t),
+      count: dealerships.length,
+    }),
+    ...(selected ? [t("chat.contextSelected", { name: selected.name })] : []),
+  ].join(" · ");
+  const promptChips = (
+    <div className="flex max-w-full flex-wrap justify-center gap-1.5">
+      {prompts.map((prompt) => (
+        <button
+          key={prompt}
+          type="button"
+          title={prompt}
+          className="max-w-full truncate rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          onClick={() => submit(prompt)}
+        >
+          {prompt}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden border-l bg-card">
@@ -299,7 +332,7 @@ export function ChatView({
           onRename={(id, name) => void renameConversation(id, name)}
           onDelete={(id) => void deleteConversation(id)}
         />
-        <Button
+        <HintButton
           type="button"
           variant="ghost"
           size="icon"
@@ -308,9 +341,9 @@ export function ChatView({
           aria-label={t("ui.newChatThread")}
         >
           <Plus className="size-4" />
-        </Button>
+        </HintButton>
         {onClose && (
-          <Button
+          <HintButton
             type="button"
             variant="ghost"
             size="icon"
@@ -319,7 +352,7 @@ export function ChatView({
             aria-label={t("dashboard.closeAssistant")}
           >
             <X className="size-4" />
-          </Button>
+          </HintButton>
         )}
       </div>
 
@@ -327,62 +360,49 @@ export function ChatView({
           on and what they are not, instead of a note under every answer. */}
       <div className="flex shrink-0 items-start gap-1.5 border-b bg-muted/30 px-3 py-1.5 text-[11px] leading-snug text-muted-foreground">
         <Database className="mt-px size-3 shrink-0" />
-        <span className="min-w-0 flex-1">
-          {t("chat.context", {
-            portfolio: portfolioName(sessionName, t),
-            count: dealerships.length,
-          })}
-          {selected && (
-            <>
-              {" · "}
-              {t("chat.contextSelected", { name: selected.name })}
-            </>
-          )}
+        {/* Long portfolio or site names are clamped, in full on hover. */}
+        <span
+          className="line-clamp-2 min-w-0 flex-1 break-words"
+          title={contextLine}
+        >
+          {contextLine}
         </span>
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="-my-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full hover:bg-accent hover:text-foreground"
-              aria-label={t("chat.provenanceLabel")}
-            >
-              <Info className="size-3" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
+        <span className="-my-1 shrink-0">
+          <TileInfo
             align="end"
-            collisionPadding={8}
-            className="w-72 p-3 text-xs leading-relaxed"
-          >
-            {t("chat.provenance", { model: RISK_MODEL_VERSION })}
-          </PopoverContent>
-        </Popover>
+            label={t("chat.provenanceTopic")}
+            text={t("chat.provenance", { model: RISK_MODEL_VERSION })}
+          />
+        </span>
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+      {/* A column, so the empty state fills the rest below the setup card
+          instead of a full height of its own that pushed the card away. */}
+      <div
+        ref={scrollRef}
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      >
         {llmReady === false && (
-          <div className="px-4 pt-4">
+          <div className="shrink-0 px-4 pt-4">
             <LlmSetupNotice />
           </div>
         )}
-        {empty ? (
-          <div className="flex min-h-full flex-col items-center justify-center gap-3 px-4 py-6 text-center">
+        {empty && llmReady === false ? (
+          // No AI: the setup card is the empty state; only offer commands
+          // the app runs without it.
+          <div className="flex flex-col items-center gap-2 px-4 py-4 text-center">
+            <p className="text-xs text-muted-foreground">
+              {t("chat.commandsWithoutAi")}
+            </p>
+            {promptChips}
+          </div>
+        ) : empty ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-6 text-center">
             <MessageSquare className="size-8 text-muted-foreground/40" />
             <p className="text-xs text-muted-foreground">
               {t("chat.emptyChat")}
             </p>
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {prompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  className="rounded-full border bg-background px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => submit(prompt)}
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+            {promptChips}
           </div>
         ) : (
           <LocationLinkContext.Provider value={onOpenLocation}>

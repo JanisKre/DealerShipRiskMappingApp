@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GitCompare, Loader2 } from "lucide-react";
+import type { TFunction } from "i18next";
+import { Loader2, Save } from "lucide-react";
+import { toast } from "sonner";
 import type { AnalyzedDealership, Session } from "@shared/types";
 import { effectiveVehicleCount } from "@shared/risk-math";
 import { Button } from "@renderer/components/ui/button";
@@ -10,7 +12,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@renderer/components/ui/dialog";
 import {
   Select,
@@ -32,26 +33,90 @@ import { useAppStore } from "@renderer/store/appStore";
 import { portfolioName } from "@renderer/lib/portfolioName";
 
 /**
- * Compares the active portfolio against a saved session: delta in
- * score, vehicles, and EAL per location (matched by id, otherwise by name).
+ * Saves a copy of the active portfolio under a new id ("… – Stand 13.11.,
+ * 18:30") without switching to it: the comparison point for later changes.
+ * Autosave keeps overwriting the active portfolio, so it can't be one.
+ * Returns the snapshot's name.
  */
-export function ComparisonView(): React.JSX.Element {
+export async function saveComparisonSnapshot(
+  t: TFunction,
+  language: string,
+): Promise<string> {
+  const session = useAppStore.getState().currentSession();
+  const date = new Date().toLocaleString(language, {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+  const name = t("ui.snapshotName", {
+    name: portfolioName(session.name, t),
+    date,
+  });
+  await window.api.saveSession({
+    ...session,
+    id: crypto.randomUUID(),
+    name,
+    // Nothing to resume or undo in a snapshot.
+    pendingAnalysis: undefined,
+    boundaryEdits: undefined,
+  });
+  return name;
+}
+
+/** "Stand speichern" with its toasts; shared by the header and the dialog. */
+export function useSaveSnapshot(onSaved?: () => void): {
+  saving: boolean;
+  save: () => Promise<void>;
+} {
+  const { t, i18n } = useTranslation();
+  const [saving, setSaving] = useState(false);
+  async function save(): Promise<void> {
+    setSaving(true);
+    try {
+      const name = await saveComparisonSnapshot(t, i18n.language);
+      toast.success(t("ui.snapshotSaved", { name }));
+      onSaved?.();
+    } catch (err) {
+      toast.error(
+        t("ui.snapshotFailed", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+  return { saving, save };
+}
+
+/**
+ * Compares the active portfolio against a saved snapshot or portfolio: delta
+ * in vehicles and EAL per location (matched by id, otherwise by name).
+ */
+export function ComparisonView({
+  open,
+  onOpenChange,
+}: Readonly<{
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}>): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
   const sessionId = useAppStore((s) => s.sessionId);
-  const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<
     Array<{ id: string; name: string; updatedAt: string }>
   >([]);
   const [baseline, setBaseline] = useState<Session | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function openDialog(): Promise<void> {
-    setOpen(true);
+  const loadSessions = useCallback(async (): Promise<void> => {
     // The active portfolio is the comparison target, not a baseline.
     const all = await window.api.listSessions();
     setSessions(all.filter((s) => s.id !== sessionId));
-  }
+  }, [sessionId]);
+  useEffect(() => {
+    if (open) void loadSessions();
+  }, [open, loadSessions]);
+  const snapshot = useSaveSnapshot(() => void loadSessions());
 
   async function pick(id: string): Promise<void> {
     setLoading(true);
@@ -63,36 +128,48 @@ export function ComparisonView(): React.JSX.Element {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" onClick={openDialog}>
-          <GitCompare /> {t("ui.compare")}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] max-w-3xl overflow-auto">
         <DialogHeader>
           <DialogTitle>{t("ui.portfolioComparison")}</DialogTitle>
           <DialogDescription>{t("ui.compareDescription")}</DialogDescription>
         </DialogHeader>
 
-        {sessions.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            {t("ui.noOtherSessions")}
+        {/* How to get a comparison point, so an empty list is no dead end. */}
+        <div className="flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm">
+          <p className="min-w-0 flex-1 text-muted-foreground">
+            {sessions.length === 0 && (
+              <span className="block font-medium text-foreground">
+                {t("ui.noOtherSessions")}
+              </span>
+            )}
+            {t("ui.compareHowTo")}
           </p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={snapshot.saving}
+            onClick={() => void snapshot.save()}
+          >
+            {snapshot.saving ? <Loader2 className="animate-spin" /> : <Save />}
+            {t("ui.saveSnapshot")}
+          </Button>
+        </div>
+        {sessions.length > 0 && (
+          <Select onValueChange={pick}>
+            <SelectTrigger className="max-w-sm">
+              <SelectValue placeholder={t("ui.selectBaseline")} />
+            </SelectTrigger>
+            <SelectContent>
+              {sessions.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {portfolioName(s.name, t)} ·{" "}
+                  {new Date(s.updatedAt).toLocaleDateString(i18n.language)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
-        <Select onValueChange={pick} disabled={sessions.length === 0}>
-          <SelectTrigger className="max-w-sm">
-            <SelectValue placeholder={t("ui.selectBaseline")} />
-          </SelectTrigger>
-          <SelectContent>
-            {sessions.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {portfolioName(s.name, t)} ·{" "}
-                {new Date(s.updatedAt).toLocaleDateString(i18n.language)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
 
         {loading && <Loader2 className="mx-auto animate-spin" />}
         {baseline && (
@@ -156,7 +233,7 @@ function Delta({
   if (value === 0) return <span className="text-muted-foreground">0</span>;
   const up = value > 0;
   return (
-    <span className={up ? "text-destructive" : "text-green-600"}>
+    <span className={up ? "text-destructive" : "text-success"}>
       {up ? "+" : ""}
       {fmt(value)}
     </span>

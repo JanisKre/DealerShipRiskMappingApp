@@ -9,6 +9,7 @@ import {
   estimateHailZoneFromScore,
   groupSummary,
   hailVehicleBasis,
+  displayedHailVehicleSource,
   meanHailSeverityEur,
   nearbyInsured,
   pointToSegmentDistKm,
@@ -17,6 +18,7 @@ import {
   AREA_ESTIMATE_DETECTOR,
   haversineKm,
 } from "./risk-math";
+import type { HailstormScenario } from "./types";
 import { DEFAULT_RISK_PARAMETERS } from "./parameters";
 import {
   ACCUMULATION_RADIUS_KM,
@@ -309,7 +311,23 @@ describe("hail EAL", () => {
     expect(estimateHailZoneFromScore(150)).toBe(6);
   });
 
-  it("prefers a reviewed vehicle count, then detection, and never estimates one", () => {
+  it("shows stored area estimates from older builds as estimated", () => {
+    const estimate = {
+      vehicleCount: 10,
+      confidence: 0.3,
+      model: AREA_ESTIMATE_DETECTOR,
+    };
+    expect(displayedHailVehicleSource("detected", estimate)).toBe("estimated");
+    expect(
+      displayedHailVehicleSource("detected", { ...estimate, model: "yolo" }),
+    ).toBe("detected");
+    expect(displayedHailVehicleSource("manual", estimate)).toBe("manual");
+    // Scored now, an area estimate adds no vehicles to N at all.
+    expect(displayedHailVehicleSource(undefined, estimate)).toBe("none");
+    expect(displayedHailVehicleSource(undefined, undefined)).toBe("none");
+  });
+
+  it("prefers a reviewed vehicle count, then detection, and never invents one", () => {
     expect(
       hailVehicleBasis({
         vehicleCount: 40,
@@ -447,5 +465,69 @@ describe("fixes from the November 2026 code review", () => {
         manualVehicleCount: 12,
       }),
     ).toEqual({ vehicles: 12, source: "manual" });
+  });
+});
+
+describe("hailstorm scenario corridor", () => {
+  // A mostly north-south path in Bavaria (~1.1° north, 0.6° east), [lon, lat].
+  const A: [number, number] = [10.0, 48.0];
+  const B: [number, number] = [10.6, 49.0];
+  const KM_LAT = (6371 * Math.PI) / 180;
+
+  /** Point `km` east of the segment's middle, perpendicular in km. */
+  function beside(km: number): { lat: number; lon: number } {
+    const lat = (A[1] + B[1]) / 2;
+    const lon = (A[0] + B[0]) / 2;
+    const kmLon = KM_LAT * Math.cos((lat * Math.PI) / 180);
+    const dx = (B[0] - A[0]) * kmLon;
+    const dy = (B[1] - A[1]) * KM_LAT;
+    const len = Math.hypot(dx, dy);
+    return {
+      lat: lat + ((-dx / len) * km) / KM_LAT,
+      lon: lon + ((dy / len) * km) / kmLon,
+    };
+  }
+
+  it("measures the perpendicular distance in km, not in degrees", () => {
+    for (const km of [1, 4.8, 9]) {
+      const p = beside(km);
+      expect(
+        pointToSegmentDistKm(p.lat, p.lon, A[1], A[0], B[1], B[0]),
+      ).toBeCloseTo(km, 1);
+    }
+  });
+
+  it("clamps to the end points and handles a zero-length segment", () => {
+    expect(
+      pointToSegmentDistKm(47.9, 10.0, A[1], A[0], B[1], B[0]),
+    ).toBeCloseTo(haversineKm(47.9, 10.0, A[1], A[0]), 6);
+    expect(pointToSegmentDistKm(48.1, 10.0, 48, 10, 48, 10)).toBeCloseTo(
+      haversineKm(48.1, 10.0, 48, 10),
+      6,
+    );
+  });
+
+  it("counts every site inside a north-south corridor", () => {
+    // 10 km wide: sites 4.8 km off the path are inside, 5.2 km outside. The
+    // old degree-space foot point put the 4.8 km site at about 5.1 km.
+    const sites = [-5.2, -4.8, 0, 4.8, 5.2].map((km) => ({
+      ...make(`s${km}`, beside(km)),
+      risk: { ...make("x").risk!, exposureEur: 1_000_000 },
+    }));
+    const scenario: HailstormScenario = {
+      id: "ns",
+      name: "North-south",
+      pathCoordinates: [A, B],
+      widthKm: 10,
+      intensityLevel: "HIGH",
+    };
+
+    const impact = computeScenarioImpact(scenario, sites);
+
+    expect(impact.affectedDealershipIds).toEqual(["s-4.8", "s0", "s4.8"]);
+    expect(impact.totalExposureEur).toBe(3_000_000);
+    expect(impact.estimatedLossEur).toBe(
+      Math.round(3_000_000 * DEFAULT_RISK_PARAMETERS.scenarioDamageHigh),
+    );
   });
 });

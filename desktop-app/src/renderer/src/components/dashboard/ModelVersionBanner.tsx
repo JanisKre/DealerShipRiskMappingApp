@@ -30,7 +30,7 @@ export function ModelVersionBanner({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm">
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
       <span className="min-w-0 flex-1">
         {t("dashboard.modelVersion.outdated", {
           count: outdated,

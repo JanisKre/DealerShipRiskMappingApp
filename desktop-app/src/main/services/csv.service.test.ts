@@ -92,6 +92,25 @@ describe("portfolio import report", () => {
   });
 });
 
+describe("website column", () => {
+  it("marks a website from the file as imported, not as typed", () => {
+    const result = parseCsvWithReport(
+      [
+        "Name;Adresse;Website",
+        "Autohaus Nord;Hauptstr. 1, Hamburg;www.autohaus-nord.de",
+        "Autohaus Süd;Ringstr. 2, München;",
+      ].join("\n"),
+    );
+
+    expect(result.rows[0]).toMatchObject({
+      website: "https://www.autohaus-nord.de/",
+      websiteSource: "import",
+    });
+    expect(result.rows[1].website).toBeUndefined();
+    expect(result.rows[1].websiteSource).toBeUndefined();
+  });
+});
+
 describe("portfolio terms and business type", () => {
   it("imports maximum indemnity and deductible from German headers", () => {
     const result = parseCsvWithReport(

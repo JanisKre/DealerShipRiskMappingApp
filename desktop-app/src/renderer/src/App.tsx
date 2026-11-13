@@ -38,7 +38,13 @@ export function App(): React.JSX.Element {
         </Route>
       </Routes>
       <UpdateNotifier />
-      <Toaster position="bottom-right" richColors />
+      {/* Top right, below the header: at the bottom right the toasts
+          covered the chat composer. */}
+      <Toaster
+        position="top-right"
+        offset={{ top: 64, right: 16 }}
+        richColors
+      />
     </HashRouter>
   );
 }

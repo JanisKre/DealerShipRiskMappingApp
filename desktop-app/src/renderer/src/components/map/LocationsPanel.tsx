@@ -15,7 +15,6 @@ import {
   ShieldOff,
   Trash2,
   Users,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { AnalyzedDealership } from "@shared/types";
@@ -35,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@renderer/components/ui/dialog";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import { Input } from "@renderer/components/ui/input";
 import {
   Select,
@@ -59,6 +59,7 @@ import { searchBias } from "@renderer/lib/searchBias";
 import { Link } from "react-router-dom";
 import { useDealerDirectoryStore } from "@renderer/store/dealerDirectoryStore";
 import { PlacePortfolioBadge, PlaceSourceTag } from "./PlaceSourceTag";
+import { allRowsSelected } from "./mapSelection";
 import type { PlaceSuggestion } from "@shared/ipc-schema";
 import { nameForPlace } from "@renderer/lib/placeName";
 
@@ -115,6 +116,7 @@ export function LocationsPanel({
   variant = "float",
 }: Readonly<Props & { variant?: "float" | "dock" }>): React.JSX.Element {
   const { t } = useTranslation();
+  const batchRunning = useAppStore((s) => s.analyzing);
   // Local instead of in mapStore: a pure UI flap for the row list, decoupled
   // from `locationsPanelOpen` (which only controls whether the entire dock panel in
   // WorkspacePage is collapsed to width 0 via the resizer). Otherwise a click
@@ -209,8 +211,9 @@ export function LocationsPanel({
     [dealerships, selectedId],
   );
 
-  // Rows with relationship info: subject on top, then by the chosen order
-  // ("nearby" sorts by distance to the subject).
+  // Rows with relationship info, in the chosen order ("nearby" sorts by
+  // distance to the subject). The selected row keeps its place: moving it to
+  // the top while the scroll position stayed made it jump out of view.
   const rows = useMemo<Row[]>(() => {
     const source = filtered.filter(
       (d) => d.id === selectedId || matchesQuery(d, query),
@@ -240,12 +243,35 @@ export function LocationsPanel({
           : 0,
     };
     const order = sort === "nearby" && !subject ? "eal" : sort;
-    return built.sort((a, b) => {
-      if (a.d.id === selectedId) return -1;
-      if (b.d.id === selectedId) return 1;
-      return by[order](a, b) || a.d.name.localeCompare(b.d.name);
-    });
+    return built.sort(
+      (a, b) => by[order](a, b) || a.d.name.localeCompare(b.d.name),
+    );
   }, [filtered, subject, selectedId, query, sort]);
+
+  // A site selected elsewhere (map, chat) is scrolled into view once: the
+  // page of rows grows to include it, then the row is brought into view.
+  const listRef = useRef<HTMLDivElement>(null);
+  const scrolledForRef = useRef<string | null>(null);
+  const selectedIndex = rows.findIndex((row) => row.d.id === selectedId);
+  useEffect(() => {
+    if (selectedIndex >= visible)
+      setVisible(Math.ceil((selectedIndex + 1) / PAGE) * PAGE);
+  }, [selectedIndex, visible]);
+  useEffect(() => {
+    if (!selectedId || scrolledForRef.current === selectedId) return;
+    const row = listRef.current?.querySelector(
+      `[data-row-id="${CSS.escape(selectedId)}"]`,
+    );
+    if (!row) return;
+    scrolledForRef.current = selectedId;
+    row.scrollIntoView({ block: "nearest" });
+  }, [selectedId, visible, open]);
+
+  // Compared with what the list shows (search and filters applied).
+  const allShownSelected = allRowsSelected(
+    selectedIds,
+    rows.map((row) => row.d.id),
+  );
 
   // Summary: insured neighbors within the subject's accumulation radius.
   const neighborCount = useMemo(
@@ -270,11 +296,15 @@ export function LocationsPanel({
         {/* Header — always visible */}
         {/* In a narrow dock the actions wrap below the title instead of
             clipping it or being clipped. */}
-        <div className="flex shrink-0 flex-wrap items-center gap-x-1.5 gap-y-1 px-2.5 py-2">
+        {/* One line: the title truncates before the actions wrap. */}
+        <div className="flex shrink-0 items-center gap-1.5 px-2.5 py-2">
           <button
             type="button"
             onClick={toggleOpen}
-            className="flex flex-1 items-center gap-1.5 whitespace-nowrap text-sm font-semibold"
+            className={cn(
+              "flex min-w-0 flex-1 items-center gap-1.5 whitespace-nowrap rounded-sm text-sm font-semibold",
+              FOCUS_RING,
+            )}
             aria-expanded={open}
             aria-label={t("map.locationsPanel.toggleAriaLabel")}
           >
@@ -285,8 +315,8 @@ export function LocationsPanel({
             )}
             {/* No extra pin icon: it pushed the actions onto a second row
                 at the default dock width. */}
-            <span>{t("dashboard.locations")}</span>
-            <span className="text-muted-foreground tabular-nums">
+            <span className="truncate">{t("dashboard.locations")}</span>
+            <span className="truncate text-muted-foreground tabular-nums">
               (
               {rows.length === dealerships.length
                 ? dealerships.length
@@ -323,8 +353,8 @@ export function LocationsPanel({
               <HintButton
                 type="button"
                 size="icon"
-                variant={selectMode ? "default" : "ghost"}
-                className="size-6 shrink-0"
+                variant="ghost"
+                className={cn("size-6 shrink-0", selectMode && "bg-accent")}
                 onClick={toggleSelectMode}
                 aria-label={t(
                   selectMode
@@ -333,26 +363,19 @@ export function LocationsPanel({
                 )}
                 aria-pressed={selectMode}
               >
-                {selectMode ? (
-                  <X className="size-3.5" />
-                ) : (
-                  <CheckSquare className="size-3.5" />
-                )}
+                <CheckSquare className="size-3.5" />
               </HintButton>
             )}
             <HintButton
               type="button"
               size="icon"
-              variant={adding ? "default" : "ghost"}
-              className="size-6 shrink-0"
+              variant="ghost"
+              className={cn("size-6 shrink-0", adding && "bg-accent")}
               onClick={() => setAdding((v) => !v)}
               aria-label={t("map.locationsPanel.addAddress")}
+              aria-pressed={adding}
             >
-              {adding ? (
-                <X className="size-3.5" />
-              ) : (
-                <Plus className="size-3.5" />
-              )}
+              <Plus className="size-3.5" />
             </HintButton>
           </div>
         </div>
@@ -360,7 +383,7 @@ export function LocationsPanel({
         {/* Add address */}
         {adding && (
           <div className="shrink-0 border-t px-2.5 py-2">
-            <AddLocationField onAdded={() => setAdding(false)} />
+            <AddLocationField onDone={() => setAdding(false)} />
           </div>
         )}
 
@@ -395,7 +418,7 @@ export function LocationsPanel({
             </div>
             <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
               <SelectTrigger
-                className="h-7 w-full text-xs"
+                className="h-7 w-full min-w-0 text-xs [&>span]:truncate"
                 aria-label={t("map.locationsPanel.sortLabel")}
               >
                 <SelectValue />
@@ -431,21 +454,18 @@ export function LocationsPanel({
             {selectMode ? (
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-2.5 py-1.5 text-xs">
                 <div className="flex min-w-0 items-center gap-2">
-                  <button
+                  <Button
                     type="button"
-                    className="shrink-0 font-medium text-primary hover:underline"
-                    onClick={
-                      selectedIds.size === dealerships.length
-                        ? deselectAll
-                        : selectAll
-                    }
+                    variant="link"
+                    className="h-auto shrink-0 p-0 text-xs"
+                    onClick={allShownSelected ? deselectAll : selectAll}
                   >
                     {t(
-                      selectedIds.size === dealerships.length
+                      allShownSelected
                         ? "map.locationsPanel.deselectAll"
                         : "map.locationsPanel.selectAll",
                     )}
-                  </button>
+                  </Button>
                   <span className="shrink-0 text-muted-foreground">
                     {t("map.locationsPanel.selectedCount", {
                       count: selectedIds.size,
@@ -499,7 +519,10 @@ export function LocationsPanel({
             )}
 
             {/* List */}
-            <div className="min-h-0 flex-1 overflow-y-auto border-t">
+            <div
+              ref={listRef}
+              className="min-h-0 flex-1 overflow-y-auto border-t"
+            >
               {rows.length === 0 ? (
                 <p className="px-2.5 py-3 text-xs text-muted-foreground">
                   {dealerships.length > 0
@@ -528,6 +551,7 @@ export function LocationsPanel({
                         row={row}
                         selected={row.d.id === selectedId}
                         analyzing={analyzingIds.includes(row.d.id)}
+                        batchRunning={batchRunning}
                         showBusiness={mixedBusiness}
                         onSelect={onSelect}
                         onOpenDetails={onOpenDetails}
@@ -540,7 +564,10 @@ export function LocationsPanel({
                   {rows.length > visible && (
                     <button
                       type="button"
-                      className="w-full border-t px-2.5 py-2 text-xs font-medium text-primary hover:bg-accent/60"
+                      className={cn(
+                        "w-full border-t px-2.5 py-2 text-xs font-medium text-primary hover:bg-accent/60",
+                        FOCUS_RING,
+                      )}
                       onClick={() => setVisible((v) => v + PAGE)}
                     >
                       {t("map.locationsPanel.showMore", {
@@ -563,29 +590,6 @@ export function LocationsPanel({
         />
       </div>
     </TooltipProvider>
-  );
-}
-
-/**
- * Icon button with an instant tooltip. Native `title` tooltips are not shown
- * in Electron, so the label comes from the aria-label via Radix Tooltip.
- */
-function HintButton({
-  "aria-label": label,
-  ...props
-}: Readonly<
-  React.ComponentProps<typeof Button> & { "aria-label": string }
->): React.JSX.Element {
-  return (
-    <Tooltip delayDuration={150}>
-      <TooltipTrigger asChild>
-        {/* span keeps the tooltip working while the button is disabled */}
-        <span className="inline-flex shrink-0">
-          <Button {...props} aria-label={label} />
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{label}</TooltipContent>
-    </Tooltip>
   );
 }
 
@@ -651,6 +655,7 @@ function LocationRow({
   row,
   selected,
   analyzing,
+  batchRunning,
   showBusiness,
   onSelect,
   onOpenDetails,
@@ -662,6 +667,8 @@ function LocationRow({
   selected: boolean;
   /** The analysis of this location is running right now. */
   analyzing: boolean;
+  /** A batch analysis is running (rows without a result are queued). */
+  batchRunning: boolean;
   /** Business chips only help when the portfolio mixes both types. */
   showBusiness: boolean;
   onSelect: (id: string) => void;
@@ -676,33 +683,34 @@ function LocationRow({
   const dotColor = hailZone != null ? hailZoneColor(hailZone) : "#9ca3af";
 
   return (
-    <li className={cn("flex items-stretch", selected && "bg-accent")}>
+    <li
+      data-row-id={d.id}
+      className={cn("flex items-stretch", selected && "bg-accent")}
+    >
       {selectMode && (
         <label className="flex shrink-0 items-center pl-2.5">
           <Checkbox
             checked={checked}
             onCheckedChange={() => onToggleCheck?.(d.id)}
-            aria-label={t("map.locationsPanel.viewDetailsFor", {
-              name: d.name,
-            })}
+            aria-label={t("map.locationsPanel.selectFor", { name: d.name })}
           />
         </label>
       )}
       {/* Selection button (fills the row) */}
       <button
         type="button"
-        className="flex min-w-0 flex-1 items-start gap-2 px-2.5 py-2 text-left text-sm hover:bg-accent/60"
+        className={cn(
+          "flex min-w-0 flex-1 items-start gap-2 px-2.5 py-2 text-left text-sm hover:bg-accent/60",
+          FOCUS_RING_INSET,
+        )}
         onClick={() => (selectMode ? onToggleCheck?.(d.id) : onSelect(d.id))}
         aria-pressed={selectMode ? checked : selected}
       >
+        {/* Decorative: the zone is read out in the row text. */}
         <span
+          aria-hidden
           className="mt-1 size-2.5 shrink-0 rounded-full"
           style={{ backgroundColor: dotColor }}
-          title={
-            hailZone != null
-              ? t("dashboard.zoneShort", { zone: hailZone })
-              : t("map.locationsPanel.analyzing")
-          }
         />
         <div className="min-w-0 flex-1">
           {/* Full width for the name; the figure sits on the second line. */}
@@ -714,7 +722,11 @@ function LocationRow({
                 {t("map.locationsPanel.analyzing")}
               </>
             ) : !d.risk ? (
-              t("map.locationsPanel.pending")
+              t(
+                batchRunning
+                  ? "map.locationsPanel.pending"
+                  : "map.locationsPanel.notAnalyzed",
+              )
             ) : (
               t("map.locationsPanel.ealValue", { value: eur(d.risk.eal) })
             )}
@@ -759,7 +771,10 @@ function LocationRow({
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="shrink-0 px-1.5 text-muted-foreground hover:text-foreground"
+              className={cn(
+                "shrink-0 px-1.5 text-muted-foreground hover:text-foreground",
+                FOCUS_RING_INSET,
+              )}
               onClick={() => onOpenDetails(d.id)}
               aria-label={t("map.locationsPanel.viewDetailsFor", {
                 name: d.name,
@@ -817,7 +832,7 @@ function Chip({
         accent
           ? "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200"
           : warning
-            ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+            ? "bg-warning/15 text-warning-foreground"
             : "bg-muted text-muted-foreground",
       )}
     >
@@ -825,6 +840,13 @@ function Chip({
     </span>
   );
 }
+
+/** Keyboard focus ring for raw buttons (spec: same as the `Button` ring). */
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50";
+/** Inset variant for full-width rows, whose outer edge the list clips. */
+const FOCUS_RING_INSET =
+  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50";
 
 const DEBOUNCE_MS = 300;
 const MIN_CHARS = 3;
@@ -834,16 +856,21 @@ type Suggestion = PlaceSuggestion;
 /**
  * Compact address input field with Photon autocomplete (keyless, like in
  * the omnibox). Selecting a suggestion adds the location directly to the portfolio;
- * the auto-selection in `addAndAnalyze` makes the map fly to it.
+ * the auto-selection in `addAndAnalyze` makes the map fly to it. Arrow keys
+ * move through the suggestions, Enter adds the highlighted one and Escape
+ * closes the field.
  */
 function AddLocationField({
-  onAdded,
-}: Readonly<{ onAdded: () => void }>): React.JSX.Element {
+  onDone,
+}: Readonly<{ onDone: () => void }>): React.JSX.Element {
   const { t } = useTranslation();
   const [value, setValue] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  /** Query the current suggestions (or the "no matches" note) belong to. */
+  const [answeredFor, setAnsweredFor] = useState<string | null>(null);
+  const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const directoryStatus = useDealerDirectoryStore((s) => s.status);
   const directoryUpdate = useDealerDirectoryStore((s) => s.update);
@@ -863,24 +890,29 @@ function AddLocationField({
   useEffect(() => {
     if (trimmed.length < MIN_CHARS) {
       setSuggestions([]);
-      setError(null);
+      setAnsweredFor(null);
+      setError(false);
       return;
     }
     let cancelled = false;
     const timer = setTimeout(async () => {
       setLoading(true);
-      setError(null);
+      setError(false);
       try {
         const hits = await window.api.placesAutocomplete(trimmed, searchBias());
-        if (!cancelled) setSuggestions(hits);
+        if (!cancelled) {
+          setSuggestions(hits);
+          setActive(0);
+          setAnsweredFor(trimmed);
+        }
       } catch (e) {
         if (!cancelled) {
+          // The raw IPC message ("Error invoking remote method …") is for
+          // the log, not for the user.
+          console.warn("Address autocomplete failed:", e);
           setSuggestions([]);
-          setError(
-            e instanceof Error
-              ? e.message
-              : t("map.locationsPanel.searchFailed"),
-          );
+          setAnsweredFor(null);
+          setError(true);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -890,7 +922,7 @@ function AddLocationField({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [trimmed, t]);
+  }, [trimmed]);
 
   function pick(s: Suggestion): void {
     void useAppStore.getState().addAndAnalyze([
@@ -904,12 +936,35 @@ function AddLocationField({
     ]);
     setValue("");
     setSuggestions([]);
-    onAdded();
+    onDone();
   }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onDone();
+    } else if (e.key === "ArrowDown" && suggestions.length > 0) {
+      e.preventDefault();
+      setActive((i) => (i + 1) % suggestions.length);
+    } else if (e.key === "ArrowUp" && suggestions.length > 0) {
+      e.preventDefault();
+      setActive((i) => (i - 1 + suggestions.length) % suggestions.length);
+    } else if (e.key === "Enter" && suggestions.length > 0) {
+      e.preventDefault();
+      pick(suggestions[Math.min(active, suggestions.length - 1)]);
+    }
+  }
+
+  const noMatches =
+    !loading &&
+    !error &&
+    answeredFor === trimmed &&
+    trimmed.length >= MIN_CHARS &&
+    suggestions.length === 0;
 
   return (
     <div>
-      <div className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1">
+      <div className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 focus-within:ring-[3px] focus-within:ring-ring/50">
         <MapPin className="size-4 shrink-0 text-muted-foreground" />
         <Input
           ref={inputRef}
@@ -917,21 +972,29 @@ function AddLocationField({
           placeholder={t("map.locationsPanel.addressPlaceholder")}
           className="h-auto border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
           onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && suggestions.length > 0) {
-              e.preventDefault();
-              pick(suggestions[0]);
-            }
-          }}
+          onKeyDown={onKeyDown}
           aria-label={t("map.locationsPanel.addAddress")}
+          aria-keyshortcuts="Escape"
         />
         {loading && (
           <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
         )}
       </div>
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1 text-xs text-destructive">
+          {t("map.locationsPanel.searchFailed")}
+          <span className="block text-muted-foreground">
+            {t("map.locationsPanel.searchFailedHint")}
+          </span>
+        </p>
+      )}
+      {noMatches && (
+        <p role="status" className="mt-1 text-xs text-muted-foreground">
+          {t("ui.noMatches")}
+        </p>
+      )}
       {directoryStatus === null && trimmed.length >= MIN_CHARS && (
-        <p className="mt-1 text-[11px] text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           {t("map.locationsPanel.directoryHintPrefix")}{" "}
           <Link to="/settings" className="underline underline-offset-2">
             {t("map.locationsPanel.directoryHintLink")}
@@ -939,7 +1002,7 @@ function AddLocationField({
         </p>
       )}
       {directoryUpdate?.updateAvailable && trimmed.length >= MIN_CHARS && (
-        <p className="mt-1 text-[11px] text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           {t("places.updateAvailable", {
             release: directoryUpdate.latestRelease,
           })}{" "}
@@ -954,8 +1017,13 @@ function AddLocationField({
             <li key={`${s.lat},${s.lon},${i}`}>
               <button
                 type="button"
-                className="flex w-full items-start gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-accent"
+                className={cn(
+                  "flex w-full items-start gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-accent",
+                  FOCUS_RING_INSET,
+                  i === active && "bg-accent",
+                )}
                 onClick={() => pick(s)}
+                onMouseEnter={() => setActive(i)}
               >
                 <MapPin className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
                 <span className="flex min-w-0 flex-col">

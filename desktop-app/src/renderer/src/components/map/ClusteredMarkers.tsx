@@ -75,11 +75,11 @@ function popupHtml(
 
   const boundaryWarningHtml =
     d.boundary?.source === "synthetic"
-      ? `<div class="popup-row" style="color:#b45309">
+      ? `<div class="popup-row" style="color:var(--warning-foreground)">
            <span>⚠ ${t("ui.fallbackBoundaryReview")}</span>
          </div>`
       : d.boundary?.reviewRequired
-        ? `<div class="popup-row" style="color:#b45309">
+        ? `<div class="popup-row" style="color:var(--warning-foreground)">
              <span>${t("ui.boundaryReviewNeeded")}</span>
            </div>
            <button class="popup-details-btn popup-confirm-boundary-btn" data-id="${d.id}">${t("ui.confirmBoundary")}</button>`
@@ -87,7 +87,7 @@ function popupHtml(
 
   const modelWarningHtml =
     d.detection?.model === "stub-area-heuristic"
-      ? `<div class="popup-row" style="color:#b45309">
+      ? `<div class="popup-row" style="color:var(--warning-foreground)">
            <span>${t("ui.vehicleCountEstimated")}</span>
          </div>`
       : "";
@@ -143,6 +143,8 @@ export function ClusteredMarkers({
   const { t } = useTranslation();
   const map = useMap();
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
+  /** The selected marker, kept out of the cluster so it is never hidden. */
+  const selectedRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
     // Create the cluster group once and add it to the map.
@@ -166,18 +168,24 @@ export function ClusteredMarkers({
     });
     map.addLayer(group);
     clusterRef.current = group;
+    const selectedLayer = L.layerGroup().addTo(map);
+    selectedRef.current = selectedLayer;
 
     return () => {
       map.removeLayer(group);
+      selectedLayer.remove();
       clusterRef.current = null;
+      selectedRef.current = null;
     };
   }, [map, t]);
 
   // Sync markers when data or selection changes.
   useEffect(() => {
     const group = clusterRef.current;
-    if (!group) return;
+    const selectedLayer = selectedRef.current;
+    if (!group || !selectedLayer) return;
     group.clearLayers();
+    selectedLayer.clearLayers();
 
     // Collected and added in one `addLayers` call: per-marker `addLayer` on a
     // live cluster group re-clusters each time, which is far too slow for a
@@ -194,6 +202,7 @@ export function ClusteredMarkers({
         keyboard: true,
         title: d.name,
         riseOnHover: true,
+        zIndexOffset: isSelected ? 1000 : 0,
       }) as L.Marker & { _dealershipId?: string };
 
       marker._dealershipId = d.id;
@@ -213,6 +222,16 @@ export function ClusteredMarkers({
         // after it left an empty line.
         .map((line) => `<div>${line}</div>`)
         .join("");
+      // Near the top edge the tooltip opens below the pin instead of being
+      // clipped by the map. Registered before bindTooltip so it runs before
+      // the tooltip opens.
+      marker.on("mouseover", () => {
+        const tooltip = marker.getTooltip();
+        if (!tooltip) return;
+        const below = map.latLngToContainerPoint(marker.getLatLng()).y < 140;
+        tooltip.options.direction = below ? "bottom" : "top";
+        tooltip.options.offset = below ? [0, 6] : [0, -34];
+      });
       marker.bindTooltip(tooltipText, {
         direction: "top",
         offset: [0, -34],
@@ -229,6 +248,8 @@ export function ClusteredMarkers({
       marker.on("contextmenu", (e) => {
         const orig = e.originalEvent;
         orig.preventDefault();
+        // The hover tooltip would cover the menu.
+        marker.closeTooltip();
         onContextMenu(d, { x: orig.clientX, y: orig.clientY });
       });
 
@@ -257,11 +278,14 @@ export function ClusteredMarkers({
         }
       });
 
-      markers.push(marker);
+      // The selected site sits outside the cluster: hidden inside a cluster
+      // badge, a selection from the list or the chat showed nothing.
+      if (isSelected) selectedLayer.addLayer(marker);
+      else markers.push(marker);
     }
     group.addLayers(markers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dealerships, selectedId, analyzingIds, t]);
+  }, [dealerships, selectedId, analyzingIds, t, map]);
 
   return null;
 }

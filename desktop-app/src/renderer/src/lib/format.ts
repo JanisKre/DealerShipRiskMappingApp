@@ -1,14 +1,35 @@
-/** Number/currency formatting, consistently de-DE (EUR figures use German grouping regardless of UI language). */
+import i18n from "i18next";
+
+/**
+ * Number and currency formatting in the UI language: "1.265.325.000 €" in
+ * German, "€1,265,325,000" in English, "1 265 325 000 €" in French. Dates
+ * elsewhere already follow `i18n.language`; numbers now match them. Falls
+ * back to German before i18next has a language (tests, very early renders).
+ */
+export function uiLocale(): string {
+  return i18n.language || "de";
+}
 
 export function eur(
   n: number | undefined | null,
   maximumFractionDigits = 0,
 ): string {
   if (n == null) return "–";
-  return new Intl.NumberFormat("de-DE", {
+  return new Intl.NumberFormat(uiLocale(), {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits,
+  }).format(n);
+}
+
+/** Short form for chart labels: "338 Mio. €", "€338M". */
+export function eurCompact(n: number | undefined | null): string {
+  if (n == null) return "–";
+  return new Intl.NumberFormat(uiLocale(), {
+    style: "currency",
+    currency: "EUR",
+    notation: "compact",
+    maximumFractionDigits: 1,
   }).format(n);
 }
 
@@ -17,7 +38,7 @@ export function num(
   maximumFractionDigits = 0,
 ): string {
   if (n == null) return "–";
-  return new Intl.NumberFormat("de-DE", { maximumFractionDigits }).format(n);
+  return new Intl.NumberFormat(uiLocale(), { maximumFractionDigits }).format(n);
 }
 
 export function pct(
@@ -25,7 +46,7 @@ export function pct(
   maximumFractionDigits = 0,
 ): string {
   if (n == null) return "–";
-  return new Intl.NumberFormat("de-DE", {
+  return new Intl.NumberFormat(uiLocale(), {
     style: "percent",
     maximumFractionDigits,
   }).format(n);

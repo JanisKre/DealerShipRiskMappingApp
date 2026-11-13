@@ -1,13 +1,18 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, MapPin, X } from "lucide-react";
-import type { AccumulationCluster, AnalyzedDealership } from "@shared/types";
+import type {
+  AccumulationCluster,
+  AnalyzedDealership,
+  RiskParameters,
+} from "@shared/types";
 import {
   computeAccumulationClusters,
   dealershipHailZone,
   effectiveVehicleCount,
 } from "@shared/risk-math";
 import { Button } from "@renderer/components/ui/button";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import {
   Card,
   CardContent,
@@ -30,6 +35,25 @@ import { TileInfo } from "./TileInfo";
 
 /** Accumulations shown before "show all". */
 const INITIAL_ROWS = 10;
+
+/**
+ * Accumulations of two or more located sites, largest exposure first. Also
+ * used by the dashboard to leave the tile out when there are none (the KPI
+ * already says so).
+ */
+export function largestAccumulations(
+  dealerships: AnalyzedDealership[],
+  parameters: RiskParameters,
+): AccumulationCluster[] {
+  const located = dealerships.filter((d) => d.lat != null && d.lon != null);
+  return computeAccumulationClusters(
+    located,
+    parameters.accumulationRadiusKm,
+    parameters,
+  )
+    .filter((c) => c.count > 1)
+    .sort((a, b) => b.totalExposureEur - a.totalExposureEur);
+}
 
 /**
  * "Largest accumulations": locations chained within the accumulation radius
@@ -58,16 +82,10 @@ export function AccumulationClusterTable({
     () => new Map(dealerships.map((d) => [d.id, d])),
     [dealerships],
   );
-  const clusters = useMemo(() => {
-    const located = dealerships.filter((d) => d.lat != null && d.lon != null);
-    return computeAccumulationClusters(
-      located,
-      parameters.accumulationRadiusKm,
-      parameters,
-    )
-      .filter((c) => c.count > 1)
-      .sort((a, b) => b.totalExposureEur - a.totalExposureEur);
-  }, [dealerships, parameters]);
+  const clusters = useMemo(
+    () => largestAccumulations(dealerships, parameters),
+    [dealerships, parameters],
+  );
 
   const radius = parameters.accumulationRadiusKm;
   const visible = showAll ? clusters : clusters.slice(0, INITIAL_ROWS);
@@ -95,6 +113,7 @@ export function AccumulationClusterTable({
           {t("dashboard.accumulations.title")}
           <TileInfo
             topic="accumulations"
+            label={t("dashboard.accumulations.title")}
             values={{
               radius,
               scenario: pct(parameters.scenarioDamageMedium),
@@ -166,24 +185,46 @@ export function AccumulationClusterTable({
                   .map((d) => dealershipHailZone(d)?.zone ?? 0)
                   .filter((z) => z > 0);
                 const maxZone = zones.length ? Math.max(...zones) : 0;
+                // Members still waiting for analysis: the sums would read
+                // as final ("0 €"), so they show "–" until all are in.
+                const pending = list.some((d) => !d.risk);
+                const sum = (text: string): string => (pending ? "–" : text);
+                const label = list[0]?.name ?? c.clusterId;
                 return (
                   <Fragment key={c.clusterId}>
                     <TableRow
                       data-state={active ? "selected" : undefined}
                       className="cursor-pointer"
                       onClick={() => toggle(c.clusterId)}
-                      aria-expanded={open}
                     >
                       <TableCell>
-                        <ChevronRight
-                          className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
-                        />
+                        <HintButton
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          aria-expanded={open}
+                          aria-label={t(
+                            open
+                              ? "dashboard.accumulations.collapse"
+                              : "dashboard.accumulations.expand",
+                            { name: label },
+                          )}
+                          side="right"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggle(c.clusterId);
+                          }}
+                        >
+                          <ChevronRight
+                            className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+                          />
+                        </HintButton>
                       </TableCell>
                       <TableCell className="max-w-0 font-medium">
                         <span className="mr-2 text-muted-foreground tabular-nums">
                           {index + 1}.
                         </span>
-                        {list[0]?.name ?? c.clusterId}
+                        {label}
                         {c.count > 1 && (
                           <span className="font-normal text-muted-foreground">
                             {" "}
@@ -197,28 +238,32 @@ export function AccumulationClusterTable({
                         {c.count}
                       </TableCell>
                       <TableCell className="hidden @4xl:table-cell text-right tabular-nums">
-                        {num(c.totalVehicles)}
+                        {sum(num(c.totalVehicles))}
                       </TableCell>
                       <TableCell className="text-right font-medium tabular-nums">
-                        {eur(c.totalExposureEur)}
+                        {sum(eur(c.totalExposureEur))}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {eur(c.totalEalEur)}
+                        {sum(eur(c.totalEalEur))}
                       </TableCell>
                       <TableCell>
-                        {maxZone > 0 ? <HailZoneBadge zone={maxZone} /> : "–"}
+                        {maxZone > 0 && !pending ? (
+                          <HailZoneBadge zone={maxZone} />
+                        ) : (
+                          "–"
+                        )}
                       </TableCell>
                       <TableCell className="hidden @7xl:table-cell text-right tabular-nums">
-                        {eur(c.natCatKpiEur)}
+                        {sum(eur(c.natCatKpiEur))}
                       </TableCell>
                       <TableCell className="text-right">
                         {/* Icon only on narrower tiles, so the figures keep
                             their room. */}
-                        <Button
+                        <HintButton
                           variant="ghost"
                           size="sm"
                           aria-label={t("dashboard.accumulations.showOnMap")}
-                          title={t("dashboard.accumulations.showOnMap")}
+                          side="left"
                           onClick={(event) => {
                             event.stopPropagation();
                             onShowOnMap(c);
@@ -228,7 +273,7 @@ export function AccumulationClusterTable({
                           <span className="hidden @7xl:inline">
                             {t("dashboard.accumulations.showOnMap")}
                           </span>
-                        </Button>
+                        </HintButton>
                       </TableCell>
                     </TableRow>
                     {open &&
@@ -242,9 +287,19 @@ export function AccumulationClusterTable({
                           >
                             <TableCell />
                             <TableCell className="max-w-0 pl-8">
-                              <span className="block break-words text-foreground">
+                              <button
+                                type="button"
+                                className="block rounded-sm text-left break-words text-foreground hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                aria-label={t("dashboard.table.openDetails", {
+                                  name: d.name,
+                                })}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onSelect(d);
+                                }}
+                              >
                                 {d.name}
-                              </span>
+                              </button>
                               {d.address && (
                                 <span
                                   className="line-clamp-2 break-words text-xs"

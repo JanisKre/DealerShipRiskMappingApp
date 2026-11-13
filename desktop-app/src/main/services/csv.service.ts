@@ -444,12 +444,15 @@ function rowsFromMatrix(
   };
 }
 
-/** A website from the file counts as entered by the user (never replaced). */
+/**
+ * A website from the file is user-provided: labelled "from the import file"
+ * and, like a typed link, never replaced by an automatic lookup.
+ */
 function websiteFields(
   raw: string | undefined,
-): { website: string; websiteSource: "manual" } | Record<string, never> {
+): { website: string; websiteSource: "import" } | Record<string, never> {
   const website = normalizeWebsiteUrl(raw?.trim());
-  return website ? { website, websiteSource: "manual" } : {};
+  return website ? { website, websiteSource: "import" } : {};
 }
 
 function cellToString(v: unknown): string {

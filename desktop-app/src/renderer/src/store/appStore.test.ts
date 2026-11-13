@@ -15,6 +15,11 @@ const api = {
   saveSession: vi.fn(),
   loadSession: vi.fn(),
   deleteSession: vi.fn(),
+  listSessions: vi.fn(
+    async (): Promise<
+      Array<{ id: string; name: string; updatedAt: string }>
+    > => [],
+  ),
   detectVehicles: vi.fn(),
   scoreRisk: vi.fn(),
   prefetchImagery: vi.fn(async (_lat: number, _lon: number) => null),
@@ -703,6 +708,32 @@ describe("portfolio switching", () => {
     expect(state.selectedId).toBeNull();
   });
 
+  it("opens the most recent remaining portfolio after deleting the active one", async () => {
+    useAppStore.setState({
+      sessionId: "abc",
+      sessionName: "Doomed",
+      dealerships: seeded,
+    });
+    api.listSessions.mockResolvedValueOnce([
+      { id: "next", name: "Bestand Süd", updatedAt: "2026-01-02T00:00:00Z" },
+    ]);
+    api.loadSession.mockResolvedValueOnce({
+      id: "next",
+      name: "Bestand Süd",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-02T00:00:00Z",
+      dealerships: [{ ...secondInput } as AnalyzedDealership],
+      parameters: DEFAULT_RISK_PARAMETERS,
+    });
+
+    const opened = await useAppStore.getState().deleteSavedSession("abc");
+
+    expect(opened).toBe("Bestand Süd");
+    const state = useAppStore.getState();
+    expect(state.sessionId).toBe("next");
+    expect(state.dealerships.map((d) => d.id)).toEqual(["two"]);
+  });
+
   it("deletes a saved portfolio without resetting when it wasn't active", async () => {
     useAppStore.setState({
       sessionId: "abc",
@@ -876,6 +907,27 @@ describe("dealership website", () => {
     const [one] = useAppStore.getState().dealerships;
     expect(one.website).toBe("https://manual.de/");
     expect(one.websiteSource).toBe("manual");
+    expect(api.saveSession).not.toHaveBeenCalled();
+  });
+
+  it("never lets an OSM link replace one from the import file", async () => {
+    useAppStore.setState({
+      dealerships: [
+        {
+          ...firstInput,
+          website: "https://aus-der-datei.de/",
+          websiteSource: "import",
+        } as AnalyzedDealership,
+      ],
+    });
+
+    await useAppStore
+      .getState()
+      .updateDealershipWebsite("one", "https://osm.de/", "osm");
+
+    const [one] = useAppStore.getState().dealerships;
+    expect(one.website).toBe("https://aus-der-datei.de/");
+    expect(one.websiteSource).toBe("import");
     expect(api.saveSession).not.toHaveBeenCalled();
   });
 
@@ -1456,5 +1508,104 @@ describe("work that finishes after the portfolio changed", () => {
     const state = useAppStore.getState();
     expect(state.dealerships[0].detection?.vehicleCount).toBe(12);
     expect(state.pendingBoundaryDetectionIds).toEqual([]);
+  });
+});
+
+describe("importing into the empty start portfolio", () => {
+  it("takes the dialog's name and saves the rows before the analysis ends", async () => {
+    api.saveSession.mockResolvedValue(undefined);
+    let release: () => void = () => undefined;
+    api.analyzeDealership.mockImplementation(
+      (input: DealershipInput) =>
+        new Promise((resolve) => {
+          release = () => resolve({ ...input, risk: { overallScore: 20 } });
+        }),
+    );
+    useAppStore.setState({
+      sessionId: null,
+      sessionName: DEFAULT_PORTFOLIO_NAME,
+    });
+
+    const run = useAppStore.getState().importPortfolio({
+      rows: [firstInput],
+      target: "current",
+      name: "  dealers_10  ",
+      business: "existing",
+    });
+    // Saved while the analysis is still running: closing the app now keeps
+    // the row and its pending queue for "resume analysis".
+    await vi.waitFor(() => expect(api.saveSession).toHaveBeenCalled());
+    expect(api.saveSession.mock.calls[0][0]).toMatchObject({
+      name: "dealers_10",
+      dealerships: [expect.objectContaining({ id: "one" })],
+      pendingAnalysis: [expect.objectContaining({ id: "one" })],
+    });
+    expect(useAppStore.getState().sessionName).toBe("dealers_10");
+    release();
+    await run;
+  });
+
+  it("keeps the name of a current portfolio that already has rows", async () => {
+    api.saveSession.mockResolvedValue(undefined);
+    api.analyzeDealership.mockImplementation(
+      async (input: DealershipInput) => ({
+        ...input,
+        risk: { overallScore: 20 },
+      }),
+    );
+    useAppStore.setState({
+      sessionId: "s1",
+      sessionName: "Bestand Nord",
+      dealerships: [{ ...secondInput } as AnalyzedDealership],
+    });
+
+    await useAppStore.getState().importPortfolio({
+      rows: [firstInput],
+      target: "current",
+      name: "dealers_10",
+      business: "existing",
+    });
+
+    expect(useAppStore.getState().sessionName).toBe("Bestand Nord");
+    expect(api.saveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Bestand Nord" }),
+    );
+  });
+});
+
+describe("saving only what changed", () => {
+  it("does not re-save a portfolio that is unchanged since it was loaded", async () => {
+    api.saveSession.mockResolvedValue(undefined);
+    api.loadSession.mockResolvedValueOnce({
+      id: "loaded",
+      name: "Geladen",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+      dealerships: [{ ...firstInput } as AnalyzedDealership],
+      parameters: DEFAULT_RISK_PARAMETERS,
+    });
+    useAppStore.setState({ sessionId: null, dealerships: [] });
+    await useAppStore.getState().switchSession("loaded");
+
+    // Switching away (or an idle autosave) leaves its timestamp alone…
+    await useAppStore.getState().saveSessionIfChanged();
+    expect(api.saveSession).not.toHaveBeenCalled();
+
+    // …but any change is saved.
+    useAppStore.getState().setSessionName("Umbenannt");
+    await useAppStore.getState().saveSessionIfChanged();
+    expect(api.saveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "loaded", name: "Umbenannt" }),
+    );
+  });
+
+  it("always saves a portfolio that was never saved", async () => {
+    api.saveSession.mockResolvedValue(undefined);
+    useAppStore.setState({
+      sessionId: null,
+      dealerships: [{ ...firstInput } as AnalyzedDealership],
+    });
+    await useAppStore.getState().saveSessionIfChanged();
+    expect(api.saveSession).toHaveBeenCalledTimes(1);
   });
 });

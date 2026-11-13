@@ -18,28 +18,37 @@
       "rename": "Rename",
       "renameFor": "Rename {{name}}",
       "renameFailed": "Could not rename the portfolio: {{error}}",
-      "delete": "Delete",
       "deleteFor": "Delete {{name}}",
       "confirmDelete": "Delete \"{{name}}\"? This can't be undone.",
       "deleteConfirmButton": "Delete",
       "deleteFailed": "Could not delete the portfolio: {{error}}",
       "importFile": "Import portfolio file…",
       "importFailed": "Could not read the portfolio file: {{error}}",
-      "importFound": "“{{name}}”: {{count}} locations, {{edited}} with manually edited boundaries or vehicle counts.",
+      "importFound_one": "“{{name}}”: {{count}} location, {{edited}} with manually edited boundaries or vehicle counts.",
+      "importFound_other": "“{{name}}”: {{count}} locations, {{edited}} with manually edited boundaries or vehicle counts.",
       "importMerge": "Merge into this portfolio",
       "importMergeHint": "Adds new locations and takes over edited boundaries; your own edits are never overwritten.",
       "importOpenNew": "Open as new portfolio",
       "mergeDone": "Merged: {{added}} locations added, {{updated}} boundaries taken over.",
-      "mergeConflicts": "{{count}} locations were edited on both sides and kept as they were here: {{names}}",
+      "mergeConflicts_one": "{{count}} location was edited on both sides and kept as it was here: {{names}}",
+      "mergeConflicts_other": "{{count}} locations were edited on both sides and kept as they were here: {{names}}",
       "mergeFailed": "Could not merge the portfolio: {{error}}",
-      "importOpenFailed": "Could not open the portfolio file: {{error}}"
+      "importOpenFailed": "Could not open the portfolio file: {{error}}",
+      "deletedOpen": "Deleted “{{name}}”",
+      "deletedOpenSwitched": "Deleted “{{name}}” – “{{next}}” is open now"
     },
-    "offline": "Offline – using cached data"
+    "offline": "Offline – using cached data",
+    "toggleLocationsDock": "Show or hide the locations panel",
+    "toggleChatDock": "Show or hide the assistant",
+    "resizeLocations": "Resize the locations panel",
+    "resizeChat": "Resize the assistant",
+    "openCommands": "Search commands and locations – {{shortcut}}",
+    "ctrlK": "Ctrl+K"
   },
   "start": {
     "title": "Portfolio & Analysis",
-    "subtitle": "Add an address or ask the AI — the input field is at the bottom.",
-    "duplicatesSkipped": "{{count}} duplicate locations detected and skipped."
+    "duplicatesSkipped_one": "{{count}} duplicate location detected and skipped.",
+    "duplicatesSkipped_other": "{{count}} duplicate locations detected and skipped."
   },
   "command": {
     "title": "Command Palette",
@@ -48,11 +57,12 @@
     "empty": "No results found.",
     "navigation": "Navigation",
     "actions": "Actions",
-    "theme": "Theme",
-    "toggleTheme": "Toggle theme"
+    "theme": "Appearance",
+    "toggleTheme": "Change appearance"
   },
   "common": {
     "loading": "Loading…",
+    "operationFailed": "The operation could not be completed.",
     "save": "Save",
     "saved": "Saved",
     "cancel": "Cancel",
@@ -115,7 +125,7 @@
       },
       "vehicleValueDefaultEur": {
         "label": "Default vehicle value",
-        "description": "Fallback when the vehicle class is unknown."
+        "description": "Used when the vehicle class is unknown."
       },
       "capacitySqmPerVehicle": {
         "label": "Area per vehicle",
@@ -195,12 +205,12 @@
         "description": "Up to this distance a parcel still counts as near the location's address point."
       },
       "syntheticBoundaryRadiusM": {
-        "label": "Fallback boundary radius",
-        "description": "Fallback radius when no geometry is available."
+        "label": "Radius of the estimated boundary (circle)",
+        "description": "Circle radius around the address point when no parcel geometry is found."
       },
       "detectionConfidence": {
         "label": "Detection confidence",
-        "description": "Base confidence required from the vehicle model; large vehicles need slightly more.",
+        "description": "Base minimum confidence of the detection model; large vehicles need slightly more.",
         "tip": "Lower detects more vehicles but may introduce more false positives; higher is more conservative."
       },
       "hailFrequencyZone1": {
@@ -298,8 +308,13 @@
     "apiKey": "API Key",
     "apiKeyHint": "Stored via safeStorage in the OS keychain — never in plaintext.",
     "baseUrl": "Endpoint (base URL)",
+    "baseUrlErrors": {
+      "invalid-url": "Not a valid address. Example: https://proxy.example.com/v1",
+      "not-http": "The address must start with http:// or https://.",
+      "credentials": "Don’t put a user name or password in the address; enter the key above.",
+      "not-local": "A local model must run on this computer (localhost or 127.0.0.1)."
+    },
     "baseUrlHint": "Leave empty for the official endpoint. For a proxy use e.g. http://localhost:6655/openai/v1 (OpenAI/Custom) or http://localhost:6655/anthropic (Claude).",
-    "modelPlaceholder": "e.g. {{model}}",
     "apiKeySetPlaceholder": "•••••••• (stored) — enter a new key to replace",
     "apiKeyUnsetPlaceholder": "Stored encrypted (OS keychain)",
     "natCat": {
@@ -390,11 +405,11 @@
     },
     "llmReady": "Set up",
     "llmNotReady": "Not set up",
-    "llmSetupHint": "Needed for chat and underwriting memo: pick a provider, enter a model and – for OpenAI/Claude – save an API key. A local model needs no key.",
     "local": {
       "description": "The app looks for running runtimes on this computer automatically. Portfolio data never leaves the device.",
       "checking": "Checking …",
-      "running": "Running · {{count}} models",
+      "running_one": "Running · {{count}} model",
+      "running_other": "Running · {{count}} models",
       "notFound": "Not found",
       "detect": "Search again",
       "noneRunning": "No local runtime found. Install and start Ollama:",
@@ -402,13 +417,18 @@
     },
     "models": {
       "pick": "Choose a model ({{count}} available)",
-      "none": "The provider reported no chat models – enter the model ID manually.",
+      "none": "The AI provider reported no chat models – enter the model ID manually.",
       "noneLocal": "No models installed yet – install one from Hugging Face below.",
       "failed": "Could not load the model list: {{error}}",
       "needKey": "Save an API key – the available models then appear here automatically.",
       "needBaseUrl": "Enter the base URL – the available models then appear here automatically.",
       "loading": "Loading models …",
-      "manualPlaceholder": "Enter a model ID, e.g. gpt-4.1-mini",
+      "manualPlaceholderFor": {
+        "openai": "Enter a model ID, e.g. gpt-4.1-mini",
+        "claude": "Enter a model ID, e.g. claude-sonnet-4-5",
+        "local": "Enter a model name, e.g. llama3.2",
+        "custom": "Enter the server’s model ID"
+      },
       "reload": "Reload model list",
       "enterManually": "Enter model ID manually",
       "backToList": "Back to the list"
@@ -421,7 +441,7 @@
       "auth": "API key rejected (401/403). Check the key and save it again.",
       "not_found": "Model or endpoint not found (404). Check the model name and base URL – “Load models” shows the available names.",
       "unreachable": "Server not reachable. Is the local runtime running, and is the base URL correct?",
-      "error": "The provider reported an error."
+      "error": "The AI provider reported an error."
     },
     "hf": {
       "title": "Install a model from Hugging Face",
@@ -448,7 +468,7 @@
       "starting": "Starting download …"
     },
     "steps": {
-      "provider": "Choose provider",
+      "provider": "Choose AI provider",
       "access": "Access",
       "model": "Model"
     },
@@ -473,6 +493,16 @@
     "customBaseUrlHint": "OpenAI-compatible address, usually ending in /v1. The available models load automatically afterwards.",
     "optional": "optional",
     "advanced": "Advanced: custom base URL / proxy",
+    "detectionModel": {
+      "title": "Vehicle detection",
+      "description": "Local detection model that counts vehicles on the aerial image. Without it, the vehicle count is estimated from the lot area and marked as an estimate.",
+      "badgeInstalled": "Installed",
+      "badgeMissing": "Not installed",
+      "installed": "The detection model is installed; new analyses count the vehicles on the aerial image. Sites already estimated are counted when you analyse them again.",
+      "missing": "No detection model installed: vehicle counts are area-based estimates.",
+      "install": "Install detection model",
+      "manage": "Show model status"
+    },
     "dealerDirectory": {
       "title": "Dealer directory (Overture Maps)",
       "description": "Adds about 44,000 car, motorcycle, truck and RV dealers in Germany from Overture Maps (Meta, Microsoft, Foursquare and others) to the location search — many are missing from OpenStreetMap. One-time download of about 500 MB that takes a few minutes; only the dealers are stored locally.",
@@ -563,10 +593,10 @@
   },
   "model": {
     "title": "Install vehicle-detection model",
-    "description": "Without this model, the app only estimates vehicle counts from the lot area instead of detecting vehicles with AI in the aerial imagery.",
-    "ready": "The local AI model is already installed. You can start using the app.",
-    "idle": "The model (YOLOv26s, approx. 36 MB) will be downloaded once and stored locally.",
-    "done": "Model installed — real AI vehicle detection is now active.",
+    "description": "Without this model, the app only estimates vehicle counts from the lot area instead of counting the vehicles on the aerial image.",
+    "ready": "The detection model is already installed. You can start using the app.",
+    "idle": "The detection model (approx. 36 MB) will be downloaded once and stored locally.",
+    "done": "Detection model installed – vehicle detection is now active.",
     "downloadFailed": "Download failed: {{error}}",
     "unavailable": "Automatic download is not yet set up. Please place the model file here manually:",
     "dismiss": "Don't show again",
@@ -586,15 +616,12 @@
     "alert": {
       "highEal": "Contributes {{share}}% of the portfolio EAL.",
       "overcapacity": "Overcapacity ({{utilisation}}% of capacity).",
-      "lowBoundaryConfidence": "Uncertain lot boundary (source {{source}}).",
+      "lowBoundaryConfidence": "Uncertain lot boundary – source: {{source}}.",
       "noDetection": "No vehicles detected — check boundary and aerial imagery.",
       "highHailZone": "Located in hail zone {{zone}}.",
       "accumulation": "Accumulation of {{count}} locations with {{exposure}} exposure.",
       "estimatedHailZone": "Hail zone {{zone}} is only estimated – check the address/postcode."
     },
-    "sortAscending": "Sorted ascending; click to change",
-    "sortDescending": "Sorted descending; click to change",
-    "sortNone": "Not sorted; click to sort",
     "utilisation": "Utilisation",
     "capacity": "Capacity",
     "area": "Area",
@@ -603,18 +630,15 @@
     "visibleTiles": "Visible tiles",
     "resetTiles": "Reset layout",
     "removeTile": "Remove tile",
-    "dragTile": "Drag to reorder",
     "noTilesTitle": "No dashboard tiles selected",
     "noTilesDescription": "Add tiles from Customize dashboard to build your view.",
     "openAssistant": "AI assistant",
     "closeAssistant": "Close assistant",
-    "assistantTitle": "Dashboard assistant",
-    "assistantDescription": "Ask questions or change your dashboard",
-    "assistantEmpty": "Ask about this portfolio or say “show the location table”.",
-    "assistantHint": "Try: “show accumulations” or “hide review notes”.",
     "examplePromptTable": "Show location table",
     "commandAdded": "Added: {{tiles}}",
     "commandRemoved": "Removed: {{tiles}}",
+    "commandAlreadyShown": "Already visible: {{tiles}}",
+    "commandAlreadyHidden": "Already hidden: {{tiles}}",
     "commandReset": "Dashboard layout reset.",
     "tiles": {
       "summary": "Portfolio KPIs",
@@ -626,39 +650,30 @@
     },
     "detailDialog": {
       "imageryCountedOn": "Vehicles counted on",
+      "imageryOfLot": "Aerial image of the lot:",
       "imageryUnrecorded": "Image source of the vehicle count not recorded (analysis predates automatic source selection) – re-analyse to get the capture date.",
       "machineVehicleCount": "Machine-detected vehicles",
+      "estimatedVehicleCount": "Area-based estimate",
       "manualVehicleCount": "Human-adjusted vehicle count",
       "manualVehicleCountPlaceholder": "Count",
-      "saveManualVehicleCount": "Save count",
-      "manualVehicleCountNotSet": "No manual override",
       "manualVehicleCountSaved": "Saved count: {{count}}",
       "manualCountInvalid": "Enter a whole number ≥ 0.",
       "exposureLabel": "Exposure",
-      "totalEalLabel": "Total EAL",
-      "mainScoreTitle": "Hail zone",
-      "hailScoreLabel": "Hail Score",
-      "hailZoneLabel": "Hail Zone {{zone}}",
-      "hailZoneKasko": "K-Kasko · {{tier}}",
+      "hailZoneKasko": "Comprehensive-cover class · {{tier}}",
       "ealPeril": {
         "hail": "Hail",
         "total": "Total"
       },
       "boundaryTitle": "Parcel Boundary",
-      "boundarySummary": "{{source}} · {{confidence}} confidence",
       "boundaryRoleLabel": "Role: {{role}}",
       "boundaryAgreementLabel": "Source agreement: {{agreement}}",
       "boundaryEngineLabel": "Engine: {{engine}}",
-      "boundaryEngineFallbackSuffix": "(requested {{requested}} — {{reason}})",
-      "boundaryEngineUnknownReason": "reason unknown",
       "boundaryEngine": {
         "legacy": "candidate ranking",
         "fused": "multi-source fusion",
         "cascade": "source cascade"
       },
       "boundaryReviewLabel": "Review required",
-      "boundaryCandidatesTitle": "{{count}} boundary candidates",
-      "boundaryMultiPartLabel": "Site has {{count}} separate parts",
       "boundaryExcludePartAction": "Exclude extra part",
       "boundarySource": {
         "alkis": "ALKIS cadastre",
@@ -666,7 +681,7 @@
         "overture": "Overture Maps",
         "aerial": "Aerial imagery (vehicle outline)",
         "fused": "Fused multi-source",
-        "synthetic": "Estimated (circle around the point)",
+        "synthetic": "Estimated boundary (circle)",
         "manual": "Manually drawn"
       },
       "boundaryRole": {
@@ -674,26 +689,25 @@
         "building": "Building footprint",
         "parkingSurface": "Parking surface",
         "operationalLot": "Confirmed operational lot",
-        "synthetic": "Estimated"
+        "synthetic": "Estimated area (circle)"
       },
       "showDetails": "Show details",
-      "modelVersionLabel": "Model: {{version}}",
-      "evidenceFallbackSuffix": " · fallback",
+      "evidenceFallbackSuffix": " · fallback method",
       "riskText": {
         "screeningModel": "Risk model {{version}} is a screening model",
         "hazardProxy": "Hazard values are location-level proxies and should be validated before underwriting decisions",
         "notEngineeringAssessment": "Not a catastrophe-model or engineering assessment",
         "weatherWindow": "92-day weather window with screening proxies",
-        "syntheticBoundaryMethod": "Synthetic radius fallback",
+        "syntheticBoundaryMethod": "Estimated boundary (circle around the address point)",
         "boundaryLookupMethod": "Geospatial boundary lookup",
         "manualBoundaryReview": "Manual boundary review recommended",
         "areaEstimateMethod": "Area-based estimate",
         "aerialDetectionMethod": "Aerial object detection",
-        "vehicleEstimate": "Vehicle count is estimated; install the detector model",
-        "syntheticBoundary": "Synthetic lot boundary used",
+        "vehicleEstimate": "Vehicle count is estimated; install the detection model",
+        "syntheticBoundary": "Estimated boundary (circle) used",
         "boundaryReviewRequired": "Boundary requires review before underwriting use",
         "boundaryDisagreement": "Boundary sources do not sufficiently agree",
-        "noMlModel": "Vehicle exposure is estimated because no ML model is installed",
+        "noMlModel": "Vehicle exposure is estimated because no detection model is installed",
         "boundaryRole": "Boundary represents {{role}}, not a confirmed operational lot",
         "hailZoneEstimated": "Hail zone estimated from weather data; no postcode hail zone available",
         "hailEalPlaceholders": "Hail EAL frequency and severity parameters are uncalibrated placeholders",
@@ -706,13 +720,13 @@
         "cascadeOsmDealerArea": "dealer area from OpenStreetMap",
         "cascadeParcel": "parcel at the point",
         "boundaryConfirmed": "Boundary visually confirmed on {{date}}, not a cadastral survey",
-        "vehicleDetectorSource": "Vehicle detection (AI model)",
+        "vehicleDetectorSource": "Vehicle detection (local detection model)",
         "vehicleDetectorMethod": "Vehicles detected in the aerial image ({{resolution}} m per pixel)"
       },
       "osmLoading": "Loading OSM info…",
       "osmHeading": "From OpenStreetMap",
       "insuredLabel": "Existing business (insured)",
-      "insuredYesDesc": "Existing customer — included in accumulation",
+      "insuredYesDesc": "Insured – included in accumulation",
       "insuredNoDesc": "New business / Prospect",
       "salesPartnerLabel": "Sales Partner",
       "notesTitle": "Notes",
@@ -728,6 +742,7 @@
       "websiteNone": "No website found",
       "websiteSourceOsm": "found automatically (OpenStreetMap)",
       "websiteSourceManual": "entered manually",
+      "websiteSourceImport": "from the import file",
       "websiteEdit": "Edit",
       "websiteAdd": "Add website",
       "websiteReset": "Use automatic",
@@ -752,22 +767,20 @@
         "countBasis": "Count basis",
         "showOnMap": "Map",
         "empty": "No archived Esri imagery versions are available for this location.",
-        "hint": "Only versions in which the image changed here (zoom {{zoom}}). State orthophotos are not included.",
-        "truncated": "Older versions are hidden.",
+        "hint": "Only image versions in which the image changed here (zoom {{zoom}}). State orthophotos are not included.",
+        "truncated": "Older image versions are hidden.",
         "vehicles": "Vehicles",
-        "countButton": "Count stock across image dates",
+        "countButton": "Count vehicles across image versions",
         "counting": "Counting on archived images…",
-        "countFailed": "Counting across image dates failed",
-        "countNeedsModel": "Requires the vehicle detection model.",
+        "countFailed": "Counting across image versions failed",
+        "countNeedsModel": "Requires vehicle detection (detection model).",
         "countSummary_one": "{{count}} image counted: median {{median}}, range {{min}}–{{max}} vehicles. Evidence only – the exposure uses the current count.",
         "countSummary_other": "{{count}} images counted: median {{median}}, range {{min}}–{{max}} vehicles. Evidence only – the exposure uses the current count."
       },
-      "businessExisting": "Existing",
+      "businessExisting": "Existing business",
       "businessNew": "New business",
       "previousLocation": "Previous location",
       "nextLocation": "Next location",
-      "metaImage": "Aerial image of {{date}}",
-      "metaModel": "Model {{version}}",
       "showOnMap": "Show on map",
       "moreActions": "More actions",
       "kpiHailEal": "Hail EAL / year",
@@ -776,16 +789,15 @@
       "kpiVehiclesEstimated": "estimated only",
       "kpiVehiclesDetected": "from the aerial image",
       "boundaryStatusConfirmed": "Confirmed",
-      "boundaryStatusReview": "Check",
-      "boundaryStatusAutomatic": "Automatic",
       "attentionBoundaryTitle": "Check the boundary",
       "attentionBoundaryDetail": "The boundary decides which vehicles count. Confirm it or pick another one.",
       "attentionBoundaryAction": "Go to boundary",
       "attentionModelTitle": "Vehicle count is estimated",
-      "attentionModelDetail": "No AI model is installed.",
+      "attentionModelDetail": "Vehicle detection is not set up. The figure is lot area ÷ space per vehicle, not a count.",
+      "attentionModelAction": "Set up vehicle detection",
       "attentionImageryTitle_one": "Aerial image is {{count}} year old",
       "attentionImageryTitle_other": "Aerial image is {{count}} years old",
-      "attentionImageryDetail": "The stock may look different today. The image history lets you count other versions.",
+      "attentionImageryDetail": "The lot may look different today. In the image history you can count the vehicles on other image versions.",
       "attentionImageryAction": "Image history",
       "tabOverview": "Risk",
       "tabSite": "Site & vehicles",
@@ -796,12 +808,10 @@
       "confidenceValue": "{{value}} confidence",
       "boundaryConfirm": "Confirm boundary",
       "boundaryEditOnMap": "Edit on map",
-      "boundaryAlternatives": "Other suggestions",
       "boundaryAdopt": "Use this",
       "vehiclesAdjust": "Adjust",
       "vehiclesChangeManual": "Change",
       "vehiclesUseDetected": "Use detected count",
-      "sourcesUsed": "Sources used",
       "limitationsToggle_one": "{{count}} limitation",
       "limitationsToggle_other": "{{count}} limitations",
       "natCatNone": "No external hail data source is set up; the hail zone comes from the postcode table.",
@@ -811,7 +821,7 @@
         "vehicleHull": "Vehicle outline",
         "parcel": "Parcel at the point",
         "osmDealerArea": "OSM dealer area",
-        "synthetic": "Circle around the point",
+        "synthetic": "Estimated boundary (circle)",
         "parcelPlusVehicles_one": "Parcel at the point + {{count}} parcel with vehicles",
         "parcelPlusVehicles_other": "Parcel at the point + {{count}} parcels with vehicles"
       },
@@ -856,7 +866,7 @@
       "reportSaved": "Report saved: {{path}}",
       "reportFailed": "The report could not be created: {{error}}",
       "boundaryReviewReason": {
-        "synthetic": "no source at the point, only a circle around it",
+        "synthetic": "no source at the point, only an estimated boundary (circle)",
         "lowConfidence": "low confidence in the source",
         "pointOutside": "the point lies outside the boundary",
         "vehiclesOutside": "a row of vehicles stands just outside",
@@ -876,13 +886,14 @@
     "zoneShort": "Zone {{zone}}",
     "showAll": "Show all {{count}}",
     "showLess": "Show less",
-    "examplePromptClusters": "Show accumulations",
-    "examplePromptZones": "Show hail zone distribution",
     "kpi": {
       "largestAccumulation": "Largest accumulation",
       "accumulationHint_one": "{{count}} location · {{radius}} km",
       "accumulationHint_other": "{{count}} locations · {{radius}} km",
       "noAccumulation": "none within {{radius}} km",
+      "provisional": "provisional · {{analyzed}}/{{total}} analysed",
+      "estimatedSites_one": "{{count}} site estimated",
+      "estimatedSites_other": "{{count}} sites estimated",
       "elevatedZones": "In hail zone ≥ {{zone}}",
       "exposureShare": "{{share}} of exposure"
     },
@@ -897,7 +908,9 @@
       "scenario": "Loss scenario ({{share}})",
       "more_one": "+ {{count}} more",
       "more_other": "+ {{count}} more",
-      "showOnMap": "Map"
+      "showOnMap": "Map",
+      "expand": "Show the sites of “{{name}}”",
+      "collapse": "Hide the sites of “{{name}}”"
     },
     "zones": {
       "title": "Hail zone distribution",
@@ -944,12 +957,12 @@
       "title": "Hail EAL",
       "vehicles": "Vehicles on the lot (N)",
       "frequency": "Frequency (λ)",
-      "frequencyValue": "{{frequency}}/year · zone {{zone}}",
       "severity": "Loss per vehicle (Σ p·S)",
       "formula": "{{vehicles}} vehicles × {{frequency}} events/year × {{severity}} = {{eal}}.",
       "vehicleSource": {
         "manual": "Vehicle count reviewed manually.",
         "detected": "Vehicle count from aerial detection.",
+        "estimated": "Vehicle count estimated from the lot area (no vehicle detection).",
         "assetValue": "Vehicle count derived from the declared asset value.",
         "none": "No vehicle count available."
       },
@@ -963,13 +976,14 @@
     },
     "info": {
       "label": "What does this mean?",
+      "labelFor": "What does “{{label}}” mean?",
       "what": "What does it show?",
       "how": "How is it calculated?",
       "limits": "Limitations",
       "hailEal": {
         "what": "Expected annual loss (EAL) from hail for the locations shown.",
-        "how": "EAL = N × λ × (p_S·S_S + p_M·S_M + p_L·S_L). N = vehicles parked in the open, λ = hail events per year by hail zone, p = share of small/medium/large events, S = loss per vehicle. Values under “Parameters → Hail EAL”.",
-        "limits": "λ, p, and S are uncalibrated placeholders. A screening estimate, not a tariff, underwriting, or insurance decision."
+        "how": "EAL = N × λ × (pₛ·Sₛ + pₘ·Sₘ + pₗ·Sₗ). N = vehicles counted on the lot (estimated from the area without a detection model), λ = hail events per year by hail zone, p = share of small/medium/large events, S = loss per vehicle. Values under “Parameters → Hail EAL”.",
+        "limits": "λ, p, and S are uncalibrated placeholders; vehicle counts marked ≈ are area-based estimates. A screening estimate, not a tariff, underwriting, or insurance decision."
       },
       "accumulations": {
         "what": "Groups of locations that a single hail event could hit together – sorted by exposure.",
@@ -994,12 +1008,14 @@
       "table": {
         "what": "All portfolio locations with hail zone, vehicles, exposure and hail EAL.",
         "how": "Click a column header to sort. The search field only searches this table; the other tiles follow the portfolio filters above.",
-        "limits": "Vehicle counts and EAL come from aerial-image detection and are screening estimates."
+        "limits": "Vehicle counts and EAL come from aerial-image detection or, without a detection model, from the lot area (marked ≈) and are screening estimates."
       }
     },
     "table": {
       "description": "All locations with hail zone, vehicles, exposure and hail EAL. Click a row for details.",
-      "search": "Search table…",
+      "search": "Search name, address or town…",
+      "alertIcon": "Has review notes",
+      "openDetails": "Open details for {{name}}",
       "range_one": "{{from}}–{{to}} of {{count}} location",
       "range_other": "{{from}}–{{to}} of {{count}} locations",
       "rowsPerPage": "Rows per page",
@@ -1007,14 +1023,19 @@
       "previousPage": "Previous page",
       "nextPage": "Next page",
       "page": "Page {{page}} of {{pages}}",
-      "pending": "pending"
+      "pending": "pending",
+      "estimate": {
+        "mark": "estimated",
+        "vehicles": "Vehicle count estimated from the lot area (no vehicle detection); exposure and EAL follow from it.",
+        "boundary": "Estimated boundary (circle around the address point); area and vehicle count depend on the assumed radius."
+      }
     }
   },
   "map": {
-    "satellite": "Satellite",
+    "satellite": "Aerial",
     "street": "Street",
     "boundaries": "Boundaries",
-    "detections": "Vehicle Detections",
+    "detections": "Detected vehicles",
     "clusters": "Cluster Heatmap",
     "scenario": "Hailstorm Scenario",
     "legend": {
@@ -1025,7 +1046,7 @@
       "boundaryAutomatic": "Automatic, by source:",
       "vehicles": "Vehicles",
       "carCategory": "Vehicle / Car",
-      "imageryTitle": "Satellite image (map centre)",
+      "imageryTitle": "Aerial image (map centre)",
       "imageryLoading": "Loading metadata…",
       "imageryNoMetadataWms": "The custom WMS source provides no image metadata; the capture date is unknown.",
       "imageryDate": "Captured",
@@ -1061,7 +1082,7 @@
         "no-sharp-source": "no sufficiently sharp source – Esri as fallback",
         "fixed-provider": "fixed in settings",
         "overview-zoom": "overview zoom – Esri mosaic",
-        "pinned-version": "Wayback version chosen manually"
+        "pinned-version": "Wayback image version chosen manually"
       },
       "imageryAlternatives": "Alternatives checked",
       "business": "Business type",
@@ -1069,14 +1090,14 @@
       "newBusiness": "New business (violet outline, +)",
       "imageryWaybackVersion": "Wayback version"
     },
-    "editBoundary": "Edit Boundary",
     "locationsPanel": {
       "toggleAriaLabel": "Toggle locations list",
       "importPortfolio": "Import portfolio (CSV / Excel)",
       "addAddress": "Add address",
       "addressPlaceholder": "Add address…",
       "searchFailed": "Search failed",
-      "empty": "No locations yet. Add an address above.",
+      "searchFailedHint": "Check your internet connection and try again.",
+      "empty": "No locations yet. Add an address with the “+” above.",
       "sampleData": "No portfolio at hand? Sample data with 10 to 500 real dealerships",
       "neighborSummary": {
         "none": "No insured neighbors within {{radius}} km",
@@ -1094,14 +1115,19 @@
       "selectModeExit": "Cancel selection",
       "selectAll": "Select all",
       "deselectAll": "Deselect all",
-      "selectedCount": "{{count}} selected",
+      "selectedCount_one": "{{count}} selected",
+      "selectedCount_other": "{{count}} selected",
       "deleteSelectedConfirmTitle": "Delete selected locations?",
-      "deleteSelectedConfirmDescription": "This will permanently remove {{count}} location(s) from the portfolio. This can't be undone.",
-      "deleteSelectedToast": "Deleted {{count}} location(s)",
+      "deleteSelectedConfirmDescription_one": "This will permanently remove {{count}} location from the portfolio. This can't be undone.",
+      "deleteSelectedConfirmDescription_other": "This will permanently remove {{count}} locations from the portfolio. This can't be undone.",
+      "deleteSelectedToast_one": "Deleted {{count}} location",
+      "deleteSelectedToast_other": "Deleted {{count}} locations",
       "markInsured": "Mark selected as existing business",
       "markNotInsured": "Mark selected as new business",
-      "markInsuredToast": "Marked {{count}} location(s) as existing business",
-      "markNotInsuredToast": "Marked {{count}} location(s) as new business",
+      "markInsuredToast_one": "Marked {{count}} location as existing business",
+      "markInsuredToast_other": "Marked {{count}} locations as existing business",
+      "markNotInsuredToast_one": "Marked {{count}} location as new business",
+      "markNotInsuredToast_other": "Marked {{count}} locations as new business",
       "directoryHintPrefix": "Dealer missing?",
       "directoryHintLink": "Load the dealer directory",
       "distanceChip": "{{distance}} km away",
@@ -1118,6 +1144,8 @@
       "noMatches": "No locations match this search or filter.",
       "showMore": "Show {{count}} more ({{rest}} left)",
       "pending": "pending",
+      "notAnalyzed": "Not analyzed yet",
+      "selectFor": "Select {{name}}",
       "ealValue": "Hail EAL {{value}}"
     },
     "hailZones": {
@@ -1127,6 +1155,7 @@
     },
     "layerPanel": {
       "title": "Layers",
+      "overlaysSectionTitle": "Overlays",
       "activeCount": "{{count}} active",
       "basemapSectionTitle": "Basemap",
       "basemapSelectAriaLabel": "Select basemap",
@@ -1134,9 +1163,7 @@
       "basemapTerrain": "Terrain",
       "parcelsLayerLabel": "Parcels (ALKIS)",
       "parcelsLayerHint": "Official cadastral parcel lines from the German states, shown from zoom 17. For orientation only, not a legal boundary record. Saarland has no open service.",
-      "opacityLabel": "Opacity",
-      "satelliteOpacityAriaLabel": "Satellite opacity",
-      "boundariesLayerLabel": "Parcels",
+      "boundariesLayerLabel": "Lot boundaries",
       "nearbyInsuredLayerLabel": "Insured Neighbors",
       "accumulationClustersLayerLabel": "Accumulation Clusters",
       "hailZonesLayerLabel": "Hail zones (postcodes)",
@@ -1168,7 +1195,7 @@
       "imageryVersionNone": "No older Esri images at the map centre.",
       "imageryVersionReset": "Reset",
       "imageryVersionShown": "Shown:",
-      "boundariesLayerOffHint": "Turn on the “Parcels” layer to edit boundaries.",
+      "boundariesLayerOffHint": "Turn on the “Lot boundaries” layer to edit boundaries.",
       "detectionNeedsSelectionHint": "Select a location on the map or in the list.",
       "detectionLayerOffHint": "Turn on the “Vehicles” layer to review vehicles."
     },
@@ -1209,7 +1236,7 @@
       "boundaryConfirm": "Yes, confirm",
       "boundaryCorrect": "Correct",
       "boundaryNext": "Next",
-      "detectionWarningHint": "No AI model is installed. Install it in the settings, then re-analyse.",
+      "detectionWarningHint": "No detection model is installed. Set up vehicle detection in the settings, then re-analyse.",
       "openSettings": "Open settings",
       "deleteConfirmTitle": "Delete location?",
       "deleteConfirmDescription": "“{{name}}” is removed from this portfolio together with its analysis and notes. This cannot be undone.",
@@ -1219,15 +1246,21 @@
       "resumeAction": "Continue analysis",
       "resumeDiscard": "Later",
       "undoBoundaryEditShortcut": "Undo the last change (Ctrl+Z, ⌘Z on a Mac)",
-      "fallbackBoundaries_one": "1 of them is a fallback boundary (a circle around the point): review or edit it for accurate detection.",
-      "fallbackBoundaries_other": "{{count}} of them are fallback boundaries (a circle around the point): review or edit them for accurate detection.",
-      "showFallbackBoundaries": "Show fallback boundaries"
+      "fallbackBoundaries_one": "1 of them is only an estimated boundary (circle): review or edit it for an accurate vehicle count.",
+      "fallbackBoundaries_other": "{{count}} of them are only estimated boundaries (circle): review or edit them for an accurate vehicle count.",
+      "showFallbackBoundaries": "Show estimated boundaries",
+      "details": "Details",
+      "setupDetection": "Set up vehicle detection",
+      "cancellingAnalysis": "Stopping…",
+      "mapCopied": "Map image copied to the clipboard",
+      "mapSaved": "Map image saved",
+      "mapCopyFailed": "Couldn't copy the map image.",
+      "mapSaveFailed": "Couldn't save the map image."
     }
   },
   "ai": {
     "memo": "Underwriting Memo",
     "chat": "Portfolio Chat",
-    "nlQuery": "Natural Language Query",
     "naturalLanguageQuery": "Natural-language query",
     "queryInputPlaceholder": "Ask a question in natural language…",
     "ask": "Ask",
@@ -1236,8 +1269,6 @@
     "exampleHighHail": "Show all locations with high hail risk",
     "exampleUtilisation": "Which locations have utilisation above 80%?",
     "exampleEal": "Locations with EAL over €100,000",
-    "askPlaceholder": "Ask a question about the portfolio…",
-    "queryPlaceholder": "e.g. \"Show all with high hail risk\"",
     "showInDashboard": "Show in dashboard",
     "generate": "Generate",
     "streaming": "Responding…"
@@ -1274,7 +1305,8 @@
       "noneDetail": "No insured locations within {{radius}} km. Reinsurance not required — pricing may be more favorable.",
       "highTitle": "High accumulation risk — reinsurance recommended",
       "nearbyTitle": "Accumulation risk nearby",
-      "detail": "{{count}} insured locations within {{radius}} km, accumulated exposure {{exposure}}. {{reinsureText}} Pricing: {{pricing}}."
+      "detail_one": "{{count}} insured location within {{radius}} km, accumulated exposure {{exposure}}. {{reinsureText}} Pricing: {{pricing}}.",
+      "detail_other": "{{count}} insured locations within {{radius}} km, accumulated exposure {{exposure}}. {{reinsureText}} Pricing: {{pricing}}."
     },
     "reinsure": {
       "yes": "Reinsure: yes.",
@@ -1284,7 +1316,8 @@
     },
     "group": {
       "title": "Group \"{{group}}\" — {{count}} locations",
-      "breachNote": " {{count}} location(s) over product limit.",
+      "breachNote_one": " {{count}} location over the product limit.",
+      "breachNote_other": " {{count}} locations over the product limit.",
       "detail": "{{insured}}/{{total}} insured, accumulated exposure {{exposure}}, {{vehicles}} vehicles. Max. hail zone {{maxZone}}.{{breachNote}} Reinsure (group): {{reinsureWord}}. Pricing (group): {{pricing}}."
     }
   },
@@ -1315,34 +1348,27 @@
     "sidebar": "Sidebar",
     "mobileSidebar": "Displays the mobile sidebar.",
     "toggleSidebar": "Toggle sidebar",
-    "noDashboards": "No dashboards yet.",
     "noMatches": "No matches.",
     "delete": "Delete",
     "dashboards": "Dashboards",
-    "newDashboard": "New dashboard",
     "switchThread": "Switch thread",
-    "newChatThread": "New chat thread",
+    "newChatThread": "New conversation",
     "noThreads": "No threads yet.",
     "deleteThread": "Delete thread",
-    "emptyChat": "Ask about the portfolio or have an AI dashboard generated for you.",
     "dismiss": "Dismiss",
     "answering": "Answering…",
     "error": "Error: {{error}}",
-    "modelConfidence": "Model confidence",
+    "modelConfidence": "Risk model confidence",
     "noAnalysis": "No Analysis Yet",
     "importPortfolio": "Import Portfolio",
     "importDescription": "Import a portfolio first to see metrics, charts, and the location table.",
     "analysis": "Analysis",
-    "locationsAnalyzed": "{{count}} locations analyzed",
+    "locationsAnalyzed_one": "{{count}} location analyzed",
+    "locationsAnalyzed_other": "{{count}} locations analyzed",
     "locationsFiltered": "{{filtered}} of {{total}} locations (filtered)",
-    "portfolioSaved": "Portfolio saved",
-    "saveFailed": "Save failed: {{error}}",
     "noRowsFound": "No importable rows found.",
-    "importIssuesRecorded": "{{count}} import issues recorded.",
-    "returnPeriodEvent": "{{years}}-year event",
-    "worstCluster": "Worst {{radius}} km cluster",
-    "lossFractionIncreases": "Loss fraction increases with the return period.",
-    "widgetError": "Widget could not be rendered.",
+    "importIssuesRecorded_one": "{{count}} import issue recorded.",
+    "importIssuesRecorded_other": "{{count}} import issues recorded.",
     "website": "Website",
     "reportExported": "Report exported: {{path}}",
     "portfolioExported": "Portfolio exported: {{path}}",
@@ -1353,23 +1379,24 @@
     "excelReport": "Excel Report",
     "csvReport": "CSV Report",
     "readonlyView": "Read-Only HTML View",
-    "noAiDashboard": "No AI dashboard yet",
-    "dashboardEmptyDescription": "Describe what you want to see in Dashboard mode on the home page; the AI will assemble it.",
-    "goHome": "Go to Home Page",
     "compare": "Compare",
     "portfolioComparison": "Portfolio Comparison",
-    "compareDescription": "Compare the active portfolio against a saved session.",
-    "selectBaseline": "Select baseline session…",
-    "generatingDashboard": "Generating dashboard…",
+    "compareDescription": "Compares the active portfolio site by site with a saved snapshot or another portfolio (Δ vehicles, Δ EAL).",
+    "compareHowTo": "To get a comparison point: save a snapshot now, then change parameters or boundaries and open the comparison again.",
+    "saveSnapshot": "Save snapshot",
+    "snapshotName": "{{name}} – snapshot {{date}}",
+    "snapshotSaved": "“{{name}}” saved. You find the snapshot under portfolios and here in the comparison.",
+    "snapshotFailed": "The snapshot could not be saved: {{error}}",
+    "moreActions": "More actions",
+    "selectBaseline": "Select a snapshot to compare with…",
     "hailRisk": "Hail risk",
     "estimated": "estimated",
     "boundaryReviewNeeded": "⚠ Review property boundary",
     "confirmBoundary": "Confirm boundary",
     "risk": "Risk",
-    "ealYear": "EAL",
     "viewDetails": "View details",
     "analyzing": "Analyzing…",
-    "vehicleCountEstimated": "⚠ Vehicle count estimated (no AI model)",
+    "vehicleCountEstimated": "⚠ Vehicle count estimated (no vehicle detection)",
     "intensity": "Intensity",
     "width": "Width",
     "returnPeriod": "Return period",
@@ -1383,28 +1410,25 @@
     "drawingHint": "Click waypoints on the map; double-click finishes the path.",
     "opacityEalShare": "Opacity ∝ EAL share",
     "accumulationClusters": "Accumulation clusters",
-    "filterLocations": "Filter locations…",
     "showOnMap": "Show on map",
     "subPortfolio": "Sub-portfolio",
     "group": "Group",
     "all": "All",
     "clusterLabel": "Cluster {{id}}",
     "resetFilters": "Reset Filters",
-    "clusterDescription": "{{count}} clusters with ≥ 2 locations within {{radius}} km, sorted by Nat Cat KPI (exposure × modeled event loss).",
     "clusterId": "Cluster ID",
     "value": "Value",
-    "hailLevel": "Hail Level",
     "natCatKpi": "Nat Cat KPI",
     "salesPartner": "Sales Partner",
     "name": "Name",
     "boundarySource": "Boundary source",
     "allBoundaries": "All boundaries",
-    "fallbackBoundary": "Fallback boundary",
+    "fallbackBoundary": "Estimated boundary (circle)",
     "businessType": "Business type",
     "allBusiness": "All business types",
     "existingBusiness": "Existing business",
     "newBusiness": "New business",
-    "noOtherSessions": "No other saved session to compare with yet.",
+    "noOtherSessions": "No other saved snapshot to compare with yet.",
     "clusterFilterLabel": "Accumulation: {{name}}",
     "newConversation": "New conversation",
     "chatHistory": "Previous conversations",
@@ -1413,18 +1437,18 @@
       "allZones": "All hail zones",
       "zone": "Zone {{zone}} ({{count}})",
       "noZone": "No zone ({{count}})",
-      "statusLabel": "Processing state",
-      "allStatus": "All states",
+      "statusLabel": "Analysis status",
+      "allStatus": "Any analysis status",
       "analyzed": "Analysed ({{count}})",
       "pending": "Pending ({{count}})",
       "review": "Check boundary ({{count}})"
     },
     "locationsPartlyAnalyzed": "{{analyzed}} of {{total}} analysed · {{pending}} pending",
-    "fallbackBoundaryReview": "Fallback boundary, review or edit for accurate detection"
+    "fallbackBoundaryReview": "Estimated boundary (circle) – review or edit for an accurate vehicle count"
   },
   "aiSetup": {
     "missingTitle": "AI assistant not set up yet",
-    "missingDescription": "Choose a provider (OpenAI, Claude, a local model or a custom endpoint) and a model in the settings to use the chat.",
+    "missingDescription": "Choose an AI provider (OpenAI, Claude, a local model or a custom endpoint) and a model in the settings to use AI features.",
     "rejectedTitle": "Credentials rejected",
     "rejectedDescription": "The AI endpoint did not accept the API key (401/403). Check the key, model and endpoint in the settings.",
     "openSettings": "Set up AI"
@@ -1432,8 +1456,10 @@
   "portfolioImport": {
     "title": "Import portfolio",
     "summary": "{{file}}: {{imported}} of {{total}} rows recognised.",
-    "skipped": "{{count}} row(s) skipped.",
-    "issues": "{{count}} note(s) in the import report.",
+    "skipped_one": "{{count}} row skipped.",
+    "skipped_other": "{{count}} rows skipped.",
+    "issues_one": "{{count}} note in the import report.",
+    "issues_other": "{{count}} notes in the import report.",
     "parseFailed": "Technical reason: {{error}}",
     "detectedColumns": "Detected columns",
     "noTermsColumns": "No maximum indemnity or deductible column detected – these can be added per location later.",
@@ -1457,7 +1483,7 @@
     "nameLabel": "Portfolio name",
     "businessTitle": "Business type",
     "businessFile": "Per location from the file (column “{{column}}”)",
-    "businessFileCounts": "{{existing}} existing · {{fresh}} new · {{unknown}} unspecified (counted as new business)",
+    "businessFileCounts": "{{existing}} existing business · {{fresh}} new business · {{unknown}} unspecified (counted as new business)",
     "businessExisting": "Entire portfolio is existing business",
     "businessExistingDesc": "All locations count as insured and are included in accumulation.",
     "businessNew": "Entire portfolio is new business",
@@ -1465,7 +1491,8 @@
     "businessRequired": "Please choose the business type – it determines how locations are shown and assessed.",
     "waitForAnalysis": "Please wait until the running analysis has finished.",
     "cancel": "Cancel",
-    "confirm": "Import {{count}} location(s)",
+    "confirm_one": "Import {{count}} location",
+    "confirm_other": "Import {{count}} locations",
     "parseFailedTitle": "The file could not be read. Please save it again in Excel as an .xlsx workbook or export it as CSV."
   },
   "places": {
@@ -1481,7 +1508,7 @@
     "regenerate": "Regenerate answer",
     "stop": "Stop answer",
     "needsAi": "Set up an AI provider in Settings to ask questions. Commands like “open …” work without one.",
-    "provenance": "The AI answers from this portfolio's screening data (model {{model}}; the hail EAL still uses placeholder values) and this conversation. Its answers are an assessment, not an underwriting decision.",
+    "provenance": "The AI answers from this portfolio's screening data (model {{model}}; the hail EAL still uses placeholder values) and this conversation. The answers are an assessment, not an underwriting decision.",
     "context_one": "About: {{portfolio}} · {{count}} location",
     "context_other": "About: {{portfolio}} · {{count}} locations",
     "contextSelected": "selected: {{name}}",
@@ -1511,7 +1538,14 @@
       "dashboardCreated": "Dashboard “{{name}}” is ready – it is on the Dashboard tab. Just tell me what to change.",
       "dashboardUpdated": "Dashboard “{{name}}” has been updated."
     },
-    "provenanceLabel": "What are the answers based on?",
+    "provenanceTopic": "AI answers",
+    "commandsWithoutAi": "These commands work without AI:",
+    "commandPrompts": {
+      "open": "Open {{name}}",
+      "clusters": "Show accumulations on the map",
+      "hailZones": "Show hail zones on the map",
+      "exportPdf": "Export the PDF report"
+    },
     "emptyChat": "Ask the AI about your portfolio – or control the app directly, e.g. “open …” or “show accumulations on the map”."
   },
   "review": {
@@ -1541,7 +1575,6 @@
     "retry": "Try again",
     "none": "No DWD station with a long hail record within {{radius}} km.",
     "stationPicker": "Choose weather station",
-    "aboutLabel": "About the hail history",
     "about": {
       "title": "Where the figures come from",
       "what": "Observations of the nearest German Weather Service stations within {{radius}} km that have at least ten years of records.",
@@ -1588,8 +1621,10 @@
     "detail": {
       "monthTitle": "{{month}}",
       "noHail": "no hail observed",
-      "monthSummary_one": "{{count}} hail day in {{years}} year(s)",
-      "monthSummary_other": "{{count}} hail days in {{years}} years",
+      "monthSummary_one": "{{count}} hail day in {{years}}",
+      "monthSummary_other": "{{count}} hail days in {{years}}",
+      "yearCount_one": "{{count}} year",
+      "yearCount_other": "{{count}} years",
       "more": "+ {{count}} more",
       "close": "Close details"
     },
@@ -1606,7 +1641,7 @@
       "switch": "Show station"
     },
     "zeroDays": "No hail observed",
-    "stationMeta": "{{distance}} km · {{from}}–{{to}} · {{days}} days/year",
+    "stationMeta": "{{distance}} km · {{from}}–{{to}} · hail days/year: {{days}}",
     "stationPickerHint": "{{count}} stations nearby – choose one to see its data"
   },
   "importPreview": {
@@ -1638,6 +1673,7 @@
     "checkFailed": "Check failed"
   },
   "a2ui": {
+    "needsAi": "AI dashboards are built by the AI assistant. Set up an AI provider first.",
     "filter": {
       "all": "Whole portfolio",
       "zoneRange": "Zone {{min}}–{{max}}",

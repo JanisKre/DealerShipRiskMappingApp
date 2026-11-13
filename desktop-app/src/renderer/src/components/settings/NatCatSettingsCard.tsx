@@ -397,7 +397,7 @@ function CatalogRow({
           <span
             className={cn(
               "text-xs",
-              status.tone === "ok" && "text-emerald-700 dark:text-emerald-400",
+              status.tone === "ok" && "text-success",
               status.tone === "muted" && "text-muted-foreground",
             )}
           >
@@ -500,7 +500,7 @@ function CatalogRow({
           </div>
           {test &&
             (test.ok ? (
-              <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+              <p className="flex items-center gap-1.5 text-xs text-success">
                 <CheckCircle2 className="size-3.5 shrink-0" />
                 {t("settings.natCat.connector.testOk", {
                   perils: test.perils.join(", "),

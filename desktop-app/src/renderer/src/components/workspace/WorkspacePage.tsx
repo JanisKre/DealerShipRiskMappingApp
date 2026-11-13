@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "@renderer/store/appStore";
-import { useMapStore } from "@renderer/store/mapStore";
+import { WIDE_WINDOW_PX, useMapStore } from "@renderer/store/mapStore";
 import { usePanelRef, useDefaultLayout } from "react-resizable-panels";
 import {
   ResizableHandle,
@@ -11,6 +12,9 @@ import { DealershipDetailDialog } from "@renderer/components/dashboard/Dealershi
 import { AddressDock } from "./AddressDock";
 import { ChatPanel } from "./ChatPanel";
 import { MapPage } from "@renderer/components/map/MapPage";
+
+/** The narrow-window default applies once per app start, not on every visit. */
+let narrowDefaultApplied = false;
 
 /** Panel IDs for width persistence. */
 const LEFT_ID = "drm-ws-left";
@@ -26,6 +30,7 @@ const RIGHT_ID = "drm-ws-right";
  * Panel widths are persisted in localStorage via `useDefaultLayout`.
  */
 export function WorkspacePage(): React.JSX.Element {
+  const { t } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
   const locationsPanelOpen = useMapStore((s) => s.locationsPanelOpen);
   const chatPanelOpen = useMapStore((s) => s.chatPanelOpen);
@@ -48,6 +53,16 @@ export function WorkspacePage(): React.JSX.Element {
     panelIds: [LEFT_ID, CENTER_ID, RIGHT_ID],
     storage: localStorage,
   });
+
+  // Narrow window at start: collapse the chat dock (it can be reopened from
+  // the header), instead of squeezing the map to a strip.
+  useEffect(() => {
+    if (narrowDefaultApplied) return;
+    narrowDefaultApplied = true;
+    const store = useMapStore.getState();
+    if (window.innerWidth < WIDE_WINDOW_PX && store.chatPanelOpen)
+      store.toggleChatPanel();
+  }, []);
 
   // Sync store flags -> imperative collapse/expand.
   useEffect(() => {
@@ -78,11 +93,21 @@ export function WorkspacePage(): React.JSX.Element {
           id={LEFT_ID}
           panelRef={leftRef}
           collapsible
-          defaultSize={20}
-          minSize={14}
+          // Strings are percentages, numbers pixels (react-resizable-panels
+          // v4): the former `minSize={14}` let the dock shrink to 14 px,
+          // under the sidebar rail, where it could not be grabbed again.
+          defaultSize="22%"
+          minSize={240}
           collapsedSize={0}
-          onResize={(size) => {
+          // Docks keep their width when the window resizes; the map takes up
+          // the difference (a shrinking percentage collapsed the dock).
+          groupResizeBehavior="preserve-pixel-size"
+          onResize={(size, _id, prev) => {
             // Sync collapse/expand -> store flag (only when it differs).
+            // Not on mount: a stored width below the minimum (e.g. in a
+            // narrower window) collapses the panel then, which must not
+            // count as the user closing it.
+            if (!prev) return;
             const collapsed = size.asPercentage <= 0;
             const storeOpen = useMapStore.getState().locationsPanelOpen;
             if (collapsed === storeOpen)
@@ -92,24 +117,43 @@ export function WorkspacePage(): React.JSX.Element {
           <AddressDock />
         </ResizablePanel>
 
-        <ResizableHandle withHandle />
+        {/* Above the sidebar rail, which otherwise covers it once the dock
+            is collapsed against the sidebar. */}
+        <ResizableHandle
+          withHandle
+          className="z-20"
+          aria-label={t("shell.resizeLocations")}
+        />
 
         {/* Center: map */}
-        <ResizablePanel id={CENTER_ID} defaultSize={50} minSize={30}>
+        {/* `isolate` keeps Leaflet's pane z-indexes (400+) inside the map,
+            so they cannot cover the neighbouring resize handles. */}
+        <ResizablePanel
+          id={CENTER_ID}
+          defaultSize="50%"
+          minSize={320}
+          className="isolate"
+        >
           <MapPage />
         </ResizablePanel>
 
-        <ResizableHandle withHandle />
+        <ResizableHandle
+          withHandle
+          className="z-20"
+          aria-label={t("shell.resizeChat")}
+        />
 
         {/* Right dock: portfolio chat composer */}
         <ResizablePanel
           id={RIGHT_ID}
           panelRef={rightRef}
           collapsible
-          defaultSize={28}
-          minSize={22}
+          defaultSize="28%"
+          minSize={300}
           collapsedSize={0}
-          onResize={(size) => {
+          groupResizeBehavior="preserve-pixel-size"
+          onResize={(size, _id, prev) => {
+            if (!prev) return;
             const collapsed = size.asPercentage <= 0;
             const storeOpen = useMapStore.getState().chatPanelOpen;
             if (collapsed === storeOpen)

@@ -11,6 +11,9 @@ import {
   CardTitle,
 } from "@renderer/components/ui/card";
 import { eur, pct } from "@renderer/lib/format";
+import { HintButton } from "@renderer/components/ui/hint-button";
+import { EstimateMark } from "./EstimateMark";
+import { estimateReasons } from "./estimates";
 import { HailZoneBadge } from "./HailZoneBadge";
 import { TileInfo } from "./TileInfo";
 
@@ -47,7 +50,10 @@ export function TopLocationsChart({
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5 text-base">
           {t("dashboard.topLocations.title")}
-          <TileInfo topic="topLocations" />
+          <TileInfo
+            topic="topLocations"
+            label={t("dashboard.topLocations.title")}
+          />
         </CardTitle>
         <CardDescription>
           {t("dashboard.topLocations.description", {
@@ -70,7 +76,7 @@ export function TopLocationsChart({
                   <button
                     type="button"
                     onClick={() => onSelect(d)}
-                    className="grid min-w-0 flex-1 grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-x-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+                    className="grid min-w-0 flex-1 grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-x-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     title={
                       totalEal > 0
                         ? `${d.name} · ${t("dashboard.topLocations.share", {
@@ -86,6 +92,7 @@ export function TopLocationsChart({
                         native `title` tooltip, so a cut-off name stays hidden. */}
                     <span className="line-clamp-2 break-words">{d.name}</span>
                     <span className="text-right font-medium tabular-nums">
+                      <EstimateMark reasons={estimateReasons(d)} />
                       {eur(eal)}
                     </span>
                     {/* Second line: bar plus the zone badge in a fixed
@@ -106,15 +113,16 @@ export function TopLocationsChart({
                       )}
                     </span>
                   </button>
-                  <button
-                    type="button"
+                  <HintButton
+                    variant="ghost"
+                    size="icon"
                     onClick={() => onShowOnMap(d)}
-                    title={t("ui.showOnMap")}
                     aria-label={`${t("ui.showOnMap")}: ${d.name}`}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-primary"
+                    side="left"
+                    className="size-8 text-muted-foreground hover:text-primary"
                   >
                     <MapPin className="size-4" />
-                  </button>
+                  </HintButton>
                 </li>
               );
             })}

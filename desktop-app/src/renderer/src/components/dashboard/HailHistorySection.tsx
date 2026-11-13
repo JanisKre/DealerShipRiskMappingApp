@@ -29,11 +29,7 @@ import type {
 } from "@shared/types";
 import { Button } from "@renderer/components/ui/button";
 import { ChartContainer } from "@renderer/components/ui/chart";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@renderer/components/ui/popover";
+import { TileInfo } from "./TileInfo";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -272,29 +268,14 @@ function SourcePopover({
 }: Readonly<{ radius: number }>): React.JSX.Element {
   const { t } = useTranslation();
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label={t("hailHistory.aboutLabel")}
-        >
-          <Info className="size-3.5" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        collisionPadding={8}
-        className="w-80 space-y-2 p-3 text-xs leading-relaxed"
-      >
-        <p className="font-medium">{t("hailHistory.about.title")}</p>
-        <p>{t("hailHistory.about.what", { radius })}</p>
-        <p>{t("hailHistory.about.hailDay")}</p>
-        <p className="text-muted-foreground">{t("hailHistory.about.limits")}</p>
-        <p className="text-muted-foreground">{t("hailHistory.about.eal")}</p>
-        <p className="text-muted-foreground">{t("hailHistory.about.source")}</p>
-      </PopoverContent>
-    </Popover>
+    <TileInfo label={t("hailHistory.about.title")}>
+      <p className="font-medium">{t("hailHistory.about.title")}</p>
+      <p>{t("hailHistory.about.what", { radius })}</p>
+      <p>{t("hailHistory.about.hailDay")}</p>
+      <p className="text-muted-foreground">{t("hailHistory.about.limits")}</p>
+      <p className="text-muted-foreground">{t("hailHistory.about.eal")}</p>
+      <p className="text-muted-foreground">{t("hailHistory.about.source")}</p>
+    </TileInfo>
   );
 }
 
@@ -867,7 +848,9 @@ function SelectionDetail({
         ? t("hailHistory.days", { count: dates.length })
         : t("hailHistory.detail.monthSummary", {
             count: dates.length,
-            years: new Set(dates.map((date) => date.slice(0, 4))).size,
+            years: t("hailHistory.detail.yearCount", {
+              count: new Set(dates.map((date) => date.slice(0, 4))).size,
+            }),
           });
 
   return (
@@ -953,12 +936,12 @@ function Notes({
           className={cn(
             "flex items-start gap-2 rounded-md border-l-4 bg-muted/30 px-2.5 py-1.5",
             note.kind === "ended" || note.kind === "far"
-              ? "border-l-amber-500"
+              ? "border-l-warning"
               : "border-l-sky-500",
           )}
         >
           {note.kind === "ended" || note.kind === "far" ? (
-            <TriangleAlert className="mt-px size-3.5 shrink-0 text-amber-500" />
+            <TriangleAlert className="mt-px size-3.5 shrink-0 text-warning-foreground" />
           ) : (
             <Info className="mt-px size-3.5 shrink-0 text-sky-500" />
           )}

@@ -8,12 +8,11 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ChevronDown,
+  ChevronRight,
   Info,
   Loader2,
   RotateCcw,
-  Save,
-  SlidersHorizontal,
+  TriangleAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { RiskParameters } from "@shared/types";
@@ -33,13 +32,11 @@ import {
   DialogTitle,
 } from "@renderer/components/ui/dialog";
 import { Input } from "@renderer/components/ui/input";
+import { TileInfo } from "@renderer/components/dashboard/TileInfo";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@renderer/components/ui/popover";
-import {
+  formatParameterValue,
   parameterInputError,
+  parseLocaleNumber,
   zonesWithFallingFrequency,
 } from "./parameterInput";
 import {
@@ -88,15 +85,23 @@ const GROUPS: ParameterGroup[] = [
         key: "vehicleValueCarEur",
         unit: "eur",
         min: 0,
+        max: 1_000_000,
         step: 1000,
         recommended: true,
         tip: true,
       },
-      { key: "vehicleValueDefaultEur", unit: "eur", min: 0, step: 1000 },
+      {
+        key: "vehicleValueDefaultEur",
+        unit: "eur",
+        min: 0,
+        max: 1_000_000,
+        step: 1000,
+      },
       {
         key: "capacitySqmPerVehicle",
         unit: "squareMeters",
         min: 0.1,
+        max: 1000,
         step: 1,
         recommended: true,
         tip: true,
@@ -111,6 +116,7 @@ const GROUPS: ParameterGroup[] = [
         key: "hailFrequencyZone1",
         unit: "eventsPerYear",
         min: 0,
+        max: 10,
         step: 0.01,
         recommended: true,
       },
@@ -118,6 +124,7 @@ const GROUPS: ParameterGroup[] = [
         key: "hailFrequencyZone2",
         unit: "eventsPerYear",
         min: 0,
+        max: 10,
         step: 0.01,
         recommended: true,
       },
@@ -125,6 +132,7 @@ const GROUPS: ParameterGroup[] = [
         key: "hailFrequencyZone3",
         unit: "eventsPerYear",
         min: 0,
+        max: 10,
         step: 0.01,
         recommended: true,
       },
@@ -132,6 +140,7 @@ const GROUPS: ParameterGroup[] = [
         key: "hailFrequencyZone4",
         unit: "eventsPerYear",
         min: 0,
+        max: 10,
         step: 0.01,
         recommended: true,
       },
@@ -139,6 +148,7 @@ const GROUPS: ParameterGroup[] = [
         key: "hailFrequencyZone5",
         unit: "eventsPerYear",
         min: 0,
+        max: 10,
         step: 0.01,
         recommended: true,
       },
@@ -146,6 +156,7 @@ const GROUPS: ParameterGroup[] = [
         key: "hailFrequencyZone6",
         unit: "eventsPerYear",
         min: 0,
+        max: 10,
         step: 0.01,
         recommended: true,
       },
@@ -177,6 +188,7 @@ const GROUPS: ParameterGroup[] = [
         key: "hailSeveritySmallEur",
         unit: "eurPerVehicle",
         min: 0,
+        max: 1_000_000,
         step: 100,
         recommended: true,
       },
@@ -184,6 +196,7 @@ const GROUPS: ParameterGroup[] = [
         key: "hailSeverityMediumEur",
         unit: "eurPerVehicle",
         min: 0,
+        max: 1_000_000,
         step: 100,
         recommended: true,
       },
@@ -191,6 +204,7 @@ const GROUPS: ParameterGroup[] = [
         key: "hailSeverityLargeEur",
         unit: "eurPerVehicle",
         min: 0,
+        max: 1_000_000,
         step: 100,
         recommended: true,
       },
@@ -222,11 +236,18 @@ const GROUPS: ParameterGroup[] = [
         recommended: true,
         tip: true,
       },
-      { key: "pmlClusterRadiusKm", unit: "kilometers", min: 0.1, step: 5 },
+      {
+        key: "pmlClusterRadiusKm",
+        unit: "kilometers",
+        min: 0.1,
+        max: 1000,
+        step: 5,
+      },
       {
         key: "accumulationRadiusKm",
         unit: "kilometers",
         min: 0.1,
+        max: 1000,
         step: 1,
         recommended: true,
         tip: true,
@@ -235,6 +256,7 @@ const GROUPS: ParameterGroup[] = [
         key: "accumulationReinsureThresholdEur",
         unit: "eur",
         min: 0,
+        max: 1_000_000_000_000,
         step: 1000000,
         recommended: true,
         tip: true,
@@ -286,6 +308,7 @@ const GROUPS: ParameterGroup[] = [
         key: "alertOvercapacity",
         unit: "factor",
         min: 0,
+        max: 100,
         step: 0.05,
         recommended: true,
         tip: true,
@@ -325,8 +348,20 @@ const GROUPS: ParameterGroup[] = [
         max: 1,
         step: 0.01,
       },
-      { key: "boundaryNearPointDistanceM", unit: "meters", min: 0, step: 5 },
-      { key: "syntheticBoundaryRadiusM", unit: "meters", min: 1, step: 10 },
+      {
+        key: "boundaryNearPointDistanceM",
+        unit: "meters",
+        min: 0,
+        max: 10_000,
+        step: 5,
+      },
+      {
+        key: "syntheticBoundaryRadiusM",
+        unit: "meters",
+        min: 1,
+        max: 10_000,
+        step: 10,
+      },
       {
         key: "detectionConfidence",
         unit: "fraction",
@@ -340,11 +375,28 @@ const GROUPS: ParameterGroup[] = [
   },
 ];
 
+/** A warning sentence: the colour sits on the icon, the text stays readable. */
+function WarningLine({
+  className,
+  children,
+}: Readonly<{ className?: string; children: ReactNode }>): React.JSX.Element {
+  return (
+    <p className={`flex items-start gap-1.5 ${className ?? ""}`}>
+      <TriangleAlert
+        aria-hidden
+        className="mt-0.5 size-3.5 shrink-0 text-warning-foreground"
+      />
+      <span>{children}</span>
+    </p>
+  );
+}
+
 /** Formula, placeholder status, and the class-share sum of the hail EAL. */
 function HailEalNotice({
   parameters,
 }: Readonly<{ parameters: RiskParameters }>): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const shareSum =
     parameters.hailShareSmall +
     parameters.hailShareMedium +
@@ -359,32 +411,32 @@ function HailEalNotice({
     parameters.hailFrequencyZone6,
   ]);
   return (
-    <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+    <div className="space-y-2 rounded-lg border border-warning/40 p-4 text-sm">
       <p className="font-mono text-xs">
         EAL = N × λ<sub>z</sub> × (p<sub>S</sub>·S<sub>S</sub> + p<sub>M</sub>·S
         <sub>M</sub> + p<sub>L</sub>·S<sub>L</sub>)
       </p>
       <p className="text-muted-foreground">{t("parameters.hailEal.formula")}</p>
-      <p className="font-medium text-amber-700 dark:text-amber-400">
+      <WarningLine className="font-medium">
         {t("parameters.hailEal.placeholders")}
-      </p>
+      </WarningLine>
       <p className="text-xs text-muted-foreground">
         {t("parameters.hailEal.meanSeverity", { value: eur(mean) })}
       </p>
       {Math.abs(shareSum - 1) > 0.001 && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
+        <WarningLine className="text-xs">
           {t("parameters.hailEal.shareSum", {
-            sum: shareSum.toFixed(2).replace(".", ","),
+            sum: formatParameterValue(Number(shareSum.toFixed(2)), locale),
           })}
-        </p>
+        </WarningLine>
       )}
       {fallingZones.length > 0 && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
+        <WarningLine className="text-xs">
           {t("parameters.hailEal.frequencyOrder", {
             count: fallingZones.length,
             zones: fallingZones.join(", "),
           })}
-        </p>
+        </WarningLine>
       )}
     </div>
   );
@@ -397,6 +449,8 @@ type EditorBindings = {
   label: (field: ParameterField) => string;
   onDraftChange: (key: ParameterKey, value: string) => void;
   onCommit: (field: ParameterField, raw: string) => void;
+  onRevert: (field: ParameterField) => void;
+  locale: string;
 };
 
 /**
@@ -417,9 +471,14 @@ function HailEalTables({
         field={field}
         label={bindings.label(field)}
         unit=""
-        value={bindings.draft[key] ?? String(bindings.parameters[key])}
+        value={
+          bindings.draft[key] ??
+          formatParameterValue(bindings.parameters[key], bindings.locale)
+        }
+        locale={bindings.locale}
         onDraftChange={(value) => bindings.onDraftChange(key, value)}
         onCommit={(raw) => bindings.onCommit(field, raw)}
+        onRevert={() => bindings.onRevert(field)}
         disabled={bindings.disabled}
         compact
       />
@@ -502,14 +561,9 @@ function HailEalTables({
   );
 }
 
-function displayValue(value: number): string {
-  return String(value);
-}
-
 /**
- * The value as the rest of the app shows it, under the raw number field:
- * a number input can't group thousands ("50000000") or show percentages,
- * while the dashboard reads "50.000.000 €" and "15 %".
+ * The value as the rest of the app shows it, under the field: confirms how a
+ * typed number was read ("30.000" → "30.000 €") and shows shares in percent.
  */
 function readableValue(field: ParameterField, value: number): string | null {
   if (!Number.isFinite(value)) return null;
@@ -523,10 +577,14 @@ type ParameterEditorProps = {
   label: string;
   unit: string;
   value: string;
+  /** UI language: the field reads and shows numbers in its notation. */
+  locale: string;
   disabled: boolean;
   onDraftChange: (value: string) => void;
   /** Receives the raw field text so an empty field isn't read as 0. */
   onCommit: (raw: string) => void;
+  /** Escape: drop the draft and show the stored value again. */
+  onRevert: () => void;
   /** Narrow table cell: smaller minimum width, no readable-value line. */
   compact?: boolean;
 };
@@ -536,36 +594,49 @@ function ParameterEditor({
   label,
   unit,
   value,
+  locale,
   disabled,
   onDraftChange,
   onCommit,
+  onRevert,
   compact = false,
 }: ParameterEditorProps): React.JSX.Element {
-  const readable = compact ? null : readableValue(field, Number(value));
+  const readable = compact
+    ? null
+    : readableValue(field, parseLocaleNumber(value, locale));
   // Unit as an in-field suffix with its own width: units range from
   // "€" to "Schläge/km²/Jahr", so a fixed right padding can't fit them.
   return (
     <div className="space-y-0.5">
       <div
-        className={`flex h-8 w-full items-center rounded-md border border-input shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring has-[:disabled]:opacity-50 ${
+        className={`flex h-8 w-full items-center rounded-md border border-input shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring has-[input:read-only]:opacity-60 ${
           compact ? "min-w-14" : "min-w-24"
         }`}
       >
         <Input
           id={`parameter-${field.key}`}
           aria-label={label}
-          type="number"
-          min={field.min}
-          max={field.max}
-          step={field.step}
+          // Text, not type="number": Chromium reads "30.000" as 30 there.
+          type="text"
+          inputMode={field.integer ? "numeric" : "decimal"}
+          autoComplete="off"
+          spellCheck={false}
           value={value}
           onChange={(event) => onDraftChange(event.target.value)}
           onBlur={() => onCommit(value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") event.currentTarget.blur();
+            // Enter commits and keeps the focus; Escape discards the draft.
+            if (event.key === "Enter") onCommit(value);
+            if (event.key === "Escape") {
+              event.preventDefault();
+              onRevert();
+            }
           }}
-          disabled={disabled}
-          className="h-full min-w-0 flex-1 border-0 px-2 text-right tabular-nums shadow-none focus-visible:ring-0 disabled:opacity-100"
+          // Read-only, not disabled, while scores recalculate: a disabled
+          // field drops the focus right after Enter.
+          readOnly={disabled}
+          aria-busy={disabled || undefined}
+          className="h-full min-w-0 flex-1 border-0 px-2 text-right tabular-nums shadow-none focus-visible:ring-0"
         />
         {unit && (
           <span className="shrink-0 whitespace-nowrap pr-2 text-xs text-muted-foreground">
@@ -579,33 +650,6 @@ function ParameterEditor({
         </p>
       )}
     </div>
-  );
-}
-
-/** ⓘ next to a field label; opens the field's tip (same pattern as the dashboard tiles). */
-function FieldTip({
-  label,
-  text,
-}: Readonly<{ label: string; text: string }>): React.JSX.Element {
-  const { t } = useTranslation();
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label={`${t("dashboard.info.label")}: ${label}`}
-        >
-          <Info className="size-3.5" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-72 p-3 text-xs leading-relaxed"
-      >
-        {text}
-      </PopoverContent>
-    </Popover>
   );
 }
 
@@ -659,7 +703,12 @@ function NativeDetails({
     [initiallyOpen],
   );
 
-  return <details ref={setRef}>{children}</details>;
+  // `group` on <details>: its `open` attribute drives the chevron.
+  return (
+    <details ref={setRef} className="group">
+      {children}
+    </details>
+  );
 }
 
 type ParametersErrorBoundaryProps = {
@@ -716,12 +765,12 @@ export function ParametersPage(): React.JSX.Element {
 }
 
 function ParametersContent(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const parameters = useAppStore((s) => s.parameters);
   const parametersUpdating = useAppStore((s) => s.parametersUpdating);
   const updateParameters = useAppStore((s) => s.updateParameters);
   const resetParameters = useAppStore((s) => s.resetParameters);
-  const saveSession = useAppStore((s) => s.saveSession);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [confirmReset, setConfirmReset] = useState(false);
   useEffect(() => {
@@ -729,19 +778,19 @@ function ParametersContent(): React.JSX.Element {
       Object.fromEntries(
         Object.entries(parameters).map(([key, value]) => [
           key,
-          displayValue(value),
+          formatParameterValue(value, locale),
         ]),
       ),
     );
-  }, [parameters]);
+  }, [parameters, locale]);
   function revertDraft(field: ParameterField): void {
     setDraft((current) => ({
       ...current,
-      [field.key]: String(parameters[field.key]),
+      [field.key]: formatParameterValue(parameters[field.key], locale),
     }));
   }
   function ruleText(field: ParameterField): string {
-    const fmt = (n: number): string => n.toLocaleString("de-DE");
+    const fmt = (n: number): string => formatParameterValue(n, locale);
     if (field.max == null)
       return t("parameters.validation.atLeast", { min: fmt(field.min) });
     return t(
@@ -755,7 +804,7 @@ function ParametersContent(): React.JSX.Element {
     field: ParameterField,
     raw: string,
   ): Promise<void> {
-    const error = parameterInputError(raw, field);
+    const error = parameterInputError(raw, field, locale);
     if (error) {
       revertDraft(field);
       // Say why the value jumped back instead of reverting silently.
@@ -763,13 +812,17 @@ function ParametersContent(): React.JSX.Element {
         t(`parameters.validation.${error}`, {
           label: fieldLabel(field),
           rule: ruleText(field),
-          value: String(parameters[field.key]).replace(".", ","),
+          value: formatParameterValue(parameters[field.key], locale),
         }),
       );
       return;
     }
-    const value = Number(raw.trim());
-    if (value === parameters[field.key]) return;
+    const value = parseLocaleNumber(raw, locale);
+    // Unchanged ("30000" for 30.000): show it in the usual notation again.
+    if (value === parameters[field.key]) {
+      revertDraft(field);
+      return;
+    }
     try {
       await updateParameters({ [field.key]: value } as Partial<RiskParameters>);
     } catch (err) {
@@ -803,10 +856,6 @@ function ParametersContent(): React.JSX.Element {
       },
     });
   }
-  async function save(): Promise<void> {
-    await saveSession();
-    toast.success(t("common.saved"));
-  }
   const fieldLabel = (field: ParameterField): string =>
     t(`parameters.parameterFields.${field.key}.label`);
   const fieldDescription = (field: ParameterField): string =>
@@ -819,42 +868,35 @@ function ParametersContent(): React.JSX.Element {
     onDraftChange: (key, value) =>
       setDraft((current) => ({ ...current, [key]: value })),
     onCommit: (field, raw) => void commitValue(field, raw),
+    onRevert: revertDraft,
+    locale,
   };
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-8">
-      <div className="flex flex-col gap-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="size-5 text-primary" />
-            <h2 className="text-2xl font-semibold">{t("parameters.title")}</h2>
-          </div>
+    <div className="mx-auto max-w-5xl space-y-6 p-8">
+      {/* Changes autosave (header: "Automatisch gespeichert · …"), so the
+          page has no Save button; only the recalculation state and reset. */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-2xl font-semibold">{t("parameters.title")}</h2>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             {t("parameters.description")}
           </p>
         </div>
-        {/* Save state lives in the header ("Automatisch gespeichert · …");
-            this bar only adds the recalculation state and the actions. */}
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card/60 p-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {parametersUpdating && (
             <Badge variant="secondary">
               <Loader2 className="mr-1 size-3 animate-spin" />
               {t("parameters.recalculating")}
             </Badge>
           )}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <Button
-              variant="ghost"
-              onClick={requestReset}
-              disabled={parametersUpdating}
-            >
-              <RotateCcw className="mr-2 size-4" />
-              {t("parameters.reset")}
-            </Button>
-            <Button onClick={() => void save()} disabled={parametersUpdating}>
-              <Save className="mr-2 size-4" />
-              {t("common.save")}
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            onClick={requestReset}
+            disabled={parametersUpdating}
+          >
+            <RotateCcw className="mr-2 size-4" />
+            {t("parameters.reset")}
+          </Button>
         </div>
       </div>
       <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
@@ -881,8 +923,11 @@ function ParametersContent(): React.JSX.Element {
           return (
             <Card key={group.id} className="overflow-hidden">
               <NativeDetails initiallyOpen={group.defaultOpen}>
-                <summary className="group flex cursor-pointer list-none items-start gap-3 p-5 [&::-webkit-details-marker]:hidden">
-                  <ChevronDown className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                <summary className="flex cursor-pointer list-none items-start gap-3 rounded-xl p-5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                  <ChevronRight
+                    aria-hidden
+                    className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold">
@@ -932,7 +977,7 @@ function ParametersContent(): React.JSX.Element {
                                   </Badge>
                                 )}
                                 {field.tip && (
-                                  <FieldTip
+                                  <TileInfo
                                     label={fieldLabel(field)}
                                     text={t(
                                       `parameters.parameterFields.${field.key}.tip`,
@@ -950,8 +995,13 @@ function ParametersContent(): React.JSX.Element {
                               unit={t(`parameters.units.${field.unit}`)}
                               value={
                                 draft[field.key] ??
-                                String(parameters[field.key])
+                                formatParameterValue(
+                                  parameters[field.key],
+                                  locale,
+                                )
                               }
+                              locale={locale}
+                              onRevert={() => revertDraft(field)}
                               onDraftChange={(value) =>
                                 setDraft((current) => ({
                                   ...current,

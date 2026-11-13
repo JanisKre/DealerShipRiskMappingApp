@@ -1,4 +1,4 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { MapPin, Monitor, Moon, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -12,13 +12,17 @@ import {
 } from "@renderer/components/ui/command";
 import { ALL_NAV_ITEMS } from "@renderer/components/layout/navigation";
 import { useTheme, type Theme } from "@renderer/components/theme/ThemeProvider";
+import { useAppStore } from "@renderer/store/appStore";
 
 type CommandPaletteProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-/** Globale Cmd/Ctrl+K-Palette: Navigation + Design-Schnellaktionen. */
+/**
+ * Global Cmd/Ctrl+K palette: navigation, the portfolio's locations (opened
+ * on the map) and appearance quick actions.
+ */
 export function CommandPalette({
   open,
   onOpenChange,
@@ -26,6 +30,8 @@ export function CommandPalette({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { setTheme } = useTheme();
+  const dealerships = useAppStore((s) => s.dealerships);
+  const select = useAppStore((s) => s.select);
 
   const run = (fn: () => void): void => {
     onOpenChange(false);
@@ -78,6 +84,34 @@ export function CommandPalette({
             </CommandItem>
           ))}
         </CommandGroup>
+        {dealerships.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading={t("dashboard.locations")}>
+              {dealerships.map((d) => (
+                <CommandItem
+                  key={d.id}
+                  // The id keeps two sites with the same name apart.
+                  value={`${d.name} ${d.address ?? ""} ${d.id}`}
+                  onSelect={() =>
+                    run(() => {
+                      select(d.id);
+                      navigate("/");
+                    })
+                  }
+                >
+                  <MapPin />
+                  <span className="min-w-0 truncate">{d.name}</span>
+                  {d.address && (
+                    <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">
+                      {d.address}
+                    </span>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
       </CommandList>
     </CommandDialog>
   );

@@ -1,5 +1,6 @@
-import { useEffect } from "react";
-import { Polyline, useMap } from "./leaflet-react";
+import { useEffect, useMemo } from "react";
+import { Polygon, Polyline, useMap } from "./leaflet-react";
+import { corridorRings } from "./scenarioCorridor";
 import type { Layer, LeafletEvent } from "leaflet";
 import type { HailstormScenario } from "@shared/types";
 import { SCENARIO_INTENSITY_DAMAGE } from "@shared/constants";
@@ -21,9 +22,10 @@ interface PolylineLayer extends Layer {
 }
 
 /**
- * Zeichnet den aktiven Hagel-Korridor als farbige Linie mit halbtransparentem
- * Puffer (Breite). Bei `drawing=true` aktiviert Geoman das Linien-Zeichnen; die
- * fertige Linie wird als `pathCoordinates` an `onPath` gemeldet.
+ * Draws the active hail corridor as a coloured centre line with a
+ * semi-transparent geographic buffer, `widthKm` wide — the area whose sites
+ * the scenario counts as affected. With `drawing=true` Geoman's line tool is
+ * on; the finished line is reported to `onPath` as `pathCoordinates`.
  */
 export function HailstormScenarioLayer({
   scenario,
@@ -48,7 +50,7 @@ export function HailstormScenarioLayer({
       const path = layer
         .getLatLngs()
         .map((p) => [p.lng, p.lat] as [number, number]);
-      layer.remove(); // gezeichnete Linie entfernen — wir rendern selbst aus dem Store
+      layer.remove(); // the drawn line goes; the layer renders from the store
       if (path.length >= 2) onPath(path);
     }
 
@@ -63,26 +65,34 @@ export function HailstormScenarioLayer({
     };
   }, [drawing, map, onPath]);
 
-  if (!scenario) return null;
-
-  const positions = scenario.pathCoordinates.map(
-    ([lon, lat]) => [lat, lon] as [number, number],
+  const path = scenario?.pathCoordinates;
+  const widthKm = scenario?.widthKm ?? 0;
+  const positions = useMemo(
+    () => (path ?? []).map(([lon, lat]) => [lat, lon] as [number, number]),
+    [path],
   );
+  const buffer = useMemo(
+    () => corridorRings(path ?? [], widthKm),
+    [path, widthKm],
+  );
+
+  if (!scenario) return null;
   const color = INTENSITY_COLOR[scenario.intensityLevel];
 
   return (
     <>
-      {/* Puffer (Korridorbreite als dicke, transparente Linie) */}
-      <Polyline
-        positions={positions}
+      {/* Buffer: one ring per segment and vertex, filled as their union. */}
+      <Polygon
+        positions={buffer}
+        interactive={false}
         pathOptions={{
-          color,
-          weight: scenario.widthKm * 4,
-          opacity: 0.2,
-          lineCap: "round",
+          stroke: false,
+          fillColor: color,
+          fillOpacity: 0.2,
+          fillRule: "nonzero",
         }}
       />
-      {/* Mittellinie */}
+      {/* Centre line */}
       <Polyline
         positions={positions}
         pathOptions={{ color, weight: 3, opacity: 0.9 }}

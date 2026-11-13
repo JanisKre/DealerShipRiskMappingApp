@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "i18next";
 import {
   Bot,
   CheckCircle2,
@@ -26,6 +27,7 @@ import {
 import type { LlmProvider, LlmSettings, Settings } from "@shared/types";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import {
   Card,
   CardContent,
@@ -42,6 +44,7 @@ import {
 } from "@renderer/components/ui/select";
 import { cn } from "@renderer/lib/utils";
 import { HuggingFaceModelBrowser } from "./HuggingFaceModelBrowser";
+import { validateLlmBaseUrl } from "./llmBaseUrl";
 
 const PROVIDERS: Array<{ id: LlmProvider; icon: LucideIcon }> = [
   { id: "openai", icon: Sparkles },
@@ -65,7 +68,7 @@ function ipcErrorMessage(error: unknown): string {
   const message =
     error instanceof Error && error.message
       ? error.message
-      : "The operation could not be completed.";
+      : i18n.t("common.operationFailed");
   return message.replace(
     /^Error invoking remote method '[^']+': (Error: )?/,
     "",
@@ -126,6 +129,8 @@ export function LlmSettingsCard({
   const [models, setModels] = useState<ModelOption[] | null>(null);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
+  // What to do next (save a key, enter a URL): a hint, not a failure.
+  const [modelsHint, setModelsHint] = useState<string | null>(null);
   const [accessRejected, setAccessRejected] = useState(false);
   const ready = configured && !accessRejected;
   const [localStatus, setLocalStatus] = useState<LocalRuntimeStatus[] | null>(
@@ -150,6 +155,7 @@ export function LlmSettingsCard({
   useEffect(() => {
     setModels(null);
     setModelsError(null);
+    setModelsHint(null);
     setTestResult(null);
     setManualEntry(false);
     setAccessRejected(false);
@@ -197,6 +203,7 @@ export function LlmSettingsCard({
     const request = ++modelsRequest.current;
     setModelsLoading(true);
     setModelsError(null);
+    setModelsHint(null);
     try {
       const result = await window.api.listLlmModels();
       if (request !== modelsRequest.current) return;
@@ -211,15 +218,15 @@ export function LlmSettingsCard({
       const message = ipcErrorMessage(err);
       const setupError = isLlmSetupError(message);
       setAccessRejected(setupError);
-      setModelsError(
-        setupError
-          ? t(
-              provider === "custom"
-                ? "settings.models.needBaseUrl"
-                : "settings.models.needKey",
-            )
-          : message,
-      );
+      if (setupError)
+        setModelsHint(
+          t(
+            provider === "custom"
+              ? "settings.models.needBaseUrl"
+              : "settings.models.needKey",
+          ),
+        );
+      else setModelsError(message);
     } finally {
       if (request === modelsRequest.current) setModelsLoading(false);
     }
@@ -270,6 +277,19 @@ export function LlmSettingsCard({
       ? [{ id: model }, ...models]
       : (models ?? []);
   const showDropdown = !manualEntry && models !== null && models.length > 0;
+  // The runtime picker already says "not found"; a raw
+  // "net::ERR_CONNECTION_REFUSED" underneath adds nothing.
+  const localRuntimeMissing =
+    provider === "local" &&
+    localStatus !== null &&
+    !localStatus.some((s) => s.reachable);
+  const baseUrlCheck = validateLlmBaseUrl(baseUrl, provider);
+  function commitBaseUrl(): void {
+    if (!baseUrlCheck.ok) return;
+    if (baseUrlCheck.url !== (llm?.baseUrl ?? ""))
+      void saveLlm({ baseUrl: baseUrlCheck.url });
+  }
+  const apiKeyId = useId();
 
   return (
     <Card
@@ -297,13 +317,14 @@ export function LlmSettingsCard({
               <button
                 key={id}
                 type="button"
+                aria-pressed={provider === id}
                 onClick={() => {
                   // Endpoint and model belong to the previous provider.
                   if (id !== provider)
                     void saveLlm({ provider: id, baseUrl: "", model: "" });
                 }}
                 className={cn(
-                  "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
+                  "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
                   provider === id && "border-primary bg-primary/5",
                 )}
               >
@@ -340,15 +361,17 @@ export function LlmSettingsCard({
                   value={baseUrl}
                   placeholder={DEFAULT_BASE_URLS.custom}
                   hint={t("settings.customBaseUrlHint")}
+                  error={
+                    baseUrlCheck.ok
+                      ? null
+                      : t(`settings.baseUrlErrors.${baseUrlCheck.problem}`)
+                  }
                   onChange={setBaseUrl}
-                  onCommit={() => {
-                    if (baseUrl !== (llm?.baseUrl ?? ""))
-                      void saveLlm({ baseUrl });
-                  }}
+                  onCommit={commitBaseUrl}
                 />
               )}
               <div className="space-y-1">
-                <label className="text-sm font-medium">
+                <label htmlFor={apiKeyId} className="text-sm font-medium">
                   {t("settings.apiKey")}
                   {provider === "custom" && (
                     <span className="font-normal text-muted-foreground">
@@ -365,6 +388,7 @@ export function LlmSettingsCard({
                   }}
                 >
                   <Input
+                    id={apiKeyId}
                     className="min-w-0 flex-1"
                     type="password"
                     value={apiKey}
@@ -375,7 +399,11 @@ export function LlmSettingsCard({
                     }
                     onChange={(e) => setApiKey(e.target.value)}
                   />
-                  <Button type="submit" className="shrink-0">
+                  <Button
+                    type="submit"
+                    className="shrink-0"
+                    disabled={!apiKey.trim()}
+                  >
                     {t("common.save")}
                   </Button>
                 </form>
@@ -388,9 +416,11 @@ export function LlmSettingsCard({
 
           {provider !== "custom" && (
             <div className="space-y-2">
-              <button
-                type="button"
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto gap-1 px-0 text-xs text-muted-foreground hover:text-foreground"
+                aria-expanded={showAdvanced}
                 onClick={() => setShowAdvanced((v) => !v)}
               >
                 {showAdvanced ? (
@@ -399,7 +429,7 @@ export function LlmSettingsCard({
                   <ChevronRight className="size-3.5" />
                 )}
                 {t("settings.advanced")}
-              </button>
+              </Button>
               {showAdvanced && (
                 <BaseUrlField
                   value={baseUrl}
@@ -409,11 +439,13 @@ export function LlmSettingsCard({
                       ? "settings.local.baseUrlHint"
                       : "settings.baseUrlHint",
                   )}
+                  error={
+                    baseUrlCheck.ok
+                      ? null
+                      : t(`settings.baseUrlErrors.${baseUrlCheck.problem}`)
+                  }
                   onChange={setBaseUrl}
-                  onCommit={() => {
-                    if (baseUrl !== (llm?.baseUrl ?? ""))
-                      void saveLlm({ baseUrl });
-                  }}
+                  onCommit={commitBaseUrl}
                 />
               )}
             </div>
@@ -461,7 +493,7 @@ export function LlmSettingsCard({
                     placeholder={
                       modelsLoading
                         ? t("settings.models.loading")
-                        : t("settings.models.manualPlaceholder")
+                        : t(`settings.models.manualPlaceholderFor.${provider}`)
                     }
                     onChange={(e) => setManualModel(e.target.value)}
                     onBlur={() => {
@@ -470,13 +502,12 @@ export function LlmSettingsCard({
                     }}
                   />
                 )}
-                <Button
+                <HintButton
                   variant="outline"
                   size="icon"
                   className="shrink-0"
                   onClick={() => void loadModels()}
                   disabled={modelsLoading}
-                  title={t("settings.models.reload")}
                   aria-label={t("settings.models.reload")}
                 >
                   {modelsLoading ? (
@@ -484,7 +515,7 @@ export function LlmSettingsCard({
                   ) : (
                     <RefreshCw />
                   )}
-                </Button>
+                </HintButton>
               </div>
 
               {models?.length === 0 && (
@@ -496,15 +527,19 @@ export function LlmSettingsCard({
                   )}
                 </p>
               )}
-              {modelsError && (
+              {modelsHint && (
+                <p className="text-xs text-muted-foreground">{modelsHint}</p>
+              )}
+              {modelsError && !localRuntimeMissing && (
                 <p className="text-xs text-destructive">
                   {t("settings.models.failed", { error: modelsError })}
                 </p>
               )}
               {models && models.length > 0 && (
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto px-0 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => setManualEntry((v) => !v)}
                 >
                   {t(
@@ -512,7 +547,7 @@ export function LlmSettingsCard({
                       ? "settings.models.backToList"
                       : "settings.models.enterManually",
                   )}
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -572,32 +607,47 @@ function Step({
   );
 }
 
+/** Base URL with an inline check; an invalid value is never saved. */
 function BaseUrlField({
   value,
   placeholder,
   hint,
+  error,
   onChange,
   onCommit,
 }: Readonly<{
   value: string;
   placeholder: string;
   hint: string;
+  /** Why the typed value can't be saved, or null. */
+  error: string | null;
   onChange: (value: string) => void;
   onCommit: () => void;
 }>): React.JSX.Element {
   const { t } = useTranslation();
+  const id = useId();
   return (
     <div className="space-y-1">
-      <label className="text-sm font-medium">{t("settings.baseUrl")}</label>
+      <label htmlFor={id} className="text-sm font-medium">
+        {t("settings.baseUrl")}
+      </label>
       <Input
+        id={id}
         value={value}
         placeholder={placeholder}
+        aria-invalid={error != null}
+        aria-describedby={error ? `${id}-error` : undefined}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onCommit}
         onKeyDown={(e) => {
           if (e.key === "Enter") onCommit();
         }}
       />
+      {error && (
+        <p id={`${id}-error`} className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
       <p className="text-xs text-muted-foreground">{hint}</p>
     </div>
   );
@@ -630,9 +680,10 @@ function LocalRuntimePicker({
             <button
               key={key}
               type="button"
+              aria-pressed={selected === key}
               onClick={() => onSelect(key)}
               className={cn(
-                "rounded-lg border p-2.5 text-left transition-colors hover:bg-muted/50",
+                "rounded-lg border p-2.5 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
                 selected === key && "border-primary bg-primary/5",
               )}
             >
@@ -643,7 +694,7 @@ function LocalRuntimePicker({
                 <span
                   className={cn(
                     "size-2 rounded-full",
-                    s?.reachable ? "bg-emerald-500" : "bg-muted-foreground/30",
+                    s?.reachable ? "bg-success" : "bg-muted-foreground/30",
                   )}
                 />
                 {detecting && !status
@@ -673,7 +724,7 @@ function LocalRuntimePicker({
               href="https://ollama.com/download"
               target="_blank"
               rel="noreferrer"
-              className="text-primary underline"
+              className="text-primary underline-offset-4 hover:underline"
             >
               ollama.com/download
             </a>
@@ -690,7 +741,7 @@ function ConnectionTestResult({
   const { t } = useTranslation();
   if (result.ok) {
     return (
-      <p className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+      <p className="flex items-center gap-1.5 text-sm text-success">
         <CheckCircle2 className="size-4 shrink-0" />
         {t("settings.test.ok", { ms: result.latencyMs })}
       </p>

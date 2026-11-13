@@ -130,7 +130,7 @@ describe("spreadsheets written with namespace prefixes", () => {
       lat: 51.05,
       lon: 13.74,
       website: "https://www.autohaus-nord.example/",
-      websiteSource: "manual",
+      websiteSource: "import",
     });
     expect(result.rowNumbers).toEqual([5, 7]);
     expect(result.report).toMatchObject({

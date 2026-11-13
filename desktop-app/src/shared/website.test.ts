@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   WEBSITE_URL_MAX_LENGTH,
   isHttpWebsiteUrl,
+  isUserWebsiteSource,
   normalizeWebsiteUrl,
   websiteLabel,
 } from "./website";
@@ -54,5 +55,14 @@ describe("isHttpWebsiteUrl", () => {
 describe("websiteLabel", () => {
   it("shows the host without www", () => {
     expect(websiteLabel("https://www.autohaus.de/kontakt")).toBe("autohaus.de");
+  });
+});
+
+describe("isUserWebsiteSource", () => {
+  it("protects typed and imported links, not automatic ones", () => {
+    expect(isUserWebsiteSource("manual")).toBe(true);
+    expect(isUserWebsiteSource("import")).toBe(true);
+    expect(isUserWebsiteSource("osm")).toBe(false);
+    expect(isUserWebsiteSource(undefined)).toBe(false);
   });
 });

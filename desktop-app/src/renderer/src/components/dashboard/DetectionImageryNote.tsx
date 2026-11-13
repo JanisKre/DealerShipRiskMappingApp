@@ -5,10 +5,12 @@ import {
   IMAGERY_STALE_AFTER_YEARS,
   imageryAgeYears,
 } from "@shared/imagery-metadata";
+import { isAreaEstimatedDetection } from "@shared/risk-math";
 import { cn } from "@renderer/lib/utils";
 
 /**
- * Which image the vehicle count was made on. Analyses from before automatic
+ * Which image the vehicle count was made on (or, for an area estimate, which
+ * image of the lot was fetched). Analyses from before automatic
  * source selection carry no record; the note then says so instead of
  * implying a date.
  */
@@ -46,11 +48,14 @@ export function DetectionImageryNote({
       <Satellite className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
       <div>
         <span className="text-muted-foreground">
-          {t("dashboard.detailDialog.imageryCountedOn")}{" "}
+          {/* An area estimate counted nothing on the image. */}
+          {isAreaEstimatedDetection(detection)
+            ? t("dashboard.detailDialog.imageryOfLot")
+            : t("dashboard.detailDialog.imageryCountedOn")}{" "}
         </span>
         <span className="font-medium">{c.label}</span>
         {" · "}
-        <span className={cn(stale && "text-amber-600 dark:text-amber-400")}>
+        <span className={cn(stale && "text-warning-foreground")}>
           {date}
           {stale && ` (${t("map.legend.imageryAge", { count: ageYears })})`}
         </span>

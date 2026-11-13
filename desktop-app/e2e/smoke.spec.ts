@@ -126,7 +126,7 @@ test("import preview lists rows before anything is analysed", async () => {
   await expect(dialog.getByText("Koordinaten aus der Datei")).toBeVisible();
   await expect(dialog.getByText("1 Zeile nicht übernommen")).toBeVisible();
   await expect(
-    dialog.getByRole("button", { name: "2 Standort(e) importieren" }),
+    dialog.getByRole("button", { name: "2 Standorte importieren" }),
   ).toBeDisabled();
   await expectTranslated();
 

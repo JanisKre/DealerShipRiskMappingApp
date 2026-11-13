@@ -4,7 +4,59 @@ import {
   DEFAULT_TILE_ORDER,
   moveDashboardTile,
   parseDashboardCommand,
+  parseTileLayout,
+  serializeTileLayout,
+  tileSpans,
 } from "./dashboardTiles";
+import de from "../../locales/de.json";
+import en from "../../locales/en.json";
+import fr from "../../locales/fr.json";
+
+describe("tile layout storage", () => {
+  it("keeps a hidden tile hidden after a reload", () => {
+    const order = DEFAULT_TILE_ORDER.filter((id) => id !== "zones");
+    expect(parseTileLayout(serializeTileLayout(order))).toEqual(order);
+    expect(parseTileLayout(serializeTileLayout([]))).toEqual([]);
+  });
+
+  it("keeps the order", () => {
+    const order = ["table", "summary"] as const;
+    expect(parseTileLayout(serializeTileLayout([...order]))).toEqual([
+      "table",
+      "summary",
+    ]);
+  });
+
+  it("appends only tiles that did not exist when the layout was saved", () => {
+    const raw = JSON.stringify({
+      order: ["summary", "table"],
+      known: ["summary", "table", "zones"],
+    });
+    expect(parseTileLayout(raw)).toEqual([
+      "summary",
+      "table",
+      "clusters",
+      "topLocations",
+      "insights",
+    ]);
+  });
+
+  it("reads the old bare-array format without reviving hidden tiles", () => {
+    expect(parseTileLayout(JSON.stringify(["summary", "table"]))).toEqual([
+      "summary",
+      "table",
+    ]);
+  });
+
+  it("falls back to the defaults for missing or broken data", () => {
+    expect(parseTileLayout(null)).toEqual(DEFAULT_TILE_ORDER);
+    expect(parseTileLayout("{oops")).toEqual(DEFAULT_TILE_ORDER);
+    expect(parseTileLayout('{"x":1}')).toEqual(DEFAULT_TILE_ORDER);
+    expect(
+      parseTileLayout(JSON.stringify(["summary", "bogus", "summary"])),
+    ).toEqual(["summary"]);
+  });
+});
 
 describe("parseDashboardCommand", () => {
   it("recognizes localized show commands", () => {
@@ -22,6 +74,23 @@ describe("parseDashboardCommand", () => {
     });
   });
 
+  it("understands the example prompt in every language and French commands", () => {
+    for (const { dashboard } of [de, en, fr]) {
+      expect(parseDashboardCommand(dashboard.examplePromptTable)).toEqual({
+        action: "show",
+        ids: ["table"],
+      });
+    }
+    expect(parseDashboardCommand("Afficher les cumuls")).toEqual({
+      action: "show",
+      ids: ["clusters"],
+    });
+    expect(parseDashboardCommand("Masquer les points à vérifier")).toEqual({
+      action: "hide",
+      ids: ["insights"],
+    });
+  });
+
   it("recognizes removal and reset commands", () => {
     expect(parseDashboardCommand("Remove the review notes")).toEqual({
       action: "hide",
@@ -33,6 +102,14 @@ describe("parseDashboardCommand", () => {
     });
     expect(parseDashboardCommand("Reset dashboard layout")).toEqual({
       action: "reset",
+    });
+    expect(parseDashboardCommand("Blende die Standorttabelle aus")).toEqual({
+      action: "hide",
+      ids: ["table"],
+    });
+    expect(parseDashboardCommand("Blende die Tabelle wieder ein")).toEqual({
+      action: "show",
+      ids: ["table"],
     });
   });
 
@@ -95,5 +172,27 @@ describe("parseDashboardCommand", () => {
       "summary",
       "zones",
     ]);
+  });
+});
+
+describe("tileSpans", () => {
+  it("keeps the default layout: three narrow tiles share a row", () => {
+    const spans = tileSpans(DEFAULT_TILE_ORDER);
+    expect(spans.get("summary")).toBe("@3xl:col-span-2 @5xl:col-span-3");
+    expect(spans.get("zones")).toBe("@3xl:col-span-1 @5xl:col-span-1");
+    expect(spans.get("topLocations")).toBe("@3xl:col-span-1 @5xl:col-span-1");
+    // Alone in its row at two columns.
+    expect(spans.get("insights")).toBe("@3xl:col-span-2 @5xl:col-span-1");
+  });
+
+  it("stretches a narrow tile left alone after its neighbours are hidden", () => {
+    const spans = tileSpans(["summary", "insights", "table"]);
+    expect(spans.get("insights")).toBe("@3xl:col-span-2 @5xl:col-span-3");
+  });
+
+  it("fills the row when two narrow tiles remain", () => {
+    const spans = tileSpans(["summary", "zones", "insights", "table"]);
+    expect(spans.get("zones")).toBe("@3xl:col-span-1 @5xl:col-span-1");
+    expect(spans.get("insights")).toBe("@3xl:col-span-1 @5xl:col-span-2");
   });
 });

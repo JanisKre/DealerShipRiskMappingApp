@@ -10,7 +10,7 @@ import {
   Sparkles,
   Square,
 } from "lucide-react";
-import { Button } from "@renderer/components/ui/button";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -37,8 +37,11 @@ export type OmniMode = "address" | "chat";
 interface Props {
   /** Selecting (or sending) an address incl. coordinates. */
   onPickAddress: (pick: PlacePick) => void;
-  /** Sending a question → to the AI (portfolio chat). */
-  onAskQuestion: (question: string) => void;
+  /**
+   * Sending a question → to the AI (portfolio chat). Returning `false` means
+   * it was refused (e.g. no AI set up); the text then stays in the input.
+   */
+  onAskQuestion: (question: string) => boolean | void;
   /** Optional file upload (CSV/TSV/Excel) directly from the composer. */
   onUploadFile?: (file: File) => void | Promise<void>;
   /**
@@ -210,8 +213,7 @@ export function Omnibox({
       return;
     }
     if (!trimmed) return;
-    onAskQuestion(trimmed);
-    setValue("");
+    if (onAskQuestion(trimmed) !== false) setValue("");
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
@@ -360,7 +362,9 @@ export function Omnibox({
             disabled={disabled}
             placeholder={meta.placeholder}
             className={cn(
-              "flex-1 bg-transparent outline-none placeholder:text-muted-foreground disabled:opacity-50",
+              // min-w-0: an input's intrinsic width pushed the send button
+              // out of a narrow chat dock.
+              "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground disabled:opacity-50",
               compact ? "text-sm" : "text-base",
             )}
             onChange={(e) => setValue(e.target.value)}
@@ -379,26 +383,27 @@ export function Omnibox({
                 className="hidden"
                 onChange={onFileChange}
               />
-              <Button
+              <HintButton
                 type="button"
                 size="icon"
                 variant="ghost"
+                side="top"
                 className={cn(
                   "shrink-0 rounded-full text-muted-foreground",
                   compact ? "size-7" : "size-9",
                 )}
                 onClick={() => uploadRef.current?.click()}
                 disabled={disabled}
-                title={t("upload.omnibox.importFile")}
                 aria-label={t("upload.omnibox.importFile")}
               >
                 <Paperclip className={compact ? "size-3.5" : "size-4"} />
-              </Button>
+              </HintButton>
             </>
           )}
           {onStop ? (
-            <Button
+            <HintButton
               size="icon"
+              side="top"
               className={cn(
                 "shrink-0 rounded-full",
                 compact ? "size-7" : "size-9",
@@ -409,21 +414,21 @@ export function Omnibox({
               <Square
                 className={cn("fill-current", compact ? "size-3" : "size-3.5")}
               />
-            </Button>
+            </HintButton>
           ) : (
-            <Button
+            <HintButton
               size="icon"
+              side="top"
               className={cn(
                 "shrink-0 rounded-full",
                 compact ? "size-7" : "size-9",
               )}
               onClick={submit}
               disabled={!canSend}
-              title={t("upload.omnibox.send")}
               aria-label={t("upload.omnibox.send")}
             >
               <Send className={compact ? "size-3.5" : "size-4"} />
-            </Button>
+            </HintButton>
           )}
         </div>
       </div>

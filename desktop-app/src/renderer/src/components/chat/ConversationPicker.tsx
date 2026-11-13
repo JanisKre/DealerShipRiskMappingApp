@@ -8,6 +8,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import { Input } from "@renderer/components/ui/input";
 import {
   Popover,
@@ -77,7 +78,7 @@ export function ConversationPicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-accent"
+          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           // Starts with the visible title (WCAG 2.5.3 label in name).
           aria-label={`${threadName(activeName, t)} – ${t("ui.switchThread")}`}
         >
@@ -94,6 +95,11 @@ export function ConversationPicker({
         align="end"
         collisionPadding={8}
         className="w-80 max-w-[calc(100vw-1rem)] p-1"
+        // Escape while renaming cancels the rename and keeps the list open
+        // (Radix catches Escape on the document before the input sees it).
+        onEscapeKeyDown={(event) => {
+          if (renamingId) event.preventDefault();
+        }}
       >
         {/* No "new conversation" entry: the + next to the picker does that. */}
         <div className="flex items-center gap-1.5 px-2 py-1 text-sm font-semibold">
@@ -161,7 +167,7 @@ export function ConversationPicker({
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="min-w-0 flex-1 text-left"
+                      className="min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                       onClick={() => {
                         onSelect(conversation.id);
                         setOpen(false);
@@ -174,11 +180,12 @@ export function ConversationPicker({
                         {formatDate(conversation.updatedAt)}
                       </span>
                     </button>
-                    <Button
+                    <HintButton
                       type="button"
                       size="icon"
                       variant="ghost"
-                      className="size-7 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                      side="left"
+                      className="size-7 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
                       onClick={() => {
                         setRenameDraft(name);
                         setRenamingId(conversation.id);
@@ -186,17 +193,18 @@ export function ConversationPicker({
                       aria-label={t("chat.renameFor", { name })}
                     >
                       <Pencil className="size-3.5" />
-                    </Button>
-                    <Button
+                    </HintButton>
+                    <HintButton
                       type="button"
                       size="icon"
                       variant="ghost"
-                      className="size-7 shrink-0 text-destructive opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+                      side="left"
+                      className="size-7 shrink-0 text-destructive opacity-0 hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
                       onClick={() => setConfirmingDeleteId(conversation.id)}
                       aria-label={`${t("ui.deleteThread")}: ${name}`}
                     >
                       <Trash2 className="size-3.5" />
-                    </Button>
+                    </HintButton>
                   </div>
                 )}
               </div>

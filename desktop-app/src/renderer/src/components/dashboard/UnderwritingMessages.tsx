@@ -27,8 +27,8 @@ const SEVERITY_STYLE: Record<
   { border: string; icon: React.ComponentType<{ className?: string }> }
 > = {
   info: { border: "border-l-sky-500", icon: Info },
-  ok: { border: "border-l-emerald-500", icon: ShieldCheck },
-  warning: { border: "border-l-amber-500", icon: AlertTriangle },
+  ok: { border: "border-l-success", icon: ShieldCheck },
+  warning: { border: "border-l-warning", icon: AlertTriangle },
   danger: { border: "border-l-destructive", icon: ShieldAlert },
 };
 

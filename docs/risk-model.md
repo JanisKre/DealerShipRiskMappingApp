@@ -100,6 +100,18 @@ The implementation is `computeHailEal` in `shared/risk-math.ts`; the result
 stores every input (`ealBreakdown.hailDetail`), so the detail dialog shows the
 calculation for each location.
 
+### Vehicle count provenance
+
+`hailDetail.vehicleSource` records where N came from: `manual` (reviewed by
+an underwriter), `detected` (the ONNX vehicle detector), or `none`. The
+area figure of the fallback detector (`stub-area-heuristic`, lot area ÷
+25 m²) never enters N (see the November 2026 fixes above), but exposure and
+the vehicle column still show it. The UI therefore calls it an area-based
+estimate, never "detected": the detail dialog says so, and the dashboard
+table, top list and KPI tiles mark such values with "≈". Results stored by
+older builds that labelled the area figure `detected` are shown as
+`estimated` (`displayedHailVehicleSource`); that is a label only.
+
 ### Default values (placeholders)
 
 The defaults are **uncalibrated screening placeholders** agreed as starting
@@ -159,6 +171,12 @@ missing or differ.
   the portfolio EAL ≥ `alertEalPortfolioShare` (20 %), an accumulation with
   exposure ≥ `accumulationReinsureThresholdEur`, and data-quality checks
   (utilisation, boundary confidence, zero vehicles, estimated hail zone).
+- **Hailstorm scenario** (map): a site is affected when its distance to the
+  drawn path is at most half the corridor width, measured on the ground (see
+  "Scenario corridor on the ground" above). The map draws the corridor as
+  the same metric buffer (`components/map/scenarioCorridor.ts`), so what is
+  drawn and what is counted agree. Limitation: every affected site gets the
+  same intensity; the corridor is a stress test, not a hail footprint.
 
 ## Portfolio terms and business type
 

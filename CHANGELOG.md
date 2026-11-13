@@ -118,6 +118,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Interface wording: one term per concept in German (Standort, Exposure,
+  Kumulation, Luftbild/Bildstand, Grundstücksgrenze, "Geschätzte Grenze
+  (Kreis)" for the circle fallback, Fahrzeugerkennung/Erkennungsmodell for
+  the vehicle detector vs. KI-Assistent/KI-Anbieter for the LLM), "du"
+  throughout, and real singular/plural forms instead of "Standort(e)". The
+  French interface is complete (about 300 missing texts, "Réglages" for the
+  app settings next to "Paramètres"); a test keeps de, en and fr on the same
+  keys and placeholders, and the offline chat and dashboard commands also
+  understand French.
 - Dependencies: 42 minor/patch updates for the desktop app (React 19.3,
   Radix, Tailwind 4.3, onnxruntime-node 1.31, Vitest 5.1, Prettier 3.9, …);
   `@types/node` 24 to match Electron's Node; the website on TypeScript 7,
@@ -164,6 +173,25 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Hailstorm scenario: the map drew the corridor in screen pixels, so its
+  width changed with the zoom level and did not match the counted sites. It
+  is now a geographic buffer of the set width, measured like the affected
+  count.
+- A website from the import file was labelled "manuell hinterlegt". It now
+  reads "aus der Importdatei" and, like a typed link, is never replaced by
+  the automatic lookup.
+- The area figure of the fallback detector (no detection model installed)
+  was called "Maschinell erkannte Fahrzeuge" and "Fahrzeugzahl aus der
+  Luftbild-Erkennung". It now reads "aus der Grundstücksfläche geschätzt
+  (keine Fahrzeugerkennung)", and the dashboard marks such values with "≈"
+  (`docs/risk-model.md`, "Vehicle count provenance").
+- UI/UX audit of all tabs: boundary editing no longer freezes with the
+  hail-zone layer on; collapsed docks can be reopened; boundary review
+  follows the filter; an import into the empty portfolio keeps its name and
+  is saved at once; parameter fields read German numbers ("30.000"); the
+  detection model can be installed from Einstellungen; checked boxes are
+  visible in dark mode; icon buttons have tooltips; one page-header pattern,
+  warning colours from theme tokens, numbers formatted in the UI language.
 - Resuming an analysis after a restart: the inputs still to analyse were
   not written to the saved portfolio, so locations of a cut-short import
   that had not started yet were lost on closing the app. They are now

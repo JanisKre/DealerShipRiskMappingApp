@@ -6,9 +6,9 @@ import en from "./en.json";
 import fr from "./fr.json";
 
 /**
- * Guards the translations: German and English carry the same keys, French
- * only keys that exist in English (it falls back to English), placeholders
- * match across languages, plurals are complete, and every literal key the
+ * Guards the translations: German, English and French carry exactly the
+ * same keys (a gap would silently fall back to English), placeholders match
+ * across languages, plurals are complete, and every literal key the
  * renderer passes to `t()` exists — so a missing key never shows up as raw
  * text like "dashboard.detailDialog.report" in the app.
  */
@@ -43,17 +43,10 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe("translations", () => {
-  it("German and English have the same keys", () => {
-    const deKeys = [...locales.de.keys()].sort();
-    const enKeys = [...locales.en.keys()].sort();
-    expect(deKeys.filter((k) => !locales.en.has(k))).toEqual([]);
-    expect(enKeys.filter((k) => !locales.de.has(k))).toEqual([]);
-  });
-
-  it("French has no keys that English lacks", () => {
-    expect([...locales.fr.keys()].filter((k) => !locales.en.has(k))).toEqual(
-      [],
-    );
+  it.each(["en", "fr"] as const)("%s has exactly the German keys", (lang) => {
+    const other = locales[lang];
+    expect([...locales.de.keys()].filter((k) => !other.has(k))).toEqual([]);
+    expect([...other.keys()].filter((k) => !locales.de.has(k))).toEqual([]);
   });
 
   it("uses the same placeholders in every language", () => {
@@ -61,13 +54,22 @@ describe("translations", () => {
     for (const [lang, entries] of Object.entries(locales)) {
       if (lang === "de") continue;
       for (const [key, text] of entries) {
-        const reference = locales.de.get(key);
-        if (reference == null) continue;
+        const reference = locales.de.get(key) ?? "";
         if (placeholders(reference).join() !== placeholders(text).join())
           mismatches.push(`${lang}:${key}`);
       }
     }
     expect(mismatches).toEqual([]);
+  });
+
+  it("has no '(e)'/'(s)' plural shortcuts; plurals use _one/_other", () => {
+    const shortcuts: string[] = [];
+    for (const [lang, entries] of Object.entries(locales)) {
+      for (const [key, text] of entries)
+        if (/\p{L}\((e|n|en|s|es|x)\)/u.test(text))
+          shortcuts.push(`${lang}:${key}`);
+    }
+    expect(shortcuts).toEqual([]);
   });
 
   it("has an _other form for every _one form", () => {

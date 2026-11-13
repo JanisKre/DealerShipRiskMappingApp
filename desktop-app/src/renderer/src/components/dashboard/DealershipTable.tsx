@@ -1,13 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  columnFilteringFeature,
+  constructSortFn,
   createColumnHelper,
-  createFilteredRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
   flexRender,
-  globalFilteringFeature,
   rowPaginationFeature,
   rowSortingFeature,
   tableFeatures,
@@ -15,8 +13,10 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import {
-  ArrowUpDown,
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   ChevronLeft,
   ChevronRight,
   MapPin,
@@ -31,7 +31,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@renderer/components/ui/card";
-import { Button } from "@renderer/components/ui/button";
+import { HintButton } from "@renderer/components/ui/hint-button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@renderer/components/ui/tooltip";
 import { Input } from "@renderer/components/ui/input";
 import {
   Select,
@@ -50,27 +55,42 @@ import {
 } from "@renderer/components/ui/table";
 import { eur, num } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
+import { EstimateMark } from "./EstimateMark";
+import { estimateReasons } from "./estimates";
 import { HailZoneBadge } from "./HailZoneBadge";
+import { matchesLocationSearch } from "./tableSearch";
 import { TileInfo } from "./TileInfo";
 
-/** Sorting, the search box (global filter) and pagination; nothing else. */
+/**
+ * Sorting and pagination. The search box filters the rows before they reach
+ * the table: it searches name and address only (see `matchesLocationSearch`).
+ */
 const features = tableFeatures({
   rowSortingFeature,
-  columnFilteringFeature,
-  globalFilteringFeature,
   rowPaginationFeature,
   sortedRowModel: createSortedRowModel(),
-  filteredRowModel: createFilteredRowModel(),
   paginatedRowModel: createPaginatedRowModel(),
+});
+
+/** Names sort like a phone book: "bhg Autohandel" between "Autohaus" and "BMW". */
+const nameCollator = new Intl.Collator("de", { sensitivity: "base" });
+const sortByName = constructSortFn({
+  sort: (a: string, b: string) => nameCollator.compare(a, b),
 });
 
 const columnHelper = createColumnHelper<typeof features, AnalyzedDealership>();
 
 /** Purely numeric columns are right-aligned with tabular-nums. */
 const NUMERIC_COLUMNS = new Set(["vehicles", "exposure", "eal"]);
-/** Dropped on narrow screens so exposure and hail EAL stay in view. */
-const NARROW_HIDDEN = "hidden @2xl:table-cell";
-const HIDDEN_WHEN_NARROW = new Set(["vehicles"]);
+/**
+ * Dropped as the dashboard gets narrower (assistant open, small window), so
+ * name, zone and hail EAL always stay in view: vehicles go first, then
+ * exposure.
+ */
+const NARROW_HIDDEN: Record<string, string> = {
+  vehicles: "hidden @5xl:table-cell",
+  exposure: "hidden @4xl:table-cell",
+};
 
 /**
  * Sortable and searchable portfolio table (@tanstack/react-table) as a
@@ -82,12 +102,15 @@ export function DealershipTable({
   dealerships,
   onSelect,
   onShowOnMap,
+  onOrderChange,
   highlightIds,
 }: {
   dealerships: AnalyzedDealership[];
   onSelect: (d: AnalyzedDealership) => void;
   /** Opens the location on the map (icon button per row). */
   onShowOnMap?: (d: AnalyzedDealership) => void;
+  /** Ids in the table's sorted and searched order (detail dialog arrows). */
+  onOrderChange?: (ids: string[]) => void;
   highlightIds?: string[] | null;
 }): React.JSX.Element {
   const { t } = useTranslation();
@@ -102,18 +125,48 @@ export function DealershipTable({
     () => alertIdSet(generateAlerts(dealerships, parameters)),
     [dealerships, parameters],
   );
+  const searched = useMemo(
+    () => dealerships.filter((d) => matchesLocationSearch(d, filter)),
+    [dealerships, filter],
+  );
 
   const columns = useMemo(
     () =>
       columnHelper.columns([
         columnHelper.accessor("name", {
           header: t("ui.name"),
+          sortFn: sortByName,
+          // The name is the row's keyboard target: Tab reaches it, Enter
+          // opens the details (the whole row stays clickable).
           cell: (info) => (
             <span className="flex items-center gap-1.5 font-medium">
               {alertIds.has(info.row.original.id) && (
-                <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
+                <Tooltip delayDuration={150}>
+                  <TooltipTrigger asChild>
+                    <AlertTriangle
+                      role="img"
+                      aria-label={t("dashboard.table.alertIcon")}
+                      className="size-3.5 shrink-0 text-warning-foreground"
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {t("dashboard.table.alertIcon")}
+                  </TooltipContent>
+                </Tooltip>
               )}
-              {info.getValue()}
+              <button
+                type="button"
+                className="rounded-sm text-left hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                aria-label={t("dashboard.table.openDetails", {
+                  name: info.getValue(),
+                })}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect(info.row.original);
+                }}
+              >
+                {info.getValue()}
+              </button>
             </span>
           ),
         }),
@@ -132,56 +185,80 @@ export function DealershipTable({
         columnHelper.accessor((d) => effectiveVehicleCount(d.detection), {
           id: "vehicles",
           header: t("common.vehicles"),
-          cell: (info) => (info.row.original.risk ? num(info.getValue()) : "—"),
+          cell: (info) =>
+            info.row.original.risk ? (
+              <Estimated d={info.row.original}>
+                {num(info.getValue())}
+              </Estimated>
+            ) : (
+              "–"
+            ),
         }),
         columnHelper.accessor((d) => d.risk?.exposureEur ?? 0, {
           id: "exposure",
           header: t("dashboard.totalExposure"),
-          cell: (info) => (info.row.original.risk ? eur(info.getValue()) : "—"),
+          cell: (info) =>
+            info.row.original.risk ? (
+              <Estimated d={info.row.original}>
+                {eur(info.getValue())}
+              </Estimated>
+            ) : (
+              "–"
+            ),
         }),
         columnHelper.accessor((d) => d.risk?.eal ?? 0, {
           id: "eal",
           header: t("dashboard.hailEal"),
-          cell: (info) => (info.row.original.risk ? eur(info.getValue()) : "—"),
+          cell: (info) =>
+            info.row.original.risk ? (
+              <Estimated d={info.row.original}>
+                {eur(info.getValue())}
+              </Estimated>
+            ) : (
+              "–"
+            ),
         }),
         columnHelper.display({
           id: "actions",
           header: "",
           cell: (info) =>
             onShowOnMap ? (
-              <button
-                type="button"
-                title={t("ui.showOnMap")}
+              <HintButton
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground hover:text-primary"
                 aria-label={t("ui.showOnMap")}
-                className="text-muted-foreground hover:text-primary"
+                side="left"
                 onClick={(e) => {
                   e.stopPropagation();
                   onShowOnMap(info.row.original);
                 }}
               >
                 <MapPin className="size-4" />
-              </button>
+              </HintButton>
             ) : null,
         }),
       ]),
-    [alertIds, onShowOnMap, t],
+    [alertIds, onSelect, onShowOnMap, t],
   );
 
   const table = useTable({
     features,
-    data: dealerships,
+    data: searched,
     columns,
-    state: { sorting, globalFilter: filter, pagination },
+    state: { sorting, pagination },
     onSortingChange: setSorting,
-    onGlobalFilterChange: (value) => {
-      setFilter(value as string);
-      // A new search starts on the first page.
-      setPagination((p) => ({ ...p, pageIndex: 0 }));
-    },
     onPaginationChange: setPagination,
     autoResetPageIndex: false,
   });
-  const matching = table.getFilteredRowModel().rows.length;
+  const matching = searched.length;
+  const orderKey = table
+    .getSortedRowModel()
+    .rows.map((row) => row.original.id)
+    .join("\n");
+  useEffect(() => {
+    onOrderChange?.(orderKey ? orderKey.split("\n") : []);
+  }, [orderKey, onOrderChange]);
   const pageCount = table.getPageCount();
   // Fewer rows (a filter changed elsewhere) can leave the page past the end.
   if (pagination.pageIndex > 0 && pagination.pageIndex >= pageCount)
@@ -194,7 +271,7 @@ export function DealershipTable({
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5 text-base">
           {t("dashboard.tiles.table")}
-          <TileInfo topic="table" />
+          <TileInfo topic="table" label={t("dashboard.tiles.table")} />
         </CardTitle>
         <CardDescription>{t("dashboard.table.description")}</CardDescription>
       </CardHeader>
@@ -202,7 +279,11 @@ export function DealershipTable({
         <Input
           type="search"
           value={filter}
-          onChange={(e) => setFilter(e.target.value)}
+          onChange={(e) => {
+            setFilter(e.target.value);
+            // A new search starts on the first page.
+            setPagination((p) => ({ ...p, pageIndex: 0 }));
+          }}
           placeholder={t("dashboard.table.search")}
           aria-label={t("dashboard.table.search")}
           className="max-w-xs"
@@ -214,44 +295,46 @@ export function DealershipTable({
                 <TableRow key={hg.id}>
                   {hg.headers.map((header) => {
                     const numeric = NUMERIC_COLUMNS.has(header.column.id);
+                    const sorted = header.column.getIsSorted();
+                    const canSort = header.column.getCanSort();
+                    const SortIcon =
+                      sorted === "asc"
+                        ? ArrowUp
+                        : sorted === "desc"
+                          ? ArrowDown
+                          : ArrowUpDown;
                     return (
                       <TableHead
                         key={header.id}
                         className={`${numeric ? "text-right" : ""} ${
-                          HIDDEN_WHEN_NARROW.has(header.column.id)
-                            ? NARROW_HIDDEN
-                            : ""
+                          NARROW_HIDDEN[header.column.id] ?? ""
                         }`}
                         aria-sort={
-                          header.column.getIsSorted() === "asc"
-                            ? "ascending"
-                            : header.column.getIsSorted() === "desc"
-                              ? "descending"
-                              : "none"
+                          !canSort
+                            ? undefined
+                            : sorted === "asc"
+                              ? "ascending"
+                              : sorted === "desc"
+                                ? "descending"
+                                : "none"
                         }
                       >
-                        {header.isPlaceholder ? null : (
+                        {header.isPlaceholder || !canSort ? null : (
                           <button
                             type="button"
-                            className={`inline-flex items-center gap-1 hover:text-foreground ${
+                            className={`inline-flex items-center gap-1 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                               numeric ? "flex-row-reverse" : ""
-                            }`}
+                            } ${sorted ? "text-foreground" : ""}`}
                             onClick={header.column.getToggleSortingHandler()}
-                            title={
-                              header.column.getIsSorted() === "asc"
-                                ? t("dashboard.sortAscending")
-                                : header.column.getIsSorted() === "desc"
-                                  ? t("dashboard.sortDescending")
-                                  : t("dashboard.sortNone")
-                            }
                           >
                             {flexRender(
                               header.column.columnDef.header,
                               header.getContext(),
                             )}
-                            {header.column.getCanSort() && (
-                              <ArrowUpDown className="size-3" />
-                            )}
+                            <SortIcon
+                              aria-hidden
+                              className={`size-3 ${sorted ? "" : "opacity-50"}`}
+                            />
                           </button>
                         )}
                       </TableHead>
@@ -278,11 +361,7 @@ export function DealershipTable({
                         NUMERIC_COLUMNS.has(cell.column.id)
                           ? "text-right tabular-nums"
                           : ""
-                      } ${
-                        HIDDEN_WHEN_NARROW.has(cell.column.id)
-                          ? NARROW_HIDDEN
-                          : ""
-                      }`}
+                      } ${NARROW_HIDDEN[cell.column.id] ?? ""}`}
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
@@ -338,7 +417,7 @@ export function DealershipTable({
                   ))}
                 </SelectContent>
               </Select>
-              <Button
+              <HintButton
                 variant="outline"
                 size="icon"
                 className="size-8"
@@ -347,14 +426,14 @@ export function DealershipTable({
                 aria-label={t("dashboard.table.previousPage")}
               >
                 <ChevronLeft className="size-4" />
-              </Button>
+              </HintButton>
               <span className="tabular-nums">
                 {t("dashboard.table.page", {
                   page: pagination.pageIndex + 1,
                   pages: pageCount,
                 })}
               </span>
-              <Button
+              <HintButton
                 variant="outline"
                 size="icon"
                 className="size-8"
@@ -363,7 +442,7 @@ export function DealershipTable({
                 aria-label={t("dashboard.table.nextPage")}
               >
                 <ChevronRight className="size-4" />
-              </Button>
+              </HintButton>
             </div>
           </div>
         )}
@@ -373,6 +452,22 @@ export function DealershipTable({
 }
 
 const PAGE_SIZES = [25, 50, 100];
+
+/** A figure with the "≈" mark when it is an estimate. */
+function Estimated({
+  d,
+  children,
+}: Readonly<{
+  d: AnalyzedDealership;
+  children: React.ReactNode;
+}>): React.JSX.Element {
+  return (
+    <>
+      <EstimateMark reasons={estimateReasons(d)} />
+      {children}
+    </>
+  );
+}
 
 /** Not analysed yet: no figure to show, rather than a misleading "0 €". */
 function PendingLabel(): React.JSX.Element {

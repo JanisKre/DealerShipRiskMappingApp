@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap, useMapEvents } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { toast } from "sonner";
+import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import {
   ArrowRight,
@@ -17,7 +19,7 @@ import {
   RotateCcw,
   ScanSearch,
   Save,
-  Settings,
+  ScanEye,
   Square,
   Trash2,
   TriangleAlert,
@@ -32,6 +34,7 @@ import {
 } from "@shared/risk-math";
 import { EmptyState } from "@renderer/components/common/EmptyState";
 import { Button } from "@renderer/components/ui/button";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import { Progress } from "@renderer/components/ui/progress";
 import { cn } from "@renderer/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -72,10 +75,24 @@ import { legendPresence, type ViewBounds } from "@renderer/lib/legendPresence";
 import { NearbyInsuredLayer } from "./NearbyInsuredLayer";
 import { ViewPersistence } from "./ViewPersistence";
 import {
+  boundaryReviewQueue,
+  geometryBounds,
+  withSelected,
+} from "./mapSelection";
+import {
   isTextEntry,
   isUndoShortcut,
   undoShortcutTarget,
 } from "@renderer/lib/boundaryUndo";
+
+// Geoman works on opted-in layers only (`pmIgnore: false`): the map and the
+// boundary polygons. Otherwise its global edit mode made every vector layer
+// editable — thousands of hail-zone polygons froze the app, and location pins
+// became draggable — and snapping scanned all of them on every move.
+L.PM?.setOptIn(true);
+
+/** Geoman's own languages that the app's UI languages map to. */
+const GEOMAN_LANGS = new Set(["de", "en", "fr"]);
 
 /** Tile URLs per basemap type. */
 const TILE_URLS: Record<Basemap, string> = {
@@ -156,35 +173,67 @@ function MapResizer(): null {
   return null;
 }
 
+/** Geoman's draw and edit tooltips follow the UI language. */
+function GeomanLanguage(): null {
+  const { i18n } = useTranslation();
+  const map = useMap();
+  const lang = i18n.language.slice(0, 2);
+  useEffect(() => {
+    map.pm?.setLang(GEOMAN_LANGS.has(lang) ? (lang as "de") : "en");
+  }, [map, lang]);
+  return null;
+}
+
+/** Fits the map to the requested bounds whenever a new request comes in. */
+function FitBounds({
+  request,
+}: Readonly<{ request: FitRequest | null }>): null {
+  const map = useMap();
+  useEffect(() => {
+    if (!request) return;
+    // Extra room at the top, where the notices stack over the map.
+    map.fitBounds(request.bounds, {
+      paddingTopLeft: [48, 160],
+      paddingBottomRight: [48, 48],
+      maxZoom: 19,
+    });
+  }, [map, request]);
+  return null;
+}
+
+interface FitRequest {
+  bounds: [[number, number], [number, number]];
+}
+
 /** Zoom control as shadcn buttons instead of the default Leaflet control. */
 function ZoomControl(): React.JSX.Element {
   const { t } = useTranslation();
   const map = useMap();
   return (
-    <div className="glass absolute left-3 top-3 z-[1000] flex flex-col overflow-hidden rounded-md border shadow-lg">
-      <Button
+    <div className="absolute left-3 top-3 z-[1000] flex flex-col overflow-hidden rounded-md border bg-card shadow-lg">
+      <HintButton
         type="button"
         variant="ghost"
         size="icon"
+        side="right"
         className="size-8 rounded-none"
         onClick={() => map.zoomIn()}
-        title={t("map.page.zoomIn")}
         aria-label={t("map.page.zoomIn")}
       >
         <Plus className="size-4" />
-      </Button>
+      </HintButton>
       <div className="h-px bg-border" />
-      <Button
+      <HintButton
         type="button"
         variant="ghost"
         size="icon"
+        side="right"
         className="size-8 rounded-none"
         onClick={() => map.zoomOut()}
-        title={t("map.page.zoomOut")}
         aria-label={t("map.page.zoomOut")}
       >
         <Minus className="size-4" />
-      </Button>
+      </HintButton>
     </div>
   );
 }
@@ -195,15 +244,17 @@ interface ContextMenuState {
   y: number;
 }
 
-/** Right-click context menu for a marker: reanalyze or delete. */
+/** Right-click context menu for a marker: details, reanalyze or delete. */
 function MarkerContextMenu({
   state,
   onClose,
+  onDetails,
   onReanalyze,
   onDelete,
 }: Readonly<{
   state: ContextMenuState;
   onClose: () => void;
+  onDetails: (id: string) => void;
   onReanalyze: (id: string) => void;
   onDelete: (id: string) => void;
 }>): React.JSX.Element {
@@ -228,16 +279,30 @@ function MarkerContextMenu({
 
   return (
     <div
-      className="glass fixed z-[2000] min-w-40 overflow-hidden rounded-md border py-1 shadow-lg"
+      className="fixed z-[2000] min-w-40 max-w-64 overflow-hidden rounded-md border bg-popover py-1 text-popover-foreground shadow-lg"
       ref={menuRef}
       style={{ left: state.x, top: state.y }}
     >
-      <p className="truncate px-3 py-1 text-xs font-medium text-muted-foreground">
+      <p
+        className="truncate px-3 py-1 text-xs font-medium text-muted-foreground"
+        title={state.dealership.name}
+      >
         {state.dealership.name}
       </p>
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+        className={MENU_ITEM_CLASS}
+        onClick={() => {
+          onDetails(state.dealership.id);
+          onClose();
+        }}
+      >
+        <Info className="size-3.5" />
+        {t("map.page.details")}
+      </button>
+      <button
+        type="button"
+        className={MENU_ITEM_CLASS}
         onClick={() => {
           onReanalyze(state.dealership.id);
           onClose();
@@ -248,7 +313,10 @@ function MarkerContextMenu({
       </button>
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10"
+        className={cn(
+          MENU_ITEM_CLASS,
+          "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10",
+        )}
         onClick={() => {
           onDelete(state.dealership.id);
           onClose();
@@ -260,6 +328,9 @@ function MarkerContextMenu({
     </div>
   );
 }
+
+const MENU_ITEM_CLASS =
+  "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:outline-none";
 
 export function MapPage(): React.JSX.Element {
   const { t } = useTranslation();
@@ -283,6 +354,8 @@ export function MapPage(): React.JSX.Element {
   const unanalyzedCount = useAppStore((s) => unanalyzedInputs(s).length);
   const [resumeDismissed, setResumeDismissed] = useState(false);
   const cancelAnalysis = useAppStore((s) => s.cancelAnalysis);
+  // Stopping waits for the locations in flight; say so right away.
+  const cancelRequested = useAppStore((s) => s.analysisCancelRequested);
   const detectionUpdateIds = useAppStore((s) => s.detectionUpdateIds);
   const detectionUpdateErrors = useAppStore((s) => s.detectionUpdateErrors);
   const boundaryEditIds = useAppStore((s) => s.boundaryEditIds);
@@ -317,10 +390,12 @@ export function MapPage(): React.JSX.Element {
     useState(false);
   const [modelWarningDismissed, setModelWarningDismissed] = useState(false);
   const [errorsDismissed, setErrorsDismissed] = useState(false);
+  const [clustersInfoDismissed, setClustersInfoDismissed] = useState(false);
   const [detectionEditId, setDetectionEditId] = useState<string | null>(null);
   const [detectionDraft, setDetectionDraft] =
     useState<DetectionEditDraft | null>(null);
 
+  const [fitRequest, setFitRequest] = useState<FitRequest | null>(null);
   const [mapView, setMapView] = useState<MapViewPoint | null>(null);
   const [viewBounds, setViewBounds] = useState<ViewBounds | null>(null);
   const { selection: resolvedImagery, loading: imageryLoading } =
@@ -409,7 +484,11 @@ export function MapPage(): React.JSX.Element {
   // Active portfolio filters (sub-portfolio/partner/group/cluster).
   const portfolioFiltered = useFilteredDealerships(withCoords);
 
-  const visibleDealerships = portfolioFiltered;
+  // The selected site stays on the map even when a filter hides it.
+  const visibleDealerships = useMemo(
+    () => withSelected(portfolioFiltered, withCoords, selectedId),
+    [portfolioFiltered, withCoords, selectedId],
+  );
 
   // What the locations in view show, so the legend can grey out the rest.
   const presence = useMemo(
@@ -425,18 +504,19 @@ export function MapPage(): React.JSX.Element {
 
   // Surface every low-confidence/estimated boundary, not only synthetic buffers.
   // This makes regional source gaps and weak OSM matches visible to the underwriter.
+  // Only the sites the filters show: the review must not ask about hidden ones.
   const boundaryReviewIds = useMemo(
-    () => withCoords.filter((d) => d.boundary?.reviewRequired).map((d) => d.id),
-    [withCoords],
+    () => boundaryReviewQueue(portfolioFiltered),
+    [portfolioFiltered],
   );
   const boundaryReviewCount = boundaryReviewIds.length;
   // Fallback circles among them: the least reliable kind, named on their own.
   const fallbackReviewCount = useMemo(
     () =>
-      withCoords.filter(
+      portfolioFiltered.filter(
         (d) => d.boundary?.reviewRequired && d.boundary.source === "synthetic",
       ).length,
-    [withCoords],
+    [portfolioFiltered],
   );
   const fallbackFilterActive = useAppStore(
     (s) => s.filters.boundarySource === "fallback",
@@ -475,6 +555,10 @@ export function MapPage(): React.JSX.Element {
     dealerships.find((d) => d.id === id)?.name ?? failedInputs[id]?.name ?? id;
   const analyzingNames = analyzingIds.map(nameOf);
   const failedNames = Object.keys(analysisErrors).map(nameOf);
+  // Turning the cluster layer on again shows its "no clusters" note again.
+  useEffect(() => {
+    if (!layers.accumulationClusters) setClustersInfoDismissed(false);
+  }, [layers.accumulationClusters]);
   // A new batch brings new errors to read.
   useEffect(() => {
     if (analyzing) setErrorsDismissed(false);
@@ -570,10 +654,18 @@ export function MapPage(): React.JSX.Element {
     setDetectionEditing(true);
   }
 
-  function startBoundaryEditing(): void {
+  /**
+   * Edits the boundaries; from the review notice the map first fits the
+   * site's boundary, so its vertex handles do not pile up at a far zoom.
+   */
+  function startBoundaryEditing(target?: AnalyzedDealership | null): void {
     if (detectionEditing) cancelDetectionEditing();
     setLayers({ boundaries: true });
     setEditing(true);
+    const bounds = target?.boundary
+      ? geometryBounds(target.boundary.polygon)
+      : null;
+    if (bounds) setFitRequest({ bounds });
   }
 
   /** Selects (and flies to) the next location whose boundary needs a check. */
@@ -653,7 +745,20 @@ export function MapPage(): React.JSX.Element {
           height: Math.round(r.height * dpr),
         };
       }
-      await window.api.captureMap(rect, mode);
+      const result = await window.api.captureMap(rect, mode);
+      if (mode === "clipboard" && result.ok)
+        toast.success(t("map.page.mapCopied"));
+      else if (mode === "save" && result.path)
+        toast.success(t("map.page.mapSaved"), { description: result.path });
+    } catch (error) {
+      console.warn("Map capture failed:", error);
+      toast.error(
+        t(
+          mode === "clipboard"
+            ? "map.page.mapCopyFailed"
+            : "map.page.mapSaveFailed",
+        ),
+      );
     } finally {
       setCapturing(false);
     }
@@ -712,7 +817,7 @@ export function MapPage(): React.JSX.Element {
               count: Object.keys(analysisErrors).length,
             })}
           </div>
-          <p className="line-clamp-2 text-xs text-muted-foreground">
+          <p className="line-clamp-2 break-words text-xs text-muted-foreground">
             {failedNames.join(" · ")}
           </p>
           <Button
@@ -795,6 +900,7 @@ export function MapPage(): React.JSX.Element {
         center={center}
         zoom={10}
         zoomControl={false}
+        pmIgnore={false}
         className="h-full w-full"
       >
         <TileLayer
@@ -807,6 +913,8 @@ export function MapPage(): React.JSX.Element {
           {...BBOX_TEMPLATE_OPTION}
         />
         <MapResizer />
+        <GeomanLanguage />
+        <FitBounds request={fitRequest} />
         <MapViewReporter onChange={setMapView} onBounds={setViewBounds} />
         <ZoomControl />
 
@@ -871,13 +979,17 @@ export function MapPage(): React.JSX.Element {
         />
       </MapContainer>
 
-      {/* Status banner top center: analysis progress + data quality hints (stacked) */}
-      <div className="pointer-events-none absolute inset-x-0 top-3 z-[1000] flex flex-col items-center gap-2 px-14 [&>*]:pointer-events-auto">
+      {/* Status banner top center: analysis progress + data quality hints,
+          stacked; at most about half the map high, scrolling beyond that. */}
+      <div className="pointer-events-none absolute inset-x-0 top-3 z-[1000] flex max-h-[55%] flex-col items-center gap-2 overflow-y-auto px-14 pb-2 [&>*]:pointer-events-auto [&>*]:shrink-0">
         {detectionEditing && detectionDraft && detectionReviewDealership && (
           <div className={NOTICE_CLASS}>
             <ScanSearch className="mt-0.5 size-4 shrink-0 text-primary" />
             <div className="min-w-0 flex-1 space-y-1">
-              <div className="font-medium">
+              <div
+                className="truncate font-medium"
+                title={detectionReviewDealership.name}
+              >
                 {detectionReviewDealership.name}
               </div>
               <p className="text-xs leading-snug text-muted-foreground">
@@ -902,7 +1014,7 @@ export function MapPage(): React.JSX.Element {
             <div key={`edit-${id}`} className={NOTICE_CLASS}>
               <Save className="mt-0.5 size-4 shrink-0 text-primary" />
               <div className="min-w-0 flex-1 space-y-1.5">
-                <div className="font-medium">
+                <div className="line-clamp-2 break-words font-medium">
                   {t("map.page.boundaryEditedPrompt", {
                     name: dealership.name,
                   })}
@@ -964,15 +1076,15 @@ export function MapPage(): React.JSX.Element {
               {/* Announced politely to screen readers as the count moves. */}
               <div
                 role="status"
-                className="flex items-baseline justify-between gap-3"
+                className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5"
               >
-                <span className="font-medium tabular-nums">
+                <span className="whitespace-nowrap font-medium tabular-nums">
                   {t("map.page.analyzingProgress", {
                     done: progress.done,
                     total: progress.total,
                   })}
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                <span className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">
                   {remainingLabel(t, progress)}
                 </span>
               </div>
@@ -996,9 +1108,18 @@ export function MapPage(): React.JSX.Element {
               variant="ghost"
               className="h-7 shrink-0 text-xs"
               onClick={cancelAnalysis}
+              disabled={cancelRequested}
             >
-              <Square className="size-3" />
-              {t("map.page.cancelAnalysis")}
+              {cancelRequested ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <Square className="size-3" />
+              )}
+              {t(
+                cancelRequested
+                  ? "map.page.cancellingAnalysis"
+                  : "map.page.cancelAnalysis",
+              )}
             </Button>
           </div>
         )}
@@ -1031,8 +1152,8 @@ export function MapPage(): React.JSX.Element {
           !editing &&
           !boundaryWarningDismissed &&
           boundaryReviewCount > 0 && (
-            <div className={NOTICE_CLASS}>
-              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-500" />
+            <div className={cn(NOTICE_CLASS, "border-warning/40")}>
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
               <div className="min-w-0 flex-1 space-y-1.5">
                 <div className="font-medium">
                   {t("map.page.boundaryWarning", {
@@ -1040,7 +1161,7 @@ export function MapPage(): React.JSX.Element {
                   })}
                 </div>
                 {fallbackReviewCount > 0 && (
-                  <p className="text-xs leading-snug text-amber-700 dark:text-amber-300">
+                  <p className="text-xs leading-snug text-muted-foreground">
                     {t("map.page.fallbackBoundaries", {
                       count: fallbackReviewCount,
                     })}
@@ -1048,7 +1169,10 @@ export function MapPage(): React.JSX.Element {
                 )}
                 {reviewTarget ? (
                   <>
-                    <p className="text-xs leading-snug text-muted-foreground">
+                    <p
+                      className="line-clamp-3 break-words text-xs leading-snug text-muted-foreground"
+                      title={reviewTarget.name}
+                    >
                       {t("map.page.boundaryReviewQuestion", {
                         name: reviewTarget.name,
                         position:
@@ -1071,7 +1195,7 @@ export function MapPage(): React.JSX.Element {
                         size="sm"
                         variant="outline"
                         className="h-7 text-xs"
-                        onClick={startBoundaryEditing}
+                        onClick={() => startBoundaryEditing(reviewTarget)}
                       >
                         <Pencil className="size-3" />
                         {t("map.page.boundaryCorrect")}
@@ -1131,8 +1255,8 @@ export function MapPage(): React.JSX.Element {
           )}
 
         {!analyzing && !modelWarningDismissed && stubDetectionCount > 0 && (
-          <div className={NOTICE_CLASS}>
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-500" />
+          <div className={cn(NOTICE_CLASS, "border-warning/40")}>
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
             <div className="min-w-0 flex-1 space-y-1">
               <div className="font-medium">
                 {t("map.page.detectionWarning", {
@@ -1148,10 +1272,10 @@ export function MapPage(): React.JSX.Element {
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
-                onClick={() => navigate("/settings")}
+                onClick={() => navigate("/settings?section=data")}
               >
-                <Settings className="size-3" />
-                {t("map.page.openSettings")}
+                <ScanEye className="size-3" />
+                {t("map.page.setupDetection")}
               </Button>
             </div>
             <DismissButton
@@ -1162,6 +1286,7 @@ export function MapPage(): React.JSX.Element {
         )}
 
         {layers.accumulationClusters &&
+          !clustersInfoDismissed &&
           visibleDealerships.length > 0 &&
           accumulationClusterCount === 0 && (
             <div className={NOTICE_CLASS}>
@@ -1171,6 +1296,10 @@ export function MapPage(): React.JSX.Element {
                   radius: parameters.accumulationRadiusKm,
                 })}
               </p>
+              <DismissButton
+                label={t("map.page.dismissHint")}
+                onClick={() => setClustersInfoDismissed(true)}
+              />
             </div>
           )}
       </div>
@@ -1191,7 +1320,6 @@ export function MapPage(): React.JSX.Element {
         <div className="flex max-h-full min-h-0 w-60 min-w-0 shrink flex-col justify-end">
           <LayerPanel
             drawing={drawingScenario}
-            dealerships={withCoords}
             onToggleDraw={() => setDrawingScenario((d) => !d)}
             capturing={capturing}
             onExport={exportMap}
@@ -1213,6 +1341,10 @@ export function MapPage(): React.JSX.Element {
         <MarkerContextMenu
           state={contextMenu}
           onClose={() => setContextMenu(null)}
+          onDetails={(id) => {
+            select(id);
+            openDetailDialog(id);
+          }}
           onReanalyze={reanalyzeDealership}
           onDelete={(id) =>
             setPendingDelete(dealerships.find((d) => d.id === id) ?? null)
@@ -1228,7 +1360,12 @@ export function MapPage(): React.JSX.Element {
           if (!open) setPendingDelete(null);
         }}
         onConfirm={() => {
-          if (pendingDelete) removeDealership(pendingDelete.id);
+          if (pendingDelete) {
+            removeDealership(pendingDelete.id);
+            toast.success(
+              t("map.locationsPanel.deleteSelectedToast", { count: 1 }),
+            );
+          }
           setPendingDelete(null);
         }}
       />
@@ -1236,24 +1373,29 @@ export function MapPage(): React.JSX.Element {
   );
 }
 
-/** Shared look of the status notices at the top of the map. */
+/**
+ * Shared look of the status notices at the top of the map: opaque (they
+ * stack over imagery and each other) and compact. Body text stays muted;
+ * a warning only colours the icon and the border.
+ */
 const NOTICE_CLASS =
-  "glass flex w-full max-w-[28rem] items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm shadow-lg";
+  "flex w-full max-w-[28rem] items-start gap-2.5 rounded-lg border bg-card px-3 py-2 text-sm shadow-lg";
 
 function DismissButton({
   label,
   onClick,
 }: Readonly<{ label: string; onClick: () => void }>): React.JSX.Element {
   return (
-    <button
+    <HintButton
       type="button"
-      className="shrink-0 text-muted-foreground hover:text-foreground"
+      variant="ghost"
+      size="icon"
+      className="-mr-1.5 -mt-0.5 size-6 text-muted-foreground"
       onClick={onClick}
-      title={label}
       aria-label={label}
     >
       <X className="size-3.5" />
-    </button>
+    </HintButton>
   );
 }
 

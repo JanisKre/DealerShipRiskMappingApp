@@ -786,7 +786,7 @@ How to answer:
 How to read the portfolio data:
 - Status: insured (in the book) or prospect (new business).
 - Hail zone: 1 (lowest) to 6 (highest hail hazard); source postcode table, licensed provider or estimated from weather data.
-- Vehicles: total on the lot and "exposed" (parked in the open, the count the EAL uses); counted on aerial imagery ("detected", with the image month), reviewed by an underwriter ("manual"), or derived from the asset value.
+- Vehicles: total on the lot and "exposed" (parked in the open, the count the EAL uses); counted on aerial imagery ("detected", with the image month), estimated from the lot area because no detection model is installed ("estimated" — not a count; say so when quoting it), reviewed by an underwriter ("manual"), or derived from the asset value.
 - Exposure: estimated value of the vehicles on the lot (EUR).
 - Hail EAL: expected annual hail loss (EUR) = damaging hail events per year in the zone × exposed vehicles × expected loss per vehicle and event. Frequency and severity are uncalibrated placeholder values.
 - PML 100-year: modelled loss of a 100-year event in the worst accumulation cluster.

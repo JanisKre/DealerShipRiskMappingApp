@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
+import i18next, { type TFunction } from "i18next";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
@@ -41,12 +41,17 @@ import type {
 import { asPolygon, outerRings } from "@shared/boundary-geometry-utils";
 import { boundaryReviewReasons } from "@shared/boundary-review";
 import { DEALERSHIP_NOTES_MAX_LENGTH } from "@shared/constants";
-import { WEBSITE_URL_MAX_LENGTH, websiteLabel } from "@shared/website";
+import {
+  isUserWebsiteSource,
+  WEBSITE_URL_MAX_LENGTH,
+  websiteLabel,
+} from "@shared/website";
 import { sourceLabel } from "@shared/natcat-catalog";
 import { boundarySourceLabel } from "@renderer/lib/boundarySource";
 import { LlmErrorMessage } from "@renderer/components/ai/LlmSetupNotice";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import {
   Dialog,
   DialogContent,
@@ -86,8 +91,10 @@ import { eur, num, pct } from "@renderer/lib/format";
 import { HailZoneBadge } from "./HailZoneBadge";
 import {
   dealershipHailZone,
+  displayedHailVehicleSource,
   effectiveVehicleCount,
   estimateHailZoneFromScore,
+  isAreaEstimatedDetection,
 } from "@shared/risk-math";
 import { buildUnderwritingMessages } from "./UnderwritingMessages";
 import { DetectionImageryNote } from "./DetectionImageryNote";
@@ -135,28 +142,42 @@ export function DealershipDetailDialog({
   open,
   onOpenChange,
   onNavigate,
+  order,
   review,
 }: {
   dealership: AnalyzedDealership | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNavigate?: (id: string) => void;
+  /** Ids in the order the arrows step through (e.g. the sorted table). */
+  order?: string[];
   /** Review run in progress: adds the "reviewed · next" strip. */
   review?: ReviewRun;
 }): React.JSX.Element {
+  const contentRef = useRef<HTMLDivElement>(null);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-h-[85vh] max-w-2xl overflow-auto"
-        // Focus would land on the first control (the "previous" arrow) and
-        // read as a highlighted button; Tab still starts inside the dialog.
-        onOpenAutoFocus={(event) => event.preventDefault()}
+        ref={contentRef}
+        // Fixed height: switching tabs doesn't resize the dialog. Only the
+        // body scrolls; name, actions and close stay at the top.
+        className="flex h-[85vh] max-h-[85vh] max-w-2xl flex-col gap-0 overflow-hidden p-0"
+        // Focus the title, not the first control (the "previous" arrow,
+        // which would read as a highlighted button): screen readers start
+        // at the name and Tab continues from there.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          contentRef.current
+            ?.querySelector<HTMLElement>("[data-dialog-autofocus]")
+            ?.focus();
+        }}
       >
         {dealership && (
           <DetailBody
             d={dealership}
             onClose={() => onOpenChange(false)}
             onNavigate={onNavigate}
+            order={order}
             review={review}
           />
         )}
@@ -179,11 +200,13 @@ function DetailBody({
   d,
   onClose,
   onNavigate,
+  order,
   review,
 }: {
   d: AnalyzedDealership;
   onClose: () => void;
   onNavigate?: (id: string) => void;
+  order?: string[];
   review?: ReviewRun;
 }): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -205,13 +228,20 @@ function DetailBody({
     d.address,
   );
 
-  const located = dealerships.filter((x) => x.lat != null && x.lon != null);
-  const position = located.findIndex((x) => x.id === d.id);
+  const locatedIds = dealerships
+    .filter((x) => x.lat != null && x.lon != null)
+    .map((x) => x.id);
+  // The caller's order (the sorted, filtered table) when this site is in it.
+  const located =
+    order && order.includes(d.id)
+      ? order.filter((id) => locatedIds.includes(id))
+      : locatedIds;
+  const position = located.indexOf(d.id);
   const inReview = review != null && review.ids.includes(d.id);
   const step = (delta: number): void => {
     if (!onNavigate) return;
     // In a review run the arrows move through the queue, not the portfolio.
-    const ring = inReview && review ? review.ids : located.map((x) => x.id);
+    const ring = inReview && review ? review.ids : located;
     if (ring.length < 2) return;
     const index = ring.indexOf(d.id);
     onNavigate(ring[(index + delta + ring.length) % ring.length]);
@@ -251,7 +281,7 @@ function DetailBody({
     () => setTab("site"),
     () => {
       onClose();
-      navigate("/settings");
+      navigate("/settings?section=data");
     },
   );
   async function exportReport(): Promise<void> {
@@ -278,14 +308,21 @@ function DetailBody({
     }
   }
   const vehicles = d.detection ? effectiveVehicleCount(d.detection) : null;
-  const manualCount = d.detection?.manualVehicleCount != null;
+  const vehicleSource = displayedHailVehicleSource(
+    d.risk?.ealBreakdown?.hailDetail?.vehicleSource,
+    d.detection,
+  );
   const rank = portfolioRank(d, dealerships);
   const boundary = d.boundary;
   return (
     <>
-      <DialogHeader className="space-y-1">
+      <DialogHeader className="shrink-0 space-y-1 border-b px-6 pt-6 pb-3">
         <div className="flex items-start gap-2 pr-8">
-          <DialogTitle className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <DialogTitle
+            data-dialog-autofocus
+            tabIndex={-1}
+            className="flex min-w-0 flex-1 flex-wrap items-center gap-2 rounded-sm focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
             <span className="min-w-0 break-words">{d.name}</span>
             {hailZone != null ? (
               <HailZoneBadge
@@ -301,11 +338,12 @@ function DetailBody({
                 : t("dashboard.detailDialog.businessNew")}
             </Badge>
             {boundary?.reviewRequired && (
-              <button type="button" onClick={() => setTab("site")}>
-                <Badge
-                  variant="outline"
-                  className="border-amber-500 font-normal text-amber-700 dark:text-amber-400"
-                >
+              <button
+                type="button"
+                className="rounded-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                onClick={() => setTab("site")}
+              >
+                <Badge variant="warning" className="font-normal">
                   {t("dashboard.detailDialog.boundaryReviewBadge")}
                 </Badge>
               </button>
@@ -313,29 +351,27 @@ function DetailBody({
           </DialogTitle>
           {onNavigate && located.length > 1 && !inReview && (
             <div className="flex shrink-0 items-center gap-0.5">
-              <Button
+              <HintButton
                 variant="ghost"
                 size="icon"
                 className="size-7"
                 onClick={() => step(-1)}
                 aria-label={t("dashboard.detailDialog.previousLocation")}
-                title={t("dashboard.detailDialog.previousLocation")}
               >
                 <ChevronLeft className="size-4" />
-              </Button>
+              </HintButton>
               <span className="text-xs tabular-nums text-muted-foreground">
                 {position + 1}/{located.length}
               </span>
-              <Button
+              <HintButton
                 variant="ghost"
                 size="icon"
                 className="size-7"
                 onClick={() => step(1)}
                 aria-label={t("dashboard.detailDialog.nextLocation")}
-                title={t("dashboard.detailDialog.nextLocation")}
               >
                 <ChevronRight className="size-4" />
-              </Button>
+              </HintButton>
             </div>
           )}
         </div>
@@ -380,14 +416,14 @@ function DetailBody({
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
+                <HintButton
                   size="sm"
                   variant="ghost"
                   className="h-7 px-2"
                   aria-label={t("dashboard.detailDialog.moreActions")}
                 >
                   <MoreHorizontal className="size-4" />
-                </Button>
+                </HintButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
@@ -421,105 +457,112 @@ function DetailBody({
       </DialogHeader>
 
       {review && inReview && onNavigate && (
-        <ReviewStrip
-          d={d}
-          run={review}
-          onNavigate={onNavigate}
-          onSkip={() => step(1)}
-        />
-      )}
-
-      <div className="grid grid-cols-3 gap-2">
-        <KeyFigure
-          label={t("dashboard.detailDialog.kpiHailEal")}
-          value={eur(d.risk?.eal)}
-          hint={
-            rank != null ? t("dashboard.detailDialog.kpiRank", rank) : undefined
-          }
-        />
-        <KeyFigure
-          label={t("common.vehicles")}
-          value={num(vehicles ?? undefined)}
-          hint={
-            manualCount
-              ? t("dashboard.detailDialog.kpiVehiclesManual")
-              : d.detection?.model === "stub-area-heuristic"
-                ? t("dashboard.detailDialog.kpiVehiclesEstimated")
-                : t("dashboard.detailDialog.kpiVehiclesDetected")
-          }
-        />
-        <KeyFigure
-          label={t("dashboard.detailDialog.exposureLabel")}
-          value={eur(d.risk?.exposureEur)}
-          hint={`${num(boundary?.areaSqm)} m²`}
-        />
-      </div>
-
-      {attention.length > 0 && (
-        <div className="space-y-1">
-          {attention.map((item) => (
-            <AttentionRow key={item.key} item={item} />
-          ))}
+        <div className="shrink-0 px-6 pt-3">
+          <ReviewStrip
+            d={d}
+            run={review}
+            onNavigate={onNavigate}
+            onSkip={() => step(1)}
+          />
         </div>
       )}
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as DetailTab)}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">
-            {t("dashboard.detailDialog.tabOverview")}
-          </TabsTrigger>
-          <TabsTrigger value="site">
-            {t("dashboard.detailDialog.tabSite")}
-          </TabsTrigger>
-          <TabsTrigger value="contract">
-            {t("dashboard.detailDialog.tabContract")}
-          </TabsTrigger>
-          <TabsTrigger value="sources">
-            {t("dashboard.detailDialog.tabSources")}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4 pt-2">
-          <HailOverview d={d} />
-          <Separator />
-          <HailHistorySection d={d} />
-          <Separator />
-          <AiSection d={d} />
-        </TabsContent>
-
-        <TabsContent value="site" className="space-y-4 pt-2">
-          <BoundaryPanel d={d} onEditOnMap={() => showOnMap(true)} />
-          <Separator />
-          <VehiclePanel d={d} />
-          <DetectionImageryNote detection={d.detection} />
-          <details className="rounded-md border text-sm">
-            <summary className="px-3 py-2 font-medium text-muted-foreground">
-              {t("dashboard.detailDialog.imageryHistoryToggle")}
-            </summary>
-            <div className="border-t p-3">
-              <ImageryHistorySection d={d} onClose={onClose} />
-            </div>
-          </details>
-        </TabsContent>
-
-        <TabsContent value="contract" className="space-y-4 pt-2">
-          <NotesSection d={d} />
-          <PortfolioMetaSection d={d} />
-          <WebsiteRow
-            d={d}
-            detectedWebsite={osmDetails?.website}
-            detecting={osmLoading}
+      {/* The only scrolling part; the tab bar sticks to its top. */}
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pt-4 pb-6">
+        <div className="grid grid-cols-3 gap-2">
+          <KeyFigure
+            label={t("dashboard.detailDialog.kpiHailEal")}
+            value={eur(d.risk?.eal)}
+            hint={
+              rank != null
+                ? t("dashboard.detailDialog.kpiRank", rank)
+                : undefined
+            }
           />
-          <OsmDetailsSection details={osmDetails} loading={false} />
-        </TabsContent>
+          <KeyFigure
+            label={t("common.vehicles")}
+            value={num(vehicles ?? undefined)}
+            hint={
+              vehicleSource === "manual"
+                ? t("dashboard.detailDialog.kpiVehiclesManual")
+                : vehicleSource === "estimated"
+                  ? t("dashboard.detailDialog.kpiVehiclesEstimated")
+                  : t("dashboard.detailDialog.kpiVehiclesDetected")
+            }
+          />
+          <KeyFigure
+            label={t("dashboard.detailDialog.exposureLabel")}
+            value={eur(d.risk?.exposureEur)}
+            hint={`${num(boundary?.areaSqm)} m²`}
+          />
+        </div>
 
-        <TabsContent value="sources" className="space-y-4 pt-2">
-          <ModelConfidenceSummary d={d} />
-          <NatCatSection d={d} />
-          <Separator />
-          <HistorySection d={d} />
-        </TabsContent>
-      </Tabs>
+        {attention.length > 0 && (
+          <div className="space-y-1">
+            {attention.map((item) => (
+              <AttentionRow key={item.key} item={item} />
+            ))}
+          </div>
+        )}
+
+        <Tabs value={tab} onValueChange={(v) => setTab(v as DetailTab)}>
+          <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 shadow-[0_-1rem_0_0_var(--background)]">
+            <TabsTrigger value="overview">
+              {t("dashboard.detailDialog.tabOverview")}
+            </TabsTrigger>
+            <TabsTrigger value="site">
+              {t("dashboard.detailDialog.tabSite")}
+            </TabsTrigger>
+            <TabsTrigger value="contract">
+              {t("dashboard.detailDialog.tabContract")}
+            </TabsTrigger>
+            <TabsTrigger value="sources">
+              {t("dashboard.detailDialog.tabSources")}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-4 pt-2">
+            <HailOverview d={d} />
+            <Separator />
+            <HailHistorySection d={d} />
+            <Separator />
+            <AiSection d={d} />
+          </TabsContent>
+
+          <TabsContent value="site" className="space-y-4 pt-2">
+            <BoundaryPanel d={d} onEditOnMap={() => showOnMap(true)} />
+            <Separator />
+            <VehiclePanel d={d} />
+            <DetectionImageryNote detection={d.detection} />
+            <details className="rounded-md border text-sm">
+              <summary className="px-3 py-2 font-medium text-muted-foreground">
+                {t("dashboard.detailDialog.imageryHistoryToggle")}
+              </summary>
+              <div className="border-t p-3">
+                <ImageryHistorySection d={d} onClose={onClose} />
+              </div>
+            </details>
+          </TabsContent>
+
+          <TabsContent value="contract" className="space-y-4 pt-2">
+            <NotesSection d={d} />
+            <PortfolioMetaSection d={d} />
+            <WebsiteRow
+              d={d}
+              detectedWebsite={osmDetails?.website}
+              detecting={osmLoading}
+            />
+            <OsmDetailsSection details={osmDetails} loading={false} />
+          </TabsContent>
+
+          <TabsContent value="sources" className="space-y-4 pt-2">
+            <ModelConfidenceSummary d={d} />
+            <NatCatSection d={d} />
+            <Separator />
+            <HistorySection d={d} />
+          </TabsContent>
+        </Tabs>
+      </div>
 
       <DeleteSelectedDialog
         open={confirmDelete}
@@ -792,22 +835,23 @@ function AttentionRow({
   return (
     <div
       className={`rounded-md border-l-4 bg-muted/30 px-2.5 py-1.5 text-sm ${
-        danger ? "border-l-destructive" : "border-l-amber-500"
+        danger ? "border-l-destructive" : "border-l-warning"
       }`}
     >
       <div className="flex items-center gap-2">
         <TriangleAlert
           className={`size-3.5 shrink-0 ${
-            danger ? "text-destructive" : "text-amber-500"
+            danger ? "text-destructive" : "text-warning-foreground"
           }`}
         />
         <span className="min-w-0 flex-1 truncate font-medium">
           {item.title}
         </span>
         {item.detail && (
-          <button
-            type="button"
-            className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
+          <Button
+            variant="link"
+            size="sm"
+            className="h-6 shrink-0 gap-0.5 px-0 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
           >
@@ -817,7 +861,7 @@ function AttentionRow({
             ) : (
               <ChevronRight className="size-3" />
             )}
-          </button>
+          </Button>
         )}
         {item.action && (
           <Button
@@ -853,7 +897,7 @@ function KeyFigure({
   return (
     <div
       className={`rounded-lg border px-2.5 py-2 ${
-        tone === "warning" ? "border-amber-500/60 bg-amber-500/5" : ""
+        tone === "warning" ? "border-warning/40 bg-warning/10" : ""
       }`}
     >
       <div className="truncate text-xs text-muted-foreground">{label}</div>
@@ -886,8 +930,9 @@ function buildAttention(
       key: "boundary",
       tone: "warning",
       title: t("dashboard.detailDialog.attentionBoundaryTitle"),
+      // "Prüfen, weil: …" has no full stop of its own.
       detail: because
-        ? `${because} ${t("dashboard.detailDialog.attentionBoundaryDetail")}`
+        ? `${because.replace(/([^.!?])$/u, "$1.")} ${t("dashboard.detailDialog.attentionBoundaryDetail")}`
         : t("dashboard.detailDialog.attentionBoundaryDetail"),
       action: {
         label: t("dashboard.detailDialog.attentionBoundaryAction"),
@@ -895,13 +940,16 @@ function buildAttention(
       },
     });
   }
-  if (d.detection?.model === "stub-area-heuristic") {
+  if (isAreaEstimatedDetection(d.detection)) {
     items.push({
       key: "model",
       tone: "warning",
       title: t("dashboard.detailDialog.attentionModelTitle"),
       detail: t("dashboard.detailDialog.attentionModelDetail"),
-      action: { label: t("map.page.openSettings"), run: openSettings },
+      action: {
+        label: t("dashboard.detailDialog.attentionModelAction"),
+        run: openSettings,
+      },
     });
   }
   const capturedAt = d.detection?.imagery?.chosen.capturedAt;
@@ -957,11 +1005,11 @@ function portfolioRank(
   };
 }
 
-function formatIsoDate(iso: string): string {
+function formatIsoDate(iso: string, locale: string): string {
   const date = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
   return Number.isNaN(date.getTime())
     ? iso
-    : date.toLocaleDateString(undefined, { timeZone: "UTC" });
+    : date.toLocaleDateString(locale, { timeZone: "UTC" });
 }
 
 /** Hail zone and how the EAL in the header was derived. */
@@ -970,7 +1018,7 @@ function HailOverview({ d }: { d: AnalyzedDealership }): React.JSX.Element {
   const eb = d.risk?.ealBreakdown;
   return (
     <div className="space-y-3 text-sm">
-      {eb && <HailEalSection eb={eb} />}
+      {eb && <HailEalSection eb={eb} detection={d.detection} />}
       {/* The zone itself is the badge in the header; only the tariff class
           adds information here. */}
       {d.hailRiskTier && (
@@ -989,7 +1037,11 @@ function HailOverview({ d }: { d: AnalyzedDealership }): React.JSX.Element {
 /** Shows how the hail EAL was derived: N × λ_z × S̄, with each input's source. */
 function HailEalSection({
   eb,
-}: Readonly<{ eb: EalBreakdown }>): React.JSX.Element {
+  detection,
+}: Readonly<{
+  eb: EalBreakdown;
+  detection: AnalyzedDealership["detection"];
+}>): React.JSX.Element {
   const { t } = useTranslation();
   const detail = eb.hailDetail;
   return (
@@ -1009,7 +1061,9 @@ function HailEalSection({
             })}
           </p>
           <p className="text-xs text-muted-foreground">
-            {t(`dashboard.hailEalDetail.vehicleSource.${detail.vehicleSource}`)}{" "}
+            {t(
+              `dashboard.hailEalDetail.vehicleSource.${displayedHailVehicleSource(detail.vehicleSource, detection)}`,
+            )}{" "}
             {t(`dashboard.hailEalDetail.zoneSource.${detail.zoneSource}`)}{" "}
             {t("dashboard.hailEalDetail.severityNote")}
           </p>
@@ -1250,7 +1304,7 @@ function BoundaryPanel({
           {t("dashboard.detailDialog.boundaryTitle")}
         </h4>
         {boundary.reviewRequired ? (
-          <Badge variant="outline" className="border-amber-500 text-amber-600">
+          <Badge variant="warning">
             {t("dashboard.detailDialog.boundaryReviewLabel")}
           </Badge>
         ) : confirmed ? (
@@ -1261,7 +1315,11 @@ function BoundaryPanel({
         ) : null}
       </div>
       {boundary.reviewRequired && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
+        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <TriangleAlert
+            aria-hidden
+            className="mt-0.5 size-3.5 shrink-0 text-warning-foreground"
+          />
           {boundaryReviewText(t, boundary, parameters)}
         </p>
       )}
@@ -1382,7 +1440,11 @@ function BoundaryPanel({
             </div>
           )}
           {pending && pending.confidence < boundary.confidence && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">
+            <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+              <TriangleAlert
+                aria-hidden
+                className="mt-0.5 size-3.5 shrink-0 text-warning-foreground"
+              />
               {t("dashboard.detailDialog.boundaryAdoptWeaker")}
             </p>
           )}
@@ -1470,7 +1532,11 @@ function VehiclePanel({ d }: { d: AnalyzedDealership }): React.JSX.Element {
       </div>
       <div className="grid grid-cols-3 gap-2">
         <Metric
-          label={t("dashboard.detailDialog.machineVehicleCount")}
+          label={
+            isAreaEstimatedDetection(d.detection)
+              ? t("dashboard.detailDialog.estimatedVehicleCount")
+              : t("dashboard.detailDialog.machineVehicleCount")
+          }
           value={num(d.detection?.vehicleCount)}
         />
         <Metric
@@ -1642,7 +1708,7 @@ function localizedRiskText(t: TFunction, text: string): string {
   );
   if (confirmed)
     return t("dashboard.detailDialog.riskText.boundaryConfirmed", {
-      date: formatIsoDate(confirmed[1]),
+      date: formatIsoDate(confirmed[1], i18next.language),
     });
   const role = text.match(
     /^Boundary represents (.+), not a confirmed operational lot$/,
@@ -1726,7 +1792,7 @@ function NatCatSection({ d }: { d: AnalyzedDealership }): React.JSX.Element {
           ))}
         </div>
         {assessment.evidence.fallbackUsed && (
-          <ul className="list-inside list-disc text-xs text-amber-700 dark:text-amber-400">
+          <ul className="list-inside list-disc text-xs text-muted-foreground marker:text-warning-foreground">
             {assessment.evidence.limitations
               .filter((note) => note.includes(" used instead"))
               .map((note) => (
@@ -1901,7 +1967,7 @@ function WebsiteRow({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (detectedWebsite && d.websiteSource !== "manual")
+    if (detectedWebsite && !isUserWebsiteSource(d.websiteSource))
       void updateWebsite(d.id, detectedWebsite, "osm").catch((err: unknown) => {
         console.error("Storing the detected website failed:", err);
       });
@@ -1911,9 +1977,10 @@ function WebsiteRow({
     setEditing(false);
   }, [d.id]);
 
-  const website =
-    d.website ?? (d.websiteSource !== "manual" ? detectedWebsite : undefined);
-  const manual = d.websiteSource === "manual";
+  // Typed and imported links are the user's: shown with their origin and
+  // never replaced by the automatic lookup.
+  const userProvided = isUserWebsiteSource(d.websiteSource);
+  const website = d.website ?? (userProvided ? undefined : detectedWebsite);
 
   function startEditing(): void {
     setDraft(website ?? "");
@@ -2022,9 +2089,11 @@ function WebsiteRow({
       )}
       {website && (
         <span className="text-xs text-muted-foreground">
-          {manual
-            ? t("dashboard.detailDialog.websiteSourceManual")
-            : t("dashboard.detailDialog.websiteSourceOsm")}
+          {d.websiteSource === "import"
+            ? t("dashboard.detailDialog.websiteSourceImport")
+            : d.websiteSource === "manual"
+              ? t("dashboard.detailDialog.websiteSourceManual")
+              : t("dashboard.detailDialog.websiteSourceOsm")}
         </span>
       )}
       <div className="ml-auto flex items-center gap-1">
@@ -2039,7 +2108,7 @@ function WebsiteRow({
             ? t("dashboard.detailDialog.websiteEdit")
             : t("dashboard.detailDialog.websiteAdd")}
         </Button>
-        {manual && (
+        {userProvided && (
           <Button
             size="sm"
             variant="ghost"

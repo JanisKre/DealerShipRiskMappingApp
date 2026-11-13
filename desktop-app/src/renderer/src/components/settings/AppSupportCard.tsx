@@ -155,13 +155,11 @@ export function AppSupportCard({
           <CardTitle className="text-base">
             {t("settings.support.title")}
           </CardTitle>
-          {status && (
-            <Badge variant="outline">
-              {t("settings.support.version", {
-                version: status.currentVersion,
-              })}
-            </Badge>
-          )}
+          {/* Build version, as in the sidebar: app.getVersion() reads the
+              Electron version when started unpackaged from out/. */}
+          <Badge variant="outline">
+            {t("settings.support.version", { version: __APP_VERSION__ })}
+          </Badge>
         </div>
         <CardDescription>{t("settings.support.description")}</CardDescription>
       </CardHeader>

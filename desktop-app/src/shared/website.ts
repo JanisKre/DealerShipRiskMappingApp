@@ -39,6 +39,21 @@ export function normalizeWebsiteUrl(raw?: string): string | undefined {
   return new URL(withScheme).href;
 }
 
+/**
+ * Where a stored website came from: "osm" (automatic lookup), "manual"
+ * (typed by the underwriter) or "import" (a column of the portfolio file).
+ */
+export const WEBSITE_SOURCES = ["osm", "manual", "import"] as const;
+export type WebsiteSource = (typeof WEBSITE_SOURCES)[number];
+
+/**
+ * True for links the user provided (typed or imported): an automatic
+ * lookup never replaces them.
+ */
+export function isUserWebsiteSource(source: string | undefined): boolean {
+  return source === "manual" || source === "import";
+}
+
 /** Short display form: host name without `www.`. */
 export function websiteLabel(url: string): string {
   try {

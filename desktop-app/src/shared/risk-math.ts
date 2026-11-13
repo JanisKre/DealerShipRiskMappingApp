@@ -635,16 +635,29 @@ export function meanHailSeverityEur(
   );
 }
 
-export type HailVehicleSource = "manual" | "detected" | "assetValue" | "none";
+export type HailVehicleSource =
+  "manual" | "detected" | "estimated" | "assetValue" | "none";
 
-/** Model name of the area-based fallback used when no detector is installed. */
+/**
+ * Model name of the area-based fallback detector (main process): it runs
+ * when no vehicle detection model is installed and returns lot area ÷ m² per
+ * vehicle as the "count". Its results carry no boxes.
+ */
 export const AREA_ESTIMATE_DETECTOR = "stub-area-heuristic";
+
+/** Whether a detection result is an area-based estimate, not a model count. */
+export function isAreaEstimatedDetection(
+  detection: DetectionResult | undefined,
+): boolean {
+  return detection?.model === AREA_ESTIMATE_DETECTOR;
+}
 
 /**
  * N for the hail EAL: a reviewed count wins, then the detector count. Only
  * vehicles on the lot are counted; a number is never estimated (not from an
- * asset value, not for cars inside the showroom). `assetValue` stays in the
- * source type so portfolios stored by older builds still parse.
+ * asset value, not from the lot area, not for cars inside the showroom).
+ * `assetValue` and `estimated` stay in the source type so portfolios stored
+ * by older builds still parse and are labelled honestly.
  */
 export function hailVehicleBasis(detection: DetectionResult | undefined): {
   vehicles: number;
@@ -663,6 +676,21 @@ export function hailVehicleBasis(detection: DetectionResult | undefined): {
   const detected = classTotal > 0 ? classTotal : (detection?.vehicleCount ?? 0);
   if (detected > 0) return { vehicles: detected, source: "detected" };
   return { vehicles: 0, source: "none" };
+}
+
+/**
+ * The vehicle source to show for a stored EAL. Portfolios scored before the
+ * `estimated` source existed stored area estimates as `detected`; the
+ * detection result still tells them apart, so no rescoring is needed.
+ */
+export function displayedHailVehicleSource(
+  stored: HailVehicleSource | undefined,
+  detection: DetectionResult | undefined,
+): HailVehicleSource {
+  const source = stored ?? hailVehicleBasis(detection).source;
+  return source === "detected" && isAreaEstimatedDetection(detection)
+    ? "estimated"
+    : source;
 }
 
 /**

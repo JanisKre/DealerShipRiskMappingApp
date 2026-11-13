@@ -10,6 +10,9 @@ import {
   parseDashboardIntent,
   stripLocationLinks,
 } from "./chatAssist";
+import de from "../locales/de.json";
+import en from "../locales/en.json";
+import fr from "../locales/fr.json";
 
 const LOCATIONS = [
   { id: "a", name: "Autohaus Dresden Reick" },
@@ -90,6 +93,30 @@ describe("parseChatAction", () => {
       type: "export",
       format: "excel",
     });
+  });
+
+  it("understands the offline command chips in every language", () => {
+    for (const locale of [de, en, fr]) {
+      const prompts = locale.chat.commandPrompts;
+      expect(
+        parseChatAction(
+          prompts.open.replace("{{name}}", "Autohaus Sinemus"),
+          LOCATIONS,
+        ),
+      ).toMatchObject({ type: "open", id: "c" });
+      expect(parseChatAction(prompts.clusters, LOCATIONS)).toEqual({
+        type: "layer",
+        layer: "accumulationClusters",
+      });
+      expect(parseChatAction(prompts.hailZones, LOCATIONS)).toEqual({
+        type: "layer",
+        layer: "hailZones",
+      });
+      expect(parseChatAction(prompts.exportPdf, LOCATIONS)).toEqual({
+        type: "export",
+        format: "pdf",
+      });
+    }
   });
 
   it("leaves questions to the AI", () => {

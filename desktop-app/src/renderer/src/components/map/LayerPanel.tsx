@@ -31,9 +31,13 @@ import {
 } from "@shared/imagery-wayback";
 import { imageryCandidateSummary } from "@renderer/lib/imageryFormat";
 import type { ImageryCandidate } from "@shared/imagery-sources";
-import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
-import type { AnalyzedDealership } from "@shared/types";
-import { BASEMAPS, useMapStore, type Basemap } from "@renderer/store/mapStore";
+import {
+  BASEMAPS,
+  countActiveLayers,
+  useMapStore,
+  type Basemap,
+  type MapLayers,
+} from "@renderer/store/mapStore";
 import { ScenarioBuilder } from "./ScenarioBuilder";
 import {
   PANEL_ACTION_CLASS,
@@ -77,7 +81,7 @@ function Section({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-1.5 px-1 py-2 text-left"
+        className="flex w-full items-center gap-1.5 rounded-sm px-1 py-2 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         aria-expanded={open}
       >
         <ChevronRight
@@ -108,16 +112,28 @@ function LayerToggle({
   onChange: () => void;
 }>): React.JSX.Element {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-sm">
-      <Checkbox checked={checked} onCheckedChange={onChange} />
-      {label}
+    // Long labels wrap in a narrow panel instead of being clipped.
+    <label className="flex cursor-pointer items-start gap-2 text-sm leading-snug">
+      <Checkbox
+        checked={checked}
+        onCheckedChange={onChange}
+        className="mt-px shrink-0"
+      />
+      <span className="min-w-0">{label}</span>
     </label>
   );
 }
 
+/** Toggles in the "overlays" section (parcels sit with the basemap). */
+const OVERLAY_KEYS: readonly (keyof MapLayers)[] = [
+  "boundaries",
+  "detections",
+  "nearbyInsured",
+  "accumulationClusters",
+  "hailZones",
+];
+
 export interface LayerPanelProps {
-  /** Locations on the map (for the business-type filter counts). */
-  dealerships: AnalyzedDealership[];
   drawing: boolean;
   onToggleDraw: () => void;
   capturing: boolean;
@@ -346,7 +362,6 @@ function ImageryVersionSelect({
 }
 
 export function LayerPanel({
-  dealerships,
   drawing,
   onToggleDraw,
   capturing,
@@ -371,7 +386,8 @@ export function LayerPanel({
   const setEditing = useMapStore((s) => s.setEditing);
   const setDetectionEditing = useMapStore((s) => s.setDetectionEditing);
 
-  const activeLayerCount = Object.values(layers).filter(Boolean).length;
+  const activeLayerCount = countActiveLayers(layers);
+  const activeOverlayCount = countActiveLayers(layers, OVERLAY_KEYS);
   const [open, setOpen] = useState(false);
   // Editing started from a map notice must not stay hidden in a closed panel.
   useEffect(() => {
@@ -394,12 +410,12 @@ export function LayerPanel({
       : bmLabels[basemap];
 
   return (
-    <div className="glass pointer-events-auto flex max-h-full min-h-0 flex-col rounded-lg border shadow-lg">
+    <div className="pointer-events-auto flex max-h-full min-h-0 flex-col rounded-lg border bg-card shadow-lg">
       {/* Fixed header — collapses/expands the entire panel */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-semibold"
+        className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         aria-expanded={open}
       >
         <Layers className="size-4" />
@@ -467,13 +483,15 @@ export function LayerPanel({
               </div>
             </Section>
 
-            {/* Layers — open by default */}
+            {/* Overlays — open by default */}
             <Section
               icon={<Layers className="size-3" />}
-              title={t("map.layerPanel.title")}
+              title={t("map.layerPanel.overlaysSectionTitle")}
               badge={
-                activeLayerCount > 0
-                  ? t("map.layerPanel.activeCount", { count: activeLayerCount })
+                activeOverlayCount > 0
+                  ? t("map.layerPanel.activeCount", {
+                      count: activeOverlayCount,
+                    })
                   : undefined
               }
               defaultOpen
@@ -504,7 +522,6 @@ export function LayerPanel({
                   checked={layers.hailZones}
                   onChange={() => toggleLayer("hailZones")}
                 />
-                <PortfolioFilterBar dealerships={dealerships} variant="panel" />
               </div>
             </Section>
 

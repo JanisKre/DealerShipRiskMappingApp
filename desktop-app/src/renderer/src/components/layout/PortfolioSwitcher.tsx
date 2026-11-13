@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@renderer/components/ui/button";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import { Input } from "@renderer/components/ui/input";
 import {
   Popover,
@@ -212,8 +213,21 @@ export function PortfolioSwitcher({
 
   async function confirmDelete(id: string): Promise<void> {
     setConfirmingDeleteId(null);
+    const deleted = sessions?.find((session) => session.id === id);
+    const wasOpen = id === sessionId;
     try {
-      await deleteSavedSession(id);
+      const openedName = await deleteSavedSession(id);
+      const name = portfolioName(deleted?.name ?? "", t);
+      // Deleting the open portfolio switches to another one: say so.
+      if (wasOpen)
+        toast.success(
+          openedName
+            ? t("shell.portfolioSwitcher.deletedOpenSwitched", {
+                name,
+                next: portfolioName(openedName, t),
+              })
+            : t("shell.portfolioSwitcher.deletedOpen", { name }),
+        );
       await loadList();
     } catch (err) {
       toast.error(
@@ -229,7 +243,7 @@ export function PortfolioSwitcher({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex max-w-[16rem] min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-accent"
+          className="flex max-w-[16rem] min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           disabled={busy}
           title={t("shell.portfolioSwitcher.trigger")}
         >
@@ -250,10 +264,18 @@ export function PortfolioSwitcher({
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 p-1">
+      <PopoverContent
+        align="start"
+        className="w-80 p-1"
+        // Escape while renaming cancels the rename and keeps the list open
+        // (Radix catches Escape on the document before the input sees it).
+        onEscapeKeyDown={(event) => {
+          if (renamingId) event.preventDefault();
+        }}
+      >
         <button
           type="button"
-          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
           onClick={() => void handleNew()}
         >
           <Plus className="size-4" />
@@ -261,7 +283,7 @@ export function PortfolioSwitcher({
         </button>
         <button
           type="button"
-          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
           onClick={() => void handleImportFile()}
           disabled={busy}
         >
@@ -379,7 +401,7 @@ export function PortfolioSwitcher({
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="min-w-0 flex-1 text-left"
+                      className="min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                       onClick={() => void handleSwitch(session.id)}
                     >
                       <span className="block truncate text-sm font-medium">
@@ -391,38 +413,39 @@ export function PortfolioSwitcher({
                         )}
                       </span>
                     </button>
-                    <Button
+                    {/* Also shown while the row has keyboard focus. */}
+                    <HintButton
                       type="button"
                       size="icon"
                       variant="ghost"
-                      className="size-7 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                      side="left"
+                      className="size-7 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
                       onClick={(e) => {
                         e.stopPropagation();
                         startRename(session);
                       }}
-                      title={t("shell.portfolioSwitcher.rename")}
                       aria-label={t("shell.portfolioSwitcher.renameFor", {
                         name: portfolioName(session.name, t),
                       })}
                     >
                       <Pencil className="size-3.5" />
-                    </Button>
-                    <Button
+                    </HintButton>
+                    <HintButton
                       type="button"
                       size="icon"
                       variant="ghost"
-                      className="size-7 shrink-0 text-destructive opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+                      side="left"
+                      className="size-7 shrink-0 text-destructive opacity-0 hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
                       onClick={(e) => {
                         e.stopPropagation();
                         setConfirmingDeleteId(session.id);
                       }}
-                      title={t("shell.portfolioSwitcher.delete")}
                       aria-label={t("shell.portfolioSwitcher.deleteFor", {
                         name: portfolioName(session.name, t),
                       })}
                     >
                       <Trash2 className="size-3.5" />
-                    </Button>
+                    </HintButton>
                   </div>
                 )}
               </div>

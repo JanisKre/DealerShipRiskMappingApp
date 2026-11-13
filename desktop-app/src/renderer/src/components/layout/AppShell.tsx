@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { Radar, WifiOff } from "lucide-react";
+import { List, MessageSquare, Radar, Search, WifiOff } from "lucide-react";
 import { useAppStore } from "@renderer/store/appStore";
+import { WIDE_WINDOW_PX, useMapStore } from "@renderer/store/mapStore";
 import { CommandPalette } from "@renderer/components/command/CommandPalette";
 import { ModelInstallWizard } from "@renderer/components/model/ModelInstallWizard";
 import {
@@ -12,7 +13,9 @@ import {
 } from "@renderer/components/layout/navigation";
 import { PortfolioSwitcher } from "@renderer/components/layout/PortfolioSwitcher";
 import { ThemeToggle } from "@renderer/components/theme/ThemeToggle";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import { Separator } from "@renderer/components/ui/separator";
+import { cn } from "@renderer/lib/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -34,6 +37,10 @@ function isItemActive(pathname: string, to: string, end?: boolean): boolean {
   return end ? pathname === to : pathname.startsWith(to);
 }
 
+/** Whether the shortcuts use ⌘ (macOS) rather than Ctrl. */
+const IS_MAC =
+  typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
+
 /** Idle time after the last portfolio change before autosaving. */
 const AUTOSAVE_DEBOUNCE_MS = 8_000;
 
@@ -49,7 +56,9 @@ function AutosaveController(): null {
   const parameters = useAppStore((s) => s.parameters);
   const analyzing = useAppStore((s) => s.analyzing);
   const sessionId = useAppStore((s) => s.sessionId);
-  const saveSession = useAppStore((s) => s.saveSession);
+  // Skips a portfolio that is unchanged since it was loaded: opening one
+  // must not bump its "last changed" time.
+  const saveSession = useAppStore((s) => s.saveSessionIfChanged);
 
   useEffect(() => {
     if (analyzing) return;
@@ -103,6 +112,7 @@ function SessionLoader(): null {
           useAppStore.setState({
             pendingAnalysis: session.pendingAnalysis ?? [],
           });
+          useAppStore.getState().markSaved();
         }
       })
       .catch((err: unknown) => {
@@ -122,6 +132,12 @@ export function AppShell(): React.JSX.Element {
   const online = useOnline();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const lastSavedAt = useAppStore((s) => s.lastSavedAt);
+  const locationsPanelOpen = useMapStore((s) => s.locationsPanelOpen);
+  const chatPanelOpen = useMapStore((s) => s.chatPanelOpen);
+  const toggleLocationsPanel = useMapStore((s) => s.toggleLocationsPanel);
+  const toggleChatPanel = useMapStore((s) => s.toggleChatPanel);
+  const onWorkspace = pathname === "/";
+  const paletteShortcut = IS_MAC ? "⌘K" : t("shell.ctrlK");
 
   const activeItem = ALL_NAV_ITEMS.find((item) =>
     isItemActive(pathname, item.to, item.end),
@@ -149,7 +165,11 @@ export function AppShell(): React.JSX.Element {
   }, []);
 
   return (
-    <SidebarProvider className="h-svh">
+    // Narrow windows start with the icon-only sidebar to give the map room.
+    <SidebarProvider
+      className="h-svh"
+      defaultOpen={window.innerWidth >= WIDE_WINDOW_PX}
+    >
       <SessionLoader />
       <AutosaveController />
       <Sidebar collapsible="icon">
@@ -236,27 +256,71 @@ export function AppShell(): React.JSX.Element {
           <h1 className="hidden truncate text-sm leading-tight font-semibold sm:block">
             {t(activeTitleKey)}
           </h1>
-          {!online && (
-            <span
-              role="status"
-              className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-500/50 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400"
-            >
-              <WifiOff className="size-3.5" />
-              {t("shell.offline")}
-            </span>
-          )}
-          {lastSavedAt && (
-            <span
-              className={`${online ? "ml-auto" : ""} hidden shrink-0 text-xs text-muted-foreground md:block`}
-              title={new Date(lastSavedAt).toLocaleString(i18n.language)}
-            >
-              {t("shell.autosaved")} ·{" "}
-              {new Date(lastSavedAt).toLocaleTimeString(i18n.language, {
-                hour: "2-digit",
-                minute: "2-digit",
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {!online && (
+              <span
+                role="status"
+                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-warning/40 px-2 py-0.5 text-xs text-muted-foreground"
+              >
+                <WifiOff className="size-3.5 text-warning-foreground" />
+                {t("shell.offline")}
+              </span>
+            )}
+            {lastSavedAt && (
+              <span
+                className="hidden shrink-0 text-xs text-muted-foreground md:block"
+                title={new Date(lastSavedAt).toLocaleString(i18n.language)}
+              >
+                {t("shell.autosaved")} ·{" "}
+                {new Date(lastSavedAt).toLocaleTimeString(i18n.language, {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+            <HintButton
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+              onClick={() => setPaletteOpen(true)}
+              aria-label={t("shell.openCommands", {
+                shortcut: paletteShortcut,
               })}
-            </span>
-          )}
+            >
+              <Search className="size-3.5" />
+              <kbd className="hidden rounded border bg-muted px-1 font-sans text-[11px] lg:inline">
+                {paletteShortcut}
+              </kbd>
+            </HintButton>
+            {/* The docks can also be dragged shut; these bring them back. */}
+            {onWorkspace && (
+              <>
+                <HintButton
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn("size-7", locationsPanelOpen && "bg-accent")}
+                  onClick={toggleLocationsPanel}
+                  aria-pressed={locationsPanelOpen}
+                  aria-label={t("shell.toggleLocationsDock")}
+                >
+                  <List className="size-4" />
+                </HintButton>
+                <HintButton
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn("size-7", chatPanelOpen && "bg-accent")}
+                  onClick={toggleChatPanel}
+                  aria-pressed={chatPanelOpen}
+                  aria-label={t("shell.toggleChatDock")}
+                >
+                  <MessageSquare className="size-4" />
+                </HintButton>
+              </>
+            )}
+          </div>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto">
           <Outlet />

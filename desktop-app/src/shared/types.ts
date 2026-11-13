@@ -6,7 +6,7 @@ import {
   HAIL_SEVERITY_CLASSES,
 } from "./constants";
 import { ImagerySelectionSchema } from "./imagery-sources";
-import { isHttpWebsiteUrl } from "./website";
+import { isHttpWebsiteUrl, WEBSITE_SOURCES } from "./website";
 
 /**
  * Domain types + Zod schemas, shared between main and renderer.
@@ -166,6 +166,9 @@ export const DealershipChangeSchema = z.object({
 });
 export type DealershipChange = z.infer<typeof DealershipChangeSchema>;
 
+/** Origin of a stored dealership website (see `WEBSITE_SOURCES`). */
+export const WebsiteSourceSchema = z.enum(WEBSITE_SOURCES);
+
 export const DealershipInputSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
@@ -211,10 +214,12 @@ export const DealershipInputSchema = z.object({
     .refine(isHttpWebsiteUrl, "Website must be an http(s) URL")
     .optional(),
   /**
-   * Where `website` came from: found automatically via OpenStreetMap, or
-   * entered by the underwriter. A manual link is never overwritten.
+   * Where `website` came from: found automatically via OpenStreetMap,
+   * entered by the underwriter ("manual"), or read from the imported
+   * portfolio file ("import"). Manual and imported links are never
+   * overwritten by an automatic lookup.
    */
-  websiteSource: z.enum(["osm", "manual"]).optional(),
+  websiteSource: WebsiteSourceSchema.optional(),
   /** Hail assessment of the NatCat source chosen in the settings, if any. */
   natCat: NatCatAssessmentSchema.optional(),
 });
@@ -616,7 +621,14 @@ export const HailEalDetailSchema = z.object({
   vehicles: z.number().nonnegative(),
   /** Vehicles parked in the open: vehicles × exposure ratio. */
   exposedVehicles: z.number().nonnegative(),
-  vehicleSource: z.enum(["manual", "detected", "assetValue", "none"]),
+  /** `estimated`: area ÷ m² per vehicle, no detection model ran. */
+  vehicleSource: z.enum([
+    "manual",
+    "detected",
+    "estimated",
+    "assetValue",
+    "none",
+  ]),
   zone: HailZoneSchema,
   /** postcode table, licensed provider score, or estimated from weather data. */
   zoneSource: z.enum(["postcode", "provider", "estimated"]),

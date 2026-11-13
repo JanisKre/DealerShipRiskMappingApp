@@ -62,9 +62,13 @@ export function InsightsPanel({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5 text-base">
-          <ClipboardCheck className="size-4 text-amber-500" />
+          <ClipboardCheck className="size-4 text-warning-foreground" />
           {t("dashboard.review.title")}
-          <TileInfo topic="review" values={ruleValues(parameters)} />
+          <TileInfo
+            topic="review"
+            values={ruleValues(parameters)}
+            label={t("dashboard.review.title")}
+          />
         </CardTitle>
         <CardDescription>
           {t("dashboard.review.summary", {

@@ -4,6 +4,7 @@ import { PenLine, Trash2 } from "lucide-react";
 import type { HailstormScenario } from "@shared/types";
 import { computeScenarioImpact } from "@shared/risk-math";
 import { Button } from "@renderer/components/ui/button";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import { Input } from "@renderer/components/ui/input";
 import { Label } from "@renderer/components/ui/label";
 import {
@@ -69,16 +70,15 @@ export function ScenarioBuilder({
           {drawing ? t("ui.finishDrawing") : t("ui.drawCorridor")}
         </Button>
         {scenario && (
-          <Button
+          <HintButton
             variant="outline"
             size="sm"
             className="shrink-0"
             onClick={() => setScenario(null)}
-            title={t("ui.delete")}
             aria-label={t("ui.delete")}
           >
             <Trash2 className="size-3" />
-          </Button>
+          </HintButton>
         )}
       </div>
 
@@ -104,7 +104,9 @@ export function ScenarioBuilder({
           </div>
 
           <div className="space-y-1.5">
-            <Label className={PANEL_LABEL_CLASS}>{t("ui.intensity")}</Label>
+            <Label htmlFor="scenario-intensity" className={PANEL_LABEL_CLASS}>
+              {t("ui.intensity")}
+            </Label>
             <Select
               value={scenario.intensityLevel}
               onValueChange={(v) =>
@@ -113,7 +115,10 @@ export function ScenarioBuilder({
                 })
               }
             >
-              <SelectTrigger className={PANEL_CONTROL_CLASS}>
+              <SelectTrigger
+                id="scenario-intensity"
+                className={PANEL_CONTROL_CLASS}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -126,7 +131,9 @@ export function ScenarioBuilder({
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          {/* Stacked: side by side in the narrow panel the two labels ran
+              into each other ("WiederkehrperiodeExposure ×"). */}
+          <div className="space-y-2.5">
             <div className="space-y-1.5">
               <Label
                 htmlFor="scenario-return-period"

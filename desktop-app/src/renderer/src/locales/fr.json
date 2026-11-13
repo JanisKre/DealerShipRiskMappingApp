@@ -3,8 +3,8 @@
     "import": "Accueil",
     "map": "Carte",
     "dashboard": "Tableau de bord",
-    "settings": "Paramètres",
-    "parameters": "Paramètres du modèle"
+    "settings": "Réglages",
+    "parameters": "Paramètres"
   },
   "shell": {
     "autosaved": "Enregistrement automatique",
@@ -18,28 +18,37 @@
       "rename": "Renommer",
       "renameFor": "Renommer {{name}}",
       "renameFailed": "Impossible de renommer le portefeuille : {{error}}",
-      "delete": "Supprimer",
       "deleteFor": "Supprimer {{name}}",
       "confirmDelete": "Supprimer « {{name}} » ? Cette action est irréversible.",
       "deleteConfirmButton": "Supprimer",
       "deleteFailed": "Impossible de supprimer le portefeuille : {{error}}",
       "importFile": "Importer un fichier de portefeuille…",
       "importFailed": "Impossible de lire le fichier de portefeuille : {{error}}",
-      "importFound": "« {{name}} » : {{count}} sites, dont {{edited}} avec limite ou nombre de véhicules modifié manuellement.",
+      "importFound_one": "« {{name}} » : {{count}} site, dont {{edited}} avec limite ou nombre de véhicules modifié manuellement.",
+      "importFound_other": "« {{name}} » : {{count}} sites, dont {{edited}} avec limite ou nombre de véhicules modifié manuellement.",
       "importMerge": "Fusionner dans ce portefeuille",
       "importMergeHint": "Ajoute les nouveaux sites et reprend les limites modifiées ; vos propres modifications ne sont jamais écrasées.",
       "importOpenNew": "Ouvrir comme nouveau portefeuille",
       "mergeDone": "Fusionné : {{added}} sites ajoutés, {{updated}} limites reprises.",
-      "mergeConflicts": "{{count}} sites ont été modifiés des deux côtés et restent inchangés ici : {{names}}",
+      "mergeConflicts_one": "{{count}} site a été modifié des deux côtés et reste inchangé ici : {{names}}",
+      "mergeConflicts_other": "{{count}} sites ont été modifiés des deux côtés et restent inchangés ici : {{names}}",
       "mergeFailed": "Impossible de fusionner le portefeuille : {{error}}",
-      "importOpenFailed": "Impossible d’ouvrir le fichier de portefeuille : {{error}}"
+      "importOpenFailed": "Impossible d’ouvrir le fichier de portefeuille : {{error}}",
+      "deletedOpen": "« {{name}} » supprimé",
+      "deletedOpenSwitched": "« {{name}} » supprimé – « {{next}} » est maintenant ouvert"
     },
-    "offline": "Hors ligne – données en cache"
+    "offline": "Hors ligne – données en cache",
+    "toggleLocationsDock": "Afficher ou masquer le panneau des sites",
+    "toggleChatDock": "Afficher ou masquer l’assistant",
+    "resizeLocations": "Redimensionner le panneau des sites",
+    "resizeChat": "Redimensionner l’assistant",
+    "openCommands": "Rechercher des commandes et des sites – {{shortcut}}",
+    "ctrlK": "Ctrl+K"
   },
   "start": {
     "title": "Portefeuille et analyse",
-    "subtitle": "Ajoutez une adresse ou interrogez l'IA — le champ de saisie est en bas.",
-    "duplicatesSkipped": "{{count}} sites en double détectés et ignorés."
+    "duplicatesSkipped_one": "{{count}} site en double détecté et ignoré.",
+    "duplicatesSkipped_other": "{{count}} sites en double détectés et ignorés."
   },
   "command": {
     "title": "Palette de commandes",
@@ -48,11 +57,12 @@
     "empty": "Aucun résultat trouvé.",
     "navigation": "Navigation",
     "actions": "Actions",
-    "theme": "Thème",
-    "toggleTheme": "Changer de thème"
+    "theme": "Apparence",
+    "toggleTheme": "Changer l’apparence"
   },
   "common": {
     "loading": "Chargement…",
+    "operationFailed": "L’opération n’a pas pu aboutir.",
     "save": "Enregistrer",
     "saved": "Enregistré",
     "cancel": "Annuler",
@@ -67,30 +77,244 @@
   },
   "parameters": {
     "title": "Paramètres du modèle",
-    "description": "Ajustez les paramètres de risque, d’exposition, de portefeuille et de qualité des données pour cette session. Les scores existants sont recalculés après la sortie d’un champ et les changements sont enregistrés automatiquement.",
+    "description": "Ajustez les paramètres de risque, d’exposition, de portefeuille et de qualité des données pour ce portefeuille. Les scores existants sont recalculés après la sortie d’un champ et les changements sont enregistrés automatiquement.",
     "reset": "Réinitialiser les valeurs",
     "resetDone": "Paramètres réinitialisés.",
     "recalculating": "Recalcul des scores…",
     "startHereTitle": "Commencer ici",
-    "startHereDescription": "Pour la plupart des portefeuilles, les champs marqués « important » suffisent. Ils influencent directement l’exposition, l’EAL ou les alertes ; les autres ne servent que dans des cas particuliers.",
+    "startHereDescription": "Pour la plupart des portefeuilles, les champs marqués « important » suffisent. Ils influencent directement l’exposition, l’EAL ou les points à vérifier ; les autres ne servent que dans des cas particuliers. Toutes les valeurs de l’EAL grêle sont importantes.",
     "fractionHint": "Repère : saisissez les proportions sous forme décimale — 0,15 correspond à 15 %. Les changements sont appliqués en quittant le champ.",
     "recommended": "important",
+    "retry": "Recharger",
+    "loadErrorTitle": "Impossible de charger les paramètres",
+    "loadErrorDescription": "Le reste de l’application reste disponible. Essayez de recharger la page des paramètres.",
+    "groups": {
+      "exposure": {
+        "title": "Exposition et capacité",
+        "description": "Valeurs et hypothèses de surface qui déterminent l’exposition financière."
+      },
+      "risk": {
+        "title": "EAL grêle",
+        "description": "Fréquence par zone de grêle (λ), classes d’événements (p) et dommage par véhicule (S) pour la perte annuelle attendue."
+      },
+      "portfolio": {
+        "title": "Portefeuille, PML et scénarios",
+        "description": "Risques de concentration, réassurance et scénarios de stress au niveau du portefeuille."
+      },
+      "quality": {
+        "title": "Alertes et qualité des données",
+        "description": "Seuils pour les alertes, les vérifications et la qualité des résultats automatiques."
+      }
+    },
+    "units": {
+      "eur": "€",
+      "squareMeters": "m²",
+      "fraction": "part",
+      "factor": "facteur",
+      "kilometers": "km",
+      "meters": "m",
+      "eventsPerYear": "événements/an",
+      "eurPerVehicle": "€/véhicule",
+      "hailZone": "zone"
+    },
+    "parameterFields": {
+      "vehicleValueCarEur": {
+        "label": "Valeur par voiture",
+        "description": "Valeur moyenne par voiture particulière.",
+        "tip": "À ajuster si la composition habituelle du parc diffère nettement de la valeur par défaut."
+      },
+      "vehicleValueDefaultEur": {
+        "label": "Valeur de véhicule par défaut",
+        "description": "Utilisée lorsque la classe du véhicule est inconnue."
+      },
+      "capacitySqmPerVehicle": {
+        "label": "Surface par véhicule",
+        "description": "Hypothèse pour la capacité du terrain.",
+        "tip": "Le levier principal de la capacité estimée lorsqu’aucun comptage fiable des véhicules n’est disponible."
+      },
+      "pmlDamageFraction10": {
+        "label": "Taux de dommage PML 10 ans",
+        "description": "Taux de dommage pour le PML à 10 ans."
+      },
+      "pmlDamageFraction50": {
+        "label": "Taux de dommage PML 50 ans",
+        "description": "Taux de dommage pour le PML à 50 ans."
+      },
+      "pmlDamageFraction100": {
+        "label": "Taux de dommage PML 100 ans",
+        "description": "Taux de dommage pour le PML à 100 ans.",
+        "tip": "L’hypothèse PML la plus importante pour un événement rare mais grave."
+      },
+      "pmlClusterRadiusKm": {
+        "label": "Rayon de cluster PML",
+        "description": "Rayon pour la plus forte exposition PML."
+      },
+      "accumulationRadiusKm": {
+        "label": "Rayon de cumul",
+        "description": "Distance jusqu’à laquelle des sites sont regroupés en un cumul.",
+        "tip": "Détermine à partir de quelle proximité plusieurs sites forment un cumul (un risque de concentration commun)."
+      },
+      "accumulationReinsureThresholdEur": {
+        "label": "Seuil de réassurance",
+        "description": "Au-delà de cette exposition d’un cumul, la réassurance est recommandée.",
+        "tip": "Seuil organisationnel pour l’alerte de réassurance."
+      },
+      "scenarioDamageLow": {
+        "label": "Taux scénario faible",
+        "description": "Taux de dommage dans le scénario de stress faible."
+      },
+      "scenarioDamageMedium": {
+        "label": "Taux scénario moyen",
+        "description": "Taux de dommage dans le scénario de stress moyen."
+      },
+      "scenarioDamageHigh": {
+        "label": "Taux scénario élevé",
+        "description": "Taux de dommage dans le scénario de stress élevé."
+      },
+      "scenarioDamageExtreme": {
+        "label": "Taux scénario extrême",
+        "description": "Taux de dommage dans le scénario de stress extrême."
+      },
+      "alertOvercapacity": {
+        "label": "Seuil d’alerte surcapacité",
+        "description": "Une utilisation au-delà de ce facteur génère une alerte.",
+        "tip": "1,0 correspond à 100 % d’utilisation. Des valeurs supérieures à 1,0 autorisent la marge correspondante."
+      },
+      "alertLowBoundaryConfidence": {
+        "label": "Seuil d’alerte confiance de la limite",
+        "description": "En dessous, la limite du terrain est considérée comme incertaine."
+      },
+      "alertEalPortfolioShare": {
+        "label": "Seuil d’alerte part de l’EAL",
+        "description": "Part du portefeuille à partir de laquelle un site est mis en évidence."
+      },
+      "boundaryReviewConfidence": {
+        "label": "Seuil de vérification : confiance de la limite",
+        "description": "En dessous de cette confiance, la limite du terrain doit être vérifiée."
+      },
+      "boundaryReviewTop2Margin": {
+        "label": "Seuil de vérification : écart avec la 2e proposition",
+        "description": "Si la meilleure et la deuxième proposition de limite sont plus proches, une vérification est nécessaire."
+      },
+      "boundaryReviewSourceAgreement": {
+        "label": "Seuil de vérification : concordance des sources",
+        "description": "Concordance minimale de sources indépendantes pour la limite du terrain."
+      },
+      "boundaryNearPointDistanceM": {
+        "label": "Distance maximale au point d’adresse",
+        "description": "Jusqu’à cette distance, une parcelle est considérée comme proche du point d’adresse du site."
+      },
+      "syntheticBoundaryRadiusM": {
+        "label": "Rayon de la limite estimée (cercle)",
+        "description": "Rayon du cercle autour du point d’adresse lorsqu’aucune géométrie de parcelle n’est trouvée."
+      },
+      "detectionConfidence": {
+        "label": "Confiance de détection",
+        "description": "Confiance minimale de base du modèle de détection ; les grands véhicules demandent un peu plus.",
+        "tip": "Plus bas détecte plus de véhicules mais peut produire plus de fausses détections ; plus haut est plus prudent."
+      },
+      "hailFrequencyZone1": {
+        "label": "λ zone de grêle 1",
+        "description": "Événements de grêle dommageables par an pour un site en zone 1."
+      },
+      "hailFrequencyZone2": {
+        "label": "λ zone de grêle 2",
+        "description": "Événements de grêle dommageables par an pour un site en zone 2."
+      },
+      "hailFrequencyZone3": {
+        "label": "λ zone de grêle 3",
+        "description": "Événements de grêle dommageables par an pour un site en zone 3."
+      },
+      "hailFrequencyZone4": {
+        "label": "λ zone de grêle 4",
+        "description": "Événements de grêle dommageables par an pour un site en zone 4."
+      },
+      "hailFrequencyZone5": {
+        "label": "λ zone de grêle 5",
+        "description": "Événements de grêle dommageables par an pour un site en zone 5."
+      },
+      "hailFrequencyZone6": {
+        "label": "λ zone de grêle 6",
+        "description": "Événements de grêle dommageables par an pour un site en zone 6."
+      },
+      "hailShareSmall": {
+        "label": "p événement petit",
+        "description": "Part des événements de grêle de la classe « petit » (p). Les trois parts sont normalisées par leur somme."
+      },
+      "hailSeveritySmallEur": {
+        "label": "S dommage petit",
+        "description": "Dommage par véhicule exposé lors d’un événement de la classe « petit » (S)."
+      },
+      "hailShareMedium": {
+        "label": "p événement moyen",
+        "description": "Part des événements de grêle de la classe « moyen » (p). Les trois parts sont normalisées par leur somme."
+      },
+      "hailSeverityMediumEur": {
+        "label": "S dommage moyen",
+        "description": "Dommage par véhicule exposé lors d’un événement de la classe « moyen » (S)."
+      },
+      "hailShareLarge": {
+        "label": "p événement grand",
+        "description": "Part des événements de grêle de la classe « grand » (p). Les trois parts sont normalisées par leur somme."
+      },
+      "hailSeverityLargeEur": {
+        "label": "S dommage grand",
+        "description": "Dommage par véhicule exposé lors d’un événement de la classe « grand » (S)."
+      },
+      "alertHailZone": {
+        "label": "Seuil de vérification zone de grêle",
+        "description": "À partir de cette zone de grêle, un site génère un point à vérifier critique.",
+        "tip": "Plus bas = plus de points ; 5 signale les zones 5 et 6. L’indicateur « En zone de grêle ≥ 4 » du tableau de bord et des rapports compte toujours à partir de la zone 4."
+      }
+    },
+    "hailEal": {
+      "formula": "N = véhicules comptés sur le terrain (sans estimation pour les véhicules à l’intérieur des bâtiments), λ = événements par an dans la zone de grêle, p·S = dommage attendu par véhicule et par événement.",
+      "placeholders": "Valeurs provisoires – le calibrage par la souscription est en attente. L’EAL est une estimation de screening, pas une décision tarifaire ou de souscription.",
+      "meanSeverity": "Dommage attendu par véhicule exposé et par événement (Σ p·S) : {{value}}",
+      "frequency": "Fréquence λ",
+      "probability": "Probabilité p",
+      "severity": "Dommage S",
+      "small": "Petit",
+      "medium": "Moyen",
+      "large": "Grand",
+      "shareSum": "Les parts p totalisent {{sum}} au lieu de 1 – elles sont normalisées à 1 pour le calcul.",
+      "frequencyHint": "Nombre de fois par an qu’un événement de grêle touche un site de la zone.",
+      "probabilityHint": "Part des événements par classe de taille ; total 1.",
+      "severityHint": "Dommage par véhicule lorsqu’un événement de cette classe survient.",
+      "frequencyOrder_one": "λ en zone {{zones}} est inférieur à celui de la zone précédente – à vérifier.",
+      "frequencyOrder_other": "λ dans les zones {{zones}} est inférieur à celui de la zone précédente – à vérifier."
+    },
     "resetUndo": "Annuler",
     "resetNothing": "Toutes les valeurs correspondent déjà aux valeurs par défaut.",
     "resetConfirmTitle": "Réinitialiser les valeurs ?",
     "resetConfirmDescription_one": "{{count}} valeur diffère des valeurs par défaut et sera écrasée. Tous les scores sont ensuite recalculés.",
-    "resetConfirmDescription_other": "{{count}} valeurs diffèrent des valeurs par défaut et seront écrasées. Tous les scores sont ensuite recalculés."
+    "resetConfirmDescription_other": "{{count}} valeurs diffèrent des valeurs par défaut et seront écrasées. Tous les scores sont ensuite recalculés.",
+    "validation": {
+      "empty": "« {{label}} » ne peut pas être vide. La valeur précédente {{value}} est conservée.",
+      "notANumber": "« {{label}} » : saisissez un nombre. La valeur précédente {{value}} est conservée.",
+      "notInteger": "« {{label}} » : autorisé : {{rule}}. La valeur précédente {{value}} est conservée.",
+      "outOfRange": "« {{label}} » : autorisé : {{rule}}. La valeur précédente {{value}} est conservée.",
+      "rejected": "« {{label}} » n’a pas pu être appliqué : {{error}}",
+      "between": "une valeur entre {{min}} et {{max}}",
+      "atLeast": "une valeur d’au moins {{min}}",
+      "wholeBetween": "un nombre entier entre {{min}} et {{max}}"
+    }
   },
   "settings": {
-    "title": "Paramètres",
+    "title": "Réglages",
     "language": "Langue",
     "llmProvider": "Assistant IA",
     "model": "Modèle",
     "apiKey": "Clé API",
     "apiKeyHint": "Stockée via safeStorage dans le trousseau du système — jamais en clair.",
     "baseUrl": "Point de terminaison (URL de base)",
+    "baseUrlErrors": {
+      "invalid-url": "Adresse non valide. Exemple : https://proxy.example.com/v1",
+      "not-http": "L’adresse doit commencer par http:// ou https://.",
+      "credentials": "N’indiquez ni nom d’utilisateur ni mot de passe dans l’adresse ; saisissez la clé ci-dessus.",
+      "not-local": "Un modèle local doit tourner sur cet ordinateur (localhost ou 127.0.0.1)."
+    },
     "baseUrlHint": "Laisser vide pour le point de terminaison officiel. Pour un proxy, p. ex. http://localhost:6655/openai/v1 (OpenAI/Custom) ou http://localhost:6655/anthropic (Claude).",
-    "modelPlaceholder": "p. ex. {{model}}",
     "apiKeySetPlaceholder": "•••••••• (enregistrée) — saisir une nouvelle clé pour la remplacer",
     "apiKeyUnsetPlaceholder": "Enregistrée de façon chiffrée (trousseau du système)",
     "natCat": {
@@ -181,11 +405,11 @@
     },
     "llmReady": "Configuré",
     "llmNotReady": "Non configuré",
-    "llmSetupHint": "Requis pour le chat et la note de souscription : choisissez un fournisseur, saisissez un modèle et – pour OpenAI/Claude – enregistrez une clé API. Un modèle local n’a pas besoin de clé.",
     "local": {
       "description": "L’application recherche automatiquement les runtimes actifs sur cet ordinateur. Les données du portefeuille ne quittent pas l’appareil.",
       "checking": "Vérification …",
-      "running": "Actif · {{count}} modèles",
+      "running_one": "Actif · {{count}} modèle",
+      "running_other": "Actif · {{count}} modèles",
       "notFound": "Introuvable",
       "detect": "Rechercher à nouveau",
       "noneRunning": "Aucun runtime local trouvé. Installez et démarrez Ollama :",
@@ -193,13 +417,18 @@
     },
     "models": {
       "pick": "Choisir un modèle ({{count}} disponibles)",
-      "none": "Le fournisseur n’a signalé aucun modèle de chat – saisissez l’ID manuellement.",
+      "none": "Le fournisseur d’IA n’a signalé aucun modèle de chat – saisissez l’ID du modèle manuellement.",
       "noneLocal": "Aucun modèle installé – installez-en un depuis Hugging Face ci-dessous.",
       "failed": "Impossible de charger la liste des modèles : {{error}}",
       "needKey": "Enregistrez une clé API – les modèles disponibles apparaissent ensuite ici automatiquement.",
       "needBaseUrl": "Saisissez l’URL de base – les modèles disponibles apparaissent ensuite ici automatiquement.",
       "loading": "Chargement des modèles …",
-      "manualPlaceholder": "Saisir un ID de modèle, p. ex. gpt-4.1-mini",
+      "manualPlaceholderFor": {
+        "openai": "Saisissez un ID de modèle, p. ex. gpt-4.1-mini",
+        "claude": "Saisissez un ID de modèle, p. ex. claude-sonnet-4-5",
+        "local": "Saisissez un nom de modèle, p. ex. llama3.2",
+        "custom": "Saisissez l’ID de modèle du serveur"
+      },
       "reload": "Recharger la liste",
       "enterManually": "Saisir l’ID du modèle manuellement",
       "backToList": "Retour à la liste"
@@ -212,7 +441,7 @@
       "auth": "Clé API refusée (401/403). Vérifiez la clé et enregistrez-la à nouveau.",
       "not_found": "Modèle ou endpoint introuvable (404). Vérifiez le nom du modèle et l’URL de base – « Charger les modèles » affiche les noms disponibles.",
       "unreachable": "Serveur injoignable. Le runtime local est-il démarré et l’URL de base correcte ?",
-      "error": "Le fournisseur a signalé une erreur."
+      "error": "Le fournisseur d’IA a signalé une erreur."
     },
     "hf": {
       "title": "Installer un modèle depuis Hugging Face",
@@ -239,7 +468,7 @@
       "starting": "Démarrage du téléchargement …"
     },
     "steps": {
-      "provider": "Choisir le fournisseur",
+      "provider": "Choisir le fournisseur d’IA",
       "access": "Accès",
       "model": "Modèle"
     },
@@ -264,6 +493,16 @@
     "customBaseUrlHint": "Adresse compatible OpenAI, se terminant généralement par /v1. Les modèles disponibles se chargent ensuite automatiquement.",
     "optional": "facultatif",
     "advanced": "Avancé : URL de base personnalisée / proxy",
+    "detectionModel": {
+      "title": "Détection des véhicules",
+      "description": "Modèle de détection local qui compte les véhicules sur l’image aérienne. Sans lui, le nombre de véhicules est estimé à partir de la surface du terrain et signalé comme estimation.",
+      "badgeInstalled": "Installé",
+      "badgeMissing": "Non installé",
+      "installed": "Le modèle de détection est installé ; les nouvelles analyses comptent les véhicules sur l’image aérienne. Les sites déjà estimés sont comptés lors d’une nouvelle analyse.",
+      "missing": "Aucun modèle de détection installé : les nombres de véhicules sont des estimations fondées sur la surface.",
+      "install": "Installer le modèle de détection",
+      "manage": "Afficher l’état du modèle"
+    },
     "dealerDirectory": {
       "title": "Annuaire des concessionnaires (Overture Maps)",
       "description": "Ajoute à la recherche environ 44 000 concessionnaires automobiles, motos, poids lourds et camping-cars en Allemagne issus d’Overture Maps (Meta, Microsoft, Foursquare, etc.), souvent absents d’OpenStreetMap. Téléchargement unique d’environ 500 Mo, quelques minutes ; seuls les concessionnaires sont stockés localement.",
@@ -338,26 +577,26 @@
       },
       "diagnostics": {
         "title": "Exporter le diagnostic",
-        "hint": "Enregistre les versions, les paramètres (sans clés API), les volumes de données et le journal récent au format JSON. Les portefeuilles ne sont pas inclus, mais le journal peut citer des sites issus d’analyses. Vérifiez-le avant de le transmettre.",
+        "hint": "Enregistre les versions, les réglages (sans clés API), les volumes de données et le journal récent au format JSON. Les portefeuilles ne sont pas inclus, mais le journal peut citer des sites issus d’analyses. Vérifiez-le avant de le transmettre.",
         "export": "Exporter"
       },
       "diagnosticsSaved": "Diagnostic enregistré : {{path}}",
       "reset": {
         "title": "Supprimer toutes les données",
-        "hint": "Supprime de cet ordinateur les portefeuilles, conversations, tableaux de bord, paramètres, clés API enregistrées, caches et journaux. Le modèle de détection est conservé.",
+        "hint": "Supprime de cet ordinateur les portefeuilles, conversations, tableaux de bord, réglages, clés API enregistrées, caches et journaux. Le modèle de détection est conservé.",
         "button": "Supprimer toutes les données",
         "confirmTitle": "Supprimer toutes les données locales ?",
-        "confirmText": "Tous les portefeuilles, conversations, tableaux de bord, paramètres, clés API, caches et journaux seront définitivement supprimés. Cette action est irréversible : exportez d’abord ce que vous souhaitez conserver. L’application redémarre ensuite.",
+        "confirmText": "Tous les portefeuilles, conversations, tableaux de bord, réglages, clés API, caches et journaux seront définitivement supprimés. Cette action est irréversible : exportez d’abord ce que vous souhaitez conserver. L’application redémarre ensuite.",
         "confirmButton": "Supprimer définitivement et redémarrer"
       }
     }
   },
   "model": {
     "title": "Installer le modèle de détection des véhicules",
-    "description": "Sans ce modèle, l'application estime seulement le nombre de véhicules selon la surface au lieu de les détecter par IA dans l'image aérienne.",
-    "ready": "Le modèle d'IA local est déjà installé. Vous pouvez commencer à utiliser l'application.",
-    "idle": "Le modèle (YOLOv26s, environ 36 Mo) sera téléchargé une fois et stocké localement.",
-    "done": "Modèle installé — la détection réelle par IA est maintenant active.",
+    "description": "Sans ce modèle, l’application estime seulement le nombre de véhicules d’après la surface du terrain, au lieu de compter les véhicules sur l’image aérienne.",
+    "ready": "Le modèle de détection est déjà installé. Vous pouvez utiliser l’application directement.",
+    "idle": "Le modèle de détection (environ 36 Mo) sera téléchargé une fois et stocké localement.",
+    "done": "Modèle de détection installé – la détection des véhicules est maintenant active.",
     "downloadFailed": "Échec du téléchargement : {{error}}",
     "unavailable": "Le téléchargement automatique n'est pas encore configuré. Placez manuellement le fichier du modèle ici :",
     "dismiss": "Ne plus afficher",
@@ -377,12 +616,12 @@
     "alert": {
       "highEal": "Représente {{share}} % de l’EAL du portefeuille.",
       "overcapacity": "Surcapacité ({{utilisation}} % de la capacité).",
-      "lowBoundaryConfidence": "Limite de parcelle incertaine (source {{source}}).",
-      "noDetection": "Aucun véhicule détecté — vérifier la limite et l’image aérienne."
+      "lowBoundaryConfidence": "Limite du terrain incertaine – source : {{source}}.",
+      "noDetection": "Aucun véhicule détecté — vérifier la limite et l’image aérienne.",
+      "highHailZone": "Situé en zone de grêle {{zone}}.",
+      "accumulation": "Cumul de {{count}} sites avec une exposition de {{exposure}}.",
+      "estimatedHailZone": "Zone de grêle {{zone}} seulement estimée – vérifiez l’adresse et le code postal."
     },
-    "sortAscending": "Tri croissant ; cliquer pour modifier",
-    "sortDescending": "Tri décroissant ; cliquer pour modifier",
-    "sortNone": "Non trié ; cliquer pour trier",
     "utilisation": "Utilisation",
     "capacity": "Capacité",
     "area": "Surface",
@@ -391,57 +630,50 @@
     "visibleTiles": "Tuiles visibles",
     "resetTiles": "Réinitialiser la disposition",
     "removeTile": "Supprimer la tuile",
-    "dragTile": "Faire glisser pour réordonner",
     "noTilesTitle": "Aucune tuile sélectionnée",
     "noTilesDescription": "Ajoutez des tuiles via « Personnaliser le tableau de bord ».",
     "openAssistant": "Assistant IA",
     "closeAssistant": "Fermer l’assistant",
-    "assistantTitle": "Assistant du tableau de bord",
-    "assistantDescription": "Posez des questions ou modifiez le tableau de bord",
-    "assistantEmpty": "Interrogez ce portefeuille ou dites « afficher le tableau des sites ».",
     "examplePromptTable": "Afficher le tableau des sites",
     "commandAdded": "Ajouté : {{tiles}}",
     "commandRemoved": "Supprimé : {{tiles}}",
+    "commandAlreadyShown": "Déjà visible : {{tiles}}",
+    "commandAlreadyHidden": "Déjà masqué : {{tiles}}",
     "commandReset": "Disposition du tableau de bord réinitialisée.",
     "tiles": {
       "summary": "Indicateurs du portefeuille",
-      "table": "Tableau des sites"
+      "insights": "Points à vérifier",
+      "clusters": "Plus grands cumuls",
+      "table": "Tableau des sites",
+      "zones": "Répartition par zone de grêle",
+      "topLocations": "Principaux sites par EAL grêle"
     },
     "detailDialog": {
       "imageryCountedOn": "Véhicules comptés sur",
+      "imageryOfLot": "Image aérienne du terrain :",
       "imageryUnrecorded": "Source d'image du comptage non enregistrée (analyse antérieure à la sélection automatique) – relancer l'analyse pour obtenir la date de prise de vue.",
       "machineVehicleCount": "Véhicules détectés par la machine",
+      "estimatedVehicleCount": "Estimation fondée sur la surface",
       "manualVehicleCount": "Nombre de véhicules ajusté manuellement",
       "manualVehicleCountPlaceholder": "Nombre",
-      "saveManualVehicleCount": "Enregistrer le nombre",
-      "manualVehicleCountNotSet": "Aucun ajustement manuel",
       "manualVehicleCountSaved": "Nombre enregistré : {{count}}",
       "manualCountInvalid": "Saisissez un entier ≥ 0.",
       "exposureLabel": "Exposition",
-      "totalEalLabel": "EAL total",
-      "mainScoreTitle": "Zone de grêle",
-      "hailScoreLabel": "Score de grêle",
-      "hailZoneLabel": "Zone de grêle {{zone}}",
-      "hailZoneKasko": "K-Kasko · {{tier}}",
+      "hailZoneKasko": "Classe casco · {{tier}}",
       "ealPeril": {
         "hail": "Grêle",
         "total": "Total"
       },
       "boundaryTitle": "Limite de parcelle",
-      "boundarySummary": "{{source}} · confiance {{confidence}}",
       "boundaryRoleLabel": "Rôle : {{role}}",
       "boundaryAgreementLabel": "Accord des sources : {{agreement}}",
       "boundaryEngineLabel": "Moteur : {{engine}}",
-      "boundaryEngineFallbackSuffix": "(demandé {{requested}} — {{reason}})",
-      "boundaryEngineUnknownReason": "raison inconnue",
       "boundaryEngine": {
         "legacy": "classement des candidats",
         "fused": "fusion multi-sources",
         "cascade": "cascade de sources"
       },
       "boundaryReviewLabel": "Vérification requise",
-      "boundaryCandidatesTitle": "{{count}} limites candidates",
-      "boundaryMultiPartLabel": "Le site a {{count}} parties séparées",
       "boundaryExcludePartAction": "Exclure la partie supplémentaire",
       "boundarySource": {
         "alkis": "Cadastre ALKIS",
@@ -449,7 +681,7 @@
         "overture": "Overture Maps",
         "aerial": "Imagerie aérienne (contour des véhicules)",
         "fused": "Fusionné (multi-sources)",
-        "synthetic": "Estimée (cercle autour du point)",
+        "synthetic": "Limite estimée (cercle)",
         "manual": "Tracée manuellement"
       },
       "boundaryRole": {
@@ -457,39 +689,44 @@
         "building": "Emprise du bâtiment",
         "parkingSurface": "Aire de stationnement",
         "operationalLot": "Terrain opérationnel confirmé",
-        "synthetic": "Estimée"
+        "synthetic": "Surface estimée (cercle)"
       },
       "showDetails": "Afficher les détails",
-      "modelVersionLabel": "Modèle : {{version}}",
-      "evidenceFallbackSuffix": " · repli",
+      "evidenceFallbackSuffix": " · méthode de repli",
       "riskText": {
         "screeningModel": "Le modèle de risque {{version}} est un modèle de présélection",
         "hazardProxy": "Les valeurs d’aléa sont des approximations locales à valider avant toute décision de souscription",
         "notEngineeringAssessment": "Ni modèle de catastrophe ni évaluation technique",
         "weatherWindow": "Fenêtre météo de 92 jours avec approximations de présélection",
-        "syntheticBoundaryMethod": "Limite synthétique par rayon",
+        "syntheticBoundaryMethod": "Limite estimée (cercle autour du point d’adresse)",
         "boundaryLookupMethod": "Recherche géospatiale de limite",
         "manualBoundaryReview": "Vérification manuelle de la limite recommandée",
         "areaEstimateMethod": "Estimation basée sur la surface",
         "aerialDetectionMethod": "Détection d’objets sur image aérienne",
         "vehicleEstimate": "Le nombre de véhicules est estimé ; installer le modèle de détection",
-        "syntheticBoundary": "Limite de parcelle synthétique utilisée",
+        "syntheticBoundary": "Limite estimée (cercle) utilisée",
         "boundaryReviewRequired": "La limite doit être vérifiée avant son utilisation en souscription",
         "boundaryDisagreement": "Les sources de limites ne concordent pas suffisamment",
-        "noMlModel": "L’exposition des véhicules est estimée car aucun modèle ML n’est installé",
+        "noMlModel": "L’exposition des véhicules est estimée, car aucun modèle de détection n’est installé",
         "boundaryRole": "La limite décrit {{role}}, et non le site opérationnel confirmé",
+        "hailZoneEstimated": "Zone de grêle estimée à partir des données météo ; aucune zone de grêle par code postal disponible",
+        "hailEalPlaceholders": "Les paramètres de fréquence et de dommage de l’EAL grêle sont des valeurs provisoires non calibrées",
+        "hailVehiclesFromAssetValue": "Nombre de véhicules de l’EAL grêle déduit de la valeur d’actif déclarée",
+        "postcodeHailZones": "Zones de grêle par code postal",
+        "postcodeHailZoneMethod": "recherche de la zone de grêle par code postal",
+        "estimatedHailZoneMethod": "zone de grêle estimée à partir du score grêle météo",
         "cascadeVehicleParcels": "parcelles contenant les véhicules détectés",
         "cascadeVehicleHull": "contour des véhicules détectés",
         "cascadeOsmDealerArea": "zone de concession issue d’OpenStreetMap",
         "cascadeParcel": "parcelle au point",
         "boundaryConfirmed": "Limite confirmée visuellement le {{date}}, pas un levé cadastral",
-        "vehicleDetectorSource": "Détection de véhicules (modèle IA)",
+        "vehicleDetectorSource": "Détection des véhicules (modèle de détection local)",
         "vehicleDetectorMethod": "Véhicules détectés sur l’image aérienne ({{resolution}} m par pixel)"
       },
       "osmLoading": "Chargement des infos OSM…",
       "osmHeading": "Depuis OpenStreetMap",
       "insuredLabel": "Portefeuille existant (assuré)",
-      "insuredYesDesc": "Client existant — inclus dans le cumul",
+      "insuredYesDesc": "Assuré – inclus dans le cumul",
       "insuredNoDesc": "Affaire nouvelle / Prospect",
       "salesPartnerLabel": "Partenaire commercial",
       "notesTitle": "Notes",
@@ -505,6 +742,7 @@
       "websiteNone": "Aucun site web trouvé",
       "websiteSourceOsm": "trouvé automatiquement (OpenStreetMap)",
       "websiteSourceManual": "saisi manuellement",
+      "websiteSourceImport": "issu du fichier d’import",
       "websiteEdit": "Modifier",
       "websiteAdd": "Ajouter un site web",
       "websiteReset": "Utiliser l’automatique",
@@ -532,19 +770,17 @@
         "hint": "Uniquement les versions où l'image a changé ici (zoom {{zoom}}). Les orthophotos des Länder ne sont pas incluses.",
         "truncated": "Les versions plus anciennes sont masquées.",
         "vehicles": "Véhicules",
-        "countButton": "Compter le stock sur plusieurs dates",
+        "countButton": "Compter les véhicules sur plusieurs versions d’image",
         "counting": "Comptage sur les images archivées…",
-        "countFailed": "Le comptage sur plusieurs dates a échoué",
-        "countNeedsModel": "Nécessite le modèle de détection de véhicules.",
+        "countFailed": "Le comptage sur plusieurs versions d’image a échoué",
+        "countNeedsModel": "Nécessite la détection des véhicules (modèle de détection).",
         "countSummary_one": "{{count}} image comptée : médiane {{median}}, plage {{min}}–{{max}} véhicules. Indication seulement – l'exposition utilise le comptage actuel.",
         "countSummary_other": "{{count}} images comptées : médiane {{median}}, plage {{min}}–{{max}} véhicules. Indication seulement – l'exposition utilise le comptage actuel."
       },
-      "businessExisting": "Portefeuille",
+      "businessExisting": "Portefeuille existant",
       "businessNew": "Affaire nouvelle",
       "previousLocation": "Site précédent",
       "nextLocation": "Site suivant",
-      "metaImage": "Image aérienne du {{date}}",
-      "metaModel": "Modèle {{version}}",
       "showOnMap": "Voir sur la carte",
       "moreActions": "Autres actions",
       "kpiHailEal": "EAL grêle / an",
@@ -553,16 +789,15 @@
       "kpiVehiclesEstimated": "seulement estimé",
       "kpiVehiclesDetected": "issu de l’image aérienne",
       "boundaryStatusConfirmed": "Confirmée",
-      "boundaryStatusReview": "À vérifier",
-      "boundaryStatusAutomatic": "Automatique",
       "attentionBoundaryTitle": "Vérifier la limite",
       "attentionBoundaryDetail": "La limite détermine quels véhicules comptent. Confirmez-la ou choisissez-en une autre.",
       "attentionBoundaryAction": "Vers la limite",
       "attentionModelTitle": "Nombre de véhicules estimé",
-      "attentionModelDetail": "Aucun modèle d’IA n’est installé.",
+      "attentionModelDetail": "La détection des véhicules n’est pas configurée. Le nombre correspond à la surface du terrain ÷ la surface par véhicule, pas à un comptage.",
+      "attentionModelAction": "Configurer la détection des véhicules",
       "attentionImageryTitle_one": "L’image aérienne a {{count}} an",
       "attentionImageryTitle_other": "L’image aérienne a {{count}} ans",
-      "attentionImageryDetail": "Le stock peut être différent aujourd’hui. L’historique d’images permet de compter d’autres versions.",
+      "attentionImageryDetail": "Le terrain peut être différent aujourd’hui. L’historique d’images permet de compter les véhicules sur d’autres versions.",
       "attentionImageryAction": "Historique",
       "tabOverview": "Risque",
       "tabSite": "Site & véhicules",
@@ -573,12 +808,10 @@
       "confidenceValue": "confiance {{value}}",
       "boundaryConfirm": "Confirmer la limite",
       "boundaryEditOnMap": "Modifier sur la carte",
-      "boundaryAlternatives": "Autres propositions",
       "boundaryAdopt": "Utiliser",
       "vehiclesAdjust": "Ajuster",
       "vehiclesChangeManual": "Modifier",
       "vehiclesUseDetected": "Utiliser le nombre détecté",
-      "sourcesUsed": "Sources utilisées",
       "limitationsToggle_one": "{{count}} limite",
       "limitationsToggle_other": "{{count}} limites",
       "natCatNone": "Aucune source externe de données grêle n’est configurée ; la zone de grêle provient de la table des codes postaux.",
@@ -588,7 +821,7 @@
         "vehicleHull": "Contour des véhicules",
         "parcel": "Parcelle au point",
         "osmDealerArea": "Zone concession OSM",
-        "synthetic": "Cercle autour du point",
+        "synthetic": "Limite estimée (cercle)",
         "parcelPlusVehicles_one": "Parcelle au point + {{count}} parcelle avec véhicules",
         "parcelPlusVehicles_other": "Parcelle au point + {{count}} parcelles avec véhicules"
       },
@@ -633,7 +866,7 @@
       "reportSaved": "Rapport enregistré : {{path}}",
       "reportFailed": "Le rapport n'a pas pu être créé : {{error}}",
       "boundaryReviewReason": {
-        "synthetic": "aucune source au point, seulement un cercle autour",
+        "synthetic": "aucune source au point, seulement une limite estimée (cercle)",
         "lowConfidence": "faible confiance dans la source",
         "pointOutside": "le point se trouve hors de la limite",
         "vehiclesOutside": "une rangée de véhicules se trouve juste à l’extérieur",
@@ -646,10 +879,143 @@
       },
       "boundaryReviewBecause": "À vérifier car : {{reasons}}"
     },
+    "hailEal": "EAL grêle",
+    "hailZone": "Zone de grêle",
+    "hailZoneLabel": "Zone de grêle {{zone}}",
+    "hailZoneEstimated": "Zone de grêle estimée à partir des données météo – aucune zone par code postal disponible",
+    "zoneShort": "Zone {{zone}}",
+    "showAll": "Afficher les {{count}}",
+    "showLess": "Afficher moins",
+    "kpi": {
+      "largestAccumulation": "Plus grand cumul",
+      "accumulationHint_one": "{{count}} site · {{radius}} km",
+      "accumulationHint_other": "{{count}} sites · {{radius}} km",
+      "noAccumulation": "aucun dans un rayon de {{radius}} km",
+      "provisional": "provisoire · {{analyzed}}/{{total}} analysés",
+      "estimatedSites_one": "dont {{count}} site estimé",
+      "estimatedSites_other": "dont {{count}} sites estimés",
+      "elevatedZones": "En zone de grêle ≥ {{zone}}",
+      "exposureShare": "{{share}} de l’exposition"
+    },
+    "accumulations": {
+      "title": "Plus grands cumuls",
+      "description_one": "{{count}} cumul : sites reliés par des voisins dans un rayon de {{radius}} km. Cliquez sur une ligne pour voir les sites.",
+      "description_other": "{{count}} cumuls : sites reliés par des voisins dans un rayon de {{radius}} km. Cliquez sur une ligne pour voir les sites.",
+      "empty": "Aucun cumul : aucun site n’a de voisin dans un rayon de {{radius}} km.",
+      "clearFilter": "Supprimer le filtre de cumul",
+      "name": "Cumul (plus grand site)",
+      "maxZone": "Zone max.",
+      "scenario": "Scénario de dommage ({{share}})",
+      "more_one": "+ {{count}} autre",
+      "more_other": "+ {{count}} autres",
+      "showOnMap": "Carte",
+      "expand": "Afficher les sites de « {{name}} »",
+      "collapse": "Masquer les sites de « {{name}} »"
+    },
+    "zones": {
+      "title": "Répartition par zone de grêle",
+      "description": "Répartition du portefeuille entre les zones de grêle 1 (faible) à 6 (très élevée).",
+      "tooltipCount_one": "{{count}} site",
+      "tooltipCount_other": "{{count}} sites",
+      "tooltipEstimated_one": "dont {{count}} avec une zone estimée",
+      "tooltipEstimated_other": "dont {{count}} avec une zone estimée",
+      "unknown_one": "{{count}} site sans résultat de risque n’est pas inclus.",
+      "unknown_other": "{{count}} sites sans résultat de risque ne sont pas inclus.",
+      "byExposure": "Exposition"
+    },
+    "topLocations": {
+      "title": "Principaux sites par EAL grêle",
+      "empty": "Aucun site avec une EAL grêle pour l’instant.",
+      "share": "{{share}} de l’EAL du portefeuille",
+      "description_one": "Le site avec la plus forte perte annuelle attendue due à la grêle.",
+      "description_other": "Les {{count}} sites avec la plus forte perte annuelle attendue due à la grêle."
+    },
+    "review": {
+      "title": "Points à vérifier",
+      "summary": "{{critical}} critiques · {{warnings}} qualité des données",
+      "none": "Aucun point à vérifier – toutes les règles sont respectées.",
+      "ruleLabel": "Règle :",
+      "rules": {
+        "high-hail-zone": "Zone de grêle ≥ {{zone}}",
+        "high-eal": "Le site représente ≥ {{share}} de l’EAL du portefeuille",
+        "accumulation": "Cumul (rayon de {{radius}} km) avec une exposition ≥ {{threshold}}",
+        "overcapacity": "Utilisation > {{utilisation}} de la capacité de stationnement estimée",
+        "low-boundary-confidence": "Confiance de la limite du terrain ≤ {{confidence}}",
+        "no-detection": "0 véhicule détecté",
+        "estimated-hail-zone": "Aucune zone de grêle par code postal – zone estimée à partir des données météo"
+      }
+    },
+    "modelVersion": {
+      "outdated_one": "{{count}} site a été calculé avec un ancien modèle de risque. Recalculez pour obtenir l’EAL grêle ({{version}}).",
+      "outdated_other": "{{count}} sites ont été calculés avec un ancien modèle de risque. Recalculez pour obtenir l’EAL grêle ({{version}}).",
+      "recalculate": "Recalculer",
+      "done": "Tous les sites ont été calculés avec le modèle actuel.",
+      "failed_one": "{{count}} site n’a pas pu être recalculé.",
+      "failed_other": "{{count}} sites n’ont pas pu être recalculés."
+    },
     "hailEalDetail": {
+      "title": "EAL grêle",
+      "vehicles": "Véhicules sur le terrain (N)",
+      "frequency": "Fréquence (λ)",
+      "severity": "Dommage par véhicule (Σ p·S)",
+      "formula": "{{vehicles}} véhicules × {{frequency}} événements/an × {{severity}} = {{eal}}.",
+      "vehicleSource": {
+        "manual": "Nombre de véhicules vérifié manuellement.",
+        "detected": "Nombre de véhicules issu de la détection sur l’image aérienne.",
+        "estimated": "Nombre de véhicules estimé à partir de la surface du terrain (sans détection des véhicules).",
+        "assetValue": "Nombre de véhicules déduit de la valeur d’actif déclarée.",
+        "none": "Aucun nombre de véhicules disponible."
+      },
+      "zoneSource": {
+        "postcode": "Zone de grêle issue de la table des codes postaux.",
+        "provider": "Zone de grêle déduite du score du fournisseur NatCat.",
+        "estimated": "Zone de grêle estimée à partir des données météo (pas de zone par code postal)."
+      },
+      "legacy": "Calculé avec un ancien modèle ({{eal}}). Choisissez « Recalculer » dans le tableau de bord pour obtenir l’EAL grêle.",
       "severityNote": "λ = événements de grêle par an dans la zone ; le dommage par véhicule est la perte attendue par événement."
     },
+    "info": {
+      "label": "Qu’est-ce que cela signifie ?",
+      "labelFor": "Que signifie « {{label}} » ?",
+      "what": "Que montre cet élément ?",
+      "how": "Comment est-ce calculé ?",
+      "limits": "Limites",
+      "hailEal": {
+        "what": "Perte annuelle attendue due à la grêle (Expected Annual Loss, EAL) pour les sites affichés.",
+        "how": "EAL = N × λ × (pₛ·Sₛ + pₘ·Sₘ + pₗ·Sₗ). N = véhicules comptés sur le terrain (estimés à partir de la surface sans modèle de détection), λ = événements de grêle par an selon la zone de grêle, p = part des événements petits/moyens/grands, S = dommage par véhicule. Valeurs sous « Paramètres → EAL grêle ».",
+        "limits": "λ, p et S sont des valeurs provisoires non calibrées ; les nombres de véhicules marqués ≈ sont des estimations fondées sur la surface. Estimation de screening, pas une décision tarifaire, de souscription ou d’assurance."
+      },
+      "accumulations": {
+        "what": "Groupes de sites qu’un même événement de grêle pourrait toucher ensemble – triés par exposition.",
+        "how": "Deux sites sont regroupés s’ils sont distants d’au plus {{radius}} km ; les voisins forment des chaînes (single linkage). Scénario de dommage = exposition du cumul × taux de dommage de {{scenario}}.",
+        "limits": "Le rayon est une hypothèse sur la taille typique d’une cellule de grêle ; les trajectoires et les situations météo ne sont pas modélisées. Le scénario de dommage n’est pas un PML issu d’un modèle catastrophe."
+      },
+      "zones": {
+        "what": "Répartition des sites ou de l’exposition entre les zones de grêle 1 (faible) à 6 (très élevée).",
+        "how": "Zone issue de la table des zones de grêle par code postal ; sans code postal, elle est estimée à partir du score grêle météo (indiqué dans l’infobulle).",
+        "limits": "Les zones de grêle décrivent l’aléa régional, pas l’état du site individuel."
+      },
+      "topLocations": {
+        "what": "Les sites avec la plus forte perte annuelle attendue due à la grêle.",
+        "how": "Triés par EAL grêle (€). Le badge indique la zone de grêle ; « ≈ » = zone estimée.",
+        "limits": "L’EAL dépend fortement du nombre de véhicules – des nombres vérifiés manuellement améliorent le classement."
+      },
+      "review": {
+        "what": "Sites qu’un souscripteur devrait examiner de plus près, avec la règle qui a déclenché le point.",
+        "how": "Critique : zone de grêle ≥ {{zone}} ; part de l’EAL du portefeuille ≥ {{share}} ; cumul dans un rayon de {{radius}} km avec une exposition ≥ {{threshold}}. Qualité des données : utilisation > {{utilisation}}, confiance de la limite ≤ {{confidence}}, 0 véhicule détecté, zone de grêle estimée. Seuils sous « Paramètres ».",
+        "limits": "Fondé sur des règles, sans pondération – un point est une demande de vérification, pas un refus."
+      },
+      "table": {
+        "what": "Tous les sites du portefeuille avec zone de grêle, véhicules, exposition et EAL grêle.",
+        "how": "Cliquez sur un en-tête de colonne pour trier. Le champ de recherche ne filtre que ce tableau ; les autres tuiles suivent les filtres de portefeuille ci-dessus.",
+        "limits": "Le nombre de véhicules et l’EAL proviennent de la détection sur l’image aérienne ou, sans modèle de détection, de la surface du terrain (marqués ≈) et sont des estimations de screening."
+      }
+    },
     "table": {
+      "description": "Tous les sites avec zone de grêle, véhicules, exposition et EAL grêle. Cliquez sur une ligne pour les détails.",
+      "search": "Rechercher un nom, une adresse ou une ville…",
+      "alertIcon": "Points à vérifier",
+      "openDetails": "Ouvrir les détails de {{name}}",
       "range_one": "{{from}}–{{to}} sur {{count}} site",
       "range_other": "{{from}}–{{to}} sur {{count}} sites",
       "rowsPerPage": "Lignes par page",
@@ -657,14 +1023,19 @@
       "previousPage": "Page précédente",
       "nextPage": "Page suivante",
       "page": "Page {{page}} sur {{pages}}",
-      "pending": "en attente"
+      "pending": "en attente",
+      "estimate": {
+        "mark": "estimé",
+        "vehicles": "Nombre de véhicules estimé à partir de la surface du terrain (sans détection des véhicules) ; l’exposition et l’EAL en découlent.",
+        "boundary": "Limite estimée (cercle autour du point d’adresse) ; la surface et le nombre de véhicules dépendent du rayon supposé."
+      }
     }
   },
   "map": {
-    "satellite": "Satellite",
+    "satellite": "Vue aérienne",
     "street": "Rue",
     "boundaries": "Limites",
-    "detections": "Détections de véhicules",
+    "detections": "Véhicules détectés",
     "clusters": "Carte de chaleur des clusters",
     "scenario": "Scénario de grêle",
     "legend": {
@@ -675,7 +1046,7 @@
       "boundaryAutomatic": "Automatique, par source :",
       "vehicles": "Véhicules",
       "carCategory": "Véhicule / Car",
-      "imageryTitle": "Image satellite (centre de la carte)",
+      "imageryTitle": "Image aérienne (centre de la carte)",
       "imageryLoading": "Chargement des métadonnées…",
       "imageryNoMetadataWms": "La source WMS personnalisée ne fournit aucune métadonnée ; la date de prise de vue est inconnue.",
       "imageryDate": "Prise de vue",
@@ -709,9 +1080,9 @@
         "only-option": "seule source datée",
         "no-dated-source": "aucune source datée – Esri par défaut",
         "no-sharp-source": "aucune source assez nette – Esri par défaut",
-        "fixed-provider": "fixée dans les paramètres",
+        "fixed-provider": "fixée dans les réglages",
         "overview-zoom": "zoom d'ensemble – mosaïque Esri",
-        "pinned-version": "version Wayback choisie manuellement"
+        "pinned-version": "version d’image Wayback choisie manuellement"
       },
       "imageryAlternatives": "Alternatives vérifiées",
       "business": "Type d’affaire",
@@ -719,14 +1090,14 @@
       "newBusiness": "Affaire nouvelle (bord violet, +)",
       "imageryWaybackVersion": "Version Wayback"
     },
-    "editBoundary": "Modifier la limite",
     "locationsPanel": {
       "toggleAriaLabel": "Afficher/masquer la liste des sites",
       "importPortfolio": "Importer le portefeuille (CSV / Excel)",
       "addAddress": "Ajouter une adresse",
       "addressPlaceholder": "Ajouter une adresse…",
       "searchFailed": "Échec de la recherche",
-      "empty": "Aucun site pour l'instant. Ajoutez une adresse ci-dessus.",
+      "searchFailedHint": "Vérifiez la connexion Internet et réessayez.",
+      "empty": "Aucun site pour l’instant. Ajoutez une adresse avec le « + » ci-dessus.",
       "sampleData": "Pas de portefeuille ? Données d'exemple avec 10 à 500 vraies concessions",
       "neighborSummary": {
         "none": "Aucun voisin assuré dans un rayon de {{radius}} km",
@@ -744,14 +1115,19 @@
       "selectModeExit": "Annuler la sélection",
       "selectAll": "Tout sélectionner",
       "deselectAll": "Tout désélectionner",
-      "selectedCount": "{{count}} sélectionné(s)",
+      "selectedCount_one": "{{count}} sélectionné",
+      "selectedCount_other": "{{count}} sélectionnés",
       "deleteSelectedConfirmTitle": "Supprimer les sites sélectionnés ?",
-      "deleteSelectedConfirmDescription": "Cette action supprimera définitivement {{count}} site(s) du portefeuille. Cette action est irréversible.",
-      "deleteSelectedToast": "{{count}} site(s) supprimé(s)",
+      "deleteSelectedConfirmDescription_one": "Cette action supprimera définitivement {{count}} site du portefeuille. Elle est irréversible.",
+      "deleteSelectedConfirmDescription_other": "Cette action supprimera définitivement {{count}} sites du portefeuille. Elle est irréversible.",
+      "deleteSelectedToast_one": "{{count}} site supprimé",
+      "deleteSelectedToast_other": "{{count}} sites supprimés",
       "markInsured": "Marquer la sélection comme portefeuille existant",
       "markNotInsured": "Marquer la sélection comme affaire nouvelle",
-      "markInsuredToast": "{{count}} site(s) marqué(s) comme portefeuille existant",
-      "markNotInsuredToast": "{{count}} site(s) marqué(s) comme affaire nouvelle",
+      "markInsuredToast_one": "{{count}} site marqué comme portefeuille existant",
+      "markInsuredToast_other": "{{count}} sites marqués comme portefeuille existant",
+      "markNotInsuredToast_one": "{{count}} site marqué comme affaire nouvelle",
+      "markNotInsuredToast_other": "{{count}} sites marqués comme affaire nouvelle",
       "directoryHintPrefix": "Concessionnaire introuvable ?",
       "directoryHintLink": "Charger l’annuaire",
       "distanceChip": "à {{distance}} km",
@@ -768,6 +1144,8 @@
       "noMatches": "Aucun site ne correspond à cette recherche ou à ces filtres.",
       "showMore": "Afficher {{count}} de plus (encore {{rest}})",
       "pending": "en attente",
+      "notAnalyzed": "Pas encore analysé",
+      "selectFor": "Sélectionner {{name}}",
       "ealValue": "EAL grêle {{value}}"
     },
     "hailZones": {
@@ -777,6 +1155,7 @@
     },
     "layerPanel": {
       "title": "Couches",
+      "overlaysSectionTitle": "Superpositions",
       "activeCount": "{{count}} actives",
       "basemapSectionTitle": "Fond de carte",
       "basemapSelectAriaLabel": "Choisir le fond de carte",
@@ -784,9 +1163,7 @@
       "basemapTerrain": "Relief",
       "parcelsLayerLabel": "Parcelles cadastrales (ALKIS)",
       "parcelsLayerHint": "Limites parcellaires officielles des Länder, visibles à partir du zoom 17. À titre indicatif, sans valeur juridique. Pas de service ouvert pour la Sarre.",
-      "opacityLabel": "Opacité",
-      "satelliteOpacityAriaLabel": "Opacité du satellite",
-      "boundariesLayerLabel": "Parcelles",
+      "boundariesLayerLabel": "Limites de terrain",
       "nearbyInsuredLayerLabel": "Voisins assurés",
       "accumulationClustersLayerLabel": "Clusters de cumul",
       "hailZonesLayerLabel": "Zones de grêle (codes postaux)",
@@ -818,7 +1195,7 @@
       "imageryVersionNone": "Aucune image Esri plus ancienne au centre de la carte.",
       "imageryVersionReset": "Réinitialiser",
       "imageryVersionShown": "Affichée :",
-      "boundariesLayerOffHint": "Affichez la couche « Parcelles » pour modifier les limites.",
+      "boundariesLayerOffHint": "Affichez la couche « Limites de terrain » pour modifier les limites.",
       "detectionNeedsSelectionHint": "Sélectionnez un site sur la carte ou dans la liste.",
       "detectionLayerOffHint": "Affichez la couche « Véhicules » pour vérifier les véhicules."
     },
@@ -859,8 +1236,8 @@
       "boundaryConfirm": "Oui, confirmer",
       "boundaryCorrect": "Corriger",
       "boundaryNext": "Suivante",
-      "detectionWarningHint": "Aucun modèle d’IA n’est installé. Installez-le dans les paramètres, puis relancez l’analyse.",
-      "openSettings": "Ouvrir les paramètres",
+      "detectionWarningHint": "Aucun modèle de détection n’est installé. Configurez la détection des véhicules dans les réglages, puis relancez l’analyse.",
+      "openSettings": "Ouvrir les réglages",
       "deleteConfirmTitle": "Supprimer le site ?",
       "deleteConfirmDescription": "« {{name}} » est retiré de ce portefeuille avec son analyse et ses notes. Cette action est irréversible.",
       "resumeTitle_one": "{{count}} site pas encore analysé",
@@ -869,15 +1246,21 @@
       "resumeAction": "Poursuivre l'analyse",
       "resumeDiscard": "Plus tard",
       "undoBoundaryEditShortcut": "Annuler la dernière modification (Ctrl+Z, ⌘Z sur Mac)",
-      "fallbackBoundaries_one": "1 d’entre elles est une limite de secours (un cercle autour du point) : vérifiez-la ou modifiez-la pour une détection précise.",
-      "fallbackBoundaries_other": "{{count}} d’entre elles sont des limites de secours (un cercle autour du point) : vérifiez-les ou modifiez-les pour une détection précise.",
-      "showFallbackBoundaries": "Afficher les limites de secours"
+      "fallbackBoundaries_one": "1 d’entre elles n’est qu’une limite estimée (cercle) : vérifiez-la ou modifiez-la pour un comptage précis des véhicules.",
+      "fallbackBoundaries_other": "{{count}} d’entre elles ne sont que des limites estimées (cercle) : vérifiez-les ou modifiez-les pour un comptage précis des véhicules.",
+      "showFallbackBoundaries": "Afficher les limites estimées",
+      "details": "Détails",
+      "setupDetection": "Configurer la détection des véhicules",
+      "cancellingAnalysis": "Arrêt en cours…",
+      "mapCopied": "Image de la carte copiée dans le presse-papiers",
+      "mapSaved": "Image de la carte enregistrée",
+      "mapCopyFailed": "Impossible de copier l’image de la carte.",
+      "mapSaveFailed": "Impossible d’enregistrer l’image de la carte."
     }
   },
   "ai": {
     "memo": "Note de souscription",
     "chat": "Chat du portefeuille",
-    "nlQuery": "Requête en langage naturel",
     "naturalLanguageQuery": "Requête en langage naturel",
     "queryInputPlaceholder": "Posez une question en langage naturel…",
     "ask": "Demander",
@@ -886,8 +1269,6 @@
     "exampleHighHail": "Afficher tous les sites avec un risque de grêle élevé",
     "exampleUtilisation": "Quels sites ont une utilisation supérieure à 80 % ?",
     "exampleEal": "Sites avec une EAL supérieure à 100 000 €",
-    "askPlaceholder": "Posez une question sur le portefeuille…",
-    "queryPlaceholder": "ex. « Afficher tous à risque de grêle élevé »",
     "showInDashboard": "Afficher dans le tableau de bord",
     "generate": "Générer",
     "streaming": "Réponse en cours…"
@@ -924,7 +1305,8 @@
       "noneDetail": "Aucun site assuré dans un rayon de {{radius}} km. Réassurance non nécessaire — la tarification peut être plus avantageuse.",
       "highTitle": "Risque de cumul élevé — réassurance recommandée",
       "nearbyTitle": "Risque de cumul à proximité",
-      "detail": "{{count}} sites assurés dans un rayon de {{radius}} km, exposition cumulée {{exposure}}. {{reinsureText}} Tarification : {{pricing}}."
+      "detail_one": "{{count}} site assuré dans un rayon de {{radius}} km, exposition cumulée {{exposure}}. {{reinsureText}} Tarification : {{pricing}}.",
+      "detail_other": "{{count}} sites assurés dans un rayon de {{radius}} km, exposition cumulée {{exposure}}. {{reinsureText}} Tarification : {{pricing}}."
     },
     "reinsure": {
       "yes": "Réassurer : oui.",
@@ -934,7 +1316,8 @@
     },
     "group": {
       "title": "Groupe « {{group}} » — {{count}} sites",
-      "breachNote": " {{count}} site(s) au-dessus de la limite produit.",
+      "breachNote_one": " {{count}} site au-dessus de la limite produit.",
+      "breachNote_other": " {{count}} sites au-dessus de la limite produit.",
       "detail": "{{insured}}/{{total}} assurés, exposition cumulée {{exposure}}, {{vehicles}} véhicules. Zone de grêle max. {{maxZone}}.{{breachNote}} Réassurer (groupe) : {{reinsureWord}}. Tarification (groupe) : {{pricing}}."
     }
   },
@@ -965,34 +1348,27 @@
     "sidebar": "Barre latérale",
     "mobileSidebar": "Affiche la barre latérale mobile.",
     "toggleSidebar": "Afficher ou masquer la barre latérale",
-    "noDashboards": "Aucun tableau de bord pour l'instant.",
     "noMatches": "Aucun résultat.",
     "delete": "Supprimer",
     "dashboards": "Tableaux de bord",
-    "newDashboard": "Nouveau tableau de bord",
     "switchThread": "Changer de conversation",
     "newChatThread": "Nouvelle conversation",
     "noThreads": "Aucune conversation pour l'instant.",
     "deleteThread": "Supprimer la conversation",
-    "emptyChat": "Interrogez le portefeuille ou demandez un tableau de bord IA.",
     "dismiss": "Masquer",
     "answering": "Réponse en cours…",
     "error": "Erreur : {{error}}",
-    "modelConfidence": "Confiance du modèle",
+    "modelConfidence": "Confiance du modèle de risque",
     "noAnalysis": "Aucune analyse",
     "importPortfolio": "Importer le portefeuille",
     "importDescription": "Importez d'abord un portefeuille pour afficher les indicateurs, graphiques et sites.",
     "analysis": "Analyse",
-    "locationsAnalyzed": "{{count}} sites analysés",
+    "locationsAnalyzed_one": "{{count}} site analysé",
+    "locationsAnalyzed_other": "{{count}} sites analysés",
     "locationsFiltered": "{{filtered}} sur {{total}} sites (filtrés)",
-    "portfolioSaved": "Portefeuille enregistré",
-    "saveFailed": "Échec de l'enregistrement : {{error}}",
     "noRowsFound": "Aucune ligne importable trouvée.",
-    "importIssuesRecorded": "{{count}} problèmes d'importation enregistrés.",
-    "returnPeriodEvent": "Événement avec une période de retour de {{years}} ans",
-    "worstCluster": "Cluster le plus important dans un rayon de {{radius}} km",
-    "lossFractionIncreases": "La part des pertes augmente avec la période de retour.",
-    "widgetError": "Le widget n’a pas pu être affiché.",
+    "importIssuesRecorded_one": "{{count}} problème d’importation enregistré.",
+    "importIssuesRecorded_other": "{{count}} problèmes d’importation enregistrés.",
     "website": "Site web",
     "reportExported": "Rapport exporté : {{path}}",
     "portfolioExported": "Portefeuille exporté : {{path}}",
@@ -1003,23 +1379,24 @@
     "excelReport": "Rapport Excel",
     "csvReport": "Rapport CSV",
     "readonlyView": "Vue HTML en lecture seule",
-    "noAiDashboard": "Aucun tableau de bord IA",
-    "dashboardEmptyDescription": "Décrivez sur la page d'accueil ce que vous voulez voir en mode tableau de bord ; l'IA le compose.",
-    "goHome": "Aller à l'accueil",
     "compare": "Comparer",
     "portfolioComparison": "Comparaison de portefeuilles",
-    "compareDescription": "Comparer le portefeuille actif avec une session enregistrée.",
-    "selectBaseline": "Sélectionner la session de référence…",
-    "generatingDashboard": "Génération du tableau de bord…",
+    "compareDescription": "Compare le portefeuille actif site par site avec un état enregistré ou un autre portefeuille (Δ véhicules, Δ EAL).",
+    "compareHowTo": "Pour obtenir un point de comparaison : enregistrez l’état actuel, modifiez ensuite des paramètres ou des limites, puis rouvrez la comparaison.",
+    "saveSnapshot": "Enregistrer l’état",
+    "snapshotName": "{{name}} – état du {{date}}",
+    "snapshotSaved": "« {{name}} » enregistré. Vous retrouvez cet état parmi les portefeuilles et ici dans la comparaison.",
+    "snapshotFailed": "Impossible d’enregistrer l’état : {{error}}",
+    "moreActions": "Plus d’actions",
+    "selectBaseline": "Choisir un état de comparaison…",
     "hailRisk": "Risque de grêle",
     "estimated": "estimé",
     "boundaryReviewNeeded": "⚠ Vérifier la limite du terrain",
     "confirmBoundary": "Confirmer la limite",
     "risk": "Risque",
-    "ealYear": "EAL",
     "viewDetails": "Voir les détails",
     "analyzing": "Analyse en cours…",
-    "vehicleCountEstimated": "⚠ Nombre de véhicules estimé (sans modèle IA)",
+    "vehicleCountEstimated": "⚠ Nombre de véhicules estimé (sans détection des véhicules)",
     "intensity": "Intensité",
     "width": "Largeur",
     "returnPeriod": "Période de retour",
@@ -1033,28 +1410,25 @@
     "drawingHint": "Cliquez sur les points de passage ; un double-clic termine le tracé.",
     "opacityEalShare": "Opacité ∝ part de l'EAL",
     "accumulationClusters": "Clusters de cumul",
-    "filterLocations": "Filtrer les sites…",
     "showOnMap": "Afficher sur la carte",
     "subPortfolio": "Sous-portefeuille",
     "group": "Groupe",
     "all": "Tous",
     "clusterLabel": "Cluster {{id}}",
     "resetFilters": "Réinitialiser les filtres",
-    "clusterDescription": "{{count}} clusters avec au moins 2 sites dans un rayon de {{radius}} km, triés par KPI Nat Cat (exposition × perte modélisée).",
     "clusterId": "ID du cluster",
     "value": "Valeur",
-    "hailLevel": "Niveau de grêle",
     "natCatKpi": "KPI Nat Cat",
     "salesPartner": "Partenaire commercial",
     "name": "Nom",
     "boundarySource": "Source de la limite",
     "allBoundaries": "Toutes les limites",
-    "fallbackBoundary": "Limite de secours",
+    "fallbackBoundary": "Limite estimée (cercle)",
     "businessType": "Type d’affaire",
     "allBusiness": "Tous types d’affaire",
     "existingBusiness": "Portefeuille existant",
     "newBusiness": "Affaire nouvelle",
-    "noOtherSessions": "Aucune autre session enregistrée à comparer.",
+    "noOtherSessions": "Aucun autre état enregistré à comparer pour l’instant.",
     "clusterFilterLabel": "Cumul : {{name}}",
     "newConversation": "Nouvelle conversation",
     "chatHistory": "Conversations précédentes",
@@ -1063,27 +1437,29 @@
       "allZones": "Toutes les zones",
       "zone": "Zone {{zone}} ({{count}})",
       "noZone": "Sans zone ({{count}})",
-      "statusLabel": "État",
-      "allStatus": "Tous les états",
+      "statusLabel": "Statut d’analyse",
+      "allStatus": "Tout statut d’analyse",
       "analyzed": "Analysés ({{count}})",
       "pending": "En attente ({{count}})",
       "review": "Limite à vérifier ({{count}})"
     },
     "locationsPartlyAnalyzed": "{{analyzed}} sur {{total}} analysés · {{pending}} en attente",
-    "fallbackBoundaryReview": "Limite de secours, à vérifier ou modifier pour une détection précise"
+    "fallbackBoundaryReview": "Limite estimée (cercle) – à vérifier ou modifier pour un comptage précis des véhicules"
   },
   "aiSetup": {
     "missingTitle": "Assistant IA pas encore configuré",
-    "missingDescription": "Choisissez un fournisseur (OpenAI, Claude, un modèle local ou un endpoint personnalisé) et un modèle dans les paramètres pour utiliser le chat.",
+    "missingDescription": "Choisissez un fournisseur d’IA (OpenAI, Claude, un modèle local ou un endpoint personnalisé) et un modèle dans les réglages pour utiliser les fonctions d’IA.",
     "rejectedTitle": "Identifiants refusés",
-    "rejectedDescription": "L’endpoint IA n’a pas accepté la clé API (401/403). Vérifiez la clé, le modèle et l’endpoint dans les paramètres.",
+    "rejectedDescription": "L’endpoint IA n’a pas accepté la clé API (401/403). Vérifiez la clé, le modèle et l’endpoint dans les réglages.",
     "openSettings": "Configurer l’IA"
   },
   "portfolioImport": {
     "title": "Importer un portefeuille",
-    "summary": "{{file}} : {{imported}} ligne(s) reconnue(s) sur {{total}}.",
-    "skipped": "{{count}} ligne(s) ignorée(s).",
-    "issues": "{{count}} remarque(s) dans le rapport d’import.",
+    "summary": "{{file}} : lignes reconnues : {{imported}} sur {{total}}.",
+    "skipped_one": "{{count}} ligne ignorée.",
+    "skipped_other": "{{count}} lignes ignorées.",
+    "issues_one": "{{count}} remarque dans le rapport d’import.",
+    "issues_other": "{{count}} remarques dans le rapport d’import.",
     "parseFailed": "Raison technique : {{error}}",
     "detectedColumns": "Colonnes détectées",
     "noTermsColumns": "Aucune colonne d’indemnité maximale ou de franchise détectée – ces données peuvent être ajoutées par site ultérieurement.",
@@ -1107,7 +1483,7 @@
     "nameLabel": "Nom du portefeuille",
     "businessTitle": "Type d’affaire",
     "businessFile": "Par site depuis le fichier (colonne « {{column}} »)",
-    "businessFileCounts": "{{existing}} existant(s) · {{fresh}} nouveau(x) · {{unknown}} non renseigné(s) (comptés comme affaire nouvelle)",
+    "businessFileCounts": "Existant : {{existing}} · Nouveau : {{fresh}} · Non renseigné : {{unknown}} (compté comme affaire nouvelle)",
     "businessExisting": "Tout le portefeuille est existant",
     "businessExistingDesc": "Tous les sites sont considérés comme assurés et inclus dans le cumul.",
     "businessNew": "Tout le portefeuille est une affaire nouvelle",
@@ -1115,7 +1491,8 @@
     "businessRequired": "Veuillez choisir le type d’affaire – il détermine l’affichage et l’évaluation.",
     "waitForAnalysis": "Veuillez attendre la fin de l’analyse en cours.",
     "cancel": "Annuler",
-    "confirm": "Importer {{count}} site(s)",
+    "confirm_one": "Importer {{count}} site",
+    "confirm_other": "Importer {{count}} sites",
     "parseFailedTitle": "Le fichier n'a pas pu être lu. Enregistrez-le à nouveau dans Excel au format .xlsx ou exportez-le en CSV."
   },
   "places": {
@@ -1131,7 +1508,7 @@
     "regenerate": "Régénérer la réponse",
     "stop": "Arrêter la réponse",
     "needsAi": "Configurez un fournisseur d’IA dans les réglages pour poser des questions. Les commandes comme « ouvrir … » fonctionnent sans.",
-    "provenance": "L’IA répond à partir des données de screening de ce portefeuille (modèle {{model}} ; l’EAL grêle utilise encore des valeurs provisoires) et de cette conversation. Ses réponses sont une appréciation, pas une décision de souscription.",
+    "provenance": "L’IA répond à partir des données de screening de ce portefeuille (modèle {{model}} ; l’EAL grêle utilise encore des valeurs provisoires) et de cette conversation. Les réponses sont une appréciation, pas une décision de souscription.",
     "context_one": "Concerne : {{portfolio}} · {{count}} site",
     "context_other": "Concerne : {{portfolio}} · {{count}} sites",
     "contextSelected": "sélection : {{name}}",
@@ -1154,15 +1531,22 @@
         "accumulationClusters": "Cumuls affichés sur la carte.",
         "hailZones": "Zones de grêle affichées sur la carte."
       },
-      "dashboardNeedsAi": "Modifier un tableau de bord nécessite un fournisseur IA – configurez-le dans les paramètres.",
-      "dashboardTemplate": "Sans fournisseur IA, j'ai créé le modèle « {{name}} ». Avec l'IA, je peux construire et modifier des tableaux de bord selon vos souhaits.",
+      "dashboardNeedsAi": "Modifier un tableau de bord nécessite un fournisseur d’IA – configurez-le dans les réglages.",
+      "dashboardTemplate": "Sans fournisseur d’IA, j’ai créé le modèle « {{name}} ». Avec l’IA, je peux construire et modifier des tableaux de bord selon vos souhaits.",
       "dashboardFailed_one": "Je n'ai pas pu en faire un tableau de bord fiable ({{detail}}). Reformulez, p. ex. « tableau de bord avec l'EAL grêle par partenaire ».",
       "dashboardFailed_other": "Je n'ai pas pu en faire un tableau de bord fiable ({{count}} problèmes, p. ex. {{detail}}). Reformulez, p. ex. « tableau de bord avec l'EAL grêle par partenaire ».",
       "dashboardCreated": "Le tableau de bord « {{name}} » est prêt – il est dans l'onglet Tableau de bord. Dites-moi ce qu'il faut modifier.",
       "dashboardUpdated": "Le tableau de bord « {{name}} » a été mis à jour."
     },
-    "provenanceLabel": "Sur quoi reposent les réponses ?",
-    "emptyChat": "Interrogez l’IA sur votre portefeuille – ou pilotez l’application, p. ex. « open … »."
+    "provenanceTopic": "Réponses de l’IA",
+    "commandsWithoutAi": "Ces commandes fonctionnent aussi sans IA :",
+    "commandPrompts": {
+      "open": "Ouvrir {{name}}",
+      "clusters": "Afficher les cumuls sur la carte",
+      "hailZones": "Afficher les zones de grêle sur la carte",
+      "exportPdf": "Exporter le rapport PDF"
+    },
+    "emptyChat": "Interrogez l’IA sur votre portefeuille – ou pilotez l’application directement, p. ex. « ouvrir Autohaus … » ou « afficher les cumuls sur la carte »."
   },
   "review": {
     "start": "Vérifier",
@@ -1191,7 +1575,6 @@
     "retry": "Réessayer",
     "none": "Aucune station DWD avec un long historique de grêle dans un rayon de {{radius}} km.",
     "stationPicker": "Choisir la station météo",
-    "aboutLabel": "À propos de l'historique de grêle",
     "about": {
       "title": "D'où viennent les chiffres",
       "what": "Observations des stations les plus proches du service météorologique allemand dans un rayon de {{radius}} km, avec au moins dix ans d'enregistrements.",
@@ -1238,8 +1621,10 @@
     "detail": {
       "monthTitle": "{{month}}",
       "noHail": "pas de grêle observée",
-      "monthSummary_one": "{{count}} jour de grêle sur {{years}} an(s)",
-      "monthSummary_other": "{{count}} jours de grêle sur {{years}} ans",
+      "monthSummary_one": "{{count}} jour de grêle sur {{years}}",
+      "monthSummary_other": "{{count}} jours de grêle sur {{years}}",
+      "yearCount_one": "{{count}} an",
+      "yearCount_other": "{{count}} ans",
       "more": "+ {{count}} autres",
       "close": "Fermer les détails"
     },
@@ -1256,7 +1641,7 @@
       "switch": "Afficher la station"
     },
     "zeroDays": "Pas de grêle observée",
-    "stationMeta": "{{distance}} km · {{from}}–{{to}} · {{days}} jours/an",
+    "stationMeta": "{{distance}} km · {{from}}–{{to}} · jours de grêle/an : {{days}}",
     "stationPickerHint": "{{count}} stations à proximité – choisir une station pour voir ses données"
   },
   "importPreview": {
@@ -1288,6 +1673,7 @@
     "checkFailed": "Échec de la vérification"
   },
   "a2ui": {
+    "needsAi": "Les tableaux de bord IA sont créés par l’assistant IA. Configurez d’abord un fournisseur d’IA.",
     "filter": {
       "all": "Portefeuille entier",
       "zoneRange": "Zone {{min}}–{{max}}",

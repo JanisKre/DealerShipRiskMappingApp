@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { mergePersistedMapState, useMapStore } from "./mapStore";
+import {
+  countActiveLayers,
+  mergePersistedMapState,
+  useMapStore,
+  type MapLayers,
+} from "./mapStore";
 
 const current = (): ReturnType<typeof useMapStore.getState> =>
   useMapStore.getState();
@@ -48,5 +53,33 @@ describe("mergePersistedMapState", () => {
     const merged = mergePersistedMapState({ satelliteOpacity: 0.4 }, current());
     expect(merged.satelliteOpacity).toBe(0.4);
     expect(merged.basemap).toBe(current().basemap);
+  });
+});
+
+describe("countActiveLayers", () => {
+  const layers: MapLayers = {
+    satellite: true,
+    boundaries: true,
+    detections: true,
+    nearbyInsured: false,
+    accumulationClusters: false,
+    hailZones: false,
+    parcels: false,
+  };
+
+  it("does not count the hidden satellite flag as an active layer", () => {
+    expect(countActiveLayers(layers)).toBe(2);
+  });
+
+  it("counts every panel toggle that is on", () => {
+    expect(
+      countActiveLayers({ ...layers, parcels: true, hailZones: true }),
+    ).toBe(4);
+  });
+
+  it("counts only the given toggles", () => {
+    expect(countActiveLayers({ ...layers, parcels: true }, ["parcels"])).toBe(
+      1,
+    );
   });
 });

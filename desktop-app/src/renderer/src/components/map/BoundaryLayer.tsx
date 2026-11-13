@@ -89,6 +89,8 @@ export function BoundaryLayer({
               dashArray: sourceDashArray(d.boundary.source),
               weight: 2,
               fillOpacity: 0.15,
+              // Geoman runs in opt-in mode (MapPage): only boundaries edit.
+              pmIgnore: false,
             }}
             eventHandlers={
               {

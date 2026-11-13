@@ -38,13 +38,14 @@ import {
 } from "@renderer/components/ui/toggle-group";
 import { AppSupportCard } from "./AppSupportCard";
 import { DealerDirectoryCard } from "./DealerDirectoryCard";
+import { DetectionModelCard } from "./DetectionModelCard";
 import { LlmSettingsCard } from "./LlmSettingsCard";
 import { NatCatSettingsCard } from "./NatCatSettingsCard";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message
     ? error.message
-    : "The operation could not be completed.";
+    : i18n.t("common.operationFailed");
 }
 
 /** The settings are split into three tabs instead of one long page. */
@@ -90,16 +91,17 @@ export function SettingsPage(): React.JSX.Element {
   // Local draft for text fields — persist only onBlur (no toast per keystroke).
   const [wmsTileUrl, setWmsTileUrl] = useState("");
   const [overpassUrl, setOverpassUrl] = useState("");
-  // `?section=…` picks the tab; `?section=ai` (from the AI setup prompt)
-  // also highlights the AI card.
+  // `?section=…` picks the tab. A link to `?section=ai` (the AI setup
+  // prompt) also highlights the AI card; picking the tab here doesn't, so
+  // tab clicks add `via=tab`.
   const [searchParams, setSearchParams] = useSearchParams();
   const sectionParam = searchParams.get("section");
   const section: Section = isSection(sectionParam) ? sectionParam : "general";
-  const focusAi = sectionParam === "ai";
+  const focusAi = sectionParam === "ai" && searchParams.get("via") !== "tab";
   const aiCardRef = useRef<HTMLDivElement>(null);
   function selectSection(next: string): void {
     if (!isSection(next)) return;
-    setSearchParams({ section: next }, { replace: true });
+    setSearchParams({ section: next, via: "tab" }, { replace: true });
   }
 
   useEffect(() => {
@@ -159,14 +161,17 @@ export function SettingsPage(): React.JSX.Element {
   }
 
   function notifySaved(): void {
-    toast.success(t("common.saved"));
+    // i18n.t, not the render's `t`: after a language switch this render
+    // still holds the old language.
+    toast.success(i18n.t("common.saved"));
   }
 
   async function update(partial: Partial<Settings>): Promise<void> {
     try {
       const next = await window.api.setSettings(partial);
       setSettings(next);
-      if (partial.language) void i18n.changeLanguage(partial.language);
+      // Confirm in the new language, not the one just left.
+      if (partial.language) await i18n.changeLanguage(partial.language);
       notifySaved();
     } catch (err) {
       console.error("Saving settings failed:", err);
@@ -186,13 +191,9 @@ export function SettingsPage(): React.JSX.Element {
     ];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-8">
-      <div>
-        <h2 className="text-2xl font-semibold">{t("settings.title")}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("settings.subtitle")}
-        </p>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-6 p-8">
+      {/* The header already reads "Einstellungen"; no second heading. */}
+      <p className="text-sm text-muted-foreground">{t("settings.subtitle")}</p>
 
       <Tabs value={section} onValueChange={selectSection}>
         <TabsList className="grid w-full grid-cols-3">
@@ -368,6 +369,8 @@ export function SettingsPage(): React.JSX.Element {
               )}
             </CardContent>
           </Card>
+
+          <DetectionModelCard />
 
           <DealerDirectoryCard />
 

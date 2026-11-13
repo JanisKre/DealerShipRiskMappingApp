@@ -95,12 +95,13 @@ function findLocation(
   );
 }
 
-const SHOW = /^(zeig(e)?|show|blende)\b/;
-const OPEN = /^(öffne|oeffne|open)\b/;
-const EXPORT = /^(exportier(e)?|export|erstell(e)?|create)\b/;
-const ON_MAP = /\b(auf der karte|on the map|in der karte)\b/;
-const CLUSTERS = /\b(kumulation(en)?|cluster|accumulations?)\b/;
-const HAIL_ZONES = /\b(hagelzonen|hail zones)\b/;
+// German, English and French: the offline command chips are translated.
+const SHOW = /^(zeig(e)?|show|blende|affiche(r)?|montre(r)?)\b/;
+const OPEN = /^(öffne|oeffne|open|ouvre|ouvrir)\b/;
+const EXPORT = /^(exportier(e)?|export|erstell(e)?|create|exporte(r)?)\b/;
+const ON_MAP = /\b(auf der karte|on the map|in der karte|sur la carte)\b/;
+const CLUSTERS = /\b(kumulation(en)?|cluster|accumulations?|cumuls?)\b/;
+const HAIL_ZONES = /\b(hagelzonen|hail zones|zones de grêle)\b/;
 
 /** Whole-word match that also works for umlauts (`\b` is ASCII-only). */
 function words(pattern: string): RegExp {

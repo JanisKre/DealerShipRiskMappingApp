@@ -109,7 +109,12 @@ export function usePortfolioImport(onImported?: () => void): {
         if (!open) setPending(null);
       }}
     >
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-auto">
+      {/* The body scrolls; header and footer (the import button) stay in
+          view at any window height. */}
+      <DialogContent
+        className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden"
+        onEscapeKeyDown={keepOpenWhileEditing}
+      >
         {pending && (
           <ImportForm
             pending={pending}
@@ -124,6 +129,16 @@ export function usePortfolioImport(onImported?: () => void): {
   );
 
   return { startImport, dialog };
+}
+
+/**
+ * Escape inside an inline row edit cancels that edit, not the whole import.
+ * Radix listens for Escape on the document in the capture phase, so the
+ * input's own `stopPropagation` comes too late; the dialog has to opt out.
+ */
+function keepOpenWhileEditing(event: KeyboardEvent): void {
+  const target = event.target instanceof Element ? event.target : null;
+  if (target?.closest("[data-inline-edit]")) event.preventDefault();
 }
 
 function ImportForm({
@@ -259,122 +274,124 @@ function ImportForm({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="space-y-1.5">
-        <div className="text-xs font-medium text-muted-foreground">
-          {t("portfolioImport.detectedColumns")}
+      <div className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1 pb-1">
+        <div className="space-y-1.5">
+          <div className="text-xs font-medium text-muted-foreground">
+            {t("portfolioImport.detectedColumns")}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {mapped.map(({ field, column }) => (
+              <span
+                key={field}
+                className="rounded-md border bg-muted/40 px-2 py-0.5 text-xs"
+                title={column}
+              >
+                <span className="text-muted-foreground">
+                  {t(`portfolioImport.field.${field}`)}
+                </span>{" "}
+                ← {column}
+              </span>
+            ))}
+          </div>
+          {!report.columnMapping.productLimitEur &&
+            !report.columnMapping.deductibleEur && (
+              <p className="text-xs text-muted-foreground">
+                {t("portfolioImport.noTermsColumns")}
+              </p>
+            )}
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {mapped.map(({ field, column }) => (
-            <span
-              key={field}
-              className="rounded-md border bg-muted/40 px-2 py-0.5 text-xs"
-              title={column}
-            >
-              <span className="text-muted-foreground">
-                {t(`portfolioImport.field.${field}`)}
-              </span>{" "}
-              ← {column}
-            </span>
-          ))}
-        </div>
-        {!report.columnMapping.productLimitEur &&
-          !report.columnMapping.deductibleEur && (
-            <p className="text-xs text-muted-foreground">
-              {t("portfolioImport.noTermsColumns")}
-            </p>
-          )}
-      </div>
 
-      {showTarget && (
-        <fieldset className="space-y-2">
-          <legend className="mb-1.5 text-sm font-semibold">
-            {t("portfolioImport.targetTitle")}
-          </legend>
-          <div role="radiogroup" className="grid gap-2 sm:grid-cols-2">
-            <OptionCard
-              selected={target === "new"}
-              onSelect={() => setTarget("new")}
-              icon={<FilePlus2 className="size-4" />}
-              title={t("portfolioImport.targetNew")}
-            />
-            <OptionCard
-              selected={target === "current"}
-              onSelect={() => setTarget("current")}
-              icon={<FolderInput className="size-4" />}
-              title={t("portfolioImport.targetCurrent", {
-                name: portfolioName(currentName, t),
-              })}
+        {showTarget && (
+          <fieldset className="space-y-2">
+            <legend className="mb-1.5 text-sm font-semibold">
+              {t("portfolioImport.targetTitle")}
+            </legend>
+            <div role="radiogroup" className="grid gap-2 sm:grid-cols-2">
+              <OptionCard
+                selected={target === "new"}
+                onSelect={() => setTarget("new")}
+                icon={<FilePlus2 className="size-4" />}
+                title={t("portfolioImport.targetNew")}
+              />
+              <OptionCard
+                selected={target === "current"}
+                onSelect={() => setTarget("current")}
+                icon={<FolderInput className="size-4" />}
+                title={t("portfolioImport.targetCurrent", {
+                  name: portfolioName(currentName, t),
+                })}
+              />
+            </div>
+          </fieldset>
+        )}
+
+        <ImportPreviewTable
+          rows={preview}
+          skipped={skipped}
+          onPatch={patchRow}
+          onToggleAll={(include) =>
+            setOverrides((current) => {
+              const next = { ...current };
+              for (const row of preview)
+                next[row.row.id] = { ...next[row.row.id], include };
+              return next;
+            })
+          }
+        />
+
+        {(target === "new" || !showTarget) && (
+          <div className="space-y-1.5">
+            <Label htmlFor="portfolio-import-name">
+              {t("portfolioImport.nameLabel")}
+            </Label>
+            <Input
+              id="portfolio-import-name"
+              value={name}
+              maxLength={120}
+              onChange={(e) => setName(e.target.value)}
             />
           </div>
-        </fieldset>
-      )}
-
-      <ImportPreviewTable
-        rows={preview}
-        skipped={skipped}
-        onPatch={patchRow}
-        onToggleAll={(include) =>
-          setOverrides((current) => {
-            const next = { ...current };
-            for (const row of preview)
-              next[row.row.id] = { ...next[row.row.id], include };
-            return next;
-          })
-        }
-      />
-
-      {(target === "new" || !showTarget) && (
-        <div className="space-y-1.5">
-          <Label htmlFor="portfolio-import-name">
-            {t("portfolioImport.nameLabel")}
-          </Label>
-          <Input
-            id="portfolio-import-name"
-            value={name}
-            maxLength={120}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-      )}
-
-      <fieldset className="space-y-2">
-        <legend className="mb-1.5 text-sm font-semibold">
-          {t("portfolioImport.businessTitle")}
-        </legend>
-        <div role="radiogroup" className="grid gap-2">
-          {businessColumn && (
-            <OptionCard
-              selected={business === "file"}
-              onSelect={() => setBusiness("file")}
-              title={t("portfolioImport.businessFile", {
-                column: businessColumn,
-              })}
-              description={t("portfolioImport.businessFileCounts", {
-                existing: fromFile.existing,
-                fresh: fromFile.fresh,
-                unknown: fromFile.unknown,
-              })}
-            />
-          )}
-          <OptionCard
-            selected={business === "existing"}
-            onSelect={() => setBusiness("existing")}
-            title={t("portfolioImport.businessExisting")}
-            description={t("portfolioImport.businessExistingDesc")}
-          />
-          <OptionCard
-            selected={business === "new"}
-            onSelect={() => setBusiness("new")}
-            title={t("portfolioImport.businessNew")}
-            description={t("portfolioImport.businessNewDesc")}
-          />
-        </div>
-        {!business && (
-          <p className="text-xs text-muted-foreground">
-            {t("portfolioImport.businessRequired")}
-          </p>
         )}
-      </fieldset>
+
+        <fieldset className="space-y-2">
+          <legend className="mb-1.5 text-sm font-semibold">
+            {t("portfolioImport.businessTitle")}
+          </legend>
+          <div role="radiogroup" className="grid gap-2">
+            {businessColumn && (
+              <OptionCard
+                selected={business === "file"}
+                onSelect={() => setBusiness("file")}
+                title={t("portfolioImport.businessFile", {
+                  column: businessColumn,
+                })}
+                description={t("portfolioImport.businessFileCounts", {
+                  existing: fromFile.existing,
+                  fresh: fromFile.fresh,
+                  unknown: fromFile.unknown,
+                })}
+              />
+            )}
+            <OptionCard
+              selected={business === "existing"}
+              onSelect={() => setBusiness("existing")}
+              title={t("portfolioImport.businessExisting")}
+              description={t("portfolioImport.businessExistingDesc")}
+            />
+            <OptionCard
+              selected={business === "new"}
+              onSelect={() => setBusiness("new")}
+              title={t("portfolioImport.businessNew")}
+              description={t("portfolioImport.businessNewDesc")}
+            />
+          </div>
+          {!business && (
+            <p className="text-xs text-muted-foreground">
+              {t("portfolioImport.businessRequired")}
+            </p>
+          )}
+        </fieldset>
+      </div>
 
       <DialogFooter className="gap-2 sm:items-center">
         {analyzing && (
@@ -599,7 +616,7 @@ function ImportPreviewTable({
                   </TableCell>
                   <TableCell className="min-w-0 whitespace-normal align-top">
                     {editingId === id ? (
-                      <div className="space-y-1">
+                      <div className="space-y-1" data-inline-edit>
                         <Input
                           autoFocus
                           value={draft.name}
@@ -608,7 +625,10 @@ function ImportPreviewTable({
                             setDraft((v) => ({ ...v, name: e.target.value }))
                           }
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") commitEdit(id);
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              commitEdit(id);
+                            }
                             if (e.key === "Escape") {
                               e.stopPropagation();
                               setEditingId(null);
@@ -624,7 +644,10 @@ function ImportPreviewTable({
                             setDraft((v) => ({ ...v, address: e.target.value }))
                           }
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") commitEdit(id);
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              commitEdit(id);
+                            }
                             if (e.key === "Escape") {
                               e.stopPropagation();
                               setEditingId(null);
@@ -660,7 +683,7 @@ function ImportPreviewTable({
                             {row.row.address ?? t("importPreview.noAddress")}
                           </div>
                           {notes.length > 0 && (
-                            <ul className="mt-0.5 space-y-0.5 text-xs text-amber-700 dark:text-amber-400">
+                            <ul className="mt-0.5 space-y-0.5 text-xs text-warning-foreground">
                               {notes.map((note) => (
                                 <li key={note}>{note}</li>
                               ))}
@@ -721,7 +744,7 @@ function PlacementCell({
   const { t } = useTranslation();
   if (row.placement === "coordinates") {
     return (
-      <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+      <span className="inline-flex items-center gap-1 text-success">
         <MapPin className="size-3.5 shrink-0" />
         {t("importPreview.fromFile")}
       </span>
@@ -750,7 +773,7 @@ function PlacementCell({
     );
   if (check.state === "found")
     return (
-      <span className="flex items-start gap-1 text-emerald-700 dark:text-emerald-400">
+      <span className="flex items-start gap-1 text-success">
         <Check className="mt-px size-3.5 shrink-0" />
         <span className="line-clamp-2 break-words">{check.label}</span>
       </span>
@@ -785,7 +808,7 @@ function OptionCard({
       aria-checked={selected}
       onClick={onSelect}
       className={cn(
-        "flex w-full items-start gap-2 rounded-lg border p-3 text-left text-sm transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex w-full items-start gap-2 rounded-lg border p-3 text-left text-sm transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
         selected && "border-primary bg-primary/5 ring-1 ring-primary",
       )}
     >

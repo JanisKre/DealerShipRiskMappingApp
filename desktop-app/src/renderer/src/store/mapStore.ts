@@ -17,6 +17,12 @@ function isBasemap(value: unknown): value is Basemap {
   return (BASEMAPS as readonly unknown[]).includes(value);
 }
 
+/**
+ * Below this window width (Tailwind `xl`) the chat dock and the sidebar start
+ * collapsed, so the map keeps a usable width next to the locations dock.
+ */
+export const WIDE_WINDOW_PX = 1280;
+
 /** Layer visibilities. */
 export interface MapLayers {
   satellite: boolean;
@@ -91,6 +97,27 @@ interface MapState {
   toggleChatPanel: () => void;
   openDetailDialog: (id: string) => void;
   closeDetailDialog: () => void;
+}
+
+/**
+ * Layers the layer panel offers as toggles. `satellite` is not one of them
+ * (the basemap select covers it), so it must not count as "active".
+ */
+export const PANEL_LAYER_KEYS: readonly (keyof MapLayers)[] = [
+  "parcels",
+  "boundaries",
+  "detections",
+  "nearbyInsured",
+  "accumulationClusters",
+  "hailZones",
+];
+
+/** How many of the given toggles are on (default: all panel toggles). */
+export function countActiveLayers(
+  layers: MapLayers,
+  keys: readonly (keyof MapLayers)[] = PANEL_LAYER_KEYS,
+): number {
+  return keys.filter((key) => layers[key]).length;
 }
 
 const DEFAULT_LAYERS: MapLayers = {

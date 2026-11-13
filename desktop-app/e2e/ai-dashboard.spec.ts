@@ -292,7 +292,7 @@ test("the portfolio table searches, sorts and opens a location", async () => {
   const rows = table.getByRole("row");
   await expect(rows).toHaveCount(4); // header + 3 locations
 
-  const search = page.getByLabel("In Tabelle suchen…");
+  const search = page.getByLabel("Name, Adresse oder Ort suchen…");
   await search.fill("Beta");
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(1)).toContainText("Autohaus Beta");

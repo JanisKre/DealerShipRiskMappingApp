@@ -5,6 +5,7 @@ import {
   computeAccumulationClusters,
   computePML,
   dealershipHailZone,
+  displayedHailVehicleSource,
   effectiveVehicleCount,
 } from "@shared/risk-math";
 
@@ -39,13 +40,8 @@ function vehiclesField(d: AnalyzedDealership): string {
   const total = detail?.vehicles ?? effectiveVehicleCount(d.detection);
   const parts = [`vehicles ${round(total)}`];
   if (detail) parts.push(`exposed ${round(detail.exposedVehicles)}`);
-  const source =
-    detail?.vehicleSource ??
-    (d.detection?.manualVehicleCount != null
-      ? "manual"
-      : d.detection
-        ? "detected"
-        : "none");
+  // "estimated": lot area ÷ space per vehicle, no detection model ran.
+  const source = displayedHailVehicleSource(detail?.vehicleSource, d.detection);
   parts.push(source);
   const imageDate = d.detection?.imagery?.chosen.capturedAt?.slice(0, 7);
   if (imageDate) parts.push(`image ${imageDate}`);

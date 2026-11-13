@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, Loader2 } from "lucide-react";
 import type { ModelDownloadChunk } from "@shared/ipc-schema";
@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@renderer/components/ui/dialog";
 import { Progress } from "@renderer/components/ui/progress";
+import { useAppStore } from "@renderer/store/appStore";
 
 type Phase =
   "ready" | "idle" | "downloading" | "done" | "error" | "unavailable";
@@ -21,13 +22,30 @@ function mb(bytes: number): string {
 }
 
 /**
- * First-run installation wizard for local AI prerequisites. It is shown once
- * for every new installation, even when the model is already bundled, and
- * offers the model download when it is missing.
+ * Installation wizard for the vehicle detection model.
+ *
+ * Without props it is the first-run prompt: shown once per installation, but
+ * only after the first portfolio has analysed sites — a dialog about vehicle
+ * detection means nothing on an empty start screen. With `open` it is opened
+ * from Settings → Data sources ("Fahrzeugerkennung"), any number of times.
  */
-export function ModelInstallWizard(): React.JSX.Element | null {
+export function ModelInstallWizard({
+  open: controlledOpen,
+  onOpenChange,
+}: Readonly<{
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}> = {}): React.JSX.Element | null {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const controlled = controlledOpen !== undefined;
+  const [autoOpen, setAutoOpen] = useState(false);
+  const open = controlled ? controlledOpen : autoOpen;
+  const setOpen = (next: boolean): void => {
+    if (controlled) onOpenChange?.(next);
+    else setAutoOpen(next);
+  };
+  const hasSites = useAppStore((s) => s.dealerships.length > 0 && !s.analyzing);
+  const autoChecked = useRef(false);
   const [installDir, setInstallDir] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState<{
@@ -36,29 +54,44 @@ export function ModelInstallWizard(): React.JSX.Element | null {
   }>({ received: 0, total: null });
   const [error, setError] = useState<string | null>(null);
 
+  async function loadStatus(): Promise<boolean> {
+    const status = await window.api.modelStatus();
+    setInstallDir(status.installDir);
+    setPhase(
+      status.available
+        ? "ready"
+        : status.downloadConfigured
+          ? "idle"
+          : "unavailable",
+    );
+    return status.available;
+  }
+
+  // First-run prompt: once, when there are analysed sites to improve.
   useEffect(() => {
+    if (controlled || !hasSites || autoChecked.current) return;
+    autoChecked.current = true;
     let cancelled = false;
     async function check(): Promise<void> {
       const settings = await window.api.getSettings();
       if (settings.setupWizardCompleted || settings.modelWizardDismissed)
         return;
-      const status = await window.api.modelStatus();
-      if (cancelled) return;
-      setInstallDir(status.installDir);
-      setPhase(
-        status.available
-          ? "ready"
-          : status.downloadConfigured
-            ? "idle"
-            : "unavailable",
-      );
-      setOpen(true);
+      await loadStatus();
+      if (!cancelled) setAutoOpen(true);
     }
     void check();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [controlled, hasSites]);
+
+  // Opened from Settings: show the current state, never a stale "done".
+  useEffect(() => {
+    if (!controlled || !controlledOpen) return;
+    setError(null);
+    setProgress({ received: 0, total: null });
+    void loadStatus();
+  }, [controlled, controlledOpen]);
 
   function startDownload(): void {
     setPhase("downloading");
@@ -109,9 +142,7 @@ export function ModelInstallWizard(): React.JSX.Element | null {
         </DialogHeader>
 
         {phase === "ready" && (
-          <p className="text-sm text-emerald-700 dark:text-emerald-400">
-            {t("model.ready")}
-          </p>
+          <p className="text-sm text-success">{t("model.ready")}</p>
         )}
 
         {(phase === "idle" || phase === "unavailable") && (
@@ -141,9 +172,7 @@ export function ModelInstallWizard(): React.JSX.Element | null {
         )}
 
         {phase === "done" && (
-          <p className="text-sm text-emerald-700 dark:text-emerald-400">
-            {t("model.done")}
-          </p>
+          <p className="text-sm text-success">{t("model.done")}</p>
         )}
 
         {phase === "error" && (
@@ -152,16 +181,20 @@ export function ModelInstallWizard(): React.JSX.Element | null {
           </p>
         )}
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => void dismissForever()}
-          >
-            {t("model.dismiss")}
-          </Button>
+        <DialogFooter className="gap-2">
+          {/* "Don't show again" only belongs to the first-run prompt. */}
+          {!controlled && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="sm:mr-auto"
+              onClick={() => void dismissForever()}
+            >
+              {t("model.dismiss")}
+            </Button>
+          )}
           {(phase === "idle" || phase === "error") && (
-            <Button size="sm" onClick={startDownload}>
+            <Button size="sm" autoFocus onClick={startDownload}>
               <Download className="size-4" />
               {t("model.downloadNow")}
             </Button>
@@ -169,7 +202,7 @@ export function ModelInstallWizard(): React.JSX.Element | null {
           {(phase === "ready" ||
             phase === "done" ||
             phase === "unavailable") && (
-            <Button size="sm" onClick={() => void finish()}>
+            <Button size="sm" autoFocus onClick={() => void finish()}>
               {phase === "unavailable"
                 ? t("common.close")
                 : t("model.continue")}

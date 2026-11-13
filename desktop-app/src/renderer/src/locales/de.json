@@ -18,28 +18,37 @@
       "rename": "Umbenennen",
       "renameFor": "{{name}} umbenennen",
       "renameFailed": "Portfolio konnte nicht umbenannt werden: {{error}}",
-      "delete": "Löschen",
       "deleteFor": "{{name}} löschen",
       "confirmDelete": "„{{name}}“ löschen? Das kann nicht rückgängig gemacht werden.",
       "deleteConfirmButton": "Löschen",
       "deleteFailed": "Portfolio konnte nicht gelöscht werden: {{error}}",
       "importFile": "Portfolio-Datei importieren …",
       "importFailed": "Die Portfolio-Datei konnte nicht gelesen werden: {{error}}",
-      "importFound": "„{{name}}“: {{count}} Standorte, davon {{edited}} mit manuell bearbeiteter Grenze oder Fahrzeugzahl.",
+      "importFound_one": "„{{name}}“: {{count}} Standort, davon {{edited}} mit manuell bearbeiteter Grenze oder Fahrzeugzahl.",
+      "importFound_other": "„{{name}}“: {{count}} Standorte, davon {{edited}} mit manuell bearbeiteter Grenze oder Fahrzeugzahl.",
       "importMerge": "In dieses Portfolio zusammenführen",
       "importMergeHint": "Fügt neue Standorte hinzu und übernimmt bearbeitete Grenzen; eigene Bearbeitungen werden nie überschrieben.",
       "importOpenNew": "Als neues Portfolio öffnen",
       "mergeDone": "Zusammengeführt: {{added}} Standorte hinzugefügt, {{updated}} Grenzen übernommen.",
-      "mergeConflicts": "{{count}} Standorte wurden auf beiden Seiten bearbeitet und bleiben hier unverändert: {{names}}",
+      "mergeConflicts_one": "{{count}} Standort wurde auf beiden Seiten bearbeitet und bleibt hier unverändert: {{names}}",
+      "mergeConflicts_other": "{{count}} Standorte wurden auf beiden Seiten bearbeitet und bleiben hier unverändert: {{names}}",
       "mergeFailed": "Das Portfolio konnte nicht zusammengeführt werden: {{error}}",
-      "importOpenFailed": "Die Portfolio-Datei konnte nicht geöffnet werden: {{error}}"
+      "importOpenFailed": "Die Portfolio-Datei konnte nicht geöffnet werden: {{error}}",
+      "deletedOpen": "„{{name}}“ gelöscht",
+      "deletedOpenSwitched": "„{{name}}“ gelöscht – jetzt ist „{{next}}“ geöffnet"
     },
-    "offline": "Offline – Daten aus dem Zwischenspeicher"
+    "offline": "Offline – Daten aus dem Zwischenspeicher",
+    "toggleLocationsDock": "Standorte-Leiste ein-/ausblenden",
+    "toggleChatDock": "Assistent ein-/ausblenden",
+    "resizeLocations": "Breite der Standorte-Leiste ändern",
+    "resizeChat": "Breite des Assistenten ändern",
+    "openCommands": "Befehle und Standorte suchen – {{shortcut}}",
+    "ctrlK": "Strg+K"
   },
   "start": {
     "title": "Portfolio & Analyse",
-    "subtitle": "Adresse hinzufügen oder die KI fragen – das Eingabefeld ist unten.",
-    "duplicatesSkipped": "{{count}} doppelte Standorte erkannt und übersprungen."
+    "duplicatesSkipped_one": "{{count}} doppelter Standort erkannt und übersprungen.",
+    "duplicatesSkipped_other": "{{count}} doppelte Standorte erkannt und übersprungen."
   },
   "command": {
     "title": "Befehlspalette",
@@ -48,11 +57,12 @@
     "empty": "Keine Ergebnisse gefunden.",
     "navigation": "Navigation",
     "actions": "Aktionen",
-    "theme": "Design",
-    "toggleTheme": "Design wechseln"
+    "theme": "Darstellung",
+    "toggleTheme": "Darstellung wechseln"
   },
   "common": {
     "loading": "Lädt…",
+    "operationFailed": "Der Vorgang konnte nicht abgeschlossen werden.",
     "save": "Speichern",
     "saved": "Gespeichert",
     "cancel": "Abbrechen",
@@ -67,12 +77,12 @@
   },
   "parameters": {
     "title": "Modellparameter",
-    "description": "Passe Risiko-, Expositions-, Portfolio- und Datenqualitätsparameter für dieses Portfolio an. Änderungen werden nach dem Verlassen eines Feldes sofort auf bestehende Scores angewendet und automatisch gespeichert.",
+    "description": "Passe Risiko-, Exposure-, Portfolio- und Datenqualitätsparameter für dieses Portfolio an. Änderungen werden nach dem Verlassen eines Feldes sofort auf bestehende Scores angewendet und automatisch gespeichert.",
     "reset": "Auf Standardwerte zurücksetzen",
     "resetDone": "Parameter auf Standardwerte zurückgesetzt.",
     "recalculating": "Scores werden neu berechnet…",
     "startHereTitle": "Hier beginnen",
-    "startHereDescription": "Für die meisten Portfolios reichen die mit „wichtig“ markierten Felder. Sie beeinflussen direkt Exposure, EAL oder Prüfhinweise; die übrigen Felder brauchst du nur in Sonderfällen. Die Hagel-EAL-Werte sind alle wichtig.",
+    "startHereDescription": "Für die meisten Portfolios reichen die mit „wichtig“ markierten Felder. Diese beeinflussen direkt Exposure, EAL oder Prüfhinweise; die übrigen Felder brauchst du nur in Sonderfällen. Die Hagel-EAL-Werte sind alle wichtig.",
     "fractionHint": "Anteile werden als Dezimalzahl eingegeben (0,15 = 15 %); unter dem Feld steht der Wert in Prozent. Änderungen werden beim Verlassen eines Feldes übernommen.",
     "recommended": "wichtig",
     "retry": "Erneut laden",
@@ -80,8 +90,8 @@
     "loadErrorDescription": "Die übrige App bleibt verfügbar. Versuche, die Parameterseite erneut zu laden.",
     "groups": {
       "exposure": {
-        "title": "Exposition & Kapazität",
-        "description": "Werte und Flächenannahmen, die die finanzielle Exposition bestimmen."
+        "title": "Exposure & Kapazität",
+        "description": "Werte und Flächenannahmen, die das finanzielle Exposure bestimmen."
       },
       "risk": {
         "title": "Hagel-EAL",
@@ -115,7 +125,7 @@
       },
       "vehicleValueDefaultEur": {
         "label": "Standard-Fahrzeugwert",
-        "description": "Fallback, wenn keine Klasse bekannt ist."
+        "description": "Gilt, wenn keine Fahrzeugklasse bekannt ist."
       },
       "capacitySqmPerVehicle": {
         "label": "Fläche pro Fahrzeug",
@@ -137,7 +147,7 @@
       },
       "pmlClusterRadiusKm": {
         "label": "PML-Cluster-Radius",
-        "description": "Radius für die größte PML-Exposition."
+        "description": "Radius für das größte PML-Exposure."
       },
       "accumulationRadiusKm": {
         "label": "Kumulationsradius",
@@ -195,12 +205,12 @@
         "description": "Bis zu diesem Abstand gilt eine Grundstücksfläche noch als nahe am Adresspunkt des Standorts."
       },
       "syntheticBoundaryRadiusM": {
-        "label": "Radius der Ersatzgrenze",
+        "label": "Radius der geschätzten Grenze (Kreis)",
         "description": "Kreisradius um den Adresspunkt, wenn keine Grundstücksgeometrie gefunden wird."
       },
       "detectionConfidence": {
         "label": "Erkennungs-Konfidenz",
-        "description": "Basis-Mindestkonfidenz des Fahrzeugmodells; große Fahrzeuge brauchen etwas mehr.",
+        "description": "Basis-Mindestkonfidenz des Erkennungsmodells; große Fahrzeuge brauchen etwas mehr.",
         "tip": "Niedriger findet mehr Fahrzeuge, kann aber mehr Fehlalarme erzeugen; höher ist konservativer."
       },
       "hailFrequencyZone1": {
@@ -298,8 +308,13 @@
     "apiKey": "API-Key",
     "apiKeyHint": "Über safeStorage im OS-Keychain abgelegt — nie im Klartext.",
     "baseUrl": "Endpunkt (Base-URL)",
+    "baseUrlErrors": {
+      "invalid-url": "Keine gültige Adresse. Beispiel: https://proxy.example.com/v1",
+      "not-http": "Die Adresse muss mit http:// oder https:// beginnen.",
+      "credentials": "Bitte keinen Benutzernamen oder kein Passwort in die Adresse schreiben; den Key oben eintragen.",
+      "not-local": "Ein lokales Modell muss auf diesem Computer laufen (localhost oder 127.0.0.1)."
+    },
     "baseUrlHint": "Leer lassen für den offiziellen Endpunkt. Für einen Proxy z. B. http://localhost:6655/openai/v1 (OpenAI/Custom) oder http://localhost:6655/anthropic (Claude).",
-    "modelPlaceholder": "z. B. {{model}}",
     "apiKeySetPlaceholder": "•••••••• (hinterlegt) — neuen Key eingeben zum Ersetzen",
     "apiKeyUnsetPlaceholder": "Wird verschlüsselt gespeichert (OS-Keychain)",
     "natCat": {
@@ -390,11 +405,11 @@
     },
     "llmReady": "Eingerichtet",
     "llmNotReady": "Nicht eingerichtet",
-    "llmSetupHint": "Für Chat und Underwriting-Memo: Provider wählen, Modell eintragen und – bei OpenAI/Claude – API-Key speichern. Ein lokales Modell braucht keinen Key.",
     "local": {
       "description": "Die App sucht automatisch nach laufenden Laufzeiten auf diesem Rechner. Portfoliodaten verlassen das Gerät nicht.",
       "checking": "Wird geprüft …",
-      "running": "Läuft · {{count}} Modelle",
+      "running_one": "Läuft · {{count}} Modell",
+      "running_other": "Läuft · {{count}} Modelle",
       "notFound": "Nicht gefunden",
       "detect": "Erneut suchen",
       "noneRunning": "Keine lokale Laufzeit gefunden. Ollama installieren und starten:",
@@ -402,13 +417,18 @@
     },
     "models": {
       "pick": "Modell wählen ({{count}} verfügbar)",
-      "none": "Der Anbieter hat keine Chat-Modelle gemeldet – Modell-ID manuell eingeben.",
+      "none": "Der KI-Anbieter hat keine Chat-Modelle gemeldet – Modell-ID manuell eingeben.",
       "noneLocal": "Noch keine Modelle installiert – unten eines von Hugging Face installieren.",
       "failed": "Modellliste konnte nicht geladen werden: {{error}}",
       "needKey": "API-Key speichern – danach erscheinen die verfügbaren Modelle hier automatisch.",
       "needBaseUrl": "Base-URL eintragen – danach erscheinen die verfügbaren Modelle hier automatisch.",
       "loading": "Modelle werden geladen …",
-      "manualPlaceholder": "Modell-ID eingeben, z. B. gpt-4.1-mini",
+      "manualPlaceholderFor": {
+        "openai": "Modell-ID eingeben, z. B. gpt-4.1-mini",
+        "claude": "Modell-ID eingeben, z. B. claude-sonnet-4-5",
+        "local": "Modellname eingeben, z. B. llama3.2",
+        "custom": "Modell-ID des Servers eingeben"
+      },
       "reload": "Modellliste neu laden",
       "enterManually": "Modell-ID manuell eingeben",
       "backToList": "Zurück zur Liste"
@@ -421,7 +441,7 @@
       "auth": "API-Key abgelehnt (401/403). Bitte Key prüfen und neu speichern.",
       "not_found": "Modell oder Endpunkt nicht gefunden (404). Modellnamen und Base-URL prüfen – „Modelle laden“ zeigt die verfügbaren Namen.",
       "unreachable": "Server nicht erreichbar. Läuft die lokale Laufzeit bzw. stimmt die Base-URL?",
-      "error": "Der Anbieter hat einen Fehler gemeldet."
+      "error": "Der KI-Anbieter hat einen Fehler gemeldet."
     },
     "hf": {
       "title": "Modell von Hugging Face installieren",
@@ -448,7 +468,7 @@
       "starting": "Starte Download …"
     },
     "steps": {
-      "provider": "Anbieter wählen",
+      "provider": "KI-Anbieter wählen",
       "access": "Zugang",
       "model": "Modell"
     },
@@ -473,6 +493,16 @@
     "customBaseUrlHint": "OpenAI-kompatible Adresse, meist auf /v1 endend. Danach werden die verfügbaren Modelle automatisch geladen.",
     "optional": "optional",
     "advanced": "Erweitert: eigene Base-URL / Proxy",
+    "detectionModel": {
+      "title": "Fahrzeugerkennung",
+      "description": "Lokales Erkennungsmodell, das Fahrzeuge im Luftbild zählt. Ohne Erkennungsmodell wird die Fahrzeugzahl aus der Grundstücksfläche geschätzt und als Schätzung markiert.",
+      "badgeInstalled": "Installiert",
+      "badgeMissing": "Nicht installiert",
+      "installed": "Das Erkennungsmodell ist installiert; neue Analysen zählen die Fahrzeuge im Luftbild. Bereits geschätzte Standorte werden beim erneuten Analysieren gezählt.",
+      "missing": "Kein Erkennungsmodell installiert: Fahrzeugzahlen sind flächenbasierte Schätzungen.",
+      "install": "Erkennungsmodell installieren",
+      "manage": "Modellstatus anzeigen"
+    },
     "dealerDirectory": {
       "title": "Händlerverzeichnis (Overture Maps)",
       "description": "Ergänzt die Standortsuche um rund 44.000 Auto-, Motorrad-, Lkw- und Wohnmobilhändler in Deutschland aus Overture Maps (u. a. Meta, Microsoft, Foursquare), die in OpenStreetMap oft fehlen. Einmaliger Download von ca. 500 MB, dauert einige Minuten; lokal gespeichert werden nur die Händler.",
@@ -508,7 +538,7 @@
       "badgePublic": "Öffentliche Server",
       "badgeOwn": "Eigener Server"
     },
-    "subtitle": "App-weite Einstellungen. Sie gelten für alle Portfolios auf diesem Rechner.",
+    "subtitle": "App-weite Einstellungen – gelten für alle Portfolios auf diesem Rechner.",
     "tabs": {
       "general": "Allgemein",
       "ai": "KI-Assistent",
@@ -533,7 +563,7 @@
         "checking": "Suche nach Updates …",
         "upToDate": "Die App ist aktuell (geprüft {{date}}).",
         "availableInstall": "Version {{version}} ist verfügbar und kann direkt installiert werden.",
-        "availableManual": "Version {{version}} ist verfügbar. Laden Sie sie von der Release-Seite herunter (diese Version ist nicht signiert und kann sich nicht selbst aktualisieren).",
+        "availableManual": "Version {{version}} ist verfügbar. Lade sie von der Release-Seite herunter (diese Version ist nicht signiert und kann sich nicht selbst aktualisieren).",
         "downloading": "Update wird heruntergeladen … {{pct}} %",
         "ready": "Version {{version}} ist heruntergeladen und wird beim Neustart installiert.",
         "error": "Update-Prüfung fehlgeschlagen: {{message}}",
@@ -556,17 +586,17 @@
         "hint": "Entfernt Portfolios, Chats, Dashboards, Einstellungen, gespeicherte API-Keys, Caches und Protokolle von diesem Rechner. Das Erkennungsmodell bleibt erhalten.",
         "button": "Alle Daten löschen",
         "confirmTitle": "Wirklich alle lokalen Daten löschen?",
-        "confirmText": "Alle Portfolios, Chats, Dashboards, Einstellungen, API-Keys, Caches und Protokolle werden endgültig gelöscht. Das lässt sich nicht rückgängig machen – exportieren Sie vorher, was Sie behalten möchten. Die App startet danach neu.",
+        "confirmText": "Alle Portfolios, Chats, Dashboards, Einstellungen, API-Keys, Caches und Protokolle werden endgültig gelöscht. Das lässt sich nicht rückgängig machen – exportiere vorher, was du behalten möchtest. Die App startet danach neu.",
         "confirmButton": "Endgültig löschen und neu starten"
       }
     }
   },
   "model": {
     "title": "Fahrzeugerkennungsmodell installieren",
-    "description": "Ohne dieses Modell schätzt die App die Fahrzeugzahl nur anhand der Grundstücksfläche, statt Fahrzeuge per KI im Luftbild zu erkennen.",
-    "ready": "Das lokale KI-Modell ist bereits installiert. Du kannst die App direkt verwenden.",
-    "idle": "Das Modell (YOLOv26s, ca. 36 MB) wird einmalig heruntergeladen und lokal gespeichert.",
-    "done": "Modell installiert — die echte KI-Fahrzeugerkennung ist jetzt aktiv.",
+    "description": "Ohne dieses Modell schätzt die App die Fahrzeugzahl nur anhand der Grundstücksfläche, statt die Fahrzeuge im Luftbild zu zählen.",
+    "ready": "Das Erkennungsmodell ist bereits installiert. Du kannst die App direkt verwenden.",
+    "idle": "Das Erkennungsmodell (ca. 36 MB) wird einmalig heruntergeladen und lokal gespeichert.",
+    "done": "Erkennungsmodell installiert – die Fahrzeugerkennung ist jetzt aktiv.",
     "downloadFailed": "Download fehlgeschlagen: {{error}}",
     "unavailable": "Der automatische Download ist noch nicht eingerichtet. Bitte lege die Modelldatei manuell hier ab:",
     "dismiss": "Nicht mehr anzeigen",
@@ -584,17 +614,14 @@
       "warning": "Warnung"
     },
     "alert": {
-      "highEal": "Verursacht {{share}} % des Portfolio-EAL.",
+      "highEal": "Verursacht {{share}} % der Portfolio-EAL.",
       "overcapacity": "Überkapazität ({{utilisation}} % der Kapazität).",
-      "lowBoundaryConfidence": "Unsichere Grundstücksgrenze (Quelle {{source}}).",
+      "lowBoundaryConfidence": "Unsichere Grundstücksgrenze – Quelle: {{source}}.",
       "noDetection": "Keine Fahrzeuge erkannt – Grenze und Luftbild prüfen.",
       "highHailZone": "Liegt in Hagelzone {{zone}}.",
       "accumulation": "Kumulation mit {{count}} Standorten und {{exposure}} Exposure.",
       "estimatedHailZone": "Hagelzone {{zone}} nur geschätzt – Adresse/PLZ prüfen."
     },
-    "sortAscending": "Aufsteigend sortiert; klicken zum Ändern",
-    "sortDescending": "Absteigend sortiert; klicken zum Ändern",
-    "sortNone": "Nicht sortiert; klicken zum Sortieren",
     "utilisation": "Auslastung",
     "capacity": "Kapazität",
     "area": "Fläche",
@@ -603,18 +630,15 @@
     "visibleTiles": "Sichtbare Kacheln",
     "resetTiles": "Layout zurücksetzen",
     "removeTile": "Kachel entfernen",
-    "dragTile": "Zum Sortieren ziehen",
     "noTilesTitle": "Keine Dashboard-Kacheln ausgewählt",
     "noTilesDescription": "Füge über „Dashboard anpassen“ Kacheln hinzu.",
     "openAssistant": "KI-Assistent",
     "closeAssistant": "Assistent schließen",
-    "assistantTitle": "Dashboard-Assistent",
-    "assistantDescription": "Fragen stellen oder Dashboard ändern",
-    "assistantEmpty": "Frage etwas zum Portfolio oder sage „Standorttabelle anzeigen“.",
-    "assistantHint": "Versuche: „Kumulationen anzeigen“ oder „Prüfhinweise ausblenden“.",
     "examplePromptTable": "Standorttabelle anzeigen",
     "commandAdded": "Hinzugefügt: {{tiles}}",
     "commandRemoved": "Entfernt: {{tiles}}",
+    "commandAlreadyShown": "Schon sichtbar: {{tiles}}",
+    "commandAlreadyHidden": "Schon ausgeblendet: {{tiles}}",
     "commandReset": "Dashboard-Layout zurückgesetzt.",
     "tiles": {
       "summary": "Portfolio-KPIs",
@@ -626,39 +650,30 @@
     },
     "detailDialog": {
       "imageryCountedOn": "Fahrzeuge gezählt auf",
+      "imageryOfLot": "Luftbild des Geländes:",
       "imageryUnrecorded": "Bildquelle der Fahrzeugzählung nicht erfasst (Analyse vor der automatischen Quellenwahl) – für das Aufnahmedatum neu analysieren.",
       "machineVehicleCount": "Maschinell erkannte Fahrzeuge",
+      "estimatedVehicleCount": "Flächenbasierte Schätzung",
       "manualVehicleCount": "Manuell angepasste Fahrzeugzahl",
       "manualVehicleCountPlaceholder": "Anzahl",
-      "saveManualVehicleCount": "Zahl speichern",
-      "manualVehicleCountNotSet": "Keine manuelle Anpassung",
       "manualVehicleCountSaved": "Gespeicherte Zahl: {{count}}",
       "manualCountInvalid": "Ganze Zahl ≥ 0 eingeben.",
       "exposureLabel": "Exposure",
-      "totalEalLabel": "EAL gesamt",
-      "mainScoreTitle": "Hagelzone",
-      "hailScoreLabel": "Hagel-Score",
-      "hailZoneLabel": "Hagelzone {{zone}}",
       "hailZoneKasko": "K-Kasko · {{tier}}",
       "ealPeril": {
         "hail": "Hagel",
         "total": "Summe"
       },
       "boundaryTitle": "Grundstücksgrenze",
-      "boundarySummary": "{{source}} · {{confidence}} Konfidenz",
       "boundaryRoleLabel": "Rolle: {{role}}",
       "boundaryAgreementLabel": "Quellenübereinstimmung: {{agreement}}",
       "boundaryEngineLabel": "Engine: {{engine}}",
-      "boundaryEngineFallbackSuffix": "(angefordert {{requested}} — {{reason}})",
-      "boundaryEngineUnknownReason": "Grund unbekannt",
       "boundaryEngine": {
         "legacy": "Kandidatenauswahl",
         "fused": "Multi-Quellen-Fusion",
         "cascade": "Quellen-Kaskade"
       },
       "boundaryReviewLabel": "Prüfung erforderlich",
-      "boundaryCandidatesTitle": "{{count}} Grenzkandidaten",
-      "boundaryMultiPartLabel": "Standort hat {{count}} getrennte Teile",
       "boundaryExcludePartAction": "Zusatzteil ausschließen",
       "boundarySource": {
         "alkis": "ALKIS-Kataster",
@@ -666,7 +681,7 @@
         "overture": "Overture Maps",
         "aerial": "Luftbild (Fahrzeug-Umriss)",
         "fused": "Fusioniert (mehrere Quellen)",
-        "synthetic": "Geschätzt (Kreis um den Punkt)",
+        "synthetic": "Geschätzte Grenze (Kreis)",
         "manual": "Manuell gezeichnet"
       },
       "boundaryRole": {
@@ -674,26 +689,25 @@
         "building": "Gebäudeumriss",
         "parkingSurface": "Parkfläche",
         "operationalLot": "Bestätigtes Betriebsgelände",
-        "synthetic": "Geschätzt"
+        "synthetic": "Geschätzte Fläche (Kreis)"
       },
       "showDetails": "Details anzeigen",
-      "modelVersionLabel": "Modell: {{version}}",
-      "evidenceFallbackSuffix": " · Fallback",
+      "evidenceFallbackSuffix": " · Ersatzverfahren",
       "riskText": {
         "screeningModel": "Risikomodell {{version}} ist ein Screening-Modell",
         "hazardProxy": "Gefahrenwerte sind standortbezogene Näherungen und sollten vor Underwriting-Entscheidungen geprüft werden",
         "notEngineeringAssessment": "Kein Katastrophenmodell und keine ingenieurtechnische Bewertung",
         "weatherWindow": "92-Tage-Wetterfenster mit Screening-Näherungen",
-        "syntheticBoundaryMethod": "Synthetische Radius-Ersatzgrenze",
+        "syntheticBoundaryMethod": "Geschätzte Grenze (Kreis um den Adresspunkt)",
         "boundaryLookupMethod": "Geodatenbasierte Grenzermittlung",
         "manualBoundaryReview": "Manuelle Prüfung der Grundstücksgrenze empfohlen",
         "areaEstimateMethod": "Flächenbasierte Schätzung",
         "aerialDetectionMethod": "Objekterkennung im Luftbild",
         "vehicleEstimate": "Fahrzeugzahl ist geschätzt; Erkennungsmodell installieren",
-        "syntheticBoundary": "Synthetische Grundstücksgrenze verwendet",
+        "syntheticBoundary": "Geschätzte Grenze (Kreis) verwendet",
         "boundaryReviewRequired": "Grundstücksgrenze muss vor der Underwriting-Nutzung geprüft werden",
         "boundaryDisagreement": "Grenzquellen stimmen nicht ausreichend überein",
-        "noMlModel": "Fahrzeug-Exposure ist geschätzt, da kein ML-Modell installiert ist",
+        "noMlModel": "Fahrzeug-Exposure ist geschätzt, da kein Erkennungsmodell installiert ist",
         "boundaryRole": "Grenze beschreibt {{role}}, nicht das bestätigte Betriebsgelände",
         "hailZoneEstimated": "Hagelzone aus Wetterdaten geschätzt; keine PLZ-Hagelzone verfügbar",
         "hailEalPlaceholders": "Frequenz- und Schadenparameter der Hagel-EAL sind unkalibrierte Platzhalter",
@@ -706,13 +720,13 @@
         "cascadeOsmDealerArea": "Händlerfläche aus OpenStreetMap",
         "cascadeParcel": "Flurstück am Punkt",
         "boundaryConfirmed": "Grenze am {{date}} visuell bestätigt, keine Katastervermessung",
-        "vehicleDetectorSource": "Fahrzeugerkennung (KI-Modell)",
+        "vehicleDetectorSource": "Fahrzeugerkennung (lokales Erkennungsmodell)",
         "vehicleDetectorMethod": "Fahrzeuge im Luftbild erkannt ({{resolution}} m pro Pixel)"
       },
       "osmLoading": "OSM-Infos werden geladen…",
       "osmHeading": "Aus OpenStreetMap",
       "insuredLabel": "Bestandsgeschäft (versichert)",
-      "insuredYesDesc": "Bestandskunde — fließt in Akkumulation ein",
+      "insuredYesDesc": "Versichert – fließt in die Kumulation ein",
       "insuredNoDesc": "Neugeschäft / Prospect",
       "salesPartnerLabel": "Vertriebspartner",
       "notesTitle": "Notizen",
@@ -728,6 +742,7 @@
       "websiteNone": "Keine Website gefunden",
       "websiteSourceOsm": "automatisch gefunden (OpenStreetMap)",
       "websiteSourceManual": "manuell hinterlegt",
+      "websiteSourceImport": "aus der Importdatei",
       "websiteEdit": "Bearbeiten",
       "websiteAdd": "Website hinzufügen",
       "websiteReset": "Automatisch verwenden",
@@ -752,22 +767,20 @@
         "countBasis": "Zählgrundlage",
         "showOnMap": "Karte",
         "empty": "Für diesen Standort sind keine archivierten Esri-Bildstände verfügbar.",
-        "hint": "Nur Stände, in denen sich das Bild hier geändert hat (Zoomstufe {{zoom}}). Landes-Orthofotos sind nicht enthalten.",
-        "truncated": "Ältere Stände sind ausgeblendet.",
+        "hint": "Nur Bildstände, in denen sich das Bild hier geändert hat (Zoomstufe {{zoom}}). Landes-Orthofotos sind nicht enthalten.",
+        "truncated": "Ältere Bildstände sind ausgeblendet.",
         "vehicles": "Fahrzeuge",
-        "countButton": "Bestand über mehrere Stände zählen",
+        "countButton": "Fahrzeuge auf mehreren Bildständen zählen",
         "counting": "Zähle auf archivierten Bildern…",
         "countFailed": "Zählung über mehrere Bildstände fehlgeschlagen",
-        "countNeedsModel": "Erfordert das Fahrzeugerkennungsmodell.",
-        "countSummary_one": "{{count}} Bildstand gezählt: Median {{median}}, Spanne {{min}}–{{max}} Fahrzeuge. Nur Evidenz – die Exposure nutzt die aktuelle Zählung.",
-        "countSummary_other": "{{count}} Bildstände gezählt: Median {{median}}, Spanne {{min}}–{{max}} Fahrzeuge. Nur Evidenz – die Exposure nutzt die aktuelle Zählung."
+        "countNeedsModel": "Erfordert die Fahrzeugerkennung (Erkennungsmodell).",
+        "countSummary_one": "{{count}} Bildstand gezählt: Median {{median}}, Spanne {{min}}–{{max}} Fahrzeuge. Nur Evidenz – das Exposure nutzt die aktuelle Zählung.",
+        "countSummary_other": "{{count}} Bildstände gezählt: Median {{median}}, Spanne {{min}}–{{max}} Fahrzeuge. Nur Evidenz – das Exposure nutzt die aktuelle Zählung."
       },
-      "businessExisting": "Bestand",
+      "businessExisting": "Bestandsgeschäft",
       "businessNew": "Neugeschäft",
       "previousLocation": "Vorheriger Standort",
       "nextLocation": "Nächster Standort",
-      "metaImage": "Luftbild vom {{date}}",
-      "metaModel": "Modell {{version}}",
       "showOnMap": "Auf Karte zeigen",
       "moreActions": "Weitere Aktionen",
       "kpiHailEal": "Hagel-EAL / Jahr",
@@ -776,16 +789,15 @@
       "kpiVehiclesEstimated": "nur geschätzt",
       "kpiVehiclesDetected": "aus dem Luftbild",
       "boundaryStatusConfirmed": "Bestätigt",
-      "boundaryStatusReview": "Prüfen",
-      "boundaryStatusAutomatic": "Automatisch",
       "attentionBoundaryTitle": "Grenze prüfen",
       "attentionBoundaryDetail": "Die Grenze bestimmt, welche Fahrzeuge zählen. Bestätige sie oder wähle eine andere.",
       "attentionBoundaryAction": "Zur Grenze",
       "attentionModelTitle": "Fahrzeugzahl nur geschätzt",
-      "attentionModelDetail": "Es ist kein KI-Modell installiert.",
+      "attentionModelDetail": "Die Fahrzeugerkennung ist nicht eingerichtet. Die Zahl ist Grundstücksfläche ÷ Stellfläche je Fahrzeug, keine Zählung.",
+      "attentionModelAction": "Fahrzeugerkennung einrichten",
       "attentionImageryTitle_one": "Luftbild ist {{count}} Jahr alt",
       "attentionImageryTitle_other": "Luftbild ist {{count}} Jahre alt",
-      "attentionImageryDetail": "Der Bestand kann heute anders aussehen. In der Bildhistorie lassen sich andere Stände zählen.",
+      "attentionImageryDetail": "Auf dem Gelände kann es heute anders aussehen. In der Bildhistorie lassen sich die Fahrzeuge auf anderen Bildständen zählen.",
       "attentionImageryAction": "Bildhistorie",
       "tabOverview": "Risiko",
       "tabSite": "Gelände & Fahrzeuge",
@@ -796,12 +808,10 @@
       "confidenceValue": "{{value}} Konfidenz",
       "boundaryConfirm": "Grenze bestätigen",
       "boundaryEditOnMap": "Auf Karte bearbeiten",
-      "boundaryAlternatives": "Andere Vorschläge",
       "boundaryAdopt": "Übernehmen",
       "vehiclesAdjust": "Anpassen",
       "vehiclesChangeManual": "Ändern",
       "vehiclesUseDetected": "Erkannte Zahl nutzen",
-      "sourcesUsed": "Verwendete Quellen",
       "limitationsToggle_one": "{{count}} Einschränkung",
       "limitationsToggle_other": "{{count}} Einschränkungen",
       "natCatNone": "Keine externe Hagel-Datenquelle eingerichtet; die Hagelzone stammt aus der PLZ-Tabelle.",
@@ -811,7 +821,7 @@
         "vehicleHull": "Fahrzeug-Umriss",
         "parcel": "Flurstück am Punkt",
         "osmDealerArea": "OSM-Händlerfläche",
-        "synthetic": "Kreis um den Punkt",
+        "synthetic": "Geschätzte Grenze (Kreis)",
         "parcelPlusVehicles_one": "Flurstück am Punkt + {{count}} Flurstück mit Fahrzeugen",
         "parcelPlusVehicles_other": "Flurstück am Punkt + {{count}} Flurstücke mit Fahrzeugen"
       },
@@ -856,7 +866,7 @@
       "reportSaved": "Bericht gespeichert: {{path}}",
       "reportFailed": "Bericht konnte nicht erstellt werden: {{error}}",
       "boundaryReviewReason": {
-        "synthetic": "keine Quelle am Punkt, nur ein Kreis um den Punkt",
+        "synthetic": "keine Quelle am Punkt, nur eine geschätzte Grenze (Kreis)",
         "lowConfidence": "geringe Sicherheit der Quelle",
         "pointOutside": "der Punkt liegt außerhalb der Grenze",
         "vehiclesOutside": "eine Fahrzeugreihe steht knapp außerhalb",
@@ -876,13 +886,14 @@
     "zoneShort": "Zone {{zone}}",
     "showAll": "Alle {{count}} anzeigen",
     "showLess": "Weniger anzeigen",
-    "examplePromptClusters": "Kumulationen anzeigen",
-    "examplePromptZones": "Hagelzonen-Verteilung anzeigen",
     "kpi": {
       "largestAccumulation": "Größte Kumulation",
       "accumulationHint_one": "{{count}} Standort · {{radius}} km",
       "accumulationHint_other": "{{count}} Standorte · {{radius}} km",
       "noAccumulation": "keine im {{radius}}-km-Umkreis",
+      "provisional": "vorläufig · {{analyzed}}/{{total}} analysiert",
+      "estimatedSites_one": "davon {{count}} Standort geschätzt",
+      "estimatedSites_other": "davon {{count}} Standorte geschätzt",
       "elevatedZones": "In Hagelzone ≥ {{zone}}",
       "exposureShare": "{{share}} des Exposures"
     },
@@ -897,7 +908,9 @@
       "scenario": "Schadenszenario ({{share}})",
       "more_one": "+ {{count}} weiterer",
       "more_other": "+ {{count}} weitere",
-      "showOnMap": "Karte"
+      "showOnMap": "Karte",
+      "expand": "Standorte von „{{name}}“ zeigen",
+      "collapse": "Standorte von „{{name}}“ ausblenden"
     },
     "zones": {
       "title": "Hagelzonen-Verteilung",
@@ -944,12 +957,12 @@
       "title": "Hagel-EAL",
       "vehicles": "Fahrzeuge auf dem Gelände (N)",
       "frequency": "Frequenz (λ)",
-      "frequencyValue": "{{frequency}}/Jahr · Zone {{zone}}",
       "severity": "Schaden je Fahrzeug (Σ p·S)",
       "formula": "{{vehicles}} Fahrzeuge × {{frequency}} Ereignisse/Jahr × {{severity}} = {{eal}}.",
       "vehicleSource": {
         "manual": "Fahrzeugzahl manuell geprüft.",
         "detected": "Fahrzeugzahl aus der Luftbild-Erkennung.",
+        "estimated": "Fahrzeugzahl aus der Grundstücksfläche geschätzt (keine Fahrzeugerkennung).",
         "assetValue": "Fahrzeugzahl aus dem angegebenen Asset-Wert abgeleitet.",
         "none": "Keine Fahrzeugzahl verfügbar."
       },
@@ -963,13 +976,14 @@
     },
     "info": {
       "label": "Was bedeutet das?",
+      "labelFor": "Was bedeutet „{{label}}“?",
       "what": "Was zeigt das?",
       "how": "Wie wird es berechnet?",
       "limits": "Einschränkungen",
       "hailEal": {
         "what": "Erwarteter jährlicher Hagelschaden (Expected Annual Loss, EAL) für die angezeigten Standorte.",
-        "how": "EAL = N × λ × (p_S·S_S + p_M·S_M + p_L·S_L). N = Fahrzeuge unter freiem Himmel, λ = Hagelereignisse pro Jahr je Hagelzone, p = Anteil kleiner/mittlerer/großer Ereignisse, S = Schaden je Fahrzeug. Werte unter „Parameter → Hagel-EAL“.",
-        "limits": "λ, p und S sind unkalibrierte Platzhalter. Screening-Schätzung, keine Tarif-, Zeichnungs- oder Versicherungsentscheidung."
+        "how": "EAL = N × λ × (pₛ·Sₛ + pₘ·Sₘ + pₗ·Sₗ). N = auf dem Gelände gezählte Fahrzeuge (ohne Erkennungsmodell aus der Fläche geschätzt), λ = Hagelereignisse pro Jahr je Hagelzone, p = Anteil kleiner/mittlerer/großer Ereignisse, S = Schaden je Fahrzeug. Werte unter „Parameter → Hagel-EAL“.",
+        "limits": "λ, p und S sind unkalibrierte Platzhalter; mit ≈ markierte Fahrzeugzahlen sind flächenbasierte Schätzungen. Screening-Schätzung, keine Tarif-, Zeichnungs- oder Versicherungsentscheidung."
       },
       "accumulations": {
         "what": "Gruppen von Standorten, die ein einzelnes Hagelereignis gemeinsam treffen könnte – sortiert nach Exposure.",
@@ -994,12 +1008,14 @@
       "table": {
         "what": "Alle Standorte des Portfolios mit Hagelzone, Fahrzeugen, Exposure und Hagel-EAL.",
         "how": "Spaltenköpfe anklicken zum Sortieren. Das Suchfeld durchsucht nur diese Tabelle; die übrigen Kacheln folgen den Portfolio-Filtern oberhalb.",
-        "limits": "Fahrzeugzahl und EAL stammen aus der Luftbild-Erkennung und sind Screening-Schätzungen."
+        "limits": "Fahrzeugzahl und EAL stammen aus der Luftbild-Erkennung oder, ohne Erkennungsmodell, aus der Grundstücksfläche (mit ≈ markiert) und sind Screening-Schätzungen."
       }
     },
     "table": {
       "description": "Alle Standorte mit Hagelzone, Fahrzeugen, Exposure und Hagel-EAL. Zeile anklicken für Details.",
-      "search": "In Tabelle suchen…",
+      "search": "Name, Adresse oder Ort suchen…",
+      "alertIcon": "Hat Prüfhinweise",
+      "openDetails": "Details zu {{name}} öffnen",
       "range_one": "{{from}}–{{to}} von {{count}} Standort",
       "range_other": "{{from}}–{{to}} von {{count}} Standorten",
       "rowsPerPage": "Zeilen pro Seite",
@@ -1007,14 +1023,19 @@
       "previousPage": "Vorherige Seite",
       "nextPage": "Nächste Seite",
       "page": "Seite {{page}} von {{pages}}",
-      "pending": "ausstehend"
+      "pending": "ausstehend",
+      "estimate": {
+        "mark": "geschätzt",
+        "vehicles": "Fahrzeugzahl aus der Grundstücksfläche geschätzt (keine Fahrzeugerkennung); Exposure und EAL folgen daraus.",
+        "boundary": "Geschätzte Grenze (Kreis um den Adresspunkt); Fläche und Fahrzeugzahl hängen vom angenommenen Radius ab."
+      }
     }
   },
   "map": {
-    "satellite": "Satellit",
+    "satellite": "Luftbild",
     "street": "Straße",
     "boundaries": "Grenzen",
-    "detections": "Fahrzeug-Erkennungen",
+    "detections": "Erkannte Fahrzeuge",
     "clusters": "Cluster-Heatmap",
     "scenario": "Hagelsturm-Szenario",
     "legend": {
@@ -1025,7 +1046,7 @@
       "boundaryAutomatic": "Automatisch, nach Quelle:",
       "vehicles": "Fahrzeuge",
       "carCategory": "Fahrzeug",
-      "imageryTitle": "Satellitenbild (Kartenmitte)",
+      "imageryTitle": "Luftbild (Kartenmitte)",
       "imageryLoading": "Metadaten werden geladen…",
       "imageryNoMetadataWms": "Die eigene WMS-Quelle stellt keine Bildmetadaten bereit; das Aufnahmedatum ist unbekannt.",
       "imageryDate": "Aufnahme",
@@ -1061,7 +1082,7 @@
         "no-sharp-source": "keine ausreichend scharfe Quelle – Esri als Rückfall",
         "fixed-provider": "in den Einstellungen fest gewählt",
         "overview-zoom": "Übersichtszoom – Esri-Mosaik",
-        "pinned-version": "manuell gewählter Wayback-Stand"
+        "pinned-version": "manuell gewählter Wayback-Bildstand"
       },
       "imageryAlternatives": "Geprüfte Alternativen",
       "business": "Geschäftsart",
@@ -1069,19 +1090,19 @@
       "newBusiness": "Neugeschäft (violetter Rand, +)",
       "imageryWaybackVersion": "Wayback-Version"
     },
-    "editBoundary": "Grenze bearbeiten",
     "locationsPanel": {
       "toggleAriaLabel": "Standorte-Liste ein-/ausklappen",
       "importPortfolio": "Portfolio importieren (CSV / Excel)",
       "addAddress": "Adresse hinzufügen",
       "addressPlaceholder": "Adresse hinzufügen…",
       "searchFailed": "Suche fehlgeschlagen",
-      "empty": "Noch keine Standorte. Adresse oben hinzufügen.",
+      "searchFailedHint": "Prüfe die Internetverbindung und versuche es erneut.",
+      "empty": "Noch keine Standorte. Füge über das „+“ oben eine Adresse hinzu.",
       "sampleData": "Kein Portfolio zur Hand? Beispieldaten mit 10 bis 500 echten Autohäusern",
       "neighborSummary": {
-        "none": "Keine versicherten Nachbarn im {{radius}} km-Radius",
-        "one": "1 versicherter Nachbar im {{radius}} km-Radius",
-        "other": "{{count}} versicherte Nachbarn im {{radius}} km-Radius"
+        "none": "Keine versicherten Nachbarn im {{radius}}-km-Radius",
+        "one": "1 versicherter Nachbar im {{radius}}-km-Radius",
+        "other": "{{count}} versicherte Nachbarn im {{radius}}-km-Radius"
       },
       "insuredChip": "Bestand",
       "notInsuredChip": "Neu",
@@ -1094,14 +1115,19 @@
       "selectModeExit": "Auswahl beenden",
       "selectAll": "Alle auswählen",
       "deselectAll": "Auswahl aufheben",
-      "selectedCount": "{{count}} ausgewählt",
+      "selectedCount_one": "{{count}} ausgewählt",
+      "selectedCount_other": "{{count}} ausgewählt",
       "deleteSelectedConfirmTitle": "Ausgewählte Standorte löschen?",
-      "deleteSelectedConfirmDescription": "Dadurch werden {{count}} Standort(e) dauerhaft aus dem Portfolio entfernt. Das kann nicht rückgängig gemacht werden.",
-      "deleteSelectedToast": "{{count}} Standort(e) gelöscht",
+      "deleteSelectedConfirmDescription_one": "Dadurch wird {{count}} Standort dauerhaft aus dem Portfolio entfernt. Das kann nicht rückgängig gemacht werden.",
+      "deleteSelectedConfirmDescription_other": "Dadurch werden {{count}} Standorte dauerhaft aus dem Portfolio entfernt. Das kann nicht rückgängig gemacht werden.",
+      "deleteSelectedToast_one": "{{count}} Standort gelöscht",
+      "deleteSelectedToast_other": "{{count}} Standorte gelöscht",
       "markInsured": "Auswahl als Bestandsgeschäft markieren",
       "markNotInsured": "Auswahl als Neugeschäft markieren",
-      "markInsuredToast": "{{count}} Standort(e) als Bestandsgeschäft markiert",
-      "markNotInsuredToast": "{{count}} Standort(e) als Neugeschäft markiert",
+      "markInsuredToast_one": "{{count}} Standort als Bestandsgeschäft markiert",
+      "markInsuredToast_other": "{{count}} Standorte als Bestandsgeschäft markiert",
+      "markNotInsuredToast_one": "{{count}} Standort als Neugeschäft markiert",
+      "markNotInsuredToast_other": "{{count}} Standorte als Neugeschäft markiert",
       "directoryHintPrefix": "Händler fehlt?",
       "directoryHintLink": "Händlerverzeichnis laden",
       "distanceChip": "{{distance}} km entfernt",
@@ -1118,6 +1144,8 @@
       "noMatches": "Keine Standorte für diese Suche oder Filter.",
       "showMore": "{{count}} weitere anzeigen (noch {{rest}})",
       "pending": "ausstehend",
+      "notAnalyzed": "Noch nicht analysiert",
+      "selectFor": "{{name}} auswählen",
       "ealValue": "Hagel-EAL {{value}}"
     },
     "hailZones": {
@@ -1127,6 +1155,7 @@
     },
     "layerPanel": {
       "title": "Ebenen",
+      "overlaysSectionTitle": "Einblendungen",
       "activeCount": "{{count}} aktiv",
       "basemapSectionTitle": "Basiskarte",
       "basemapSelectAriaLabel": "Basiskarte wählen",
@@ -1134,9 +1163,7 @@
       "basemapTerrain": "Gelände",
       "parcelsLayerLabel": "Flurstücke (ALKIS)",
       "parcelsLayerHint": "Amtliche Flurstücksgrenzen der Länder, sichtbar ab Zoomstufe 17. Nur zur Orientierung, kein amtlicher Nachweis. Saarland ohne offenen Dienst.",
-      "opacityLabel": "Deckkraft",
-      "satelliteOpacityAriaLabel": "Satelliten-Deckkraft",
-      "boundariesLayerLabel": "Grundstücke",
+      "boundariesLayerLabel": "Grundstücksgrenzen",
       "nearbyInsuredLayerLabel": "Versicherte Nachbarn",
       "accumulationClustersLayerLabel": "Kumulationen",
       "hailZonesLayerLabel": "Hagelzonen (PLZ)",
@@ -1168,7 +1195,7 @@
       "imageryVersionNone": "An der Kartenmitte gibt es keine älteren Esri-Bilder.",
       "imageryVersionReset": "Zurücksetzen",
       "imageryVersionShown": "Angezeigt:",
-      "boundariesLayerOffHint": "Blende die Ebene „Grundstücke“ ein, um Grenzen zu bearbeiten.",
+      "boundariesLayerOffHint": "Blende die Ebene „Grundstücksgrenzen“ ein, um Grenzen zu bearbeiten.",
       "detectionNeedsSelectionHint": "Wähle einen Standort auf der Karte oder in der Liste.",
       "detectionLayerOffHint": "Blende die Ebene „Fahrzeuge“ ein, um Fahrzeuge zu prüfen."
     },
@@ -1209,7 +1236,7 @@
       "boundaryConfirm": "Ja, bestätigen",
       "boundaryCorrect": "Korrigieren",
       "boundaryNext": "Nächste",
-      "detectionWarningHint": "Es ist kein KI-Modell installiert. Installiere es in den Einstellungen und analysiere danach neu.",
+      "detectionWarningHint": "Es ist kein Erkennungsmodell installiert. Richte die Fahrzeugerkennung in den Einstellungen ein und analysiere danach neu.",
       "openSettings": "Einstellungen öffnen",
       "deleteConfirmTitle": "Standort löschen?",
       "deleteConfirmDescription": "„{{name}}“ wird mit Analyse und Notizen aus diesem Portfolio entfernt. Das lässt sich nicht rückgängig machen.",
@@ -1219,15 +1246,21 @@
       "resumeAction": "Analyse fortsetzen",
       "resumeDiscard": "Später",
       "undoBoundaryEditShortcut": "Letzte Änderung rückgängig machen (Strg+Z, auf dem Mac ⌘Z)",
-      "fallbackBoundaries_one": "1 davon ist eine Fallback-Grenze (ein Kreis um den Punkt): prüfe oder bearbeite sie für eine genaue Erkennung.",
-      "fallbackBoundaries_other": "{{count}} davon sind Fallback-Grenzen (ein Kreis um den Punkt): prüfe oder bearbeite sie für eine genaue Erkennung.",
-      "showFallbackBoundaries": "Fallback-Grenzen zeigen"
+      "fallbackBoundaries_one": "1 davon ist nur eine geschätzte Grenze (Kreis): prüfe oder bearbeite sie für eine genaue Fahrzeugzählung.",
+      "fallbackBoundaries_other": "{{count}} davon sind nur geschätzte Grenzen (Kreis): prüfe oder bearbeite sie für eine genaue Fahrzeugzählung.",
+      "showFallbackBoundaries": "Geschätzte Grenzen zeigen",
+      "details": "Details",
+      "setupDetection": "Fahrzeugerkennung einrichten",
+      "cancellingAnalysis": "Wird gestoppt…",
+      "mapCopied": "Kartenbild in die Zwischenablage kopiert",
+      "mapSaved": "Kartenbild gespeichert",
+      "mapCopyFailed": "Das Kartenbild konnte nicht kopiert werden.",
+      "mapSaveFailed": "Das Kartenbild konnte nicht gespeichert werden."
     }
   },
   "ai": {
     "memo": "Underwriting-Memo",
     "chat": "Portfolio-Chat",
-    "nlQuery": "Natürliche Abfrage",
     "naturalLanguageQuery": "Natürliche Abfrage",
     "queryInputPlaceholder": "Frage in natürlicher Sprache stellen…",
     "ask": "Fragen",
@@ -1236,8 +1269,6 @@
     "exampleHighHail": "Alle Standorte mit hohem Hagelrisiko anzeigen",
     "exampleUtilisation": "Welche Standorte haben eine Auslastung über 80 %?",
     "exampleEal": "Standorte mit EAL über 100.000 €",
-    "askPlaceholder": "Frage zum Portfolio stellen…",
-    "queryPlaceholder": "z. B. „Zeige alle mit hohem Hagelrisiko“",
     "showInDashboard": "Im Dashboard anzeigen",
     "generate": "Generieren",
     "streaming": "Antwortet…"
@@ -1274,7 +1305,8 @@
       "noneDetail": "Keine versicherten Standorte innerhalb von {{radius}} km. Rückversicherung nicht erforderlich — Pricing kann günstiger ausfallen.",
       "highTitle": "Hohes Kumulrisiko — Rückversicherung empfohlen",
       "nearbyTitle": "Kumulrisiko in der Nähe",
-      "detail": "{{count}} versicherte Standorte innerhalb von {{radius}} km, kumulierte Exposure {{exposure}}. {{reinsureText}} Pricing: {{pricing}}."
+      "detail_one": "{{count}} versicherter Standort innerhalb von {{radius}} km, kumuliertes Exposure {{exposure}}. {{reinsureText}} Pricing: {{pricing}}.",
+      "detail_other": "{{count}} versicherte Standorte innerhalb von {{radius}} km, kumuliertes Exposure {{exposure}}. {{reinsureText}} Pricing: {{pricing}}."
     },
     "reinsure": {
       "yes": "Rückversichern: ja.",
@@ -1284,8 +1316,9 @@
     },
     "group": {
       "title": "Gruppe „{{group}}“ — {{count}} Standorte",
-      "breachNote": " {{count}} Standort(e) über Produktlimit.",
-      "detail": "{{insured}}/{{total}} versichert, kumulierte Exposure {{exposure}}, {{vehicles}} Fahrzeuge. Max. Hagelzone {{maxZone}}.{{breachNote}} Rückversichern (Gruppe): {{reinsureWord}}. Pricing (Gruppe): {{pricing}}."
+      "breachNote_one": " {{count}} Standort über dem Produktlimit.",
+      "breachNote_other": " {{count}} Standorte über dem Produktlimit.",
+      "detail": "{{insured}}/{{total}} versichert, kumuliertes Exposure {{exposure}}, {{vehicles}} Fahrzeuge. Max. Hagelzone {{maxZone}}.{{breachNote}} Rückversichern (Gruppe): {{reinsureWord}}. Pricing (Gruppe): {{pricing}}."
     }
   },
   "upload": {
@@ -1315,34 +1348,27 @@
     "sidebar": "Seitenleiste",
     "mobileSidebar": "Zeigt die mobile Seitenleiste an.",
     "toggleSidebar": "Seitenleiste ein-/ausblenden",
-    "noDashboards": "Noch keine Dashboards.",
     "noMatches": "Keine Treffer.",
     "delete": "Löschen",
     "dashboards": "Dashboards",
-    "newDashboard": "Neues Dashboard",
     "switchThread": "Konversation wechseln",
-    "newChatThread": "Neue Chat-Konversation",
+    "newChatThread": "Neue Konversation",
     "noThreads": "Noch keine Konversationen.",
     "deleteThread": "Konversation löschen",
-    "emptyChat": "Portfolio fragen oder ein KI-Dashboard erstellen lassen.",
     "dismiss": "Ausblenden",
     "answering": "Antwortet…",
     "error": "Fehler: {{error}}",
-    "modelConfidence": "Modellkonfidenz",
+    "modelConfidence": "Konfidenz des Risikomodells",
     "noAnalysis": "Noch keine Analyse",
     "importPortfolio": "Portfolio importieren",
     "importDescription": "Importiere zuerst ein Portfolio, um Kennzahlen, Diagramme und die Standorttabelle zu sehen.",
     "analysis": "Analyse",
-    "locationsAnalyzed": "{{count}} Standorte analysiert",
+    "locationsAnalyzed_one": "{{count}} Standort analysiert",
+    "locationsAnalyzed_other": "{{count}} Standorte analysiert",
     "locationsFiltered": "{{filtered}} von {{total}} Standorten (gefiltert)",
-    "portfolioSaved": "Portfolio gespeichert",
-    "saveFailed": "Speichern fehlgeschlagen: {{error}}",
     "noRowsFound": "Keine importierbaren Zeilen gefunden.",
-    "importIssuesRecorded": "{{count}} Importprobleme protokolliert.",
-    "returnPeriodEvent": "Ereignis mit {{years}}-jähriger Wiederkehrperiode",
-    "worstCluster": "Größter Cluster im {{radius}}-km-Radius",
-    "lossFractionIncreases": "Der Schadensanteil steigt mit der Wiederkehrperiode.",
-    "widgetError": "Widget konnte nicht dargestellt werden.",
+    "importIssuesRecorded_one": "{{count}} Importproblem protokolliert.",
+    "importIssuesRecorded_other": "{{count}} Importprobleme protokolliert.",
     "website": "Website",
     "reportExported": "Bericht exportiert: {{path}}",
     "portfolioExported": "Portfolio exportiert: {{path}}",
@@ -1353,23 +1379,24 @@
     "excelReport": "Excel-Bericht",
     "csvReport": "CSV-Bericht",
     "readonlyView": "Schreibgeschützte HTML-Ansicht",
-    "noAiDashboard": "Noch kein KI-Dashboard",
-    "dashboardEmptyDescription": "Beschreibe auf der Startseite im Dashboard-Modus, was du sehen möchtest; die KI stellt es zusammen.",
-    "goHome": "Zur Startseite",
     "compare": "Vergleichen",
     "portfolioComparison": "Portfoliovergleich",
-    "compareDescription": "Aktives Portfolio mit einer gespeicherten Sitzung vergleichen.",
-    "selectBaseline": "Vergleichssitzung auswählen…",
-    "generatingDashboard": "Dashboard wird erstellt…",
+    "compareDescription": "Vergleicht das aktive Portfolio je Standort mit einem gespeicherten Stand oder einem anderen Portfolio (Δ Fahrzeuge, Δ EAL).",
+    "compareHowTo": "So entsteht ein Vergleichspunkt: Speichere jetzt den Stand, ändere danach Parameter oder Grenzen und öffne den Vergleich wieder.",
+    "saveSnapshot": "Stand speichern",
+    "snapshotName": "{{name}} – Stand {{date}}",
+    "snapshotSaved": "„{{name}}“ gespeichert. Du findest den Stand unter den Portfolios und hier im Vergleich.",
+    "snapshotFailed": "Stand konnte nicht gespeichert werden: {{error}}",
+    "moreActions": "Weitere Aktionen",
+    "selectBaseline": "Vergleichsstand auswählen…",
     "hailRisk": "Hagelrisiko",
     "estimated": "geschätzt",
     "boundaryReviewNeeded": "⚠ Grundstücksgrenze prüfen",
     "confirmBoundary": "Grenze bestätigen",
     "risk": "Risiko",
-    "ealYear": "EAL",
     "viewDetails": "Details anzeigen",
     "analyzing": "Wird analysiert…",
-    "vehicleCountEstimated": "⚠ Fahrzeugzahl geschätzt (kein KI-Modell)",
+    "vehicleCountEstimated": "⚠ Fahrzeugzahl geschätzt (keine Fahrzeugerkennung)",
     "intensity": "Intensität",
     "width": "Breite",
     "returnPeriod": "Wiederkehrperiode",
@@ -1383,28 +1410,25 @@
     "drawingHint": "Wegpunkte auf der Karte anklicken; Doppelklick beendet den Pfad.",
     "opacityEalShare": "Deckkraft ∝ EAL-Anteil",
     "accumulationClusters": "Kumulationen",
-    "filterLocations": "Standorte filtern…",
     "showOnMap": "Auf Karte anzeigen",
     "subPortfolio": "Teilportfolio",
     "group": "Gruppe",
     "all": "Alle",
     "clusterLabel": "Cluster {{id}}",
     "resetFilters": "Filter zurücksetzen",
-    "clusterDescription": "{{count}} Cluster mit mindestens 2 Standorten im Umkreis von {{radius}} km, sortiert nach Nat-Cat-KPI (Exposure × modellierter Ereignisschaden).",
     "clusterId": "Cluster-ID",
     "value": "Wert",
-    "hailLevel": "Hagelstufe",
     "natCatKpi": "Nat-Cat-KPI",
     "salesPartner": "Vertriebspartner",
     "name": "Name",
     "boundarySource": "Grenzquelle",
     "allBoundaries": "Alle Grenzen",
-    "fallbackBoundary": "Fallback-Grenze",
+    "fallbackBoundary": "Geschätzte Grenze (Kreis)",
     "businessType": "Geschäftsart",
     "allBusiness": "Alle Geschäftsarten",
     "existingBusiness": "Bestandsgeschäft",
     "newBusiness": "Neugeschäft",
-    "noOtherSessions": "Noch keine weitere gespeicherte Sitzung zum Vergleichen.",
+    "noOtherSessions": "Noch kein anderer gespeicherter Stand zum Vergleichen.",
     "clusterFilterLabel": "Kumulation: {{name}}",
     "newConversation": "Neue Konversation",
     "chatHistory": "Bisherige Konversationen",
@@ -1413,18 +1437,18 @@
       "allZones": "Alle Hagelzonen",
       "zone": "Zone {{zone}} ({{count}})",
       "noZone": "Ohne Zone ({{count}})",
-      "statusLabel": "Bearbeitungsstand",
-      "allStatus": "Alle Stände",
+      "statusLabel": "Analysestatus",
+      "allStatus": "Jeder Analysestatus",
       "analyzed": "Analysiert ({{count}})",
       "pending": "Ausstehend ({{count}})",
       "review": "Grenze prüfen ({{count}})"
     },
     "locationsPartlyAnalyzed": "{{analyzed}} von {{total}} analysiert · {{pending}} ausstehend",
-    "fallbackBoundaryReview": "Fallback-Grenze, prüfen oder bearbeiten für eine genaue Erkennung"
+    "fallbackBoundaryReview": "Geschätzte Grenze (Kreis) – prüfen oder bearbeiten für eine genaue Fahrzeugzählung"
   },
   "aiSetup": {
     "missingTitle": "KI-Assistent noch nicht eingerichtet",
-    "missingDescription": "Lege in den Einstellungen einen Provider (OpenAI, Claude, ein lokales Modell oder einen eigenen Endpunkt) und ein Modell fest, um den Chat zu nutzen.",
+    "missingDescription": "Lege in den Einstellungen einen KI-Anbieter (OpenAI, Claude, ein lokales Modell oder einen eigenen Endpunkt) und ein Modell fest, um KI-Funktionen zu nutzen.",
     "rejectedTitle": "Zugangsdaten abgelehnt",
     "rejectedDescription": "Der KI-Endpunkt hat den API-Key nicht akzeptiert (401/403). Prüfe Key, Modell und Endpunkt in den Einstellungen.",
     "openSettings": "KI einrichten"
@@ -1432,8 +1456,10 @@
   "portfolioImport": {
     "title": "Portfolio importieren",
     "summary": "{{file}}: {{imported}} von {{total}} Zeilen erkannt.",
-    "skipped": "{{count}} Zeile(n) übersprungen.",
-    "issues": "{{count}} Hinweis(e) im Importbericht.",
+    "skipped_one": "{{count}} Zeile übersprungen.",
+    "skipped_other": "{{count}} Zeilen übersprungen.",
+    "issues_one": "{{count}} Hinweis im Importbericht.",
+    "issues_other": "{{count}} Hinweise im Importbericht.",
     "parseFailed": "Technischer Grund: {{error}}",
     "detectedColumns": "Erkannte Spalten",
     "noTermsColumns": "Keine Spalten für Höchstentschädigung oder Selbstbehalt erkannt – diese Angaben lassen sich später je Standort ergänzen.",
@@ -1457,15 +1483,16 @@
     "nameLabel": "Name des Portfolios",
     "businessTitle": "Geschäftsart",
     "businessFile": "Je Standort aus der Datei (Spalte „{{column}}“)",
-    "businessFileCounts": "{{existing}} Bestand · {{fresh}} Neugeschäft · {{unknown}} ohne Angabe (zählen als Neugeschäft)",
+    "businessFileCounts": "{{existing}} Bestandsgeschäft · {{fresh}} Neugeschäft · {{unknown}} ohne Angabe (zählen als Neugeschäft)",
     "businessExisting": "Gesamtes Portfolio ist Bestandsgeschäft",
-    "businessExistingDesc": "Alle Standorte gelten als versichert und fließen in die Akkumulation ein.",
+    "businessExistingDesc": "Alle Standorte gelten als versichert und fließen in die Kumulation ein.",
     "businessNew": "Gesamtes Portfolio ist Neugeschäft",
     "businessNewDesc": "Alle Standorte werden als Neugeschäft / Prospect bewertet.",
     "businessRequired": "Bitte die Geschäftsart wählen – sie bestimmt Darstellung und Bewertung.",
     "waitForAnalysis": "Bitte warten, bis die laufende Analyse abgeschlossen ist.",
     "cancel": "Abbrechen",
-    "confirm": "{{count}} Standort(e) importieren",
+    "confirm_one": "{{count}} Standort importieren",
+    "confirm_other": "{{count}} Standorte importieren",
     "parseFailedTitle": "Die Datei konnte nicht gelesen werden. Speichere sie in Excel bitte erneut als .xlsx-Arbeitsmappe oder exportiere sie als CSV."
   },
   "places": {
@@ -1481,7 +1508,7 @@
     "regenerate": "Antwort neu erzeugen",
     "stop": "Antwort stoppen",
     "needsAi": "Für Fragen an die KI zuerst einen KI-Anbieter in den Einstellungen einrichten. Befehle wie „öffne …“ funktionieren auch ohne.",
-    "provenance": "Die KI antwortet auf Basis der Screening-Daten dieses Portfolios (Modell {{model}}; die Hagel-EAL nutzt noch Platzhalterwerte) und dieses Gesprächs. Ihre Antworten sind eine Einschätzung, keine Zeichnungsentscheidung.",
+    "provenance": "Die KI antwortet auf Basis der Screening-Daten dieses Portfolios (Modell {{model}}; die Hagel-EAL nutzt noch Platzhalterwerte) und dieser Konversation. Die Antworten sind eine Einschätzung, keine Zeichnungsentscheidung.",
     "context_one": "Bezieht sich auf: {{portfolio}} · {{count}} Standort",
     "context_other": "Bezieht sich auf: {{portfolio}} · {{count}} Standorte",
     "contextSelected": "ausgewählt: {{name}}",
@@ -1511,7 +1538,14 @@
       "dashboardCreated": "Dashboard „{{name}}“ ist fertig – du siehst es im Tab Dashboard. Sag mir einfach, was ich ändern soll.",
       "dashboardUpdated": "Dashboard „{{name}}“ ist angepasst."
     },
-    "provenanceLabel": "Worauf beruhen die Antworten?",
+    "provenanceTopic": "KI-Antworten",
+    "commandsWithoutAi": "Diese Befehle funktionieren auch ohne KI:",
+    "commandPrompts": {
+      "open": "Öffne {{name}}",
+      "clusters": "Zeige Kumulationen auf der Karte",
+      "hailZones": "Zeige Hagelzonen auf der Karte",
+      "exportPdf": "Exportiere den PDF-Bericht"
+    },
     "emptyChat": "Frag die KI zu deinem Portfolio – oder steuere die App direkt, z. B. „öffne Autohaus …“ oder „zeige Kumulationen auf der Karte“."
   },
   "review": {
@@ -1541,7 +1575,6 @@
     "retry": "Erneut versuchen",
     "none": "Keine DWD-Station mit langer Hagelbeobachtung im Umkreis von {{radius}} km.",
     "stationPicker": "Wetterstation wählen",
-    "aboutLabel": "Über die Hagelhistorie",
     "about": {
       "title": "Woher die Zahlen kommen",
       "what": "Beobachtungen der nächstgelegenen Wetterstationen des Deutschen Wetterdienstes im Umkreis von {{radius}} km mit mindestens zehn Jahren Aufzeichnung.",
@@ -1588,8 +1621,10 @@
     "detail": {
       "monthTitle": "{{month}}",
       "noHail": "kein Hagel beobachtet",
-      "monthSummary_one": "{{count}} Hageltag in {{years}} Jahr(en)",
-      "monthSummary_other": "{{count}} Hageltage in {{years}} Jahren",
+      "monthSummary_one": "{{count}} Hageltag in {{years}}",
+      "monthSummary_other": "{{count}} Hageltage in {{years}}",
+      "yearCount_one": "{{count}} Jahr",
+      "yearCount_other": "{{count}} Jahren",
       "more": "+ {{count}} weitere",
       "close": "Details schließen"
     },
@@ -1606,7 +1641,7 @@
       "switch": "Station anzeigen"
     },
     "zeroDays": "Kein Hagel beobachtet",
-    "stationMeta": "{{distance}} km · {{from}}–{{to}} · Ø {{days}} Tage/Jahr",
+    "stationMeta": "{{distance}} km · {{from}}–{{to}} · Hageltage/Jahr: Ø {{days}}",
     "stationPickerHint": "{{count}} Stationen in der Nähe – Station wählen, um ihre Daten zu sehen"
   },
   "importPreview": {
@@ -1638,6 +1673,7 @@
     "checkFailed": "Prüfung fehlgeschlagen"
   },
   "a2ui": {
+    "needsAi": "KI-Dashboards baut der KI-Assistent. Richte dafür zuerst einen KI-Anbieter ein.",
     "filter": {
       "all": "Gesamtes Portfolio",
       "zoneRange": "Zone {{min}}–{{max}}",

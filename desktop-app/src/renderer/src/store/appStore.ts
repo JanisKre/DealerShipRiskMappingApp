@@ -26,7 +26,7 @@ import {
 } from "@shared/portfolio-merge";
 import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { attachVehicleTimeline } from "@shared/vehicle-timeline";
-import { normalizeWebsiteUrl } from "@shared/website";
+import { isUserWebsiteSource, normalizeWebsiteUrl } from "@shared/website";
 
 /**
  * Central renderer store. Holds the active portfolio plus derived UI
@@ -118,10 +118,10 @@ interface AppState {
   renameSavedSession: (id: string, name: string) => Promise<void>;
   /**
    * Permanently deletes a saved portfolio by id. If it's the active one,
-   * resets to a fresh empty portfolio afterwards (nothing left to keep it
-   * pointed at).
+   * opens the most recent remaining portfolio (or a fresh empty one when
+   * none is left) and returns its name; otherwise returns null.
    */
-  deleteSavedSession: (id: string) => Promise<void>;
+  deleteSavedSession: (id: string) => Promise<string | null>;
   setImportReport: (report: ImportReport | null) => void;
   /**
    * Replaces the portfolio. `boundaryEdits` restores the undo steps and
@@ -258,6 +258,14 @@ interface AppState {
   currentSession: () => Session;
   /** Persists the current session in SQLite (manually or via autosave). */
   saveSession: () => Promise<void>;
+  /**
+   * Like `saveSession`, but skips a saved portfolio nothing changed in since
+   * it was loaded or saved — switching portfolios or an idle autosave must
+   * not bump its "last changed" time.
+   */
+  saveSessionIfChanged: () => Promise<void>;
+  /** Records the current state as saved (after loading a session). */
+  markSaved: () => void;
 }
 
 /** How an import classifies its rows as existing or new business. */
@@ -266,7 +274,10 @@ export type ImportBusinessMode = "file" | "existing" | "new";
 export interface PortfolioImportOptions {
   rows: DealershipInput[];
   target: "new" | "current";
-  /** Name of the new portfolio (ignored for `target: "current"`). */
+  /**
+   * Name of the new portfolio. For `target: "current"` it only names an
+   * empty current portfolio (the first import of a fresh start).
+   */
   name: string;
   business: ImportBusinessMode;
   /** Parser report, kept for the import-quality notice. */
@@ -378,7 +389,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   newPortfolio: async () => {
     if (hasPortfolioToSave(get())) {
       await get()
-        .saveSession()
+        .saveSessionIfChanged()
         .catch((err: unknown) => {
           console.error(
             "Saving the current portfolio before starting a new one failed:",
@@ -393,7 +404,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (get().sessionId === id) return;
     if (hasPortfolioToSave(get())) {
       await get()
-        .saveSession()
+        .saveSessionIfChanged()
         .catch((err: unknown) => {
           console.error(
             "Saving the current portfolio before switching failed:",
@@ -403,24 +414,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     const session = await window.api.loadSession(id);
     if (!session) return;
-    // A batch of the portfolio being left was saved as pending above and
-    // can be resumed there; its late results must not land in this one.
-    abandonRunningAnalysis();
-    set({
-      sessionId: session.id,
-      sessionName: session.name,
-      selectedId: null,
-      analyzing: false,
-      progress: null,
-      analyzingIds: [],
-      lastSavedAt: null,
-      scenario: null,
-      nlQueryMatchedIds: null,
-      filters: EMPTY_FILTERS,
-      pendingAnalysis: session.pendingAnalysis ?? [],
-    });
-    get().setDealerships(session.dealerships, session.boundaryEdits);
-    get().setParameters(session.parameters);
+    applyLoadedSession(set, get, session);
   },
 
   renameSavedSession: async (id, name) => {
@@ -438,8 +432,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   deleteSavedSession: async (id) => {
     await window.api.deleteSession(id);
-    if (get().sessionId !== id) return;
-    resetToBlankPortfolio(set, get);
+    if (get().sessionId !== id) return null;
+    // Carry on with the most recent remaining portfolio rather than an empty
+    // one (the list is sorted most recent first).
+    const remaining = await window.api.listSessions().catch(() => []);
+    const next = remaining.find((summary) => summary.id !== id);
+    const session = next
+      ? await window.api.loadSession(next.id).catch(() => null)
+      : null;
+    if (!session) {
+      resetToBlankPortfolio(set, get);
+      return null;
+    }
+    applyLoadedSession(set, get, session);
+    return session.name;
   },
 
   setSessionName: (name) => set({ sessionName: name }),
@@ -868,7 +874,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!current) return false;
     const next = website === null ? undefined : normalizeWebsiteUrl(website);
     if (website !== null && !next) return false;
-    if (source === "osm" && current.websiteSource === "manual") return true;
+    // A typed or imported link is never replaced by an automatic lookup.
+    if (source === "osm" && isUserWebsiteSource(current.websiteSource))
+      return true;
     const websiteSource = next ? source : undefined;
     if (next === current.website && websiteSource === current.websiteSource)
       return true;
@@ -1231,18 +1239,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       const trimmed = name.trim();
       set({ sessionName: trimmed || DEFAULT_PORTFOLIO_NAME });
       get().setParameters(parameters);
+    } else if (get().dealerships.length === 0 && name.trim()) {
+      // The first import into the empty start portfolio names it, as the
+      // dialog's name field promises; otherwise it stayed "New Portfolio".
+      set({ sessionName: name.trim() });
     }
     if (report) set({ lastImportReport: report });
-    // addAndAnalyze adds the pins synchronously and then analyses for a
-    // while; save the new portfolio right away so it is listed (and
-    // survives a restart) before the analysis finishes.
+    // addAndAnalyze adds the pins and the pending queue synchronously and
+    // then analyses for a while; save right away so the rows are listed
+    // (and survive closing the app) before the analysis finishes. On the
+    // next start the "resume analysis" notice takes over.
     const analysis = get().addAndAnalyze(classified);
-    if (target === "new")
-      await get()
-        .saveSession()
-        .catch((err: unknown) => {
-          console.error("Saving the imported portfolio failed:", err);
-        });
+    await get()
+      .saveSession()
+      .catch((err: unknown) => {
+        console.error("Saving the imported portfolio failed:", err);
+      });
     return analysis;
   },
 
@@ -1311,6 +1323,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   saveSession: async () => {
+    const snapshot = snapshotOf(get());
     const session = get().currentSession();
     await window.api.saveSession(session);
     set({
@@ -1318,6 +1331,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       sessionName: session.name,
       lastSavedAt: session.updatedAt,
     });
+    savedSnapshot = { ...snapshot, sessionId: session.id };
+  },
+
+  saveSessionIfChanged: async () => {
+    if (isSavedState(get())) return;
+    await get().saveSession();
+  },
+
+  markSaved: () => {
+    savedSnapshot = snapshotOf(get());
   },
 }));
 
@@ -1352,6 +1375,73 @@ function abandonRunningAnalysis(): void {
  */
 function hasPortfolioToSave(s: AppState): boolean {
   return s.dealerships.length > 0 || s.sessionId != null;
+}
+
+/**
+ * The parts of the state a saved session holds, by reference: the store
+ * replaces them on every change, so equal references mean nothing changed.
+ */
+interface SavedSnapshot {
+  sessionId: string | null;
+  sessionName: string;
+  dealerships: AppState["dealerships"];
+  parameters: AppState["parameters"];
+  pendingAnalysis: AppState["pendingAnalysis"];
+  boundaryHistory: AppState["boundaryHistory"];
+  boundaryEditIds: AppState["boundaryEditIds"];
+}
+
+/** State as last loaded or saved; `null` before either happened. */
+let savedSnapshot: SavedSnapshot | null = null;
+
+function snapshotOf(s: AppState): SavedSnapshot {
+  return {
+    sessionId: s.sessionId,
+    sessionName: s.sessionName,
+    dealerships: s.dealerships,
+    parameters: s.parameters,
+    pendingAnalysis: s.pendingAnalysis,
+    boundaryHistory: s.boundaryHistory,
+    boundaryEditIds: s.boundaryEditIds,
+  };
+}
+
+/** Whether the open portfolio is saved and unchanged since. */
+function isSavedState(s: AppState): boolean {
+  const saved = savedSnapshot;
+  if (!saved || s.sessionId == null || saved.sessionId !== s.sessionId)
+    return false;
+  const now = snapshotOf(s);
+  return (Object.keys(now) as (keyof SavedSnapshot)[]).every(
+    (key) => now[key] === saved[key],
+  );
+}
+
+/** Makes a loaded session the open portfolio (switching, after a delete). */
+function applyLoadedSession(
+  set: (partial: Partial<AppState>) => void,
+  get: () => AppState,
+  session: Session,
+): void {
+  // A batch of the portfolio being left was saved as pending and can be
+  // resumed there; its late results must not land in this one.
+  abandonRunningAnalysis();
+  set({
+    sessionId: session.id,
+    sessionName: session.name,
+    selectedId: null,
+    analyzing: false,
+    progress: null,
+    analyzingIds: [],
+    lastSavedAt: null,
+    scenario: null,
+    nlQueryMatchedIds: null,
+    filters: EMPTY_FILTERS,
+    pendingAnalysis: session.pendingAnalysis ?? [],
+  });
+  get().setDealerships(session.dealerships, session.boundaryEdits);
+  get().setParameters(session.parameters);
+  get().markSaved();
 }
 
 /** Shared by `newPortfolio` and `deleteSavedSession` (when deleting the active one). */
@@ -1436,8 +1526,10 @@ const ANALYSIS_CONCURRENCY = 3;
 type StoreSet = (
   partial: Partial<AppState> | ((s: AppState) => Partial<AppState>),
 ) => void;
-/** Persist a running batch every this many finished locations. */
+/** Persist a running batch every this many finished locations… */
 const ANALYSIS_CHECKPOINT_EVERY = 25;
+/** …or at least this often, so a small batch closed midway keeps its results. */
+const ANALYSIS_CHECKPOINT_MS = 15_000;
 
 /**
  * Runs `analyzeDealership` for every input with bounded concurrency, updating
@@ -1481,6 +1573,7 @@ async function runAnalysisQueue(
   const generation = portfolioGeneration;
   const stillOpen = (): boolean => generation === portfolioGeneration;
   for (const input of inputs) removedIds.delete(input.id);
+  let lastCheckpointAt = Date.now();
   // Everything of this batch counts as pending until it succeeds; earlier
   // pending inputs (another interrupted batch) are kept.
   set((s) => {
@@ -1542,7 +1635,11 @@ async function runAnalysisQueue(
         analyzingIds: s.analyzingIds.filter((id) => id !== input.id),
         progress: s.progress ? { ...s.progress, done } : s.progress,
       }));
-      if (done % ANALYSIS_CHECKPOINT_EVERY === 0 && !checkpoint) {
+      const due =
+        done % ANALYSIS_CHECKPOINT_EVERY === 0 ||
+        Date.now() - lastCheckpointAt >= ANALYSIS_CHECKPOINT_MS;
+      if (due && !checkpoint && stillOpen()) {
+        lastCheckpointAt = Date.now();
         checkpoint = get()
           .saveSession()
           .catch((err: unknown) => {

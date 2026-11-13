@@ -24,7 +24,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@renderer/components/ui/toggle-group";
-import { eur, num, pct } from "@renderer/lib/format";
+import { eur, eurCompact, num, pct } from "@renderer/lib/format";
 import { hailZoneColor } from "@renderer/lib/riskColor";
 import { TileInfo } from "./TileInfo";
 
@@ -75,8 +75,10 @@ export function HailZoneDistribution({
     return { rows, totalExposure, unknown };
   }, [dealerships, t]);
 
+  // Bar labels in short form ("338 Mio. €"): six full euro amounts over
+  // narrow bars overlapped and were clipped. The tooltip keeps the full value.
   const format = (value: number): string =>
-    metric === "count" ? num(value) : eur(value);
+    metric === "count" ? num(value) : eurCompact(value);
 
   return (
     <Card>
@@ -84,7 +86,7 @@ export function HailZoneDistribution({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <CardTitle className="flex items-center gap-1.5 text-base">
             {t("dashboard.zones.title")}
-            <TileInfo topic="zones" />
+            <TileInfo topic="zones" label={t("dashboard.zones.title")} />
           </CardTitle>
           <ToggleGroup
             type="single"
@@ -111,7 +113,7 @@ export function HailZoneDistribution({
           <BarChart
             accessibilityLayer
             data={rows}
-            margin={{ top: 20, right: 8, left: 8 }}
+            margin={{ top: 20, right: 16, left: 16 }}
           >
             <CartesianGrid vertical={false} strokeOpacity={0.15} />
             <XAxis
