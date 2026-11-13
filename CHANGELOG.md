@@ -59,7 +59,8 @@ the project follows [Semantic Versioning](https://semver.org/).
   and the READMEs link the
   [German car dealership dataset](https://github.com/JanisKre/dealership_dataset)
   with 10, 50, 100, 250 and 500 real dealership locations from OpenStreetMap
-  (ODbL 1.0) as CSV and Excel. The files import without changes.
+  (ODbL 1.0) as CSV and Excel. The files import without changes. In the
+  app, the empty location list links to them (opens in the browser).
 - App updates: packaged builds check this repository's GitHub releases at
   start-up and once a day. Windows downloads the update in the background
   and installs it on restart; unsigned macOS builds link to the release page.

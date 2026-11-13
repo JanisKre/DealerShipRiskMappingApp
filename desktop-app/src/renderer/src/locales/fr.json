@@ -725,6 +725,7 @@
       "addressPlaceholder": "Ajouter une adresse…",
       "searchFailed": "Échec de la recherche",
       "empty": "Aucun site pour l'instant. Ajoutez une adresse ci-dessus.",
+      "sampleData": "Pas de portefeuille ? Données d'exemple avec 10 à 500 vraies concessions",
       "neighborSummary": {
         "none": "Aucun voisin assuré dans un rayon de {{radius}} km",
         "one": "1 voisin assuré dans un rayon de {{radius}} km",

@@ -1075,6 +1075,7 @@
       "addressPlaceholder": "Adresse hinzufügen…",
       "searchFailed": "Suche fehlgeschlagen",
       "empty": "Noch keine Standorte. Adresse oben hinzufügen.",
+      "sampleData": "Kein Portfolio zur Hand? Beispieldaten mit 10 bis 500 echten Autohäusern",
       "neighborSummary": {
         "none": "Keine versicherten Nachbarn im {{radius}} km-Radius",
         "one": "1 versicherter Nachbar im {{radius}} km-Radius",

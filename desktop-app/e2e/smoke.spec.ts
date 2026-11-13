@@ -93,6 +93,18 @@ test("settings tabs switch", async () => {
   }
 });
 
+test("an empty portfolio links the sample datasets", async () => {
+  await page.getByRole("link", { name: "Karte" }).first().click();
+  const link = page.getByRole("link", { name: /Beispieldaten mit 10 bis 500/ });
+  await expect(link).toBeVisible();
+  // Opened by the window-open handler in the system browser, never in-app.
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(link).toHaveAttribute(
+    "href",
+    /^https:\/\/github\.com\/JanisKre\/dealership_dataset\b/,
+  );
+});
+
 test("import preview lists rows before anything is analysed", async () => {
   await page.getByRole("link", { name: "Karte" }).first().click();
   await page

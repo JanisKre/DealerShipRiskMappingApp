@@ -6,6 +6,14 @@
 import { fillTileTemplate } from "./imagery-sources";
 import { validateTileTemplate } from "./tile-template";
 
+/**
+ * Sample portfolios for trying the app: 10 to 500 real dealership locations
+ * from OpenStreetMap (ODbL 1.0) as CSV and Excel, in a separate repository.
+ * Opened in the system browser (https only, see `isSafeExternalUrl`).
+ */
+export const SAMPLE_DATASETS_URL =
+  "https://github.com/JanisKre/dealership_dataset#files";
+
 // --- Vehicle exposure -------------------------------------------------------
 
 /**

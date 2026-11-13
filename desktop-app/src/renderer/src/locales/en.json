@@ -1075,6 +1075,7 @@
       "addressPlaceholder": "Add address…",
       "searchFailed": "Search failed",
       "empty": "No locations yet. Add an address above.",
+      "sampleData": "No portfolio at hand? Sample data with 10 to 500 real dealerships",
       "neighborSummary": {
         "none": "No insured neighbors within {{radius}} km",
         "one": "1 insured neighbor within {{radius}} km",

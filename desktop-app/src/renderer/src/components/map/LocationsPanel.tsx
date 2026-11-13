@@ -24,7 +24,7 @@ import {
   haversineKm,
   nearbyInsured,
 } from "@shared/risk-math";
-import { ACCUMULATION_RADIUS_KM } from "@shared/constants";
+import { ACCUMULATION_RADIUS_KM, SAMPLE_DATASETS_URL } from "@shared/constants";
 import { Button } from "@renderer/components/ui/button";
 import { Checkbox } from "@renderer/components/ui/checkbox";
 import {
@@ -505,6 +505,19 @@ export function LocationsPanel({
                   {dealerships.length > 0
                     ? t("map.locationsPanel.noMatches")
                     : t("map.locationsPanel.empty")}
+                  {dealerships.length === 0 && (
+                    <>
+                      {" "}
+                      <a
+                        href={SAMPLE_DATASETS_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline underline-offset-2 hover:text-foreground"
+                      >
+                        {t("map.locationsPanel.sampleData")}
+                      </a>
+                    </>
+                  )}
                 </p>
               ) : (
                 <>
