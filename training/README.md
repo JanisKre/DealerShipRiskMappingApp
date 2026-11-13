@@ -22,6 +22,11 @@ python3.12 -m venv .venv-label
 .venv-label/bin/pip install "x-anylabeling-cvhub[cpu]==4.1.0"   # GPL-3.0, local tool only
 ```
 
+`requirements.txt` keeps `torch`, `onnx` and `pillow` above the releases
+with known security advisories. On macOS with Python < 3.13, Ultralytics'
+export check asks for `onnx<1.18`; run step 9 with `YOLO_AUTOINSTALL=false`
+so it does not silently downgrade to a vulnerable `onnx`.
+
 ## Workflow
 
 | Step | Command | Result |

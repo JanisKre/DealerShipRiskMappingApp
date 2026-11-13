@@ -21,7 +21,10 @@ the project follows [Semantic Versioning](https://semver.org/).
 - Accessibility checks: `eslint-plugin-jsx-a11y` in the lint step and an
   axe-core end-to-end test of every page in light and dark theme against
   WCAG 2.2 AA. See `docs/accessibility.md`.
-- CodeQL (TypeScript, Python, workflows) and OpenSSF Scorecard workflows.
+- OpenSSF Scorecard workflow; CodeQL (TypeScript, Python, workflows) runs
+  through GitHub's default code-scanning setup.
+- Property-based tests (`fast-check`) for the ZIP, XLSX and CSV import
+  parsers.
 
 - Parcel overlay (layer panel → Basemap → "Parcels (ALKIS)"): official
   Flurstück outlines from the open map services of 15 states (all except

@@ -14,29 +14,27 @@ import { readZipEntries, writeZip } from "./zip";
  */
 
 const MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-const PREFIXED_MAIN_NS = new RegExp(
-  `xmlns:([A-Za-z_][\\w.-]*)="${MAIN_NS.replace(/[./]/g, "\\$&")}"`,
-  "g",
-);
+// Fixed patterns only: namespace URIs and prefixes are compared as plain
+// strings, never interpolated into a regular expression.
+const NS_DECLARATION = /xmlns:([A-Za-z_][\w.-]*)="([^"]*)"/g;
+const PREFIXED_TAG = /<(\/?)([A-Za-z_][\w.-]*):/g;
 
 /** Rewrites one XML part to use the default SpreadsheetML namespace. */
 export function normalizeSpreadsheetXml(xml: string): string {
   const text = xml.replace(/^\uFEFF/, "");
-  const prefixes = [
-    ...new Set([...text.matchAll(PREFIXED_MAIN_NS)].map((m) => m[1])),
-  ];
-  if (prefixes.length === 0) return xml;
-  let out = text;
-  for (const prefix of prefixes) {
-    const p = prefix.replace(/[.-]/g, "\\$&");
-    out = out
-      .replace(new RegExp(`<(/?)${p}:`, "g"), "<$1")
-      .replace(
-        new RegExp(`xmlns:${p}="${MAIN_NS.replace(/[./]/g, "\\$&")}"`, "g"),
-        `xmlns="${MAIN_NS}"`,
-      );
-  }
-  return out;
+  const prefixes = new Set(
+    [...text.matchAll(NS_DECLARATION)]
+      .filter((m) => m[2] === MAIN_NS)
+      .map((m) => m[1]),
+  );
+  if (prefixes.size === 0) return xml;
+  return text
+    .replace(PREFIXED_TAG, (tag, slash: string, prefix: string) =>
+      prefixes.has(prefix) ? `<${slash}` : tag,
+    )
+    .replace(NS_DECLARATION, (decl, prefix: string, uri: string) =>
+      prefixes.has(prefix) && uri === MAIN_NS ? `xmlns="${MAIN_NS}"` : decl,
+    );
 }
 
 /**

@@ -77,7 +77,7 @@ Hardening of the packaged app and its supply chain:
   themselves and only link to the release page
 - The local log file masks API keys, tokens and URL credentials; diagnostics
   exports contain no portfolios (the log can name analysed locations)
-- CodeQL (security-extended queries) and the OpenSSF Scorecard run on every
+- CodeQL (GitHub default setup) and the OpenSSF Scorecard run on every
   push to `main` and weekly; GitHub Actions are pinned to commit SHAs
 
 Reports about missing multi-user auth, rate limiting, or similar are out of

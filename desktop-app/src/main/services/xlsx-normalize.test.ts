@@ -78,6 +78,16 @@ describe("spreadsheets written with namespace prefixes", () => {
     expect(normalizeSpreadsheetXml(plain)).toBe(plain);
   });
 
+  it("only rewrites prefixes bound to the exact SpreadsheetML namespace", () => {
+    const lookalike = MAIN.replace("schemas.", "schemasX");
+    const xml = `<s.m-l:worksheet xmlns:s.m-l="${MAIN}" xmlns:o="${lookalike}"><s.m-l:row/><o:row/><mc:x/></s.m-l:worksheet>`;
+    expect(normalizeSpreadsheetXml(xml)).toBe(
+      `<worksheet xmlns="${MAIN}" xmlns:o="${lookalike}"><row/><o:row/><mc:x/></worksheet>`,
+    );
+    const onlyLookalike = `<o:worksheet xmlns:o="${lookalike}"/>`;
+    expect(normalizeSpreadsheetXml(onlyLookalike)).toBe(onlyLookalike);
+  });
+
   it("makes absolute relationship targets relative to their part", () => {
     const rels = `<Relationships><Relationship Target="/xl/tables/table1.xml" Id="a"/><Relationship Target="https://x.example" TargetMode="External" Id="b"/></Relationships>`;
     expect(
