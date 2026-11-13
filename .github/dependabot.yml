@@ -1,54 +1,71 @@
-# Dependabot version updates. Security updates (Dependabot alerts with
-# automatic fix PRs) are enabled in the repository settings as well.
-# Minor and patch updates are grouped per ecosystem to keep the PR count low;
-# majors arrive as single PRs. Every PR runs CI (typecheck, lint, tests,
-# build) and dependency review before it can be merged.
+# Dependabot, tuned for few pull requests:
+# - Version updates run once a month and only offer releases that are at
+#   least a week old (majors: a month), so short-lived or yanked releases
+#   never show up.
+# - Each ecosystem bundles everything into at most two PRs: one for
+#   minor/patch updates and one for major updates. npm covers the desktop
+#   app and the website together. The PR description lists every new version.
+# - Security updates (enabled in the repository settings) arrive as one
+#   grouped PR per ecosystem, only when an advisory affects a dependency.
+#   Alerts also stay visible under Security → Dependabot.
+# - @types/node follows the Node runtime (Electron's Node for the desktop
+#   app, the CI Node for the website), so its majors are bumped by hand.
+# Every PR runs CI (typecheck, lint, tests, build) and dependency review.
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: /desktop-app
+    directories: [/desktop-app, /website]
     schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 10
+      interval: monthly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
-      desktop-minor-and-patch:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm-minor-and-patch:
         update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
     commit-message:
       prefix: "chore(deps)"
-
-  - package-ecosystem: npm
-    directory: /website
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    groups:
-      website-minor-and-patch:
-        update-types: [minor, patch]
-    commit-message:
-      prefix: "chore(deps-website)"
 
   - package-ecosystem: pip
     directory: /training
     schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
+      interval: monthly
+    cooldown:
+      default-days: 7
+    # Only touch requirements.txt when a range excludes the new release;
+    # raising lower bounds every month is noise for a local training setup.
+    versioning-strategy: increase-if-necessary
+    open-pull-requests-limit: 2
     groups:
-      training-minor-and-patch:
-        update-types: [minor, patch]
+      pip-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      pip-all:
+        patterns: ["*"]
     commit-message:
       prefix: "chore(deps-training)"
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
+      interval: monthly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 2
     groups:
-      actions:
+      actions-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      actions-all:
         patterns: ["*"]
     commit-message:
       prefix: "chore(ci)"

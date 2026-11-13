@@ -2,7 +2,7 @@ import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import { DOC_PAGES } from "./src/lib/docs-pages";
+import { DOC_PAGES } from "./src/lib/docs-pages.ts";
 
 // GitHub Pages cannot set response headers, so the policy ships as a meta tag.
 // Build only: the dev server injects an inline React Refresh preamble.

@@ -43,6 +43,13 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Dependencies: 42 minor/patch updates for the desktop app (React 19.3,
+  Radix, Tailwind 4.3, onnxruntime-node 1.31, Vitest 5.1, Prettier 3.9, …);
+  `@types/node` 24 to match Electron's Node; the website on TypeScript 7,
+  Vite 8 and `@vitejs/plugin-react` 6; GitHub Actions on checkout v7,
+  setup-node v7, upload-artifact v7 and attest-build-provenance v4.
+- Dependabot runs monthly with a cooldown and grouped PRs (at most two per
+  ecosystem, npm for app and website together).
 - Network requests from the main process and the dealer-directory worker
   use Electron's `net.fetch` instead of Node's fetch: the system proxy and the
   operating system's certificate store (company TLS inspection) now apply.

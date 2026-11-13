@@ -51,8 +51,10 @@ with `package.json` and run `npm audit` for dependency changes.
 - Releases are tag-driven. Generate checksums, the SBOM, and build provenance;
   code signing is optional until certificates are available.
 - Dependabot is enabled (`.github/dependabot.yml`, plus Dependabot alerts and
-  security updates in the repository settings). Keep it running; review its
-  PRs like any other dependency change and do not disable it.
+  security updates in the repository settings). It runs monthly with a
+  cooldown and groups updates into few PRs; keep it that way rather than
+  adding per-package PRs. Review its PRs like any other dependency change and
+  do not disable it.
 
 ## Data and risk-model changes
 
