@@ -70,7 +70,7 @@
     "onnxruntime-node": "^1.29.0",
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "react-i18next": "15.6.0",
+    "react-i18next": "18.0.1",
     "react-resizable-panels": "^4.12.4",
     "react-router-dom": "7.18.3",
     "recharts": "^2.15.4",
