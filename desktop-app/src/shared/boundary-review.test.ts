@@ -182,8 +182,13 @@ describe("boundaryReviewReasons (cascade v3)", () => {
     expect(boundaryReviewReasons(result, DEFAULT_RISK_PARAMETERS)).toEqual([]);
   });
 
+  it("ignores a neighbour's forecourt of under a quarter of the lot", () => {
+    const result = cascade({ vehiclesOutsideNearby: 24, lotVehicles: 120 });
+    expect(boundaryReviewReasons(result, DEFAULT_RISK_PARAMETERS)).toEqual([]);
+  });
+
   it("flags a row outside a small lot", () => {
-    const result = cascade({ vehiclesOutsideNearby: 12, lotVehicles: 50 });
+    const result = cascade({ vehiclesOutsideNearby: 14, lotVehicles: 50 });
     expect(boundaryReviewReasons(result, DEFAULT_RISK_PARAMETERS)).toEqual([
       "vehiclesOutside",
     ]);

@@ -77,8 +77,9 @@ import { matchesSite } from "./site-membership";
  * footprints from the LoD2 model.
  * 6: traffic areas cut the outline where there are no street parcels
  * (Bayern land-use map).
+ * 7: full confidence from 70 % lot coverage (was 80 %).
  */
-export const CASCADE_VERSION = 6;
+export const CASCADE_VERSION = 7;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -197,8 +198,13 @@ export const CASCADE_LIMITS = {
   hullBuildingMaxSqm: 20_000,
   /** Vehicles outside the result but this close to it count as unexplained. */
   outsideNearbyM: 15,
-  /** Share of lot vehicles a parcel result must cover for full confidence. */
-  goodCoverage: 0.8,
+  /**
+   * Share of lot vehicles a parcel result must cover for full confidence.
+   * Was 0.8; on 76 visually judged sites, correct results covered 0.70–0.78
+   * of their lot (kerbside cars and a neighbour's yard in the lot) and were
+   * flagged for that alone (docs/boundary-model.md, "Review calibration").
+   */
+  goodCoverage: 0.7,
 } as const;
 
 export const CASCADE_CONFIDENCE = {

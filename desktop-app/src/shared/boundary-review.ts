@@ -86,10 +86,12 @@ export const MAX_UNEXPLAINED_OUTSIDE_VEHICLES = 5;
  * lot only when they are both a real row (`MIN_OUTSIDE_ROW`) and a meaningful
  * share of the lot (`MAX_OUTSIDE_SHARE`): on a 300-car lot, six cars at the
  * kerb are noise. Before v3 every result above five was flagged, 44 of 61 in
- * the audited portfolio.
+ * the audited portfolio. The share was 0.15 until the review calibration:
+ * correct large sites had 15–24 % of their lot just outside (neighbouring
+ * forecourts), clipped ones 26–49 %.
  */
 export const MIN_OUTSIDE_ROW = 10;
-export const MAX_OUTSIDE_SHARE = 0.15;
+export const MAX_OUTSIDE_SHARE = 0.25;
 
 function tooManyOutside(boundary: BoundaryResult): boolean {
   const outside = boundary.quality?.vehiclesOutsideNearby ?? 0;

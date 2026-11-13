@@ -443,6 +443,30 @@ neighbours in the cadastre answer; a strip at the edge of the search box may
 be missed. `anchorOffLot` cannot catch a wrong point inside a block of
 street-parked cars that forms a lot of its own.
 
+## Review calibration (November 2026)
+
+Review flags were checked against 76 sites judged by eye on the aerial
+image (49 correct, 27 partial, wrong or unclear; Bayern left out, where
+the vehicle outline is always flagged) and the 17 public fixtures (IoU
+≥ 0.5 counted as correct). With `CASCADE_VERSION` 6, 25 of the 49 correct
+results were flagged, mostly for "low confidence" (stage 1 covering 70–78 %
+of the lot) and "vehicles outside" (a neighbouring forecourt, 15–24 % of the
+lot); 24 of 27 flawed results were flagged.
+
+Two thresholds changed (`CASCADE_VERSION` 7): full stage-1 confidence from
+70 % lot coverage (`goodCoverage`, was 80 %), and "vehicles outside" only at
+25 % of the lot (`MAX_OUTSIDE_SHARE`, was 15 %). Correct results flagged:
+25 → 13 of 49. Flawed results flagged: 24 → 23 of 27; the one no longer
+flagged is a site whose rear yard may or may not belong to the dealer. The
+three unflagged flawed results are two fixtures with oversized parcels and a
+site on six-year-old imagery, which the analysis flags as `staleImagery`.
+
+Rejected: counting coverage only on vehicles off the street (correct flags
+10 of 49) also cleared a fixture with IoU 0.14.
+
+These thresholds were set on the sites they were measured on; they are a
+calibration of a screening flag, not a validated classifier.
+
 ### Earlier engines (removed)
 
 Version 0.2 ranked candidates from ALKIS, OSM, Nominatim and Overture; 0.2.x

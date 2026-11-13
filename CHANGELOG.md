@@ -15,6 +15,11 @@ the project follows [Semantic Versioning](https://semver.org/).
   vehicle outline had no footprints there, so outlines left the showroom
   out. A large city tile may arrive too late for the first analysis of a
   site and then helps from the next one (`docs/official-buildings.md`).
+- Fewer review flags on correct boundaries: full confidence from 70 % lot
+  coverage (was 80 %), "vehicles outside" from 25 % of the lot (was 15 %).
+  On 76 sites judged by eye, flagged correct results fell from 25 to 13 of
+  49, flagged flawed ones from 24 to 23 of 27 (`docs/boundary-model.md`,
+  "Review calibration").
 - Traffic areas for Bayern from the free ALKIS land-use map (WMS, CC BY 4.0):
   where no parcels exist, vehicle outlines are cut back at roads instead of
   running across them.
