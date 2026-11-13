@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { HailHistoryStation } from "@shared/types";
-import { hailFigures, hailNotes, monthBars, yearBars } from "./hailHistoryView";
+import {
+  countTicks,
+  hailFigures,
+  hailNotes,
+  monthBars,
+  newerStation,
+  yearBars,
+} from "./hailHistoryView";
 
 const station: HailHistoryStation = {
   stationId: "01048",
@@ -95,5 +102,34 @@ describe("hail history view", () => {
       { kind: "far", distanceKm: 24 },
       { kind: "short", years: 12 },
     ]);
+  });
+
+  it("puts the count axis on round steps", () => {
+    expect(countTicks(1)).toEqual([0, 1]);
+    expect(countTicks(3)).toEqual([0, 1, 2, 3]);
+    expect(countTicks(11)).toEqual([0, 2, 4, 6, 8, 10, 12]);
+    expect(countTicks(23)).toEqual([0, 5, 10, 15, 20, 25]);
+  });
+
+  it("offers the nearby station with the latest record", () => {
+    const later = {
+      ...station,
+      stationId: "00433",
+      name: "B",
+      lastYear: 1991,
+      distanceKm: 5.6,
+    };
+    const latest = {
+      ...station,
+      stationId: "00400",
+      name: "C",
+      lastYear: 2020,
+      distanceKm: 9,
+    };
+    const early = { ...station, stationId: "00401", name: "D", lastYear: 1960 };
+    expect(
+      newerStation([station, later, latest, early], station)?.stationId,
+    ).toBe("00400");
+    expect(newerStation([station, early], station)).toBeNull();
   });
 });

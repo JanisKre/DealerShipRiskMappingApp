@@ -1089,7 +1089,6 @@
     "retry": "Réessayer",
     "none": "Aucune station DWD avec un long historique de grêle dans un rayon de {{radius}} km.",
     "stationPicker": "Choisir la station météo",
-    "km": "{{distance}} km",
     "aboutLabel": "À propos de l'historique de grêle",
     "about": {
       "title": "D'où viennent les chiffres",
@@ -1108,7 +1107,8 @@
       "peak": "Maximum",
       "peakHint": "en {{year}} · afficher",
       "last": "Dernier jour de grêle",
-      "season": "surtout {{months}}"
+      "season": "surtout {{months}}",
+      "seasonSpread": "réparti sur l'année"
     },
     "days_one": "{{count}} jour de grêle",
     "days_other": "{{count}} jours de grêle",
@@ -1149,9 +1149,13 @@
       "short_other": "Seulement {{count}} années d'observation – la moyenne est incertaine.",
       "gaps_one": "{{count}} année de la période sans observation suffisante (gris).",
       "gaps_other": "{{count}} années de la période sans observation suffisante (gris).",
-      "context": "Contexte pour l'évaluation uniquement – non utilisé dans l'EAL grêle."
+      "context": "Contexte pour l'évaluation uniquement – non utilisé dans l'EAL grêle.",
+      "newer": "La station {{name}} a des données jusqu'en {{year}}.",
+      "switch": "Afficher la station"
     },
-    "zeroDays": "Pas de grêle observée"
+    "zeroDays": "Pas de grêle observée",
+    "stationMeta": "{{distance}} km · {{from}}–{{to}} · {{days}} jours/an",
+    "stationPickerHint": "{{count}} stations à proximité – choisir une station pour voir ses données"
   },
   "importPreview": {
     "title": "Aperçu",

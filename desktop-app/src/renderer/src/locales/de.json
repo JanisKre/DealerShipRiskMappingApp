@@ -1441,7 +1441,6 @@
     "retry": "Erneut versuchen",
     "none": "Keine DWD-Station mit langer Hagelbeobachtung im Umkreis von {{radius}} km.",
     "stationPicker": "Wetterstation wählen",
-    "km": "{{distance}} km",
     "aboutLabel": "Über die Hagelhistorie",
     "about": {
       "title": "Woher die Zahlen kommen",
@@ -1460,7 +1459,8 @@
       "peak": "Höchstwert",
       "peakHint": "im Jahr {{year}} · anzeigen",
       "last": "Letzter Hageltag",
-      "season": "meist {{months}}"
+      "season": "meist {{months}}",
+      "seasonSpread": "über das Jahr verteilt"
     },
     "days_one": "{{count}} Hageltag",
     "days_other": "{{count}} Hageltage",
@@ -1501,9 +1501,13 @@
       "short_other": "Nur {{count}} Beobachtungsjahre – der Mittelwert ist unsicher.",
       "gaps_one": "{{count}} Jahr im Zeitraum ohne ausreichende Beobachtung (grau).",
       "gaps_other": "{{count}} Jahre im Zeitraum ohne ausreichende Beobachtung (grau).",
-      "context": "Nur Kontext für die Einschätzung – fließt nicht in die Hagel-EAL ein."
+      "context": "Nur Kontext für die Einschätzung – fließt nicht in die Hagel-EAL ein.",
+      "newer": "Neuere Daten bis {{year}} hat die Station {{name}}.",
+      "switch": "Station anzeigen"
     },
-    "zeroDays": "Kein Hagel beobachtet"
+    "zeroDays": "Kein Hagel beobachtet",
+    "stationMeta": "{{distance}} km · {{from}}–{{to}} · Ø {{days}} Tage/Jahr",
+    "stationPickerHint": "{{count}} Stationen in der Nähe – Station wählen, um ihre Daten zu sehen"
   },
   "importPreview": {
     "title": "Vorschau",

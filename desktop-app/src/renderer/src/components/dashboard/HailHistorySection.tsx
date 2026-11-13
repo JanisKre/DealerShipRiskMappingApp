@@ -41,9 +41,11 @@ import {
 import { num, pct } from "@renderer/lib/format";
 import { cn } from "@renderer/lib/utils";
 import {
+  countTicks,
   hailFigures,
   hailNotes,
   monthBars,
+  newerStation,
   RECENT_YEARS,
   yearBars,
   type HailNote,
@@ -178,35 +180,91 @@ export function HailHistorySection({
         </p>
       ) : (
         <>
-          {stations.length > 1 && (
-            <ToggleGroup
-              type="single"
-              size="sm"
-              variant="outline"
-              value={station.stationId}
-              onValueChange={(value) => value && setStationId(value)}
-              className="flex-wrap justify-start"
-              aria-label={t("hailHistory.stationPicker")}
-            >
-              {stations.map((s) => (
-                <ToggleGroupItem
-                  key={s.stationId}
-                  value={s.stationId}
-                  className="h-auto gap-1.5 px-2.5 py-1 text-xs"
-                >
-                  <MapPin className="size-3" />
-                  <span>{s.name}</span>
-                  <span className="text-muted-foreground tabular-nums">
-                    {t("hailHistory.km", { distance: num(s.distanceKm, 1) })}
-                  </span>
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          )}
-          <StationHistory key={station.stationId} station={station} />
+          <StationList
+            stations={stations}
+            selectedId={station.stationId}
+            onSelect={setStationId}
+          />
+          <StationHistory
+            key={station.stationId}
+            station={station}
+            newer={newerStation(stations, station)}
+            onSwitch={setStationId}
+          />
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * The nearest stations as rows, one per line so long names never clip: name,
+ * distance, observed period and mean hail days, which also lets the
+ * underwriter compare them at a glance. One station is shown the same way,
+ * without the choice.
+ */
+function StationList({
+  stations,
+  selectedId,
+  onSelect,
+}: Readonly<{
+  stations: HailHistoryStation[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}>): React.JSX.Element {
+  const { t } = useTranslation();
+  const row = (s: HailHistoryStation, selected: boolean): React.JSX.Element => (
+    <>
+      <MapPin
+        className={cn(
+          "size-3.5 shrink-0",
+          selected ? "text-primary" : "text-muted-foreground",
+        )}
+      />
+      <span className="min-w-0 flex-1 break-words text-left font-medium">
+        {s.name}
+      </span>
+      <span className="shrink-0 text-right text-xs font-normal text-muted-foreground tabular-nums">
+        {t("hailHistory.stationMeta", {
+          distance: num(s.distanceKm, 1),
+          from: s.firstYear,
+          to: s.lastYear,
+          days: num(s.hailDaysPerYear, 1),
+        })}
+      </span>
+    </>
+  );
+  if (stations.length === 1) {
+    return (
+      <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+        {row(stations[0], true)}
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground">
+        {t("hailHistory.stationPickerHint", { count: stations.length })}
+      </p>
+      <ToggleGroup
+        type="single"
+        value={selectedId}
+        onValueChange={(value) => value && onSelect(value)}
+        orientation="vertical"
+        className="w-full flex-col items-stretch gap-1"
+        aria-label={t("hailHistory.stationPicker")}
+      >
+        {stations.map((s) => (
+          <ToggleGroupItem
+            key={s.stationId}
+            value={s.stationId}
+            className="h-auto w-full flex-none justify-start gap-2 whitespace-normal rounded-md border border-transparent px-3 py-2 text-sm first:rounded-md last:rounded-md hover:text-foreground data-[state=on]:border-primary/50 data-[state=on]:bg-primary/5 data-[state=on]:text-foreground"
+          >
+            {row(s, s.stationId === selectedId)}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+    </div>
   );
 }
 
@@ -243,7 +301,14 @@ function SourcePopover({
 
 function StationHistory({
   station,
-}: Readonly<{ station: HailHistoryStation }>): React.JSX.Element {
+  newer,
+  onSwitch,
+}: Readonly<{
+  station: HailHistoryStation;
+  /** A nearby station with a later record, offered as a switch. */
+  newer: HailHistoryStation | null;
+  onSwitch: (stationId: string) => void;
+}>): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const [view, setView] = useState<View>("years");
   const [range, setRange] = useState<YearRange>("all");
@@ -326,11 +391,13 @@ function StationHistory({
             figures.lastHail ? formatDay(figures.lastHail, i18n.language) : "—"
           }
           hint={
-            figures.mainMonths.length > 0
-              ? t("hailHistory.figure.season", {
-                  months: figures.mainMonths.map((m) => months[m]).join(", "),
-                })
-              : undefined
+            figures.mainMonths.length === 0
+              ? undefined
+              : figures.mainMonths.length <= 3
+                ? t("hailHistory.figure.season", {
+                    months: figures.mainMonths.map((m) => months[m]).join(", "),
+                  })
+                : t("hailHistory.figure.seasonSpread")
           }
         />
       </dl>
@@ -348,10 +415,10 @@ function StationHistory({
           }}
           aria-label={t("hailHistory.viewLabel")}
         >
-          <ToggleGroupItem value="years" className="px-2.5 text-xs">
+          <ToggleGroupItem value="years" className="flex-none px-2.5 text-xs">
             {t("hailHistory.view.years")}
           </ToggleGroupItem>
-          <ToggleGroupItem value="months" className="px-2.5 text-xs">
+          <ToggleGroupItem value="months" className="flex-none px-2.5 text-xs">
             {t("hailHistory.view.months")}
           </ToggleGroupItem>
         </ToggleGroup>
@@ -368,13 +435,16 @@ function StationHistory({
             }}
             aria-label={t("hailHistory.rangeLabel")}
           >
-            <ToggleGroupItem value="all" className="px-2.5 text-xs">
+            <ToggleGroupItem value="all" className="flex-none px-2.5 text-xs">
               {t("hailHistory.range.all", {
                 from: station.firstYear,
                 to: station.lastYear,
               })}
             </ToggleGroupItem>
-            <ToggleGroupItem value="recent" className="px-2.5 text-xs">
+            <ToggleGroupItem
+              value="recent"
+              className="flex-none px-2.5 text-xs"
+            >
               {t("hailHistory.range.recent", { count: RECENT_YEARS })}
             </ToggleGroupItem>
           </ToggleGroup>
@@ -412,7 +482,11 @@ function StationHistory({
           }
         />
       )}
-      {view === "years" && <Legend />}
+      {view === "years" && (
+        <Legend
+          showGap={yearBars(station, range).some((bar) => bar.days == null)}
+        />
+      )}
 
       {selection && (
         <SelectionDetail
@@ -425,7 +499,7 @@ function StationHistory({
         />
       )}
 
-      <Notes notes={notes} />
+      <Notes notes={notes} newer={newer} onSwitch={onSwitch} />
     </div>
   );
 }
@@ -443,8 +517,12 @@ function Figure({
 }>): React.JSX.Element {
   const body = (
     <>
-      <dt className="truncate text-[11px] text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 text-base font-semibold tabular-nums">{value}</dd>
+      <dt className="text-[11px] leading-tight text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="mt-0.5 break-words text-base font-semibold leading-snug tabular-nums">
+        {value}
+      </dd>
       {hint && (
         <dd className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
           {hint}
@@ -490,6 +568,7 @@ function YearChart({
 }>): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const max = Math.max(1, ...bars.map((b) => b.days ?? 0));
+  const ticks = countTicks(max);
   const data = bars.map((b) => ({ ...b, value: b.days ?? 0 }));
   // Runs of years without observations become one grey band, so a gap
   // never reads as "no hail".
@@ -541,7 +620,8 @@ function YearChart({
         />
         <YAxis
           allowDecimals={false}
-          domain={[0, max]}
+          domain={[0, ticks[ticks.length - 1]]}
+          ticks={ticks}
           width={44}
           tickLine={false}
           axisLine={false}
@@ -629,6 +709,7 @@ function MonthChart({
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const data = bars.map((b) => ({ ...b, label: labels[b.month] }));
+  const monthTicks = countTicks(Math.max(1, ...bars.map((b) => b.days)));
   return (
     <ChartContainer
       config={{ days: { label: t("hailHistory.axisDays") } }}
@@ -655,6 +736,8 @@ function MonthChart({
         />
         <YAxis
           allowDecimals={false}
+          domain={[0, monthTicks[monthTicks.length - 1]]}
+          ticks={monthTicks}
           width={44}
           tickLine={false}
           axisLine={false}
@@ -701,7 +784,9 @@ function MonthChart({
   );
 }
 
-function Legend(): React.JSX.Element {
+function Legend({
+  showGap,
+}: Readonly<{ showGap: boolean }>): React.JSX.Element {
   const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
@@ -709,10 +794,12 @@ function Legend(): React.JSX.Element {
         <span className="size-2.5 rounded-sm bg-[var(--chart-1)]" />
         {t("hailHistory.legend.days")}
       </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="size-2.5 rounded-sm bg-muted-foreground/15" />
-        {t("hailHistory.legend.gap")}
-      </span>
+      {showGap && (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-muted-foreground/15" />
+          {t("hailHistory.legend.gap")}
+        </span>
+      )}
       <span className="inline-flex items-center gap-1.5">
         <span className="w-3 border-t border-dashed border-muted-foreground" />
         {t("hailHistory.legend.mean")}
@@ -842,7 +929,15 @@ function noteText(t: TFunction, note: HailNote): string {
 }
 
 /** What limits the figures of this station, then the standing EAL note. */
-function Notes({ notes }: Readonly<{ notes: HailNote[] }>): React.JSX.Element {
+function Notes({
+  notes,
+  newer,
+  onSwitch,
+}: Readonly<{
+  notes: HailNote[];
+  newer: HailHistoryStation | null;
+  onSwitch: (stationId: string) => void;
+}>): React.JSX.Element {
   const { t } = useTranslation();
   return (
     <ul className="space-y-1 text-xs">
@@ -861,7 +956,28 @@ function Notes({ notes }: Readonly<{ notes: HailNote[] }>): React.JSX.Element {
           ) : (
             <Info className="mt-px size-3.5 shrink-0 text-sky-500" />
           )}
-          <span>{noteText(t, note)}</span>
+          <span className="min-w-0 flex-1">
+            {noteText(t, note)}
+            {note.kind === "ended" && newer && (
+              <>
+                {" "}
+                {t("hailHistory.notes.newer", {
+                  name: newer.name,
+                  year: newer.lastYear,
+                })}
+              </>
+            )}
+          </span>
+          {note.kind === "ended" && newer && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 shrink-0 px-2 text-xs"
+              onClick={() => onSwitch(newer.stationId)}
+            >
+              {t("hailHistory.notes.switch")}
+            </Button>
+          )}
         </li>
       ))}
       <li className="flex items-start gap-2 px-2.5 text-muted-foreground">

@@ -136,3 +136,32 @@ export function hailNotes(
   if (missing > 0) notes.push({ kind: "gaps", missing });
   return notes;
 }
+
+/** Axis ticks on round counts from 0 to a little above `max`. */
+export function countTicks(max: number): number[] {
+  const step = max <= 5 ? 1 : max <= 12 ? 2 : max <= 30 ? 5 : 10;
+  const top = Math.max(step, Math.ceil(max / step) * step);
+  const ticks: number[] = [];
+  for (let v = 0; v <= top; v += step) ticks.push(v);
+  return ticks;
+}
+
+/**
+ * Another nearby station whose record reaches later than this one's, the
+ * latest first — offered when the shown station stopped observing early.
+ */
+export function newerStation(
+  stations: HailHistoryStation[],
+  current: HailHistoryStation,
+): HailHistoryStation | null {
+  return (
+    stations
+      .filter(
+        (s) =>
+          s.stationId !== current.stationId && s.lastYear > current.lastYear,
+      )
+      .sort(
+        (a, b) => b.lastYear - a.lastYear || a.distanceKm - b.distanceKm,
+      )[0] ?? null
+  );
+}

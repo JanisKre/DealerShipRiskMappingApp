@@ -1441,7 +1441,6 @@
     "retry": "Try again",
     "none": "No DWD station with a long hail record within {{radius}} km.",
     "stationPicker": "Choose weather station",
-    "km": "{{distance}} km",
     "aboutLabel": "About the hail history",
     "about": {
       "title": "Where the figures come from",
@@ -1460,7 +1459,8 @@
       "peak": "Highest",
       "peakHint": "in {{year}} · show",
       "last": "Latest hail day",
-      "season": "mostly {{months}}"
+      "season": "mostly {{months}}",
+      "seasonSpread": "spread over the year"
     },
     "days_one": "{{count}} hail day",
     "days_other": "{{count}} hail days",
@@ -1501,9 +1501,13 @@
       "short_other": "Only {{count}} observed years – the mean is uncertain.",
       "gaps_one": "{{count}} year in the period without sufficient observation (grey).",
       "gaps_other": "{{count}} years in the period without sufficient observation (grey).",
-      "context": "Context for the assessment only – not used in the hail EAL."
+      "context": "Context for the assessment only – not used in the hail EAL.",
+      "newer": "Station {{name}} has data up to {{year}}.",
+      "switch": "Show station"
     },
-    "zeroDays": "No hail observed"
+    "zeroDays": "No hail observed",
+    "stationMeta": "{{distance}} km · {{from}}–{{to}} · {{days}} days/year",
+    "stationPickerHint": "{{count}} stations nearby – choose one to see its data"
   },
   "importPreview": {
     "title": "Preview",
