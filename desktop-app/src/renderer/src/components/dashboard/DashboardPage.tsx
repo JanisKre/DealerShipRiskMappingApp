@@ -57,6 +57,7 @@ import { useMapStore } from "@renderer/store/mapStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import { useReviewRun } from "./useReviewRun";
 import { A2uiSurfaceView } from "./a2ui/A2uiSurfaceView";
+import { dropTarget, moveA2uiComponent } from "@shared/a2ui-layout";
 import { DashboardTabs } from "./a2ui/DashboardTabs";
 import {
   rememberedDashboardId,
@@ -120,6 +121,7 @@ export function DashboardPage(): React.JSX.Element {
   const onTableOrder = useCallback((ids: string[]) => setTableOrder(ids), []);
   const aiDashboard = useDashboardStore((s) => s.active);
   const building = useDashboardStore((s) => s.building);
+  const arrange = useDashboardStore((s) => s.arrange);
   // A different dashboard starts at its top, not where the last one was.
   const scrollRef = useRef<HTMLDivElement>(null);
   const aiDashboardId = aiDashboard?.id ?? null;
@@ -398,6 +400,25 @@ export function DashboardPage(): React.JSX.Element {
                     setDetailId(id);
                     select(id);
                   }}
+                  onMove={
+                    building
+                      ? undefined
+                      : (dragged, target) => {
+                          const surface = aiDashboard.surface;
+                          const next = moveA2uiComponent(
+                            surface,
+                            dragged,
+                            dropTarget(surface, dragged, target),
+                          );
+                          if (!next) {
+                            toast.info(t("a2ui.moveRefused"));
+                            return;
+                          }
+                          void arrange(next).catch(() =>
+                            toast.error(t("a2ui.arrangeFailed")),
+                          );
+                        }
+                  }
                 />
                 <p className="text-xs text-muted-foreground">
                   {t("a2ui.provenance")}

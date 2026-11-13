@@ -1712,6 +1712,8 @@
     },
     "tableMore_one": "{{shown}} von {{count}} Standort, sortiert nach {{measure}}.",
     "tableMore_other": "{{shown}} von {{count}} Standorten, sortiert nach {{measure}}.",
+    "arrangeFailed": "Die neue Anordnung konnte nicht gespeichert werden.",
+    "moveRefused": "Hier lässt sich das nicht ablegen: Eine Reihe fasst höchstens vier Elemente und keine weitere Reihe.",
     "renameFigure": "Der Name darf keine Beträge oder Prozentwerte enthalten.",
     "builtFrom": "Erstellt aus: „{{prompt}}“",
     "provenance": "Die KI hat nur Aufbau und Auswahl festgelegt; alle Werte berechnet die App aus dem Portfolio (Screening-Schätzung, Hagel-EAL mit Platzhalterwerten). Der Portfolio-Filter oben gilt auch hier.",

@@ -311,3 +311,45 @@ test("the portfolio table searches, sorts and opens a location", async () => {
   ).toBeVisible();
   await page.keyboard.press("Escape");
 });
+
+test("tiles of the overview move by drag and drop", async () => {
+  await page.getByRole("tab", { name: "Übersicht" }).click();
+  const tiles = page.locator("section[draggable=true]");
+  const labels = (): Promise<string[]> =>
+    tiles.evaluateAll((els) =>
+      els.map((el) => el.getAttribute("aria-label") ?? ""),
+    );
+  const before = await labels();
+  expect(before.length).toBeGreaterThan(2);
+  await tiles.nth(1).dragTo(tiles.nth(0));
+  await expect.poll(labels).toEqual([before[1], before[0], ...before.slice(2)]);
+  await tiles.nth(1).dragTo(tiles.nth(0));
+  await expect.poll(labels).toEqual(before);
+});
+
+// Last: it reloads the window, which closes the assistant.
+test("parts of an AI dashboard move by drag and drop and stay moved", async () => {
+  await page.getByRole("tab", { name: "Standorte in Zone 2" }).click();
+  const view = page.getByRole("region", { name: "Standorte in Zone 2" });
+  const part = (id: string): ReturnType<Page["locator"]> =>
+    view.locator(`[data-a2ui-part="${id}"]`);
+  const order = (): Promise<string[]> =>
+    view
+      .locator("[data-a2ui-part]")
+      .evaluateAll((els) =>
+        els.map((el) => el.getAttribute("data-a2ui-part") ?? ""),
+      );
+  await expect.poll(order).toEqual(["kpis", "eal", "top", "table"]);
+
+  // Dropped on the key figure, the table takes the place of its whole row.
+  await part("table").dragTo(part("eal"));
+  await expect.poll(order).toEqual(["table", "kpis", "eal", "top"]);
+  await part("top").dragTo(part("table"));
+  await expect.poll(order).toEqual(["top", "table", "kpis", "eal"]);
+
+  // The order is saved with the dashboard.
+  await page.reload();
+  await page.getByRole("link", { name: "Dashboard" }).click();
+  await page.getByRole("tab", { name: "Standorte in Zone 2" }).click();
+  await expect.poll(order).toEqual(["top", "table", "kpis", "eal"]);
+});

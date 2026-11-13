@@ -42,8 +42,9 @@ not judge keyboard flows, reading order or whether names make sense.
 - **Map:** markers are reachable with the keyboard, but drawing or correcting
   a lot boundary needs a pointer. The locations list next to the map offers
   the same selection and details without the map.
-- **Dashboard tiles** are reordered by drag and drop only; the tile menu can
-  show and hide tiles but not move them.
+- **Dashboard tiles** and the parts of AI dashboards are reordered by drag
+  and drop only; the tile menu can show and hide tiles but not move them, and
+  an AI dashboard can also be rearranged by asking the chat.
 - **Small text:** several badges and hints use 10–11 px text. Contrast is
   sufficient, but readability at 200 % zoom has not been reviewed.
 - **Screen readers:** no structured test with NVDA, JAWS or VoiceOver yet.

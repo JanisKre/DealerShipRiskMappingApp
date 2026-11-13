@@ -602,8 +602,10 @@ const AI_MEMO: Localized<React.ReactNode> = {
         Ask the chat for a dashboard (“Build a dashboard of all locations from
         zone 4”) and it is built from a fixed set of tiles (KPIs, bar and pie
         charts, tables) and saved as a tab next to the overview; follow-up
-        requests change it. The figures are computed by the app from your
-        portfolio, not by the model.
+        requests change it. Like the overview tiles, its parts and rows can be
+        rearranged by dragging the handle that appears on hover; the order is
+        saved with the dashboard. The figures are computed by the app from
+        your portfolio, not by the model.
       </p>
       <H2 id="api-keys">API keys</H2>
       <p className="text-muted-foreground">
@@ -625,8 +627,11 @@ const AI_MEMO: Localized<React.ReactNode> = {
         Bitte den Chat um ein Dashboard („Baue mir ein Dashboard zu allen
         Standorten ab Zone 4“): Es entsteht aus festen Bausteinen (Kennzahlen,
         Balken- und Kreisdiagramme, Tabellen) und wird als Tab neben der
-        Übersicht gespeichert; weitere Wünsche ändern es. Die Zahlen berechnet
-        die App aus deinem Portfolio, nicht das Modell.
+        Übersicht gespeichert; weitere Wünsche ändern es. Wie die Kacheln der
+        Übersicht lassen sich seine Bausteine und Reihen am Griff, der beim
+        Überfahren erscheint, per Drag-and-drop umsortieren; die Reihenfolge
+        wird mit dem Dashboard gespeichert. Die Zahlen berechnet die App aus
+        deinem Portfolio, nicht das Modell.
       </p>
       <H2 id="api-keys">API-Keys</H2>
       <p className="text-muted-foreground">
@@ -650,8 +655,11 @@ const AI_MEMO: Localized<React.ReactNode> = {
         les sites à partir de la zone 4 ») : il est construit à partir de
         blocs fixes (indicateurs, diagrammes en barres et circulaires,
         tableaux) et enregistré comme onglet à côté de la vue d’ensemble ; les
-        demandes suivantes le modifient. Les chiffres sont calculés par
-        l’application à partir de votre portefeuille, pas par le modèle.
+        demandes suivantes le modifient. Comme les tuiles de la vue
+        d’ensemble, ses blocs et rangées se réorganisent par glisser-déposer
+        avec la poignée qui apparaît au survol ; l’ordre est enregistré avec
+        le tableau de bord. Les chiffres sont calculés par l’application à
+        partir de votre portefeuille, pas par le modèle.
       </p>
       <H2 id="api-keys">Clés API</H2>
       <p className="text-muted-foreground">

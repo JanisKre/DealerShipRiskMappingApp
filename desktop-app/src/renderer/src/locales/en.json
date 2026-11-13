@@ -1712,6 +1712,8 @@
     },
     "tableMore_one": "{{shown}} of {{count}} location, sorted by {{measure}}.",
     "tableMore_other": "{{shown}} of {{count}} locations, sorted by {{measure}}.",
+    "arrangeFailed": "The new arrangement could not be saved.",
+    "moveRefused": "This cannot be dropped here: a row holds at most four items and no other row.",
     "renameFigure": "The name must not contain amounts or percentages.",
     "builtFrom": "Built from: “{{prompt}}”",
     "provenance": "The AI only chose the layout and selection; the app computes every value from the portfolio (screening estimate, hail EAL with placeholder values). The portfolio filter above applies here too.",

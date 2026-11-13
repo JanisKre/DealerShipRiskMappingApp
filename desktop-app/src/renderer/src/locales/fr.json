@@ -1712,6 +1712,8 @@
     },
     "tableMore_one": "{{shown}} sur {{count}} site, triés par {{measure}}.",
     "tableMore_other": "{{shown}} sur {{count}} sites, triés par {{measure}}.",
+    "arrangeFailed": "La nouvelle disposition n’a pas pu être enregistrée.",
+    "moveRefused": "Impossible de déposer ici : une rangée contient au plus quatre éléments et aucune autre rangée.",
     "renameFigure": "Le nom ne doit pas contenir de montants ni de pourcentages.",
     "builtFrom": "Créé à partir de : « {{prompt}} »",
     "provenance": "L'IA a seulement choisi la mise en page et la sélection ; l'application calcule toutes les valeurs à partir du portefeuille (estimation de screening, EAL grêle avec valeurs provisoires). Le filtre du portefeuille ci-dessus s'applique aussi.",

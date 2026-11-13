@@ -34,6 +34,8 @@ interface DashboardState {
   /** Saves a ready surface (the starter template) as a new dashboard. */
   saveNew: (surface: A2uiSurface, prompt: string) => Promise<Dashboard>;
   rename: (id: string, name: string) => Promise<void>;
+  /** Saves the shown dashboard with its parts in a new order. */
+  arrange: (surface: A2uiSurface) => Promise<void>;
   remove: (id: string) => Promise<void>;
 }
 
@@ -159,6 +161,24 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     await window.api.saveDashboard(next);
     if (get().active?.id === id) set({ active: next });
     await get().loadList();
+  },
+
+  arrange: async (surface) => {
+    const current = get().active;
+    if (!current) return;
+    const next: Dashboard = {
+      ...current,
+      surface,
+      updatedAt: new Date().toISOString(),
+    };
+    // Shown at once; the previous order comes back if saving fails.
+    set({ active: next });
+    try {
+      await window.api.saveDashboard(next);
+    } catch (err) {
+      if (get().active?.id === current.id) set({ active: current });
+      throw err;
+    }
   },
 
   remove: async (id) => {

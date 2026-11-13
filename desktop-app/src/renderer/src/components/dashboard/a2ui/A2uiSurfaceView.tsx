@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { GripVertical } from "lucide-react";
 import type {
   A2uiComponent,
   A2uiDimension,
@@ -68,6 +69,17 @@ const ViewContext = createContext<{ sharedSelection: boolean }>({
   sharedSelection: false,
 });
 
+/**
+ * Drag and drop of the dashboard's parts, as on the standard dashboard: a
+ * part dropped on another takes its place (`moveA2uiComponent`). Without
+ * `onMove` nothing can be dragged.
+ */
+const MoveContext = createContext<{
+  dragged: string | null;
+  setDragged: (id: string | null) => void;
+  onMove?: (dragged: string, target: string) => void;
+}>({ dragged: null, setDragged: () => undefined });
+
 function normalizeTitle(text: string): string {
   return text.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -76,12 +88,16 @@ export function A2uiSurfaceView({
   surface,
   dealerships,
   onOpenLocation,
+  onMove,
 }: Readonly<{
   surface: A2uiSurface;
   dealerships: AnalyzedDealership[];
   onOpenLocation: (id: string) => void;
+  /** Moves a part onto the place of another; enables drag and drop. */
+  onMove?: (dragged: string, target: string) => void;
 }>): React.JSX.Element {
   const { t } = useTranslation();
+  const [dragged, setDragged] = useState<string | null>(null);
   const byId = useMemo(() => {
     const map = new Map(surface.components.map((c) => [c.id, c]));
     // The tab already carries the title; a leading heading that repeats it
@@ -106,27 +122,29 @@ export function A2uiSurfaceView({
   const selected = shared ? applyFilter(located, shared.filter).length : 0;
   return (
     <ViewContext.Provider value={{ sharedSelection: shared != null }}>
-      <div className="@container space-y-4">
-        {shared && (
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span className="rounded-md border bg-muted/40 px-2 py-0.5 font-medium">
-              {describeFilter(t, shared.filter)}
-            </span>
-            <span className="text-muted-foreground">
-              {t("a2ui.selectionCount", {
-                count: selected,
-                total: located.length,
-              })}
-            </span>
-          </p>
-        )}
-        <Node
-          id="root"
-          byId={byId}
-          dealerships={dealerships}
-          onOpenLocation={onOpenLocation}
-        />
-      </div>
+      <MoveContext.Provider value={{ dragged, setDragged, onMove }}>
+        <div className="@container space-y-4">
+          {shared && (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span className="rounded-md border bg-muted/40 px-2 py-0.5 font-medium">
+                {describeFilter(t, shared.filter)}
+              </span>
+              <span className="text-muted-foreground">
+                {t("a2ui.selectionCount", {
+                  count: selected,
+                  total: located.length,
+                })}
+              </span>
+            </p>
+          )}
+          <Node
+            id="root"
+            byId={byId}
+            dealerships={dealerships}
+            onOpenLocation={onOpenLocation}
+          />
+        </div>
+      </MoveContext.Provider>
     </ViewContext.Provider>
   );
 }
@@ -159,18 +177,28 @@ function Node({
 }>): React.JSX.Element | null {
   const c = byId.get(id);
   if (!c) return null;
-  const child = (childId: string): React.JSX.Element => (
-    <Node
-      key={childId}
-      id={childId}
-      byId={byId}
-      dealerships={dealerships}
-      onOpenLocation={onOpenLocation}
-    />
-  );
+  const child = (childId: string): React.JSX.Element => {
+    const kind = byId.get(childId)?.component;
+    return (
+      <Movable
+        key={childId}
+        id={childId}
+        section={kind === "Column" || kind === "Row"}
+      >
+        <Node
+          id={childId}
+          byId={byId}
+          dealerships={dealerships}
+          onOpenLocation={onOpenLocation}
+        />
+      </Movable>
+    );
+  };
   switch (c.component) {
     case "Column":
-      return <div className="space-y-4">{c.children.map(child)}</div>;
+      // Room above each part for its drag handle, as between the tiles of
+      // the standard dashboard.
+      return <div className="space-y-6">{c.children.map(child)}</div>;
     case "Row": {
       const figures = c.children.every(
         (childId) => byId.get(childId)?.component === "KpiCard",
@@ -178,7 +206,7 @@ function Node({
       const columns = figures ? KPI_ROW_COLUMNS : ROW_COLUMNS;
       return (
         <div
-          className={`grid items-stretch gap-4 ${columns[c.children.length] ?? columns[4]}`}
+          className={`grid items-stretch gap-x-4 gap-y-6 ${columns[c.children.length] ?? columns[4]}`}
         >
           {c.children.map(child)}
         </div>
@@ -222,6 +250,66 @@ function Node({
         </ChartCard>
       );
   }
+}
+
+/**
+ * One draggable part. Cards show their handle at the top right like the
+ * tiles of the standard dashboard; a section (a row of cards) shows its own
+ * at the top left, so a whole row can be moved too.
+ */
+function Movable({
+  id,
+  section,
+  children,
+}: Readonly<{
+  id: string;
+  section: boolean;
+  children: React.ReactNode;
+}>): React.JSX.Element {
+  const { dragged, setDragged, onMove } = useContext(MoveContext);
+  if (!onMove) return <>{children}</>;
+  return (
+    <div
+      className={`relative flex min-w-0 flex-col [&>:last-child]:flex-1 ${section ? "group/section" : "group/item"} ${dragged === id ? "opacity-50" : ""}`}
+      data-a2ui-part={id}
+      draggable
+      onDragStart={(event) => {
+        // The innermost part is the one picked up, not the row around it.
+        event.stopPropagation();
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", id);
+        setDragged(id);
+      }}
+      onDragEnd={(event) => {
+        event.stopPropagation();
+        setDragged(null);
+      }}
+      onDragOver={(event) => {
+        if (!dragged) return;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onDrop={(event) => {
+        if (!dragged) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setDragged(null);
+        if (dragged !== id) onMove(dragged, id);
+      }}
+    >
+      <div
+        className={`pointer-events-none absolute -top-5 z-20 flex items-center gap-1 opacity-0 transition-opacity ${section ? "left-3 group-hover/section:opacity-100" : "right-3 group-hover/item:opacity-100"}`}
+      >
+        <span
+          aria-hidden
+          className="pointer-events-auto cursor-grab rounded-md border bg-background p-0.5 text-muted-foreground shadow-sm"
+        >
+          <GripVertical className="size-4" />
+        </span>
+      </div>
+      {children}
+    </div>
+  );
 }
 
 // --- Labels -------------------------------------------------------------
