@@ -73,7 +73,7 @@
     "react-i18next": "15.6.0",
     "react-resizable-panels": "^4.12.4",
     "react-router-dom": "7.18.3",
-    "recharts": "^2.15.4",
+    "recharts": "^3.10.1",
     "sharp": "^0.35.5",
     "sonner": "^2.0.6",
     "zod": "4.6.7",
