@@ -1,10 +1,12 @@
 import { randomUUID } from "crypto";
-import type { Dashboard, DashboardSpec } from "@shared/types";
+import { A2uiSurfaceSchema, type A2uiSurface } from "@shared/a2ui";
+import type { Dashboard } from "@shared/types";
 import { getDb } from "../db/database";
 
 /**
- * KI-Dashboard-Persistenz in SQLite. `prompt` + `spec` liegen zusammen als
- * JSON-Blob in der Spalte `data` (Struktur analog conversations.repo).
+ * AI dashboards in SQLite. `prompt` and the A2UI `surface` are stored
+ * together as a JSON blob in `data` (structure as in conversations.repo).
+ * Rows from the earlier widget-spec format have no surface and are skipped.
  */
 
 export function listDashboards(): Array<{
@@ -14,7 +16,9 @@ export function listDashboards(): Array<{
 }> {
   return getDb()
     .prepare(
-      "SELECT id, name, updated_at as updatedAt FROM dashboards ORDER BY updated_at DESC",
+      `SELECT id, name, updated_at as updatedAt FROM dashboards
+       WHERE json_extract(data, '$.surface') IS NOT NULL
+       ORDER BY updated_at DESC`,
     )
     .all() as Array<{ id: string; name: string; updatedAt: string }>;
 }
@@ -34,23 +38,22 @@ export function loadDashboard(id: string): Dashboard | null {
       }
     | undefined;
   if (!row) return null;
-  let stored: { prompt: string; spec: DashboardSpec };
+  let stored: { prompt?: unknown; surface?: unknown };
   try {
-    stored = JSON.parse(row.data) as {
-      prompt: string;
-      spec: DashboardSpec;
-    };
+    stored = JSON.parse(row.data) as { prompt?: unknown; surface?: unknown };
   } catch {
     return null;
   }
-  const { prompt, spec } = stored;
+  const surface = A2uiSurfaceSchema.safeParse(stored.surface);
+  if (!surface.success) return null;
+  const prompt = typeof stored.prompt === "string" ? stored.prompt : "";
   return {
     id: row.id,
     name: row.name,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     prompt,
-    spec,
+    surface: surface.data satisfies A2uiSurface,
   };
 }
 
@@ -69,7 +72,10 @@ export function saveDashboard(dashboard: Dashboard): void {
       name: dashboard.name,
       createdAt: dashboard.createdAt || now,
       updatedAt: now,
-      data: JSON.stringify({ prompt: dashboard.prompt, spec: dashboard.spec }),
+      data: JSON.stringify({
+        prompt: dashboard.prompt,
+        surface: dashboard.surface,
+      }),
     });
 }
 

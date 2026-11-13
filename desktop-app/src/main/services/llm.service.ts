@@ -1,21 +1,20 @@
 import type {
   AnalyzedDealership,
   ChatMessage,
-  DashboardSpec,
   LlmProvider,
   NlQueryDealership,
   NlQueryFilter,
   StructuredMemo,
 } from "@shared/types";
+import { NlQueryFilterSchema, StructuredMemoSchema } from "@shared/types";
 import {
-  DASHBOARD_KPI_KEYS,
-  DASHBOARD_SERIES_KEYS,
-  DASHBOARD_WIDGET_TYPES,
-  DashboardSpecSchema,
-  NlQueryFilterSchema,
-  StructuredMemoSchema,
-} from "@shared/types";
-import { buildDefaultDashboardSpec } from "@shared/dashboard-aggregates";
+  A2UI_CATALOG_PROMPT,
+  A2UI_VERSION,
+  DRM_DASHBOARD_CATALOG_ID,
+  applyAgentMessage,
+  type A2uiIssue,
+  type A2uiSurface,
+} from "@shared/a2ui";
 import type { LlmConnectionTest, LocalRuntimeStatus } from "@shared/ipc-schema";
 import {
   DEFAULT_LOCAL_BASE_URL,
@@ -591,43 +590,153 @@ function compactForMemo(d: AnalyzedDealership): Record<string, unknown> {
 
 // --- Agent: AI dashboard spec (structured) ----------------------------------
 
-/**
- * Has the LLM arrange a dashboard layout from a fixed widget/source catalog.
- * The model outputs ONLY structure (widget type, title, source) — never
- * numbers; the renderer binds all values deterministically. If the API key
- * is missing, the request returns 401, or the response is invalid, the
- * function returns a valid fallback so the IPC call always yields a
- * renderable spec.
- */
-export async function generateDashboardSpec(
+/** What the model may know about the portfolio when it builds a dashboard. */
+export interface DashboardSurfaceContext {
+  locationCount: number;
+  salesPartners: string[];
+  subPortfolios: string[];
+  groups: string[];
+}
+
+export type DashboardSurfaceResult =
+  | { ok: true; surface: A2uiSurface; repaired: boolean }
+  | { ok: false; issues: A2uiIssue[] };
+
+/** Answer budget; a full dashboard message is a few kilobytes of JSON. */
+const DASHBOARD_MAX_TOKENS = 4096;
+
+function dashboardSystemPrompt(current: A2uiSurface | null): string {
+  const answer = current
+    ? `The user wants to CHANGE the current dashboard. Answer with
+{"version":"${A2UI_VERSION}","updateComponents":{"surfaceId":"${current.surfaceId}","components":[...],"deleteIds":[...],"title":"..."}}
+"components" holds every new or changed component — including a parent whose "children" change; "deleteIds" (optional) lists components to remove; "title" (optional) renames the dashboard. Keep ids of unchanged components. When the selection changes (another zone, partner …), update every affected filter, title and text — and the dashboard "title".`
+    : `Answer with
+{"version":"${A2UI_VERSION}","createSurface":{"surfaceId":"dashboard","catalogId":"${DRM_DASHBOARD_CATALOG_ID}","metadata":{"title":"<short title>"},"components":[...]}}`;
+  return `You compose dashboards for a car-dealership HAIL risk portfolio (hail is the only peril). Reply with EXACTLY ONE JSON object — an A2UI v${A2UI_VERSION} message — and nothing else (no markdown, no comments).
+${answer}
+
+${A2UI_CATALOG_PROMPT}
+
+Rules:
+- Write every title and text in ${responseLanguageName()}.
+- Never write amounts, percentages or other results; the app computes all values through the function calls.
+- Use at most 20 components. Put KpiCards first, then charts, then tables.
+- The dashboard title is shown as its tab: do not repeat it as a Heading or as a component title. Keep titles short (about 40 characters) and without units such as "(EUR)" — the app adds them.
+- Do not add a Text that only restates the request.
+- Use a filter only when the request asks for it; for sales partners, sub-portfolios and groups use one of the listed values exactly.
+- If part of the request cannot be shown with this catalog, build the closest dashboard and add a short Text that says what is missing.`;
+}
+
+function dashboardUserPrompt(
   prompt: string,
-  dealershipCount: number,
-): Promise<DashboardSpec> {
-  try {
-    const content = await chatComplete([
-      {
-        role: "system",
-        content: `You are a dashboard designer for a motor vehicle dealership risk portfolio.
-Select and arrange suitable widgets for the user's request. Respond EXCLUSIVELY with JSON (no markdown, no code blocks):
-{"title":"<short title>","widgets":[{"id":"<unique>","type":"<type>","title":"<title>","source":"<source>","limit":<optional number>}]}
+  current: A2uiSurface | null,
+  context: DashboardSurfaceContext,
+): string {
+  const list = (values: string[]): string =>
+    values.length > 0
+      ? values.map((v) => JSON.stringify(v)).join(", ")
+      : "none";
+  return [
+    `Portfolio: ${context.locationCount} locations.`,
+    `Sales partners: ${list(context.salesPartners)}.`,
+    `Sub-portfolios: ${list(context.subPortfolios)}.`,
+    `Groups: ${list(context.groups)}.`,
+    ...(current ? [`Current dashboard: ${JSON.stringify(current)}`] : []),
+    `Request: ${prompt}`,
+  ].join("\n");
+}
 
-Allowed "type" values: ${DASHBOARD_WIDGET_TYPES.join(", ")}.
-For type "kpi", "source" MUST be one of these keys: ${DASHBOARD_KPI_KEYS.join(", ")}.
-For type "barChart"/"lineChart"/"pieChart", "source" MUST be one of these keys: ${DASHBOARD_SERIES_KEYS.join(", ")}.
-For type "table"/"insights"/"seasonal" no "source" is needed.
-For type "text" use the "text" field for short prose (heading/note) — NEVER numbers.
+function parseAgentJson(content: string): unknown {
+  return parseLLMJson(content, { parse: (value: unknown) => value });
+}
 
-IMPORTANT: Never output concrete figures or values. You only arrange widgets; the app fills in the data. 1-12 widgets. Use "limit" (max 50) only for chart/list widgets.`,
-      },
+/**
+ * Builds (or changes) a dashboard as an A2UI message. The answer is
+ * validated against the catalog and the tree rules; on failure the model
+ * gets the issue list once to correct itself (prompt → generate → validate).
+ * Values are never part of the answer — the renderer computes them.
+ */
+export async function generateDashboardSurface(
+  prompt: string,
+  current: A2uiSurface | null,
+  context: DashboardSurfaceContext,
+): Promise<DashboardSurfaceResult> {
+  const messages: ChatMessage[] = [
+    { role: "system", content: dashboardSystemPrompt(current) },
+    { role: "user", content: dashboardUserPrompt(prompt, current, context) },
+  ];
+  let issues: A2uiIssue[] = [];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const content = await chatComplete(messages, DASHBOARD_MAX_TOKENS);
+    let raw: unknown;
+    try {
+      raw = parseAgentJson(content);
+    } catch {
+      issues = [
+        { path: "", message: "the answer is not a single valid JSON object" },
+      ];
+      raw = undefined;
+    }
+    if (raw !== undefined) {
+      const result = applyAgentMessage(raw, current);
+      if (result.ok)
+        return { ok: true, surface: result.surface, repaired: attempt > 0 };
+      issues = result.issues;
+    }
+    messages.push(
+      { role: "assistant", content: content.slice(0, 12_000) },
       {
         role: "user",
-        content: `Portfolio with ${dealershipCount} locations. Request: ${prompt}`,
+        content: `The message was rejected:\n${issues
+          .map((i) => `- ${i.path || "(message)"}: ${i.message}`)
+          .join("\n")}\nReply again with the complete, corrected message only.`,
       },
-    ]);
-    return parseLLMJson(content, DashboardSpecSchema);
+    );
+  }
+  return { ok: false, issues };
+}
+
+// --- Agent: chat router ----------------------------------------------------
+
+export type ChatIntent = "create" | "edit" | "chat";
+
+/**
+ * Decides what a chat message asks for when the wording alone is not clear:
+ * a new dashboard, a change to the dashboard on screen, or an ordinary
+ * question. One short completion; any failure counts as a question, so the
+ * worst case is a normal chat answer.
+ */
+export async function classifyChatIntent(
+  message: string,
+  dashboardTitle: string | null,
+): Promise<ChatIntent> {
+  const shown = dashboardTitle
+    ? `An AI dashboard titled ${JSON.stringify(dashboardTitle)} is on screen.`
+    : "No AI dashboard is on screen.";
+  try {
+    const content = await chatComplete(
+      [
+        {
+          role: "system",
+          content: `You route messages in a car-dealership hail-risk app. ${shown}
+Reply with exactly one word:
+create — the user wants a NEW dashboard (an overview of figures, charts or tables) built.
+edit — the user wants to CHANGE the dashboard on screen: another zone, filter, sales partner or measure, add, remove or replace a figure, chart or table, rename it.${dashboardTitle ? "" : " Not possible now: reply chat instead."}
+chat — anything else, including questions about the portfolio or a location.`,
+        },
+        { role: "user", content: message },
+      ],
+      16,
+    );
+    const word = content
+      .trim()
+      .toLowerCase()
+      .match(/\b(create|edit|chat)\b/)?.[1];
+    if (word === "create") return "create";
+    if (word === "edit" && dashboardTitle) return "edit";
+    return "chat";
   } catch {
-    // No/invalid LLM output → deterministic default layout.
-    return buildDefaultDashboardSpec();
+    return "chat";
   }
 }
 
@@ -657,6 +766,7 @@ How to answer:
 - Use only the figures the question needs. Name locations by name. Round amounts sensibly and use the number format of the answer language.
 - Take every figure from the portfolio data. If the data does not hold the answer, say so in one sentence and name what is missing. Never invent locations, figures, sources or hail events.
 - If a question is ambiguous, ask one short clarifying question instead of answering broadly.
+- You can only read and explain. You cannot change anything in the app — dashboards, filters, the map, settings or data — and must never say or imply that you did. If asked to change something, say in one sentence that you cannot do it from here.
 - "This location", "here" or "the selected site" means the location marked SELECTED.
 - Answer in ${language}.
 

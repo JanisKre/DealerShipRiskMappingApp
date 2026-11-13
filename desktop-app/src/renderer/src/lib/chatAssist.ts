@@ -70,7 +70,9 @@ export type ChatAction =
   | { type: "open"; id: string; name: string }
   | { type: "showOnMap"; id: string; name: string }
   | { type: "export"; format: "pdf" | "excel" | "csv" }
-  | { type: "layer"; layer: "accumulationClusters" | "hailZones" };
+  | { type: "layer"; layer: "accumulationClusters" | "hailZones" }
+  /** Build a new AI dashboard, or change the one that is shown. */
+  | { type: "dashboard"; mode: "create" | "edit"; prompt: string };
 
 function normalize(text: string): string {
   return text
@@ -100,6 +102,51 @@ const ON_MAP = /\b(auf der karte|on the map|in der karte)\b/;
 const CLUSTERS = /\b(kumulation(en)?|cluster|accumulations?)\b/;
 const HAIL_ZONES = /\b(hagelzonen|hail zones)\b/;
 
+/** Whole-word match that also works for umlauts (`\b` is ASCII-only). */
+function words(pattern: string): RegExp {
+  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, "u");
+}
+const L = "\\p{L}*";
+const DASHBOARD_NOUN = words(
+  `dashboards?|übersicht|uebersicht|auswertung|cockpit|tableau de bord`,
+);
+const BUILD_VERB = words(
+  `bau(e|t)?|erstell(e|t)?|mach(e|t)?|generier(e|t)?|entwirf|entwerfe|leg(e)?|build|create|make|generate|design|crée|créer|construis`,
+);
+const EDIT_VERB = words(
+  `füg${L}|fueg${L}|ergänz${L}|ergaenz${L}|entfern${L}|lösch${L}|loesch${L}|änder${L}|aender${L}|ersetz${L}|tausch${L}|benenn${L}|sortier${L}|wechsl${L}|wechsel${L}|umstell${L}|stell${L} .* um|filter${L}|beschränk${L}|beschraenk${L}|stattdessen|statt|nur noch|add|remove|delete|replace|change|rename|swap|switch|instead|ajoute${L}|supprime${L}|remplace${L}|modifie${L}|uniquement`,
+);
+const QUESTION = words(
+  `^(wie|was|warum|wieso|kann|können|how|what|why|can|comment|pourquoi)`,
+);
+const NEW_HINT = words(`neu(e|es|en)?|new|nouveau|nouvelle|weiteres|another`);
+
+/** Whether a message talks about dashboards at all (worth routing). */
+export function mentionsDashboard(prompt: string): boolean {
+  return DASHBOARD_NOUN.test(normalize(prompt));
+}
+
+/**
+ * "Bau mir ein Dashboard zu Zone 4+" builds a new AI dashboard; with an AI
+ * dashboard on screen, "füge eine Tabelle hinzu" changes it. Questions
+ * ("Wie baue ich ein Dashboard?") stay with the AI as normal chat.
+ */
+export function parseDashboardIntent(
+  prompt: string,
+  options: { canEdit: boolean },
+): { mode: "create" | "edit" } | null {
+  const text = normalize(prompt);
+  if (!text || QUESTION.test(text) || prompt.trim().endsWith("?")) return null;
+  const isNew = NEW_HINT.test(text);
+  // With an AI dashboard on screen an imperative change ("wechsle zu Zone 2",
+  // "füge eine Tabelle hinzu") is about that dashboard.
+  if (options.canEdit && !isNew && EDIT_VERB.test(text))
+    return { mode: "edit" };
+  if (DASHBOARD_NOUN.test(text) && BUILD_VERB.test(text))
+    return { mode: "create" };
+  return null;
+}
+
 /**
  * Recognises short commands such as "öffne Autohaus Sinemus", "zeige
  * Autohaus Michael auf der Karte", "zeige Kumulationen auf der Karte" or
@@ -109,9 +156,16 @@ const HAIL_ZONES = /\b(hagelzonen|hail zones)\b/;
 export function parseChatAction(
   prompt: string,
   locations: NamedLocation[],
+  options: { canEditDashboard?: boolean } = {},
 ): ChatAction | null {
   const text = normalize(prompt);
   if (!text) return null;
+
+  const dashboard = parseDashboardIntent(prompt, {
+    canEdit: options.canEditDashboard ?? false,
+  });
+  if (dashboard)
+    return { type: "dashboard", mode: dashboard.mode, prompt: prompt.trim() };
 
   if (EXPORT.test(text)) {
     if (/\bpdf\b/.test(text)) return { type: "export", format: "pdf" };

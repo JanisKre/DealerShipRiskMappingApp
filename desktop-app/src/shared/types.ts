@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { A2uiSurfaceSchema } from "./a2ui";
 import {
   DEALERSHIP_NOTES_MAX_LENGTH,
   HAIL_FREQUENCY_BY_ZONE,
@@ -1058,68 +1059,18 @@ export const ConversationSchema = z.object({
 });
 export type Conversation = z.infer<typeof ConversationSchema>;
 
-// --- AI dashboards (dynamically generated, deterministically bound layouts) ---
-// The LLM only arranges widgets from a fixed catalog and picks a data source
-// (`source`) per widget — it never outputs numbers. The renderer reads all
-// values exclusively from `computeDashboardData(dealerships)`.
-export const DASHBOARD_WIDGET_TYPES = [
-  "kpi",
-  "barChart",
-  "lineChart",
-  "pieChart",
-  "table",
-  "insights",
-  "seasonal",
-  "text",
-] as const;
-export type DashboardWidgetType = (typeof DASHBOARD_WIDGET_TYPES)[number];
+// --- AI dashboards (A2UI surfaces, see shared/a2ui.ts) --------------------
+// The model only composes catalog components and picks catalog functions;
+// the renderer computes every value from the portfolio.
 
-/** Allowed KPI metrics (scalar values for `type:"kpi"`, via `source`). */
-export const DASHBOARD_KPI_KEYS = [
-  "kpi.count",
-  "kpi.totalEal",
-  "kpi.totalExposure",
-  "kpi.totalVehicles",
-  "kpi.elevatedZoneCount",
-] as const;
-export type DashboardKpiKey = (typeof DASHBOARD_KPI_KEYS)[number];
-
-/** Allowed series sources (arrays for charts, via `source`). */
-export const DASHBOARD_SERIES_KEYS = [
-  "hailZoneDistribution",
-  "topEal",
-  "topHailZone",
-  "seasonalProfile",
-] as const;
-export type DashboardSeriesKey = (typeof DASHBOARD_SERIES_KEYS)[number];
-
-export const DashboardWidgetSchema = z.object({
-  id: z.string(),
-  type: z.enum(DASHBOARD_WIDGET_TYPES),
-  title: z.string(),
-  /** Catalog key (KPI or series source); checked against the catalog in the renderer. */
-  source: z.string().optional(),
-  /** Free text, only for `type:"text"` — never numeric. */
-  text: z.string().optional(),
-  /** Optional upper bound for list/top-N series. */
-  limit: z.number().int().positive().max(50).optional(),
-});
-export type DashboardWidget = z.infer<typeof DashboardWidgetSchema>;
-
-export const DashboardSpecSchema = z.object({
-  title: z.string(),
-  widgets: z.array(DashboardWidgetSchema).min(1).max(12),
-});
-export type DashboardSpec = z.infer<typeof DashboardSpecSchema>;
-
-/** Persisted generated dashboard instance (structure analogous to Conversation). */
+/** Persisted AI dashboard: the request it was built from and its surface. */
 export const DashboardSchema = z.object({
   id: z.string(),
-  name: z.string(),
+  name: z.string().min(1).max(120),
   createdAt: z.string(),
   updatedAt: z.string(),
-  prompt: z.string(),
-  spec: DashboardSpecSchema,
+  prompt: z.string().max(4000),
+  surface: A2uiSurfaceSchema,
 });
 export type Dashboard = z.infer<typeof DashboardSchema>;
 

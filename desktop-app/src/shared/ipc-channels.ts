@@ -47,8 +47,9 @@ export const IPC = {
   saveConversation: "conversations:save",
   deleteConversation: "conversations:delete",
 
-  // AI dashboards (SQLite) + spec generation (invoke)
-  llmDashboardSpec: "llm:dashboardSpec",
+  // AI dashboards (SQLite) + A2UI surface generation (invoke)
+  llmDashboardSurface: "llm:dashboardSurface",
+  llmChatIntent: "llm:chatIntent",
   listDashboards: "dashboards:list",
   loadDashboard: "dashboards:load",
   saveDashboard: "dashboards:save",

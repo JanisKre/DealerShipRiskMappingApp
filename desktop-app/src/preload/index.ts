@@ -200,14 +200,21 @@ const api = {
       id,
     } satisfies IpcRequest["conversations:delete"]),
 
-  llmDashboardSpec: (
-    prompt: string,
-    dealershipCount: number,
-  ): Promise<IpcResponse["llm:dashboardSpec"]> =>
-    ipcRenderer.invoke(IPC.llmDashboardSpec, {
-      prompt,
-      dealershipCount,
-    } satisfies IpcRequest["llm:dashboardSpec"]),
+  classifyChatIntent: (
+    request: IpcRequest["llm:chatIntent"],
+  ): Promise<IpcResponse["llm:chatIntent"]> =>
+    ipcRenderer.invoke(
+      IPC.llmChatIntent,
+      request satisfies IpcRequest["llm:chatIntent"],
+    ),
+
+  generateDashboard: (
+    request: IpcRequest["llm:dashboardSurface"],
+  ): Promise<IpcResponse["llm:dashboardSurface"]> =>
+    ipcRenderer.invoke(
+      IPC.llmDashboardSurface,
+      request satisfies IpcRequest["llm:dashboardSurface"],
+    ),
 
   listDashboards: (): Promise<IpcResponse["dashboards:list"]> =>
     ipcRenderer.invoke(IPC.listDashboards),

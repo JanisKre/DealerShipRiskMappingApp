@@ -1398,7 +1398,9 @@
       "whyLocation": "Wie ist das Hagelrisiko von {{name}}?",
       "compareNeighbours": "Vergleiche {{name}} mit den Standorten in der Nähe",
       "topEal": "Welche 3 Standorte treiben die Hagel-EAL?",
-      "summary": "Fasse das Portfolio kurz zusammen"
+      "summary": "Fasse das Portfolio kurz zusammen",
+      "buildDashboard": "Baue mir ein Dashboard zu allen Standorten ab Zone 4",
+      "editDashboard": "Füge eine Tabelle der Top 10 nach Exposure hinzu"
     },
     "actions": {
       "opened": "{{name}} geöffnet.",
@@ -1409,7 +1411,13 @@
       "layer": {
         "accumulationClusters": "Kumulationen auf der Karte eingeblendet.",
         "hailZones": "Hagelzonen auf der Karte eingeblendet."
-      }
+      },
+      "dashboardNeedsAi": "Zum Ändern eines Dashboards braucht es einen KI-Anbieter – richte ihn in den Einstellungen ein.",
+      "dashboardTemplate": "Ohne KI-Anbieter habe ich die Vorlage „{{name}}“ angelegt. Mit KI kann ich Dashboards nach deinen Wünschen bauen und ändern.",
+      "dashboardFailed_one": "Das konnte ich nicht sicher als Dashboard umsetzen ({{detail}}). Formuliere es bitte etwas anders, z. B. „Dashboard mit Hagel-EAL je Vertriebspartner“.",
+      "dashboardFailed_other": "Das konnte ich nicht sicher als Dashboard umsetzen ({{count}} Probleme, u. a. {{detail}}). Formuliere es bitte etwas anders, z. B. „Dashboard mit Hagel-EAL je Vertriebspartner“.",
+      "dashboardCreated": "Dashboard „{{name}}“ ist fertig – du siehst es im Tab Dashboard. Sag mir einfach, was ich ändern soll.",
+      "dashboardUpdated": "Dashboard „{{name}}“ ist angepasst."
     },
     "provenanceLabel": "Worauf beruhen die Antworten?",
     "emptyChat": "Frag die KI zu deinem Portfolio – oder steuere die App direkt, z. B. „öffne Autohaus …“ oder „zeige Kumulationen auf der Karte“."
@@ -1536,5 +1544,73 @@
     "checking": "Wird geprüft …",
     "notFound": "Adresse nicht gefunden",
     "checkFailed": "Prüfung fehlgeschlagen"
+  },
+  "a2ui": {
+    "filter": {
+      "all": "Gesamtes Portfolio",
+      "zoneRange": "Zone {{min}}–{{max}}",
+      "zoneMin": "Zone ≥ {{zone}}",
+      "zoneMax": "Zone ≤ {{zone}}",
+      "salesPartner": "Vertriebspartner {{value}}",
+      "subPortfolio": "Teilportfolio {{value}}",
+      "group": "Gruppe {{value}}",
+      "boundaryReview": "Grenze zu prüfen"
+    },
+    "other": "Weitere",
+    "noZone": "Ohne Zone",
+    "none": "Ohne Angabe",
+    "measure": {
+      "count": "Standorte",
+      "eal": "Hagel-EAL",
+      "exposure": "Exposure",
+      "vehicles": "Fahrzeuge"
+    },
+    "locations_one": "{{count}} Standort",
+    "locations_other": "{{count}} Standorte",
+    "empty": "Keine Standorte für diese Auswahl.",
+    "share": "{{share}} des Gesamtwerts",
+    "clickToOpen": "Klicken, um den Standort zu öffnen",
+    "column": {
+      "name": "Standort",
+      "hailZone": "Zone",
+      "eal": "Hagel-EAL",
+      "exposure": "Exposure",
+      "vehicles": "Fahrzeuge",
+      "business": "Geschäftsart",
+      "salesPartner": "Vertriebspartner",
+      "subPortfolio": "Teilportfolio",
+      "group": "Gruppe"
+    },
+    "tableMore_one": "{{shown}} von {{count}} Standort, sortiert nach {{measure}}.",
+    "tableMore_other": "{{shown}} von {{count}} Standorten, sortiert nach {{measure}}.",
+    "renameFigure": "Der Name darf keine Beträge oder Prozentwerte enthalten.",
+    "builtFrom": "Erstellt aus: „{{prompt}}“",
+    "provenance": "Die KI hat nur Aufbau und Auswahl festgelegt; alle Werte berechnet die App aus dem Portfolio (Screening-Schätzung, Hagel-EAL mit Platzhalterwerten). Der Portfolio-Filter oben gilt auch hier.",
+    "template": {
+      "title": "Portfolio-Überblick",
+      "byZone": "Standorte je Hagelzone",
+      "topEal": "Höchste Hagel-EAL",
+      "table": "Standorte nach Hagel-EAL"
+    },
+    "tabs": {
+      "label": "Dashboards",
+      "standard": "Übersicht",
+      "more": "Optionen für „{{name}}“",
+      "change": "Im Chat ändern",
+      "rename": "Umbenennen",
+      "delete": "Löschen",
+      "new": "Neues Dashboard",
+      "save": "Speichern",
+      "deleteTitle": "Dashboard löschen?",
+      "deleteText": "„{{name}}“ wird gelöscht. Die Portfoliodaten bleiben erhalten."
+    },
+    "newDraft": "Baue mir ein Dashboard zu ",
+    "changeDraft": "Ändere das Dashboard: ",
+    "building": "Dashboard wird erstellt …",
+    "updating": "Dashboard wird angepasst …",
+    "selectionCount_one": "{{count}} von {{total}} Standorten",
+    "selectionCount_other": "{{count}} von {{total}} Standorten",
+    "emptyShort": "Keine Standorte in dieser Auswahl",
+    "builtFromChanged": "Erstellt aus „{{first}}“ · zuletzt: „{{last}}“"
   }
 }

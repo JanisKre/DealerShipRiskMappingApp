@@ -54,6 +54,11 @@ interface Props {
   onStop?: () => void;
   /** Smaller variant for the chat dock (narrower than the large start omnibox). */
   compact?: boolean;
+  /**
+   * Text to put into the input and focus, e.g. a sentence start offered by
+   * "new dashboard". A new `key` applies it again.
+   */
+  draft?: { text: string; key: number };
 }
 
 type Suggestion = PlaceSuggestion;
@@ -100,6 +105,7 @@ export function Omnibox({
   disabled,
   onStop,
   compact,
+  draft,
 }: Readonly<Props>): React.JSX.Element {
   const { t } = useTranslation();
   const enabledModes: OmniMode[] = modes ?? ["address", "chat"];
@@ -115,6 +121,19 @@ export function Omnibox({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!draft) return;
+    setValue(draft.text);
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    // Caret after the offered text, ready to continue the sentence.
+    requestAnimationFrame(() =>
+      input.setSelectionRange(draft.text.length, draft.text.length),
+    );
+  }, [draft]);
   const uploadRef = useRef<HTMLInputElement>(null);
   const directoryStatus = useDealerDirectoryStore((s) => s.status);
   const directoryUpdate = useDealerDirectoryStore((s) => s.update);
@@ -336,6 +355,7 @@ export function Omnibox({
             )}
           />
           <input
+            ref={inputRef}
             value={value}
             disabled={disabled}
             placeholder={meta.placeholder}

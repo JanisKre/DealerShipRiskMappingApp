@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -11,6 +12,7 @@ import {
   MessageSquare,
   RotateCcw,
   Save,
+  Sparkles,
   Settings2,
   X,
 } from "lucide-react";
@@ -42,6 +44,12 @@ import { useAppStore } from "@renderer/store/appStore";
 import { useMapStore } from "@renderer/store/mapStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import { useReviewRun } from "./useReviewRun";
+import { A2uiSurfaceView } from "./a2ui/A2uiSurfaceView";
+import { DashboardTabs } from "./a2ui/DashboardTabs";
+import {
+  rememberedDashboardId,
+  useDashboardStore,
+} from "@renderer/store/dashboardStore";
 import {
   DEFAULT_TILE_ORDER,
   TILE_DEFINITIONS,
@@ -99,6 +107,31 @@ export function DashboardPage(): React.JSX.Element {
   const [tileOrder, setTileOrder] = useState<DashboardTileId[]>(readTileOrder);
   const [draggedTile, setDraggedTile] = useState<DashboardTileId | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const aiDashboard = useDashboardStore((s) => s.active);
+  const building = useDashboardStore((s) => s.building);
+  // A different dashboard starts at its top, not where the last one was.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const aiDashboardId = aiDashboard?.id ?? null;
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [aiDashboardId]);
+  /** Sentence start put into the assistant's composer. */
+  const [chatDraft, setChatDraft] = useState<
+    { text: string; key: number } | undefined
+  >(undefined);
+  function openAssistantWith(text: string): void {
+    setAssistantOpen(true);
+    setChatDraft({ text, key: Date.now() });
+  }
+
+  // Saved AI dashboards, and the one shown last time.
+  useEffect(() => {
+    const store = useDashboardStore.getState();
+    void store.loadList().catch(() => undefined);
+    const remembered = rememberedDashboardId();
+    if (!store.active && remembered)
+      void store.open(remembered).catch(() => undefined);
+  }, []);
   const reviewRun = useReviewRun({
     openLocation: (id) => {
       setDetailId(id);
@@ -229,24 +262,71 @@ export function DashboardPage(): React.JSX.Element {
               >
                 <MessageSquare /> {t("dashboard.openAssistant")}
               </Button>
-              <TileMenu
-                tileOrder={tileOrder}
-                tileLabels={tileLabels}
-                onToggle={toggleTile}
-                onReset={resetTiles}
-              />
               <Actions />
             </div>
+          </div>
+          <div className="mt-3">
+            <DashboardTabs
+              onNew={() => openAssistantWith(t("a2ui.newDraft"))}
+              onChange={() => openAssistantWith(t("a2ui.changeDraft"))}
+              trailing={
+                aiDashboard ? undefined : (
+                  <TileMenu
+                    tileOrder={tileOrder}
+                    tileLabels={tileLabels}
+                    onToggle={toggleTile}
+                    onReset={resetTiles}
+                  />
+                )
+              }
+            />
           </div>
         </header>
 
         {/* Not a <main>: the app shell already provides the page's main
             landmark, and landmarks must not nest. */}
-        <div className="@container min-h-0 flex-1 overflow-y-auto">
+        <div
+          ref={scrollRef}
+          className="@container min-h-0 flex-1 overflow-y-auto"
+        >
           <div className="space-y-5 p-4 sm:p-6 lg:p-8">
             <ModelVersionBanner dealerships={dealerships} />
             <PortfolioFilterBar dealerships={dealerships} />
-            {tileOrder.length === 0 ? (
+            {building && (
+              <p
+                role="status"
+                className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm"
+              >
+                <Loader2 className="size-4 animate-spin text-primary" />
+                {aiDashboard ? t("a2ui.updating") : t("a2ui.building")}
+              </p>
+            )}
+            {aiDashboard ? (
+              <section
+                aria-label={aiDashboard.name}
+                className={
+                  building
+                    ? "space-y-4 opacity-60 transition-opacity"
+                    : "space-y-4 transition-opacity"
+                }
+              >
+                <p className="line-clamp-2 text-xs text-muted-foreground">
+                  <Sparkles className="mr-1 inline size-3.5 text-primary" />
+                  {requestLine(t, aiDashboard.prompt)}
+                </p>
+                <A2uiSurfaceView
+                  surface={aiDashboard.surface}
+                  dealerships={filtered}
+                  onOpenLocation={(id) => {
+                    setDetailId(id);
+                    select(id);
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("a2ui.provenance")}
+                </p>
+              </section>
+            ) : tileOrder.length === 0 ? (
               <EmptyState
                 icon={LayoutGrid}
                 title={t("dashboard.noTilesTitle")}
@@ -291,8 +371,11 @@ export function DashboardPage(): React.JSX.Element {
       {assistantOpen && (
         <div className="absolute inset-y-0 right-0 z-30 flex w-96 max-w-full shadow-2xl lg:static lg:shrink-0 lg:shadow-none">
           <DashboardAssistant
+            draft={chatDraft}
             onClose={() => setAssistantOpen(false)}
-            onDashboardCommand={handleDashboardCommand}
+            onDashboardCommand={
+              aiDashboard ? undefined : handleDashboardCommand
+            }
             onOpenLocation={(id) => setDetailId(id)}
           />
         </div>
@@ -316,6 +399,16 @@ export function DashboardPage(): React.JSX.Element {
       />
     </div>
   );
+}
+
+/** "Erstellt aus „…“", plus the latest change when there was one. */
+function requestLine(t: TFunction, prompt: string): string {
+  const requests = prompt.split("\n").filter((line) => line.trim());
+  const first = requests[0] ?? "";
+  const last = requests[requests.length - 1] ?? "";
+  return requests.length > 1
+    ? t("a2ui.builtFromChanged", { first, last })
+    : t("a2ui.builtFrom", { prompt: first });
 }
 
 function renderTile(
@@ -451,7 +544,11 @@ function TileMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-foreground"
+        >
           <Settings2 /> {t("dashboard.manageTiles")}
         </Button>
       </DropdownMenuTrigger>

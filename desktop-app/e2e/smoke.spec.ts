@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { launchApp, type LaunchedApp } from "./app";
+import { dismissModelWizard, launchApp, type LaunchedApp } from "./app";
 
 type Tree = { [key: string]: string | Tree };
 function keys(tree: Tree, prefix = ""): string[] {
@@ -33,15 +33,7 @@ test.beforeAll(async () => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
   page.on("pageerror", (error) => consoleErrors.push(error.message));
-  // Without the detection model (as in CI) the install wizard opens at some
-  // point after start-up and hides the rest of the window. It is not under
-  // test: close it whenever it shows up before an action or assertion.
-  await page.addLocatorHandler(
-    page.getByRole("dialog", { name: "Fahrzeugerkennungsmodell installieren" }),
-    async (wizard) => {
-      await wizard.getByRole("button", { name: "Schließen" }).click();
-    },
-  );
+  await dismissModelWizard(page);
   await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
 });
 

@@ -18,6 +18,8 @@ export interface UseChat {
   regenerate: () => void;
   /** Stops the running answer; the text so far is kept. */
   stop: () => void;
+  /** Answers the last user message, which the caller already appended. */
+  respond: () => void;
 }
 
 /**
@@ -78,6 +80,12 @@ export function useChat(): UseChat {
     void store.persistActive();
   }
 
+  function respond(): void {
+    if (streaming) return;
+    stream();
+    void useConversationStore.getState().persistActive();
+  }
+
   function regenerate(): void {
     if (streaming) return;
     const store = useConversationStore.getState();
@@ -94,6 +102,7 @@ export function useChat(): UseChat {
     error,
     send,
     regenerate,
+    respond,
     stop: cancel,
   };
 }

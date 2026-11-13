@@ -130,7 +130,7 @@ export function AccumulationClusterTable({
                 {/* Takes the remaining width; `max-w-0` on its cells lets long
                     names and addresses truncate instead of pushing the
                     numeric columns out of view. */}
-                <TableHead className="w-full">
+                <TableHead className="w-full whitespace-normal">
                   {t("dashboard.accumulations.name")}
                 </TableHead>
                 {/* Secondary columns drop out on narrow tiles so the key

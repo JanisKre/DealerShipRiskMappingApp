@@ -1398,7 +1398,9 @@
       "whyLocation": "What is the hail risk of {{name}}?",
       "compareNeighbours": "Compare {{name}} with nearby locations",
       "topEal": "Which 3 locations drive the hail EAL?",
-      "summary": "Summarise the portfolio briefly"
+      "summary": "Summarise the portfolio briefly",
+      "buildDashboard": "Build me a dashboard of all locations from zone 4",
+      "editDashboard": "Add a table of the top 10 by exposure"
     },
     "actions": {
       "opened": "Opened {{name}}.",
@@ -1409,7 +1411,13 @@
       "layer": {
         "accumulationClusters": "Accumulations shown on the map.",
         "hailZones": "Hail zones shown on the map."
-      }
+      },
+      "dashboardNeedsAi": "Changing a dashboard needs an AI provider – set one up in the settings.",
+      "dashboardTemplate": "Without an AI provider I created the template “{{name}}”. With AI I can build and change dashboards to your wishes.",
+      "dashboardFailed_one": "I could not turn that into a dashboard safely ({{detail}}). Please phrase it differently, e.g. “dashboard with hail EAL per sales partner”.",
+      "dashboardFailed_other": "I could not turn that into a dashboard safely ({{count}} problems, e.g. {{detail}}). Please phrase it differently, e.g. “dashboard with hail EAL per sales partner”.",
+      "dashboardCreated": "Dashboard “{{name}}” is ready – it is on the Dashboard tab. Just tell me what to change.",
+      "dashboardUpdated": "Dashboard “{{name}}” has been updated."
     },
     "provenanceLabel": "What are the answers based on?",
     "emptyChat": "Ask the AI about your portfolio – or control the app directly, e.g. “open …” or “show accumulations on the map”."
@@ -1536,5 +1544,73 @@
     "checking": "Checking …",
     "notFound": "Address not found",
     "checkFailed": "Check failed"
+  },
+  "a2ui": {
+    "filter": {
+      "all": "Whole portfolio",
+      "zoneRange": "Zone {{min}}–{{max}}",
+      "zoneMin": "Zone ≥ {{zone}}",
+      "zoneMax": "Zone ≤ {{zone}}",
+      "salesPartner": "Sales partner {{value}}",
+      "subPortfolio": "Sub-portfolio {{value}}",
+      "group": "Group {{value}}",
+      "boundaryReview": "Boundary to check"
+    },
+    "other": "Others",
+    "noZone": "No zone",
+    "none": "Not specified",
+    "measure": {
+      "count": "Locations",
+      "eal": "Hail EAL",
+      "exposure": "Exposure",
+      "vehicles": "Vehicles"
+    },
+    "locations_one": "{{count}} location",
+    "locations_other": "{{count}} locations",
+    "empty": "No locations for this selection.",
+    "share": "{{share}} of the total",
+    "clickToOpen": "Click to open the location",
+    "column": {
+      "name": "Location",
+      "hailZone": "Zone",
+      "eal": "Hail EAL",
+      "exposure": "Exposure",
+      "vehicles": "Vehicles",
+      "business": "Business",
+      "salesPartner": "Sales partner",
+      "subPortfolio": "Sub-portfolio",
+      "group": "Group"
+    },
+    "tableMore_one": "{{shown}} of {{count}} location, sorted by {{measure}}.",
+    "tableMore_other": "{{shown}} of {{count}} locations, sorted by {{measure}}.",
+    "renameFigure": "The name must not contain amounts or percentages.",
+    "builtFrom": "Built from: “{{prompt}}”",
+    "provenance": "The AI only chose the layout and selection; the app computes every value from the portfolio (screening estimate, hail EAL with placeholder values). The portfolio filter above applies here too.",
+    "template": {
+      "title": "Portfolio overview",
+      "byZone": "Locations per hail zone",
+      "topEal": "Highest hail EAL",
+      "table": "Locations by hail EAL"
+    },
+    "tabs": {
+      "label": "Dashboards",
+      "standard": "Overview",
+      "more": "Options for “{{name}}”",
+      "change": "Change in chat",
+      "rename": "Rename",
+      "delete": "Delete",
+      "new": "New dashboard",
+      "save": "Save",
+      "deleteTitle": "Delete dashboard?",
+      "deleteText": "“{{name}}” will be deleted. The portfolio data stays."
+    },
+    "newDraft": "Build me a dashboard of ",
+    "changeDraft": "Change the dashboard: ",
+    "building": "Building the dashboard …",
+    "updating": "Updating the dashboard …",
+    "selectionCount_one": "{{count}} of {{total}} locations",
+    "selectionCount_other": "{{count}} of {{total}} locations",
+    "emptyShort": "No locations in this selection",
+    "builtFromChanged": "Built from “{{first}}” · latest: “{{last}}”"
   }
 }

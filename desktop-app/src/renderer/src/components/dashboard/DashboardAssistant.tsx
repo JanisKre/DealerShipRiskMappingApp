@@ -13,27 +13,39 @@ export function DashboardAssistant({
   onClose,
   onDashboardCommand,
   onOpenLocation,
+  draft,
 }: Readonly<{
   onClose: () => void;
-  onDashboardCommand: (prompt: string) => string | null;
+  /** Tile commands of the standard dashboard; absent on an AI dashboard. */
+  onDashboardCommand?: (prompt: string) => string | null;
   onOpenLocation: (id: string) => void;
+  /** Sentence start offered in the composer ("new dashboard"). */
+  draft?: { text: string; key: number };
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const navigate = useNavigate();
   return (
     <ChatView
+      dashboardPage
+      draft={draft}
       onClose={onClose}
       onCommand={onDashboardCommand}
-      isCommand={(prompt) => parseDashboardCommand(prompt) !== null}
+      isCommand={(prompt) =>
+        onDashboardCommand != null && parseDashboardCommand(prompt) !== null
+      }
       onOpenLocation={onOpenLocation}
       onShowLocation={(id) => {
         useAppStore.getState().select(id);
         void navigate("/");
       }}
-      extraPrompts={[
-        t("dashboard.examplePromptTable"),
-        t("dashboard.examplePromptClusters"),
-      ]}
+      extraPrompts={
+        onDashboardCommand
+          ? [
+              t("chat.prompts.buildDashboard"),
+              t("dashboard.examplePromptTable"),
+            ]
+          : [t("chat.prompts.editDashboard")]
+      }
     />
   );
 }

@@ -1,11 +1,11 @@
 import { z } from "zod";
+import { A2uiSurfaceSchema } from "./a2ui";
 import {
   AnalyzedDealershipSchema,
   BoundaryResultSchema,
   ChatMessageSchema,
   ConversationSchema,
   DashboardSchema,
-  DashboardSpecSchema,
   DealershipInputSchema,
   DetectionResultSchema,
   VehicleTimelineSchema,
@@ -237,9 +237,19 @@ export const ipcRequest = {
   "conversations:load": z.object({ id: z.string() }),
   "conversations:save": z.object({ conversation: ConversationSchema }),
   "conversations:delete": z.object({ id: z.string() }),
-  "llm:dashboardSpec": z.object({
-    prompt: z.string().min(1),
-    dealershipCount: z.number().int().nonnegative(),
+  "llm:chatIntent": z.object({
+    message: z.string().trim().min(1).max(2_000),
+    dashboardTitle: z.string().max(120).nullable(),
+  }),
+  "llm:dashboardSurface": z.object({
+    prompt: z.string().trim().min(1).max(2_000),
+    current: A2uiSurfaceSchema.nullable(),
+    context: z.object({
+      locationCount: z.number().int().nonnegative(),
+      salesPartners: z.array(z.string().max(120)).max(40),
+      subPortfolios: z.array(z.string().max(120)).max(40),
+      groups: z.array(z.string().max(120)).max(40),
+    }),
   }),
   "dashboards:list": z.void(),
   "dashboards:load": z.object({ id: z.string() }),
@@ -340,7 +350,18 @@ export const ipcResponse = {
   "conversations:load": ConversationSchema.nullable(),
   "conversations:save": z.object({ ok: z.boolean() }),
   "conversations:delete": z.object({ ok: z.boolean() }),
-  "llm:dashboardSpec": DashboardSpecSchema,
+  "llm:chatIntent": z.object({ intent: z.enum(["create", "edit", "chat"]) }),
+  "llm:dashboardSurface": z.discriminatedUnion("ok", [
+    z.object({
+      ok: z.literal(true),
+      surface: A2uiSurfaceSchema,
+      repaired: z.boolean(),
+    }),
+    z.object({
+      ok: z.literal(false),
+      issues: z.array(z.object({ path: z.string(), message: z.string() })),
+    }),
+  ]),
   "dashboards:list": z.array(
     z.object({ id: z.string(), name: z.string(), updatedAt: z.string() }),
   ),

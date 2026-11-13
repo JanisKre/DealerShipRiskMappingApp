@@ -12,10 +12,13 @@ vi.mock("./settings.service", () => ({
 }));
 
 import { HttpRequestError } from "./http.service";
+import { DRM_DASHBOARD_CATALOG_ID } from "@shared/a2ui";
 import {
   CHAT_MAX_TOKENS,
   classifyLlmError,
+  classifyChatIntent,
   detectLocalRuntimes,
+  generateDashboardSurface,
   listLlmModels,
   portfolioChatStream,
   portfolioChatSystemPrompt,
@@ -265,5 +268,146 @@ describe("portfolio chat", () => {
     expect(body.max_tokens).toBe(CHAT_MAX_TOKENS);
     expect(body.messages.map((m) => m.role)).toEqual(["system", "user"]);
     expect(body.messages[0].content).not.toContain("pirate");
+  });
+});
+
+describe("A2UI dashboard generation", () => {
+  const context = {
+    locationCount: 5,
+    salesPartners: ["Nord"],
+    subPortfolios: [],
+    groups: [],
+  };
+  const message = (
+    title: string,
+    filter: Record<string, unknown>,
+  ): Record<string, unknown> => ({
+    version: "1.0",
+    createSurface: {
+      surfaceId: "dashboard",
+      catalogId: DRM_DASHBOARD_CATALOG_ID,
+      metadata: { title },
+      components: [
+        { id: "root", component: "Column", children: ["k"] },
+        {
+          id: "k",
+          component: "KpiCard",
+          title: "Hagel-EAL",
+          value: { "@call": "aggregate", args: { measure: "eal", filter } },
+        },
+      ],
+    },
+  });
+  const answer = (content: unknown): Response =>
+    json({
+      choices: [
+        {
+          message: {
+            content:
+              typeof content === "string" ? content : JSON.stringify(content),
+          },
+        },
+      ],
+    });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    mocks.settings = {
+      language: "de",
+      llm: { provider: "openai", model: "gpt-4.1-mini" },
+    };
+    mocks.apiKey = "sk-test";
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("returns a validated surface and tells the model the catalog", async () => {
+    fetchMock.mockResolvedValueOnce(
+      answer(
+        "```json\n" +
+          JSON.stringify(message("Zone 4+", { minHailZone: 4 })) +
+          "\n```",
+      ),
+    );
+    const result = await generateDashboardSurface(
+      "Dashboard Zone 4+",
+      null,
+      context,
+    );
+    expect(result).toMatchObject({ ok: true, repaired: false });
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      messages: Array<{ content: string }>;
+    };
+    expect(body.messages[0].content).toContain(DRM_DASHBOARD_CATALOG_ID);
+    expect(body.messages[0].content).toContain("German");
+    expect(body.messages[1].content).toContain('Sales partners: "Nord"');
+  });
+
+  it("sends the issues back once and accepts the repaired answer", async () => {
+    fetchMock
+      .mockResolvedValueOnce(answer(message("Zone 4+", { minZone: 4 })))
+      .mockResolvedValueOnce(answer(message("Zone 4+", { minHailZone: 4 })));
+    const result = await generateDashboardSurface("Zone 4+", null, context);
+    expect(result).toMatchObject({ ok: true, repaired: true });
+    const retry = JSON.parse(String(fetchMock.mock.calls[1][1]?.body)) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(retry.messages.at(-1)?.content).toMatch(/rejected/);
+  });
+
+  it("gives up after the repair attempt with the issues", async () => {
+    fetchMock
+      .mockResolvedValueOnce(answer("no json at all"))
+      .mockResolvedValueOnce(answer(message("EAL 3 Mio €", {})));
+    const result = await generateDashboardSurface("x", null, context);
+    expect(result.ok).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("chat router", () => {
+  const reply = (content: string): Response =>
+    json({ choices: [{ message: { content } }] });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    mocks.settings = {
+      language: "de",
+      llm: { provider: "openai", model: "gpt-4.1-mini" },
+    };
+    mocks.apiKey = "sk-test";
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("returns the intent the model names", async () => {
+    fetchMock.mockResolvedValueOnce(reply("edit"));
+    expect(await classifyChatIntent("Mach das für Zone 2", "Zone 4+")).toBe(
+      "edit",
+    );
+    fetchMock.mockResolvedValueOnce(reply("Create."));
+    expect(await classifyChatIntent("Übersicht je Partner", null)).toBe(
+      "create",
+    );
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      messages: Array<{ content: string }>;
+    };
+    expect(body.messages[0].content).toContain('"Zone 4+"');
+  });
+
+  it("falls back to an ordinary answer", async () => {
+    fetchMock.mockResolvedValueOnce(reply("edit"));
+    // Nothing on screen to change.
+    expect(await classifyChatIntent("Mach das für Zone 2", null)).toBe("chat");
+    fetchMock.mockResolvedValueOnce(reply("maybe"));
+    expect(await classifyChatIntent("hm", "Zone 4+")).toBe("chat");
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
+    expect(await classifyChatIntent("hm", "Zone 4+")).toBe("chat");
+  });
+
+  it("tells the chat model it cannot change the app", () => {
+    expect(portfolioChatSystemPrompt(undefined)).toMatch(
+      /cannot change anything in the app/,
+    );
   });
 });

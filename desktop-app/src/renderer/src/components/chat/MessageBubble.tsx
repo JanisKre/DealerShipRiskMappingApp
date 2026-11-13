@@ -16,12 +16,15 @@ export function MessageBubble({
   role,
   content,
   pending,
+  pendingLabel,
   latest,
   onRegenerate,
 }: Readonly<{
   role: ChatMessage["role"];
   content: string;
   pending?: boolean;
+  /** Shown next to the spinner while an app action runs. */
+  pendingLabel?: string;
   /** Latest answer: its actions stay visible instead of hover-only. */
   latest?: boolean;
   onRegenerate?: () => void;
@@ -55,7 +58,10 @@ export function MessageBubble({
   return (
     <div className="group/message text-sm">
       {content === "" && pending ? (
-        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <span className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          {pendingLabel}
+        </span>
       ) : (
         <Markdown text={content} />
       )}

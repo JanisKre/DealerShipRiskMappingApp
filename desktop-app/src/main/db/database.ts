@@ -84,7 +84,7 @@ const MIGRATIONS: Record<number, Migration> = {
       name       TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      data       TEXT NOT NULL           -- JSON: { prompt, spec: DashboardSpec }
+      data       TEXT NOT NULL           -- JSON: { prompt, surface: A2uiSurface }
     );
 
     -- Persistent API cache with TTL (replaces the ephemeral nginx cache)

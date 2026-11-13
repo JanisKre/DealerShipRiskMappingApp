@@ -38,6 +38,9 @@ const columnHelper = createColumnHelper<AnalyzedDealership>();
 
 /** Purely numeric columns are right-aligned with tabular-nums. */
 const NUMERIC_COLUMNS = new Set(["vehicles", "exposure", "eal"]);
+/** Dropped on narrow screens so exposure and hail EAL stay in view. */
+const NARROW_HIDDEN = "hidden @2xl:table-cell";
+const HIDDEN_WHEN_NARROW = new Set(["vehicles"]);
 
 /**
  * Sortable and searchable portfolio table (@tanstack/react-table) as a
@@ -172,7 +175,11 @@ export function DealershipTable({
                     return (
                       <TableHead
                         key={header.id}
-                        className={numeric ? "text-right" : ""}
+                        className={`${numeric ? "text-right" : ""} ${
+                          HIDDEN_WHEN_NARROW.has(header.column.id)
+                            ? NARROW_HIDDEN
+                            : ""
+                        }`}
                         aria-sort={
                           header.column.getIsSorted() === "asc"
                             ? "ascending"
@@ -225,11 +232,15 @@ export function DealershipTable({
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className={
+                      className={`${
                         NUMERIC_COLUMNS.has(cell.column.id)
                           ? "text-right tabular-nums"
                           : ""
-                      }
+                      } ${
+                        HIDDEN_WHEN_NARROW.has(cell.column.id)
+                          ? NARROW_HIDDEN
+                          : ""
+                      }`}
                     >
                       {flexRender(
                         cell.column.columnDef.cell,

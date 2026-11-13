@@ -1046,7 +1046,9 @@
       "whyLocation": "Quel est le risque de grêle de {{name}} ?",
       "compareNeighbours": "Comparer {{name}} avec les sites voisins",
       "topEal": "Quels 3 sites pèsent le plus dans l’EAL grêle ?",
-      "summary": "Résumer brièvement le portefeuille"
+      "summary": "Résumer brièvement le portefeuille",
+      "buildDashboard": "Crée-moi un tableau de bord des sites à partir de la zone 4",
+      "editDashboard": "Ajoute un tableau du top 10 par exposition"
     },
     "actions": {
       "opened": "{{name}} ouvert.",
@@ -1057,7 +1059,13 @@
       "layer": {
         "accumulationClusters": "Cumuls affichés sur la carte.",
         "hailZones": "Zones de grêle affichées sur la carte."
-      }
+      },
+      "dashboardNeedsAi": "Modifier un tableau de bord nécessite un fournisseur IA – configurez-le dans les paramètres.",
+      "dashboardTemplate": "Sans fournisseur IA, j'ai créé le modèle « {{name}} ». Avec l'IA, je peux construire et modifier des tableaux de bord selon vos souhaits.",
+      "dashboardFailed_one": "Je n'ai pas pu en faire un tableau de bord fiable ({{detail}}). Reformulez, p. ex. « tableau de bord avec l'EAL grêle par partenaire ».",
+      "dashboardFailed_other": "Je n'ai pas pu en faire un tableau de bord fiable ({{count}} problèmes, p. ex. {{detail}}). Reformulez, p. ex. « tableau de bord avec l'EAL grêle par partenaire ».",
+      "dashboardCreated": "Le tableau de bord « {{name}} » est prêt – il est dans l'onglet Tableau de bord. Dites-moi ce qu'il faut modifier.",
+      "dashboardUpdated": "Le tableau de bord « {{name}} » a été mis à jour."
     },
     "provenanceLabel": "Sur quoi reposent les réponses ?",
     "emptyChat": "Interrogez l’IA sur votre portefeuille – ou pilotez l’application, p. ex. « open … »."
@@ -1184,5 +1192,73 @@
     "checking": "Vérification …",
     "notFound": "Adresse introuvable",
     "checkFailed": "Échec de la vérification"
+  },
+  "a2ui": {
+    "filter": {
+      "all": "Portefeuille entier",
+      "zoneRange": "Zone {{min}}–{{max}}",
+      "zoneMin": "Zone ≥ {{zone}}",
+      "zoneMax": "Zone ≤ {{zone}}",
+      "salesPartner": "Partenaire {{value}}",
+      "subPortfolio": "Sous-portefeuille {{value}}",
+      "group": "Groupe {{value}}",
+      "boundaryReview": "Limite à vérifier"
+    },
+    "other": "Autres",
+    "noZone": "Sans zone",
+    "none": "Non renseigné",
+    "measure": {
+      "count": "Sites",
+      "eal": "EAL grêle",
+      "exposure": "Exposition",
+      "vehicles": "Véhicules"
+    },
+    "locations_one": "{{count}} site",
+    "locations_other": "{{count}} sites",
+    "empty": "Aucun site pour cette sélection.",
+    "share": "{{share}} du total",
+    "clickToOpen": "Cliquer pour ouvrir le site",
+    "column": {
+      "name": "Site",
+      "hailZone": "Zone",
+      "eal": "EAL grêle",
+      "exposure": "Exposition",
+      "vehicles": "Véhicules",
+      "business": "Affaire",
+      "salesPartner": "Partenaire",
+      "subPortfolio": "Sous-portefeuille",
+      "group": "Groupe"
+    },
+    "tableMore_one": "{{shown}} sur {{count}} site, triés par {{measure}}.",
+    "tableMore_other": "{{shown}} sur {{count}} sites, triés par {{measure}}.",
+    "renameFigure": "Le nom ne doit pas contenir de montants ni de pourcentages.",
+    "builtFrom": "Créé à partir de : « {{prompt}} »",
+    "provenance": "L'IA a seulement choisi la mise en page et la sélection ; l'application calcule toutes les valeurs à partir du portefeuille (estimation de screening, EAL grêle avec valeurs provisoires). Le filtre du portefeuille ci-dessus s'applique aussi.",
+    "template": {
+      "title": "Vue d'ensemble du portefeuille",
+      "byZone": "Sites par zone de grêle",
+      "topEal": "EAL grêle la plus élevée",
+      "table": "Sites par EAL grêle"
+    },
+    "tabs": {
+      "label": "Tableaux de bord",
+      "standard": "Vue d'ensemble",
+      "more": "Options pour « {{name}} »",
+      "change": "Modifier dans le chat",
+      "rename": "Renommer",
+      "delete": "Supprimer",
+      "new": "Nouveau tableau de bord",
+      "save": "Enregistrer",
+      "deleteTitle": "Supprimer le tableau de bord ?",
+      "deleteText": "« {{name}} » sera supprimé. Les données du portefeuille restent."
+    },
+    "newDraft": "Crée-moi un tableau de bord sur ",
+    "changeDraft": "Modifie le tableau de bord : ",
+    "building": "Création du tableau de bord …",
+    "updating": "Mise à jour du tableau de bord …",
+    "selectionCount_one": "{{count}} sur {{total}} sites",
+    "selectionCount_other": "{{count}} sur {{total}} sites",
+    "emptyShort": "Aucun site dans cette sélection",
+    "builtFromChanged": "Créé à partir de « {{first}} » · dernier : « {{last}} »"
   }
 }

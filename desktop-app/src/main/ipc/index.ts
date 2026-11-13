@@ -54,7 +54,8 @@ import {
 } from "../services/csv.service";
 import { resolveNatCat, testNatCatConnector } from "../services/natcat.service";
 import {
-  generateDashboardSpec,
+  classifyChatIntent,
+  generateDashboardSurface,
   detectLocalRuntimes,
   generateMemo,
   listLlmModels,
@@ -220,8 +221,11 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     return { ok: true };
   });
 
-  handle(IPC.llmDashboardSpec, ({ prompt, dealershipCount }) =>
-    generateDashboardSpec(prompt, dealershipCount),
+  handle(IPC.llmChatIntent, async ({ message, dashboardTitle }) => ({
+    intent: await classifyChatIntent(message, dashboardTitle),
+  }));
+  handle(IPC.llmDashboardSurface, ({ prompt, current, context }) =>
+    generateDashboardSurface(prompt, current, context),
   );
   handle(IPC.listDashboards, () => listDashboards());
   handle(IPC.loadDashboard, ({ id }) => loadDashboard(id));

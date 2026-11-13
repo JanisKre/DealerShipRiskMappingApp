@@ -42,3 +42,17 @@ export async function launchApp(): Promise<LaunchedApp> {
     },
   };
 }
+
+/**
+ * Without the detection model (as in CI) the install wizard opens at some
+ * point after start-up and hides the rest of the window. It is not under
+ * test: close it whenever it shows up before an action or assertion.
+ */
+export async function dismissModelWizard(page: Page): Promise<void> {
+  await page.addLocatorHandler(
+    page.getByRole("dialog", { name: "Fahrzeugerkennungsmodell installieren" }),
+    async (wizard) => {
+      await wizard.getByRole("button", { name: "Schließen" }).click();
+    },
+  );
+}

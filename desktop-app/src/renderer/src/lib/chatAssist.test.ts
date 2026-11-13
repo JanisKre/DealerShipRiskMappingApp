@@ -6,6 +6,8 @@ import {
   isGreeting,
   linkifyLocations,
   parseChatAction,
+  mentionsDashboard,
+  parseDashboardIntent,
   stripLocationLinks,
 } from "./chatAssist";
 
@@ -152,5 +154,98 @@ describe("conversation titles", () => {
       deriveConversationTitle([{ role: "user", content: "hallo" }], "new"),
     ).toBe("hallo");
     expect(deriveConversationTitle([], "new")).toBe("new");
+  });
+});
+
+describe("dashboard requests", () => {
+  it("recognises building a new dashboard", () => {
+    expect(
+      parseDashboardIntent("Baue mir ein Dashboard zu Zone 4+", {
+        canEdit: false,
+      }),
+    ).toEqual({ mode: "create" });
+    expect(
+      parseDashboardIntent("Erstelle eine Übersicht je Vertriebspartner", {
+        canEdit: true,
+      }),
+    ).toEqual({ mode: "create" });
+    expect(
+      parseDashboardIntent("create a dashboard of new business", {
+        canEdit: false,
+      }),
+    ).toEqual({ mode: "create" });
+  });
+
+  it("changes the shown dashboard, umlauts included", () => {
+    expect(
+      parseDashboardIntent("Füge eine Tabelle der Top 10 hinzu", {
+        canEdit: true,
+      }),
+    ).toEqual({ mode: "edit" });
+    expect(
+      parseDashboardIntent("Ändere den Titel in Nordregion", { canEdit: true }),
+    ).toEqual({ mode: "edit" });
+    // Without a dashboard on screen there is nothing to change.
+    expect(
+      parseDashboardIntent("Füge eine Tabelle hinzu", { canEdit: false }),
+    ).toBeNull();
+    // "neues" asks for another dashboard, not a change.
+    expect(
+      parseDashboardIntent(
+        "Erstelle ein neues Dashboard und füge eine Tabelle hinzu",
+        { canEdit: true },
+      ),
+    ).toEqual({ mode: "create" });
+  });
+
+  it("leaves questions to the AI chat", () => {
+    expect(
+      parseDashboardIntent("Wie baue ich ein Dashboard?", { canEdit: true }),
+    ).toBeNull();
+    expect(
+      parseDashboardIntent("Welche Standorte haben die höchste EAL", {
+        canEdit: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("returns the request as a chat action", () => {
+    expect(parseChatAction(" Baue ein Dashboard für Nord ", [])).toEqual({
+      type: "dashboard",
+      mode: "create",
+      prompt: "Baue ein Dashboard für Nord",
+    });
+  });
+});
+
+describe("changing the dashboard on screen", () => {
+  it("treats imperative changes as edits, also without a widget word", () => {
+    for (const prompt of [
+      "Wechsle zu Hagelzone 2",
+      "zu Hagelzone 2 wechseln",
+      "Ändere auf Hagelzone 2",
+      "Zeig stattdessen Hagelzone 2",
+      "Stelle auf Vertriebspartner Nord um",
+    ]) {
+      expect(parseDashboardIntent(prompt, { canEdit: true })).toEqual({
+        mode: "edit",
+      });
+    }
+  });
+
+  it("leaves those words alone when no dashboard is on screen", () => {
+    expect(
+      parseDashboardIntent("Wechsle zu Hagelzone 2", { canEdit: false }),
+    ).toBeNull();
+    expect(
+      parseDashboardIntent("Entferne Autohaus Nord", { canEdit: false }),
+    ).toBeNull();
+  });
+
+  it("knows when a message is about dashboards at all", () => {
+    expect(mentionsDashboard("Kannst du das Dashboard für Zone 2 machen")).toBe(
+      true,
+    );
+    expect(mentionsDashboard("Welche Standorte liegen in Zone 2")).toBe(false);
   });
 });
