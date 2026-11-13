@@ -22,6 +22,7 @@ import type { OsmEvidence } from "./osm-overpass";
 import {
   cellCount,
   cellIndex,
+  cellToLonLat,
   createGridSpec,
   lonLatToCell,
   type GridSpec,
@@ -74,8 +75,10 @@ import { matchesSite } from "./site-membership";
  * (docs/boundary-model.md, "Cascade v4").
  * 5: the building complex at the point joins the vehicle outline; Bayern
  * footprints from the LoD2 model.
+ * 6: traffic areas cut the outline where there are no street parcels
+ * (Bayern land-use map).
  */
-export const CASCADE_VERSION = 5;
+export const CASCADE_VERSION = 6;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -234,6 +237,11 @@ export interface CascadeInput {
    * buildings inside a vehicle outline. Empty where none are published.
    */
   buildings?: LonLat[][];
+  /**
+   * Traffic areas where there are no street parcels (Bayern: the ALKIS
+   * land-use map). The outline is cut back there like at street parcels.
+   */
+  isStreetAt?: (point: LonLat) => boolean;
   parameters: RiskParameters;
 }
 
@@ -1167,6 +1175,14 @@ function completeOutline(
     mask.set(erode(spec, dilate(spec, mask, HULL_JOIN_CELLS), HULL_JOIN_CELLS));
   }
   fillHoles(spec, mask);
+  if (input.isStreetAt) {
+    for (let i = 0; i < mask.length; i += 1) {
+      if (!mask[i]) continue;
+      const col = i % spec.cols;
+      const row = Math.floor(i / spec.cols);
+      if (input.isStreetAt(cellToLonLat(spec, col, row))) mask[i] = 0;
+    }
+  }
   const streets = streetParcels(input.parcels);
   for (const parcel of input.parcels) {
     if (!streets.has(parcel)) continue;
@@ -1446,6 +1462,8 @@ export function finalizeCascadeResult(
     parcels?: ParcelFeature[];
     lotVehicles?: number;
     flags?: BoundaryReviewFlag[];
+    /** Traffic areas without street parcels (Bayern), as in `CascadeInput`. */
+    isStreetAt?: (point: LonLat) => boolean;
   } = {},
 ): BoundaryResult {
   const rings = outerRings(result.polygon) as LonLat[][];
@@ -1487,6 +1505,7 @@ export function finalizeCascadeResult(
             !geometryContains(result.polygon, v) &&
             // Cars parked along the kerb are not a clipped lot.
             !streets.some((ring) => contains(ring, v)) &&
+            !(context.isStreetAt?.(v) ?? false) &&
             Math.min(...rings.map((ring) => distanceToRingM(v, ring))) <=
               CASCADE_LIMITS.outsideNearbyM,
         ).length;

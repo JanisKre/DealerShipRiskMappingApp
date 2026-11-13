@@ -9,6 +9,7 @@ import { fetchParcelsNear, PARCEL_SEARCH_RADIUS_M } from "./alkis.service";
 import type { LonLat } from "./boundary-geometry";
 import { osmEvidenceBy } from "./boundary/osm-evidence.service";
 import { officialBuildingsBy } from "./detection/roof-mask.service";
+import { bavariaStreetMask, onStreet } from "./bavaria-landuse.service";
 import { roofRings } from "./detection/roof-mask";
 import { syntheticFallbackBoundary } from "./boundary/synthetic";
 import {
@@ -59,6 +60,18 @@ export async function detectBoundary(
     officialBuildingsBy(lat, lon, options.buildingsDeadline ?? Infinity),
   ]);
   const parcels = parcelLookup?.parcels ?? [];
+  // Without parcels there are no street parcels to cut the outline back at;
+  // in Bayern the land-use map supplies the traffic areas instead.
+  const streetMask =
+    parcels.length === 0
+      ? await beforeDeadline(
+          bavariaStreetMask(lat, lon),
+          options.buildingsDeadline ?? Infinity,
+        )
+      : null;
+  const isStreetAt = streetMask
+    ? (point: LonLat): boolean => onStreet(streetMask, point)
+    : undefined;
   // Footprints from both sources; a building mapped twice only weighs once
   // where it matters (containment), and twice in the unbuilt area, which is
   // floored at a share of the parcel anyway.
@@ -76,6 +89,7 @@ export async function detectBoundary(
     parcels,
     parcelsTruncated: parcelLookup?.truncated ?? false,
     buildings,
+    ...(isStreetAt ? { isStreetAt } : {}),
     parameters,
   });
   const trace = [...cascade.trace];
@@ -116,7 +130,12 @@ export async function detectBoundary(
     trace,
     parameters,
     vehicles,
-    { parcels, lotVehicles: cascade.lotVehicles, flags: cascade.flags },
+    {
+      parcels,
+      lotVehicles: cascade.lotVehicles,
+      flags: cascade.flags,
+      ...(isStreetAt ? { isStreetAt } : {}),
+    },
   );
   const reviewRequired = boundaryNeedsReview(result, parameters);
   const synthetic = result.source === "synthetic";
@@ -168,3 +187,20 @@ export {
   SYNTHETIC_BOUNDARY_RADIUS_M,
   syntheticFallbackBoundary,
 } from "./boundary/synthetic";
+
+/** The value, or null when it has not arrived by `deadline` (epoch ms). */
+async function beforeDeadline<T>(
+  work: Promise<T | null>,
+  deadline: number,
+): Promise<T | null> {
+  if (!Number.isFinite(deadline)) return work;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), Math.max(0, deadline - Date.now()));
+  });
+  try {
+    return await Promise.race([work, late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}

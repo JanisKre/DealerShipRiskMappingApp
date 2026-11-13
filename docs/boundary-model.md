@@ -394,8 +394,8 @@ failures, not fitted.
 
 ## Cascade v4 (November 2026, second check)
 
-`CASCADE_VERSION` 4, and 5 for the building at the point and the Bayern
-footprints (the last two rows of the table). A second check on 25 further portfolio sites from 13
+`CASCADE_VERSION` 4, 5 for the building at the point and the Bayern
+footprints, and 6 for the Bayern traffic areas (rows marked in the table). A second check on 25 further portfolio sites from 13
 states (13 November 2026, imagery `auto`) judged 16 boundaries plausible,
 4 partial, 4 wrong and 1 unclear; all 8 flawed ones were flagged for review,
 as were 9 of the 16 plausible ones. It found patterns the first audit had
@@ -409,6 +409,7 @@ not shown; v4 addresses three of them.
 | **Empty-parcel test for large areas:** 5 instead of 3 lot vehicles per 1,000 m² when a parcel's unbuilt area exceeds 10,000 m². | `CASCADE_LIMITS.parcelMinVehiclesPer1000SqmLarge`, `largeUnbuiltSqm` | In the 50-site run a 13,900 m² sand lot with 49 scattered detections (3.5 per 1,000 m²) joined a Berlin dealership at confidence 0.75; real yards stand at 20–70. Rejected alternatives: a global 5 cut a dealer's own yard where the lot reached only part of its rows; counting every vehicle on the parcel let dense inner-city street parking join (Hannover 0.90 → 0.34). |
 | **Building at the point in the outline:** the building the point lies in, with the buildings attached to it (≤ 1 m), joins the vehicle outline (up to 30,000 m²). | `completeOutline`, `buildingComplex` | The point is the dealership's address or POI; its building is the showroom. Bayern fixtures: Munich 0.13 → 0.53, Nuremberg 0.06 → 0.61 IoU (with LoD2 footprints); no other fixture changes. |
 | **Building footprints for Bayern** from the open LoD2 model, read by 2 km tile. | `bavaria-lod2.service.ts` | Bayern had no footprints, so outlines left showrooms out (C-shapes, split parts). Now all 14 audited Bayern sites get 45–409 footprints. |
+| **Traffic areas for Bayern** from the free ALKIS land-use map (WMS `geoservices.bayern.de/od/wms/alkis/v1/tn`, layer `by_alkis_tn_verkehr`, CC BY 4.0), rendered at 1 m per pixel where no parcels exist; the outline is cut back there and kerbside cars on it do not count as outside vehicles. | `bavaria-landuse.service.ts`, `CascadeInput.isStreetAt` | Without parcels the outline ran across roads (Bayern). The layer also contains public squares and rail, which are not dealership land either. |
 | **Minimum area in stage 1:** a parcel at the point under 300 m² with nothing joined declines stage 1. | `vehicleParcelStage` | A 128 m² town-centre plot was returned as the lot. |
 | Bounding-box pre-check for parcel adjacency. | `isAdjacent` | Field-strip detection compares parcels pairwise; with the pre-check the cascade is faster than v3 on the replayed sites. |
 
@@ -427,8 +428,8 @@ Bayern, where without parcels or building footprints the vehicle outline
 leaves the showroom out or runs across a road (of 10 Bayern sites: 2 plausible, 6 partial, 1 wrong, 1 unclear).
 With LoD2 footprints and the building at the point, outlines there include
 the showroom (for example 8,899 → 15,228 m² and 3,561 → 6,695 m² on two
-sites that had been split around it); streets are still not removed in
-Bayern, since no street parcels are available.
+sites that had been split around it); since v6 the land-use map's traffic areas
+cut outlines back at roads in Bayern.
 
 **Simulated and rejected** in the same check: removing kerbside cars from the
 lot changed no geometry but raised confidence to 0.75 on boundaries known to

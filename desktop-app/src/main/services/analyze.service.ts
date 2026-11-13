@@ -18,6 +18,7 @@ import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { boundaryNeedsReview } from "@shared/boundary-review";
 import { imageryAgeYears } from "@shared/imagery-metadata";
 import { fetchOfficialBuildings } from "./alkis-buildings.service";
+import { bavariaStreetMask } from "./bavaria-landuse.service";
 import { officialHouseCoordinate } from "./house-coordinates.service";
 import {
   geocodeCandidates,
@@ -212,6 +213,9 @@ export async function analyzeDealership(
   // Started now so the official footprints are usually in by the time the
   // roof mask runs after imagery and detection; the mask joins this request.
   void fetchOfficialBuildings(siteLat, siteLon);
+  // Bayern only: traffic areas for the outline, which has no street parcels
+  // there. A no-op elsewhere; started now so it is in by the boundary step.
+  void bavariaStreetMask(siteLat, siteLon);
 
   // Detection uses the whole context image, independently of the boundary
   // (P5): the vehicles are what the boundary is built from, so a boundary

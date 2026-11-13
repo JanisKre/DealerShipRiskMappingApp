@@ -358,6 +358,26 @@ describe("building at the point (v4)", () => {
   });
 });
 
+describe("traffic areas without street parcels (Bayern)", () => {
+  it("cuts the outline back at the road and drops the part beyond it", () => {
+    // Lot south of a 15 m road; kerbside cars on the road; no parcels.
+    const vehicles = [...cars(-40, -40, 40, 40), ...cars(-40, 43, 40, 54)];
+    const roadAt = ([, lat]: [number, number]): boolean =>
+      lat >= at(0, 41)[1] && lat <= at(0, 56)[1];
+    const plain = vehicleHullStage(input({ vehicles }));
+    const cut = vehicleHullStage(input({ vehicles, isStreetAt: roadAt }));
+    const north = (r: typeof plain): number =>
+      Math.max(
+        ...(r.result!.polygon.type === "Polygon"
+          ? r.result!.polygon.coordinates[0]
+          : r.result!.polygon.coordinates.flat(2)
+        ).map(([, lat]) => lat as number),
+      );
+    expect(north(plain)).toBeGreaterThan(at(0, 56)[1]);
+    expect(north(cut)).toBeLessThanOrEqual(at(0, 42)[1]);
+  });
+});
+
 describe("empty-parcel test for large areas (v4)", () => {
   it("keeps a large sand lot with scattered detections out, but not a smaller yard", () => {
     const home = parcel(rect(-40, -40, 40, 40));

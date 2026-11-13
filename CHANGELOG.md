@@ -15,6 +15,9 @@ the project follows [Semantic Versioning](https://semver.org/).
   vehicle outline had no footprints there, so outlines left the showroom
   out. A large city tile may arrive too late for the first analysis of a
   site and then helps from the next one (`docs/official-buildings.md`).
+- Traffic areas for Bayern from the free ALKIS land-use map (WMS, CC BY 4.0):
+  where no parcels exist, vehicle outlines are cut back at roads instead of
+  running across them.
 
 ### Changed
 
