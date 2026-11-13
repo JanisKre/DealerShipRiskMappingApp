@@ -232,6 +232,19 @@ test("a follow-up request changes the shown dashboard", async () => {
   await page.keyboard.press("Escape");
 });
 
+test("a bar in a dashboard chart opens its location", async () => {
+  // Clicked straight away, without hovering first.
+  const view = page.getByRole("region", { name: "Standorte ab Zone 4" });
+  await view.locator(".recharts-bar-rectangle").first().click();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByText(/Autohaus (Alpha|Beta|Gamma)/)
+      .first(),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+});
+
 test("switching the zone in the chat changes what the dashboard shows", async () => {
   // The wording that used to reach the plain chat instead.
   await ask("Wechsle zu Hagelzone 2");
@@ -269,4 +282,32 @@ test("tabs switch dashboards and offer a new one", async () => {
   await page.getByRole("button", { name: "Neues Dashboard" }).click();
   await expect(composer()).toHaveValue("Baue mir ein Dashboard zu ");
   await expect(composer()).toBeFocused();
+});
+
+test("the portfolio table searches, sorts and opens a location", async () => {
+  await page.getByRole("tab", { name: "Übersicht" }).click();
+  const table = page
+    .getByRole("table")
+    .filter({ has: page.getByRole("button", { name: "Name" }) });
+  const rows = table.getByRole("row");
+  await expect(rows).toHaveCount(4); // header + 3 locations
+
+  const search = page.getByLabel("In Tabelle suchen…");
+  await search.fill("Beta");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(1)).toContainText("Autohaus Beta");
+  await search.fill("");
+  await expect(rows).toHaveCount(4);
+
+  const name = table.getByRole("button", { name: "Name" });
+  await name.click();
+  await expect(rows.nth(1)).toContainText("Autohaus Alpha");
+  await name.click();
+  await expect(rows.nth(1)).toContainText("Autohaus Gamma");
+
+  await rows.nth(1).click();
+  await expect(
+    page.getByRole("dialog").getByText("Autohaus Gamma").first(),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
 });

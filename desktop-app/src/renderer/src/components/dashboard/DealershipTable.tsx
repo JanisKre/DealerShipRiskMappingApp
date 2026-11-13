@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  columnFilteringFeature,
   createColumnHelper,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
   flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSortingFeature,
+  tableFeatures,
+  useTable,
   type SortingState,
 } from "@tanstack/react-table";
 import {
@@ -49,7 +53,18 @@ import { useAppStore } from "@renderer/store/appStore";
 import { HailZoneBadge } from "./HailZoneBadge";
 import { TileInfo } from "./TileInfo";
 
-const columnHelper = createColumnHelper<AnalyzedDealership>();
+/** Sorting, the search box (global filter) and pagination; nothing else. */
+const features = tableFeatures({
+  rowSortingFeature,
+  columnFilteringFeature,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  sortedRowModel: createSortedRowModel(),
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+});
+
+const columnHelper = createColumnHelper<typeof features, AnalyzedDealership>();
 
 /** Purely numeric columns are right-aligned with tabular-nums. */
 const NUMERIC_COLUMNS = new Set(["vehicles", "exposure", "eal"]);
@@ -89,69 +104,71 @@ export function DealershipTable({
   );
 
   const columns = useMemo(
-    () => [
-      columnHelper.accessor("name", {
-        header: t("ui.name"),
-        cell: (info) => (
-          <span className="flex items-center gap-1.5 font-medium">
-            {alertIds.has(info.row.original.id) && (
-              <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
-            )}
-            {info.getValue()}
-          </span>
-        ),
-      }),
-      columnHelper.accessor((d) => dealershipHailZone(d)?.zone ?? 0, {
-        id: "zone",
-        header: t("dashboard.hailZone"),
-        cell: (info) => {
-          const zone = info.getValue();
-          if (!info.row.original.risk) return <PendingLabel />;
-          if (zone === 0) return "–";
-          const estimated =
-            dealershipHailZone(info.row.original)?.source === "estimated";
-          return <HailZoneBadge zone={zone} estimated={estimated} />;
-        },
-      }),
-      columnHelper.accessor((d) => effectiveVehicleCount(d.detection), {
-        id: "vehicles",
-        header: t("common.vehicles"),
-        cell: (info) => (info.row.original.risk ? num(info.getValue()) : "—"),
-      }),
-      columnHelper.accessor((d) => d.risk?.exposureEur ?? 0, {
-        id: "exposure",
-        header: t("dashboard.totalExposure"),
-        cell: (info) => (info.row.original.risk ? eur(info.getValue()) : "—"),
-      }),
-      columnHelper.accessor((d) => d.risk?.eal ?? 0, {
-        id: "eal",
-        header: t("dashboard.hailEal"),
-        cell: (info) => (info.row.original.risk ? eur(info.getValue()) : "—"),
-      }),
-      columnHelper.display({
-        id: "actions",
-        header: "",
-        cell: (info) =>
-          onShowOnMap ? (
-            <button
-              type="button"
-              title={t("ui.showOnMap")}
-              aria-label={t("ui.showOnMap")}
-              className="text-muted-foreground hover:text-primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onShowOnMap(info.row.original);
-              }}
-            >
-              <MapPin className="size-4" />
-            </button>
-          ) : null,
-      }),
-    ],
+    () =>
+      columnHelper.columns([
+        columnHelper.accessor("name", {
+          header: t("ui.name"),
+          cell: (info) => (
+            <span className="flex items-center gap-1.5 font-medium">
+              {alertIds.has(info.row.original.id) && (
+                <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
+              )}
+              {info.getValue()}
+            </span>
+          ),
+        }),
+        columnHelper.accessor((d) => dealershipHailZone(d)?.zone ?? 0, {
+          id: "zone",
+          header: t("dashboard.hailZone"),
+          cell: (info) => {
+            const zone = info.getValue();
+            if (!info.row.original.risk) return <PendingLabel />;
+            if (zone === 0) return "–";
+            const estimated =
+              dealershipHailZone(info.row.original)?.source === "estimated";
+            return <HailZoneBadge zone={zone} estimated={estimated} />;
+          },
+        }),
+        columnHelper.accessor((d) => effectiveVehicleCount(d.detection), {
+          id: "vehicles",
+          header: t("common.vehicles"),
+          cell: (info) => (info.row.original.risk ? num(info.getValue()) : "—"),
+        }),
+        columnHelper.accessor((d) => d.risk?.exposureEur ?? 0, {
+          id: "exposure",
+          header: t("dashboard.totalExposure"),
+          cell: (info) => (info.row.original.risk ? eur(info.getValue()) : "—"),
+        }),
+        columnHelper.accessor((d) => d.risk?.eal ?? 0, {
+          id: "eal",
+          header: t("dashboard.hailEal"),
+          cell: (info) => (info.row.original.risk ? eur(info.getValue()) : "—"),
+        }),
+        columnHelper.display({
+          id: "actions",
+          header: "",
+          cell: (info) =>
+            onShowOnMap ? (
+              <button
+                type="button"
+                title={t("ui.showOnMap")}
+                aria-label={t("ui.showOnMap")}
+                className="text-muted-foreground hover:text-primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShowOnMap(info.row.original);
+                }}
+              >
+                <MapPin className="size-4" />
+              </button>
+            ) : null,
+        }),
+      ]),
     [alertIds, onShowOnMap, t],
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data: dealerships,
     columns,
     state: { sorting, globalFilter: filter, pagination },
@@ -162,10 +179,6 @@ export function DealershipTable({
       setPagination((p) => ({ ...p, pageIndex: 0 }));
     },
     onPaginationChange: setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     autoResetPageIndex: false,
   });
   const matching = table.getFilteredRowModel().rows.length;
@@ -258,7 +271,7 @@ export function DealershipTable({
                       : "even:bg-muted/30"
                   }`}
                 >
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getAllCells().map((cell) => (
                     <TableCell
                       key={cell.id}
                       className={`${

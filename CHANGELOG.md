@@ -73,6 +73,12 @@ the project follows [Semantic Versioning](https://semver.org/).
   setup-node v7, upload-artifact v7 and attest-build-provenance v4.
 - Dependabot runs monthly with a cooldown and grouped PRs (at most two per
   ecosystem, npm for app and website together).
+- Desktop app major updates: Recharts 3 (bar clicks are handled on the bars,
+  whose whole row or column stays clickable), TanStack Table 9 (explicit sorting, search and
+  pagination features), i18next 26 / react-i18next 17, lucide-react 1,
+  Vite 8 with electron-vite 6 and `@vitejs/plugin-react` 6, TypeScript 6,
+  ESLint 10 (errors now keep their `cause`). Prettier formatting is checked
+  in CI (`npm run format:check`).
 - Network requests from the main process and the dealer-directory worker
   use Electron's `net.fetch` instead of Node's fetch: the system proxy and the
   operating system's certificate store (company TLS inspection) now apply.

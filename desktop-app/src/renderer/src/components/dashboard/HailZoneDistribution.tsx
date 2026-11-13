@@ -162,7 +162,9 @@ export function HailZoneDistribution({
                 position="top"
                 className="fill-foreground"
                 fontSize={11}
-                formatter={(value: number) => (value > 0 ? format(value) : "")}
+                formatter={(value) =>
+                  typeof value === "number" && value > 0 ? format(value) : ""
+                }
               />
             </Bar>
           </BarChart>

@@ -24,6 +24,11 @@ updates:
     ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # The desktop app stays on TypeScript 6 until typescript-eslint
+      # supports TypeScript 7 (its peer range is < 6.1); the native TS 7
+      # compiler has no API for it yet. Bump by hand when that changes.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-security:
         applies-to: security-updates

@@ -75,7 +75,7 @@ export async function fetchHazardApiAssessment(
     return normalizeHazardApiResponse(await response.json(), config.provider);
   } catch (error) {
     if (error instanceof HttpRequestError && error.timedOut) {
-      throw new Error(`${label} request timed out`);
+      throw new Error(`${label} request timed out`, { cause: error });
     }
     throw error;
   }

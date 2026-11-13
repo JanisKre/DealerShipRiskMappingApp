@@ -135,6 +135,7 @@ function createDatabaseBackup(
     // A backup failure must never silently turn into a destructive migration.
     throw new Error(
       `Could not create database backup before migration: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
 }

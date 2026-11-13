@@ -566,7 +566,9 @@ export async function captureMap(
   if (mode === "clipboard") {
     await clipboard.write([
       new ClipboardItem({
-        "image/png": new Blob([image.toPNG()], { type: "image/png" }),
+        "image/png": new Blob([new Uint8Array(image.toPNG())], {
+          type: "image/png",
+        }),
       }),
     ]);
     return { path: null, ok: true };

@@ -588,13 +588,6 @@ function YearChart({
         data={data}
         margin={{ top: 14, right: 44, left: 0, bottom: 0 }}
         barCategoryGap={1}
-        onClick={(state) => {
-          const year = (
-            state?.activePayload?.[0]?.payload as YearBar | undefined
-          )?.year;
-          if (year != null) onSelect(year);
-        }}
-        className="cursor-pointer"
       >
         <CartesianGrid vertical={false} strokeOpacity={0.15} />
         {gaps.map(([from, to]) => (
@@ -678,7 +671,16 @@ function YearChart({
             className: "fill-muted-foreground",
           }}
         />
-        <Bar dataKey="value" isAnimationActive={false}>
+        <Bar
+          dataKey="value"
+          isAnimationActive={false}
+          background={{ fill: "transparent" }}
+          className="cursor-pointer"
+          onClick={(_, index) => {
+            const year = data[index]?.year;
+            if (year != null) onSelect(year);
+          }}
+        >
           {data.map((bar) => (
             <Cell
               key={bar.year}
@@ -719,13 +721,6 @@ function MonthChart({
         accessibilityLayer
         data={data}
         margin={{ top: 14, right: 8, left: 0, bottom: 0 }}
-        onClick={(state) => {
-          const month = (
-            state?.activePayload?.[0]?.payload as MonthBar | undefined
-          )?.month;
-          if (month != null) onSelect(month);
-        }}
-        className="cursor-pointer"
       >
         <CartesianGrid vertical={false} strokeOpacity={0.15} />
         <XAxis
@@ -769,7 +764,17 @@ function MonthChart({
             );
           }}
         />
-        <Bar dataKey="days" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+        <Bar
+          dataKey="days"
+          radius={[3, 3, 0, 0]}
+          isAnimationActive={false}
+          background={{ fill: "transparent" }}
+          className="cursor-pointer"
+          onClick={(_, index) => {
+            const month = data[index]?.month;
+            if (month != null) onSelect(month);
+          }}
+        >
           {data.map((bar) => (
             <Cell
               key={bar.month}

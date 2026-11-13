@@ -457,11 +457,6 @@ function SeriesBars({
           data={data}
           layout="vertical"
           margin={{ top: 0, right: 12, left: 0, bottom: 0 }}
-          onClick={(state) => {
-            const id = (state?.activePayload?.[0]?.payload as SeriesPoint)?.id;
-            if (id) onOpenLocation(id);
-          }}
-          className="cursor-pointer"
         >
           <CartesianGrid horizontal={false} strokeOpacity={0.15} />
           <XAxis
@@ -485,7 +480,19 @@ function SeriesBars({
             tickFormatter={(v: string) => truncate(v)}
           />
           {tooltip}
-          <Bar dataKey="value" radius={[0, 4, 4, 0]} isAnimationActive={false}>
+          <Bar
+            dataKey="value"
+            radius={[0, 4, 4, 0]}
+            isAnimationActive={false}
+            // A transparent background keeps the whole row clickable, also
+            // next to short bars. Recharts 3 passes the row index here.
+            background={{ fill: "transparent" }}
+            className="cursor-pointer"
+            onClick={(_, index) => {
+              const id = data[index]?.id;
+              if (id) onOpenLocation(id);
+            }}
+          >
             {data.map((p) => (
               <Cell key={p.key + (p.id ?? "")} fill={color(p)} />
             ))}
