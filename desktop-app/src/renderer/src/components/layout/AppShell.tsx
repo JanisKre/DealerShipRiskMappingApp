@@ -95,7 +95,7 @@ function SessionLoader(): null {
         if (!cancelled && session) {
           setSession(session.id, session.name);
           setParameters(session.parameters);
-          setDealerships(session.dealerships);
+          setDealerships(session.dealerships, session.boundaryEdits);
           useAppStore.setState({
             pendingAnalysis: session.pendingAnalysis ?? [],
           });

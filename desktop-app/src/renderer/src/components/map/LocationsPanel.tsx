@@ -720,7 +720,9 @@ function LocationRow({
               </Chip>
             )}
             {d.boundary?.source === "synthetic" && (
-              <Chip warning>{t("ui.fallbackBoundary")}</Chip>
+              <Chip warning title={t("ui.fallbackBoundaryReview")}>
+                {t("ui.fallbackBoundary")}
+              </Chip>
             )}
             {distanceKm != null && (
               <Chip>
@@ -787,13 +789,16 @@ function Chip({
   children,
   accent,
   warning,
+  title,
 }: Readonly<{
   children: React.ReactNode;
   accent?: boolean;
   warning?: boolean;
+  title?: string;
 }>): React.JSX.Element {
   return (
     <span
+      title={title}
       className={cn(
         "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium",
         accent

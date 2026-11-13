@@ -1,8 +1,10 @@
 import { randomUUID } from "crypto";
-import type {
-  AnalyzedDealership,
-  RiskParameters,
-  Session,
+import {
+  BoundaryEditStateSchema,
+  type AnalyzedDealership,
+  type BoundaryEditState,
+  type RiskParameters,
+  type Session,
 } from "@shared/types";
 import { stripRetiredPerils } from "@shared/retired-perils";
 import { getDb } from "../db/database";
@@ -36,13 +38,9 @@ export function loadSession(id: string): Session | null {
       }
     | undefined;
   if (!row) return null;
-  let stored:
-    | AnalyzedDealership[]
-    | { dealerships?: AnalyzedDealership[]; parameters?: RiskParameters };
+  let stored: AnalyzedDealership[] | StoredEnvelope;
   try {
-    stored = JSON.parse(row.data) as
-      | AnalyzedDealership[]
-      | { dealerships?: AnalyzedDealership[]; parameters?: RiskParameters };
+    stored = JSON.parse(row.data) as AnalyzedDealership[] | StoredEnvelope;
   } catch {
     return null;
   }
@@ -58,7 +56,32 @@ export function loadSession(id: string): Session | null {
     ...(!Array.isArray(stored) && stored.parameters
       ? { parameters: stored.parameters }
       : {}),
+    ...(!Array.isArray(stored) && stored.boundaryEdits
+      ? { boundaryEdits: validBoundaryEdits(stored.boundaryEdits) }
+      : {}),
   };
+}
+
+interface StoredEnvelope {
+  dealerships?: AnalyzedDealership[];
+  parameters?: RiskParameters;
+  boundaryEdits?: unknown;
+}
+
+/**
+ * Undo steps are a convenience: an entry that no longer parses (older
+ * schema, hand-edited file) is dropped instead of failing the whole load.
+ */
+export function validBoundaryEdits(
+  value: unknown,
+): Record<string, BoundaryEditState> {
+  if (typeof value !== "object" || value === null) return {};
+  const edits: Record<string, BoundaryEditState> = {};
+  for (const [id, entry] of Object.entries(value)) {
+    const parsed = BoundaryEditStateSchema.safeParse(entry);
+    if (parsed.success) edits[id] = parsed.data;
+  }
+  return edits;
 }
 
 export function saveSession(session: Session): void {
@@ -81,6 +104,10 @@ export function saveSession(session: Session): void {
       data: JSON.stringify({
         dealerships: session.dealerships,
         parameters: session.parameters,
+        ...(session.boundaryEdits &&
+        Object.keys(session.boundaryEdits).length > 0
+          ? { boundaryEdits: session.boundaryEdits }
+          : {}),
       }),
     });
 }

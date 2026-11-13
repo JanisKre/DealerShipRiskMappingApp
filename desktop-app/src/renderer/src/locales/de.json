@@ -1197,7 +1197,7 @@
       "defaultScenarioName": "Hagelkorridor",
       "retryAnalysis": "Erneut versuchen",
       "editingTitle": "Grenzen bearbeiten",
-      "editingHint": "Ziehe die Eckpunkte einer Grenze. Nach einer Änderung kannst du sie speichern und die Fahrzeuge neu zählen lassen.",
+      "editingHint": "Ziehe die Eckpunkte einer Grenze. Nach einer Änderung kannst du sie speichern und die Fahrzeuge neu zählen lassen; Strg+Z (auf dem Mac ⌘Z) macht die letzte Änderung rückgängig.",
       "editingDone": "Fertig",
       "boundaryWarning_one": "1 Grenze muss geprüft werden",
       "boundaryWarning_other": "{{count}} Grenzen müssen geprüft werden",
@@ -1214,7 +1214,11 @@
       "resumeTitle_other": "{{count}} Standorte noch nicht analysiert",
       "resumeDetail": "Die Analyse wurde unterbrochen. Bereits analysierte Standorte sind gespeichert.",
       "resumeAction": "Analyse fortsetzen",
-      "resumeDiscard": "Später"
+      "resumeDiscard": "Später",
+      "undoBoundaryEditShortcut": "Letzte Änderung rückgängig machen (Strg+Z, auf dem Mac ⌘Z)",
+      "fallbackBoundaries_one": "1 davon ist eine Fallback-Grenze (ein Kreis um den Punkt): prüfe oder bearbeite sie für eine genaue Erkennung.",
+      "fallbackBoundaries_other": "{{count}} davon sind Fallback-Grenzen (ein Kreis um den Punkt): prüfe oder bearbeite sie für eine genaue Erkennung.",
+      "showFallbackBoundaries": "Fallback-Grenzen zeigen"
     }
   },
   "ai": {
@@ -1362,7 +1366,6 @@
     "ealYear": "EAL",
     "viewDetails": "Details anzeigen",
     "analyzing": "Wird analysiert…",
-    "propertyBoundaryMissing": "⚠ Grundstücksgrenze nicht erkannt",
     "vehicleCountEstimated": "⚠ Fahrzeugzahl geschätzt (kein KI-Modell)",
     "intensity": "Intensität",
     "width": "Breite",
@@ -1413,7 +1416,8 @@
       "pending": "Ausstehend ({{count}})",
       "review": "Grenze prüfen ({{count}})"
     },
-    "locationsPartlyAnalyzed": "{{analyzed}} von {{total}} analysiert · {{pending}} ausstehend"
+    "locationsPartlyAnalyzed": "{{analyzed}} von {{total}} analysiert · {{pending}} ausstehend",
+    "fallbackBoundaryReview": "Fallback-Grenze, prüfen oder bearbeiten für eine genaue Erkennung"
   },
   "aiSetup": {
     "missingTitle": "KI-Assistent noch nicht eingerichtet",

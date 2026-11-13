@@ -6,6 +6,7 @@ import "@geoman-io/leaflet-geoman-free";
 import {
   ArrowRight,
   Check,
+  Filter,
   Info,
   Loader2,
   MapPinned,
@@ -70,6 +71,11 @@ import { MapLegend } from "./MapLegend";
 import { legendPresence, type ViewBounds } from "@renderer/lib/legendPresence";
 import { NearbyInsuredLayer } from "./NearbyInsuredLayer";
 import { ViewPersistence } from "./ViewPersistence";
+import {
+  isTextEntry,
+  isUndoShortcut,
+  undoShortcutTarget,
+} from "@renderer/lib/boundaryUndo";
 
 /** Tile URLs per basemap type. */
 const TILE_URLS: Record<Basemap, string> = {
@@ -424,6 +430,41 @@ export function MapPage(): React.JSX.Element {
     [withCoords],
   );
   const boundaryReviewCount = boundaryReviewIds.length;
+  // Fallback circles among them: the least reliable kind, named on their own.
+  const fallbackReviewCount = useMemo(
+    () =>
+      withCoords.filter(
+        (d) => d.boundary?.reviewRequired && d.boundary.source === "synthetic",
+      ).length,
+    [withCoords],
+  );
+  const fallbackFilterActive = useAppStore(
+    (s) => s.filters.boundarySource === "fallback",
+  );
+  const setFilters = useAppStore((s) => s.setFilters);
+
+  // Ctrl+Z / ⌘Z steps a boundary edit back, like the Undo button.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (!isUndoShortcut(e) || isTextEntry(e.target)) return;
+      const id = undoShortcutTarget(
+        selectedId,
+        boundaryEditIds,
+        boundaryHistory,
+      );
+      if (!id || detectionUpdateIds.includes(id)) return;
+      e.preventDefault();
+      void undoBoundaryEdit(id);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    selectedId,
+    boundaryEditIds,
+    boundaryHistory,
+    detectionUpdateIds,
+    undoBoundaryEdit,
+  ]);
   // The location the review banner talks about: the selected one, when it
   // needs a check.
   const reviewTarget =
@@ -888,6 +929,8 @@ export function MapPage(): React.JSX.Element {
                     className="h-7 text-xs"
                     onClick={() => void undoBoundaryEdit(id)}
                     disabled={!hasHistory || busy}
+                    title={t("map.page.undoBoundaryEditShortcut")}
+                    aria-keyshortcuts="Control+Z Meta+Z"
                   >
                     <Undo2 className="size-3" />
                     {t("map.page.undoBoundaryEdit")}
@@ -996,6 +1039,13 @@ export function MapPage(): React.JSX.Element {
                     count: boundaryReviewCount,
                   })}
                 </div>
+                {fallbackReviewCount > 0 && (
+                  <p className="text-xs leading-snug text-amber-700 dark:text-amber-300">
+                    {t("map.page.fallbackBoundaries", {
+                      count: fallbackReviewCount,
+                    })}
+                  </p>
+                )}
                 {reviewTarget ? (
                   <>
                     <p className="text-xs leading-snug text-muted-foreground">
@@ -1045,15 +1095,31 @@ export function MapPage(): React.JSX.Element {
                     <p className="text-xs leading-snug text-muted-foreground">
                       {t("map.page.boundaryWarningHint")}
                     </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={reviewNextBoundary}
-                    >
-                      {t("map.page.boundaryStartReview")}
-                      <ArrowRight className="size-3" />
-                    </Button>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={reviewNextBoundary}
+                      >
+                        {t("map.page.boundaryStartReview")}
+                        <ArrowRight className="size-3" />
+                      </Button>
+                      {fallbackReviewCount > 0 && !fallbackFilterActive && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() =>
+                            setFilters({ boundarySource: "fallback" })
+                          }
+                        >
+                          <Filter className="size-3" />
+                          {t("map.page.showFallbackBoundaries")}
+                        </Button>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

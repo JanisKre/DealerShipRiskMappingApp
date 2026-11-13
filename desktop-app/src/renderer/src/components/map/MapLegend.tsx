@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, Info, Satellite } from "lucide-react";
 import { hailZoneColor } from "@renderer/lib/riskColor";
 import { cn } from "@renderer/lib/utils";
 import { boundarySourceLabel } from "@renderer/lib/boundarySource";
-import { sourceColor } from "./BoundaryLayer";
+import { sourceColor, sourceDashArray } from "./BoundaryLayer";
 import type { BoundarySource } from "@shared/types";
 import type { LegendPresence } from "@renderer/lib/legendPresence";
 import {
@@ -130,6 +130,7 @@ export function MapLegend({
                 color={sourceColor(source)}
                 label={boundarySourceLabel(t, source)}
                 outline
+                dashed={sourceDashArray(source) != null}
                 muted={absent.source(source)}
               />
             ))}
@@ -378,12 +379,15 @@ function LegendRow({
   label,
   outline,
   dot,
+  dashed,
   muted,
 }: Readonly<{
   color: string;
   label: string;
   outline?: boolean;
   dot?: boolean;
+  /** Outline drawn dashed on the map (the fallback circle). */
+  dashed?: boolean;
   /** Not on the map right now: listed for reference, visually stepped back. */
   muted?: boolean;
 }>): React.JSX.Element {
@@ -401,7 +405,10 @@ function LegendRow({
         )}
         style={
           outline
-            ? { border: `2px solid ${color}`, backgroundColor: `${color}33` }
+            ? {
+                border: `2px ${dashed ? "dashed" : "solid"} ${color}`,
+                backgroundColor: `${color}33`,
+              }
             : { backgroundColor: color }
         }
       />

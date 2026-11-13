@@ -1197,7 +1197,7 @@
       "defaultScenarioName": "Hail Corridor",
       "retryAnalysis": "Try again",
       "editingTitle": "Editing boundaries",
-      "editingHint": "Drag the corner points of an outline. After a change you can save it and recount the vehicles.",
+      "editingHint": "Drag the corner points of an outline. After a change you can save it and recount the vehicles; Ctrl+Z (⌘Z on a Mac) undoes the last change.",
       "editingDone": "Done",
       "boundaryWarning_one": "1 boundary needs a check",
       "boundaryWarning_other": "{{count}} boundaries need a check",
@@ -1214,7 +1214,11 @@
       "resumeTitle_other": "{{count}} locations not analysed yet",
       "resumeDetail": "The analysis was interrupted. Locations already analysed are saved.",
       "resumeAction": "Continue analysis",
-      "resumeDiscard": "Later"
+      "resumeDiscard": "Later",
+      "undoBoundaryEditShortcut": "Undo the last change (Ctrl+Z, ⌘Z on a Mac)",
+      "fallbackBoundaries_one": "1 of them is a fallback boundary (a circle around the point): review or edit it for accurate detection.",
+      "fallbackBoundaries_other": "{{count}} of them are fallback boundaries (a circle around the point): review or edit them for accurate detection.",
+      "showFallbackBoundaries": "Show fallback boundaries"
     }
   },
   "ai": {
@@ -1362,7 +1366,6 @@
     "ealYear": "EAL",
     "viewDetails": "View details",
     "analyzing": "Analyzing…",
-    "propertyBoundaryMissing": "⚠ Property boundary not detected",
     "vehicleCountEstimated": "⚠ Vehicle count estimated (no AI model)",
     "intensity": "Intensity",
     "width": "Width",
@@ -1413,7 +1416,8 @@
       "pending": "Pending ({{count}})",
       "review": "Check boundary ({{count}})"
     },
-    "locationsPartlyAnalyzed": "{{analyzed}} of {{total}} analysed · {{pending}} pending"
+    "locationsPartlyAnalyzed": "{{analyzed}} of {{total}} analysed · {{pending}} pending",
+    "fallbackBoundaryReview": "Fallback boundary, review or edit for accurate detection"
   },
   "aiSetup": {
     "missingTitle": "AI assistant not set up yet",

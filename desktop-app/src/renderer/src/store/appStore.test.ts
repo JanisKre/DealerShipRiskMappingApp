@@ -380,6 +380,112 @@ describe("saving a boundary edit", () => {
   });
 });
 
+describe("boundary edits across a restart", () => {
+  const square = (size: number): NonNullable<AnalyzedDealership["boundary"]> =>
+    ({
+      source: "osm",
+      polygon: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [7, 51],
+            [7 + size, 51],
+            [7 + size, 51 + size],
+            [7, 51],
+          ],
+        ],
+      },
+      areaSqm: size * 1e6,
+      confidence: 0.6,
+    }) as NonNullable<AnalyzedDealership["boundary"]>;
+  const located = {
+    ...firstInput,
+    boundary: square(0.001),
+  } as AnalyzedDealership;
+
+  beforeEach(() => {
+    useAppStore.getState().setDealerships([located]);
+    useAppStore.setState({ sessionId: "s1" });
+    api.saveSession.mockResolvedValue(undefined);
+    api.scoreRisk.mockResolvedValue({ overallScore: 10 });
+  });
+
+  it("keeps an unsaved edit on disk with its undo step", async () => {
+    await useAppStore
+      .getState()
+      .updateBoundaryAndRescore("one", { ...square(0.002), source: "manual" });
+
+    expect(api.saveSession).toHaveBeenCalledTimes(1);
+    const saved = api.saveSession.mock.calls[0][0];
+    expect(saved.boundaryEdits.one.unsaved).toBe(true);
+    expect(saved.boundaryEdits.one.history).toEqual([square(0.001)]);
+  });
+
+  it("restores Undo and the open edit when the session is loaded again", async () => {
+    await useAppStore
+      .getState()
+      .updateBoundaryAndRescore("one", { ...square(0.002), source: "manual" });
+    const saved = useAppStore.getState().currentSession();
+
+    // Fresh start: the store is empty until the saved session is loaded.
+    useAppStore.getState().setDealerships([]);
+    useAppStore
+      .getState()
+      .setDealerships(saved.dealerships, saved.boundaryEdits);
+
+    const state = useAppStore.getState();
+    expect(state.boundaryEditIds).toEqual(["one"]);
+    expect(state.pendingBoundaryDetectionIds).toEqual(["one"]);
+    expect(state.boundaryHistory.one).toEqual([square(0.001)]);
+
+    await useAppStore.getState().undoBoundaryEdit("one");
+    expect(useAppStore.getState().dealerships[0].boundary).toEqual(
+      square(0.001),
+    );
+  });
+
+  it("keeps Undo after saving, but no longer marks the edit as open", async () => {
+    await useAppStore
+      .getState()
+      .updateBoundaryAndRescore("one", { ...square(0.002), source: "manual" });
+    api.detectVehicles.mockResolvedValueOnce({
+      vehicleCount: 2,
+      confidence: 0.8,
+      model: "test",
+    });
+    await useAppStore.getState().saveBoundaryEdit("one");
+
+    const saved = api.saveSession.mock.calls.at(-1)![0];
+    expect(saved.boundaryEdits.one).toEqual({
+      history: [square(0.001)],
+      unsaved: false,
+    });
+  });
+
+  it("keeps at most the last 20 undo steps", async () => {
+    for (let i = 1; i <= 25; i++) {
+      await useAppStore.getState().updateBoundaryAndRescore("one", {
+        ...square(0.001 * (i + 1)),
+        source: "manual",
+      });
+    }
+    expect(useAppStore.getState().boundaryHistory.one).toHaveLength(20);
+    expect(
+      useAppStore.getState().currentSession().boundaryEdits?.one.history,
+    ).toHaveLength(20);
+  });
+
+  it("ignores stored edits of locations that are gone", () => {
+    useAppStore.getState().setDealerships([located], {
+      gone: { history: [square(0.001)], unsaved: true },
+    });
+    expect(useAppStore.getState().boundaryEditIds).toEqual([]);
+    expect(useAppStore.getState().currentSession()).not.toHaveProperty(
+      "boundaryEdits",
+    );
+  });
+});
+
 describe("merging a portfolio file", () => {
   it("adds new locations, takes over edited boundaries and rescores them", async () => {
     const local = {

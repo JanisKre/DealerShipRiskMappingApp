@@ -48,7 +48,8 @@ export const DEFAULT_RISK_PARAMETERS: RiskParameters = {
   boundaryReviewTop2Margin: 0.1,
   boundaryReviewSourceAgreement: 0.35,
   boundaryNearPointDistanceM: 35,
-  syntheticBoundaryRadiusM: 100,
+  // Covers the whole lot on 16 of 17 public fixtures; see synthetic.ts.
+  syntheticBoundaryRadiusM: 160,
   detectionConfidence: DETECTION_CONFIDENCE,
   boundaryGridResolutionM: 0.5,
   boundaryGridExtentM: 400,
@@ -71,6 +72,7 @@ export const DEFAULT_RISK_PARAMETERS: RiskParameters = {
 const RETIRED_DEFAULTS: Partial<RiskParameters> = {
   boundaryGrowLowThreshold: 0.15,
   boundaryMaxAreaSqm: 200_000,
+  syntheticBoundaryRadiusM: 100,
 };
 
 /** Normalizes a partial/legacy session value without mutating the input. */

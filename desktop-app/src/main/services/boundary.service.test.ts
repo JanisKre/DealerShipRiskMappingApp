@@ -138,7 +138,9 @@ describe("synthetic fallback boundary", () => {
     expect(boundary.source).toBe("synthetic");
     expect(ring).toHaveLength(9); // eight vertices plus the closing point
     expect(ring[0]).toEqual(ring.at(-1));
-    expect(boundary.areaSqm).toBeGreaterThan(20_000);
-    expect(SYNTHETIC_BOUNDARY_RADIUS_M).toBe(100);
+    // Regular octagon: 2·√2·r² with r = 160 m.
+    expect(boundary.areaSqm).toBeGreaterThan(70_000);
+    expect(boundary.areaSqm).toBeLessThan(75_000);
+    expect(SYNTHETIC_BOUNDARY_RADIUS_M).toBe(160);
   });
 });

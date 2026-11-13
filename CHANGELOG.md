@@ -9,6 +9,24 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Fallback boundary: the octagon around the point now has a 160 m corner
+  radius instead of 100 m. Calibrated on the 17 public boundary fixtures so it
+  holds the whole lot on 16 of 17 (100 m: 6 of 17); a test recomputes the
+  calibration (`docs/boundary-model.md`, "Fallback circle"). The larger shape
+  also covers neighbouring lots, so vehicle count and capacity of a fallback
+  location stay unreliable until the boundary is corrected. Sessions with the
+  old default move to 160 m; a deliberately set radius is kept. Existing
+  boundaries change on re-analysis only.
+- Fallback boundaries are drawn dashed, and their label reads "Fallback
+  boundary, review or edit for accurate detection" (map popup, tooltip in the
+  location list). After an analysis the review hint names how many of the
+  boundaries to check are fallbacks and filters the map to them on request.
+- Boundary edits survive closing the app: the undo steps (up to 20 per
+  location) and an edit not yet saved with "Save & update car detection" are
+  stored with the portfolio, so Undo and the edit banner come back. Ctrl+Z
+  (⌘Z on a Mac) undoes the last boundary change. A saved edit is no longer
+  stored as still open.
+
 - Lot boundary, cascade v3 (`docs/boundary-model.md`, "Cascade v3"):
   complete cadastre answers (WFS paging, smaller fallback query), a street
   test that keeps L-shaped and deep yards, no more empty meadows joined at

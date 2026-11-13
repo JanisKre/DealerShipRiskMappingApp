@@ -680,6 +680,15 @@ export type AnalyzedDealership = z.infer<typeof AnalyzedDealershipSchema>;
 
 // --- Session / Portfolio ---------------------------------------------------
 
+/** Undo steps kept per location; older steps are dropped. */
+export const BOUNDARY_UNDO_LIMIT = 20;
+
+export const BoundaryEditStateSchema = z.object({
+  history: z.array(BoundaryResultSchema).max(BOUNDARY_UNDO_LIMIT),
+  unsaved: z.boolean(),
+});
+export type BoundaryEditState = z.infer<typeof BoundaryEditStateSchema>;
+
 /**
  * User-tunable model parameters. Keeping the schema in the shared domain
  * layer makes the values safe at the IPC boundary and backwards compatible
@@ -805,6 +814,12 @@ export const SessionSchema = z.object({
    * last saved (app closed or crashed mid-import); offered for resuming.
    */
   pendingAnalysis: z.array(DealershipInputSchema).max(50_000).optional(),
+  /**
+   * Manual boundary edits per location id: the undo steps (oldest first)
+   * and whether the edit still waits for "Save & update car detection".
+   * Kept with the session so both survive closing the app.
+   */
+  boundaryEdits: z.record(z.string(), BoundaryEditStateSchema).optional(),
 });
 export type Session = z.infer<typeof SessionSchema>;
 

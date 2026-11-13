@@ -26,6 +26,14 @@ function sourceColor(source: BoundarySource): string {
   return SOURCE_COLOR[source] ?? "#64748b";
 }
 
+/**
+ * The fallback circle is drawn dashed: it is a guess around the point, not a
+ * detected outline, and must not read like one next to the aerial orange.
+ */
+function sourceDashArray(source: BoundarySource): string | undefined {
+  return source === "synthetic" ? "6 4" : undefined;
+}
+
 /** [lon,lat][] -> [lat,lon][] for Leaflet. */
 function toLatLng(ring: [number, number][]): [number, number][] {
   return ring.map(([lon, lat]) => [lat, lon]);
@@ -78,6 +86,7 @@ export function BoundaryLayer({
             positions={toLatLngGeometry(d.boundary.polygon) as never}
             pathOptions={{
               color: sourceColor(d.boundary.source),
+              dashArray: sourceDashArray(d.boundary.source),
               weight: 2,
               fillOpacity: 0.15,
             }}
@@ -202,4 +211,4 @@ function rebuildBoundary(
   };
 }
 
-export { sourceColor };
+export { sourceColor, sourceDashArray };

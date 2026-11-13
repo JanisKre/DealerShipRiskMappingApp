@@ -258,6 +258,55 @@ result**. A fair check needs new sites.
 - The references are OSM dealer areas, a proxy for the operational lot (see
   "What the public set deliberately does not measure").
 
+### Fallback circle (stage 5)
+
+When no stage accepts, the boundary is a regular octagon around the point:
+eight corners, so at most eight points to drag. Its sides lie at
+`radius · cos(22.5°)` from the centre (92 % of the corner radius).
+
+**Target (QA, November 2026).** The octagon should hold the whole lot on at
+least 90 % of a sample of dealerships, so a reviewer only has to shrink it.
+
+**Method.** For each of the 17 public fixtures,
+`syntheticRadiusToCover` computes the smallest corner radius whose octagon
+around the fixture point holds every vertex of the reference polygon. The
+default is the smallest 10 m step at which at least 90 % of the sites are
+fully held. `synthetic-calibration.test.ts` recomputes this offline on
+every test run and pins the default, and checks the formula against the
+octagon that is actually drawn.
+
+| Corner radius | Sites fully held |
+| --- | --- |
+| 100 m (default until November 2026) | 6 of 17 (35 %) |
+| 120 m | 10 of 17 (59 %) |
+| 150 m | 14 of 17 (82 %) |
+| **160 m (default)** | **16 of 17 (94 %)** |
+| 240 m | 17 of 17 |
+
+Radius needed per site (m, sorted): 57, 72, 76, 79, 81, 95, 103, 110, 110,
+119, 128, 141, 148, 150, 155, 159, 230. The one site above 160 m is a
+57,755 m² lot in Dresden.
+
+**Limitations.**
+
+- The fixture point is the centre of the reference polygon. A geocoded
+  address usually sits nearer the street or the showroom, so in practice
+  the octagon holds the whole lot less often than 94 %. No sample with real
+  geocoded points and reviewed lots is in the repository yet; the manual
+  corrections export (`scripts/export-boundary-groundtruth.mjs`) can provide
+  one.
+- 17 sites is a small sample; one site more or less moves the share by six
+  points.
+- A larger octagon also covers neighbours. A 160 m octagon is about
+  72,400 m², between seven and eight times the median fixture lot (9,570 m²), so
+  vehicles of neighbouring lots are counted and the area-based capacity is
+  far too high until the boundary is corrected. This is why every fallback
+  boundary is flagged for review, drawn dashed and listed under the
+  "Fallback boundary" filter.
+- Sessions that still carry the old default of 100 m move to 160 m when
+  loaded; a radius someone set deliberately is kept. Existing boundaries
+  change only when a location is analysed again.
+
 ## Cascade v3 (November 2026)
 
 `CASCADE_VERSION` 3. A 15-site audit on 13 November 2026 traced the weak

@@ -76,7 +76,7 @@ function popupHtml(
   const boundaryWarningHtml =
     d.boundary?.source === "synthetic"
       ? `<div class="popup-row" style="color:#b45309">
-           <span>${t("ui.propertyBoundaryMissing")}</span>
+           <span>⚠ ${t("ui.fallbackBoundaryReview")}</span>
          </div>`
       : d.boundary?.reviewRequired
         ? `<div class="popup-row" style="color:#b45309">

@@ -24,18 +24,22 @@ describe("risk parameter normalization", () => {
     const result = normalizeRiskParameters({
       boundaryGrowLowThreshold: 0.15,
       boundaryMaxAreaSqm: 200_000,
+      syntheticBoundaryRadiusM: 100,
     });
     expect(result.boundaryGrowLowThreshold).toBe(0.4);
     expect(result.boundaryMaxAreaSqm).toBe(60_000);
+    expect(result.syntheticBoundaryRadiusM).toBe(160);
   });
 
   it("keeps boundary values the user chose deliberately", () => {
     const result = normalizeRiskParameters({
       boundaryGrowLowThreshold: 0.25,
       boundaryMaxAreaSqm: 90_000,
+      syntheticBoundaryRadiusM: 120,
     });
     expect(result.boundaryGrowLowThreshold).toBe(0.25);
     expect(result.boundaryMaxAreaSqm).toBe(90_000);
+    expect(result.syntheticBoundaryRadiusM).toBe(120);
   });
 
   it("rejects invalid values instead of silently accepting them", () => {

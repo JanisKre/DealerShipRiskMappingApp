@@ -847,7 +847,7 @@
       "defaultScenarioName": "Couloir de grêle",
       "retryAnalysis": "Réessayer",
       "editingTitle": "Modification des limites",
-      "editingHint": "Faites glisser les sommets d’un contour. Après une modification, vous pouvez l’enregistrer et recompter les véhicules.",
+      "editingHint": "Faites glisser les sommets d’un contour. Après une modification, vous pouvez l’enregistrer et recompter les véhicules ; Ctrl+Z (⌘Z sur Mac) annule la dernière modification.",
       "editingDone": "Terminé",
       "boundaryWarning_one": "1 limite à vérifier",
       "boundaryWarning_other": "{{count}} limites à vérifier",
@@ -864,7 +864,11 @@
       "resumeTitle_other": "{{count}} sites pas encore analysés",
       "resumeDetail": "L'analyse a été interrompue. Les sites déjà analysés sont enregistrés.",
       "resumeAction": "Poursuivre l'analyse",
-      "resumeDiscard": "Plus tard"
+      "resumeDiscard": "Plus tard",
+      "undoBoundaryEditShortcut": "Annuler la dernière modification (Ctrl+Z, ⌘Z sur Mac)",
+      "fallbackBoundaries_one": "1 d’entre elles est une limite de secours (un cercle autour du point) : vérifiez-la ou modifiez-la pour une détection précise.",
+      "fallbackBoundaries_other": "{{count}} d’entre elles sont des limites de secours (un cercle autour du point) : vérifiez-les ou modifiez-les pour une détection précise.",
+      "showFallbackBoundaries": "Afficher les limites de secours"
     }
   },
   "ai": {
@@ -1012,7 +1016,6 @@
     "ealYear": "EAL",
     "viewDetails": "Voir les détails",
     "analyzing": "Analyse en cours…",
-    "propertyBoundaryMissing": "⚠ Limite de propriété non détectée",
     "vehicleCountEstimated": "⚠ Nombre de véhicules estimé (sans modèle IA)",
     "intensity": "Intensité",
     "width": "Largeur",
@@ -1063,7 +1066,8 @@
       "pending": "En attente ({{count}})",
       "review": "Limite à vérifier ({{count}})"
     },
-    "locationsPartlyAnalyzed": "{{analyzed}} sur {{total}} analysés · {{pending}} en attente"
+    "locationsPartlyAnalyzed": "{{analyzed}} sur {{total}} analysés · {{pending}} en attente",
+    "fallbackBoundaryReview": "Limite de secours, à vérifier ou modifier pour une détection précise"
   },
   "aiSetup": {
     "missingTitle": "Assistant IA pas encore configuré",

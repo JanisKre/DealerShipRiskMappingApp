@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { DEALERSHIP_HISTORY_MAX } from "@shared/constants";
+import { BOUNDARY_UNDO_LIMIT } from "@shared/types";
 import type {
   AnalyzedDealership,
+  BoundaryEditState,
   BoundaryResult,
   DealershipInput,
   HailstormScenario,
@@ -121,7 +123,14 @@ interface AppState {
    */
   deleteSavedSession: (id: string) => Promise<void>;
   setImportReport: (report: ImportReport | null) => void;
-  setDealerships: (d: AnalyzedDealership[]) => void;
+  /**
+   * Replaces the portfolio. `boundaryEdits` restores the undo steps and
+   * unsaved boundary edits stored with a session.
+   */
+  setDealerships: (
+    d: AnalyzedDealership[],
+    boundaryEdits?: Record<string, BoundaryEditState>,
+  ) => void;
   setParameters: (parameters?: Partial<RiskParameters> | null) => void;
   updateParameters: (patch: Partial<RiskParameters>) => Promise<void>;
   resetParameters: () => Promise<void>;
@@ -404,7 +413,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       filters: EMPTY_FILTERS,
       pendingAnalysis: session.pendingAnalysis ?? [],
     });
-    get().setDealerships(session.dealerships);
+    get().setDealerships(session.dealerships, session.boundaryEdits);
     get().setParameters(session.parameters);
   },
 
@@ -470,18 +479,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().updateParameters(DEFAULT_RISK_PARAMETERS);
   },
   setImportReport: (lastImportReport) => set({ lastImportReport }),
-  setDealerships: (dealerships) =>
+  setDealerships: (dealerships, boundaryEdits) => {
+    const ids = new Set(dealerships.map((d) => d.id));
+    const edits = Object.entries(boundaryEdits ?? {}).filter(([id]) =>
+      ids.has(id),
+    );
+    const unsavedIds = edits
+      .filter(([, edit]) => edit.unsaved)
+      .map(([id]) => id);
     set({
       dealerships,
-      boundaryEditIds: [],
-      boundaryHistory: {},
-      pendingBoundaryDetectionIds: [],
+      boundaryEditIds: unsavedIds,
+      boundaryHistory: Object.fromEntries(
+        edits
+          .filter(([, edit]) => edit.history.length > 0)
+          .map(([id, edit]) => [id, edit.history]),
+      ),
+      // An edit saved before the car count was updated still needs it.
+      pendingBoundaryDetectionIds: unsavedIds,
       detectionUpdateIds: [],
       detectionUpdateErrors: {},
       analysisErrors: {},
       failedInputs: {},
       analysisCancelRequested: false,
-    }),
+    });
+  },
   upsertDealership: (d) =>
     set((s) => {
       const idx = s.dealerships.findIndex((x) => x.id === d.id);
@@ -531,7 +553,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         : [...s.boundaryEditIds, id],
       boundaryHistory: {
         ...s.boundaryHistory,
-        [id]: [...(s.boundaryHistory[id] ?? []), before.boundary!],
+        [id]: [...(s.boundaryHistory[id] ?? []), before.boundary!].slice(
+          -BOUNDARY_UNDO_LIMIT,
+        ),
       },
     }));
     const d = get().dealerships.find((x) => x.id === id);
@@ -561,6 +585,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err) {
       console.error(`Rescoring after boundary edit failed (${id}):`, err);
     }
+    await saveBoundaryDraft(get);
   },
   updateDetectionForBoundary: async (id) => {
     const d = get().dealerships.find((x) => x.id === id);
@@ -692,10 +717,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         }),
       );
     }
-    await get().saveSession();
+    // Close the edit before saving, so it is not stored as still open.
     set((s) => ({
       boundaryEditIds: s.boundaryEditIds.filter((editId) => editId !== id),
     }));
+    await get().saveSession();
   },
   undoBoundaryEdit: async (id) => {
     const current = get().dealerships.find((d) => d.id === id);
@@ -739,6 +765,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, risk });
+    await saveBoundaryDraft(get);
   },
   revertBoundaryToDefault: async (id) => {
     const current = get().dealerships.find((d) => d.id === id);
@@ -776,6 +803,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (latest) get().upsertDealership({ ...latest, risk });
+    await saveBoundaryDraft(get);
   },
   updateDealershipMeta: (id, patch) =>
     set((s) => {
@@ -1205,6 +1233,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       ...(s.pendingAnalysis.length > 0
         ? { pendingAnalysis: s.pendingAnalysis }
         : {}),
+      ...boundaryEditsOf(s),
     };
   },
 
@@ -1221,7 +1250,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     resetToBlankPortfolio(set, get);
     set({ sessionName: session.name });
-    get().setDealerships(session.dealerships);
+    get().setDealerships(session.dealerships, session.boundaryEdits);
     get().setParameters(session.parameters);
     await get().saveSession();
   },
@@ -1285,6 +1314,34 @@ function resetToBlankPortfolio(
   });
   get().setDealerships([]);
   get().setParameters(DEFAULT_RISK_PARAMETERS);
+}
+
+/**
+ * Undo steps and unsaved boundary edits as stored with the session, so
+ * closing the app loses neither.
+ */
+function boundaryEditsOf(
+  s: Pick<AppState, "dealerships" | "boundaryEditIds" | "boundaryHistory">,
+): { boundaryEdits?: Record<string, BoundaryEditState> } {
+  const edits: Record<string, BoundaryEditState> = {};
+  for (const d of s.dealerships) {
+    const history = (s.boundaryHistory[d.id] ?? []).slice(-BOUNDARY_UNDO_LIMIT);
+    const unsaved = s.boundaryEditIds.includes(d.id);
+    if (history.length > 0 || unsaved) edits[d.id] = { history, unsaved };
+  }
+  return Object.keys(edits).length > 0 ? { boundaryEdits: edits } : {};
+}
+
+/**
+ * Keeps an edit that was not saved yet (and its undo steps) on disk. Saving
+ * still re-runs the car detection; this only protects the draft.
+ */
+async function saveBoundaryDraft(get: () => AppState): Promise<void> {
+  await get()
+    .saveSession()
+    .catch((err: unknown) => {
+      console.error("Keeping the boundary edit failed:", err);
+    });
 }
 
 function withoutKey<T>(
