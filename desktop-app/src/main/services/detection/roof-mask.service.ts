@@ -17,8 +17,16 @@ const NO_BUILDINGS: OfficialBuildingLookup = {
   truncated: false,
 };
 
+/**
+ * How long the analysis waits for official footprints once detection is done.
+ * The request starts with the analysis, so it is usually in; a fixed past
+ * deadline used to drop it whenever the state service was a little slower
+ * than imagery and detection, and the result then depended on timing.
+ */
+export const OFFICIAL_BUILDINGS_WAIT_MS = 5_000;
+
 /** The official footprints, or none if they have not arrived by `deadline`. */
-async function officialBuildingsBy(
+export async function officialBuildingsBy(
   lat: number,
   lon: number,
   deadline: number,
@@ -44,7 +52,8 @@ async function officialBuildingsBy(
  * Applies the roof mask with the site's OSM buildings and, where the state
  * publishes them, the official ALKIS footprints. OSM joins the one evidence
  * request the boundary step also uses; both sources are asked in parallel
- * and each is skipped if it has not answered by `osmDeadline` (epoch ms).
+ * and each is skipped if it has not answered by its deadline (epoch ms):
+ * `osmDeadline` for OSM, `buildingsDeadline` for the official footprints.
  * Without any footprints the detection passes through unchanged.
  */
 export async function maskRoofDetections(
@@ -52,10 +61,11 @@ export async function maskRoofDetections(
   lat: number,
   lon: number,
   osmDeadline: number = Infinity,
+  buildingsDeadline: number = osmDeadline,
 ): Promise<DetectionResult> {
   const [{ evidence }, official] = await Promise.all([
     osmEvidenceBy(lat, lon, osmDeadline),
-    officialBuildingsBy(lat, lon, osmDeadline),
+    officialBuildingsBy(lat, lon, buildingsDeadline),
   ]);
   const osm = roofRings(evidence);
   const cadastre = officialRoofRings(official.buildings, evidence);

@@ -306,6 +306,22 @@ export const BoundaryGrowthStopSchema = z.enum([
 export type BoundaryGrowthStop = z.infer<typeof BoundaryGrowthStopSchema>;
 
 /**
+ * Conditions the boundary engine (or the analysis) found that send a result
+ * to review on their own, independent of its confidence.
+ * - cadastreIncomplete: the cadastre answer was capped and lacks the parcel
+ *   at the point.
+ * - noLotAtPoint: vehicles were detected, but none form a lot at the point —
+ *   the point may not be where the dealership is.
+ * - winterImagery: the image was taken in winter; long shadows hide vehicles.
+ */
+export const BoundaryReviewFlagSchema = z.enum([
+  "cadastreIncomplete",
+  "noLotAtPoint",
+  "winterImagery",
+]);
+export type BoundaryReviewFlag = z.infer<typeof BoundaryReviewFlagSchema>;
+
+/**
  * Explainable quality signals used for ranking and underwriting review.
  *
  * Everything below `reasons` is produced only by the fusion engine and is
@@ -334,6 +350,10 @@ export const BoundaryQualitySchema = z.object({
   vehiclesInside: z.number().int().nonnegative().optional(),
   /** Vehicles just outside the ring — a strong sign the lot was clipped. */
   vehiclesOutsideNearby: z.number().int().nonnegative().optional(),
+  /** Vehicles the cascade counted as the lot at the point (stage 1 or 2). */
+  lotVehicles: z.number().int().nonnegative().optional(),
+  /** Review conditions found by the engine or the analysis. */
+  reviewFlags: z.array(BoundaryReviewFlagSchema).max(8).optional(),
   stoppedBy: BoundaryGrowthStopSchema.optional(),
   /** Engine selected by settings at the time of this result. */
   requestedEngine: BoundaryEngineSchema.optional(),

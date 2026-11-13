@@ -34,6 +34,7 @@ vi.mock("./detection.service", async (importOriginal) => {
 });
 vi.mock("./detection/roof-mask.service", () => ({
   maskRoofDetections: mocks.maskRoofDetections,
+  OFFICIAL_BUILDINGS_WAIT_MS: 5000,
 }));
 vi.mock("./house-coordinates.service", () => ({
   officialHouseCoordinate: mocks.officialHouseCoordinate,
@@ -48,6 +49,8 @@ vi.mock("./geocoding.service", async (importOriginal) => {
 });
 vi.mock("./tiles.service", () => ({
   aerialImageForContext: mocks.aerialImageForContext,
+  CONTEXT_CAPTURE_RADIUS_M: 125,
+  WIDE_CONTEXT_CAPTURE_RADIUS_M: 190,
 }));
 vi.mock("./boundary/osm-evidence.service", () => ({
   osmEvidenceBy: mocks.osmEvidenceBy,
@@ -58,7 +61,11 @@ vi.mock("./osmDetails.service", () => ({
 vi.mock("./natcat.service", () => ({ resolveNatCat: async () => undefined }));
 vi.mock("./risk.service", () => ({ scoreRisk: async () => ({}) }));
 
-import { analyzeDealership, OSM_WAIT_MS } from "./analyze.service";
+import {
+  analyzeDealership,
+  lotReachesImageEdge,
+  OSM_WAIT_MS,
+} from "./analyze.service";
 
 const LAT = 51.05;
 const LON = 13.7;
@@ -259,5 +266,117 @@ describe("analyzeDealership", () => {
   it("does not look up a website the record already has", async () => {
     await analyzeDealership({ ...record, website: "https://known.de/" });
     expect(mocks.websiteFromEvidence).not.toHaveBeenCalled();
+  });
+});
+
+describe("cascade v3 analysis steps", () => {
+  const cascadeBoundary = (stage: number): BoundaryResult =>
+    ({
+      ...boundary,
+      source: "alkis",
+      quality: {
+        reasons: [],
+        usedEngine: "cascade",
+        cascadeStage: stage,
+        pointRelation: "inside",
+      },
+    }) as unknown as BoundaryResult;
+
+  it("gives roof mask and boundary the same bounded wait for official footprints", async () => {
+    const before = Date.now();
+    await analyzeDealership(record);
+    const buildingsDeadline = mocks.maskRoofDetections.mock.calls[0][4];
+    expect(buildingsDeadline).toBeGreaterThan(before);
+    expect(mocks.detectBoundary.mock.calls[0][6].buildingsDeadline).toBe(
+      buildingsDeadline,
+    );
+  });
+
+  it("sends a boundary on winter imagery to review and says why", async () => {
+    mocks.detectBoundary.mockResolvedValue(cascadeBoundary(1));
+    mocks.aerialImageForContext.mockResolvedValue({
+      imagery: { chosen: { capturedAt: "2025-02-01" } },
+    });
+    const result = await analyzeDealership(record);
+    expect(result.boundary?.quality?.reviewFlags).toEqual(["winterImagery"]);
+    expect(result.boundary?.reviewRequired).toBe(true);
+  });
+
+  it("does not flag spring imagery", async () => {
+    mocks.detectBoundary.mockResolvedValue(cascadeBoundary(1));
+    mocks.aerialImageForContext.mockResolvedValue({
+      imagery: { chosen: { capturedAt: "2024-04-12" } },
+    });
+    const result = await analyzeDealership(record);
+    expect(result.boundary?.quality?.reviewFlags).toBeUndefined();
+  });
+
+  it("captures a wider image when the lot reaches the edge of the first", async () => {
+    // Context bbox ±0.0001° around the point; the boundary covers all of it,
+    // and three vehicles stand right at its eastern edge.
+    const bbox: [number, number, number, number] = [
+      LON - 0.0001,
+      LAT - 0.0001,
+      LON + 0.0001,
+      LAT + 0.0001,
+    ];
+    mocks.aerialImageForContext.mockResolvedValue({ bbox, imagery: undefined });
+    mocks.detectBoundary.mockResolvedValue(cascadeBoundary(1));
+    mocks.detectVehiclesInContext.mockResolvedValue({
+      vehicleCount: 3,
+      boxes: [0, 1, 2].map((i) => ({
+        x: 0,
+        y: 0,
+        w: 0.01,
+        h: 0.01,
+        score: 0.9,
+        lon: LON + 0.00009,
+        lat: LAT + i * 0.00002,
+      })),
+    });
+    await analyzeDealership(record);
+    const radii = mocks.aerialImageForContext.mock.calls.map((call) => call[3]);
+    expect(radii).toEqual([125, 190]);
+  });
+});
+
+describe("lotReachesImageEdge", () => {
+  const image = {
+    bbox: [LON - 0.002, LAT - 0.002, LON + 0.002, LAT + 0.002] as [
+      number,
+      number,
+      number,
+      number,
+    ],
+  };
+  const stage1 = {
+    ...boundary,
+    polygon: square(0.0019),
+    quality: { reasons: [], cascadeStage: 1 },
+  } as unknown as BoundaryResult;
+  const edgeCars = (n: number): DetectionResult =>
+    ({
+      boxes: Array.from({ length: n }, (_, i) => ({
+        x: 0,
+        y: 0,
+        w: 0,
+        h: 0,
+        score: 1,
+        lon: LON + 0.00185,
+        lat: LAT + i * 0.0001,
+      })),
+    }) as unknown as DetectionResult;
+
+  it("needs three lot vehicles at the edge", () => {
+    expect(lotReachesImageEdge(stage1, edgeCars(3), image)).toBe(true);
+    expect(lotReachesImageEdge(stage1, edgeCars(2), image)).toBe(false);
+  });
+
+  it("ignores circles and bare parcels", () => {
+    const circle = {
+      ...stage1,
+      quality: { reasons: [], cascadeStage: 5 },
+    } as unknown as BoundaryResult;
+    expect(lotReachesImageEdge(circle, edgeCars(5), image)).toBe(false);
   });
 });

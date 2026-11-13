@@ -6,9 +6,11 @@ import type {
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import { boundaryNeedsReview } from "@shared/boundary-review";
 import { fetchParcelsNear, PARCEL_SEARCH_RADIUS_M } from "./alkis.service";
-import { polygonAreaSqm } from "./geo-math";
 import type { LonLat } from "./boundary-geometry";
 import { osmEvidenceBy } from "./boundary/osm-evidence.service";
+import { officialBuildingsBy } from "./detection/roof-mask.service";
+import { roofRings } from "./detection/roof-mask";
+import { syntheticFallbackBoundary } from "./boundary/synthetic";
 import {
   finalizeCascadeResult,
   runCascade,
@@ -24,6 +26,12 @@ export interface BoundaryRunOptions {
    * the cache in the background. Without a deadline it waits (benchmark).
    */
   osmDeadline?: number;
+  /**
+   * Epoch ms after which the boundary stops waiting for official building
+   * footprints. They are requested when the analysis starts and are usually
+   * cached by now; without a deadline it waits (benchmark, re-detection).
+   */
+  buildingsDeadline?: number;
 }
 
 /**
@@ -45,10 +53,19 @@ export async function detectBoundary(
   options: BoundaryRunOptions = {},
 ): Promise<BoundaryResult> {
   const anchor: LonLat = [lon, lat];
-  const [osmLookup, parcelLookup] = await Promise.all([
+  const [osmLookup, parcelLookup, official] = await Promise.all([
     osmEvidenceBy(lat, lon, options.osmDeadline),
     fetchParcelsNear(lat, lon, PARCEL_SEARCH_RADIUS_M).catch(() => null),
+    officialBuildingsBy(lat, lon, options.buildingsDeadline ?? Infinity),
   ]);
+  const parcels = parcelLookup?.parcels ?? [];
+  // Footprints from both sources; a building mapped twice only weighs once
+  // where it matters (containment), and twice in the unbuilt area, which is
+  // floored at a share of the parcel anyway.
+  const buildings = [
+    ...official.buildings.map((building) => building.ring),
+    ...roofRings(osmLookup.evidence),
+  ];
 
   const cascade = runCascade({
     anchor,
@@ -56,7 +73,9 @@ export async function detectBoundary(
     address,
     vehicles,
     osm: osmLookup.evidence,
-    parcels: parcelLookup?.parcels ?? [],
+    parcels,
+    parcelsTruncated: parcelLookup?.truncated ?? false,
+    buildings,
     parameters,
   });
   const trace = [...cascade.trace];
@@ -78,6 +97,15 @@ export async function detectBoundary(
   if (!vehicles) trace.push("no vehicle detection — re-analyse with a model");
   if (parcelLookup?.status === "transientFailure" || parcelLookup === null) {
     trace.push("cadastre service unreachable — re-analyse when online");
+  } else if (
+    parcelLookup.truncated &&
+    (parcelLookup.completeRadiusM ?? 0) < PARCEL_SEARCH_RADIUS_M
+  ) {
+    trace.push(
+      parcelLookup.completeRadiusM
+        ? `cadastre complete within ${parcelLookup.completeRadiusM} m of the point only`
+        : "cadastre answer capped near the point",
+    );
   }
 
   const result = finalizeCascadeResult(
@@ -88,6 +116,7 @@ export async function detectBoundary(
     trace,
     parameters,
     vehicles,
+    { parcels, lotVehicles: cascade.lotVehicles, flags: cascade.flags },
   );
   const reviewRequired = boundaryNeedsReview(result, parameters);
   const synthetic = result.source === "synthetic";
@@ -135,28 +164,7 @@ function toBoundaryCandidate(result: BoundaryResult): BoundaryCandidate {
   };
 }
 
-/** Calibrated fallback radius for typical dealership lots (90th-percentile coverage target). */
-export const SYNTHETIC_BOUNDARY_RADIUS_M = 100;
-
-export function syntheticFallbackBoundary(
-  lat: number,
-  lon: number,
-  radiusM = SYNTHETIC_BOUNDARY_RADIUS_M,
-): BoundaryResult {
-  const steps = 8;
-  const ring: [number, number][] = [];
-  const dLat = radiusM / 111_320;
-  const dLon = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
-  for (let i = 0; i <= steps; i++) {
-    const a = (i / steps) * 2 * Math.PI;
-    ring.push([lon + dLon * Math.cos(a), lat + dLat * Math.sin(a)]);
-  }
-  return {
-    source: "synthetic",
-    role: "synthetic",
-    provider: "synthetic",
-    polygon: { type: "Polygon", coordinates: [ring] },
-    areaSqm: polygonAreaSqm(ring),
-    confidence: 0.1,
-  };
-}
+export {
+  SYNTHETIC_BOUNDARY_RADIUS_M,
+  syntheticFallbackBoundary,
+} from "./boundary/synthetic";

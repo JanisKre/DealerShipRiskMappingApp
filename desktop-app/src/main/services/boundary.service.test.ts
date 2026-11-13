@@ -15,6 +15,13 @@ vi.mock("./alkis.service", () => ({
 vi.mock("./boundary/osm-evidence.service", () => ({
   osmEvidenceBy: mocks.osmEvidenceBy,
 }));
+vi.mock("./detection/roof-mask.service", () => ({
+  officialBuildingsBy: async () => ({
+    buildings: [],
+    state: null,
+    truncated: false,
+  }),
+}));
 
 import {
   detectBoundary,

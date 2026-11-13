@@ -181,7 +181,15 @@ async function captureWithSelectedSource(
 // 125 m since cascade v2: the vehicles in this image decide how far the lot
 // reaches, so it must hold a large dealer centre with its yards. 150 m would
 // cost about 2.3× the tiles and inference time of the old 100 m.
-const CONTEXT_CAPTURE_RADIUS_M = 125;
+export const CONTEXT_CAPTURE_RADIUS_M = 125;
+
+/**
+ * Wider capture for a lot that reaches the edge of the normal one (cascade
+ * v3): the lot may continue up to 160 m from the point (`extendedReachM`),
+ * plus the outline margin. Taken only when needed, since it costs about 2.3×
+ * the tiles and inference time.
+ */
+export const WIDE_CONTEXT_CAPTURE_RADIUS_M = 190;
 
 /** Background prefetches allowed at once; analyses themselves come first. */
 const MAX_PREFETCHES = 2;
@@ -213,8 +221,13 @@ export async function aerialImageForContext(
   lat: number,
   lon: number,
   time?: string,
+  radiusM: number = CONTEXT_CAPTURE_RADIUS_M,
 ): Promise<AerialCapture> {
-  return aerialImageForBbox(contextBbox(lat, lon), DETECTION_ZOOM, time);
+  return aerialImageForBbox(
+    contextBbox(lat, lon, radiusM),
+    DETECTION_ZOOM,
+    time,
+  );
 }
 
 /**
@@ -237,8 +250,8 @@ export async function aerialImageForContextFrom(
 function contextBbox(
   lat: number,
   lon: number,
+  radiusM: number = CONTEXT_CAPTURE_RADIUS_M,
 ): [number, number, number, number] {
-  const radiusM = CONTEXT_CAPTURE_RADIUS_M;
   const dLat = radiusM / 111_320;
   const dLon = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
   return [lon - dLon, lat - dLat, lon + dLon, lat + dLat];

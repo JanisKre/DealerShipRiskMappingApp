@@ -154,7 +154,8 @@ means the number cannot be used to triage review.
 ## Source cascade (current engine)
 
 The app runs the **source cascade** (`src/main/services/boundary/cascade.ts`).
-Version 2 (`CASCADE_VERSION` 2) lets the **detected vehicles decide how far the
+This section describes version 2; version 3 keeps its structure and changes
+the rules listed under "Cascade v3" below. Version 2 (`CASCADE_VERSION` 2) lets the **detected vehicles decide how far the
 site reaches and the cadastre decide its shape**.
 
 ### Why vehicles
@@ -257,6 +258,91 @@ result**. A fair check needs new sites.
 - The references are OSM dealer areas, a proxy for the operational lot (see
   "What the public set deliberately does not measure").
 
+## Cascade v3 (November 2026)
+
+`CASCADE_VERSION` 3. A 15-site audit on 13 November 2026 traced the weak
+results of v2 to a handful of rules; v3 changes those rules and nothing else.
+The stages, their order and their acceptance rules stay as above, except
+where listed here.
+
+### What changed and why
+
+| # | Change | Where | Failure it addresses |
+| --- | --- | --- | --- |
+| P1 | **Complete cadastre.** Parcel queries page with `startIndex` (up to 4 × 250 features). A page that adds nothing new means the service ignores paging (Niedersachsen does); then a second query with 100 m radius is merged in. `completeRadiusM` records how far the answer is complete; a capped answer without the parcel at the point flags `cadastreIncomplete`. | `alkis.service.ts` `fetchParcelRings`, `fetchParcelsNear` | 27 of 57 cached NRW answers were capped at 250 parcels; in 7 the parcel at the point was missing and the cascade fell back to the outline or the circle. |
+| P2 | **Street test by length.** A parcel is street-like only when 2·area/perimeter < 20 m *and* its minimum bounding rectangle is longer than 150 m (or 2·area/perimeter < 10 m). | `cascade.ts` `isStreetLike` | The old elongation test rejected L-shaped and deep yards (39 × 97 m with 64 dealer cars). |
+| P3 | **Empty-parcel test.** An adjacent parcel joins only with at least 3 lot vehicles per 1,000 m² of its *unbuilt* area (parcel minus building footprints, at least 20 % of the parcel). | `vehicleParcelStage`, `unbuiltAreaSqm` | A 12,000 m² meadow joined because ten cars stood at its edge (confidence 0.75). A plain density rule was rejected: it drops showroom parcels, which are mostly roof. |
+| P3b | **Small lots.** The join threshold is 10 vehicles or 30 % of the lot, whichever is smaller (at least 3). | `vehicleParcelStage` | A small dealer's yard never holds ten cars; the result was the building parcel alone. |
+| P4 | **Named review reasons and calibrated outside rule.** `boundaryReviewReasons` returns why a result needs review (`synthetic`, `lowConfidence`, `pointOutside`, `vehiclesOutside`, `cadastreIncomplete`, `noLotAtPoint`, `winterImagery`, `legacyEngine`); the detail dialog shows them. With a known lot size, vehicles outside count only as ≥ 10 *and* ≥ 15 % of the lot; vehicles on street-like parcels never count. The outline's confidence drops from 0.55 to 0.45. Winter imagery (November–February) sends a result to review. | `shared/boundary-review.ts`, `finalizeCascadeResult`, `analyze.service.ts` | 44 of 61 portfolio results were flagged by the same two signals; the outline scored a mean IoU of 0.23 at confidence 0.55. |
+| P5 | **Anchor reach.** A cluster belongs to the lot within 40 m of the point (was 25 m), or within 25 m of the edge of the building the point lies in. Detected vehicles without any lot at the point flag `noLotAtPoint`. | `vehicleLot`, `runCascade` | A point on a 50–80 m showroom roof reached the cars on one side only, or none. |
+| P6 | **Parking decks and footprint timing.** A roof with ≥ 15 detections at ≤ 60 m² each is a parking deck and is not masked. The analysis waits up to 5 s for official footprints after detection (`OFFICIAL_BUILDINGS_WAIT_MS`) instead of skipping them when they arrive late. | `roof-mask.ts`, `roof-mask.service.ts`, `analyze.service.ts` | A dealer's rotunda deck (≈ 100 cars) was masked whole; whether footprints were used depended on timing. |
+| P7 | **Bounded lot extension.** After the parcel growth, clusters up to 160 m from the point join the lot if they continue it or stand on its parcels, and growth runs once more. The result is taken when it adds at most 25 % area; a larger jump is offered as an alternative. A lot that touches the image edge (≥ 3 vehicles within 15 m of it) triggers one wider capture (190 m instead of 125 m). | `extendLot`, `vehicleParcelStage`, `lotReachesImageEdge` | A 122-car car park 113 m from the point was cut off. An unbounded extension was rejected: it chained into neighbouring businesses (7,070 → 51,678 m²). |
+| P8 | **Outline with buildings.** The vehicle outline adds every building of which half the footprint or half the outline lies within 20 m of the lot vehicles, fills holes, removes street-like parcels and drops parts without lot vehicles. | `vehicleHullStage`, `completeOutline` | The outline ringed the showroom without including it (IoU 0.03) and followed kerbside cars into the road. |
+
+### Data sources
+
+Unchanged: ALKIS parcels (14 states, see "Cadastre coverage"), official
+ALKIS building footprints where published (`docs/official-buildings.md`),
+OSM buildings and dealer areas only when cached, vehicles detected on the
+context image (official DOP where available, otherwise Esri).
+
+**Bayern (checked 13 November 2026).** Parcels are not open data: the fee
+schedule of the surveying administration charges per parcel and the ALKIS WFS
+requires a login. Building outlines (Hausumringe) are open, but only as
+shapefile downloads per administrative region; the probed OpenData WFS paths
+answer 404. No on-demand source exists, so Bayern stays on the vehicle
+outline, without buildings unless OSM is cached. Overture building
+footprints could fill the building gap but need range reads of large
+GeoParquet files per site; not adopted.
+
+### Measured
+
+Replay of the frozen inputs of the audit's 15 sites
+(`npm run benchmark:boundary:replay`, inputs local and outside the repository
+because eight sites come from a customer portfolio). The seven public
+fixtures have a reference; imagery as in the app (`auto`).
+
+| | v2 | v3 |
+| --- | --- | --- |
+| mean IoU, 7 fixtures | 0.367 | **0.539** |
+| Kassel / Hannover / Dortmund / Dresden | 0.59 / 0.47 / 0.03 / 0.81 | 0.76 / 0.90 / 0.52 / 0.94 |
+| München / Nürnberg (no cadastre, no footprints) | 0.11 / 0.09 | unchanged |
+| portfolio results that changed visibly | — | 6 of 8 (Bergisch Gladbach, Hennef, Troisdorf, Rheine improved; Düsseldorf and Hamburg unchanged, extension offered as an alternative) |
+
+Public benchmark, all 17 fixtures, 13 November 2026, imagery `auto`, roof
+mask on (`npm run benchmark:boundary`): v3 scores **0.451** mean IoU
+(tuning 0.487, hold-out 0.333; area bias +1.03, calibration MAE 0.29). The
+same frozen inputs replayed through v2 score 0.407 — with the complete
+cadastre already given to v2, so the P1 gain (Hannover 0.47 → 0.90) is not
+in that difference. Per site: four improve by more than 0.03 (Kassel,
+Dortmund, Dresden, Berlin-West), one gets worse (Linz, Austria, 0.62 → 0.54,
+outline only), the rest are unchanged. The 10 November figure for v2 (0.446)
+was measured with Esri imagery and is not comparable.
+
+Still weak: both Bayern sites (≈ 0.1, no cadastre or footprints), the two
+Sachsen-Anhalt hold-out sites (≈ 0.15–0.20: one large parcel holds the lot,
+the reference is a part of it) and Leipzig / Dortmund-Nord (≈ 0.27, parcel
+far larger than the OSM dealer area).
+
+**These rules were designed on these same 15 sites.** The numbers show the
+rules do what they were written for and break none of the 15; they are not
+an independent result. The public benchmark (`npm run benchmark:boundary`,
+now with `auto` imagery, roof mask and v3) and new sites decide whether v3
+generalises. The thresholds (40 m, 3 per 1,000 m², 30 %, 160 m, 25 %,
+15 detections / 60 m²) are round values chosen to separate the audited
+failures, not fitted.
+
+**Limitations of v3.**
+
+- A dense car park on a solar roof could be read as a deck and kept.
+- The extension's 25 % limit is a heuristic: a genuinely larger site is
+  offered as an alternative and needs one click in review.
+- The empty-parcel test needs building footprints; without them (Bayern,
+  missing ALKIS buildings) the unbuilt area is the whole parcel and showroom
+  parcels with few cars outside may not join.
+- A geocoded point inside a block of street-parked cars can still form a
+  lot; `noLotAtPoint` only catches points where no lot forms at all.
+
 ### Earlier engines (removed)
 
 Version 0.2 ranked candidates from ALKIS, OSM, Nominatim and Overture; 0.2.x
@@ -279,8 +365,13 @@ GetCapabilities and a live GetFeature at a known point before it was added:
 | Berlin | `alkis_flurstuecke:flurstuecke`, EPSG:4326 | |
 
 Missing, as of November 2026: **Bayern** (the INSPIRE and AdV services
-answer 401/403 without a login) and **Saarland** (the registered WFS returns
+answer 401/403 without a login; parcels are charged per parcel, see
+"Cascade v3 → Data sources") and **Saarland** (the registered WFS returns
 an empty response).
+
+Paging: NRW honours `startIndex`; Niedersachsen answers every page with the
+first (probed 13 November 2026), so capped answers there are completed with
+the smaller fallback query.
 
 ## Verified negative results
 

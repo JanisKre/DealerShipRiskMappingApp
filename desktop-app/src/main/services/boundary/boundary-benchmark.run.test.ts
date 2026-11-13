@@ -9,13 +9,20 @@
  *   BOUNDARY_BENCHMARK_LIMIT=5 BOUNDARY_BENCHMARK_DELAY_MS=8000 npm run benchmark:boundary
  *   BOUNDARY_GROUNDTRUTH=~/.dealership-risk/benchmarks/boundary-groundtruth.local.json \
  *     npm run benchmark:boundary
+ *   BOUNDARY_BENCHMARK_DUMP=/tmp/boundary-inputs.json npm run benchmark:boundary
+ *     (then replay offline: BOUNDARY_REPLAY=/tmp/boundary-inputs.json
+ *      npm run benchmark:boundary:replay)
  *
  * It reports the tuning and hold-out strata separately. The hold-out stratum is
  * the one that decides whether a change is an improvement — tuning against the
  * same sites you measure on produces numbers that only describe themselves.
  *
  * Each site runs like an analysis in the app: context image → vehicle
- * detection → boundary. The model is loaded from the app's data directory
+ * detection → roof mask → boundary. Imagery follows the app's default
+ * ("auto": official DOP where a state publishes it); before November 2026
+ * the runner forced Esri, so it measured a configuration the app does not
+ * use. `BOUNDARY_BENCHMARK_IMAGERY=esri` reproduces the old setting. The
+ * model is loaded from the app's data directory
  * (`BOUNDARY_BENCHMARK_USERDATA` overrides it) and runs in-process instead of
  * in a utilityProcess. OSM is treated as not cached, which is what the app sees
  * while the public Overpass servers are at capacity; the reference polygons
@@ -26,6 +33,7 @@
  * responses instead of hammering public services.
  */
 import { describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
@@ -46,10 +54,12 @@ const stubs = vi.hoisted(() => {
   };
 });
 
-vi.mock("../cache.service", () => ({
+vi.mock("../cache.service", async () => ({
   cacheGet: stubs.cacheGet,
   cacheSet: stubs.cacheSet,
   cached: stubs.cached,
+  cacheKeyFragment: (value: string) =>
+    createHash("sha1").update(value).digest("hex").slice(0, 10),
   TTL: {
     geocode: 1,
     overpass: 1,
@@ -62,7 +72,11 @@ vi.mock("../cache.service", () => ({
 }));
 
 vi.mock("../settings.service", () => ({
-  getSettings: () => ({ satelliteProvider: "esri" as const }),
+  getSettings: () => ({
+    satelliteProvider: (process.env.BOUNDARY_BENCHMARK_IMAGERY ?? "auto") as
+      | "auto"
+      | "esri",
+  }),
 }));
 
 vi.mock("./osm-evidence.service", () => ({
@@ -159,6 +173,9 @@ import {
   isModelAvailable,
 } from "../detection.service";
 import { aerialImageForContext } from "../tiles.service";
+import { maskRoofDetections } from "../detection/roof-mask.service";
+import { CASCADE_VERSION } from "./cascade";
+import type { ReplaySample } from "./boundary-replay";
 import type { LonLat } from "../boundary-geometry";
 
 interface PublicFixture {
@@ -228,7 +245,7 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
       // Without the model every site would fall back to the parcel or circle,
       // which measures nothing about the cascade.
       expect(isModelAvailable()).toBe(true);
-      const variant = "cascade-v2";
+      const variant = `cascade-v${CASCADE_VERSION}/${process.env.BOUNDARY_BENCHMARK_IMAGERY ?? "auto"}`;
       console.log(`engine: ${variant}\n`);
 
       const dump: unknown[] = [];
@@ -243,9 +260,11 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
         // Sequential and paced on purpose: these are shared public services.
         if (DELAY_MS > 0 && position > 0) await sleep(DELAY_MS);
         const image = await aerialImageForContext(fixture.lat, fixture.lon);
-        const detection = await detectVehiclesInContext(
-          image,
-          DEFAULT_RISK_PARAMETERS,
+        // As in the analysis: roofs masked before the boundary sees vehicles.
+        const detection = await maskRoofDetections(
+          await detectVehiclesInContext(image, DEFAULT_RISK_PARAMETERS),
+          fixture.lat,
+          fixture.lon,
         );
         const vehicles: LonLat[] | null = detection.boxes
           ? detection.boxes.flatMap((box) =>
@@ -255,12 +274,30 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
             )
           : null;
         if (process.env.BOUNDARY_BENCHMARK_DUMP) {
+          // Frozen inputs for `boundary-replay.run.test.ts`.
           const { fetchParcelsNear } = await import("../alkis.service");
+          const { fetchOfficialBuildings } = await import(
+            "../alkis-buildings.service"
+          );
           const parcels = await fetchParcelsNear(
             fixture.lat,
             fixture.lon,
           ).catch(() => null);
-          dump.push({ fixture, vehicles, parcels: parcels?.parcels ?? [] });
+          const official = await fetchOfficialBuildings(
+            fixture.lat,
+            fixture.lon,
+          );
+          const sample: ReplaySample = {
+            id: fixture.id,
+            holdout: fixture.holdout,
+            anchor: [fixture.lon, fixture.lat],
+            reference: fixture.reference,
+            vehicles,
+            parcels: parcels?.parcels ?? [],
+            parcelsTruncated: parcels?.truncated ?? false,
+            buildings: official.buildings.map((building) => building.ring),
+          };
+          dump.push(sample);
         }
         const boundary = await detectBoundary(
           fixture.lat,

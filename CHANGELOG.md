@@ -7,6 +7,29 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Lot boundary, cascade v3 (`docs/boundary-model.md`, "Cascade v3"):
+  complete cadastre answers (WFS paging, smaller fallback query), a street
+  test that keeps L-shaped and deep yards, no more empty meadows joined at
+  the edge of a lot, a lower join threshold for small dealers, anchor reach
+  from the showroom edge, a bounded continuation of large lots beyond 80 m
+  (larger jumps offered as an alternative), a wider image when the lot
+  reaches its edge, vehicle outlines that include the showroom and stop at
+  the road, parking decks kept in the roof mask, and a bounded wait for
+  official building footprints. On the 15 audited sites the mean IoU of the
+  public fixtures rose from 0.37 to 0.54 (same sites the rules were designed
+  on; not an independent result). Existing results keep their version until
+  re-analysed.
+- Boundary review names its reasons (low confidence, row of vehicles
+  outside, incomplete cadastre, no lot at the point, winter imagery, …) in
+  the location dialog. Vehicles outside count only as a real share of the
+  lot, and not when parked on the street.
+- `npm run benchmark:boundary` uses the app's imagery setting (`auto`)
+  instead of Esri and applies the roof mask; `BOUNDARY_BENCHMARK_IMAGERY=esri`
+  restores the old setting. New `npm run benchmark:boundary:replay` replays
+  frozen inputs offline.
+
 ### Added
 
 - App updates: packaged builds check this repository's GitHub releases at

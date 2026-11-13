@@ -86,7 +86,7 @@ import { createCircuitBreaker } from "./boundary/circuit-breaker";
 
 const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
 
-interface AlkisEndpoint {
+export interface AlkisEndpoint {
   url: string;
   typeName: string;
   /** EPSG code for BBOX filter and response geometry (states require different CRS). */
@@ -309,8 +309,23 @@ export function resetAlkisCircuits(): void {
  */
 export const PARCEL_SEARCH_RADIUS_M = 250;
 
-/** Upper bound on features requested per call. */
+/** Upper bound on features requested per call (one page). */
 const PARCEL_REQUEST_LIMIT = 250;
+
+/**
+ * Pages fetched per query at most: 4 × 250 = 1,000 parcels. A 250 m search
+ * box in a dense town holds more than one page; a capped answer misses
+ * arbitrary parcels, often the one at the point (docs/boundary-model.md,
+ * "Complete cadastre").
+ */
+export const PARCEL_MAX_PAGES = 4;
+
+/**
+ * Radius of the second, smaller query when the first one stays capped. Some
+ * services ignore `startIndex` (Niedersachsen answers every page with the
+ * first), so paging alone cannot complete them.
+ */
+export const PARCEL_FALLBACK_RADIUS_M = 100;
 
 export interface ParcelFeature {
   ring: LonLat[];
@@ -327,6 +342,12 @@ export interface ParcelLookup {
    * arbitrary, so the union would be arbitrary too.
    */
   truncated: boolean;
+  /**
+   * Radius around the point within which the parcel set is complete: the
+   * search radius when nothing was capped, the fallback radius when only the
+   * smaller query fit, 0 when even that was capped.
+   */
+  completeRadiusM?: number;
   /** True when at least one state service answered, even if it had no parcels. */
   reachable: boolean;
   /**
@@ -395,7 +416,7 @@ export async function fetchParcelsNear(
 
     // Four decimals (~11 m) on purpose: neighbouring locations in the same
     // business park then share one cached cadastre response.
-    const key = `alkis:v2:${state}:${radiusM}:${lat.toFixed(4)},${lon.toFixed(4)}`;
+    const key = `alkis:v3:${state}:${radiusM}:${lat.toFixed(4)},${lon.toFixed(4)}`;
     const hit = cacheGet<ParcelLookup>(key);
     if (hit) {
       answeredAtLeastOnce = true;
@@ -412,7 +433,7 @@ export async function fetchParcelsNear(
       continue;
     }
 
-    const fetched = await fetchAlkisXml(endpoint, lat, lon, radiusM);
+    const fetched = await fetchParcelRings(endpoint, lat, lon, radiusM);
     if (fetched === "error") {
       breaker.recordFailure(state);
       // A transient service error is not a statement about this location.
@@ -423,24 +444,37 @@ export async function fetchParcelsNear(
     breaker.recordSuccess(state);
     answeredAtLeastOnce = true;
 
-    const parcels: ParcelFeature[] = [];
-    if (fetched) {
-      for (const ring of parseExteriorRings(fetched)) {
-        const check = checkRing(ring, {
-          minAreaSqm: 25,
-          maxAreaSqm: 2_000_000,
-        });
-        if (!check.valid) continue;
-        parcels.push({ ring, areaSqm: check.areaSqm, state });
+    const { truncated } = fetched;
+    let { rings } = fetched;
+    let completeRadiusM = truncated ? 0 : radiusM;
+    if (truncated && radiusM > PARCEL_FALLBACK_RADIUS_M) {
+      // The neighbourhood of the point matters most; a smaller box fits.
+      const near = await fetchParcelRings(
+        endpoint,
+        lat,
+        lon,
+        PARCEL_FALLBACK_RADIUS_M,
+      );
+      if (near !== "error") {
+        rings = mergeRings(rings, near.rings);
+        if (!near.truncated) completeRadiusM = PARCEL_FALLBACK_RADIUS_M;
       }
     }
-    const truncated = fetched
-      ? isTruncated(fetched, PARCEL_REQUEST_LIMIT)
-      : false;
+
+    const parcels: ParcelFeature[] = [];
+    for (const ring of rings) {
+      const check = checkRing(ring, {
+        minAreaSqm: 25,
+        maxAreaSqm: 2_000_000,
+      });
+      if (!check.valid) continue;
+      parcels.push({ ring, areaSqm: check.areaSqm, state });
+    }
     const result: ParcelLookup = {
       parcels,
       state,
       truncated,
+      completeRadiusM,
       reachable: true,
       containsAnchor: parcelContainsPoint(parcels, lat, lon),
       status:
@@ -500,12 +534,73 @@ export function toUtm32(lat: number, lon: number): [number, number] {
   return [500_000 + k0 * bigA * e, k0 * bigA * nn];
 }
 
+/** Stable identity of a ring, for deduplicating pages and merged queries. */
+function ringKey(ring: [number, number][]): string {
+  return ring
+    .slice(0, 3)
+    .map(([lo, la]) => `${lo.toFixed(7)},${la.toFixed(7)}`)
+    .concat(String(ring.length))
+    .join(";");
+}
+
+/** `base` plus the rings of `extra` it does not already hold. */
+export function mergeRings(
+  base: [number, number][][],
+  extra: [number, number][][],
+): [number, number][][] {
+  const seen = new Set(base.map(ringKey));
+  return [...base, ...extra.filter((ring) => !seen.has(ringKey(ring)))];
+}
+
+/**
+ * All parcel rings in the search box, paged with `startIndex` up to
+ * `PARCEL_MAX_PAGES`. A page that adds nothing new means the service ignores
+ * `startIndex`; paging stops there and the answer stays truncated. A failed
+ * later page keeps what arrived and marks it truncated.
+ */
+export async function fetchParcelRings(
+  endpoint: AlkisEndpoint,
+  lat: number,
+  lon: number,
+  radiusM: number,
+  fetchPage: typeof fetchAlkisXml = fetchAlkisXml,
+): Promise<{ rings: [number, number][][]; truncated: boolean } | "error"> {
+  let rings: [number, number][][] = [];
+  let truncated = false;
+  for (let page = 0; page < PARCEL_MAX_PAGES; page += 1) {
+    const xml = await fetchPage(
+      endpoint,
+      lat,
+      lon,
+      radiusM,
+      page * PARCEL_REQUEST_LIMIT,
+    );
+    if (xml === "error") {
+      if (page === 0) return "error";
+      truncated = true;
+      break;
+    }
+    if (!xml) break;
+    const before = rings.length;
+    rings = mergeRings(rings, parseExteriorRings(xml));
+    // `numberMatched` counts the whole answer, `numberReturned` this page.
+    const { matched, returned } = parseWfsCounts(xml);
+    truncated =
+      matched != null && returned != null
+        ? matched > page * PARCEL_REQUEST_LIMIT + returned
+        : isTruncated(xml, PARCEL_REQUEST_LIMIT);
+    if (!truncated || rings.length === before) break;
+  }
+  return { rings, truncated };
+}
+
 /** "error" = network/HTTP error (counts toward the circuit breaker); null = reachable, but no hit. */
 async function fetchAlkisXml(
   endpoint: AlkisEndpoint,
   lat: number,
   lon: number,
   radiusM: number,
+  startIndex = 0,
 ): Promise<string | null | "error"> {
   const dLat = radiusM / 111_320;
   const dLon = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
@@ -518,6 +613,7 @@ async function fetchAlkisXml(
   const url =
     `${endpoint.url}?service=WFS&version=2.0.0&request=GetFeature` +
     `&typeNames=${encodeURIComponent(endpoint.typeName)}&count=${PARCEL_REQUEST_LIMIT}` +
+    (startIndex > 0 ? `&startIndex=${startIndex}` : "") +
     `&srsName=${crsUrn}&bbox=${encodeURIComponent(bbox)}`;
   try {
     const res = await fetchWithResilience(url, {

@@ -854,7 +854,18 @@
       "sourcesUsedCount_other": "{{count}} sources used",
       "report": "Report",
       "reportSaved": "Report saved: {{path}}",
-      "reportFailed": "The report could not be created: {{error}}"
+      "reportFailed": "The report could not be created: {{error}}",
+      "boundaryReviewReason": {
+        "synthetic": "no source at the point, only a circle around it",
+        "lowConfidence": "low confidence in the source",
+        "pointOutside": "the point lies outside the boundary",
+        "vehiclesOutside": "a row of vehicles stands just outside",
+        "cadastreIncomplete": "cadastre incomplete, the parcel at the point is missing",
+        "noLotAtPoint": "no dealership vehicles at the point – check where the point is",
+        "winterImagery": "winter image: vehicles in shadow may be missing",
+        "legacyEngine": "detected by an older version – re-analyse"
+      },
+      "boundaryReviewBecause": "Check because: {{reasons}}"
     },
     "hailEal": "Hail EAL",
     "hailZone": "Hail zone",

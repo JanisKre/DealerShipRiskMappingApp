@@ -1,5 +1,9 @@
 import type { DetectionBox, DetectionResult } from "@shared/types";
-import { distanceToRingM, type LonLat } from "../boundary-geometry";
+import {
+  distanceToRingM,
+  ringAreaSqm,
+  type LonLat,
+} from "../boundary-geometry";
 import type { OsmEvidence } from "../boundary/osm-overpass";
 import type { OfficialBuilding } from "../alkis-buildings.service";
 
@@ -28,6 +32,17 @@ import type { OfficialBuilding } from "../alkis-buildings.service";
 
 /** Minimum distance inside a footprint before a detection counts as on the roof. */
 export const ROOF_INSET_M = 2;
+
+/**
+ * A roof carrying at least this many detections, at no more than
+ * `DECK_MAX_SQM_PER_VEHICLE` of roof per detection, is a parking deck the
+ * cadastre does not record as one (a dealer's rotunda deck is often filed as
+ * a commercial building). Roof fixtures and solar rows read as a handful of
+ * scattered detections; a deck is packed. The November audit found decks
+ * with one detection per 19–53 m² that the mask had removed whole.
+ */
+export const DECK_MIN_VEHICLES = 15;
+export const DECK_MAX_SQM_PER_VEHICLE = 60;
 
 /** Building values whose roofs legitimately carry parked vehicles. */
 const PARKING_ROOF_BUILDINGS = new Set(["parking"]);
@@ -125,10 +140,14 @@ function ringContains(ring: LonLat[], point: LonLat): boolean {
   return inside;
 }
 
-/** True when `point` lies at least `insetM` inside one of the footprints. */
-function onRoof(point: LonLat, rings: IndexedRing[], insetM: number): boolean {
+/** The footprint `point` lies at least `insetM` inside, if any. */
+function roofOf(
+  point: LonLat,
+  rings: IndexedRing[],
+  insetM: number,
+): IndexedRing | undefined {
   const [lon, lat] = point;
-  return rings.some(
+  return rings.find(
     (r) =>
       lon >= r.minLon &&
       lon <= r.maxLon &&
@@ -153,19 +172,36 @@ export function excludeRoofDetections(
 ): DetectionResult {
   if (!detection.boxes || roofs.length === 0) return detection;
   const indexed = index(roofs);
+  const roofByBox = detection.boxes.map((box) =>
+    box.lon != null && box.lat != null
+      ? roofOf([box.lon, box.lat], indexed, insetM)
+      : undefined,
+  );
+  const perRoof = new Map<IndexedRing, number>();
+  for (const roof of roofByBox) {
+    if (roof) perRoof.set(roof, (perRoof.get(roof) ?? 0) + 1);
+  }
+  const decks = new Set(
+    [...perRoof]
+      .filter(
+        ([roof, count]) =>
+          count >= DECK_MIN_VEHICLES &&
+          ringAreaSqm(roof.ring) / count <= DECK_MAX_SQM_PER_VEHICLE,
+      )
+      .map(([roof]) => roof),
+  );
   const kept: DetectionBox[] = [];
   let removed = 0;
-  for (const box of detection.boxes) {
-    if (
-      box.lon != null &&
-      box.lat != null &&
-      onRoof([box.lon, box.lat], indexed, insetM)
-    ) {
+  let onDecks = 0;
+  detection.boxes.forEach((box, i) => {
+    const roof = roofByBox[i];
+    if (roof && !decks.has(roof)) {
       removed += 1;
-      continue;
+      return;
     }
+    if (roof) onDecks += 1;
     kept.push(box);
-  }
+  });
   if (removed === 0) return detection;
 
   // Manual adjustments describe the reviewed scene and are left alone; only
@@ -188,6 +224,11 @@ export function excludeRoofDetections(
           limitations: [
             ...detection.evidence.limitations,
             `${removed} detection(s) on mapped building roofs removed`,
+            ...(onDecks > 0
+              ? [
+                  `${onDecks} detection(s) kept on ${decks.size} densely packed roof(s), read as parking decks`,
+                ]
+              : []),
           ],
         }
       : undefined,

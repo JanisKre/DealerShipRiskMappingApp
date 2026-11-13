@@ -10,7 +10,12 @@ import {
   detectVehiclesInContext,
   filterDetectionToBoundary,
 } from "./detection.service";
-import { maskRoofDetections } from "./detection/roof-mask.service";
+import {
+  maskRoofDetections,
+  OFFICIAL_BUILDINGS_WAIT_MS,
+} from "./detection/roof-mask.service";
+import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
+import { boundaryNeedsReview } from "@shared/boundary-review";
 import { fetchOfficialBuildings } from "./alkis-buildings.service";
 import { officialHouseCoordinate } from "./house-coordinates.service";
 import {
@@ -20,7 +25,11 @@ import {
 } from "./geocoding.service";
 import { websiteFromEvidence } from "./osmDetails.service";
 import { scoreRisk } from "./risk.service";
-import { aerialImageForContext } from "./tiles.service";
+import {
+  aerialImageForContext,
+  CONTEXT_CAPTURE_RADIUS_M,
+  WIDE_CONTEXT_CAPTURE_RADIUS_M,
+} from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type {
   BoundaryResult,
@@ -206,23 +215,35 @@ export async function analyzeDealership(
   // (P5): the vehicles are what the boundary is built from, so a boundary
   // must never decide which vehicles the model gets to see. Roofs are masked
   // first so a car park on a roof deck cannot pull the lot onto a building.
-  const contextTask = (async () => {
+  const runContext = async (
+    radiusM: number,
+  ): Promise<{
+    image: Awaited<ReturnType<typeof aerialImageForContext>>;
+    detection: DetectionResult;
+    boundary: BoundaryResult;
+  }> => {
     const image = await timer.time(
       "imagery",
-      aerialImageForContext(siteLat, siteLon),
+      aerialImageForContext(siteLat, siteLon, undefined, radiusM),
     );
     const detected = await timer.time(
       "detection",
       detectVehiclesInContext(image, parameters),
     );
-    const masked = await timer.time(
+    // The footprints were requested when the analysis started; give a slow
+    // state service a bounded moment instead of silently skipping it.
+    const buildingsDeadline = Date.now() + OFFICIAL_BUILDINGS_WAIT_MS;
+    const detection = await timer.time(
       "roof mask",
-      maskRoofDetections(detected, siteLat, siteLon, osmDeadline),
+      maskRoofDetections(
+        detected,
+        siteLat,
+        siteLon,
+        osmDeadline,
+        buildingsDeadline,
+      ),
     );
-    return { image, detection: masked };
-  })();
-  const boundaryTask = contextTask.then(({ detection }) =>
-    timer.time(
+    const boundary = await timer.time(
       "boundary",
       detectBoundary(
         siteLat,
@@ -231,23 +252,40 @@ export async function analyzeDealership(
         input.address,
         parameters,
         vehicleCentres(detection),
-        { osmDeadline },
+        { osmDeadline, buildingsDeadline },
       ),
-    ),
-  );
+    );
+    return { image, detection, boundary };
+  };
+  // A lot that reaches the edge of the image may continue beyond it: capture
+  // once more, wider, and decide again on the vehicles that image shows.
+  const siteTask = (async () => {
+    const normal = await runContext(CONTEXT_CAPTURE_RADIUS_M);
+    if (!lotReachesImageEdge(normal.boundary, normal.detection, normal.image)) {
+      return normal;
+    }
+    const wide = await runContext(WIDE_CONTEXT_CAPTURE_RADIUS_M).catch(
+      () => null,
+    );
+    return wide ?? normal;
+  })();
   // Resolved on every analysis, so a changed hail source (or a reset to
   // screening) takes effect and stale API values are never re-used. A failed
   // source falls back to screening.
-  const [context, rawBoundary, website, natCat] = await Promise.all([
-    contextTask,
-    boundaryTask,
+  const [site, website, natCat] = await Promise.all([
+    siteTask,
     detectWebsite(siteLat, siteLon, input, osmDeadline),
     timer.time("natcat", resolveNatCat(siteLat, siteLon)),
   ]);
-  const contextImage = context.image;
-  const boundary = withAnchorSource(
-    withAnchorAmbiguity(rawBoundary, anchorAmbiguity),
-    anchorSource,
+  const context = site;
+  const contextImage = site.image;
+  const boundary = withImageryFlags(
+    withAnchorSource(
+      withAnchorAmbiguity(site.boundary, anchorAmbiguity),
+      anchorSource,
+    ),
+    contextImage.imagery?.chosen.capturedAt ?? null,
+    parameters,
   );
 
   // The boundary is applied only as a spatial filter, reusing the same
@@ -289,6 +327,80 @@ export async function analyzeDealership(
     ...(website ? { website, websiteSource: "osm" as const } : {}),
     ...(hailZone != null ? { hailZone, hailRiskTier } : {}),
   };
+}
+
+/** Months whose imagery is flagged: long shadows hide parked vehicles. */
+const WINTER_MONTHS = new Set([11, 12, 1, 2]);
+
+/** Sends a boundary built on winter imagery to review, with that reason. */
+function withImageryFlags(
+  boundary: BoundaryResult,
+  capturedAt: string | null,
+  parameters: RiskParameters,
+): BoundaryResult {
+  const month = capturedAt ? Number(capturedAt.slice(5, 7)) : NaN;
+  if (
+    !WINTER_MONTHS.has(month) ||
+    !boundary.quality ||
+    boundary.source === "synthetic"
+  ) {
+    return boundary;
+  }
+  const flags = boundary.quality.reviewFlags ?? [];
+  const next: BoundaryResult = {
+    ...boundary,
+    quality: {
+      ...boundary.quality,
+      reviewFlags: flags.includes("winterImagery")
+        ? flags
+        : [...flags, "winterImagery"],
+      reasons: [
+        ...boundary.quality.reasons,
+        `imagery taken in winter (${capturedAt}); vehicles in shadow may be missing`,
+      ],
+    },
+  };
+  return {
+    ...next,
+    reviewRequired:
+      boundary.reviewRequired === true || boundaryNeedsReview(next, parameters),
+  };
+}
+
+/** Distance from the image edge within which lot vehicles count as touching it. */
+const IMAGE_EDGE_MARGIN_M = 15;
+/** Lot vehicles that must touch the edge before a wider capture is taken. */
+const IMAGE_EDGE_MIN_VEHICLES = 3;
+
+/**
+ * True when at least `IMAGE_EDGE_MIN_VEHICLES` vehicles inside a lot from
+ * stage 1 or 2 stand within `IMAGE_EDGE_MARGIN_M` of the image edge: the lot
+ * probably continues outside the picture the boundary was built from.
+ */
+export function lotReachesImageEdge(
+  boundary: BoundaryResult,
+  detection: DetectionResult,
+  image: { bbox: [number, number, number, number] },
+): boolean {
+  const stage = boundary.quality?.cascadeStage;
+  if ((stage !== 1 && stage !== 2) || !image.bbox) return false;
+  const [west, south, east, north] = image.bbox;
+  const midLat = (south + north) / 2;
+  const marginLat = IMAGE_EDGE_MARGIN_M / 111_320;
+  const marginLon =
+    IMAGE_EDGE_MARGIN_M / (111_320 * Math.cos((midLat * Math.PI) / 180));
+  let touching = 0;
+  for (const [lon, lat] of vehicleCentres(detection) ?? []) {
+    const nearEdge =
+      lon - west < marginLon ||
+      east - lon < marginLon ||
+      lat - south < marginLat ||
+      north - lat < marginLat;
+    if (!nearEdge) continue;
+    if (booleanPointInPolygon([lon, lat], boundary.polygon)) touching += 1;
+    if (touching >= IMAGE_EDGE_MIN_VEHICLES) return true;
+  }
+  return false;
 }
 
 /**

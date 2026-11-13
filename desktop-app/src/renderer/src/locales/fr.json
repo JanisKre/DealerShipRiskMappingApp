@@ -631,7 +631,18 @@
       "sourcesUsedCount_other": "{{count}} sources utilisées",
       "report": "Rapport",
       "reportSaved": "Rapport enregistré : {{path}}",
-      "reportFailed": "Le rapport n'a pas pu être créé : {{error}}"
+      "reportFailed": "Le rapport n'a pas pu être créé : {{error}}",
+      "boundaryReviewReason": {
+        "synthetic": "aucune source au point, seulement un cercle autour",
+        "lowConfidence": "faible confiance dans la source",
+        "pointOutside": "le point se trouve hors de la limite",
+        "vehiclesOutside": "une rangée de véhicules se trouve juste à l’extérieur",
+        "cadastreIncomplete": "cadastre incomplet, la parcelle au point manque",
+        "noLotAtPoint": "aucun véhicule de concession au point – vérifiez l’emplacement du point",
+        "winterImagery": "image d’hiver : des véhicules à l’ombre peuvent manquer",
+        "legacyEngine": "détectée par une version antérieure – relancez l’analyse"
+      },
+      "boundaryReviewBecause": "À vérifier car : {{reasons}}"
     },
     "hailEalDetail": {
       "severityNote": "λ = événements de grêle par an dans la zone ; le dommage par véhicule est la perte attendue par événement."

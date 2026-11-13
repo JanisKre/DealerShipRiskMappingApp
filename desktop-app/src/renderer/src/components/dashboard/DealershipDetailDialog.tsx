@@ -39,6 +39,7 @@ import type {
   StructuredMemo,
 } from "@shared/types";
 import { asPolygon, outerRings } from "@shared/boundary-geometry-utils";
+import { boundaryReviewReasons } from "@shared/boundary-review";
 import { DEALERSHIP_NOTES_MAX_LENGTH } from "@shared/constants";
 import { WEBSITE_URL_MAX_LENGTH, websiteLabel } from "@shared/website";
 import { sourceLabel } from "@shared/natcat-catalog";
@@ -880,11 +881,14 @@ function buildAttention(
 ): Attention[] {
   const items: Attention[] = [];
   if (d.boundary?.reviewRequired) {
+    const because = boundaryReviewText(t, d.boundary, parameters);
     items.push({
       key: "boundary",
       tone: "warning",
       title: t("dashboard.detailDialog.attentionBoundaryTitle"),
-      detail: t("dashboard.detailDialog.attentionBoundaryDetail"),
+      detail: because
+        ? `${because} ${t("dashboard.detailDialog.attentionBoundaryDetail")}`
+        : t("dashboard.detailDialog.attentionBoundaryDetail"),
       action: {
         label: t("dashboard.detailDialog.attentionBoundaryAction"),
         run: openSite,
@@ -1130,6 +1134,23 @@ function sameGeometry(a: BoundaryCandidate, b: BoundaryResult): boolean {
  * Technical detail (role, agreement, engine, stage reasons) sits behind a
  * disclosure.
  */
+/** "Check because: …" with the reasons the review rule found, or "". */
+function boundaryReviewText(
+  t: TFunction,
+  boundary: BoundaryResult,
+  parameters: RiskParameters,
+): string {
+  const reasons = boundaryReviewReasons(boundary, parameters);
+  if (reasons.length === 0) return "";
+  return t("dashboard.detailDialog.boundaryReviewBecause", {
+    reasons: reasons
+      .map((reason) =>
+        t(`dashboard.detailDialog.boundaryReviewReason.${reason}`),
+      )
+      .join("; "),
+  });
+}
+
 function BoundaryPanel({
   d,
   onEditOnMap,
@@ -1138,6 +1159,7 @@ function BoundaryPanel({
   onEditOnMap: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const parameters = useAppStore((s) => s.parameters);
   const confirmBoundary = useAppStore((s) => s.confirmBoundary);
   const updateBoundary = useAppStore((s) => s.updateBoundaryAndRescore);
   const saveBoundaryEdit = useAppStore((s) => s.saveBoundaryEdit);
@@ -1238,6 +1260,11 @@ function BoundaryPanel({
           </Badge>
         ) : null}
       </div>
+      {boundary.reviewRequired && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          {boundaryReviewText(t, boundary, parameters)}
+        </p>
+      )}
       <p className="text-muted-foreground">
         {candidateLabel(t, boundary)} · {num(boundary.areaSqm)} m² ·{" "}
         {t("dashboard.detailDialog.confidenceValue", {

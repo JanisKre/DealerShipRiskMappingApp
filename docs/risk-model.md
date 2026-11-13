@@ -276,6 +276,12 @@ confirmation threshold, damped outside the site's parcels, ignored on other
 businesses' premises) and are afterwards clipped to the chosen boundary for
 the count. See [boundary-model.md](boundary-model.md#vehicle-evidence-fusion-v4).
 
+Since cascade v3 the boundary also uses official building footprints
+(unbuilt area of a parcel, the showroom inside a vehicle outline) and keeps
+densely packed roof decks in the vehicle count; the exposure area and the
+vehicle count therefore change for sites whose boundary changed. See
+[boundary-model.md](boundary-model.md#cascade-v3-november-2026).
+
 A boundary is flagged for review by `shared/boundary-review.ts`. A human can
 clear the flag in two ways: by editing the geometry (source becomes
 `manual`) or by confirming the detected geometry as covering the lot, which

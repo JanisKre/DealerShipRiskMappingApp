@@ -854,7 +854,18 @@
       "sourcesUsedCount_other": "{{count}} verwendete Quellen",
       "report": "Bericht",
       "reportSaved": "Bericht gespeichert: {{path}}",
-      "reportFailed": "Bericht konnte nicht erstellt werden: {{error}}"
+      "reportFailed": "Bericht konnte nicht erstellt werden: {{error}}",
+      "boundaryReviewReason": {
+        "synthetic": "keine Quelle am Punkt, nur ein Kreis um den Punkt",
+        "lowConfidence": "geringe Sicherheit der Quelle",
+        "pointOutside": "der Punkt liegt außerhalb der Grenze",
+        "vehiclesOutside": "eine Fahrzeugreihe steht knapp außerhalb",
+        "cadastreIncomplete": "Kataster unvollständig, das Flurstück am Punkt fehlt",
+        "noLotAtPoint": "am Punkt stehen keine Fahrzeuge eines Betriebs – Lage des Punkts prüfen",
+        "winterImagery": "Winterbild: Fahrzeuge im Schatten können fehlen",
+        "legacyEngine": "mit einer älteren Version erkannt – neu analysieren"
+      },
+      "boundaryReviewBecause": "Prüfen, weil: {{reasons}}"
     },
     "hailEal": "Hagel-EAL",
     "hailZone": "Hagelzone",

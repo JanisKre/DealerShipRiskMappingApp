@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   boundaryNeedsReview,
+  boundaryReviewReasons,
   MAX_UNEXPLAINED_OUTSIDE_VEHICLES,
 } from "./boundary-review";
 import { DEFAULT_RISK_PARAMETERS } from "./parameters";
@@ -153,5 +154,53 @@ describe("boundaryNeedsReview", () => {
         DEFAULT_RISK_PARAMETERS,
       ),
     ).toBe(false);
+  });
+});
+
+describe("boundaryReviewReasons (cascade v3)", () => {
+  const cascade = (
+    patch: Partial<BoundaryQuality>,
+    confidence = 0.75,
+  ): BoundaryResult =>
+    clean({
+      source: "alkis",
+      confidence,
+      quality: cleanQuality({ usedEngine: "cascade", ...patch }),
+    });
+
+  it("names every reason instead of a bare flag", () => {
+    expect(
+      boundaryReviewReasons(
+        cascade({ reviewFlags: ["cadastreIncomplete", "winterImagery"] }, 0.6),
+        DEFAULT_RISK_PARAMETERS,
+      ),
+    ).toEqual(["lowConfidence", "cadastreIncomplete", "winterImagery"]);
+  });
+
+  it("ignores a few kerbside cars next to a large lot", () => {
+    const result = cascade({ vehiclesOutsideNearby: 30, lotVehicles: 400 });
+    expect(boundaryReviewReasons(result, DEFAULT_RISK_PARAMETERS)).toEqual([]);
+  });
+
+  it("flags a row outside a small lot", () => {
+    const result = cascade({ vehiclesOutsideNearby: 12, lotVehicles: 50 });
+    expect(boundaryReviewReasons(result, DEFAULT_RISK_PARAMETERS)).toEqual([
+      "vehiclesOutside",
+    ]);
+  });
+
+  it("keeps the old absolute rule for results without a lot size", () => {
+    const result = cascade({ vehiclesOutsideNearby: 6 });
+    expect(boundaryReviewReasons(result, DEFAULT_RISK_PARAMETERS)).toEqual([
+      "vehiclesOutside",
+    ]);
+  });
+
+  it("reports legacy-engine failures as one reason", () => {
+    const result = clean({ quality: cleanQuality({ top2Margin: 0 }) });
+    expect(boundaryReviewReasons(result, DEFAULT_RISK_PARAMETERS)).toEqual([
+      "legacyEngine",
+    ]);
+    expect(boundaryNeedsReview(result, DEFAULT_RISK_PARAMETERS)).toBe(true);
   });
 });

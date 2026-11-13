@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  fetchParcelRings,
   fetchParcelsNear,
   isTruncated,
+  mergeRings,
+  PARCEL_MAX_PAGES,
   parseExteriorRings,
   toUtm32,
   parseWfsCounts,
@@ -198,5 +201,112 @@ describe("toUtm32", () => {
     expect(east).toBeLessThan(642_800);
     expect(north).toBeGreaterThan(5_649_300);
     expect(north).toBeLessThan(5_649_500);
+  });
+});
+
+describe("fetchParcelRings (paging)", () => {
+  const endpoint = {
+    url: "https://example.test/wfs",
+    typeName: "x",
+    crs: 4326,
+  };
+
+  /** A WFS page with `count` square parcels starting at `first`. */
+  function page(first: number, count: number, matched: string): string {
+    const members = Array.from({ length: count }, (_, i) => {
+      const lat = 50 + (first + i) * 0.001;
+      return `<wfs:member><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>${lat} 7 ${lat} 7.0005 ${lat + 0.0005} 7.0005 ${lat} 7</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></wfs:member>`;
+    }).join("");
+    return `<wfs:FeatureCollection numberMatched="${matched}" numberReturned="${count}">${members}</wfs:FeatureCollection>`;
+  }
+
+  it("pages with startIndex until the answer is complete", async () => {
+    const calls: number[] = [];
+    const result = await fetchParcelRings(
+      endpoint,
+      50,
+      7,
+      250,
+      async (_e, _lat, _lon, _r, startIndex = 0) => {
+        calls.push(startIndex);
+        return startIndex === 0 ? page(0, 250, "300") : page(250, 50, "300");
+      },
+    );
+    expect(calls).toEqual([0, 250]);
+    expect(result).not.toBe("error");
+    if (result === "error") return;
+    expect(result.rings).toHaveLength(300);
+    expect(result.truncated).toBe(false);
+  });
+
+  it("stops when the service ignores startIndex and keeps the answer truncated", async () => {
+    const calls: number[] = [];
+    const result = await fetchParcelRings(
+      endpoint,
+      50,
+      7,
+      250,
+      async (_e, _lat, _lon, _r, startIndex = 0) => {
+        calls.push(startIndex);
+        return page(0, 250, "unknown");
+      },
+    );
+    expect(calls).toEqual([0, 250]);
+    if (result === "error") throw new Error("unexpected");
+    expect(result.rings).toHaveLength(250);
+    expect(result.truncated).toBe(true);
+  });
+
+  it("keeps what arrived when a later page fails", async () => {
+    const result = await fetchParcelRings(
+      endpoint,
+      50,
+      7,
+      250,
+      async (_e, _lat, _lon, _r, startIndex = 0) =>
+        startIndex === 0 ? page(0, 250, "unknown") : "error",
+    );
+    if (result === "error") throw new Error("unexpected");
+    expect(result.rings).toHaveLength(250);
+    expect(result.truncated).toBe(true);
+  });
+
+  it("reports a failed first page as an error", async () => {
+    expect(
+      await fetchParcelRings(endpoint, 50, 7, 250, async () => "error"),
+    ).toBe("error");
+  });
+
+  it("stops at PARCEL_MAX_PAGES", async () => {
+    let calls = 0;
+    await fetchParcelRings(
+      endpoint,
+      50,
+      7,
+      250,
+      async (_e, _lat, _lon, _r, startIndex = 0) => {
+        calls += 1;
+        return page(startIndex, 250, "unknown");
+      },
+    );
+    expect(calls).toBe(PARCEL_MAX_PAGES);
+  });
+});
+
+describe("mergeRings", () => {
+  it("adds only rings it does not hold yet", () => {
+    const a: [number, number][] = [
+      [7, 50],
+      [7.001, 50],
+      [7.001, 50.001],
+      [7, 50],
+    ];
+    const b: [number, number][] = [
+      [8, 51],
+      [8.001, 51],
+      [8.001, 51.001],
+      [8, 51],
+    ];
+    expect(mergeRings([a], [a, b])).toEqual([a, b]);
   });
 });

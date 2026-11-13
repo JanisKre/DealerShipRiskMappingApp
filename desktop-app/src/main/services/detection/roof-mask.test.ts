@@ -72,6 +72,30 @@ describe("roof mask", () => {
     expect(result.evidence?.limitations.join(" ")).toMatch(/2 detection/);
   });
 
+  it("keeps a densely packed roof as a parking deck the cadastre does not name", () => {
+    // 40 × 50 m deck (2,000 m²) with 40 cars on it, one per 50 m²,
+    // and a hall with three roof fixtures.
+    const deck = rect(100, 0, 140, 50);
+    const onDeck: Array<[number, number]> = [];
+    for (let x = 103; x < 140; x += 5) {
+      for (let y = 3; y < 50; y += 10) onDeck.push([x, y]);
+    }
+    const result = excludeRoofDetections(
+      detectionAt([...onDeck, [10, 10], [20, 10], [30, 10]]),
+      [hall, deck],
+    );
+    expect(result.vehicleCount).toBe(onDeck.length);
+    expect(result.evidence?.limitations.join(" ")).toMatch(/parking deck/);
+  });
+
+  it("still masks a large roof with scattered fixtures", () => {
+    const roof = rect(100, 0, 200, 100);
+    const fixtures: Array<[number, number]> = [];
+    for (let i = 0; i < 20; i += 1) fixtures.push([105 + i * 4.5, 50]);
+    const result = excludeRoofDetections(detectionAt(fixtures), [roof]);
+    expect(result.vehicleCount).toBe(0);
+  });
+
   it("leaves the detection untouched without footprints", () => {
     const detection = detectionAt([[10, 10]]);
     expect(excludeRoofDetections(detection, [])).toBe(detection);
