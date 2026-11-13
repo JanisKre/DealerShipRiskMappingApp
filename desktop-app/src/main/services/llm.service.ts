@@ -761,6 +761,9 @@ chat — anything else, including questions about the portfolio or a location.`,
  */
 export const CHAT_MAX_TOKENS = 1024;
 
+/** Prefix of app-written replies in the history the chat model sees. */
+export const APP_REPLY_MARK = "[App]";
+
 /**
  * System prompt of the portfolio chat. Kept deterministic and testable:
  * answer rules first (short, only what was asked), then how to read the
@@ -779,7 +782,9 @@ How to answer:
 - Use only the figures the question needs. Name locations by name. Round amounts sensibly and use the number format of the answer language.
 - Take every figure from the portfolio data. If the data does not hold the answer, say so in one sentence and name what is missing. Never invent locations, figures, sources or hail events.
 - If a question is ambiguous, ask one short clarifying question instead of answering broadly.
-- You can only read and explain. You cannot change anything in the app — dashboards, filters, the map, settings or data — and must never say or imply that you did. If asked to change something, say in one sentence that you cannot do it from here.
+- You can only read and explain. You cannot change anything in the app — dashboards, filters, the map, settings or data — and must never say or imply that you did.
+- The app itself runs commands the user types, such as building or changing an AI dashboard, opening a location or exporting a report. Assistant turns starting with ${APP_REPLY_MARK} (and "App:" lines in a condensed history) were written by the app after it ran such a command: they are true. Never contradict, retract or apologise for them, and never start your own answer with that mark.
+- If asked to change a dashboard, say in one sentence that the app does this when the request names the dashboard and the change, for example "Ändere das Dashboard: Balkendiagramm nach Hagelzone". For other changes, say in one sentence that you cannot do it from here.
 - "This location", "here" or "the selected site" means the location marked SELECTED.
 - Answer in ${language}.
 
@@ -806,8 +811,18 @@ export function portfolioChatStream(
   signal?: AbortSignal,
 ): AsyncGenerator<string, void, unknown> {
   // The renderer is untrusted: only the conversation itself is taken from it,
-  // never a system message.
-  const conversation = messages.filter((m) => m.role !== "system");
+  // never a system message. Providers get plain role/content pairs; replies
+  // the app wrote itself are marked so the model does not take them for its
+  // own (and then "correct" them).
+  const conversation: ChatMessage[] = messages
+    .filter((m) => m.role !== "system")
+    .map((m) => ({
+      role: m.role,
+      content:
+        m.role === "assistant" && m.source === "app"
+          ? `${APP_REPLY_MARK} ${m.content}`
+          : m.content,
+    }));
   return chatCompleteStream(
     [
       { role: "system", content: portfolioChatSystemPrompt(sessionContext) },

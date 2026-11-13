@@ -1,4 +1,10 @@
-import type { A2uiCall, A2uiDimension, A2uiFilter, A2uiMeasure } from "./a2ui";
+import type {
+  A2uiCall,
+  A2uiDimension,
+  A2uiFilter,
+  A2uiMeasure,
+  A2uiSurface,
+} from "./a2ui";
 import type { AnalyzedDealership } from "./types";
 import { dealershipHailZone, effectiveVehicleCount } from "./risk-math";
 
@@ -248,6 +254,22 @@ export function filterKey(filter: A2uiFilter | undefined): string {
   return stableKey(filter ?? {});
 }
 
+/** The data calls of a surface: every KPI, chart and table source. */
+export function surfaceDataCalls(
+  surface: A2uiSurface,
+): Array<{ args: { filter?: A2uiFilter } }> {
+  return surface.components.flatMap(
+    (c): Array<{ args: { filter?: A2uiFilter } }> =>
+      c.component === "KpiCard"
+        ? [c.value]
+        : c.component === "BarChart" || c.component === "PieChart"
+          ? [c.data]
+          : c.component === "Table"
+            ? [c.rows]
+            : [],
+  );
+}
+
 /**
  * The selection every data component of a surface shares, if they all use
  * the same filter — then the page states it once instead of on every card.
@@ -261,6 +283,21 @@ export function sharedFilter(
   return calls.every((c) => filterKey(c.args.filter) === first)
     ? { filter: calls[0].args.filter }
     : undefined;
+}
+
+/**
+ * Whether every data component of a surface shares one selection that no
+ * mapped location matches — the dashboard then shows only zeros and empty
+ * charts, which the chat should say instead of just "done".
+ */
+export function emptySelection(
+  surface: A2uiSurface,
+  dealerships: AnalyzedDealership[],
+): boolean {
+  const shared = sharedFilter(surfaceDataCalls(surface));
+  if (!shared?.filter) return false;
+  const located = dealerships.filter((d) => d.lat != null && d.lon != null);
+  return located.length > 0 && applyFilter(located, shared.filter).length === 0;
 }
 
 /** Round axis ticks (steps of 1, 2, 2.5 or 5 × 10ⁿ) from 0 past `max`. */

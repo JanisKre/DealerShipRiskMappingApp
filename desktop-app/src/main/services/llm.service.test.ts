@@ -21,6 +21,7 @@ import {
   generateDashboardSurface,
   listLlmModels,
   portfolioChatStream,
+  APP_REPLY_MARK,
   portfolioChatSystemPrompt,
   testLlmConnection,
 } from "./llm.service";
@@ -268,6 +269,39 @@ describe("portfolio chat", () => {
     expect(body.max_tokens).toBe(CHAT_MAX_TOKENS);
     expect(body.messages.map((m) => m.role)).toEqual(["system", "user"]);
     expect(body.messages[0].content).not.toContain("pirate");
+  });
+
+  it("marks replies the app wrote itself and sends plain messages", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        'data: {"choices":[{"delta":{"content":"Ok."}}]}\n\ndata: [DONE]\n\n',
+        { status: 200 },
+      ),
+    );
+    for await (const _ of portfolioChatStream(
+      [
+        { role: "user", content: "Baue ein Dashboard zu Zone 4" },
+        {
+          role: "assistant",
+          content: "Dashboard „Zone 4“ ist fertig.",
+          source: "app",
+        },
+        { role: "user", content: "Wie viele Standorte?" },
+      ],
+      "Portfolio: 3 locations.",
+    ))
+      void _;
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      messages: Array<Record<string, unknown>>;
+    };
+    expect(body.messages[2]).toEqual({
+      role: "assistant",
+      content: `${APP_REPLY_MARK} Dashboard „Zone 4“ ist fertig.`,
+    });
+    expect(body.messages.every((m) => !("source" in m))).toBe(true);
+    expect(String(body.messages[0].content)).toMatch(
+      /written by the app .* they are true/,
+    );
   });
 
   async function drain(): Promise<string[]> {

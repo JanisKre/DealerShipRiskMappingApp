@@ -117,14 +117,22 @@ const BUILD_VERB = words(
 const EDIT_VERB = words(
   `füg${L}|fueg${L}|ergänz${L}|ergaenz${L}|entfern${L}|lösch${L}|loesch${L}|änder${L}|aender${L}|ersetz${L}|tausch${L}|benenn${L}|sortier${L}|wechsl${L}|wechsel${L}|umstell${L}|stell${L} .* um|filter${L}|beschränk${L}|beschraenk${L}|stattdessen|statt|nur noch|add|remove|delete|replace|change|rename|swap|switch|instead|ajoute${L}|supprime${L}|remplace${L}|modifie${L}|uniquement`,
 );
+/** Charts, tables and figures a dashboard is made of. */
+const WIDGET_NOUN = words(
+  `${L}diagramm(e|en)?|${L}diagrams?|${L}diagrammes?|${L}charts?|${L}grafik(en)?|graphs?|graphiques?|tabellen?|tables?|kpis?|kennzahl(en)?|histogramm(e)?|camemberts?`,
+);
 const QUESTION = words(
   `^(wie|was|warum|wieso|kann|können|how|what|why|can|comment|pourquoi)`,
 );
 const NEW_HINT = words(`neu(e|es|en)?|new|nouveau|nouvelle|weiteres|another`);
 
-/** Whether a message talks about dashboards at all (worth routing). */
+/**
+ * Whether a message talks about dashboards or their charts and tables at
+ * all (worth routing).
+ */
 export function mentionsDashboard(prompt: string): boolean {
-  return DASHBOARD_NOUN.test(normalize(prompt));
+  const text = normalize(prompt);
+  return DASHBOARD_NOUN.test(text) || WIDGET_NOUN.test(text);
 }
 
 /**
@@ -140,8 +148,16 @@ export function parseDashboardIntent(
   if (!text || QUESTION.test(text) || prompt.trim().endsWith("?")) return null;
   const isNew = NEW_HINT.test(text);
   // With an AI dashboard on screen an imperative change ("wechsle zu Zone 2",
-  // "füge eine Tabelle hinzu") is about that dashboard.
-  if (options.canEdit && !isNew && EDIT_VERB.test(text))
+  // "füge eine Tabelle hinzu", "mach aus allen ein Balkendiagramm") is about
+  // that dashboard.
+  if (
+    options.canEdit &&
+    !isNew &&
+    (EDIT_VERB.test(text) ||
+      (BUILD_VERB.test(text) &&
+        WIDGET_NOUN.test(text) &&
+        !DASHBOARD_NOUN.test(text)))
+  )
     return { mode: "edit" };
   if (DASHBOARD_NOUN.test(text) && BUILD_VERB.test(text))
     return { mode: "create" };
@@ -224,7 +240,9 @@ export function condenseHistory(
       flat.length > MEMORY_LINE_CHARS
         ? `${flat.slice(0, MEMORY_LINE_CHARS).trimEnd()}…`
         : flat;
-    return `${m.role === "user" ? "User" : "Assistant"}: ${short}`;
+    const who =
+      m.role === "user" ? "User" : m.source === "app" ? "App" : "Assistant";
+    return `${who}: ${short}`;
   });
   const kept: string[] = [];
   let size = 0;

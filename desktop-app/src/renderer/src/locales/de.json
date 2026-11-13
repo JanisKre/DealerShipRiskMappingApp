@@ -1536,7 +1536,8 @@
       "dashboardFailed_one": "Das konnte ich nicht sicher als Dashboard umsetzen ({{detail}}). Formuliere es bitte etwas anders, z. B. „Dashboard mit Hagel-EAL je Vertriebspartner“.",
       "dashboardFailed_other": "Das konnte ich nicht sicher als Dashboard umsetzen ({{count}} Probleme, u. a. {{detail}}). Formuliere es bitte etwas anders, z. B. „Dashboard mit Hagel-EAL je Vertriebspartner“.",
       "dashboardCreated": "Dashboard „{{name}}“ ist fertig – du siehst es im Tab Dashboard. Sag mir einfach, was ich ändern soll.",
-      "dashboardUpdated": "Dashboard „{{name}}“ ist angepasst."
+      "dashboardUpdated": "Dashboard „{{name}}“ ist angepasst.",
+      "dashboardEmpty": "Achtung: Kein Standort im Portfolio passt zu dieser Auswahl, das Dashboard ist deshalb leer."
     },
     "provenanceTopic": "KI-Antworten",
     "commandsWithoutAi": "Diese Befehle funktionieren auch ohne KI:",

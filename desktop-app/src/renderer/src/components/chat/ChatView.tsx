@@ -5,6 +5,7 @@ import { Database, MessageSquare, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { RISK_MODEL_VERSION } from "@shared/constants";
 import { defaultDashboardSurface } from "@shared/a2ui";
+import { emptySelection } from "@shared/a2ui-data";
 import {
   LlmErrorMessage,
   LlmSetupNotice,
@@ -102,8 +103,6 @@ export function ChatView({
   );
   const canEditDashboard = shownDashboard != null;
   const dashboardBuilding = useDashboardStore((s) => s.building);
-  /** Replies the app wrote itself (no AI answer to regenerate). */
-  const appReplies = useRef(new Set<string>());
 
   useEffect(() => {
     void loadList();
@@ -205,12 +204,15 @@ export function ChatView({
           .join("; "),
       });
     void navigate("/dashboard");
-    return t(
+    const done = t(
       outcome.created
         ? "chat.actions.dashboardCreated"
         : "chat.actions.dashboardUpdated",
       { name: outcome.dashboard.name },
     );
+    return emptySelection(outcome.dashboard.surface, dealerships)
+      ? `${done} ${t("chat.actions.dashboardEmpty")}`
+      : done;
   }
 
   /**
@@ -273,10 +275,9 @@ export function ChatView({
         t("chat.actions.failed", { error: (err as Error).message }),
       )
       .then((text) => {
-        appReplies.current.add(text);
         useConversationStore
           .getState()
-          .appendMessage({ role: "assistant", content: text });
+          .appendMessage({ role: "assistant", content: text, source: "app" });
         void useConversationStore.getState().persistActive();
       })
       .finally(() => setActionPending(false));
@@ -286,7 +287,8 @@ export function ChatView({
   /** Replies to local commands are app messages, not AI answers: there is
       nothing to regenerate. */
   function answersCommand(index: number): boolean {
-    if (appReplies.current.has(messages[index]?.content ?? "")) return true;
+    if (messages[index]?.source === "app") return true;
+    // Conversations saved before replies were tagged: judge by the question.
     for (let i = index - 1; i >= 0; i--) {
       if (messages[i].role !== "user") continue;
       const q = messages[i].content;

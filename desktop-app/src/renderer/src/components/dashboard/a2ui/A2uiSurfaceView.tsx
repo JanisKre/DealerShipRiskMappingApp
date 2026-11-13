@@ -29,6 +29,7 @@ import {
   type CallResult,
   type LocationRow,
   sharedFilter,
+  surfaceDataCalls,
   type SeriesPoint,
 } from "@shared/a2ui-data";
 import type { AnalyzedDealership } from "@shared/types";
@@ -98,19 +99,7 @@ export function A2uiSurfaceView({
     return map;
   }, [surface]);
   const shared = useMemo(
-    () =>
-      sharedFilter(
-        surface.components.flatMap(
-          (c): Array<{ args: { filter?: A2uiFilter } }> =>
-            c.component === "KpiCard"
-              ? [c.value]
-              : c.component === "BarChart" || c.component === "PieChart"
-                ? [c.data]
-                : c.component === "Table"
-                  ? [c.rows]
-                  : [],
-        ),
-      ),
+    () => sharedFilter(surfaceDataCalls(surface)),
     [surface],
   );
   const located = dealerships.filter((d) => d.lat != null && d.lon != null);

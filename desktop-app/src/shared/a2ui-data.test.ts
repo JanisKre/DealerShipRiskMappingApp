@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { AnalyzedDealership } from "./types";
 import {
+  DRM_DASHBOARD_CATALOG_ID,
+  type A2uiFilter,
+  type A2uiSurface,
+} from "./a2ui";
+import {
+  emptySelection,
   evaluateCall,
   filterValues,
   niceTicks,
@@ -174,6 +180,30 @@ describe("presentation helpers", () => {
       sharedFilter([{ args: { filter: { minHailZone: 2 } } }, { args: {} }]),
     ).toBeUndefined();
     expect(sharedFilter([])).toBeUndefined();
+  });
+
+  it("notices a selection no location matches", () => {
+    const surface = (filter?: A2uiFilter): A2uiSurface => ({
+      surfaceId: "dashboard",
+      catalogId: DRM_DASHBOARD_CATALOG_ID,
+      title: "Zone",
+      components: [
+        {
+          id: "count",
+          component: "KpiCard" as const,
+          title: "Standorte",
+          value: {
+            "@call": "aggregate" as const,
+            args: { measure: "count" as const, ...(filter ? { filter } : {}) },
+          },
+        },
+      ],
+    });
+    expect(emptySelection(surface({ minHailZone: 6 }), portfolio)).toBe(true);
+    expect(emptySelection(surface({ minHailZone: 4 }), portfolio)).toBe(false);
+    expect(emptySelection(surface(), portfolio)).toBe(false);
+    // No mapped location at all is not a selection problem.
+    expect(emptySelection(surface({ minHailZone: 6 }), [])).toBe(false);
   });
 
   it("puts axes on round steps", () => {

@@ -156,6 +156,22 @@ describe("condenseHistory", () => {
   });
 });
 
+describe("condenseHistory with app replies", () => {
+  it("labels replies the app wrote itself", () => {
+    const { note } = condenseHistory(
+      [
+        { role: "user", content: "Baue ein Dashboard zu Zone 4" },
+        { role: "assistant", content: "Dashboard ist fertig.", source: "app" },
+        { role: "user", content: "Wie viele Standorte?" },
+      ],
+      1,
+    );
+    expect(note).toBe(
+      "User: Baue ein Dashboard zu Zone 4\nApp: Dashboard ist fertig.",
+    );
+  });
+});
+
 describe("conversation titles", () => {
   it("recognises greetings", () => {
     expect(isGreeting("Hallo!")).toBe(true);
@@ -242,6 +258,41 @@ describe("dashboard requests", () => {
       mode: "create",
       prompt: "Baue ein Dashboard für Nord",
     });
+  });
+});
+
+describe("chart wording", () => {
+  it("changes the dashboard on screen when a chart or table is asked for", () => {
+    for (const prompt of [
+      "Bitte mache aus allen ein Barchart",
+      "Mach daraus ein Balkendiagramm",
+      "Make it a bar chart",
+      "Erstelle eine Tabelle der Top 10",
+    ]) {
+      expect(parseDashboardIntent(prompt, { canEdit: true })).toEqual({
+        mode: "edit",
+      });
+    }
+    // A new dashboard stays a new one.
+    expect(
+      parseDashboardIntent("Mach ein neues Dashboard mit Balkendiagramm", {
+        canEdit: true,
+      }),
+    ).toEqual({ mode: "create" });
+    // Questions about a chart stay with the AI.
+    expect(
+      parseDashboardIntent("Was zeigt das Balkendiagramm?", { canEdit: true }),
+    ).toBeNull();
+    // Nothing on screen: the router decides.
+    expect(
+      parseDashboardIntent("Bitte mache aus allen ein Barchart", {
+        canEdit: false,
+      }),
+    ).toBeNull();
+    expect(mentionsDashboard("Bitte mache aus allen ein Barchart")).toBe(true);
+    expect(mentionsDashboard("Welche Standorte haben die höchste EAL")).toBe(
+      false,
+    );
   });
 });
 

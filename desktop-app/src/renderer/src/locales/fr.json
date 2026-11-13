@@ -1536,7 +1536,8 @@
       "dashboardFailed_one": "Je n'ai pas pu en faire un tableau de bord fiable ({{detail}}). Reformulez, p. ex. « tableau de bord avec l'EAL grêle par partenaire ».",
       "dashboardFailed_other": "Je n'ai pas pu en faire un tableau de bord fiable ({{count}} problèmes, p. ex. {{detail}}). Reformulez, p. ex. « tableau de bord avec l'EAL grêle par partenaire ».",
       "dashboardCreated": "Le tableau de bord « {{name}} » est prêt – il est dans l'onglet Tableau de bord. Dites-moi ce qu'il faut modifier.",
-      "dashboardUpdated": "Le tableau de bord « {{name}} » a été mis à jour."
+      "dashboardUpdated": "Le tableau de bord « {{name}} » a été mis à jour.",
+      "dashboardEmpty": "Attention : aucun site du portefeuille ne correspond à cette sélection, le tableau de bord est donc vide."
     },
     "provenanceTopic": "Réponses de l’IA",
     "commandsWithoutAi": "Ces commandes fonctionnent aussi sans IA :",

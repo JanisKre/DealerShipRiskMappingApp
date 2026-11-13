@@ -1103,6 +1103,11 @@ export const NlQueryFilterSchema: z.ZodType<NlQueryFilter> = z.lazy(() =>
 export const ChatMessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
   content: z.string(),
+  /**
+   * "app": the app wrote this reply itself after running a command (built a
+   * dashboard, opened a location …), not the chat model.
+   */
+  source: z.literal("app").optional(),
 });
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 

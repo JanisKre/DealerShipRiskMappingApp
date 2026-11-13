@@ -1536,7 +1536,8 @@
       "dashboardFailed_one": "I could not turn that into a dashboard safely ({{detail}}). Please phrase it differently, e.g. “dashboard with hail EAL per sales partner”.",
       "dashboardFailed_other": "I could not turn that into a dashboard safely ({{count}} problems, e.g. {{detail}}). Please phrase it differently, e.g. “dashboard with hail EAL per sales partner”.",
       "dashboardCreated": "Dashboard “{{name}}” is ready – it is on the Dashboard tab. Just tell me what to change.",
-      "dashboardUpdated": "Dashboard “{{name}}” has been updated."
+      "dashboardUpdated": "Dashboard “{{name}}” has been updated.",
+      "dashboardEmpty": "Note: no location in the portfolio matches this selection, so the dashboard is empty."
     },
     "provenanceTopic": "AI answers",
     "commandsWithoutAi": "These commands work without AI:",
