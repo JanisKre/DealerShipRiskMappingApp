@@ -31,7 +31,18 @@ test.afterAll(async () => {
   await launched?.close();
 });
 
+/** Lets pending style changes (theme class, 0.01 ms transitions) settle. */
+async function settled(): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((done) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => done())),
+      ),
+  );
+}
+
 async function seriousViolations(context: string): Promise<string[]> {
+  await settled();
   if (!(await page.evaluate(() => "axe" in window))) {
     await page.evaluate(AXE_SOURCE);
   }
@@ -78,6 +89,15 @@ for (const theme of ["light", "dark"] as const) {
     // The default theme follows the system setting. Reduced motion ends the
     // colour transitions at once, so contrast is measured on final colours.
     await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+    // The app switches its theme class from a matchMedia listener; measure
+    // only once that has happened.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          document.documentElement.classList.contains("dark"),
+        ),
+      )
+      .toBe(theme === "dark");
     const found: string[] = [];
     for (const [link, heading] of [
       ["Karte", /Karte/],

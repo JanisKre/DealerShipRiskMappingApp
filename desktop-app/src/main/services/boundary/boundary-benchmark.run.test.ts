@@ -74,8 +74,7 @@ vi.mock("../cache.service", async () => ({
 vi.mock("../settings.service", () => ({
   getSettings: () => ({
     satelliteProvider: (process.env.BOUNDARY_BENCHMARK_IMAGERY ?? "auto") as
-      | "auto"
-      | "esri",
+      "auto" | "esri",
   }),
 }));
 
@@ -276,9 +275,8 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
         if (process.env.BOUNDARY_BENCHMARK_DUMP) {
           // Frozen inputs for `boundary-replay.run.test.ts`.
           const { fetchParcelsNear } = await import("../alkis.service");
-          const { fetchOfficialBuildings } = await import(
-            "../alkis-buildings.service"
-          );
+          const { fetchOfficialBuildings } =
+            await import("../alkis-buildings.service");
           const parcels = await fetchParcelsNear(
             fixture.lat,
             fixture.lon,
