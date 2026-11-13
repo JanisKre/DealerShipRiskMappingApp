@@ -45,6 +45,16 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Lot boundary, cascade v8 (`docs/boundary-model.md`, "Cascade v8"): parcel
+  results keep the whole car park and no longer have pieces cut out. Small
+  adjacent plots join with five or more densely parked cars (was ten), a
+  narrow plot full of cars (a parking strip or forecourt corner) joins
+  without the lot growing on from it, plots the lot encloses on three sides
+  join, and holes are filled. On 88 sites checked live, 24 results grow
+  (for example 538 → 1,143 m² and 2,185 → 4,980 m² where half the
+  forecourt was missing); a manually corrected site moves from 0.72 to
+  0.86 IoU against the correction; the public fixtures from 0.509 to
+  0.512. Existing boundaries change on re-analysis only.
 - Lot boundary, cascade v4 (`docs/boundary-model.md`, "Cascade v4"): a
   dealership standing across field strips is outlined from its vehicles
   instead of returning one strip running into the field; a point that lies

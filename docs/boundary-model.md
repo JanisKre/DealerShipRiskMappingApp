@@ -467,7 +467,67 @@ Rejected: counting coverage only on vehicles off the street (correct flags
 These thresholds were set on the sites they were measured on; they are a
 calibration of a screening flag, not a validated classifier.
 
-### Earlier engines (removed)
+## Cascade v8 (November 2026, parcel check)
+
+`CASCADE_VERSION` 8. Since v3 the result follows the cadastre closely,
+and a reviewer saw the price of that: parts of the car park missing, and
+pieces cut out of the middle of a lot where the cadastre has a plot of its
+own. A check on 88 sites (the 5 locations of the user's own portfolio and
+83 dealers of the public 100-dealer sample outside Bayern and Saarland,
+captured live on 13 November 2026, imagery `auto`) traced this to three
+stage-1 rules, each of which v8 relaxes. The stage order and acceptance
+rules are unchanged.
+
+| Change | Where | Failure it addresses |
+| --- | --- | --- |
+| **Small dense parcels.** An adjacent parcel also joins with fewer than 10 lot vehicles when it holds at least 5 and at least 8 per 1,000 m² of its unbuilt area. | `parcelDenseMinVehicles`, `parcelDenseVehiclesPer1000Sqm` | A 970 m² corner of a yard with five cars was cut out as a notch; the user's manual correction of that site included it. Half a forecourt (26 and 5 cars on two plots) was missing at another site. With 3 vehicles, an apartment block whose courtyard held three cars joined; 5 keeps it out. |
+| **Parking strips.** A parcel that is street-like only because it is narrow (bounding length ≤ 150 m) joins when at least 15 lot vehicles stand per 1,000 m² of it. It is a leaf: nothing grows on from it, so a strip cannot lead the lot along a road. Field strips qualify too. The minimum area of stage 1 counts only the parcel at the point and parcels joined by their vehicles. | `isShortStrip`, `stripMinVehiclesPer1000Sqm` | A 607 m² L-shaped corner with 26 cars counted as a street, so the result was the 538 m² building plot (Dresden). Display rows along a ramp or a highway sat on strips of their own. Measured on the whole strip, not its unbuilt area: a driveway with a building and six cars at its edge otherwise reached the threshold. |
+| **Enclosed parcels.** A parcel of which at least 75 % of the outline borders the parcels already chosen joins whatever stands on it, up to half the lot's area. Long streets never join. | `enclosedMinShare`, `enclosedMaxShareOfLot`, `borderShare` | Workshop buildings and narrow plots inside a dealer block were left out as holes or slots. 50 % was tried and rejected: it took in a residential house, a meadow and a belt of trees beside three lots. |
+| **No holes.** Interior rings of the parcel union are dropped. | `withoutHoles` | Slivers and plots left out for their size between the chosen parcels. |
+
+The trace names what joined, for example "parcel at the point + 4 adjacent
+parcel(s) (1 parking strip(s), 2 enclosed)".
+
+### Measured
+
+All on frozen inputs, v7 against v8, so the difference is the rules alone.
+
+| | v7 | v8 |
+| --- | --- | --- |
+| 88-site check: results that change | — | 24 (all stage 1, all larger: +1 % to +128 %) |
+| Manually corrected site (IoU against the correction) | 0.72 | **0.86** |
+| 17 public fixtures, mean IoU | 0.509 | 0.512 |
+| Results flagged for review, 88 sites | 38 | 35 |
+
+Judged by eye on the aerial image, the larger changes are improvements:
+the whole forecourt instead of half of it (2,185 → 4,980 m²), the corner
+car park in Dresden (538 → 1,143 m²), two slots inside a dealer block
+filled (4,664 → 5,997 m²), holes of two workshop buildings closed, display
+rows on separate strips included. Changes of 1–5 % fill slivers. One
+change is doubtful: a row of parking bays along a public street joined a
+town-centre lot that was already flagged for review.
+
+On the public fixtures two sites improve (Niedersachsen 0.79 → 0.87,
+Brandenburg 0.63 → 0.66) and two get slightly worse (Hessen 0.76 → 0.72:
+a row of houses enclosed by the dealer block joins; NRW 0.28 → 0.26: rows
+of parked cars beside the yard that the OSM reference leaves out). The
+references are OSM dealer areas, a proxy for the lot.
+
+**These thresholds were chosen on the sites they were measured on**, as in
+v3 and v4. The 83 public sites have no reference outline, so their
+judgement is by eye; only one site carries a manual correction. The
+cascade takes about 5 % longer on the 88 sites (0.19 s per site) and 50 %
+longer on the larger public fixtures (0.6 s per site), mostly for the
+enclosure test.
+
+**Limitations.** A plot the dealer encloses but does not use (a
+neighbour's house in the middle of the block) now joins. A row of public
+parking bays registered as its own narrow parcel joins when it is full.
+Customer parking with only a few cars on a parcel of its own still stays
+out: the cascade cannot tell a sparsely used car park from a meadow
+without a surface classification.
+
+## Earlier engines (removed)
 
 Version 0.2 ranked candidates from ALKIS, OSM, Nominatim and Overture; 0.2.x
 also had a fusion engine (an evidence raster with region growing, about fifteen

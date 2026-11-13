@@ -78,8 +78,11 @@ import { matchesSite } from "./site-membership";
  * 6: traffic areas cut the outline where there are no street parcels
  * (Bayern land-use map).
  * 7: full confidence from 70 % lot coverage (was 80 %).
+ * 8: small dense parcels, short parking strips (as leaves) and enclosed
+ * parcels join; holes in the parcel union are filled
+ * (docs/boundary-model.md, "Cascade v8").
  */
-export const CASCADE_VERSION = 7;
+export const CASCADE_VERSION = 8;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -150,6 +153,32 @@ export const CASCADE_LIMITS = {
   largeUnbuiltSqm: 10_000,
   /** Unbuilt area is never taken as less than this share of the parcel. */
   minUnbuiltShare: 0.2,
+  /**
+   * A small adjacent parcel also joins with fewer than `parcelMinVehicles`,
+   * but at least `parcelDenseMinVehicles`, when its lot vehicles stand at
+   * least `parcelDenseVehiclesPer1000Sqm` per 1,000 m² of unbuilt area: a
+   * 970 m² corner of the yard holds five cars, not ten, and was cut out of
+   * the lot as a notch (docs/boundary-model.md, "Cascade v8"). Three cars in
+   * the courtyard of a town-centre block were not enough.
+   */
+  parcelDenseMinVehicles: 5,
+  parcelDenseVehiclesPer1000Sqm: 8,
+  /**
+   * A short narrow parcel (street-like by width only, not longer than
+   * `streetMinLengthM`) joins as a leaf — nothing grows from it — when at
+   * least this many lot vehicles stand per 1,000 m² of the strip: a parking
+   * strip or corner of the forecourt cut as its own plot, not a driveway
+   * with a few cars at its edge.
+   */
+  stripMinVehiclesPer1000Sqm: 15,
+  /**
+   * A parcel of which at least this share of the outline borders the parcels
+   * already chosen is enclosed by the lot and joins whatever stands on it: an
+   * annex plot, a transformer, a driveway between two yards.
+   */
+  enclosedMinShare: 0.75,
+  /** … unless it is larger than this share of the lot chosen so far. */
+  enclosedMaxShareOfLot: 0.5,
   /** Vertex distance at which two parcels count as neighbours. */
   adjacentParcelM: 3,
   /**
@@ -559,6 +588,64 @@ function streetLikeShape(ring: LonLat[]): boolean {
   );
 }
 
+/**
+ * Street-like only because it is narrow, not because it is long: a footpath,
+ * a driveway, or a parking strip or corner of a yard cut as its own plot.
+ * Such a parcel joins a lot only when it is full of lot vehicles.
+ */
+export function isShortStrip(ring: LonLat[]): boolean {
+  if (!isStreetLike(ring)) return false;
+  const xy = ring.map((p) => projectPoint(p, ring[0]));
+  return boundingLengthM(xy) <= CASCADE_LIMITS.streetMinLengthM;
+}
+
+/**
+ * Share of a parcel's outline that lies within `adjacentParcelM` of the
+ * given rings, sampled every 2 m. 1 for a parcel the rings surround.
+ */
+export function borderShare(parcel: ParcelFeature, rings: LonLat[][]): number {
+  const ring = parcel.ring;
+  const origin = ring[0];
+  const near = rings.filter((other) => isAdjacent(parcel, { ring: other }));
+  if (near.length === 0) return 0;
+  let total = 0;
+  let shared = 0;
+  for (let i = 1; i < ring.length; i += 1) {
+    const [x0, y0] = projectPoint(ring[i - 1], origin);
+    const [x1, y1] = projectPoint(ring[i], origin);
+    const length = Math.hypot(x1 - x0, y1 - y0);
+    const steps = Math.max(1, Math.ceil(length / 2));
+    for (let s = 0; s < steps; s += 1) {
+      const t = (s + 0.5) / steps;
+      const point: LonLat = [
+        ring[i - 1][0] + (ring[i][0] - ring[i - 1][0]) * t,
+        ring[i - 1][1] + (ring[i][1] - ring[i - 1][1]) * t,
+      ];
+      const weight = length / steps;
+      total += weight;
+      if (
+        near.some(
+          (other) =>
+            distanceToRingM(point, other) <= CASCADE_LIMITS.adjacentParcelM,
+        )
+      ) {
+        shared += weight;
+      }
+    }
+  }
+  return total > 0 ? shared / total : 0;
+}
+
+/** The same geometry without interior rings. */
+export function withoutHoles(geometry: BoundaryGeometry): BoundaryGeometry {
+  return geometry.type === "Polygon"
+    ? { type: "Polygon", coordinates: [geometry.coordinates[0]] }
+    : {
+        type: "MultiPolygon",
+        coordinates: geometry.coordinates.map((polygon) => [polygon[0]]),
+      };
+}
+
 /** Mean of a ring's vertices; inside for the compact rings of buildings. */
 function ringCentre(ring: LonLat[]): LonLat {
   const n = ring.length > 1 ? ring.length - 1 : ring.length;
@@ -619,7 +706,10 @@ function ringBounds(ring: LonLat[]): [number, number, number, number] {
   return bounds;
 }
 
-function isAdjacent(a: ParcelFeature, b: ParcelFeature): boolean {
+function isAdjacent(
+  a: Pick<ParcelFeature, "ring">,
+  b: Pick<ParcelFeature, "ring">,
+): boolean {
   // Cheap reject first: boxes further apart than the adjacency distance.
   const [aw, as, ae, an] = ringBounds(a.ring);
   const [bw, bs, be, bn] = ringBounds(b.ring);
@@ -735,6 +825,9 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     };
   }
 
+  // Parcels that joined by the strip or enclosure rule: named in the trace,
+  // and not counted towards the minimum lot area.
+  const joinedAs = new Map<ParcelFeature, "strip" | "enclosed">();
   const grow = (
     lot: LonLat[],
     seed: ParcelFeature = anchor,
@@ -748,29 +841,76 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         Math.ceil(CASCADE_LIMITS.parcelMinLotShare * lot.length),
       ),
     );
+    // "grow": the parcel joins and the lot may grow on from it; "leaf": it
+    // joins, but nothing grows from it (a strip could lead along a road).
+    const joins = (parcel: ParcelFeature): "grow" | "leaf" | null => {
+      if (parcel.areaSqm > CASCADE_LIMITS.maxParcelSqm) return null;
+      const count = vehiclesOn(parcel);
+      if (count < CASCADE_LIMITS.minLotVehicles) return null;
+      const unbuilt = unbuiltAreaSqm(parcel, buildings);
+      const density = (count / unbuilt) * 1000;
+      if (isStreetLike(parcel.ring)) {
+        // Field strips too: a strip full of cars is part of the yard. Its
+        // density counts the whole strip; a building on it is no parking.
+        return isShortStrip(parcel.ring) &&
+          (count / parcel.areaSqm) * 1000 >=
+            CASCADE_LIMITS.stripMinVehiclesPer1000Sqm
+          ? "leaf"
+          : null;
+      }
+      const minDensity =
+        unbuilt > CASCADE_LIMITS.largeUnbuiltSqm
+          ? CASCADE_LIMITS.parcelMinVehiclesPer1000SqmLarge
+          : CASCADE_LIMITS.parcelMinVehiclesPer1000Sqm;
+      return (count >= minVehicles && density >= minDensity) ||
+        (count >= CASCADE_LIMITS.parcelDenseMinVehicles &&
+          density >= CASCADE_LIMITS.parcelDenseVehiclesPer1000Sqm)
+        ? "grow"
+        : null;
+    };
     const members: ParcelFeature[] = [seed];
     let areaSqm = seed.areaSqm;
+    const fits = (parcel: ParcelFeature): boolean =>
+      areaSqm + parcel.areaSqm <= input.parameters.boundaryMaxAreaSqm;
     const queue = [seed];
     while (queue.length > 0) {
       const current = queue.shift()!;
       for (const parcel of input.parcels) {
         if (members.includes(parcel) || !isAdjacent(parcel, current)) continue;
-        const count = vehiclesOn(parcel);
-        if (count < minVehicles) continue;
-        if (parcel.areaSqm > CASCADE_LIMITS.maxParcelSqm) continue;
-        if (isStreetLike(parcel.ring)) continue;
-        const unbuilt = unbuiltAreaSqm(parcel, buildings);
-        const minDensity =
-          unbuilt > CASCADE_LIMITS.largeUnbuiltSqm
-            ? CASCADE_LIMITS.parcelMinVehiclesPer1000SqmLarge
-            : CASCADE_LIMITS.parcelMinVehiclesPer1000Sqm;
-        if ((count / unbuilt) * 1000 < minDensity) continue;
-        if (areaSqm + parcel.areaSqm > input.parameters.boundaryMaxAreaSqm) {
+        const kind = joins(parcel);
+        if (!kind || !fits(parcel)) continue;
+        members.push(parcel);
+        areaSqm += parcel.areaSqm;
+        if (kind === "grow") queue.push(parcel);
+        else joinedAs.set(parcel, "strip");
+      }
+    }
+    // Parcels the lot encloses join whatever stands on them, so the result
+    // has no notches or holes where the cadastre cuts out a small plot.
+    for (let added = true; added;) {
+      added = false;
+      for (const parcel of input.parcels) {
+        if (members.includes(parcel)) continue;
+        if (
+          parcel.areaSqm > CASCADE_LIMITS.enclosedMaxShareOfLot * areaSqm ||
+          !fits(parcel) ||
+          (isStreetLike(parcel.ring) && !isShortStrip(parcel.ring)) ||
+          !members.some((member) => isAdjacent(parcel, member))
+        ) {
+          continue;
+        }
+        if (
+          borderShare(
+            parcel,
+            members.map((member) => member.ring),
+          ) < CASCADE_LIMITS.enclosedMinShare
+        ) {
           continue;
         }
         members.push(parcel);
         areaSqm += parcel.areaSqm;
-        queue.push(parcel);
+        added = true;
+        joinedAs.set(parcel, "enclosed");
       }
     }
     return members;
@@ -780,8 +920,11 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     lot: LonLat[],
     members: ParcelFeature[],
   ): { areaSqm: number; result: BoundaryResult; reason: string } | null => {
-    const geometry = unionRings(members.map((parcel) => parcel.ring));
-    if (!geometry) return null;
+    const union = unionRings(members.map((parcel) => parcel.ring));
+    if (!union) return null;
+    // Gaps between parcels the lot surrounds (slivers, a plot left out for
+    // its size) are part of the site.
+    const geometry = withoutHoles(union);
     const areaSqm = geometryAreaSqm(geometry);
     const covered = lot.filter((v) => geometryContains(geometry, v)).length;
     const coverage = covered / lot.length;
@@ -790,6 +933,14 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         ? CASCADE_CONFIDENCE.vehicleParcels
         : CASCADE_CONFIDENCE.vehicleParcelsPartial;
     const joined = members.length - 1;
+    const strips = members.filter((m) => joinedAs.get(m) === "strip").length;
+    const enclosed = members.filter(
+      (m) => joinedAs.get(m) === "enclosed",
+    ).length;
+    const detail = [
+      ...(strips > 0 ? [`${strips} parking strip(s)`] : []),
+      ...(enclosed > 0 ? [`${enclosed} enclosed`] : []),
+    ].join(", ");
     return {
       areaSqm,
       result: parcelResult(
@@ -801,7 +952,7 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         joined > 0 ? `ALKIS parcel + ${joined} with vehicles` : "ALKIS parcel",
         "operationalLot",
       ),
-      reason: `parcel at the point${joined > 0 ? ` + ${joined} adjacent parcel(s)` : ""} hold ${covered} of ${lot.length} lot vehicles (${Math.round(coverage * 100)}%)`,
+      reason: `parcel at the point${joined > 0 ? ` + ${joined} adjacent parcel(s)${detail ? ` (${detail})` : ""}` : ""} hold ${covered} of ${lot.length} lot vehicles (${Math.round(coverage * 100)}%)`,
     };
   };
 
@@ -810,12 +961,18 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
   if (!first) {
     return { result: null, reason: "parcel union failed", alternatives: [] };
   }
-  if (first.areaSqm < CASCADE_LIMITS.minLotSqm) {
+  // Area held by the parcel at the point and the parcels its vehicles grew
+  // onto; strips and enclosed plots only complete such a lot.
+  const grownSqm = firstMembers
+    .filter((parcel) => !joinedAs.has(parcel))
+    .reduce((sum, parcel) => sum + parcel.areaSqm, 0);
+  if (grownSqm < CASCADE_LIMITS.minLotSqm) {
     // A sliver at the point (a 128 m² town-centre plot in the 50-site run)
-    // with nothing joined is not a lot; the vehicle outline does better.
+    // with nothing joined is not a lot; the vehicle outline does better. A
+    // parking strip beside it does not make it one either.
     return {
       result: null,
-      reason: `parcel at the point is ${Math.round(first.areaSqm)} m² and nothing joined, too small for a lot`,
+      reason: `parcel at the point is ${Math.round(anchor.areaSqm)} m² and no parcel with vehicles joined, too small for a lot`,
       alternatives: [],
     };
   }
