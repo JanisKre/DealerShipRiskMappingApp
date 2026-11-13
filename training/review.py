@@ -151,7 +151,12 @@ class Store:
         self.dir = AUTOLABEL_AUDIT if audit else AUTOLABEL
 
     def stems(self) -> list[str]:
-        return sorted(p.stem for p in self.dir.glob("*.json") if STEM.match(p.stem))
+        return sorted(p.stem for p in self.dir.glob("*.json") if STEM.fullmatch(p.stem))
+
+    def lookup(self, requested: str) -> str | None:
+        """The tile name as found on disk, never the requested text itself: paths are
+        only ever built from names this server listed (no path injection)."""
+        return {stem: stem for stem in self.stems()}.get(requested)
 
     def summary(self) -> dict:
         tiles, skipped = [], []
@@ -226,8 +231,7 @@ def make_handler(store: Store, port: int):
             return True
 
         def stem_from(self, prefix: str) -> str | None:
-            stem = self.path[len(prefix) :].split("?", 1)[0]
-            return stem if STEM.match(stem) and (store.dir / f"{stem}.json").exists() else None
+            return store.lookup(self.path[len(prefix) :].split("?", 1)[0])
 
         def do_GET(self) -> None:  # noqa: N802
             if not self.guard():
