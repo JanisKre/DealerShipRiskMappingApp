@@ -237,8 +237,8 @@ async function fetchOnce(
 function isAbortFromCaller(error: unknown, signal?: AbortSignal): boolean {
   return Boolean(
     signal?.aborted &&
-      error instanceof DOMException &&
-      error.name === "AbortError",
+    error instanceof DOMException &&
+    error.name === "AbortError",
   );
 }
 

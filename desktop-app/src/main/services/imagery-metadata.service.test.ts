@@ -49,13 +49,14 @@ describe("getEsriImageryMetadata", () => {
 
   it("degrades to unavailable when the metadata service fails", async () => {
     mocks.fetchWithResilience.mockResolvedValue({ ok: false, status: 503 });
-    await expect(getEsriImageryMetadata(52, 13.2, 19)).resolves.toMatchObject(
-      { available: false, capturedAt: null },
-    );
+    await expect(getEsriImageryMetadata(52, 13.2, 19)).resolves.toMatchObject({
+      available: false,
+      capturedAt: null,
+    });
 
     mocks.fetchWithResilience.mockRejectedValue(new Error("offline"));
-    await expect(getEsriImageryMetadata(52, 13.2, 19)).resolves.toMatchObject(
-      { available: false },
-    );
+    await expect(getEsriImageryMetadata(52, 13.2, 19)).resolves.toMatchObject({
+      available: false,
+    });
   });
 });

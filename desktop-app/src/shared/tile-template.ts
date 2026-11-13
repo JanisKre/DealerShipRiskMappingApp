@@ -29,8 +29,7 @@ export type TileTemplateProblem =
   | "missing-placeholders";
 
 export type TileTemplateValidation =
-  | { ok: true; template: string }
-  | { ok: false; problem: TileTemplateProblem };
+  { ok: true; template: string } | { ok: false; problem: TileTemplateProblem };
 
 export function validateTileTemplate(value: string): TileTemplateValidation {
   const template = value.trim();

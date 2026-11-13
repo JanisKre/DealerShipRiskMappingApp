@@ -98,9 +98,9 @@ export function matchesSiteStrictly(
     .toLowerCase();
   return Boolean(
     postcode &&
-      houseNumber &&
-      tags["addr:postcode"] === postcode &&
-      tags["addr:housenumber"]?.toLowerCase() === houseNumber,
+    houseNumber &&
+    tags["addr:postcode"] === postcode &&
+    tags["addr:housenumber"]?.toLowerCase() === houseNumber,
   );
 }
 

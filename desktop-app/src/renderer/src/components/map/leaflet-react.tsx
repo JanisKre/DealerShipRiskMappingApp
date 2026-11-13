@@ -239,9 +239,7 @@ export function CircleMarker({
 }
 
 type LatLngPositions =
-  | L.LatLngExpression[]
-  | L.LatLngExpression[][]
-  | L.LatLngExpression[][][];
+  L.LatLngExpression[] | L.LatLngExpression[][] | L.LatLngExpression[][][];
 
 export function Polygon({
   positions,

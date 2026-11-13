@@ -118,8 +118,7 @@ export function useHailHistory(
 
 type View = "years" | "months";
 type Selection =
-  | { kind: "year"; year: number }
-  | { kind: "month"; month: number };
+  { kind: "year"; year: number } | { kind: "month"; month: number };
 
 /** Hail bars, the highlighted one, and years without observations. */
 const BAR_COLOR = "var(--chart-1)";

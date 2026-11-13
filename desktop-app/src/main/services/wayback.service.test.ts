@@ -70,7 +70,11 @@ interface Options {
   config?: unknown;
 }
 
-function route({ emptyZooms = [], failingMeta = [], config = CONFIG }: Options = {}) {
+function route({
+  emptyZooms = [],
+  failingMeta = [],
+  config = CONFIG,
+}: Options = {}) {
   return async (input: string): Promise<unknown> => {
     const url = String(input);
     if (url.includes("waybackconfig.json")) return json(config);
@@ -82,9 +86,8 @@ function route({ emptyZooms = [], failingMeta = [], config = CONFIG }: Options =
       }
       return json({ data: [1], select: [HOLDER[release]], valid: true });
     }
-    const meta = /World_Imagery_Metadata_(\w+)\/MapServer\/identify\?(.*)$/.exec(
-      url,
-    );
+    const meta =
+      /World_Imagery_Metadata_(\w+)\/MapServer\/identify\?(.*)$/.exec(url);
     if (meta) {
       const [, key, query] = meta;
       if (failingMeta.includes(key)) return { ok: false, status: 500 };

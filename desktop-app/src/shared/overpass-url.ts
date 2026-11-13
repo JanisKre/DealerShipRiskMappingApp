@@ -16,8 +16,7 @@ export type OverpassUrlProblem =
   | "query-or-fragment";
 
 export type OverpassUrlValidation =
-  | { ok: true; url: string }
-  | { ok: false; problem: OverpassUrlProblem };
+  { ok: true; url: string } | { ok: false; problem: OverpassUrlProblem };
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 

@@ -1,10 +1,5 @@
 export type DashboardTileId =
-  | "summary"
-  | "clusters"
-  | "zones"
-  | "topLocations"
-  | "insights"
-  | "table";
+  "summary" | "clusters" | "zones" | "topLocations" | "insights" | "table";
 
 export const DEFAULT_TILE_ORDER: DashboardTileId[] = [
   "summary",
@@ -44,8 +39,7 @@ export function moveDashboardTile(
 }
 
 export type DashboardCommand =
-  | { action: "show" | "hide"; ids: DashboardTileId[] }
-  | { action: "reset" };
+  { action: "show" | "hide"; ids: DashboardTileId[] } | { action: "reset" };
 
 export function applyDashboardCommand(
   order: DashboardTileId[],

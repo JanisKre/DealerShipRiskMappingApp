@@ -50,9 +50,7 @@ export function DetectionImageryNote({
         </span>
         <span className="font-medium">{c.label}</span>
         {" · "}
-        <span
-          className={cn(stale && "text-amber-600 dark:text-amber-400")}
-        >
+        <span className={cn(stale && "text-amber-600 dark:text-amber-400")}>
           {date}
           {stale && ` (${t("map.legend.imageryAge", { count: ageYears })})`}
         </span>

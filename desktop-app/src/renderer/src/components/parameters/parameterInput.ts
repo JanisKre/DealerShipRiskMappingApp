@@ -6,10 +6,7 @@ export type ParameterInputRule = {
 };
 
 export type ParameterInputError =
-  | "empty"
-  | "notANumber"
-  | "notInteger"
-  | "outOfRange";
+  "empty" | "notANumber" | "notInteger" | "outOfRange";
 
 /**
  * Why a raw field value can't be committed, or `null` when it can.

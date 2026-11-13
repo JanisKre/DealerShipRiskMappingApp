@@ -5,8 +5,10 @@ import { cn } from "@renderer/lib/utils";
  * Simple slider without an external Radix dependency (@radix-ui/react-slider is not installed).
  * Styled like the other shadcn UI primitives: accent-color picks up the CSS primary.
  */
-export interface SliderProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
+export interface SliderProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "type"
+> {
   /** Current value (0..1). The parent component is controlled. */
   value?: number;
   onValueChange?: (value: number) => void;

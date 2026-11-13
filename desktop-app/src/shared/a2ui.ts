@@ -141,10 +141,7 @@ export type RankingCall = z.infer<typeof RankingCallSchema>;
 export type BreakdownCall = z.infer<typeof BreakdownCallSchema>;
 export type LocationsCall = z.infer<typeof LocationsCallSchema>;
 export type A2uiCall =
-  | AggregateCall
-  | RankingCall
-  | BreakdownCall
-  | LocationsCall;
+  AggregateCall | RankingCall | BreakdownCall | LocationsCall;
 
 export const TABLE_COLUMNS = [
   "name",
@@ -355,8 +352,7 @@ export function pruneSurface(components: A2uiComponent[]): A2uiComponent[] {
 }
 
 export type ApplyResult =
-  | { ok: true; surface: A2uiSurface }
-  | { ok: false; issues: A2uiIssue[] };
+  { ok: true; surface: A2uiSurface } | { ok: false; issues: A2uiIssue[] };
 
 /**
  * Validates one agent answer and applies it: `createSurface` starts a new

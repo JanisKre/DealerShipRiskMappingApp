@@ -108,19 +108,34 @@ describe("evaluateComponentMembership", () => {
 
 describe("matchesSiteStrictly", () => {
   it("does not let a place name in the dealer's name claim other features", () => {
-    expect(matchesSiteStrictly({ building: "retail", name: "Löbtau Passage" }, "Autocenter Löbtau")).toBe(false);
-    expect(matchesSiteStrictly({ landuse: "commercial", name: "Gewerbehof Dresden" }, "Opel - Autohaus Dresden GmbH")).toBe(false);
+    expect(
+      matchesSiteStrictly(
+        { building: "retail", name: "Löbtau Passage" },
+        "Autocenter Löbtau",
+      ),
+    ).toBe(false);
+    expect(
+      matchesSiteStrictly(
+        { landuse: "commercial", name: "Gewerbehof Dresden" },
+        "Opel - Autohaus Dresden GmbH",
+      ),
+    ).toBe(false);
   });
 
   it("matches when every distinctive token is present, brand included", () => {
     expect(
-      matchesSiteStrictly({ name: "Autohaus Dresden GmbH", brand: "Opel" }, "Opel - Autohaus Dresden GmbH"),
+      matchesSiteStrictly(
+        { name: "Autohaus Dresden GmbH", brand: "Opel" },
+        "Opel - Autohaus Dresden GmbH",
+      ),
     ).toBe(true);
   });
 
   it("needs the house number for an address match, not just the postcode", () => {
     const tags = { "addr:postcode": "01109", "addr:housenumber": "40" };
     expect(matchesSiteStrictly(tags, undefined, "01109 Dresden")).toBe(false);
-    expect(matchesSiteStrictly(tags, undefined, "Zur Wetterwarte 40, 01109 Dresden")).toBe(true);
+    expect(
+      matchesSiteStrictly(tags, undefined, "Zur Wetterwarte 40, 01109 Dresden"),
+    ).toBe(true);
   });
 });

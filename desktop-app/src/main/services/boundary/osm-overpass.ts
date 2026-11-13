@@ -18,12 +18,7 @@ export type OsmTags = Record<string, string>;
 
 /** Areas contribute signed score over the cells they cover. */
 export type EvidenceAreaKind =
-  | "dealerArea"
-  | "parking"
-  | "landuse"
-  | "building"
-  | "vegetation"
-  | "water";
+  "dealerArea" | "parking" | "landuse" | "building" | "vegetation" | "water";
 
 /**
  * Lines either cut the grid, push it down, or lift it up.
@@ -33,11 +28,7 @@ export type EvidenceAreaKind =
  *  - `serviceAisle` positive: a parking aisle is interior circulation.
  */
 export type EvidenceLineKind =
-  | "barrier"
-  | "publicRoad"
-  | "railway"
-  | "waterway"
-  | "serviceAisle";
+  "barrier" | "publicRoad" | "railway" | "waterway" | "serviceAisle";
 
 export interface EvidenceArea {
   kind: EvidenceAreaKind;

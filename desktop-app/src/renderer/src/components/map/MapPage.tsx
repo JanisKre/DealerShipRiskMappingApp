@@ -601,8 +601,7 @@ export function MapPage(): React.JSX.Element {
         ".leaflet-container",
       ) as HTMLElement | null;
       let rect:
-        | { x: number; y: number; width: number; height: number }
-        | undefined;
+        { x: number; y: number; width: number; height: number } | undefined;
       if (el) {
         const r = el.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;

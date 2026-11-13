@@ -104,9 +104,10 @@ export function buildWaybackTilemapUrl(
 }
 
 /** `{ data: [1], select: [10321] }` → imagery exists, held by release 10321. */
-export function parseWaybackTilemap(
-  json: unknown,
-): { hasTile: boolean; release: number | null } {
+export function parseWaybackTilemap(json: unknown): {
+  hasTile: boolean;
+  release: number | null;
+} {
   const record = json as { data?: unknown; select?: unknown } | null;
   const data = Array.isArray(record?.data) ? record.data[0] : undefined;
   const select = Array.isArray(record?.select) ? record.select[0] : undefined;

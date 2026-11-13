@@ -20,6 +20,7 @@
     "rebuild": "electron-rebuild -f --only better-sqlite3,onnxruntime-node,sharp",
     "lint": "eslint --max-warnings 0 --no-warn-ignored src/",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "smoke": "node scripts/smoke-test.mjs",

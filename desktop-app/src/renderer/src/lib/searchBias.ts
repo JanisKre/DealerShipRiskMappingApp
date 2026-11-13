@@ -6,8 +6,7 @@ import { useMapStore } from "@renderer/store/mapStore";
  * main then biases towards Germany.
  */
 export function searchBias():
-  | { lat: number; lon: number; zoom: number }
-  | undefined {
+  { lat: number; lon: number; zoom: number } | undefined {
   const view = useMapStore.getState().view;
   if (!view) return undefined;
   const [lat, lon] = view.center;

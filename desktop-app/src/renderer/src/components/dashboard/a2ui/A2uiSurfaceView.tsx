@@ -426,8 +426,7 @@ function SeriesBars({
       cursor={{ fillOpacity: 0.08 }}
       content={({ active, payload }) => {
         const p = payload?.[0]?.payload as
-          | (SeriesPoint & { label: string })
-          | undefined;
+          (SeriesPoint & { label: string }) | undefined;
         if (!active || !p) return null;
         return (
           <TooltipBox
@@ -569,8 +568,7 @@ function SeriesPie({
           <Tooltip
             content={({ active, payload }) => {
               const p = payload?.[0]?.payload as
-                | (typeof data)[number]
-                | undefined;
+                (typeof data)[number] | undefined;
               if (!active || !p) return null;
               return (
                 <TooltipBox

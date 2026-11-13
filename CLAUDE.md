@@ -29,6 +29,7 @@ npm ci
 npm run rebuild
 npm run typecheck
 npm run lint
+npm run format:check
 npm test
 npm run test:coverage
 npm run build

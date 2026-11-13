@@ -11,15 +11,8 @@
  * Width persistence: `useDefaultLayout({ id, storage: localStorage })`.
  */
 import { GripVertical } from "lucide-react";
-import {
-  Group,
-  Panel,
-  Separator,
-} from "react-resizable-panels";
-import type {
-  GroupProps,
-  SeparatorProps,
-} from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
+import type { GroupProps, SeparatorProps } from "react-resizable-panels";
 import { cn } from "@renderer/lib/utils";
 
 export {

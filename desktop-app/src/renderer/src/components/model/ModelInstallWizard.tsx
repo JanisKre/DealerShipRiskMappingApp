@@ -14,12 +14,7 @@ import {
 import { Progress } from "@renderer/components/ui/progress";
 
 type Phase =
-  | "ready"
-  | "idle"
-  | "downloading"
-  | "done"
-  | "error"
-  | "unavailable";
+  "ready" | "idle" | "downloading" | "done" | "error" | "unavailable";
 
 function mb(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -114,7 +109,9 @@ export function ModelInstallWizard(): React.JSX.Element | null {
         </DialogHeader>
 
         {phase === "ready" && (
-          <p className="text-sm text-emerald-700 dark:text-emerald-400">{t("model.ready")}</p>
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">
+            {t("model.ready")}
+          </p>
         )}
 
         {(phase === "idle" || phase === "unavailable") && (
@@ -144,7 +141,9 @@ export function ModelInstallWizard(): React.JSX.Element | null {
         )}
 
         {phase === "done" && (
-          <p className="text-sm text-emerald-700 dark:text-emerald-400">{t("model.done")}</p>
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">
+            {t("model.done")}
+          </p>
         )}
 
         {phase === "error" && (

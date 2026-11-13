@@ -105,7 +105,11 @@ async function releasesWithLocalChanges(
   lon: number,
   zoom: number,
   limit: number,
-): Promise<{ holders: WaybackRelease[]; hasTile: boolean; truncated: boolean }> {
+): Promise<{
+  holders: WaybackRelease[];
+  hasTile: boolean;
+  truncated: boolean;
+}> {
   const indexOf = new Map(releases.map((r, i) => [r.release, i]));
   const x = lon2tile(lon, zoom);
   const y = lat2tile(lat, zoom);
