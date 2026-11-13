@@ -11,10 +11,12 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 - AI dashboards can be rearranged by drag and drop, like the tiles of the
   overview: a card or a whole row is picked up at the handle that appears on
-  hover and takes the place of the part it is dropped on; within a row, cards
-  swap places. The new order is saved with the dashboard. A drop that would
-  break the layout rules (a fifth card in a row, a row inside a row) is
-  refused with a notice.
+  hover. Within a row, cards change places; a card dropped on a row of its
+  kind (key figures with key figures, charts and tables with charts and
+  tables) joins it, also between its cards; a card dragged out of a row gets
+  a row of its own and can be dragged back. The new order is saved with the
+  dashboard. A drop that would break the layout rules (a fifth card in a row,
+  a row inside a row) is refused with a notice.
 - Detector training: confirm instead of draw. `training/autolabel.py`
   labels each tile 8× with your own model and sorts boxes into sure /
   check / candidate; `training/review.py` is a local keyboard review page

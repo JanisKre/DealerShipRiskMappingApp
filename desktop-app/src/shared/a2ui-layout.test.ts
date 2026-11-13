@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { defaultDashboardSurface, type A2uiSurface } from "./a2ui";
-import { dropTarget, moveA2uiComponent } from "./a2ui-layout";
+import { dropComponent } from "./a2ui-layout";
 
+// root: kpis (k1–k4), charts (zones, top), table
 const surface = defaultDashboardSurface({
   title: "Übersicht",
   count: "Standorte",
@@ -20,73 +21,110 @@ function children(s: A2uiSurface, id: string): string[] {
     : [];
 }
 
-describe("moveA2uiComponent", () => {
+function parentOf(s: A2uiSurface, id: string): string | undefined {
+  return s.components.find(
+    (c) =>
+      (c.component === "Column" || c.component === "Row") &&
+      c.children.includes(id),
+  )?.id;
+}
+
+describe("dropComponent", () => {
   it("reorders cards within a row like the standard tiles", () => {
-    const next = moveA2uiComponent(surface, "k4", "k1")!;
+    const next = dropComponent(surface, "k4", "k1")!;
     expect(children(next, "kpis")).toEqual(["k4", "k1", "k2", "k3"]);
-    const back = moveA2uiComponent(next, "k4", "k3")!;
+    const back = dropComponent(next, "k4", "k3")!;
     expect(children(back, "kpis")).toEqual(["k1", "k2", "k3", "k4"]);
   });
 
-  it("reorders sections of the page", () => {
-    const next = moveA2uiComponent(surface, "table", "kpis")!;
+  it("gives a card dragged out of a row a row of its own", () => {
+    const next = dropComponent(surface, "k2", "table")!;
+    expect(children(next, "kpis")).toEqual(["k1", "k3", "k4"]);
+    const own = parentOf(next, "k2")!;
+    expect(own).not.toBe("root");
+    expect(children(next, own)).toEqual(["k2"]);
+    expect(children(next, "root")).toEqual(["kpis", "charts", own, "table"]);
+  });
+
+  it("lets the card be dragged back into its four-up row", () => {
+    const out = dropComponent(surface, "k2", "table")!;
+    const back = dropComponent(out, "k2", "k3")!;
+    expect(children(back, "kpis")).toEqual(["k1", "k2", "k3", "k4"]);
+    // The row it had on its own is gone again.
+    expect(children(back, "root")).toEqual(["kpis", "charts", "table"]);
+    expect(back.components).toHaveLength(surface.components.length);
+  });
+
+  it("appends a card dropped between the cards of a row", () => {
+    const out = dropComponent(surface, "k2", "table")!;
+    const back = dropComponent(out, "k2", "kpis")!;
+    expect(children(back, "kpis")).toEqual(["k1", "k3", "k4", "k2"]);
+  });
+
+  it("gathers loose key figures into one row", () => {
+    let s = dropComponent(surface, "k1", "table")!;
+    s = dropComponent(s, "k2", "table")!;
+    const own = parentOf(s, "k1")!;
+    s = dropComponent(s, "k2", own)!;
+    expect(children(s, own)).toEqual(["k1", "k2"]);
+  });
+
+  it("keeps key figures out of chart rows: the card goes above the row", () => {
+    const next = dropComponent(surface, "k1", "top")!;
+    expect(children(next, "charts")).toEqual(["zones", "top"]);
+    const own = parentOf(next, "k1")!;
+    expect(children(next, "root")).toEqual(["kpis", own, "charts", "table"]);
+  });
+
+  it("moves a chart back into its chart row", () => {
+    let s = dropComponent(surface, "zones", "table")!;
+    expect(children(s, "charts")).toEqual(["top"]);
+    s = dropComponent(s, "zones", "top")!;
+    expect(children(s, "charts")).toEqual(["zones", "top"]);
+  });
+
+  it("swaps a section with the row it is dropped on, not with a card inside", () => {
+    const next = dropComponent(surface, "table", "k1")!;
     expect(children(next, "root")).toEqual(["table", "kpis", "charts"]);
-  });
-
-  it("moves a card into another row in front of the card it was dropped on", () => {
-    const next = moveA2uiComponent(surface, "k1", "top")!;
-    expect(children(next, "kpis")).toEqual(["k2", "k3", "k4"]);
-    expect(children(next, "charts")).toEqual(["zones", "k1", "top"]);
-  });
-
-  it("takes a card out of a row onto the page", () => {
-    const next = moveA2uiComponent(surface, "zones", "table")!;
-    expect(children(next, "charts")).toEqual(["top"]);
-    expect(children(next, "root")).toEqual([
-      "kpis",
-      "charts",
-      "zones",
-      "table",
-    ]);
-  });
-
-  it("removes a row the move leaves empty", () => {
-    let next = moveA2uiComponent(surface, "zones", "table")!;
-    next = moveA2uiComponent(next, "top", "table")!;
-    expect(next.components.some((c) => c.id === "charts")).toBe(false);
-    expect(children(next, "root")).toEqual(["kpis", "zones", "top", "table"]);
+    const rows = dropComponent(surface, "charts", "k3")!;
+    expect(children(rows, "root")).toEqual(["charts", "kpis", "table"]);
   });
 
   it("refuses a fifth card in a row", () => {
-    expect(moveA2uiComponent(surface, "zones", "k1")).toBeNull();
+    const five: A2uiSurface = {
+      ...surface,
+      components: [
+        ...surface.components.map((c) =>
+          c.id === "root" && c.component === "Column"
+            ? { ...c, children: [...c.children, "solo"] }
+            : c,
+        ),
+        { id: "solo", component: "Row", children: ["k5"] },
+        {
+          id: "k5",
+          component: "KpiCard",
+          title: "Fünfte",
+          value: { "@call": "aggregate", args: { measure: "count" } },
+        },
+      ],
+    };
+    expect(dropComponent(five, "k5", "k1")).toBeNull();
+    expect(dropComponent(five, "k5", "kpis")).toBeNull();
   });
 
-  it("refuses a row inside a row, and a move onto itself or the root", () => {
-    expect(moveA2uiComponent(surface, "charts", "k1")).toBeNull();
-    expect(moveA2uiComponent(surface, "k1", "k1")).toBeNull();
-    expect(moveA2uiComponent(surface, "root", "k1")).toBeNull();
-    expect(moveA2uiComponent(surface, "k1", "root")).toBeNull();
-    expect(moveA2uiComponent(surface, "missing", "k1")).toBeNull();
+  it("does nothing for a drop on the part itself or its own row", () => {
+    expect(dropComponent(surface, "k1", "k1")).toBe(surface);
+    expect(dropComponent(surface, "k1", "kpis")).toBe(surface);
+  });
+
+  it("refuses moving the root or an unknown part", () => {
+    expect(dropComponent(surface, "root", "k1")).toBeNull();
+    expect(dropComponent(surface, "missing", "k1")).toBeNull();
   });
 
   it("leaves the input unchanged", () => {
     const before = JSON.stringify(surface);
-    moveA2uiComponent(surface, "k4", "k1");
+    dropComponent(surface, "k2", "table");
     expect(JSON.stringify(surface)).toBe(before);
-  });
-});
-
-describe("dropTarget", () => {
-  it("swaps a section with the row it is dropped on, not with a card inside", () => {
-    expect(dropTarget(surface, "table", "k1")).toBe("kpis");
-    expect(dropTarget(surface, "charts", "k3")).toBe("kpis");
-  });
-
-  it("keeps the card a sibling is dropped on", () => {
-    expect(dropTarget(surface, "k4", "k1")).toBe("k1");
-  });
-
-  it("puts a card into another row when no sibling is around", () => {
-    expect(dropTarget(surface, "k1", "top")).toBe("top");
   });
 });

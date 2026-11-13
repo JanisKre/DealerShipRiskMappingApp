@@ -7,16 +7,25 @@ import {
 
 /**
  * Moving the parts of an AI dashboard by drag and drop. The surface is a tree
- * of Columns and Rows; a moved component takes the place of the one it was
- * dropped on, like a tile of the standard dashboard. A move that would break
- * the catalog rules (a full Row, a Row inside a Row, a component inside
- * itself) is refused and returns null.
+ * of Columns (stacked parts) and Rows (cards side by side). A drop never
+ * breaks the catalog rules (at most four cards in a Row, no Row inside a Row,
+ * nothing inside itself); a drop that would is refused and returns null.
  */
 
 type Layout = Extract<A2uiComponent, { component: "Column" | "Row" }>;
 
 function isLayout(c: A2uiComponent | undefined): c is Layout {
   return c?.component === "Column" || c?.component === "Row";
+}
+
+/** Parts that sit in Rows side by side. */
+function isCard(c: A2uiComponent | undefined): boolean {
+  return (
+    c?.component === "KpiCard" ||
+    c?.component === "BarChart" ||
+    c?.component === "PieChart" ||
+    c?.component === "Table"
+  );
 }
 
 /** Same limits as the schema: a Row holds at most 4, a Column 12. */
@@ -42,71 +51,79 @@ function contains(
 }
 
 /**
- * Moves `dragged` to the place of `target`. Within one parent the two swap
- * order as in the standard dashboard (`moveDashboardTile`); into another
- * parent, `dragged` goes in front of `target`. A Row or Column left empty is
- * removed. Returns the new surface, or null when the move is not allowed or
- * changes nothing.
+ * Whether `card` belongs in `row`: key figures go with key figures, charts
+ * and tables with charts and tables, as the dashboards are built.
  */
-export function moveA2uiComponent(
+function fitsRow(
+  byId: Map<string, A2uiComponent>,
+  card: A2uiComponent,
+  row: Layout,
+): boolean {
+  const others = row.children
+    .filter((id) => id !== card.id)
+    .map((id) => byId.get(id));
+  if (others.some((c) => !isCard(c))) return false;
+  const kpi = card.component === "KpiCard";
+  return others.every((c) => (c?.component === "KpiCard") === kpi);
+}
+
+/**
+ * Puts `dragged` at `index` of `parentId` (counted before it is taken out of
+ * its old place), optionally wrapped in a new Row of its own. Layouts left
+ * empty are removed. Null when the result breaks a rule.
+ */
+function relocate(
   surface: A2uiSurface,
   dragged: string,
-  target: string,
+  parentId: string,
+  index: number,
+  wrap: boolean,
 ): A2uiSurface | null {
-  if (dragged === target || dragged === "root" || target === "root") {
-    return null;
-  }
-  const byId = new Map(surface.components.map((c) => [c.id, c]));
-  const moving = byId.get(dragged);
-  if (!moving || !byId.has(target)) return null;
-  if (contains(byId, dragged, target)) return null;
   const from = parentOf(surface.components, dragged);
-  const to = parentOf(surface.components, target);
-  if (!from || !to) return null;
-  // Rows hold cards side by side; a layout inside a Row nests grids.
-  if (to.component === "Row" && isLayout(moving)) return null;
-  if (from.id !== to.id && to.children.length >= MAX_CHILDREN[to.component]) {
-    return null;
-  }
-
+  if (!from) return null;
   const children = new Map<string, string[]>(
     surface.components.flatMap((c) =>
       isLayout(c) ? [[c.id, [...c.children]]] : [],
     ),
   );
   const source = children.get(from.id)!;
-  const destination = children.get(to.id)!;
-  if (from.id === to.id) {
-    const fromIndex = source.indexOf(dragged);
-    const toIndex = source.indexOf(target);
-    source.splice(fromIndex, 1);
-    source.splice(toIndex, 0, dragged);
+  const destination = children.get(parentId);
+  if (!destination) return null;
+  const fromIndex = source.indexOf(dragged);
+  source.splice(fromIndex, 1);
+  // Within one parent the part takes the target's place, as the tiles of
+  // the standard dashboard do (`moveDashboardTile`).
+  const at = Math.min(index, destination.length);
+  const ids = new Set(surface.components.map((c) => c.id));
+  let wrapper: Layout | null = null;
+  if (wrap) {
+    let id = `row_${dragged}`.slice(0, 48);
+    for (let n = 2; ids.has(id); n += 1) id = `row${n}_${dragged}`.slice(0, 48);
+    wrapper = { id, component: "Row", children: [dragged] };
+    destination.splice(at, 0, id);
   } else {
-    source.splice(source.indexOf(dragged), 1);
-    destination.splice(destination.indexOf(target), 0, dragged);
+    destination.splice(at, 0, dragged);
   }
 
-  // Drop layouts the move left empty, up to (never including) the root.
   const removed = new Set<string>();
-  let emptied = [...children].find(
-    ([id, list]) => id !== "root" && list.length === 0 && !removed.has(id),
-  );
-  while (emptied) {
-    const [id] = emptied;
-    removed.add(id);
-    for (const list of children.values()) {
-      const index = list.indexOf(id);
-      if (index >= 0) list.splice(index, 1);
-    }
-    emptied = [...children].find(
-      ([other, list]) =>
-        other !== "root" && list.length === 0 && !removed.has(other),
+  for (;;) {
+    const emptied = [...children].find(
+      ([id, list]) => id !== "root" && list.length === 0 && !removed.has(id),
     );
+    if (!emptied) break;
+    removed.add(emptied[0]);
+    for (const list of children.values()) {
+      const i = list.indexOf(emptied[0]);
+      if (i >= 0) list.splice(i, 1);
+    }
   }
 
-  const components = surface.components
-    .filter((c) => !removed.has(c.id))
-    .map((c) => (isLayout(c) ? { ...c, children: children.get(c.id)! } : c));
+  const components = [
+    ...surface.components
+      .filter((c) => !removed.has(c.id))
+      .map((c) => (isLayout(c) ? { ...c, children: children.get(c.id)! } : c)),
+    ...(wrapper ? [wrapper] : []),
+  ];
   const next = { ...surface, components };
   if (!A2uiSurfaceSchema.safeParse(next).success) return null;
   if (surfaceIssues(components).length > 0) return null;
@@ -114,23 +131,80 @@ export function moveA2uiComponent(
 }
 
 /**
- * Where a drop on `hovered` lands. Parts swap places with their siblings
- * first, as tiles do: a table dropped on a key figure of the row above takes
- * the place of that row, not a place inside it. Only when no part around
- * `hovered` is a sibling of `dragged` does it go into `hovered`'s row or
- * column.
+ * Drops `dragged` on the part `hovered` (a card, or a row between its
+ * cards). Returns the new surface, `surface` itself when nothing moves, or
+ * null when the drop is refused:
+ *
+ * - within its own row, a card takes the place of the card it is dropped on;
+ * - a card dropped on a row of its kind (key figures with key figures,
+ *   charts and tables with charts and tables) joins that row there, or at
+ *   its end when dropped between the cards;
+ * - otherwise the part takes the place of the section around `hovered` on
+ *   the page, and a card that leaves a row gets a row of its own, so cards
+ *   can be gathered into it again.
  */
-export function dropTarget(
+export function dropComponent(
   surface: A2uiSurface,
   dragged: string,
   hovered: string,
-): string {
-  const parent = parentOf(surface.components, dragged)?.id;
-  let current: string | undefined = hovered;
-  while (current && current !== "root") {
-    const up = parentOf(surface.components, current)?.id;
-    if (up === parent) return current;
-    current = up;
+): A2uiSurface | null {
+  if (dragged === hovered) return surface;
+  if (dragged === "root") return null;
+  const byId = new Map(surface.components.map((c) => [c.id, c]));
+  const moving = byId.get(dragged);
+  const over = byId.get(hovered);
+  if (!moving || !over || contains(byId, dragged, hovered)) return null;
+  const from = parentOf(surface.components, dragged);
+  if (!from) return null;
+
+  const hoveredParent = parentOf(surface.components, hovered);
+  const row =
+    over.component === "Row"
+      ? over
+      : hoveredParent?.component === "Row"
+        ? hoveredParent
+        : undefined;
+
+  if (row && row.id === from.id) {
+    if (hovered === row.id) return surface;
+    return relocate(
+      surface,
+      dragged,
+      row.id,
+      row.children.indexOf(hovered),
+      false,
+    );
   }
-  return hovered;
+  if (row && isCard(moving) && fitsRow(byId, moving, row)) {
+    if (row.children.length >= MAX_CHILDREN.Row) return null;
+    const index =
+      hovered === row.id ? row.children.length : row.children.indexOf(hovered);
+    return relocate(surface, dragged, row.id, index, false);
+  }
+
+  // The section around `hovered` on the page: a sibling of `dragged` first,
+  // else the part of the nearest column.
+  let target: string | undefined;
+  for (let id: string | undefined = hovered; id && id !== "root";) {
+    const up = parentOf(surface.components, id);
+    if (up?.id === from.id) {
+      target = id;
+      break;
+    }
+    if (!target && up?.component === "Column") target = id;
+    id = up?.id;
+  }
+  if (!target) return null;
+  const column = parentOf(surface.components, target)!;
+  if (column.component !== "Column") return null;
+  if (column.id !== from.id && column.children.length >= MAX_CHILDREN.Column) {
+    return null;
+  }
+  const wrap = from.component === "Row" && isCard(moving);
+  const index = column.children.indexOf(target);
+  return (
+    relocate(surface, dragged, column.id, index, wrap) ??
+    // Without room for one more component, the card stands on its own.
+    (wrap ? relocate(surface, dragged, column.id, index, false) : null)
+  );
 }

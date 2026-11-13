@@ -353,3 +353,68 @@ test("parts of an AI dashboard move by drag and drop and stay moved", async () =
   await page.getByRole("tab", { name: "Standorte in Zone 2" }).click();
   await expect.poll(order).toEqual(["top", "table", "kpis", "eal"]);
 });
+
+test("a key figure dragged out of a four-up row can be dragged back", async () => {
+  await page.evaluate(async (catalogId) => {
+    const api = (window as unknown as { api: DrmApi }).api;
+    await api.saveDashboard({
+      id: "four-up",
+      name: "Vier Kennzahlen",
+      createdAt: "2026-11-13T00:00:00Z",
+      updatedAt: "2026-11-13T00:00:00Z",
+      prompt: "Vier Kennzahlen",
+      surface: {
+        surfaceId: "four-up",
+        catalogId,
+        title: "Vier Kennzahlen",
+        components: [
+          { id: "root", component: "Column", children: ["kpis", "top"] },
+          {
+            id: "kpis",
+            component: "Row",
+            children: ["k1", "k2", "k3", "k4"],
+          },
+          ...["k1", "k2", "k3", "k4"].map((id, i) => ({
+            id,
+            component: "KpiCard",
+            title: `Kennzahl ${i + 1}`,
+            value: { "@call": "aggregate", args: { measure: "count" } },
+          })),
+          {
+            id: "top",
+            component: "BarChart",
+            title: "Höchste Hagel-EAL",
+            data: { "@call": "ranking", args: { measure: "eal", limit: 5 } },
+          },
+        ],
+      },
+    } as never);
+  }, CATALOG);
+  await page.reload();
+  await page.getByRole("link", { name: "Dashboard" }).click();
+  await page.getByRole("tab", { name: "Vier Kennzahlen" }).click();
+  const view = page.getByRole("region", { name: "Vier Kennzahlen" });
+  const part = (id: string): ReturnType<Page["locator"]> =>
+    view.locator(`[data-a2ui-part="${id}"]`);
+  const row = (): Promise<string[]> =>
+    part("kpis")
+      .locator("[data-a2ui-part]")
+      .evaluateAll((els) =>
+        els.map((el) => el.getAttribute("data-a2ui-part") ?? ""),
+      );
+  await expect.poll(row).toEqual(["k1", "k2", "k3", "k4"]);
+
+  // Out of the row: the card stands in a row of its own below.
+  await part("k2").dragTo(part("top"));
+  await expect.poll(row).toEqual(["k1", "k3", "k4"]);
+  await expect(part("k2")).toBeVisible();
+
+  // And back in, in front of the card it is dropped on.
+  await part("k2").dragTo(part("k3"));
+  await expect.poll(row).toEqual(["k1", "k2", "k3", "k4"]);
+
+  await page.reload();
+  await page.getByRole("link", { name: "Dashboard" }).click();
+  await page.getByRole("tab", { name: "Vier Kennzahlen" }).click();
+  await expect.poll(row).toEqual(["k1", "k2", "k3", "k4"]);
+});

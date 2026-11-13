@@ -158,7 +158,9 @@ const ROW_COLUMNS: Record<number, string> = {
 };
 /** Rows of key figures: compact, two abreast even on narrow screens. */
 const KPI_ROW_COLUMNS: Record<number, string> = {
-  1: "grid-cols-1",
+  // A single key figure keeps the width of one of four, with room beside it
+  // to drop the others back.
+  1: "grid-cols-2 @3xl:grid-cols-4",
   2: "grid-cols-2",
   3: "grid-cols-2 @xl:grid-cols-3",
   4: "grid-cols-2 @3xl:grid-cols-4",
@@ -178,12 +180,18 @@ function Node({
   const c = byId.get(id);
   if (!c) return null;
   const child = (childId: string): React.JSX.Element => {
-    const kind = byId.get(childId)?.component;
+    const part = byId.get(childId);
+    const kind = part?.component;
+    // A row of one card is moved by the card's own handle.
+    const single =
+      (part?.component === "Row" || part?.component === "Column") &&
+      part.children.length === 1;
     return (
       <Movable
         key={childId}
         id={childId}
         section={kind === "Column" || kind === "Row"}
+        handle={!single}
       >
         <Node
           id={childId}
@@ -260,10 +268,13 @@ function Node({
 function Movable({
   id,
   section,
+  handle,
   children,
 }: Readonly<{
   id: string;
   section: boolean;
+  /** Whether to show the drag handle; the part can be dropped on anyway. */
+  handle: boolean;
   children: React.ReactNode;
 }>): React.JSX.Element {
   const { dragged, setDragged, onMove } = useContext(MoveContext);
@@ -297,16 +308,18 @@ function Movable({
         if (dragged !== id) onMove(dragged, id);
       }}
     >
-      <div
-        className={`pointer-events-none absolute -top-5 z-20 flex items-center gap-1 opacity-0 transition-opacity ${section ? "left-3 group-hover/section:opacity-100" : "right-3 group-hover/item:opacity-100"}`}
-      >
-        <span
-          aria-hidden
-          className="pointer-events-auto cursor-grab rounded-md border bg-background p-0.5 text-muted-foreground shadow-sm"
+      {handle && (
+        <div
+          className={`pointer-events-none absolute -top-5 z-20 flex items-center gap-1 opacity-0 transition-opacity ${section ? "left-3 group-hover/section:opacity-100" : "right-3 group-hover/item:opacity-100"}`}
         >
-          <GripVertical className="size-4" />
-        </span>
-      </div>
+          <span
+            aria-hidden
+            className="pointer-events-auto cursor-grab rounded-md border bg-background p-0.5 text-muted-foreground shadow-sm"
+          >
+            <GripVertical className="size-4" />
+          </span>
+        </div>
+      )}
       {children}
     </div>
   );

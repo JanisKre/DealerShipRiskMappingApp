@@ -57,7 +57,7 @@ import { useMapStore } from "@renderer/store/mapStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import { useReviewRun } from "./useReviewRun";
 import { A2uiSurfaceView } from "./a2ui/A2uiSurfaceView";
-import { dropTarget, moveA2uiComponent } from "@shared/a2ui-layout";
+import { dropComponent } from "@shared/a2ui-layout";
 import { DashboardTabs } from "./a2ui/DashboardTabs";
 import {
   rememberedDashboardId,
@@ -404,16 +404,16 @@ export function DashboardPage(): React.JSX.Element {
                     building
                       ? undefined
                       : (dragged, target) => {
-                          const surface = aiDashboard.surface;
-                          const next = moveA2uiComponent(
-                            surface,
+                          const next = dropComponent(
+                            aiDashboard.surface,
                             dragged,
-                            dropTarget(surface, dragged, target),
+                            target,
                           );
                           if (!next) {
                             toast.info(t("a2ui.moveRefused"));
                             return;
                           }
+                          if (next === aiDashboard.surface) return;
                           void arrange(next).catch(() =>
                             toast.error(t("a2ui.arrangeFailed")),
                           );
