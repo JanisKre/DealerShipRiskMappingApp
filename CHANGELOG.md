@@ -7,6 +7,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Building footprints for Bayern from the open LoD2 building model of the
+  Bayerische Vermessungsverwaltung (CC BY 4.0), read by 2 km tile and cached
+  per tile. Bayern has no open building WFS; until now the roof mask and the
+  vehicle outline had no footprints there, so outlines left the showroom
+  out. A large city tile may arrive too late for the first analysis of a
+  site and then helps from the next one (`docs/official-buildings.md`).
+
 ### Changed
 
 - Lot boundary, cascade v4 (`docs/boundary-model.md`, "Cascade v4"): a

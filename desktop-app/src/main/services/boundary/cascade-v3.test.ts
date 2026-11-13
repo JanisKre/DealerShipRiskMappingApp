@@ -332,6 +332,32 @@ describe("field strips (v3.1)", () => {
   });
 });
 
+describe("building at the point (v4)", () => {
+  it("adds the building complex the point lies in, even with cars on one side only", () => {
+    // Showroom 60 × 40 m with a workshop attached to its west wall; the point
+    // on the showroom roof; the cars stand east of the showroom only.
+    const showroom = rect(-30, -20, 30, 20);
+    const workshop = rect(-60, -20, -30, 20);
+    const vehicles = cars(32, -20, 60, 20);
+    const without = vehicleHullStage(input({ vehicles }));
+    const withComplex = vehicleHullStage(
+      input({ vehicles, buildings: [showroom, workshop] }),
+    );
+    expect(withComplex.result!.areaSqm).toBeGreaterThan(
+      without.result!.areaSqm + 2_000,
+    );
+    const geometry = withComplex.result!.polygon;
+    const rings =
+      geometry.type === "Polygon"
+        ? [geometry.coordinates[0]]
+        : geometry.coordinates.map((part) => part[0]);
+    // One part, reaching the west wall of the workshop.
+    expect(rings).toHaveLength(1);
+    const west = Math.min(...rings[0].map(([lon]) => lon));
+    expect(west).toBeLessThan(at(-55, 0)[0]);
+  });
+});
+
 describe("empty-parcel test for large areas (v4)", () => {
   it("keeps a large sand lot with scattered detections out, but not a smaller yard", () => {
     const home = parcel(rect(-40, -40, 40, 40));

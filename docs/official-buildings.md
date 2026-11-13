@@ -62,12 +62,28 @@ slower answer still fills the cache (30 days) for the next analysis.
 | ST | INSPIRE `ows_INSPIRE_LVermGeo_ALKIS_BU_WFS` | `bu-core2d:Building` | no |
 | BB | INSPIRE `bu_alkis_wfs` | `bu-core2d:Building` | no |
 | BW | INSPIRE `WFS_INSP_BW_Gebaeude_ALKIS` | `bu-core2d:Building` | no |
+| BY | LoD2 CityGML tiles `download1/2.bayernwolke.de/a/lod2/citygml/{e}_{n}.gml` (no WFS) | `bldg:Building` ground surfaces | yes |
 
 Verified live on 11 November 2026 with a 190 m request over a city centre
 (between 44 and 401 footprints per state, car parks recognised in NW, NI,
 HB and HE). Not covered: Hamburg (its INSPIRE building WFS answers every
-BBOX request with a mixed-SRID server error), Bayern and Saarland (no open
-building WFS found). Schleswig-Holstein answered in 14–20 s and Brandenburg
+BBOX request with a mixed-SRID server error) and Saarland (no open building
+WFS found).
+
+**Bayern (since November 2026).** Bayern publishes no open building or
+parcel WFS. Its open data contains the LoD2 building model (CC BY 4.0,
+"Bayerische Vermessungsverwaltung – www.geodaten.bayern.de") as CityGML
+tiles of 2 × 2 km in UTM 32, named by the south-west corner in kilometres.
+`bavaria-lod2.service.ts` picks the tiles the 190 m box touches, streams
+them, keeps only the ground surfaces and the building function (car parks
+2460–2462 and 2465 as above) and caches them per tile for 180 days, so other
+sites in the same tile need no download. A tile is 1–160 MB (Munich centre
+around 60 MB, rural tiles mostly under 15 MB). Because the analysis waits at
+most `OFFICIAL_BUILDINGS_WAIT_MS` after detection, a large tile may arrive
+too late for the first analysis of a site and helps from the next one. The
+request names only the tile, not the site's coordinates. Points in
+neighbouring states inside Bayern's rough outline are answered by their own
+state's service first. Schleswig-Holstein answered in 14–20 s and Brandenburg
 in about 6 s, so there the footprints usually help only from the second
 analysis of a site.
 

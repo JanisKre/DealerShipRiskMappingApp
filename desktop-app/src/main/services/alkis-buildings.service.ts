@@ -3,6 +3,11 @@ import { fetchWithResilience } from "./http.service";
 import type { LonLat } from "./boundary-geometry";
 import { createCircuitBreaker } from "./boundary/circuit-breaker";
 import { parseExteriorRings, statesForPoint, toUtm32 } from "./alkis.service";
+import {
+  bavariaLod2Buildings,
+  isInBavariaBox,
+  LOD2_ATTRIBUTION,
+} from "./bavaria-lod2.service";
 
 /**
  * Official building footprints (ALKIS) from the open WFS of the German
@@ -20,9 +25,12 @@ import { parseExteriorRings, statesForPoint, toUtm32 } from "./alkis.service";
  * - INSPIRE `bu-core2d:Building` (the rest), which carries only a coarse
  *   `currentUse` and cannot tell a car park from an office.
  *
+ * Bayern publishes no open building WFS; its footprints come from the open
+ * LoD2 model, read by 2 km tile (bavaria-lod2.service.ts).
+ *
  * Not covered: Hamburg (its INSPIRE WFS fails every BBOX request with a
- * mixed-SRID server error), Bayern and Saarland (no open building WFS
- * found). There the mask uses OSM alone, as before.
+ * mixed-SRID server error) and Saarland (no open building WFS found). There
+ * the mask uses OSM alone, as before.
  */
 
 const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
@@ -314,5 +322,15 @@ async function lookup(
     // just mean the point lies in the next state.
     if (buildings.length > 0) return result;
   }
+  // Bayern has no open building WFS; its open LoD2 model is read by tile.
+  if (isInBavariaBox(lat, lon)) {
+    const buildings = await bavariaLod2Buildings(lat, lon, radiusM);
+    if (buildings && buildings.length > 0) {
+      return { buildings, state: BAVARIA_LOD2_STATE, truncated: false };
+    }
+  }
   return EMPTY;
 }
+
+/** Source name in provenance lines; carries the required attribution. */
+export const BAVARIA_LOD2_STATE = `Bayern (${LOD2_ATTRIBUTION})`;

@@ -146,8 +146,19 @@ describe("fetchOfficialBuildings", () => {
     expect(mocks.cache.size).toBe(0);
   });
 
-  it("asks nothing where no state publishes buildings (Munich)", async () => {
+  it("reads the open LoD2 tiles in Bayern, which has no building WFS (Munich)", async () => {
+    mocks.fetch.mockResolvedValue(new Response("", { status: 404 }));
     const result = await fetchOfficialBuildings(48.137, 11.575);
+    expect(result).toEqual({ buildings: [], state: null, truncated: false });
+    expect(
+      mocks.fetch.mock.calls.every((call) =>
+        String(call[0]).includes("bayernwolke.de/a/lod2/citygml/"),
+      ),
+    ).toBe(true);
+  });
+
+  it("asks nothing outside every covered state and Bayern (Amsterdam)", async () => {
+    const result = await fetchOfficialBuildings(52.37, 4.9);
     expect(result).toEqual({ buildings: [], state: null, truncated: false });
     expect(mocks.fetch).not.toHaveBeenCalled();
   });

@@ -72,8 +72,10 @@ import { matchesSite } from "./site-membership";
  * `anchorOffLot` flag with the lot's parcels as an alternative, stricter
  * empty-parcel test for large areas, minimum area in stage 1
  * (docs/boundary-model.md, "Cascade v4").
+ * 5: the building complex at the point joins the vehicle outline; Bayern
+ * footprints from the LoD2 model.
  */
-export const CASCADE_VERSION = 4;
+export const CASCADE_VERSION = 5;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -1022,17 +1024,23 @@ export function vehicleHullStage(input: CascadeInput): StageOutcome {
     Math.round((hullCloseM - hullMarginM) / OUTLINE_CELL_M) - 1,
   );
   completeOutline(spec, mask, stamp, input);
-  // Parts without lot vehicles are what is left beyond a removed street.
+  // Parts without lot vehicles are what is left beyond a removed street;
+  // the part holding the point (its building) always stays.
   const lotCells = lot.flatMap((vehicle) => {
     const cell = lonLatToCell(spec, vehicle);
     return cell ? [cellIndex(spec, cell.col, cell.row)] : [];
   });
+  const anchorRef = lonLatToCell(spec, input.anchor);
+  const anchorCell = anchorRef
+    ? cellIndex(spec, anchorRef.col, anchorRef.row)
+    : -1;
   const outline = masksToGeometry(
     spec,
     components(spec, mask).filter(
       (component) =>
+        (anchorCell >= 0 && component[anchorCell] === 1) ||
         lotCells.filter((index) => component[index]).length >=
-        CASCADE_LIMITS.minLotVehicles,
+          CASCADE_LIMITS.minLotVehicles,
     ),
     { simplifyToleranceM: 1 },
   );
@@ -1098,7 +1106,25 @@ function completeOutline(
   input: CascadeInput,
 ): void {
   let added = false;
+  // The building the point lies in is the dealership's as a rule (the point
+  // is its address or POI), so it belongs to the outline even where the lot
+  // stands on one side only. Without cadastre (Bayern) it is the only
+  // evidence of the showroom.
+  const atPoint = anchorBuildingOf(input);
+  const complex = atPoint
+    ? buildingComplex(atPoint, input.buildings ?? [])
+    : [];
+  const complexArea = complex.reduce((sum, ring) => sum + ringAreaSqm(ring), 0);
+  if (complex.length > 0 && complexArea <= CASCADE_LIMITS.maxParcelSqm) {
+    for (const ring of complex) {
+      const cells = new Uint8Array(mask.length);
+      if (rasterizeMaskPolygon(spec, ring, cells) === 0) continue;
+      for (let i = 0; i < cells.length; i += 1) if (cells[i]) mask[i] = 1;
+      added = true;
+    }
+  }
   for (const ring of input.buildings ?? []) {
+    if (complex.includes(ring)) continue;
     if (ringAreaSqm(ring) > CASCADE_LIMITS.hullBuildingMaxSqm) continue;
     const cells = new Uint8Array(mask.length);
     if (rasterizeMaskPolygon(spec, ring, cells) === 0) continue;
@@ -1149,6 +1175,32 @@ function completeOutline(
     for (let i = 0; i < cells.length; i += 1) if (cells[i]) mask[i] = 0;
   }
 }
+
+/**
+ * The building at the point and every building attached to it (wall to
+ * wall, within `BUILDING_ATTACHED_M`): official models split a showroom,
+ * workshop and annex into separate buildings of one complex.
+ */
+function buildingComplex(seed: LonLat[], buildings: LonLat[][]): LonLat[][] {
+  const complex = [seed];
+  const queue = [seed];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const ring of buildings) {
+      if (complex.includes(ring)) continue;
+      const touches =
+        ring.some((p) => distanceToRingM(p, current) <= BUILDING_ATTACHED_M) ||
+        current.some((p) => distanceToRingM(p, ring) <= BUILDING_ATTACHED_M);
+      if (!touches) continue;
+      complex.push(ring);
+      queue.push(ring);
+    }
+  }
+  return complex;
+}
+
+/** Buildings closer than this count as attached (shared or touching walls). */
+const BUILDING_ATTACHED_M = 1;
 
 /** Sets every empty cell not connected to the grid edge (a hole). */
 function fillHoles(spec: GridSpec, mask: Uint8Array): void {
