@@ -1,7 +1,7 @@
 # Training pipeline for the vehicle detector (Python 3.11–3.12, Apple silicon / MPS)
 # Lower bounds sit at the first releases without known advisories (OSV,
 # checked 2026-11-13): torch < 2.13, onnx < 1.22 and pillow < 13 are affected.
-ultralytics>=8.4,<8.5
+ultralytics>=8.4.208,<8.5
 torch>=2.13
 onnx>=1.22
 onnxslim>=0.1.40
