@@ -1,8 +1,10 @@
 import { randomUUID } from "crypto";
 import {
   BoundaryEditStateSchema,
+  DealershipInputSchema,
   type AnalyzedDealership,
   type BoundaryEditState,
+  type DealershipInput,
   type RiskParameters,
   type Session,
 } from "@shared/types";
@@ -59,6 +61,9 @@ export function loadSession(id: string): Session | null {
     ...(!Array.isArray(stored) && stored.boundaryEdits
       ? { boundaryEdits: validBoundaryEdits(stored.boundaryEdits) }
       : {}),
+    ...(!Array.isArray(stored) && stored.pendingAnalysis
+      ? { pendingAnalysis: validPendingAnalysis(stored.pendingAnalysis) }
+      : {}),
   };
 }
 
@@ -66,6 +71,19 @@ interface StoredEnvelope {
   dealerships?: AnalyzedDealership[];
   parameters?: RiskParameters;
   boundaryEdits?: unknown;
+  pendingAnalysis?: unknown;
+}
+
+/**
+ * The inputs of an analysis that had not finished. An entry that no longer
+ * parses is dropped: the location then simply is not offered for resuming.
+ */
+export function validPendingAnalysis(value: unknown): DealershipInput[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    const parsed = DealershipInputSchema.safeParse(entry);
+    return parsed.success ? [parsed.data] : [];
+  });
 }
 
 /**
@@ -107,6 +125,11 @@ export function saveSession(session: Session): void {
         ...(session.boundaryEdits &&
         Object.keys(session.boundaryEdits).length > 0
           ? { boundaryEdits: session.boundaryEdits }
+          : {}),
+        // Inputs of an analysis cut short (app closed or crashed), so it can
+        // be resumed after a restart.
+        ...(session.pendingAnalysis && session.pendingAnalysis.length > 0
+          ? { pendingAnalysis: session.pendingAnalysis }
           : {}),
       }),
     });

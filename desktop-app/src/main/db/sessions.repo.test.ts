@@ -26,7 +26,7 @@ vi.mock("../db/database", () => ({
   }),
 }));
 
-const { loadSession, saveSession, validBoundaryEdits } =
+const { loadSession, saveSession, validBoundaryEdits, validPendingAnalysis } =
   await import("./sessions.repo");
 
 const boundary = (areaSqm: number): BoundaryResult => ({
@@ -89,5 +89,32 @@ describe("boundary edits in a saved session", () => {
       }),
     ).toEqual({ one: { history: [boundary(100)], unsaved: false } });
     expect(validBoundaryEdits(null)).toEqual({});
+  });
+});
+
+describe("an analysis cut short", () => {
+  const queued = [
+    { id: "two", name: "Second", lat: 52, lon: 8 },
+    { id: "three", name: "Third", address: "Hauptstr. 1, Köln" },
+  ];
+
+  it("keeps the inputs still to analyse across save and load", () => {
+    saveSession(session({ pendingAnalysis: queued }));
+    expect(loadSession("s1")?.pendingAnalysis).toEqual(queued);
+  });
+
+  it("stores no queue when nothing is pending", () => {
+    saveSession(session({ pendingAnalysis: [] }));
+    expect(JSON.parse(rows.get("s1")!.data)).not.toHaveProperty(
+      "pendingAnalysis",
+    );
+    expect(loadSession("s1")).not.toHaveProperty("pendingAnalysis");
+  });
+
+  it("drops an entry that no longer parses", () => {
+    expect(validPendingAnalysis([queued[0], { name: 42 }])).toEqual([
+      queued[0],
+    ]);
+    expect(validPendingAnalysis("broken")).toEqual([]);
   });
 });

@@ -130,6 +130,10 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Resuming an analysis after a restart: the inputs still to analyse were
+  not written to the saved portfolio, so locations of a cut-short import
+  that had not started yet were lost on closing the app. They are now
+  stored with the session and offered for resuming again.
 - Dashboard → Export → PDF report always failed with "autoTable is not a
   function": the bundled main process called the `jspdf-autotable` module
   object instead of its function. All five export types (PDF, Excel, CSV,
