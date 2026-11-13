@@ -35,6 +35,7 @@ import {
 } from "./rasterize";
 import { masksToGeometry } from "./vectorize";
 import { matchesSite } from "./site-membership";
+import { addressKeys, sharesAddress } from "./parcel-address";
 
 /**
  * Source cascade: the boundary engine. Version 2 lets the detected vehicles
@@ -81,8 +82,13 @@ import { matchesSite } from "./site-membership";
  * 8: small dense parcels, short parking strips (as leaves) and enclosed
  * parcels join; holes in the parcel union are filled
  * (docs/boundary-model.md, "Cascade v8").
+ * 9: the cadastre's land use decides what a street is, where published;
+ * parcels with the address of the parcel at the point join; a point whose
+ * parcel does not carry the dealership's address moves to the parcel that
+ * does; housing and open land join only when dense with vehicles
+ * (docs/boundary-model.md, "Cascade v9").
  */
-export const CASCADE_VERSION = 8;
+export const CASCADE_VERSION = 9;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -179,6 +185,48 @@ export const CASCADE_LIMITS = {
   enclosedMinShare: 0.75,
   /** … unless it is larger than this share of the lot chosen so far. */
   enclosedMaxShareOfLot: 0.5,
+  /**
+   * Where the cadastre publishes land use, a parcel is a street when at
+   * least this share of it is traffic area and it carries no house number
+   * (a dealer's yard was found registered as "Weg" under its own address).
+   */
+  streetTrafficShare: 0.5,
+  /**
+   * A parcel of which at least this share is housing or open land (farmland,
+   * woodland, parks) joins only by the dense rule, and joins as an enclosed
+   * plot only below `enclosedForeignMaxSqm`: a neighbour's house or a meadow
+   * inside the block is not the dealer's.
+   */
+  foreignUseShare: 0.5,
+  enclosedForeignMaxSqm: 200,
+  /**
+   * A parcel of which at least this share is vegetation on the aerial image
+   * is treated like open land: it joins only by the dense rule.
+   */
+  greenParcelShare: 0.5,
+  /**
+   * Vegetation is trimmed off a parcel union where it forms a patch of at
+   * least `trimMinSqm` at the edge of the result that survives an opening
+   * of `trimOpenM` (so tree rows, islands and the lawn in front of the
+   * display rows stay) and has no detected vehicle within
+   * `trimVehicleClearM`. With 400 m² and 4 m the lawn along a
+   * forecourt was cut off and the outline followed the car rows.
+   */
+  trimMinSqm: 600,
+  trimOpenM: 5,
+  trimVehicleClearM: 8,
+  /**
+   * A parcel with the address of the parcel at the point joins without
+   * vehicles up to this size, and beyond it only while it is no larger than
+   * the parcels chosen so far.
+   */
+  addressJoinFreeSqm: 5000,
+  /**
+   * A parcel carrying the dealership's address counts as the parcel at the
+   * point when it lies within this distance of a point whose own parcel has
+   * another address or none.
+   */
+  addressAnchorReachM: 150,
   /** Vertex distance at which two parcels count as neighbours. */
   adjacentParcelM: 3,
   /**
@@ -277,6 +325,13 @@ export interface CascadeInput {
    * land-use map). The outline is cut back there like at street parcels.
    */
   isStreetAt?: (point: LonLat) => boolean;
+  /**
+   * Vegetation on the aerial image (grass, trees in leaf); null outside the
+   * image. A parcel that is mostly vegetation joins only when dense with
+   * vehicles, and planted fringes without vehicles are trimmed off the
+   * parcel union (boundary/vegetation.ts).
+   */
+  vegetationAt?: (point: LonLat) => boolean | null;
   parameters: RiskParameters;
 }
 
@@ -302,6 +357,11 @@ export interface CascadeOutcome {
   lotVehicles?: number;
   /** Conditions that send the result to review on their own. */
   flags: BoundaryReviewFlag[];
+  /**
+   * The point the stages started from, when it is not the given one: a
+   * point inside the parcel that carries the dealership's address.
+   */
+  anchor?: LonLat;
 }
 
 const now = (): string => new Date().toISOString();
@@ -522,7 +582,9 @@ export function isFieldStrip(
   parcel: ParcelFeature,
   parcels: ParcelFeature[],
 ): boolean {
-  if (!isStreetLike(parcel.ring)) return false;
+  // With land use published a narrow plot is simply a plot: it joins by its
+  // vehicles like any other, which is what the strip rule approximates.
+  if (parcel.landUse || !isStreetLike(parcel.ring)) return false;
   const own = longAxisAngle(parcel.ring);
   let parallel = 0;
   for (const other of parcels) {
@@ -546,7 +608,7 @@ export function streetParcels(parcels: ParcelFeature[]): Set<ParcelFeature> {
   if (hit) return hit;
   const streets = new Set(
     parcels.filter(
-      (parcel) => isStreetLike(parcel.ring) && !isFieldStrip(parcel, parcels),
+      (parcel) => isStreetParcel(parcel) && !isFieldStrip(parcel, parcels),
     ),
   );
   streetCache.set(parcels, streets);
@@ -597,6 +659,95 @@ export function isShortStrip(ring: LonLat[]): boolean {
   if (!isStreetLike(ring)) return false;
   const xy = ring.map((p) => projectPoint(p, ring[0]));
   return boundingLengthM(xy) <= CASCADE_LIMITS.streetMinLengthM;
+}
+
+/**
+ * What the cadastre's land use says about a parcel being a street: true or
+ * false where the service publishes land use, null where it does not. A
+ * parcel with a house number is a plot, whatever its registered use.
+ */
+export function streetByUse(
+  parcel: Pick<ParcelFeature, "landUse" | "address">,
+): boolean | null {
+  if (!parcel.landUse) return null;
+  return (
+    (parcel.landUse.traffic ?? 0) >= CASCADE_LIMITS.streetTrafficShare &&
+    addressKeys(parcel.address).length === 0
+  );
+}
+
+/**
+ * A street, path or rail parcel: by the cadastre's land use where it is
+ * published, by shape otherwise. The shape test alone calls every plot
+ * under about 20 × 20 m street-like, so small yard plots never joined.
+ */
+export function isStreetParcel(
+  parcel: Pick<ParcelFeature, "ring" | "landUse" | "address">,
+): boolean {
+  return streetByUse(parcel) ?? isStreetLike(parcel.ring);
+}
+
+/** Housing or open land by the cadastre's land use; false when unknown. */
+function isForeignUse(parcel: ParcelFeature): boolean {
+  const use = parcel.landUse;
+  if (!use) return false;
+  return (
+    Math.max(use.residential ?? 0, use.open ?? 0) >=
+    CASCADE_LIMITS.foreignUseShare
+  );
+}
+
+const greenCache = new WeakMap<
+  (point: LonLat) => boolean | null,
+  WeakMap<LonLat[], number | null>
+>();
+
+/**
+ * Share of a ring's area that is vegetation on the aerial image, sampled on
+ * a lattice of at least 3 m. Null without an image or when less than 70 %
+ * of the ring lies on it.
+ */
+export function greenShare(
+  ring: LonLat[],
+  vegetationAt: ((point: LonLat) => boolean | null) | undefined,
+  buildings: LonLat[][] = [],
+): number | null {
+  if (!vegetationAt) return null;
+  let perMask = greenCache.get(vegetationAt);
+  if (!perMask) {
+    perMask = new WeakMap();
+    greenCache.set(vegetationAt, perMask);
+  }
+  const hit = perMask.get(ring);
+  if (hit !== undefined) return hit;
+  const [west, south, east, north] = ringBounds(ring);
+  const stepM = Math.max(3, Math.sqrt(ringAreaSqm(ring) / 1500));
+  const dLat = stepM / 111_320;
+  const dLon =
+    dLat / Math.max(0.1, Math.cos((((south + north) / 2) * Math.PI) / 180));
+  // Roofs are not vegetation, whatever their colour (a dark roof in shade
+  // can pass the colour test).
+  const roofs = buildings.filter((roof) => {
+    const [bw, bs, be, bn] = ringBounds(roof);
+    return bw <= east && be >= west && bs <= north && bn >= south;
+  });
+  let inside = 0;
+  let known = 0;
+  let green = 0;
+  for (let lat = south + dLat / 2; lat < north; lat += dLat) {
+    for (let lon = west + dLon / 2; lon < east; lon += dLon) {
+      const point: LonLat = [lon, lat];
+      if (!contains(ring, point)) continue;
+      inside += 1;
+      const value = vegetationAt(point);
+      if (value == null) continue;
+      known += 1;
+      if (value && !roofs.some((roof) => contains(roof, point))) green += 1;
+    }
+  }
+  const share = inside >= 5 && known >= 0.7 * inside ? green / known : null;
+  perMask.set(ring, share);
+  return share;
 }
 
 /**
@@ -733,6 +884,79 @@ function anchorParcelOf(input: CascadeInput): ParcelFeature | undefined {
   return input.parcels.find((parcel) => contains(parcel.ring, input.anchor));
 }
 
+/** A point inside the ring: its centre, or the centre of an inner corner. */
+function interiorPoint(ring: LonLat[]): LonLat {
+  const centre = ringCentre(ring);
+  if (contains(ring, centre)) return centre;
+  for (let i = 0; i + 2 < ring.length; i += 1) {
+    const corner: LonLat = [
+      (ring[i][0] + ring[i + 1][0] + ring[i + 2][0]) / 3,
+      (ring[i][1] + ring[i + 1][1] + ring[i + 2][1]) / 3,
+    ];
+    if (contains(ring, corner)) return corner;
+  }
+  return centre;
+}
+
+/**
+ * The parcel that carries the dealership's address, when the parcel at the
+ * point does not: a geocoded point often lands on the road, on a
+ * neighbour's plot or at the wrong end of a long site. The point moves only
+ * when it lies on no parcel, on a street, or on a parcel with another house
+ * number and fewer than `minLotVehicles` vehicles. Null otherwise, and when
+ * the address is unknown, the cadastre publishes none or no parcel within
+ * `addressAnchorReachM` carries it.
+ */
+export function addressAnchor(
+  input: CascadeInput,
+): { anchor: LonLat; distanceM: number } | null {
+  const keys = new Set(addressKeys(input.address));
+  if (keys.size === 0) return null;
+  const atPoint = anchorParcelOf(input);
+  if (atPoint && streetByUse(atPoint) !== true) {
+    // A parcel without a house number is left alone: the showroom often
+    // stands on one, and the numbered plot is the owner's house behind it.
+    // So is a parcel with another number that holds vehicles: a yard is
+    // often registered under the neighbouring number. In both cases the
+    // parcels with the address join as neighbours (stage 1).
+    const numbered = addressKeys(atPoint.address).length > 0;
+    const vehiclesHere = (input.vehicles ?? []).filter((v) =>
+      contains(atPoint.ring, v),
+    ).length;
+    if (
+      !numbered ||
+      sharesAddress(keys, atPoint.address) ||
+      vehiclesHere >= CASCADE_LIMITS.minLotVehicles
+    ) {
+      return null;
+    }
+  }
+  const nearest = input.parcels
+    .filter(
+      (parcel) =>
+        parcel.areaSqm <= CASCADE_LIMITS.maxParcelSqm &&
+        streetByUse(parcel) !== true &&
+        sharesAddress(keys, parcel.address),
+    )
+    .map((parcel) => ({
+      parcel,
+      distanceM: distanceToRingM(input.anchor, parcel.ring),
+    }))
+    .filter((c) => c.distanceM <= CASCADE_LIMITS.addressAnchorReachM)
+    .sort((a, b) => a.distanceM - b.distanceM)[0];
+  if (!nearest) return null;
+  return {
+    anchor: interiorPoint(nearest.parcel.ring),
+    distanceM: nearest.distanceM,
+  };
+}
+
+/**
+ * `state` of parcels read from a rendered parcel map instead of a vector
+ * service (bavaria-parcels.service.ts).
+ */
+const MAP_PARCEL_STATE = "Bayern";
+
 function parcelResult(
   geometry: BoundaryGeometry,
   areaSqm: number,
@@ -751,7 +975,10 @@ function parcelResult(
     confidence,
     label,
     evidence: {
-      source: `ALKIS (${state})`,
+      source:
+        state === MAP_PARCEL_STATE
+          ? "ALKIS-Parzellarkarte Bayern © Bayerische Vermessungsverwaltung (CC BY 4.0)"
+          : `ALKIS (${state})`,
       retrievedAt: now(),
       method:
         stage === 1
@@ -764,6 +991,11 @@ function parcelResult(
           ? [
               "Parcels follow legal lines; part of a parcel may belong to another use",
               "Vehicles hidden by trees or shadow are not seen",
+              ...(state === MAP_PARCEL_STATE
+                ? [
+                    "Parcels read from the Bayern parcel map, good to about half a metre; a building can split or shift a plot",
+                  ]
+                : []),
             ]
           : [
               "No vehicles seen; a parcel is a legal unit, not the operational lot",
@@ -827,7 +1059,18 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
 
   // Parcels that joined by the strip or enclosure rule: named in the trace,
   // and not counted towards the minimum lot area.
-  const joinedAs = new Map<ParcelFeature, "strip" | "enclosed">();
+  // Mostly vegetation on the image: a meadow or a wood, whatever the
+  // cadastre registers it as.
+  const isGreen = (parcel: ParcelFeature): boolean =>
+    (greenShare(parcel.ring, input.vegetationAt, buildings) ?? 0) >=
+    CASCADE_LIMITS.greenParcelShare;
+  const isForeign = (parcel: ParcelFeature): boolean =>
+    isForeignUse(parcel) || isGreen(parcel);
+  const joinedAs = new Map<ParcelFeature, "strip" | "enclosed" | "address">();
+  const siteKeys = new Set([
+    ...addressKeys(anchor.address),
+    ...addressKeys(input.address),
+  ]);
   const grow = (
     lot: LonLat[],
     seed: ParcelFeature = anchor,
@@ -849,7 +1092,10 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
       if (count < CASCADE_LIMITS.minLotVehicles) return null;
       const unbuilt = unbuiltAreaSqm(parcel, buildings);
       const density = (count / unbuilt) * 1000;
-      if (isStreetLike(parcel.ring)) {
+      const byUse = streetByUse(parcel);
+      // A road by land use never joins, however many cars park on it.
+      if (byUse === true) return null;
+      if (byUse === null && isStreetLike(parcel.ring)) {
         // Field strips too: a strip full of cars is part of the yard. Its
         // density counts the whole strip; a building on it is no parking.
         return isShortStrip(parcel.ring) &&
@@ -862,7 +1108,9 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         unbuilt > CASCADE_LIMITS.largeUnbuiltSqm
           ? CASCADE_LIMITS.parcelMinVehiclesPer1000SqmLarge
           : CASCADE_LIMITS.parcelMinVehiclesPer1000Sqm;
-      return (count >= minVehicles && density >= minDensity) ||
+      return (count >= minVehicles &&
+        density >= minDensity &&
+        !isForeign(parcel)) ||
         (count >= CASCADE_LIMITS.parcelDenseMinVehicles &&
           density >= CASCADE_LIMITS.parcelDenseVehiclesPer1000Sqm)
         ? "grow"
@@ -877,12 +1125,26 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
       const current = queue.shift()!;
       for (const parcel of input.parcels) {
         if (members.includes(parcel) || !isAdjacent(parcel, current)) continue;
-        const kind = joins(parcel);
+        // A neighbouring parcel with the address of the parcel at the point
+        // (or of the dealership) is the same property, cars on it or not.
+        const sameAddress =
+          parcel.areaSqm <= CASCADE_LIMITS.maxParcelSqm &&
+          // Not a large plot that exceeds everything chosen so far: an
+          // estate or a retail park registered under one address.
+          parcel.areaSqm <=
+            Math.max(areaSqm, CASCADE_LIMITS.addressJoinFreeSqm) &&
+          // Not the owner's house or a field behind the yard.
+          !isForeignUse(parcel) &&
+          streetByUse(parcel) !== true &&
+          !isGreen(parcel) &&
+          sharesAddress(siteKeys, parcel.address);
+        const kind = sameAddress ? "grow" : joins(parcel);
         if (!kind || !fits(parcel)) continue;
         members.push(parcel);
         areaSqm += parcel.areaSqm;
         if (kind === "grow") queue.push(parcel);
         else joinedAs.set(parcel, "strip");
+        if (sameAddress && !joins(parcel)) joinedAs.set(parcel, "address");
       }
     }
     // Parcels the lot encloses join whatever stands on them, so the result
@@ -894,7 +1156,14 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         if (
           parcel.areaSqm > CASCADE_LIMITS.enclosedMaxShareOfLot * areaSqm ||
           !fits(parcel) ||
-          (isStreetLike(parcel.ring) && !isShortStrip(parcel.ring)) ||
+          streetByUse(parcel) === true ||
+          (streetByUse(parcel) === null &&
+            isStreetLike(parcel.ring) &&
+            !isShortStrip(parcel.ring)) ||
+          (parcel.areaSqm > CASCADE_LIMITS.enclosedForeignMaxSqm &&
+            (isGreen(parcel) ||
+              (isForeignUse(parcel) &&
+                !sharesAddress(siteKeys, parcel.address)))) ||
           !members.some((member) => isAdjacent(parcel, member))
         ) {
           continue;
@@ -924,7 +1193,9 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     if (!union) return null;
     // Gaps between parcels the lot surrounds (slivers, a plot left out for
     // its size) are part of the site.
-    const geometry = withoutHoles(union);
+    const whole = withoutHoles(union);
+    const trimmed = trimVegetation(whole, input, lot);
+    const geometry = trimmed?.geometry ?? whole;
     const areaSqm = geometryAreaSqm(geometry);
     const covered = lot.filter((v) => geometryContains(geometry, v)).length;
     const coverage = covered / lot.length;
@@ -937,7 +1208,11 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     const enclosed = members.filter(
       (m) => joinedAs.get(m) === "enclosed",
     ).length;
+    const byAddress = members.filter(
+      (m) => joinedAs.get(m) === "address",
+    ).length;
     const detail = [
+      ...(byAddress > 0 ? [`${byAddress} by address`] : []),
       ...(strips > 0 ? [`${strips} parking strip(s)`] : []),
       ...(enclosed > 0 ? [`${enclosed} enclosed`] : []),
     ].join(", ");
@@ -952,7 +1227,11 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         joined > 0 ? `ALKIS parcel + ${joined} with vehicles` : "ALKIS parcel",
         "operationalLot",
       ),
-      reason: `parcel at the point${joined > 0 ? ` + ${joined} adjacent parcel(s)${detail ? ` (${detail})` : ""}` : ""} hold ${covered} of ${lot.length} lot vehicles (${Math.round(coverage * 100)}%)`,
+      reason:
+        `parcel at the point${joined > 0 ? ` + ${joined} adjacent parcel(s)${detail ? ` (${detail})` : ""}` : ""} hold ${covered} of ${lot.length} lot vehicles (${Math.round(coverage * 100)}%)` +
+        (trimmed
+          ? `; ${Math.round(trimmed.removedSqm)} m² of vegetation without vehicles trimmed off`
+          : ""),
     };
   };
 
@@ -964,7 +1243,9 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
   // Area held by the parcel at the point and the parcels its vehicles grew
   // onto; strips and enclosed plots only complete such a lot.
   const grownSqm = firstMembers
-    .filter((parcel) => !joinedAs.has(parcel))
+    .filter(
+      (parcel) => !joinedAs.has(parcel) || joinedAs.get(parcel) === "address",
+    )
     .reduce((sum, parcel) => sum + parcel.areaSqm, 0);
   if (grownSqm < CASCADE_LIMITS.minLotSqm) {
     // A sliver at the point (a 128 m² town-centre plot in the 50-site run)
@@ -1078,7 +1359,7 @@ function anchorOffLot(
       (parcel) =>
         parcel !== anchor &&
         parcel.areaSqm <= CASCADE_LIMITS.maxParcelSqm &&
-        !isStreetLike(parcel.ring),
+        !isStreetParcel(parcel),
     )
     .map((parcel) => ({
       parcel,
@@ -1101,6 +1382,132 @@ function anchorOffLot(
       : [],
     note,
   };
+}
+
+/**
+ * The parcel union without the planted areas at its edge: vegetation on the
+ * aerial image that forms a patch of at least `trimMinSqm`, survives an
+ * opening of `trimOpenM` (rows of trees and planted islands do not), touches
+ * the outside of the union and has no detected vehicle within
+ * `trimVehicleClearM`. Parcels follow legal lines; the wood or meadow that
+ * belongs to the plot is not where the stock stands. Null when nothing is
+ * trimmed or the image is unknown.
+ */
+/** Closing radius (cells) applied to the vegetation before the opening. */
+const TRIM_CLOSE_CELLS = 2;
+
+export function trimVegetation(
+  geometry: BoundaryGeometry,
+  input: CascadeInput,
+  lot: LonLat[],
+): { geometry: BoundaryGeometry; removedSqm: number } | null {
+  const { vegetationAt } = input;
+  if (!vegetationAt) return null;
+  const rings = outerRings(geometry) as LonLat[][];
+  let reachM = 0;
+  for (const ring of rings) {
+    for (const point of ring) {
+      reachM = Math.max(reachM, metres(input.anchor, point));
+    }
+  }
+  if (reachM > 400) return null;
+  const spec = createGridSpec(input.anchor, 1, 2 * (reachM + 6));
+  const inside = new Uint8Array(cellCount(spec));
+  for (const ring of rings) {
+    const cells = new Uint8Array(inside.length);
+    rasterizeMaskPolygon(spec, ring, cells);
+    for (let i = 0; i < cells.length; i += 1) if (cells[i]) inside[i] = 1;
+  }
+  // A dark roof can pass the colour test; a building is never trimmed.
+  const roof = new Uint8Array(inside.length);
+  for (const ring of input.buildings ?? []) {
+    rasterizeMaskPolygon(spec, ring, roof);
+  }
+  const green = new Uint8Array(inside.length);
+  let insideCount = 0;
+  let greenCount = 0;
+  for (let i = 0; i < inside.length; i += 1) {
+    if (!inside[i]) continue;
+    insideCount += 1;
+    if (roof[i]) continue;
+    const col = i % spec.cols;
+    const row = Math.floor(i / spec.cols);
+    if (vegetationAt(cellToLonLat(spec, col, row)) === true) {
+      green[i] = 1;
+      greenCount += 1;
+    }
+  }
+  if (greenCount < CASCADE_LIMITS.trimMinSqm) return null;
+  const open = CASCADE_LIMITS.trimOpenM;
+  // Close the gaps shadows leave in a meadow first, then open.
+  const closed = erode(
+    spec,
+    dilate(spec, green, TRIM_CLOSE_CELLS),
+    TRIM_CLOSE_CELLS,
+  );
+  const opened = dilate(spec, erode(spec, closed, open), open);
+  const stamp = new Float32Array(inside.length);
+  for (const vehicle of input.vehicles ?? []) {
+    rasterizeDisk(spec, vehicle, CASCADE_LIMITS.trimVehicleClearM, stamp, 1);
+  }
+  const removable = new Uint8Array(inside.length);
+  for (let i = 0; i < inside.length; i += 1) {
+    if (opened[i] && inside[i] && !roof[i] && stamp[i] === 0) {
+      removable[i] = 1;
+    }
+  }
+  let removed = 0;
+  const kept = Uint8Array.from(inside);
+  for (const patch of components(spec, removable)) {
+    let size = 0;
+    let atEdge = false;
+    for (let i = 0; i < patch.length; i += 1) {
+      if (!patch[i]) continue;
+      size += 1;
+      if (atEdge) continue;
+      const col = i % spec.cols;
+      const row = Math.floor(i / spec.cols);
+      atEdge =
+        col === 0 ||
+        row === 0 ||
+        col === spec.cols - 1 ||
+        row === spec.rows - 1 ||
+        !inside[i - 1] ||
+        !inside[i + 1] ||
+        !inside[i - spec.cols] ||
+        !inside[i + spec.cols];
+    }
+    if (!atEdge || size < CASCADE_LIMITS.trimMinSqm) continue;
+    for (let i = 0; i < patch.length; i += 1) if (patch[i]) kept[i] = 0;
+    removed += size;
+  }
+  if (removed === 0) return null;
+  // What a removed patch cut off stays only where the point or lot
+  // vehicles are.
+  const anchorRef = lonLatToCell(spec, input.anchor);
+  const anchorCell = anchorRef
+    ? cellIndex(spec, anchorRef.col, anchorRef.row)
+    : -1;
+  const lotCells = lot.flatMap((vehicle) => {
+    const cell = lonLatToCell(spec, vehicle);
+    return cell ? [cellIndex(spec, cell.col, cell.row)] : [];
+  });
+  const parts = components(spec, kept).filter(
+    (part) =>
+      (anchorCell >= 0 && part[anchorCell] === 1) ||
+      lotCells.filter((index) => part[index]).length >=
+        CASCADE_LIMITS.minLotVehicles,
+  );
+  if (parts.length === 0) return null;
+  for (const part of parts) fillHoles(spec, part);
+  const outline = masksToGeometry(spec, parts, {
+    simplifyToleranceM: 1.5,
+    regularizeAngleToleranceDeg: 0,
+  });
+  if (!outline) return null;
+  const areaSqm = geometryAreaSqm(outline.geometry);
+  if (areaSqm < CASCADE_LIMITS.minLotSqm) return null;
+  return { geometry: outline.geometry, removedSqm: insideCount - areaSqm };
 }
 
 // --- Stage 2: outline of the vehicle lot ----------------------------------
@@ -1544,8 +1951,15 @@ export function parcelStage(input: CascadeInput): StageOutcome {
  * change the chosen result. The vehicle outline is not offered next to
  * well-covering parcels.
  */
-export function runCascade(input: CascadeInput): CascadeOutcome {
+export function runCascade(given: CascadeInput): CascadeOutcome {
   const trace: string[] = [];
+  const moved = addressAnchor(given);
+  const input = moved ? { ...given, anchor: moved.anchor } : given;
+  if (moved) {
+    trace.push(
+      `the dealership's address is on a parcel ${Math.round(moved.distanceM)} m from the point; the boundary starts there`,
+    );
+  }
   const alternatives: BoundaryResult[] = [];
   const stages: Array<[CascadeStage, (input: CascadeInput) => StageOutcome]> = [
     [1, vehicleParcelStage],
@@ -1602,6 +2016,7 @@ export function runCascade(input: CascadeInput): CascadeOutcome {
     alternatives,
     ...(lotVehicles != null ? { lotVehicles } : {}),
     flags,
+    ...(moved ? { anchor: moved.anchor } : {}),
   };
 }
 
@@ -1635,7 +2050,7 @@ export function finalizeCascadeResult(
   // streets here made parallel footpath parcels count as strips and their
   // kerbside cars as outside vehicles.)
   const streets = (context.parcels ?? [])
-    .filter((parcel) => isStreetLike(parcel.ring))
+    .filter((parcel) => isStreetParcel(parcel))
     .map((parcel) => parcel.ring);
   const inside = rings.some((ring) => contains(ring, anchor));
   const pointDistanceM = inside

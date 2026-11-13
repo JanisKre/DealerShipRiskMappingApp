@@ -9,6 +9,7 @@ import {
 } from "../boundary-benchmark";
 import { syntheticFallbackBoundary } from "./synthetic";
 import { finalizeCascadeResult, runCascade } from "./cascade";
+import { vegetationAt, type VegetationMask } from "./vegetation";
 
 /**
  * One site's frozen boundary inputs: what the cascade saw, without network
@@ -29,6 +30,10 @@ export interface ReplaySample {
   parcels: ParcelFeature[];
   parcelsTruncated?: boolean;
   buildings?: LonLat[][];
+  /** The dealership's address, as the analysis passes it (cascade v9). */
+  address?: string;
+  /** Vegetation raster of the context image (cascade v9). */
+  vegetation?: VegetationMask;
 }
 
 export interface ReplayRow {
@@ -60,8 +65,16 @@ export function replayBoundarySamples(
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): ReplayOutcome {
   const rows = samples.map((sample): ReplayRow => {
+    const { vegetation } = sample;
     const outcome = runCascade({
       anchor: sample.anchor,
+      ...(sample.address ? { address: sample.address } : {}),
+      ...(vegetation
+        ? {
+            vegetationAt: (point: LonLat): boolean | null =>
+              vegetationAt(vegetation, point),
+          }
+        : {}),
       vehicles: sample.vehicles,
       osm: null,
       parcels: sample.parcels,
@@ -80,7 +93,7 @@ export function replayBoundarySamples(
     const result = finalizeCascadeResult(
       chosen,
       stage,
-      sample.anchor,
+      outcome.anchor ?? sample.anchor,
       outcome.alternatives,
       outcome.trace,
       parameters,

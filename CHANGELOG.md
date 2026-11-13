@@ -9,6 +9,21 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Lot boundaries use three more sources (boundary cascade v9,
+  `docs/boundary-model.md`, "Cascade v9"):
+  - the **address and land use the cadastre publishes with each parcel**
+    (nine and seven states). Parcels with the address of the parcel at the
+    point, or of the dealership, join the lot even without cars on them;
+    roads are recognised by their registered use instead of their shape;
+    housing and farmland join only when full of vehicles. A point that the
+    geocoder put on the road or on a parcel with another house number moves
+    to the parcel with the dealership's address.
+  - **vegetation on the aerial image**: a parcel that is a meadow or a wood
+    on the image does not join, and planted fringes without vehicles are
+    trimmed off the result.
+  - **parcels for Bayern**, read from the open parcel map of the Bayerische
+    Vermessungsverwaltung (CC BY 4.0), so Bayern gets parcel-based
+    boundaries instead of the vehicle outline.
 - AI dashboards can be rearranged by drag and drop, like the tiles of the
   overview: a card or a whole row is picked up at the handle that appears on
   hover. Within a row, cards change places; a card dropped on a row of its

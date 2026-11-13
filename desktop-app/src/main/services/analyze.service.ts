@@ -19,6 +19,8 @@ import { boundaryNeedsReview } from "@shared/boundary-review";
 import { imageryAgeYears } from "@shared/imagery-metadata";
 import { fetchOfficialBuildings } from "./alkis-buildings.service";
 import { bavariaStreetMask } from "./bavaria-landuse.service";
+import { bavariaParcelsNear } from "./bavaria-parcels.service";
+import { vegetationMask } from "./boundary/vegetation";
 import { officialHouseCoordinate } from "./house-coordinates.service";
 import {
   geocodeCandidates,
@@ -216,6 +218,7 @@ export async function analyzeDealership(
   // Bayern only: traffic areas for the outline, which has no street parcels
   // there. A no-op elsewhere; started now so it is in by the boundary step.
   void bavariaStreetMask(siteLat, siteLon);
+  void bavariaParcelsNear(siteLat, siteLon);
 
   // Detection uses the whole context image, independently of the boundary
   // (P5): the vehicles are what the boundary is built from, so a boundary
@@ -258,7 +261,12 @@ export async function analyzeDealership(
         input.address,
         parameters,
         vehicleCentres(detection),
-        { osmDeadline, buildingsDeadline },
+        {
+          osmDeadline,
+          buildingsDeadline,
+          // Grass and trees on the image the vehicles were detected on.
+          vegetation: vegetationMask(image),
+        },
       ),
     );
     return { image, detection, boundary };

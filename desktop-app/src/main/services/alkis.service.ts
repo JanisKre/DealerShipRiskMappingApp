@@ -96,8 +96,26 @@ export interface AlkisEndpoint {
    * their native UTM zone 32 grid; the response still comes in `crs`.
    */
   bboxUtm32?: true;
+  /**
+   * Queried when this endpoint fails. The simplified ALKIS services
+   * (`ave:Flurstueck`) carry each parcel's address and land use; the INSPIRE
+   * service they replaced stays as the fallback, with geometry only.
+   */
+  fallback?: AlkisEndpoint;
 }
 
+/**
+ * Since November 2026 the simplified ALKIS product of the AdV
+ * (`ave:Flurstueck`) is preferred wherever a state serves it in geographic
+ * coordinates: besides the geometry it carries the parcel's address
+ * (`lagebeztxt`) and its actual land use (`tntxt`), which the boundary
+ * cascade uses (docs/boundary-model.md, "Cascade v9"). Probed live on
+ * 13 November 2026: address and land use in NRW, Rheinland-Pfalz, Thüringen,
+ * Sachsen, Niedersachsen, Sachsen-Anhalt and Hamburg; address only in Hessen
+ * and Brandenburg. Schleswig-Holstein and Mecklenburg-Vorpommern serve the
+ * product in projected coordinates only and stay on INSPIRE; Baden-
+ * Württemberg, Berlin and Bremen publish neither field with the parcel.
+ */
 const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
   NRW: {
     url: "https://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht",
@@ -105,14 +123,24 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
     crs: 4326,
   },
   Sachsen: {
-    url: "https://geodienste.sachsen.de/aaa/public_inspire/alkis/cp/dls/wfs",
-    typeName: "cp:CadastralParcel",
+    url: "https://geodienste.sachsen.de/aaa/public_alkis/vereinf/wfs",
+    typeName: "ave:Flurstueck",
     crs: 4258,
+    fallback: {
+      url: "https://geodienste.sachsen.de/aaa/public_inspire/alkis/cp/dls/wfs",
+      typeName: "cp:CadastralParcel",
+      crs: 4258,
+    },
   },
   Niedersachsen: {
-    url: "https://www.inspire.niedersachsen.de/doorman/noauth/alkis-dls-cp",
-    typeName: "cp:CadastralParcel",
+    url: "https://opendata.lgln.niedersachsen.de/doorman/noauth/alkis_wfs_einfach",
+    typeName: "ave:Flurstueck",
     crs: 4258,
+    fallback: {
+      url: "https://www.inspire.niedersachsen.de/doorman/noauth/alkis-dls-cp",
+      typeName: "cp:CadastralParcel",
+      crs: 4258,
+    },
   },
   "Schleswig-Holstein": {
     url: "https://service.gdi-sh.de/SH_INSPIREDOWNLOAD_AI_CP_ALKIS",
@@ -120,14 +148,24 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
     crs: 4258,
   },
   "Sachsen-Anhalt": {
-    url: "https://geodatenportal.sachsen-anhalt.de/ows_INSPIRE_LVermGeo_ALKIS_CP_WFS",
-    typeName: "cp:CadastralParcel",
+    url: "https://www.geodatenportal.sachsen-anhalt.de/wss/service/ST_LVermGeo_ALKIS_WFS_OpenData/guest",
+    typeName: "ave:Flurstueck",
     crs: 4258,
+    fallback: {
+      url: "https://geodatenportal.sachsen-anhalt.de/ows_INSPIRE_LVermGeo_ALKIS_CP_WFS",
+      typeName: "cp:CadastralParcel",
+      crs: 4258,
+    },
   },
   Brandenburg: {
-    url: "https://inspire.brandenburg.de/services/cp_alkis_wfs",
-    typeName: "cp:CadastralParcel",
+    url: "https://isk.geobasis-bb.de/ows/alkis_vereinf_wfs",
+    typeName: "ave:Flurstueck",
     crs: 4258,
+    fallback: {
+      url: "https://inspire.brandenburg.de/services/cp_alkis_wfs",
+      typeName: "cp:CadastralParcel",
+      crs: 4258,
+    },
   },
   Berlin: {
     url: "https://gdi.berlin.de/services/wfs/alkis_flurstuecke",
@@ -135,9 +173,14 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
     crs: 4326,
   },
   Hessen: {
-    url: "https://inspire-hessen.de/ows/services/org.2.07247d95-adc7-4c7d-9c7a-ed17af855317_wfs",
-    typeName: "cp:CadastralParcel",
+    url: "https://www.gds.hessen.de/wfs2/aaa-suite/cgi-bin/alkis/vereinf/wfs",
+    typeName: "ave:Flurstueck",
     crs: 4258,
+    fallback: {
+      url: "https://inspire-hessen.de/ows/services/org.2.07247d95-adc7-4c7d-9c7a-ed17af855317_wfs",
+      typeName: "cp:CadastralParcel",
+      crs: 4258,
+    },
   },
   // Its default response CRS is a projected EPSG:25832 (UTM 32N), which this
   // module does not transform — but EPSG:4258 is offered as an alternate and
@@ -152,9 +195,14 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
   // (docs/boundary-model.md, "Cadastre coverage"). Bayern (login required)
   // and Saarland (empty response) are still missing.
   Hamburg: {
-    url: "https://geodienste.hamburg.de/HH_WFS_INSPIRE_Flurstuecke",
-    typeName: "cp:CadastralParcel",
+    url: "https://geodienste.hamburg.de/WFS_HH_ALKIS_vereinfacht",
+    typeName: "ave:Flurstueck",
     crs: 4258,
+    fallback: {
+      url: "https://geodienste.hamburg.de/HH_WFS_INSPIRE_Flurstuecke",
+      typeName: "cp:CadastralParcel",
+      crs: 4258,
+    },
   },
   Bremen: {
     url: "https://opendata.lgln.niedersachsen.de/doorman/noauth/alkishb_wfs_sf",
@@ -327,10 +375,154 @@ export const PARCEL_MAX_PAGES = 4;
  */
 export const PARCEL_FALLBACK_RADIUS_M = 100;
 
+/**
+ * Land-use classes the cascade tells apart, reduced from the ALKIS
+ * "Tatsächliche Nutzung" catalogue:
+ *
+ * - `traffic`: road, path, rail, air and ship traffic
+ * - `commercial`: industry and trade (where a dealership is registered)
+ * - `mixed`: mixed use (a business with flats above, a village core)
+ * - `residential`: housing
+ * - `open`: farmland, woodland, water, parks, sports grounds, cemeteries
+ * - `other`: everything else (squares, public buildings, dumps, unknown)
+ */
+export type ParcelUse =
+  "traffic" | "commercial" | "mixed" | "residential" | "open" | "other";
+
+/** Share of a parcel's area per land-use class; the shares sum to 1. */
+export type ParcelLandUse = Partial<Record<ParcelUse, number>>;
+
 export interface ParcelFeature {
   ring: LonLat[];
   areaSqm: number;
   state: string;
+  /**
+   * Address text of the cadastre ("Schmiedstraße 12"; a street name alone
+   * for plots without a house number), where the service publishes it.
+   */
+  address?: string;
+  /** Actual land use by share of area, where the service publishes it. */
+  landUse?: ParcelLandUse;
+}
+
+/** What a service says about a parcel besides its geometry. */
+export interface ParcelAttributes {
+  address?: string;
+  landUse?: ParcelLandUse;
+}
+
+const USE_KEYWORDS: Array<[ParcelUse, RegExp]> = [
+  // "Begleitfläche Straßenverkehr" (RLP) is the verge of a road.
+  ["traffic", /strassenverkehr|^weg$|bahnverkehr|flugverkehr|schiffsverkehr/],
+  ["mixed", /gemischte/],
+  ["residential", /wohn/],
+  // Rheinland-Pfalz names the function itself ("Handel", "Handwerk").
+  [
+    "commercial",
+    /industrie|gewerbe|handel|handwerk|dienstleistung|lager|werkstatt|tankstelle/,
+  ],
+  [
+    "open",
+    /landwirtschaft|acker|gruenland|garten|reb|obst|wald|gehoelz|heide|moor|sumpf|unland|vegetationslos|gewaesser|hafenbecken|friedhof|gruenanlage|sport|erholung|brachland|forst/,
+  ],
+];
+
+/** Lower case, umlauts spelled out (Thüringen writes "Strassenverkehr"). */
+function normaliseUse(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .trim();
+}
+
+/** The cascade's class of one ALKIS land-use name. */
+export function classifyLandUse(name: string): ParcelUse {
+  // "Industrie- und Gewerbefläche(funktion:Handel und Dienstleistung)" and
+  // "Fliessgewaesser/Kanal": the class is in the leading name.
+  const base = normaliseUse(name.split("(")[0].split("/")[0]);
+  for (const [use, pattern] of USE_KEYWORDS) {
+    if (pattern.test(base)) return use;
+  }
+  return "other";
+}
+
+/**
+ * Parses `tntxt` of the simplified ALKIS schema: sections separated by "|",
+ * each "name;area in m²" ("Straßenverkehr;249|Weg;115"). Returns shares of
+ * the summed area, or undefined when nothing is readable.
+ */
+export function parseLandUse(tntxt: string): ParcelLandUse | undefined {
+  const areas = new Map<ParcelUse, number>();
+  let total = 0;
+  for (const section of tntxt.split("|")) {
+    const cut = section.lastIndexOf(";");
+    if (cut < 0) continue;
+    const area = Number.parseFloat(section.slice(cut + 1).replace(",", "."));
+    if (!Number.isFinite(area) || area <= 0) continue;
+    const use = classifyLandUse(section.slice(0, cut));
+    areas.set(use, (areas.get(use) ?? 0) + area);
+    total += area;
+  }
+  if (total <= 0) return undefined;
+  const shares: ParcelLandUse = {};
+  for (const [use, area] of areas) shares[use] = area / total;
+  return shares;
+}
+
+function decodeXmlText(text: string): string {
+  return text
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .trim();
+}
+
+const MEMBER_RE =
+  /<(?:[\w.-]+:)?(?:member|featureMember)>([\s\S]*?)<\/(?:[\w.-]+:)?(?:member|featureMember)>/g;
+
+function xmlField(body: string, name: string): string | undefined {
+  const hit = body.match(
+    new RegExp(`<(?:[\\w.-]+:)?${name}>([^<]*)</(?:[\\w.-]+:)?${name}>`),
+  );
+  const text = hit ? decodeXmlText(hit[1]) : "";
+  return text.length > 0 ? text : undefined;
+}
+
+/**
+ * Exterior rings with the attributes of the feature they belong to. A
+ * feature with several polygons yields several rings with the same
+ * attributes. Responses without `member` elements fall back to the rings
+ * alone.
+ */
+export function parseParcelFeatures(
+  xml: string,
+): Array<{ ring: [number, number][] } & ParcelAttributes> {
+  const members = [...xml.matchAll(MEMBER_RE)];
+  if (members.length === 0) {
+    return parseExteriorRings(xml).map((ring) => ({ ring }));
+  }
+  const features: Array<{ ring: [number, number][] } & ParcelAttributes> = [];
+  for (const member of members) {
+    const body = member[1];
+    const lage = xmlField(body, "lagebeztxt");
+    // Sachsen writes "ohne Lage" for plots without an address.
+    const address = lage && !/^ohne lage$/i.test(lage) ? lage : undefined;
+    const tntxt = xmlField(body, "tntxt");
+    const landUse = tntxt ? parseLandUse(tntxt) : undefined;
+    for (const ring of parseExteriorRings(body)) {
+      features.push({
+        ring,
+        ...(address ? { address } : {}),
+        ...(landUse ? { landUse } : {}),
+      });
+    }
+  }
+  return features;
 }
 
 export interface ParcelLookup {
@@ -416,7 +608,7 @@ export async function fetchParcelsNear(
 
     // Four decimals (~11 m) on purpose: neighbouring locations in the same
     // business park then share one cached cadastre response.
-    const key = `alkis:v3:${state}:${radiusM}:${lat.toFixed(4)},${lon.toFixed(4)}`;
+    const key = `alkis:v4:${state}:${radiusM}:${lat.toFixed(4)},${lon.toFixed(4)}`;
     const hit = cacheGet<ParcelLookup>(key);
     if (hit) {
       answeredAtLeastOnce = true;
@@ -433,7 +625,12 @@ export async function fetchParcelsNear(
       continue;
     }
 
-    const fetched = await fetchParcelRings(endpoint, lat, lon, radiusM);
+    let source = endpoint;
+    let fetched = await fetchParcelRings(source, lat, lon, radiusM);
+    if (fetched === "error" && endpoint.fallback) {
+      source = endpoint.fallback;
+      fetched = await fetchParcelRings(source, lat, lon, radiusM);
+    }
     if (fetched === "error") {
       breaker.recordFailure(state);
       // A transient service error is not a statement about this location.
@@ -444,19 +641,20 @@ export async function fetchParcelsNear(
     breaker.recordSuccess(state);
     answeredAtLeastOnce = true;
 
-    const { truncated } = fetched;
+    const { truncated, attributes } = fetched;
     let { rings } = fetched;
     let completeRadiusM = truncated ? 0 : radiusM;
     if (truncated && radiusM > PARCEL_FALLBACK_RADIUS_M) {
       // The neighbourhood of the point matters most; a smaller box fits.
       const near = await fetchParcelRings(
-        endpoint,
+        source,
         lat,
         lon,
         PARCEL_FALLBACK_RADIUS_M,
       );
       if (near !== "error") {
         rings = mergeRings(rings, near.rings);
+        for (const [id, value] of near.attributes) attributes.set(id, value);
         if (!near.truncated) completeRadiusM = PARCEL_FALLBACK_RADIUS_M;
       }
     }
@@ -468,7 +666,12 @@ export async function fetchParcelsNear(
         maxAreaSqm: 2_000_000,
       });
       if (!check.valid) continue;
-      parcels.push({ ring, areaSqm: check.areaSqm, state });
+      parcels.push({
+        ring,
+        areaSqm: check.areaSqm,
+        state,
+        ...attributes.get(ringKey(ring)),
+      });
     }
     const result: ParcelLookup = {
       parcels,
@@ -564,9 +767,18 @@ export async function fetchParcelRings(
   lon: number,
   radiusM: number,
   fetchPage: typeof fetchAlkisXml = fetchAlkisXml,
-): Promise<{ rings: [number, number][][]; truncated: boolean } | "error"> {
+): Promise<
+  | {
+      rings: [number, number][][];
+      truncated: boolean;
+      /** Address and land use per ring (`ringKey`), where published. */
+      attributes: Map<string, ParcelAttributes>;
+    }
+  | "error"
+> {
   let rings: [number, number][][] = [];
   let truncated = false;
+  const attributes = new Map<string, ParcelAttributes>();
   for (let page = 0; page < PARCEL_MAX_PAGES; page += 1) {
     const xml = await fetchPage(
       endpoint,
@@ -582,16 +794,37 @@ export async function fetchParcelRings(
     }
     if (!xml) break;
     const before = rings.length;
-    rings = mergeRings(rings, parseExteriorRings(xml));
+    const features = parseParcelFeatures(xml);
+    for (const { ring, address, landUse } of features) {
+      if (address || landUse) {
+        attributes.set(ringKey(ring), {
+          ...(address ? { address } : {}),
+          ...(landUse ? { landUse } : {}),
+        });
+      }
+    }
+    rings = mergeRings(
+      rings,
+      features.map((feature) => feature.ring),
+    );
     // `numberMatched` counts the whole answer, `numberReturned` this page.
     const { matched, returned } = parseWfsCounts(xml);
+    // Some services (Hessen, Hamburg) always write numberReturned="0"; the
+    // members of the page are then the only count there is.
     truncated =
-      matched != null && returned != null
+      matched != null && returned != null && returned > 0
         ? matched > page * PARCEL_REQUEST_LIMIT + returned
-        : isTruncated(xml, PARCEL_REQUEST_LIMIT);
+        : returned != null && returned > 0
+          ? returned >= PARCEL_REQUEST_LIMIT
+          : memberCount(xml) >= PARCEL_REQUEST_LIMIT;
     if (!truncated || rings.length === before) break;
   }
-  return { rings, truncated };
+  return { rings, truncated, attributes };
+}
+
+/** Features in a WFS page, counted by their `member` elements. */
+function memberCount(xml: string): number {
+  return (xml.match(/<(?:[\w.-]+:)?(?:member|featureMember)>/g) ?? []).length;
 }
 
 /** "error" = network/HTTP error (counts toward the circuit breaker); null = reachable, but no hit. */

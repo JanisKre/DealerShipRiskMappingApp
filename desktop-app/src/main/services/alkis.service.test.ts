@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifyLandUse,
   fetchParcelRings,
+  parseLandUse,
+  parseParcelFeatures,
   fetchParcelsNear,
   isTruncated,
   mergeRings,
@@ -308,5 +311,90 @@ describe("mergeRings", () => {
       [8, 51],
     ];
     expect(mergeRings([a], [a, b])).toEqual([a, b]);
+  });
+});
+
+describe("parcel attributes (simplified ALKIS)", () => {
+  const ring = (lat: number): string =>
+    `<gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>${lat} 7 ${lat} 7.0005 ${lat + 0.0005} 7.0005 ${lat} 7</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon>`;
+  const member = (lat: number, lage: string, tntxt?: string): string =>
+    `<wfs:member><Flurstueck><lagebeztxt>${lage}</lagebeztxt>${tntxt ? `<tntxt>${tntxt}</tntxt>` : ""}<geometrie>${ring(lat)}</geometrie></Flurstueck></wfs:member>`;
+
+  it("classifies land-use names of the different states", () => {
+    expect(classifyLandUse("Straßenverkehr")).toBe("traffic");
+    expect(classifyLandUse("Strassenverkehr/Fahrbahn")).toBe("traffic");
+    expect(classifyLandUse("Begleitfläche Straßenverkehr")).toBe("traffic");
+    expect(classifyLandUse("Weg")).toBe("traffic");
+    expect(
+      classifyLandUse(
+        "Industrie- und Gewerbefläche(funktion:Handel und Dienstleistung)",
+      ),
+    ).toBe("commercial");
+    expect(classifyLandUse("Handwerk")).toBe("commercial");
+    expect(classifyLandUse("Fläche gemischter Nutzung")).toBe("mixed");
+    expect(
+      classifyLandUse(
+        "Flaeche Gemischter Nutzung/Wohnen mit Handel und Dienstleistungen",
+      ),
+    ).toBe("mixed");
+    expect(classifyLandUse("Wohnbaufläche")).toBe("residential");
+    expect(classifyLandUse("Landwirtschaft(vegetationsmerkmal:Grünland)")).toBe(
+      "open",
+    );
+    expect(classifyLandUse("Fliessgewaesser/Kanal")).toBe("open");
+    expect(classifyLandUse("Platz")).toBe("other");
+  });
+
+  it("turns tntxt into shares of the parcel", () => {
+    expect(parseLandUse("Straßenverkehr;249|Weg;115|Wohnbaufläche;36")).toEqual(
+      { traffic: 0.91, residential: 0.09 },
+    );
+    expect(parseLandUse("Strassenverkehr; 1707")).toEqual({ traffic: 1 });
+    expect(parseLandUse("")).toBeUndefined();
+    expect(parseLandUse("unlesbar")).toBeUndefined();
+  });
+
+  it("reads address and land use per feature", () => {
+    const xml = `<wfs:FeatureCollection>${member(50, "Schmiedstraße 12", "Industrie- und Gewerbefläche;362")}${member(50.001, "ohne Lage", "Landwirtschaft;900")}${member(50.002, "M&amp;R-Weg 3")}</wfs:FeatureCollection>`;
+    const features = parseParcelFeatures(xml);
+    expect(features).toHaveLength(3);
+    expect(features[0].address).toBe("Schmiedstraße 12");
+    expect(features[0].landUse).toEqual({ commercial: 1 });
+    expect(features[1].address).toBeUndefined();
+    expect(features[1].landUse).toEqual({ open: 1 });
+    expect(features[2].address).toBe("M&R-Weg 3");
+    expect(features[2].landUse).toBeUndefined();
+  });
+
+  it("falls back to bare rings without member elements", () => {
+    const features = parseParcelFeatures(`<x>${ring(50)}</x>`);
+    expect(features).toHaveLength(1);
+    expect(features[0].address).toBeUndefined();
+  });
+
+  it("hands the attributes on with the rings and counts members when numberReturned is 0", async () => {
+    const endpoint = {
+      url: "https://example.test/wfs",
+      typeName: "x",
+      crs: 4258,
+    };
+    const full = `<wfs:FeatureCollection numberMatched="unknown" numberReturned="0">${Array.from({ length: 250 }, (_, i) => member(50 + i * 0.001, `Weg ${i + 1}`, "Wohnbaufläche;500")).join("")}</wfs:FeatureCollection>`;
+    const result = await fetchParcelRings(
+      endpoint,
+      50,
+      7,
+      250,
+      async () => full,
+    );
+    expect(result).not.toBe("error");
+    if (result === "error") return;
+    expect(result.rings).toHaveLength(250);
+    // A full page of a service that always reports 0 is a capped answer.
+    expect(result.truncated).toBe(true);
+    expect(result.attributes.size).toBe(250);
+    expect([...result.attributes.values()][0]).toEqual({
+      address: "Weg 1",
+      landUse: { residential: 1 },
+    });
   });
 });

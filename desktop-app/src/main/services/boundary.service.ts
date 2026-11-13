@@ -10,6 +10,8 @@ import type { LonLat } from "./boundary-geometry";
 import { osmEvidenceBy } from "./boundary/osm-evidence.service";
 import { officialBuildingsBy } from "./detection/roof-mask.service";
 import { bavariaStreetMask, onStreet } from "./bavaria-landuse.service";
+import { bavariaParcelsNear } from "./bavaria-parcels.service";
+import { vegetationAt, type VegetationMask } from "./boundary/vegetation";
 import { roofRings } from "./detection/roof-mask";
 import { syntheticFallbackBoundary } from "./boundary/synthetic";
 import {
@@ -33,6 +35,12 @@ export interface BoundaryRunOptions {
    * cached by now; without a deadline it waits (benchmark, re-detection).
    */
   buildingsDeadline?: number;
+  /**
+   * Vegetation on the context image the vehicles were detected on
+   * (boundary/vegetation.ts). Without it parcels join as registered and
+   * nothing is trimmed.
+   */
+  vegetation?: VegetationMask | null;
 }
 
 /**
@@ -59,7 +67,16 @@ export async function detectBoundary(
     fetchParcelsNear(lat, lon, PARCEL_SEARCH_RADIUS_M).catch(() => null),
     officialBuildingsBy(lat, lon, options.buildingsDeadline ?? Infinity),
   ]);
-  const parcels = parcelLookup?.parcels ?? [];
+  let parcels = parcelLookup?.parcels ?? [];
+  if (parcels.length === 0) {
+    // Bayern publishes no parcel vectors; its open parcel map is read back
+    // into parcels instead (bavaria-parcels.service.ts). Null elsewhere.
+    parcels =
+      (await beforeDeadline(
+        bavariaParcelsNear(lat, lon),
+        options.buildingsDeadline ?? Infinity,
+      )) ?? [];
+  }
   // Without parcels there are no street parcels to cut the outline back at;
   // in Bayern the land-use map supplies the traffic areas instead.
   const streetMask =
@@ -71,6 +88,10 @@ export async function detectBoundary(
       : null;
   const isStreetAt = streetMask
     ? (point: LonLat): boolean => onStreet(streetMask, point)
+    : undefined;
+  const vegetation = options.vegetation ?? null;
+  const isVegetationAt = vegetation
+    ? (point: LonLat): boolean | null => vegetationAt(vegetation, point)
     : undefined;
   // Footprints from both sources; a building mapped twice only weighs once
   // where it matters (containment), and twice in the unbuilt area, which is
@@ -90,6 +111,7 @@ export async function detectBoundary(
     parcelsTruncated: parcelLookup?.truncated ?? false,
     buildings,
     ...(isStreetAt ? { isStreetAt } : {}),
+    ...(isVegetationAt ? { vegetationAt: isVegetationAt } : {}),
     parameters,
   });
   const trace = [...cascade.trace];
@@ -125,7 +147,8 @@ export async function detectBoundary(
   const result = finalizeCascadeResult(
     chosen.result,
     chosen.stage,
-    anchor,
+    // The parcel with the dealership's address, when the point is not on it.
+    cascade.anchor ?? anchor,
     cascade.alternatives,
     trace,
     parameters,
