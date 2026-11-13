@@ -6,7 +6,11 @@ description: Prepare trustworthy Electron releases and release metadata without 
 # Release engineering
 
 - Releases are produced from versioned tags and must run the full verification
-  suite before packaging.
+  suite before packaging. The "Protect release tags" ruleset lets only
+  repository admins create, move or delete `v*` tags; the workflow must not
+  create tags itself.
+- Release jobs do not use the npm cache, and checkouts set
+  `persist-credentials: false`.
 - Build platform artifacts with `electron-builder`, then generate SHA-256
   checksums and a CycloneDX SBOM.
 - Generate GitHub build provenance attestations when the repository supports
