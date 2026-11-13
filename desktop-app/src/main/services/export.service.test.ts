@@ -95,6 +95,17 @@ describe("dashboard exports", () => {
     expect(lines[1]).toMatch(/^Autohaus A,/);
   });
 
+  it("keeps cells that look like formulas as text in the CSV", async () => {
+    const path = target("formula.csv");
+    const risky = SessionSchema.parse({
+      ...session,
+      dealerships: [{ ...site("C", 886, 1), name: "=HYPERLINK(1)" }],
+    });
+    expect(await exportReport(risky, "csv")).toBe(path);
+    const lines = readFileSync(path, "utf-8").trim().split("\n");
+    expect(lines[1]).toMatch(/^'=HYPERLINK\(1\),/);
+  });
+
   it("writes the read-only HTML view", async () => {
     const path = target("view.html");
     expect(await exportReadonlyView(session)).toBe(path);

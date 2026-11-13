@@ -32,7 +32,7 @@ export const CAPACITY_SQM_PER_VEHICLE = 25;
  * Version of the risk model that produced a RiskAssessment. The dashboard
  * offers a recalculation for results stored with an older version.
  */
-export const RISK_MODEL_VERSION = "screening-0.5.0";
+export const RISK_MODEL_VERSION = "screening-0.5.1";
 
 // --- Dealership notes ------------------------------------------------------
 

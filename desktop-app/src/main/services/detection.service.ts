@@ -22,6 +22,7 @@ import {
 } from "@shared/model-manifest";
 import type { AerialCapture } from "./tiles.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
+import { AREA_ESTIMATE_DETECTOR } from "@shared/risk-math";
 import type { RiskParameters } from "@shared/types";
 import {
   coarseImageryLimitations,
@@ -528,7 +529,7 @@ export class OnnxYoloDetector implements VehicleDetector {
  * inference — fallback for when the ONNX model isn't available.
  */
 export class StubVehicleDetector implements VehicleDetector {
-  readonly modelName = "stub-area-heuristic";
+  readonly modelName = AREA_ESTIMATE_DETECTOR;
 
   async detect(
     _image: AerialImage,

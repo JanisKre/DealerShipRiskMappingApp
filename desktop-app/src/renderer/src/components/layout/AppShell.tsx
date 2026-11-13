@@ -48,17 +48,21 @@ function AutosaveController(): null {
   const dealerships = useAppStore((s) => s.dealerships);
   const parameters = useAppStore((s) => s.parameters);
   const analyzing = useAppStore((s) => s.analyzing);
+  const sessionId = useAppStore((s) => s.sessionId);
   const saveSession = useAppStore((s) => s.saveSession);
 
   useEffect(() => {
-    if (dealerships.length === 0 || analyzing) return;
+    if (analyzing) return;
+    // An empty portfolio is saved only once it exists on disk: deleting its
+    // last location must stick, while a fresh blank one is not stored.
+    if (dealerships.length === 0 && sessionId == null) return;
     const timer = setTimeout(() => {
       saveSession().catch((err: unknown) => {
         console.error("Autosave failed:", err);
       });
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dealerships, parameters, analyzing, saveSession]);
+  }, [dealerships, parameters, analyzing, sessionId, saveSession]);
 
   return null;
 }

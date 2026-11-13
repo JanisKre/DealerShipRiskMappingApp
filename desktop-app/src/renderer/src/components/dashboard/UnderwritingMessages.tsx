@@ -72,8 +72,9 @@ function hailMessage(
 function limitMessage(
   t: TFunction,
   subject: AnalyzedDealership,
+  parameters: RiskParameters,
 ): UwMessage | null {
-  const limit = productLimitBreach(subject);
+  const limit = productLimitBreach(subject, parameters);
   if (limit.severity === "breach") {
     return {
       severity: "danger",
@@ -145,8 +146,9 @@ function groupMessage(
   t: TFunction,
   subject: AnalyzedDealership,
   all: AnalyzedDealership[],
+  parameters: RiskParameters,
 ): UwMessage | null {
-  const group = groupSummary(subject, all);
+  const group = groupSummary(subject, all, parameters);
   if (!group || group.memberCount < 2) return null;
   const breachNote =
     group.productLimitBreaches > 0
@@ -189,9 +191,9 @@ export function buildUnderwritingMessages(
 ): UwMessage[] {
   return [
     hailMessage(t, subject),
-    limitMessage(t, subject),
+    limitMessage(t, subject, parameters),
     accumulationMessage(t, subject, all, parameters),
-    groupMessage(t, subject, all),
+    groupMessage(t, subject, all, parameters),
   ].filter((m): m is UwMessage => m !== null);
 }
 

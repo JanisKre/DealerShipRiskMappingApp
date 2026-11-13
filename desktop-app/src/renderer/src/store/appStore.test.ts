@@ -597,7 +597,7 @@ describe("portfolio switching", () => {
   });
 
   it("does not save when starting a new portfolio from an already-empty one", async () => {
-    useAppStore.setState({ dealerships: [] });
+    useAppStore.setState({ dealerships: [], sessionId: null });
 
     await useAppStore.getState().newPortfolio();
 
@@ -1262,5 +1262,199 @@ describe("change history", () => {
       kind: "businessTypeChanged",
       value: "existing",
     });
+  });
+});
+
+/** A promise the test settles by hand, to stop work half-way. */
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+} {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+describe("work that finishes after the portfolio changed", () => {
+  const square = (
+    size: number,
+  ): NonNullable<AnalyzedDealership["boundary"]>["polygon"] => ({
+    type: "Polygon",
+    coordinates: [
+      [
+        [7, 51],
+        [7 + size, 51],
+        [7 + size, 51 + size],
+        [7, 51 + size],
+        [7, 51],
+      ],
+    ],
+  });
+
+  beforeEach(() => {
+    useAppStore.setState({
+      sessionId: "s1",
+      boundaryEditIds: [],
+      boundaryHistory: {},
+      detectionUpdateIds: [],
+      detectionUpdateErrors: {},
+      pendingBoundaryDetectionIds: [],
+    });
+  });
+
+  it("does not put a batch's late results into the portfolio opened meanwhile", async () => {
+    const running = deferred<AnalyzedDealership>();
+    api.analyzeDealership.mockReturnValueOnce(running.promise);
+    const batch = useAppStore.getState().analyzeAll([firstInput]);
+
+    const other = { ...secondInput } as AnalyzedDealership;
+    api.loadSession.mockResolvedValueOnce({
+      id: "s2",
+      name: "Other",
+      createdAt: "",
+      updatedAt: "",
+      dealerships: [other],
+    });
+    await useAppStore.getState().switchSession("s2");
+    expect(useAppStore.getState().analyzing).toBe(false);
+
+    running.resolve({ ...firstInput, risk: { overallScore: 10 } } as never);
+    await batch;
+
+    const state = useAppStore.getState();
+    expect(state.sessionId).toBe("s2");
+    expect(state.dealerships.map((d) => d.id)).toEqual(["two"]);
+    expect(state.analyzing).toBe(false);
+  });
+
+  it("keeps a location deleted while it is analysed deleted", async () => {
+    const running = deferred<AnalyzedDealership>();
+    api.analyzeDealership.mockReturnValueOnce(running.promise);
+    const batch = useAppStore.getState().addAndAnalyze([firstInput]);
+    expect(useAppStore.getState().dealerships.map((d) => d.id)).toEqual([
+      "one",
+    ]);
+
+    useAppStore.getState().removeDealerships(["one"]);
+    expect(useAppStore.getState().pendingAnalysis).toEqual([]);
+
+    running.resolve({ ...firstInput, risk: { overallScore: 10 } } as never);
+    await batch;
+
+    expect(useAppStore.getState().dealerships).toEqual([]);
+    expect(useAppStore.getState().pendingAnalysis).toEqual([]);
+  });
+
+  it("does not offer a deleted location for resuming", () => {
+    useAppStore.setState({
+      dealerships: [{ ...firstInput } as AnalyzedDealership],
+      pendingAnalysis: [firstInput, secondInput],
+    });
+    useAppStore.getState().removeDealerships(["one"]);
+    expect(useAppStore.getState().pendingAnalysis).toEqual([secondInput]);
+  });
+
+  it("drops a re-analysis of a location deleted meanwhile", async () => {
+    const running = deferred<AnalyzedDealership>();
+    useAppStore.setState({
+      dealerships: [{ ...firstInput } as AnalyzedDealership],
+    });
+    api.analyzeDealership.mockReturnValueOnce(running.promise);
+    const reanalysis = useAppStore.getState().reanalyzeDealership("one");
+    useAppStore.getState().removeDealerships(["one"]);
+    running.resolve({ ...firstInput, risk: { overallScore: 10 } } as never);
+    await reanalysis;
+    expect(useAppStore.getState().dealerships).toEqual([]);
+  });
+
+  it("saves a stored portfolio whose last location was deleted before leaving it", async () => {
+    useAppStore.setState({ dealerships: [], sessionId: "s1" });
+    await useAppStore.getState().newPortfolio();
+    expect(api.saveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "s1", dealerships: [] }),
+    );
+  });
+
+  it("keeps a confirmed suggestion through re-analysis", async () => {
+    const confirmed = {
+      source: "alkis",
+      polygon: square(0.001),
+      areaSqm: 5_000,
+      confidence: 0.7,
+      confirmedAt: "2026-11-01T10:00:00.000Z",
+    } as AnalyzedDealership["boundary"];
+    const existing = {
+      ...firstInput,
+      boundary: confirmed,
+      detection: { vehicleCount: 3, confidence: 0.5, model: "test" },
+    } as AnalyzedDealership;
+    useAppStore.setState({ dealerships: [existing] });
+    api.analyzeDealership.mockResolvedValueOnce({
+      ...existing,
+      boundary: {
+        ...confirmed,
+        polygon: square(0.003),
+        confirmedAt: undefined,
+      },
+    } as AnalyzedDealership);
+    api.detectVehicles.mockResolvedValueOnce({
+      vehicleCount: 4,
+      confidence: 0.7,
+      model: "test",
+    });
+    api.scoreRisk.mockResolvedValueOnce({ overallScore: 25 });
+
+    await useAppStore.getState().reanalyzeDealership("one");
+
+    const updated = useAppStore.getState().dealerships[0];
+    expect(updated.boundary).toEqual(confirmed);
+    expect(updated.detection?.vehicleCount).toBe(4);
+  });
+
+  it("counts the vehicles again when the boundary changed during the detection", async () => {
+    const first = {
+      source: "manual",
+      polygon: square(0.001),
+      areaSqm: 5_000,
+      confidence: 1,
+    } as AnalyzedDealership["boundary"];
+    const second = { ...first!, polygon: square(0.002), areaSqm: 20_000 };
+    useAppStore.setState({
+      dealerships: [
+        {
+          ...firstInput,
+          boundary: first,
+          detection: { vehicleCount: 3, confidence: 0.5, model: "test" },
+        } as AnalyzedDealership,
+      ],
+      pendingBoundaryDetectionIds: ["one"],
+    });
+    const firstRun = deferred<AnalyzedDealership["detection"]>();
+    api.detectVehicles
+      .mockReturnValueOnce(firstRun.promise)
+      .mockResolvedValueOnce({
+        vehicleCount: 12,
+        confidence: 0.8,
+        model: "test",
+      });
+    api.scoreRisk.mockResolvedValue({ overallScore: 30 });
+
+    const update = useAppStore.getState().updateDetectionForBoundary("one");
+    useAppStore.getState().updateBoundary("one", second);
+    firstRun.resolve({ vehicleCount: 5, confidence: 0.8, model: "test" });
+    await update;
+
+    expect(api.detectVehicles).toHaveBeenCalledTimes(2);
+    expect(api.detectVehicles).toHaveBeenLastCalledWith(
+      51,
+      7,
+      second,
+      expect.anything(),
+    );
+    const state = useAppStore.getState();
+    expect(state.dealerships[0].detection?.vehicleCount).toBe(12);
+    expect(state.pendingBoundaryDetectionIds).toEqual([]);
   });
 });

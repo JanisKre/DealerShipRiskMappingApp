@@ -11,7 +11,11 @@ import {
   hailVehicleBasis,
   meanHailSeverityEur,
   nearbyInsured,
+  pointToSegmentDistKm,
   productLimitBreach,
+  computeScenarioImpact,
+  AREA_ESTIMATE_DETECTOR,
+  haversineKm,
 } from "./risk-math";
 import { DEFAULT_RISK_PARAMETERS } from "./parameters";
 import {
@@ -361,5 +365,87 @@ describe("dealershipHailZone", () => {
       dealershipHailZone({ ...d, risk: { ...d.risk!, overallScore: 80 } }),
     ).toEqual({ zone: 5, source: "estimated" });
     expect(dealershipHailZone({ ...d, risk: undefined })).toBeNull();
+  });
+});
+
+describe("fixes from the November 2026 code review", () => {
+  it("measures the distance to a diagonal track on the ground", () => {
+    // Track WSW→ENE at 50° N; a point 9.8 km off its middle, at right angles.
+    const [aLon, aLat, bLon, bLat] = [8, 49.5, 10, 50.5];
+    const kx = 111.2 * Math.cos((50 * Math.PI) / 180);
+    const dx = (bLon - aLon) * kx;
+    const dy = (bLat - aLat) * 111.2;
+    const len = Math.hypot(dx, dy);
+    const lat = 50 + ((dx / len) * 9.8) / 111.2;
+    const lon = 9 + ((-dy / len) * 9.8) / kx;
+    const d = pointToSegmentDistKm(lat, lon, aLat, aLon, bLat, bLon);
+    expect(d).toBeGreaterThan(9.6);
+    expect(d).toBeLessThan(10);
+    expect(d).toBeLessThanOrEqual(haversineKm(lat, lon, 50, 9) + 1e-9);
+    const impact = computeScenarioImpact(
+      {
+        pathCoordinates: [
+          [aLon, aLat],
+          [bLon, bLat],
+        ],
+        widthKm: 20,
+        intensityLevel: "HIGH",
+      } as Parameters<typeof computeScenarioImpact>[0],
+      [make("p", { lat, lon, exposureEur: 1_000 })],
+    );
+    expect(impact.affectedDealershipIds).toEqual(["p"]);
+  });
+
+  it("prices high exactly where reinsurance starts", () => {
+    const threshold = 1_000_000;
+    const subject = make("s", { exposureEur: threshold });
+    const verdict = accumulationVerdict(subject, [], 10, threshold);
+    expect(verdict.reinsure).toBe(true);
+    expect(verdict.pricingHint).toBe("high");
+  });
+
+  it("uses the edited damage fraction for the product-limit loss", () => {
+    const subject = make("s", {
+      exposureEur: 100_000,
+      productLimitEur: 50_000,
+    });
+    const parameters = {
+      ...DEFAULT_RISK_PARAMETERS,
+      scenarioDamageMedium: 0.5,
+    };
+    expect(productLimitBreach(subject, parameters).midEventLossEur).toBe(
+      50_000,
+    );
+  });
+
+  it("uses the edited reinsurance threshold for a group", () => {
+    const members = [
+      make("a", { group: "G", exposureEur: 300_000 }),
+      make("b", { group: "G", exposureEur: 300_000 }),
+    ];
+    const parameters = {
+      ...DEFAULT_RISK_PARAMETERS,
+      accumulationReinsureThresholdEur: 500_000,
+    };
+    expect(groupSummary(members[0], members, parameters)?.reinsure).toBe(true);
+  });
+
+  it("does not count the area estimate of the fallback detector as vehicles", () => {
+    expect(
+      hailVehicleBasis({
+        vehicleCount: 40,
+        confidence: 0.3,
+        model: AREA_ESTIMATE_DETECTOR,
+        classCounts: { car: 40, van: 0, truck: 0, bus: 0 },
+      }),
+    ).toEqual({ vehicles: 0, source: "none" });
+    expect(
+      hailVehicleBasis({
+        vehicleCount: 40,
+        confidence: 0.3,
+        model: AREA_ESTIMATE_DETECTOR,
+        manualVehicleCount: 12,
+      }),
+    ).toEqual({ vehicles: 12, source: "manual" });
   });
 });

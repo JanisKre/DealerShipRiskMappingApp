@@ -275,15 +275,15 @@ async function* openAiStream(
     throw new Error(`LLM ${res.status}: ${await res.text()}`);
   for await (const data of sseLines(res.body, signal)) {
     if (data === "[DONE]") return;
-    try {
-      const json = JSON.parse(data) as {
-        choices?: Array<{ delta?: { content?: string } }>;
-      };
-      const token = json.choices?.[0]?.delta?.content;
-      if (token) yield token;
-    } catch {
-      // ignore incomplete line
-    }
+    const json = parseSseJson<{
+      choices?: Array<{ delta?: { content?: string } }>;
+      error?: { message?: string };
+    }>(data);
+    if (!json) continue;
+    // An error mid-stream must end the answer visibly, not as a short reply.
+    if (json.error) throw new Error(`LLM: ${json.error.message ?? "error"}`);
+    const token = json.choices?.[0]?.delta?.content;
+    if (token) yield token;
   }
 }
 
@@ -314,16 +314,29 @@ async function* claudeStream(
   if (!res.ok || !res.body)
     throw new Error(`Claude ${res.status}: ${await res.text()}`);
   for await (const data of sseLines(res.body, signal)) {
-    try {
-      const json = JSON.parse(data) as {
-        type?: string;
-        delta?: { type?: string; text?: string };
-      };
-      if (json.type === "content_block_delta" && json.delta?.text)
-        yield json.delta.text;
-    } catch {
-      // ignore
+    const json = parseSseJson<{
+      type?: string;
+      delta?: { type?: string; text?: string };
+      error?: { type?: string; message?: string };
+    }>(data);
+    if (!json) continue;
+    // e.g. `overloaded_error` mid-stream: without this the answer just stops.
+    if (json.type === "error") {
+      throw new Error(
+        `Claude: ${json.error?.message ?? json.error?.type ?? "stream error"}`,
+      );
     }
+    if (json.type === "content_block_delta" && json.delta?.text)
+      yield json.delta.text;
+  }
+}
+
+/** One SSE payload as JSON; null for a line that is not (yet) valid JSON. */
+function parseSseJson<T>(data: string): T | null {
+  try {
+    return JSON.parse(data) as T;
+  } catch {
+    return null;
   }
 }
 

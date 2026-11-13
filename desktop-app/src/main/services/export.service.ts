@@ -351,7 +351,10 @@ function toCsv(session: Session): string {
 }
 
 function csv(s: string): string {
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  // A cell starting like a formula is run by Excel/LibreOffice on opening
+  // (CSV injection); the leading apostrophe keeps it text.
+  const text = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 // --- Read-only HTML bundle (sharing without the app) -------------------------------

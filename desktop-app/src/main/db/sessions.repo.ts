@@ -46,6 +46,8 @@ export function loadSession(id: string): Session | null {
   } catch {
     return null;
   }
+  // `null` or a scalar in the column (damaged or hand-edited row).
+  if (typeof stored !== "object" || stored === null) return null;
   const dealerships = (
     Array.isArray(stored) ? stored : (stored.dealerships ?? [])
   ).map(stripRetiredPerils);

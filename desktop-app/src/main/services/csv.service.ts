@@ -27,7 +27,7 @@ export function parseCsvWithReport(content: string): ImportResult {
   if (lines.every((l) => l.trim().length === 0)) return emptyResult("csv");
 
   const delimiter = chooseDelimiter(lines);
-  const matrix = lines.map((l) => splitLine(l, delimiter));
+  const matrix = splitRecords(lines.join("\n"), delimiter);
   return rowsFromMatrix(matrix, delimiter === "\t" ? "tsv" : "csv");
 }
 
@@ -466,18 +466,75 @@ function cellToString(v: unknown): string {
 }
 
 function splitLine(line: string, delimiter: string): string[] {
-  const out: string[] = [];
-  let cur = "";
+  return tokenize(line, delimiter)?.[0] ?? [line];
+}
+
+/**
+ * Records of a CSV text, each at the index of the line it starts on, so row
+ * numbers in the report still match the file. A quoted cell may span lines
+ * (an address exported from Excel); the lines it continues on stay empty
+ * and are skipped like blank lines. An unbalanced quote would swallow the
+ * rest of the file into one cell, so then each line is read on its own.
+ */
+function splitRecords(text: string, delimiter: string): string[][] {
+  const records = tokenize(text, delimiter);
+  if (records) return records;
+  return text.split("\n").map((line) => splitLine(line, delimiter));
+}
+
+/**
+ * RFC 4180 reading: a cell that starts with `"` is quoted, `""` inside it
+ * is one quote, delimiters and line breaks inside it are text. Line breaks
+ * inside a cell become ", ", so a multi-line address reads as one line.
+ * Returns null when a quote is never closed.
+ */
+function tokenize(text: string, delimiter: string): string[][] | null {
+  const records: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
   let inQuotes = false;
-  for (const ch of line) {
-    if (ch === '"') inQuotes = !inQuotes;
-    else if (ch === delimiter && !inQuotes) {
-      out.push(cur);
-      cur = "";
-    } else cur += ch;
+  let line = 0;
+  let startLine = 0;
+  const endCell = (): void => {
+    row.push(cell.replace(/[ \t]*\n[ \t]*/g, ", "));
+    cell = "";
+  };
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else if (ch === "\n") {
+        line++;
+        cell += ch;
+      } else if (ch !== "\r") {
+        cell += ch;
+      }
+    } else if (ch === '"' && cell.trim() === "") {
+      cell = "";
+      inQuotes = true;
+    } else if (ch === delimiter) {
+      endCell();
+    } else if (ch === "\n") {
+      endCell();
+      records[startLine] = row;
+      row = [];
+      line++;
+      startLine = line;
+    } else if (ch !== "\r") {
+      cell += ch;
+    }
   }
-  out.push(cur);
-  return out.map((c) => c.replace(/^"|"$/g, ""));
+  if (inQuotes) return null;
+  endCell();
+  records[startLine] = row;
+  for (let i = 0; i < records.length; i++) records[i] ??= [];
+  return records;
 }
 
 function readNumber(

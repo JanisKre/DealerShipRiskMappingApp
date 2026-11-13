@@ -269,6 +269,45 @@ describe("portfolio chat", () => {
     expect(body.messages.map((m) => m.role)).toEqual(["system", "user"]);
     expect(body.messages[0].content).not.toContain("pirate");
   });
+
+  async function drain(): Promise<string[]> {
+    const tokens: string[] = [];
+    for await (const token of portfolioChatStream(
+      [{ role: "user", content: "Wie viele Standorte?" }],
+      "Portfolio: 3 locations.",
+    )) {
+      tokens.push(token);
+    }
+    return tokens;
+  }
+
+  it("ends an OpenAI answer with an error when the stream reports one", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        'data: {"choices":[{"delta":{"content":"Dr"}}]}\n\ndata: {"error":{"message":"rate limited"}}\n\n',
+        { status: 200 },
+      ),
+    );
+    await expect(drain()).rejects.toThrow(/rate limited/);
+  });
+
+  it("ends a Claude answer with an error when the stream reports one", async () => {
+    mocks.settings = {
+      language: "de",
+      llm: { provider: "claude", model: "claude-sonnet-5-5" },
+    };
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        [
+          'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Drei"}}',
+          'data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}',
+          "",
+        ].join("\n\n"),
+        { status: 200 },
+      ),
+    );
+    await expect(drain()).rejects.toThrow(/Overloaded/);
+  });
 });
 
 describe("A2UI dashboard generation", () => {

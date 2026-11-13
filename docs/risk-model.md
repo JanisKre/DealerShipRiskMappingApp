@@ -18,6 +18,35 @@ The orchestration entry point is
 Every new risk result includes a model version, overall confidence, source
 evidence, and limitations.
 
+## Corrections (screening-0.5.1)
+
+A code review in November 2026 found four calculations that did not do what
+this document says. They are corrected; deterministic fixtures are in
+`shared/risk-math.test.ts` ("fixes from the November 2026 code review").
+
+- **No vehicle count from the fallback detector.** Without an installed
+  model, `StubVehicleDetector` estimates "vehicles" as lot area / 25 m². That
+  number went into the hail EAL as a detected count. `hailVehicleBasis` now
+  gives N = 0 (`vehicleSource: "none"`) for it, as the N row in the table
+  below requires; a manually reviewed count is still used. Exposure keeps
+  the estimate and the limitation "Vehicle exposure is estimated because no
+  ML model is installed".
+- **Scenario corridor on the ground.** The nearest point on a storm-track
+  segment was found in raw degrees, so on a diagonal track at 50° N a
+  location up to about 7 % inside the half width counted as outside. The
+  projection now shortens longitude by cos(latitude) before the haversine
+  distance is taken.
+- **Pricing hint at the threshold.** Reinsurance is recommended from
+  accumulated exposure ≥ threshold; the pricing hint now turns "high" at the
+  same point (it was "normal" at exactly 100 %).
+- **Edited parameters everywhere.** The product-limit check's mid-event loss
+  uses `scenarioDamageMedium`, and the group view uses
+  `accumulationReinsureThresholdEur`, instead of the built-in defaults.
+
+Limitations are unchanged: these remain screening estimates. Results stored
+by `screening-0.5.0` are offered for recalculation on the dashboard; only
+locations scored with the fallback detector change their EAL.
+
 ## Hail only (screening-0.5.0)
 
 The application assesses hail and nothing else. Since `screening-0.5.0` the

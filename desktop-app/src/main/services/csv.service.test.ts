@@ -168,3 +168,49 @@ describe("portfolio terms and business type", () => {
     ).toHaveLength(2);
   });
 });
+
+describe("quoted CSV cells", () => {
+  it("reads a quoted address spanning two lines as one cell of one row", () => {
+    const result = parseCsvWithReport(
+      [
+        "name,address,lat,lon",
+        '"Autohaus Nord","Hauptstr. 1',
+        '80331 München",48.1,11.5',
+        "Autohaus Süd,Ring 2,48.2,11.6",
+      ].join("\r\n"),
+    );
+    expect(result.rows.map((r) => [r.name, r.address, r.lat])).toEqual([
+      ["Autohaus Nord", "Hauptstr. 1, 80331 München", 48.1],
+      ["Autohaus Süd", "Ring 2", 48.2],
+    ]);
+  });
+
+  it("keeps row numbers of the file after a multi-line cell", () => {
+    const result = parseCsvWithReport(
+      [
+        "name,address,lat,lon",
+        '"A","Line 1',
+        'Line 2",48.1,11.5',
+        "B,Street,nope,11.6",
+      ].join("\n"),
+    );
+    expect(result.report.issues).toEqual([
+      expect.objectContaining({ row: 4, field: "lat" }),
+    ]);
+  });
+
+  it("turns doubled quotes inside a quoted cell into one quote", () => {
+    const result = parseCsvWithReport(
+      ["name;address", '"Autohaus ""Max"" GmbH";"Weg 1; Hof"'].join("\n"),
+    );
+    expect(result.rows[0].name).toBe('Autohaus "Max" GmbH');
+    expect(result.rows[0].address).toBe("Weg 1; Hof");
+  });
+
+  it("falls back to line by line when a quote is never closed", () => {
+    const result = parseCsvWithReport(
+      ["name,lat,lon", '"Open,48.1,11.5', "Closed,48.2,11.6"].join("\n"),
+    );
+    expect(result.rows.map((r) => r.name)).toContain("Closed");
+  });
+});

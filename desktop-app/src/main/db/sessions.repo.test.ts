@@ -118,3 +118,16 @@ describe("an analysis cut short", () => {
     expect(validPendingAnalysis("broken")).toEqual([]);
   });
 });
+
+describe("damaged session rows", () => {
+  it("returns null instead of throwing for a row holding JSON null", () => {
+    rows.set("broken", {
+      id: "broken",
+      name: "Broken",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      data: "null",
+    });
+    expect(loadSession("broken")).toBeNull();
+  });
+});

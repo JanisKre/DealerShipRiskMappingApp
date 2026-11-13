@@ -9,10 +9,7 @@ import type {
   PmlResult,
   ScenarioImpact,
 } from "./types";
-import {
-  ACCUMULATION_REINSURE_THRESHOLD_EUR,
-  SCENARIO_INTENSITY_DAMAGE,
-} from "./constants";
+import { ACCUMULATION_REINSURE_THRESHOLD_EUR } from "./constants";
 import { DEFAULT_RISK_PARAMETERS } from "./parameters";
 import type { RiskParameters } from "./types";
 
@@ -165,8 +162,14 @@ export function computeClusterRisk(
 
 // --- Hailstorm scenario ------------------------------------------------------
 
-/** Perpendicular distance from point P to segment AB, in km. */
-function pointToSegmentDistKm(
+/**
+ * Distance from point P to segment AB, in km. The nearest point on AB is
+ * found in a local frame where a degree of longitude is shortened by
+ * cos(latitude), as on the ground; in raw degrees it lands off the true
+ * foot point on a diagonal track and the corridor came out up to 7 %
+ * narrower than set (at 50° N).
+ */
+export function pointToSegmentDistKm(
   pLat: number,
   pLon: number,
   aLat: number,
@@ -174,14 +177,20 @@ function pointToSegmentDistKm(
   bLat: number,
   bLon: number,
 ): number {
+  const kx = Math.cos((pLat * Math.PI) / 180);
   const abLat = bLat - aLat;
-  const abLon = bLon - aLon;
+  const abLon = (bLon - aLon) * kx;
   const apLat = pLat - aLat;
-  const apLon = pLon - aLon;
+  const apLon = (pLon - aLon) * kx;
   const ab2 = abLat ** 2 + abLon ** 2;
   if (ab2 === 0) return haversineKm(pLat, pLon, aLat, aLon);
   const t = Math.max(0, Math.min(1, (apLat * abLat + apLon * abLon) / ab2));
-  return haversineKm(pLat, pLon, aLat + t * abLat, aLon + t * abLon);
+  return haversineKm(
+    pLat,
+    pLon,
+    aLat + t * (bLat - aLat),
+    aLon + t * (bLon - aLon),
+  );
 }
 
 function isInCorridor(
@@ -286,8 +295,9 @@ export interface AccumulationVerdict {
 /**
  * Assesses the accumulation risk of a subject based on the insured neighbors
  * within the radius. Reinsurance is recommended once the accumulated exposure
- * exceeds the threshold; the pricing hint scales with the accumulation
- * density (0..50% of the threshold -> low, 50..100% -> normal, > 100% -> high).
+ * reaches the threshold; the pricing hint scales with the accumulation
+ * density (below 50% of the threshold -> low, 50..100% -> normal, from 100%
+ * -> high, i.e. exactly where reinsurance is recommended).
  */
 export function accumulationVerdict(
   subject: AnalyzedDealership,
@@ -299,8 +309,9 @@ export function accumulationVerdict(
     exposureOf(subject) +
     neighbors.reduce((sum, n) => sum + exposureOf(n.dealership), 0);
 
-  const ratio = accumulatedExposureEur / reinsureThresholdEur;
-  const pricingHint = ratio > 1 ? "high" : ratio >= 0.5 ? "normal" : "low";
+  const pricingHint = pricingHintFor(
+    accumulatedExposureEur / reinsureThresholdEur,
+  );
 
   return {
     radiusKm,
@@ -309,6 +320,14 @@ export function accumulationVerdict(
     reinsure: accumulatedExposureEur >= reinsureThresholdEur,
     pricingHint,
   };
+}
+
+/**
+ * Pricing signal from accumulated exposure / reinsurance threshold. "high"
+ * starts at 1, the same point where `reinsure` turns true.
+ */
+function pricingHintFor(ratio: number): "low" | "normal" | "high" {
+  return ratio >= 1 ? "high" : ratio >= 0.5 ? "normal" : "low";
 }
 
 export interface ProductLimitBreach {
@@ -328,11 +347,14 @@ export interface ProductLimitBreach {
  */
 export function productLimitBreach(
   subject: AnalyzedDealership,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): ProductLimitBreach {
   const limitEur = subject.productLimitEur ?? null;
   const exposureEur = exposureOf(subject);
+  // Same damage fraction as the accumulation loss scenario, so an edited
+  // parameter changes both.
   const midEventLossEur = Math.round(
-    exposureEur * SCENARIO_INTENSITY_DAMAGE.MEDIUM,
+    exposureEur * parameters.scenarioDamageMedium,
   );
 
   if (limitEur == null || limitEur <= 0) {
@@ -380,8 +402,9 @@ export interface GroupSummary {
 export function groupSummary(
   subject: AnalyzedDealership,
   all: AnalyzedDealership[],
-  reinsureThresholdEur: number = ACCUMULATION_REINSURE_THRESHOLD_EUR,
+  parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): GroupSummary | null {
+  const reinsureThresholdEur = parameters.accumulationReinsureThresholdEur;
   if (!subject.group) return null;
   const members = all.filter((d) => d.group === subject.group);
   const count = members.length;
@@ -389,7 +412,6 @@ export function groupSummary(
 
   const totalExposureEur = members.reduce((s, m) => s + exposureOf(m), 0);
   const hailScores = members.map(hailScoreOf);
-  const ratio = totalExposureEur / reinsureThresholdEur;
 
   return {
     group: subject.group,
@@ -406,10 +428,10 @@ export function groupSummary(
     maxHailScore: Math.max(0, ...hailScores),
     meanHailScore: Math.round(hailScores.reduce((s, x) => s + x, 0) / count),
     productLimitBreaches: members.filter(
-      (m) => productLimitBreach(m).severity === "breach",
+      (m) => productLimitBreach(m, parameters).severity === "breach",
     ).length,
     reinsure: totalExposureEur >= reinsureThresholdEur,
-    pricingHint: ratio > 1 ? "high" : ratio >= 0.5 ? "normal" : "low",
+    pricingHint: pricingHintFor(totalExposureEur / reinsureThresholdEur),
   };
 }
 
@@ -615,6 +637,9 @@ export function meanHailSeverityEur(
 
 export type HailVehicleSource = "manual" | "detected" | "assetValue" | "none";
 
+/** Model name of the area-based fallback used when no detector is installed. */
+export const AREA_ESTIMATE_DETECTOR = "stub-area-heuristic";
+
 /**
  * N for the hail EAL: a reviewed count wins, then the detector count. Only
  * vehicles on the lot are counted; a number is never estimated (not from an
@@ -627,6 +652,11 @@ export function hailVehicleBasis(detection: DetectionResult | undefined): {
 } {
   if (detection?.manualVehicleCount != null) {
     return { vehicles: detection.manualVehicleCount, source: "manual" };
+  }
+  // Without a model the fallback detector derives a count from the lot
+  // area; that is an estimate, not vehicles seen on the lot.
+  if (detection?.model === AREA_ESTIMATE_DETECTOR) {
+    return { vehicles: 0, source: "none" };
   }
   const c = detection?.classCounts;
   const classTotal = c ? c.car + c.van + c.truck + c.bus : 0;

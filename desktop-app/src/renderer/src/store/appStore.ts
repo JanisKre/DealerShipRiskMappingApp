@@ -101,13 +101,13 @@ interface AppState {
   setSession: (id: string | null, name: string) => void;
   setSessionName: (name: string) => void;
   /**
-   * Saves the current portfolio (if it has any locations) and resets to a
+   * Saves the current portfolio (if it has locations or is stored) and resets to a
    * fresh, empty, unsaved one — the next `saveSession()` creates a new row
    * rather than overwriting the one just left.
    */
   newPortfolio: () => Promise<void>;
   /**
-   * Saves the current portfolio (if it has any locations), then loads a
+   * Saves the current portfolio (if it has locations or is stored), then loads a
    * different saved one by id and makes it the active portfolio.
    */
   switchSession: (id: string) => Promise<void>;
@@ -376,7 +376,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSession: (id, name) => set({ sessionId: id, sessionName: name }),
 
   newPortfolio: async () => {
-    if (get().dealerships.length > 0) {
+    if (hasPortfolioToSave(get())) {
       await get()
         .saveSession()
         .catch((err: unknown) => {
@@ -391,7 +391,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   switchSession: async (id) => {
     if (get().sessionId === id) return;
-    if (get().dealerships.length > 0) {
+    if (hasPortfolioToSave(get())) {
       await get()
         .saveSession()
         .catch((err: unknown) => {
@@ -403,10 +403,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     const session = await window.api.loadSession(id);
     if (!session) return;
+    // A batch of the portfolio being left was saved as pending above and
+    // can be resumed there; its late results must not land in this one.
+    abandonRunningAnalysis();
     set({
       sessionId: session.id,
       sessionName: session.name,
       selectedId: null,
+      analyzing: false,
+      progress: null,
+      analyzingIds: [],
       lastSavedAt: null,
       scenario: null,
       nlQueryMatchedIds: null,
@@ -445,11 +451,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       ...patch,
     });
     set({ parameters, parametersUpdating: true });
+    const generation = portfolioGeneration;
     try {
       const current = get().dealerships.filter(
         (d) => d.lat != null && d.lon != null,
       );
       const updates = await rescoreWithConcurrency(current, parameters, 4);
+      // Another portfolio was opened meanwhile: it has its own parameters.
+      if (generation !== portfolioGeneration) return;
       set((s) => ({
         dealerships: s.dealerships.map((d) => {
           const update = updates.find((x) => x.id === d.id);
@@ -467,11 +476,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err) {
       console.error("Parameter recalculation failed:", err);
     } finally {
-      await get()
-        .saveSession()
-        .catch((err: unknown) => {
-          console.error("Saving parameters failed:", err);
-        });
+      if (generation === portfolioGeneration) {
+        await get()
+          .saveSession()
+          .catch((err: unknown) => {
+            console.error("Saving parameters failed:", err);
+          });
+      }
       set({ parametersUpdating: false });
     }
   },
@@ -578,10 +589,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         d.natCat,
         d.hailZone,
       );
-      get().upsertDealership({
-        ...get().dealerships.find((x) => x.id === id)!,
-        risk,
-      });
+      const latest = get().dealerships.find((x) => x.id === id);
+      if (latest) get().upsertDealership({ ...latest, risk });
     } catch (err) {
       console.error(`Rescoring after boundary edit failed (${id}):`, err);
     }
@@ -597,40 +606,60 @@ export const useAppStore = create<AppState>((set, get) => ({
       detectionUpdateErrors: withoutKey(s.detectionUpdateErrors, id),
     }));
     try {
-      const detected = await window.api.detectVehicles(
-        d.lat,
-        d.lon,
-        d.boundary,
-        get().parameters,
-      );
-      const detection =
-        d.detection?.manualVehicleCount == null
-          ? detected
-          : {
-              ...detected,
-              manualVehicleCount: d.detection.manualVehicleCount,
-              manualVehiclePoints: d.detection.manualVehiclePoints,
-              manualVehicleRemovedPoints:
-                d.detection.manualVehicleRemovedPoints,
-            };
-      const risk = await window.api.scoreRisk(
-        d.lat,
-        d.lon,
-        d.assetValue,
-        detection,
-        d.boundary,
-        get().parameters,
-        d.natCat,
-        d.hailZone,
-      );
-      const current = get().dealerships.find((x) => x.id === id);
-      if (current) get().upsertDealership({ ...current, detection, risk });
-      set((s) => ({
-        pendingBoundaryDetectionIds: s.pendingBoundaryDetectionIds.filter(
-          (pendingId) => pendingId !== id,
-        ),
-        detectionUpdateErrors: withoutKey(s.detectionUpdateErrors, id),
-      }));
+      // The boundary may be edited again while the detection runs; a count
+      // for the outline it replaced must not be stored as the current one.
+      let boundary = d.boundary;
+      for (let attempt = 1; ; attempt++) {
+        const detected = await window.api.detectVehicles(
+          d.lat,
+          d.lon,
+          boundary,
+          get().parameters,
+        );
+        const before = get().dealerships.find((x) => x.id === id);
+        if (!before?.boundary) return;
+        if (before.boundary.polygon !== boundary.polygon) {
+          if (attempt >= DETECTION_BOUNDARY_ATTEMPTS) return;
+          boundary = before.boundary;
+          continue;
+        }
+        // Manual counts are read now: they may have been set meanwhile.
+        const manual = before.detection;
+        const detection =
+          manual?.manualVehicleCount == null
+            ? detected
+            : {
+                ...detected,
+                manualVehicleCount: manual.manualVehicleCount,
+                manualVehiclePoints: manual.manualVehiclePoints,
+                manualVehicleRemovedPoints: manual.manualVehicleRemovedPoints,
+              };
+        const risk = await window.api.scoreRisk(
+          d.lat,
+          d.lon,
+          d.assetValue,
+          detection,
+          boundary,
+          get().parameters,
+          d.natCat,
+          d.hailZone,
+        );
+        const current = get().dealerships.find((x) => x.id === id);
+        if (!current?.boundary) return;
+        if (current.boundary.polygon !== boundary.polygon) {
+          if (attempt >= DETECTION_BOUNDARY_ATTEMPTS) return;
+          boundary = current.boundary;
+          continue;
+        }
+        get().upsertDealership({ ...current, detection, risk });
+        set((s) => ({
+          pendingBoundaryDetectionIds: s.pendingBoundaryDetectionIds.filter(
+            (pendingId) => pendingId !== id,
+          ),
+          detectionUpdateErrors: withoutKey(s.detectionUpdateErrors, id),
+        }));
+        return;
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(
@@ -974,8 +1003,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeDealerships: (ids) =>
     set((s) => {
       const idSet = new Set(ids);
+      // A running analysis of a removed location must not bring it back.
+      for (const id of ids) removedIds.add(id);
       return {
         dealerships: s.dealerships.filter((d) => !idSet.has(d.id)),
+        pendingAnalysis: s.pendingAnalysis.filter((p) => !idSet.has(p.id)),
         selectedId:
           s.selectedId && idSet.has(s.selectedId) ? null : s.selectedId,
         analysisErrors: Object.fromEntries(
@@ -990,6 +1022,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   reanalyzeDealership: async (id) => {
     const d = get().dealerships.find((x) => x.id === id);
     if (!d) return;
+    const generation = portfolioGeneration;
     set((s) => ({ analyzingIds: [...s.analyzingIds, id] }));
     try {
       const result = await window.api.analyzeDealership(d, get().parameters);
@@ -1003,10 +1036,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       // A manually-confirmed boundary must survive re-analysis
       // (docs/boundary-improvement-plan.de.md P7): re-running detection is
-      // useful, but it must never silently discard a human's correction.
+      // useful, but it must never silently discard a human's correction —
+      // neither an edited outline nor a suggestion the reviewer confirmed.
       // Vehicles and risk are recomputed against the *preserved* boundary
       // rather than the freshly (re-)detected one that `result` carries.
-      if (d.boundary?.source === "manual") {
+      if (d.boundary?.source === "manual" || d.boundary?.confirmedAt != null) {
         result.boundary = d.boundary;
         result.boundaryBeforeManualEdit = d.boundaryBeforeManualEdit;
         try {
@@ -1043,25 +1077,23 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
       // Notes and website edited while the re-analysis ran must not be
-      // overwritten by the snapshot `result` was built from.
+      // overwritten by the snapshot `result` was built from. A location
+      // deleted meanwhile (or another portfolio opened) stays gone.
       const latest = get().dealerships.find((x) => x.id === id);
-      get().upsertDealership(
-        latest
-          ? {
-              ...withChange(
-                { ...result, history: latest.history },
-                analyzedChange(result),
-              ),
-              notes: latest.notes,
-              notesUpdatedAt: latest.notesUpdatedAt,
-              // A link found by this run fills an empty slot only.
-              website: latest.website ?? result.website,
-              websiteSource: latest.website
-                ? latest.websiteSource
-                : result.websiteSource,
-            }
-          : withChange(result, analyzedChange(result)),
-      );
+      if (!latest || generation !== portfolioGeneration) return;
+      get().upsertDealership({
+        ...withChange(
+          { ...result, history: latest.history },
+          analyzedChange(result),
+        ),
+        notes: latest.notes,
+        notesUpdatedAt: latest.notesUpdatedAt,
+        // A link found by this run fills an empty slot only.
+        website: latest.website ?? result.website,
+        websiteSource: latest.website
+          ? latest.websiteSource
+          : result.websiteSource,
+      });
     } catch (err) {
       console.error(`Re-analysis failed for ${d.name}:`, err);
     } finally {
@@ -1238,7 +1270,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   openImportedSession: async (session) => {
-    if (get().dealerships.length > 0) {
+    if (hasPortfolioToSave(get())) {
       await get()
         .saveSession()
         .catch((err: unknown) => {
@@ -1289,11 +1321,45 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 }));
 
+/**
+ * Bumped whenever another portfolio becomes the active one. Work started
+ * for the previous portfolio (a batch analysis, a re-analysis, a parameter
+ * rescore) compares it before writing its result back and drops the result
+ * when it changed, so it can never land in the portfolio opened meanwhile.
+ */
+let portfolioGeneration = 0;
+
+/**
+ * Locations removed by the user. A batch still analysing one of them drops
+ * its result instead of adding the location again; a new batch for the same
+ * id clears the mark.
+ */
+const removedIds = new Set<string>();
+
+/** How often a vehicle detection follows a boundary edited while it ran. */
+const DETECTION_BOUNDARY_ATTEMPTS = 3;
+
+/** Detaches running work from the portfolio that is being left. */
+function abandonRunningAnalysis(): void {
+  portfolioGeneration += 1;
+  removedIds.clear();
+}
+
+/**
+ * Whether leaving the active portfolio has to save it first: it has
+ * locations, or it is stored already (its last location may just have been
+ * deleted, and that must not be undone by leaving it).
+ */
+function hasPortfolioToSave(s: AppState): boolean {
+  return s.dealerships.length > 0 || s.sessionId != null;
+}
+
 /** Shared by `newPortfolio` and `deleteSavedSession` (when deleting the active one). */
 function resetToBlankPortfolio(
   set: (partial: Partial<AppState>) => void,
   get: () => AppState,
 ): void {
+  abandonRunningAnalysis();
   set({
     sessionId: null,
     sessionName: DEFAULT_PORTFOLIO_NAME,
@@ -1411,6 +1477,10 @@ async function runAnalysisQueue(
   let next = 0;
   let done = 0;
   let checkpoint: Promise<void> | null = null;
+  // Results are written back only while this portfolio stays open.
+  const generation = portfolioGeneration;
+  const stillOpen = (): boolean => generation === portfolioGeneration;
+  for (const input of inputs) removedIds.delete(input.id);
   // Everything of this batch counts as pending until it succeeds; earlier
   // pending inputs (another interrupted batch) are kept.
   set((s) => {
@@ -1424,8 +1494,13 @@ async function runAnalysisQueue(
   });
 
   async function worker(): Promise<void> {
-    while (next < inputs.length && !get().analysisCancelRequested) {
+    while (
+      next < inputs.length &&
+      !get().analysisCancelRequested &&
+      stillOpen()
+    ) {
       const input = inputs[next++];
+      if (removedIds.has(input.id)) continue;
       // While this one runs, the next location's tiles load into the cache.
       const upcoming = inputs[next];
       if (upcoming?.lat != null && upcoming.lon != null) {
@@ -1443,17 +1518,24 @@ async function runAnalysisQueue(
           input,
           get().parameters,
         );
-        get().upsertDealership(withChange(result, analyzedChange(result)));
+        if (!stillOpen()) return;
+        // Deleted while it was analysed: leave it deleted.
+        if (!removedIds.has(input.id)) {
+          get().upsertDealership(withChange(result, analyzedChange(result)));
+        }
         set((s) => ({
           pendingAnalysis: s.pendingAnalysis.filter((p) => p.id !== input.id),
         }));
       } catch (err) {
+        if (!stillOpen()) return;
         const message = errorMessage(err);
         console.error(`Analysis failed for ${input.name}:`, err);
-        set((s) => ({
-          analysisErrors: { ...s.analysisErrors, [input.id]: message },
-          failedInputs: { ...s.failedInputs, [input.id]: input },
-        }));
+        if (!removedIds.has(input.id)) {
+          set((s) => ({
+            analysisErrors: { ...s.analysisErrors, [input.id]: message },
+            failedInputs: { ...s.failedInputs, [input.id]: input },
+          }));
+        }
       }
       done++;
       set((s) => ({
@@ -1479,6 +1561,8 @@ async function runAnalysisQueue(
     ),
   );
   if (checkpoint) await checkpoint;
+  // The portfolio that was opened meanwhile has its own analysis state.
+  if (!stillOpen()) return;
   set((s) => {
     // A cancelled batch is not offered for resuming; failed inputs stay
     // pending so they can be retried after a restart as well.

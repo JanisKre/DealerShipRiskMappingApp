@@ -37,6 +37,7 @@ export function loadConversation(id: string): Conversation | null {
   } catch {
     return null;
   }
+  if (!Array.isArray(messages)) return null;
   return {
     id: row.id,
     name: row.name,
