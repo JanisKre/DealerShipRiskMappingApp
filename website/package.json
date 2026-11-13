@@ -21,7 +21,7 @@
     "@radix-ui/react-tabs": "1.1.12",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
-    "lucide-react": "0.539.0",
+    "lucide-react": "1.71.0",
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "tailwind-merge": "3.3.1"
