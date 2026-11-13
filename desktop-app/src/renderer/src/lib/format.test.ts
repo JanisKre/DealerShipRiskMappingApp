@@ -33,6 +33,8 @@ describe("format", () => {
     expect(eurCompact(337_950_000).replace(/\s/gu, " ")).toBe("338 Mio. €");
     setLanguage("en");
     expect(eurCompact(144_800_000)).toBe("€144.8M");
+    expect(eurCompact(337_950_000)).toBe("€338M");
+    expect(eurCompact(2_000_000)).toBe("€2M");
   });
 
   it("shows a dash for missing values", () => {

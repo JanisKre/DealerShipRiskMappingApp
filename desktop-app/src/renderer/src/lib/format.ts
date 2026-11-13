@@ -22,15 +22,29 @@ export function eur(
   }).format(n);
 }
 
-/** Short form for chart labels: "338 Mio. €", "€338M". */
+/**
+ * Short form for chart labels: "338 Mio. €", "€338M". Older ICU builds
+ * (Node 22) keep a trailing zero when rounding carries over (337.95 →
+ * "338,0 Mio. €"), so an all-zero fraction is dropped explicitly to give the
+ * same label on every runtime.
+ */
 export function eurCompact(n: number | undefined | null): string {
   if (n == null) return "–";
-  return new Intl.NumberFormat(uiLocale(), {
+  const parts = new Intl.NumberFormat(uiLocale(), {
     style: "currency",
     currency: "EUR",
     notation: "compact",
     maximumFractionDigits: 1,
-  }).format(n);
+  }).formatToParts(n);
+  const zeroFraction = parts.some(
+    (p) => p.type === "fraction" && /^0+$/u.test(p.value),
+  );
+  return parts
+    .filter(
+      (p) => !zeroFraction || (p.type !== "fraction" && p.type !== "decimal"),
+    )
+    .map((p) => p.value)
+    .join("");
 }
 
 export function num(
