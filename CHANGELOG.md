@@ -9,6 +9,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- A vehicle model can carry its own calibrated base confidence
+  (`defaultConfidence` in the manifest, `training/export.py --default-conf`).
+  The app uses it while the detection-confidence parameter is still the
+  default; a value set by the user always wins. For the fine-tuned
+  dealership model, 0.45 instead of 0.22 lowers the count error on 11
+  held-out sites from 18.5 to 8.5 vehicles per site and the bias from
+  +12.5 % to +0.9 % (`docs/detection-benchmark.md`, "Model default
+  threshold").
+
 - Building footprints for Bayern from the open LoD2 building model of the
   Bayerische Vermessungsverwaltung (CC BY 4.0), read by 2 km tile and cached
   per tile. Bayern has no open building WFS; until now the roof mask and the

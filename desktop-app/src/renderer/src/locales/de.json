@@ -210,7 +210,7 @@
       },
       "detectionConfidence": {
         "label": "Erkennungs-Konfidenz",
-        "description": "Basis-Mindestkonfidenz des Erkennungsmodells; große Fahrzeuge brauchen etwas mehr.",
+        "description": "Basis-Mindestkonfidenz des Erkennungsmodells; große Fahrzeuge brauchen etwas mehr. Beim Standardwert gilt die kalibrierte Schwelle des Modells, wenn es eine mitbringt.",
         "tip": "Niedriger findet mehr Fahrzeuge, kann aber mehr Fehlalarme erzeugen; höher ist konservativer."
       },
       "hailFrequencyZone1": {

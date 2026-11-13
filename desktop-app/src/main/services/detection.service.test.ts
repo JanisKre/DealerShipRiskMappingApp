@@ -13,12 +13,17 @@ vi.mock("electron", () => ({
 import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { LEGACY_VISDRONE_MANIFEST } from "@shared/model-manifest";
+import { DETECTION_CONFIDENCE } from "@shared/constants";
+import {
+  LEGACY_VISDRONE_MANIFEST,
+  parseVehicleModelManifest,
+} from "@shared/model-manifest";
 import {
   inferencePoolSize,
   OnnxYoloDetector,
   attachImageryProvenance,
   detectVehiclesInContext,
+  effectiveDetectionConfidence,
   filterDetectionToBoundary,
   loadModelManifest,
   MODEL_FILENAME,
@@ -54,6 +59,39 @@ describe("loadModelManifest", () => {
 
     writeFileSync(modelPath.replace(".onnx", ".json"), "{ not json");
     expect(loadModelManifest(modelPath)).toBeNull();
+  });
+});
+
+describe("effectiveDetectionConfidence", () => {
+  const calibrated = { ...LEGACY_VISDRONE_MANIFEST, defaultConfidence: 0.45 };
+
+  it("uses the model's calibrated value while the parameter is the default", () => {
+    expect(
+      effectiveDetectionConfidence(DETECTION_CONFIDENCE, calibrated),
+    ).toEqual({ threshold: 0.45, fromModel: true });
+  });
+
+  it("keeps a value the user chose", () => {
+    expect(effectiveDetectionConfidence(0.3, calibrated)).toEqual({
+      threshold: 0.3,
+      fromModel: false,
+    });
+  });
+
+  it("keeps the global default for a model without a calibrated value", () => {
+    expect(
+      effectiveDetectionConfidence(
+        DETECTION_CONFIDENCE,
+        LEGACY_VISDRONE_MANIFEST,
+      ),
+    ).toEqual({ threshold: DETECTION_CONFIDENCE, fromModel: false });
+  });
+
+  it("accepts a calibrated value in the manifest and rejects one out of range", () => {
+    expect(parseVehicleModelManifest(calibrated)?.defaultConfidence).toBe(0.45);
+    expect(
+      parseVehicleModelManifest({ ...calibrated, defaultConfidence: 1.5 }),
+    ).toBeNull();
   });
 });
 

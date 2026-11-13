@@ -42,10 +42,17 @@ so it does not silently downgrade to a vulnerable `onnx`.
 | 6. Baseline | `python evaluate.py --weights yolo11s-obb.pt --dota` | Pretrained model, unchanged |
 | 7. Train | `caffeinate -i python train.py` | `runs/dealer-obb/weights/best.pt` |
 | 8. Evaluate | `python evaluate.py` | mAP50 and per-site count MAE, bias, within-10 %, also per native resolution and false detections on negatives |
-| 9. Install | `python export.py --install` | ONNX and manifest in the app's `userData/models` |
+| 9. Install | `python export.py --install --default-conf 0.45` | ONNX and manifest in the app's `userData/models` |
 
 The app picks up `dealer_vehicles.onnx` with its manifest `dealer_vehicles.json`
 after a restart. It prefers this model over the downloaded VisDrone model.
+
+`--default-conf` stores the base confidence the app uses for this model while
+its detection-confidence parameter is still the default. Pick it from the
+count metrics of `python evaluate.py --sweep` on the held-out sites (lowest
+bias in the flat MAE optimum), not from mAP. Omit it for a model you have not
+swept; the app then keeps its global default. See
+[docs/detection-benchmark.md](../docs/detection-benchmark.md#model-default-threshold-2026-11).
 
 **`sites.csv`** has the columns `id,lat,lon,state[,radius_m]`. `state` is the
 two-letter state code that picks the orthophoto service. `select_sites.py`

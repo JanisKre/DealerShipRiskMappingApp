@@ -38,6 +38,12 @@ export const VehicleModelManifestSchema = z.object({
   classOffsets: z
     .record(ClassIndexKey, z.number().min(-0.5).max(0.5))
     .default({}),
+  /**
+   * Base confidence the model's counts were calibrated at on held-out sites.
+   * Used while the user's detection-confidence parameter is still the global
+   * default; a value the user chose always wins. Absent: the global default.
+   */
+  defaultConfidence: z.number().min(0.05).max(0.95).optional(),
   sha256: z
     .string()
     .regex(/^[0-9a-f]{64}$/)

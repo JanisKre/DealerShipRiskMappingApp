@@ -111,8 +111,52 @@ this order:
   inventory count or an insurance decision. Use map review (add or remove
   points) to correct individual sites.
 
+## Model default threshold (2026-11)
+
+A model can carry the base confidence its counts were calibrated at
+(`defaultConfidence` in its manifest, written by
+`training/export.py --default-conf`). The app uses it while the
+detection-confidence parameter is still the global default (0.22); a value
+the user set always wins. The threshold used is recorded in the detection
+evidence (`method`, "base confidence … (model default)").
+
+**Why.** The global default was tuned for the VisDrone model. The
+fine-tuned dealership model scores differently: at 0.22 it over-counted by
+12.5 % on held-out sites.
+
+**Measurement.** The app's own window inference (`inferWindow`: decoding,
+per-class offsets, size filter, hard NMS) with `dealer_vehicles` 2026-10-10
+(YOLO11s-OBB) on the 99 validation tiles of the training split, 11 held-out
+dealership sites at 0.10 m/px, compared with the corrected labels per site.
+
+| Base confidence | Count MAE | Bias | Within 10 % |
+|---|---|---|---|
+| 0.15 | 26.3 | +17.8 % | 18 % |
+| 0.22 | 18.5 | +12.5 % | 36 % |
+| 0.30 | 12.0 | +8.1 % | 64 % |
+| 0.40 | 8.1 | +3.4 % | 73 % |
+| **0.45** | **8.5** | **+0.9 %** | **73 %** |
+| 0.50 | 8.4 | −0.5 % | 73 % |
+| 0.55 | 9.2 | −2.2 % | 82 % |
+| 0.60 | 10.4 | −4.5 % | 64 % |
+
+0.45 is chosen for the smallest bias in the flat optimum between 0.40 and
+0.50.
+
+**Limitations.**
+
+- 11 sites, and the threshold was chosen on the same sites it is reported
+  on; the true error on new sites is likely somewhat higher.
+- Tiles are scored whole, without the boundary clip and the roof mask. Both
+  remove further detections in the app, so the in-app optimum may be a
+  little lower.
+- The value belongs to this model version. A retrained model needs its own
+  sweep before `--default-conf` is set; without it the global default
+  applies.
+
 ## Benchmark runs
 
 | Date | Model | Imagery | Sites | Count MAE | Bias | Within 10 % |
 |---|---|---|---|---|---|---|
-| – | – | – | – | – | – | – |
+| 2026-11-13 | dealer_vehicles 2026-10-10, base conf 0.22 | State DOP tiles, 0.10 m/px | 11 | 18.5 | +12.5 % | 36 % |
+| 2026-11-13 | dealer_vehicles 2026-10-10, base conf 0.45 | State DOP tiles, 0.10 m/px | 11 | 8.5 | +0.9 % | 73 % |

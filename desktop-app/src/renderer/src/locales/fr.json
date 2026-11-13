@@ -210,7 +210,7 @@
       },
       "detectionConfidence": {
         "label": "Confiance de détection",
-        "description": "Confiance minimale de base du modèle de détection ; les grands véhicules demandent un peu plus.",
+        "description": "Confiance minimale de base du modèle de détection ; les grands véhicules demandent un peu plus. À la valeur par défaut, le seuil calibré du modèle s'applique s'il en fournit un.",
         "tip": "Plus bas détecte plus de véhicules mais peut produire plus de fausses détections ; plus haut est plus prudent."
       },
       "hailFrequencyZone1": {

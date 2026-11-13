@@ -210,7 +210,7 @@
       },
       "detectionConfidence": {
         "label": "Detection confidence",
-        "description": "Base minimum confidence of the detection model; large vehicles need slightly more.",
+        "description": "Base minimum confidence of the detection model; large vehicles need slightly more. At the default value, the model's own calibrated threshold applies if it ships one.",
         "tip": "Lower detects more vehicles but may introduce more false positives; higher is more conservative."
       },
       "hailFrequencyZone1": {

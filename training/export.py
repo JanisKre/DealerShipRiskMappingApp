@@ -69,6 +69,13 @@ def main() -> None:
     ap.add_argument("--weights", default=str(ROOT / "runs" / "dealer-obb" / "weights" / "best.pt"))
     ap.add_argument("--version", default=dt.date.today().isoformat())
     ap.add_argument("--training-data", nargs="*", default=None, help="provenance for the manifest (default: read from data/dataset)")
+    ap.add_argument(
+        "--default-conf",
+        type=float,
+        default=None,
+        help="base confidence the counts were calibrated at on held-out sites (manifest defaultConfidence); "
+        "the app uses it while its detection-confidence parameter is still the global default",
+    )
     ap.add_argument("--install", action="store_true")
     ap.add_argument("--install-dir", default=str(DEFAULT_INSTALL_DIR))
     args = ap.parse_args()
@@ -104,6 +111,10 @@ def main() -> None:
             "Fine-tuned on a limited set of German dealership sites; validate on new regions before relying on counts",
         ],
     }
+    if args.default_conf is not None:
+        if not 0.05 <= args.default_conf <= 0.95:
+            raise SystemExit("--default-conf must be between 0.05 and 0.95")
+        manifest["defaultConfidence"] = args.default_conf
     if not manifest["vehicleClasses"]:
         raise SystemExit(f"no class in {names} maps to an app vehicle class ({APP_CLASS})")
     manifest_path = out_dir / f"{NAME}.json"

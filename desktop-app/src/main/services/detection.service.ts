@@ -21,6 +21,7 @@ import {
   type VehicleModelManifest,
 } from "@shared/model-manifest";
 import type { AerialCapture } from "./tiles.service";
+import { DETECTION_CONFIDENCE } from "@shared/constants";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import { AREA_ESTIMATE_DETECTOR } from "@shared/risk-math";
 import type { RiskParameters } from "@shared/types";
@@ -203,6 +204,25 @@ export function inferencePoolSize(cpuCount: number = cpus().length): number {
 }
 
 /**
+ * Base confidence threshold for one detection run. While the user's parameter
+ * is still the global default, the model's own calibrated value applies (the
+ * default was never chosen by the user, the same rule as RETIRED_DEFAULTS in
+ * parameters.ts); a value the user set always wins.
+ */
+export function effectiveDetectionConfidence(
+  userConfidence: number,
+  manifest: Pick<VehicleModelManifest, "defaultConfidence">,
+): { threshold: number; fromModel: boolean } {
+  if (
+    userConfidence === DETECTION_CONFIDENCE &&
+    manifest.defaultConfidence !== undefined
+  ) {
+    return { threshold: manifest.defaultConfidence, fromModel: true };
+  }
+  return { threshold: userConfidence, fromModel: false };
+}
+
+/**
  * YOLO ONNX detector (axis-aligned or oriented boxes, per manifest). Runs a
  * small pool of persistent utilityProcesses, resamples the RGBA mosaic to the
  * model's training resolution, slices it into overlapping full-size windows,
@@ -361,6 +381,10 @@ export class OnnxYoloDetector implements VehicleDetector {
       (image as AerialCapture).imagery?.chosen.resolutionM ?? 0,
     );
 
+    const confidence = effectiveDetectionConfidence(
+      parameters.detectionConfidence,
+      this.manifest,
+    );
     const window = this.manifest.imgsz;
     const stride = windowStride(window, metersPerPixel);
     let totalInferenceMs = 0;
@@ -375,7 +399,7 @@ export class OnnxYoloDetector implements VehicleDetector {
           this.extractCrop(rgba, width, c.cropX, c.cropY, c.w, c.h),
           c.w,
           c.h,
-          parameters.detectionConfidence,
+          confidence.threshold,
           metersPerPixel,
         ).then((res) => ({ res, c })),
       ),
@@ -401,6 +425,7 @@ export class OnnxYoloDetector implements VehicleDetector {
       totalInferenceMs,
       factor,
       sourceResolutionM,
+      confidence,
     );
   }
 
@@ -438,6 +463,7 @@ export class OnnxYoloDetector implements VehicleDetector {
     inferenceMs: number,
     resample: number,
     sourceResolutionM: number,
+    confidence: { threshold: number; fromModel: boolean },
   ): DetectionResult {
     // Normalized axis-aligned hulls: consumers only need the extent and the
     // geographic center, and stay independent of the model's box type.
@@ -510,7 +536,9 @@ export class OnnxYoloDetector implements VehicleDetector {
         dataVersion: m.version,
         method:
           `sliding-window ${m.task === "obb" ? "oriented " : ""}aerial vehicle ` +
-          `detection at ${m.gsdM} m/px${resampleNote}, hard NMS`,
+          `detection at ${m.gsdM} m/px${resampleNote}, hard NMS, ` +
+          `base confidence ${confidence.threshold}` +
+          (confidence.fromModel ? " (model default)" : ""),
         confidence: vehicleCount > 0 ? confSum / vehicleCount : 0,
         fallbackUsed: false,
         limitations: [
