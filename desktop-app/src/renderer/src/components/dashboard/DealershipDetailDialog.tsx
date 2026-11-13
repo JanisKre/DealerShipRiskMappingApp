@@ -91,6 +91,20 @@ import {
 import { buildUnderwritingMessages } from "./UnderwritingMessages";
 import { DetectionImageryNote } from "./DetectionImageryNote";
 import { ImageryHistorySection } from "./ImageryHistorySection";
+import { HailHistorySection } from "./HailHistorySection";
+import {
+  isReviewCurrent,
+  nextInReview,
+  reviewReasons,
+  type ReviewReason,
+} from "./reviewQueue";
+
+/** A review run: the queue snapshot taken when it started. */
+export interface ReviewRun {
+  ids: string[];
+  /** Called after the last open location; the page closes the dialog. */
+  onFinish: () => void;
+}
 
 /** Locale keys for the stored (English) hail risk tier values. */
 const RISK_TIER_KEYS: Record<HailRiskTier, string> = {
@@ -120,11 +134,14 @@ export function DealershipDetailDialog({
   open,
   onOpenChange,
   onNavigate,
+  review,
 }: {
   dealership: AnalyzedDealership | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNavigate?: (id: string) => void;
+  /** Review run in progress: adds the "reviewed · next" strip. */
+  review?: ReviewRun;
 }): React.JSX.Element {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -139,6 +156,7 @@ export function DealershipDetailDialog({
             d={dealership}
             onClose={() => onOpenChange(false)}
             onNavigate={onNavigate}
+            review={review}
           />
         )}
       </DialogContent>
@@ -160,16 +178,19 @@ function DetailBody({
   d,
   onClose,
   onNavigate,
+  review,
 }: {
   d: AnalyzedDealership;
   onClose: () => void;
   onNavigate?: (id: string) => void;
+  review?: ReviewRun;
 }): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const dealerships = useAppStore((s) => s.dealerships);
   const parameters = useAppStore((s) => s.parameters);
   const reanalyze = useAppStore((s) => s.reanalyzeDealership);
+  const [exporting, setExporting] = useState(false);
   const select = useAppStore((s) => s.select);
   const removeDealership = useAppStore((s) => s.removeDealership);
   const [tab, setTab] = useState<DetailTab>("overview");
@@ -185,11 +206,31 @@ function DetailBody({
 
   const located = dealerships.filter((x) => x.lat != null && x.lon != null);
   const position = located.findIndex((x) => x.id === d.id);
+  const inReview = review != null && review.ids.includes(d.id);
   const step = (delta: number): void => {
-    if (!onNavigate || located.length < 2) return;
-    const next = located[(position + delta + located.length) % located.length];
-    onNavigate(next.id);
+    if (!onNavigate) return;
+    // In a review run the arrows move through the queue, not the portfolio.
+    const ring = inReview && review ? review.ids : located.map((x) => x.id);
+    if (ring.length < 2) return;
+    const index = ring.indexOf(d.id);
+    onNavigate(ring[(index + delta + ring.length) % ring.length]);
   };
+  const stepRef = useRef(step);
+  stepRef.current = step;
+
+  // ←/→ step through the locations (or the review queue). Ignored while
+  // typing, so notes and inputs keep their arrow keys.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent): void {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      if (isTypingTarget(event.target)) return;
+      event.preventDefault();
+      stepRef.current(event.key === "ArrowRight" ? 1 : -1);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   function showOnMap(editBoundary = false): void {
     select(d.id);
@@ -212,6 +253,29 @@ function DetailBody({
       navigate("/settings");
     },
   );
+  async function exportReport(): Promise<void> {
+    setExporting(true);
+    try {
+      const language = i18n.language.slice(0, 2);
+      const { path } = await window.api.exportLocationReport({
+        dealership: d,
+        locale: language === "de" || language === "fr" ? language : "en",
+        reviewNotes: attention
+          .map((item) => item.title.slice(0, 300))
+          .slice(0, 12),
+      });
+      if (path)
+        toast.success(t("dashboard.detailDialog.reportSaved", { path }));
+    } catch (err) {
+      toast.error(
+        t("dashboard.detailDialog.reportFailed", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
   const vehicles = d.detection ? effectiveVehicleCount(d.detection) : null;
   const manualCount = d.detection?.manualVehicleCount != null;
   const rank = portfolioRank(d, dealerships);
@@ -246,7 +310,7 @@ function DetailBody({
               </button>
             )}
           </DialogTitle>
-          {onNavigate && located.length > 1 && (
+          {onNavigate && located.length > 1 && !inReview && (
             <div className="flex shrink-0 items-center gap-0.5">
               <Button
                 variant="ghost"
@@ -299,6 +363,20 @@ function DetailBody({
               <RefreshCw className="size-3.5" />
               {t("map.page.reanalyze")}
             </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 px-2 text-xs"
+              disabled={exporting}
+              onClick={() => void exportReport()}
+            >
+              {exporting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <FileText className="size-3.5" />
+              )}
+              {t("dashboard.detailDialog.report")}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -340,6 +418,15 @@ function DetailBody({
           </div>
         </div>
       </DialogHeader>
+
+      {review && inReview && onNavigate && (
+        <ReviewStrip
+          d={d}
+          run={review}
+          onNavigate={onNavigate}
+          onSkip={() => step(1)}
+        />
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <KeyFigure
@@ -393,6 +480,8 @@ function DetailBody({
 
         <TabsContent value="overview" className="space-y-4 pt-2">
           <HailOverview d={d} />
+          <Separator />
+          <HailHistorySection d={d} />
           <Separator />
           <AiSection d={d} />
         </TabsContent>
@@ -499,7 +588,151 @@ function changeText(t: TFunction, change: DealershipChange): string {
       return change.value === "existing"
         ? t("dashboard.detailDialog.history.markedExisting")
         : t("dashboard.detailDialog.history.markedNew");
+    case "reviewed":
+      return t("dashboard.detailDialog.history.reviewed");
   }
+}
+
+/** Inputs, text areas and editable fields keep their own keys. */
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+  );
+}
+
+/**
+ * Review run: where the underwriter stands in the queue, why this location
+ * is in it, and one action that records the check and moves on. When the
+ * boundary is the open point, that action confirms it as well. Enter
+ * triggers it unless focus is on another control.
+ */
+function ReviewStrip({
+  d,
+  run,
+  onNavigate,
+  onSkip,
+}: Readonly<{
+  d: AnalyzedDealership;
+  run: ReviewRun;
+  onNavigate: (id: string) => void;
+  onSkip: () => void;
+}>): React.JSX.Element {
+  const { t } = useTranslation();
+  const dealerships = useAppStore((s) => s.dealerships);
+  const parameters = useAppStore((s) => s.parameters);
+  const markReviewed = useAppStore((s) => s.markReviewed);
+  const confirmBoundary = useAppStore((s) => s.confirmBoundary);
+  const [busy, setBusy] = useState(false);
+  const reasons = reviewReasons(t, d, dealerships, parameters);
+  const byId = new Map(dealerships.map((x) => [x.id, x]));
+  const open = (id: string): boolean => {
+    const x = byId.get(id);
+    return x != null && !isReviewCurrent(x);
+  };
+  const remaining = run.ids.filter(open).length;
+  const done = isReviewCurrent(d);
+  const confirmsBoundary = reasons.includes("boundary");
+
+  async function complete(): Promise<void> {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (!done) {
+        if (confirmsBoundary) await confirmBoundary(d.id);
+        await markReviewed(d.id);
+      }
+      const latest = new Map(
+        useAppStore.getState().dealerships.map((x) => [x.id, x]),
+      );
+      const next = nextInReview(run.ids, d.id, (id) => {
+        const x = latest.get(id);
+        return x != null && !isReviewCurrent(x);
+      });
+      if (next) onNavigate(next);
+      else run.onFinish();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const completeRef = useRef(complete);
+  completeRef.current = complete;
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent): void {
+      if (event.key !== "Enter" || event.repeat) return;
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+        return;
+      const target = event.target;
+      if (
+        isTypingTarget(target) ||
+        (target instanceof HTMLElement &&
+          target.closest("button, a, [role=menuitem], [role=tab]"))
+      )
+        return;
+      event.preventDefault();
+      void completeRef.current();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+      <div className="min-w-0 flex-1">
+        <div className="font-medium">
+          {t("review.position", {
+            position: run.ids.indexOf(d.id) + 1,
+            total: run.ids.length,
+          })}
+          <span className="font-normal text-muted-foreground">
+            {" · "}
+            {t("review.remaining", { count: remaining })}
+          </span>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {done
+            ? t("review.alreadyReviewed")
+            : reasons
+                .map((r: ReviewReason) => t(`review.reason.${r}`))
+                .join(" · ")}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-xs"
+          onClick={onSkip}
+        >
+          {t("review.skip")}
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 gap-1.5 px-2.5 text-xs"
+          disabled={busy}
+          onClick={() => void complete()}
+        >
+          {busy ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Check className="size-3.5" />
+          )}
+          {done
+            ? t("review.next")
+            : confirmsBoundary
+              ? t("review.confirmBoundaryAndNext")
+              : t("review.reviewedAndNext")}
+          <kbd className="rounded border border-primary-foreground/40 px-1 text-[10px] leading-4">
+            ↵
+          </kbd>
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 /** What was changed at this location, newest first. */

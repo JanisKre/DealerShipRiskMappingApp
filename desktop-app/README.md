@@ -44,6 +44,7 @@ npm run dev       # starts Main + Preload + Renderer with HMR
 | `npm run test`          | Unit tests (Vitest)                 |
 | `npm run test:coverage` | Unit tests with V8 coverage report  |
 | `npm run smoke`         | Smoke-test the built Electron app   |
+| `npm run test:e2e`      | Playwright UI tests on the build    |
 | `npm run pack`          | Build unpacked app (release/)       |
 | `npm run dist`          | Build installer (dmg/nsis/AppImage) |
 

@@ -29,6 +29,7 @@ import {
 } from "@renderer/components/ui/table";
 import { eur, num } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
+import { portfolioName } from "@renderer/lib/portfolioName";
 
 /**
  * Compares the active portfolio against a saved session: delta in
@@ -86,7 +87,7 @@ export function ComparisonView(): React.JSX.Element {
           <SelectContent>
             {sessions.map((s) => (
               <SelectItem key={s.id} value={s.id}>
-                {s.name} ·{" "}
+                {portfolioName(s.name, t)} ·{" "}
                 {new Date(s.updatedAt).toLocaleDateString(i18n.language)}
               </SelectItem>
             ))}

@@ -33,7 +33,8 @@
       "mergeConflicts": "{{count}} sites ont été modifiés des deux côtés et restent inchangés ici : {{names}}",
       "mergeFailed": "Impossible de fusionner le portefeuille : {{error}}",
       "importOpenFailed": "Impossible d’ouvrir le fichier de portefeuille : {{error}}"
-    }
+    },
+    "offline": "Hors ligne – données en cache"
   },
   "start": {
     "title": "Portefeuille et analyse",
@@ -571,7 +572,8 @@
         "vehicleCountCleared": "Nombre manuel supprimé (avant {{from}})",
         "vehiclesReviewed": "Véhicules vérifiés sur la carte : {{from}} → {{to}}",
         "markedExisting": "Marqué comme portefeuille",
-        "markedNew": "Marqué comme affaire nouvelle"
+        "markedNew": "Marqué comme affaire nouvelle",
+        "reviewed": "Marqué comme vérifié"
       },
       "riskTier": {
         "veryLow": "Très faible",
@@ -587,7 +589,10 @@
       "boundaryAlternativesCount_one": "{{count}} autre proposition de limite",
       "boundaryAlternativesCount_other": "{{count}} autres propositions de limite",
       "sourcesUsedCount_one": "{{count}} source utilisée",
-      "sourcesUsedCount_other": "{{count}} sources utilisées"
+      "sourcesUsedCount_other": "{{count}} sources utilisées",
+      "report": "Rapport",
+      "reportSaved": "Rapport enregistré : {{path}}",
+      "reportFailed": "Le rapport n'a pas pu être créé : {{error}}"
     },
     "hailEalDetail": {
       "severityNote": "λ = événements de grêle par an dans la zone ; le dommage par véhicule est la perte attendue par événement."
@@ -780,7 +785,12 @@
       "detectionWarningHint": "Aucun modèle d’IA n’est installé. Installez-le dans les paramètres, puis relancez l’analyse.",
       "openSettings": "Ouvrir les paramètres",
       "deleteConfirmTitle": "Supprimer le site ?",
-      "deleteConfirmDescription": "« {{name}} » est retiré de ce portefeuille avec son analyse et ses notes. Cette action est irréversible."
+      "deleteConfirmDescription": "« {{name}} » est retiré de ce portefeuille avec son analyse et ses notes. Cette action est irréversible.",
+      "resumeTitle_one": "Analyse interrompue : {{count}} site en attente",
+      "resumeTitle_other": "Analyse interrompue : {{count}} sites en attente",
+      "resumeDetail": "L'application a été fermée pendant une analyse. Les sites déjà analysés sont enregistrés.",
+      "resumeAction": "Reprendre",
+      "resumeDiscard": "Abandonner"
     }
   },
   "ai": {
@@ -1051,5 +1061,124 @@
     },
     "provenanceLabel": "Sur quoi reposent les réponses ?",
     "emptyChat": "Interrogez l’IA sur votre portefeuille – ou pilotez l’application, p. ex. « open … »."
+  },
+  "review": {
+    "start": "Vérifier",
+    "startCount_one": "Vérifier ({{count}})",
+    "startCount_other": "Vérifier ({{count}})",
+    "empty": "Aucun point à vérifier.",
+    "finished": "Tous les points ont été vérifiés.",
+    "position": "Vérification {{position}} sur {{total}}",
+    "remaining_one": "encore {{count}} ouvert",
+    "remaining_other": "encore {{count}} ouverts",
+    "alreadyReviewed": "Déjà marqué comme vérifié.",
+    "reason": {
+      "boundary": "Vérifier la limite du terrain",
+      "imagery": "Image aérienne ancienne",
+      "underwriting": "Note de souscription"
+    },
+    "skip": "Passer",
+    "next": "Suivant",
+    "confirmBoundaryAndNext": "Confirmer la limite · suivant",
+    "reviewedAndNext": "Vérifié · suivant"
+  },
+  "hailHistory": {
+    "title": "Historique de grêle",
+    "loading": "Chargement des observations du service météorologique allemand …",
+    "failed": "L'historique de grêle n'a pas pu être chargé.",
+    "retry": "Réessayer",
+    "none": "Aucune station DWD avec un long historique de grêle dans un rayon de {{radius}} km.",
+    "stationPicker": "Choisir la station météo",
+    "km": "{{distance}} km",
+    "aboutLabel": "À propos de l'historique de grêle",
+    "about": {
+      "title": "D'où viennent les chiffres",
+      "what": "Observations des stations les plus proches du service météorologique allemand dans un rayon de {{radius}} km, avec au moins dix ans d'enregistrements.",
+      "hailDay": "Un jour de grêle est un jour où de la grêle a été observée à la station – quelle que soit la taille des grêlons ou les dommages. Une année compte si au moins 180 jours ont été observés.",
+      "limits": "Observations ponctuelles, pas un catalogue d'événements : la grêle qui manque la station n'apparaît pas. Beaucoup de stations n'observent plus depuis 2011 environ.",
+      "eal": "Contexte uniquement – les valeurs n'entrent pas dans l'EAL grêle.",
+      "source": "Source : Deutscher Wetterdienst (Climate Data Center, phénomènes météo quotidiens)."
+    },
+    "figure": {
+      "perYear": "Jours de grêle par an",
+      "perYearHint": "Moyenne {{from}}–{{to}}",
+      "yearsWithHail": "Années avec grêle",
+      "yearsWithHailHint_one": "{{count}} sur {{total}} ans",
+      "yearsWithHailHint_other": "{{count}} sur {{total}} ans",
+      "peak": "Maximum",
+      "peakHint": "en {{year}} · afficher",
+      "last": "Dernier jour de grêle",
+      "season": "surtout {{months}}"
+    },
+    "days_one": "{{count}} jour de grêle",
+    "days_other": "{{count}} jours de grêle",
+    "viewLabel": "Affichage",
+    "view": {
+      "years": "Par année",
+      "months": "Par mois"
+    },
+    "rangeLabel": "Période",
+    "range": {
+      "all": "{{from}}–{{to}}",
+      "recent": "{{count}} dernières années"
+    },
+    "clickHint": "Cliquer sur une barre pour voir les jours",
+    "axisDays": "Jours de grêle",
+    "axisDaysTotal": "Jours de grêle au total",
+    "notObserved": "Observation insuffisante",
+    "meanLabel": "Moy. {{days}}",
+    "monthShare": "{{share}} de tous les jours de grêle",
+    "legend": {
+      "days": "Jours de grêle dans l'année",
+      "gap": "pas d'observation",
+      "mean": "Moyenne"
+    },
+    "detail": {
+      "monthTitle": "{{month}}",
+      "noHail": "pas de grêle observée",
+      "monthSummary_one": "{{count}} jour de grêle sur {{years}} an(s)",
+      "monthSummary_other": "{{count}} jours de grêle sur {{years}} ans",
+      "more": "+ {{count}} autres",
+      "close": "Fermer les détails"
+    },
+    "notes": {
+      "ended_one": "L'observation s'arrête en {{year}} (il y a {{count}} an) – la grêle plus récente n'est pas incluse.",
+      "ended_other": "L'observation s'arrête en {{year}} (il y a {{count}} ans) – la grêle plus récente n'est pas incluse.",
+      "far": "La station est à {{distance}} km – la grêle sur le site peut être très différente.",
+      "short_one": "Seulement {{count}} année d'observation – la moyenne est incertaine.",
+      "short_other": "Seulement {{count}} années d'observation – la moyenne est incertaine.",
+      "gaps_one": "{{count}} année de la période sans observation suffisante (gris).",
+      "gaps_other": "{{count}} années de la période sans observation suffisante (gris).",
+      "context": "Contexte pour l'évaluation uniquement – non utilisé dans l'EAL grêle."
+    },
+    "zeroDays": "Pas de grêle observée"
+  },
+  "importPreview": {
+    "title": "Aperçu",
+    "selected": "{{selected}} sur {{total}} sélectionnés",
+    "onlyFlagged": "Seulement avec remarques ({{count}})",
+    "stopCheck": "Arrêter la vérification",
+    "checkAddresses": "Vérifier les adresses ({{count}})",
+    "toggleAll": "Tout sélectionner",
+    "location": "Site",
+    "placement": "Localisation",
+    "nothingFlagged": "Aucune ligne avec remarques.",
+    "duplicateExisting": "Déjà dans le portefeuille sous « {{name}} » – sera ignoré",
+    "duplicateRow": "Doublon de la ligne {{row}}",
+    "include": "Importer « {{name}} »",
+    "nameLabel": "Nom",
+    "addressLabel": "Adresse",
+    "apply": "Appliquer",
+    "noAddress": "Pas d'adresse",
+    "edit": "Modifier « {{name}} »",
+    "skippedRows_one": "{{count}} ligne non reprise",
+    "skippedRows_other": "{{count}} lignes non reprises",
+    "rowLabel": "Ligne {{row}} :",
+    "fromFile": "Coordonnées du fichier",
+    "cannotPlace": "Ni adresse ni coordonnées",
+    "willGeocode": "Localisé par l'adresse",
+    "checking": "Vérification …",
+    "notFound": "Adresse introuvable",
+    "checkFailed": "Échec de la vérification"
   }
 }

@@ -43,8 +43,10 @@ import {
   captureMap,
 } from "../services/export.service";
 import { geocode } from "../services/geocoding.service";
+import { exportLocationReport } from "../services/location-report.service";
 import { getHailZoneOverlay } from "../services/hail-zone-overlay/overlay.service";
 import { getOsmDetails } from "../services/osmDetails.service";
+import { getHailHistory } from "../services/hail-history/hail-history.service";
 import { placesAutocomplete } from "../services/places.service";
 import {
   parseCsvWithReport,
@@ -161,6 +163,7 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     countVehiclesOverTime(lat, lon, boundary, parameters),
   );
   handle(IPC.fetchWeather, ({ lat, lon }) => fetchWeather(lat, lon));
+  handle(IPC.hailHistory, ({ lat, lon }) => getHailHistory(lat, lon));
   handle(
     IPC.scoreRisk,
     ({
@@ -237,6 +240,9 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.importPortfolioFile, () => importPortfolioFile());
   handle(IPC.exportReport, async ({ session, format }) => ({
     path: await exportReport(session, format),
+  }));
+  handle(IPC.exportLocationReport, async (input) => ({
+    path: await exportLocationReport(input),
   }));
   handle(IPC.exportReadonlyView, async ({ session }) => ({
     path: await exportReadonlyView(session),

@@ -22,6 +22,7 @@ import type { Session } from "@shared/types";
 import { hasManualEdits } from "@shared/portfolio-merge";
 import { useAppStore } from "@renderer/store/appStore";
 import { cn } from "@renderer/lib/utils";
+import { portfolioName } from "@renderer/lib/portfolioName";
 
 interface SessionSummary {
   id: string;
@@ -189,7 +190,7 @@ export function PortfolioSwitcher({
   function startRename(session: SessionSummary): void {
     setConfirmingDeleteId(null);
     setRenamingId(session.id);
-    setRenameDraft(session.name);
+    setRenameDraft(portfolioName(session.name, t));
   }
 
   async function commitRename(id: string): Promise<void> {
@@ -234,7 +235,7 @@ export function PortfolioSwitcher({
         >
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-sm font-semibold leading-tight">
-              {sessionName}
+              {portfolioName(sessionName, t)}
             </span>
             {descriptionKey && (
               <span className="truncate text-xs leading-tight text-muted-foreground">
@@ -339,7 +340,7 @@ export function PortfolioSwitcher({
                   <div className="flex items-center gap-2 text-sm">
                     <span className="min-w-0 flex-1 truncate text-destructive">
                       {t("shell.portfolioSwitcher.confirmDelete", {
-                        name: session.name,
+                        name: portfolioName(session.name, t),
                       })}
                     </span>
                     <Button
@@ -364,7 +365,7 @@ export function PortfolioSwitcher({
                     autoFocus
                     value={renameDraft}
                     aria-label={t("shell.portfolioSwitcher.renameFor", {
-                      name: session.name,
+                      name: portfolioName(session.name, t),
                     })}
                     onChange={(e) => setRenameDraft(e.target.value)}
                     onKeyDown={(e) => {
@@ -382,7 +383,7 @@ export function PortfolioSwitcher({
                       onClick={() => void handleSwitch(session.id)}
                     >
                       <span className="block truncate text-sm font-medium">
-                        {session.name}
+                        {portfolioName(session.name, t)}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
                         {new Date(session.updatedAt).toLocaleString(
@@ -401,7 +402,7 @@ export function PortfolioSwitcher({
                       }}
                       title={t("shell.portfolioSwitcher.rename")}
                       aria-label={t("shell.portfolioSwitcher.renameFor", {
-                        name: session.name,
+                        name: portfolioName(session.name, t),
                       })}
                     >
                       <Pencil className="size-3.5" />
@@ -417,7 +418,7 @@ export function PortfolioSwitcher({
                       }}
                       title={t("shell.portfolioSwitcher.delete")}
                       aria-label={t("shell.portfolioSwitcher.deleteFor", {
-                        name: session.name,
+                        name: portfolioName(session.name, t),
                       })}
                     >
                       <Trash2 className="size-3.5" />

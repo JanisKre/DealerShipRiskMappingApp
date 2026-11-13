@@ -225,6 +225,8 @@ function rowsFromMatrix(
     "sbeur",
   ]);
   const rows: DealershipInput[] = [];
+  /** Source row (1-based, header = 1) of each entry in `rows`. */
+  const rowNumbers: number[] = [];
   const issues: ImportReport["issues"] = [];
   const seen = new Set<string>();
   let duplicateRows = 0;
@@ -295,6 +297,7 @@ function rowsFromMatrix(
     }
     seen.add(key);
 
+    rowNumbers.push(rowNumber);
     rows.push({
       id: randomUUID(),
       name,
@@ -329,6 +332,7 @@ function rowsFromMatrix(
       : [];
   return {
     rows,
+    rowNumbers,
     report: {
       format,
       totalRows: Math.max(0, matrix.length - 1),

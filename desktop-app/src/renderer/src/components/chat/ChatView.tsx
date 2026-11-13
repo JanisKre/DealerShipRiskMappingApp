@@ -28,6 +28,7 @@ import { useMapStore } from "@renderer/store/mapStore";
 import { ConversationPicker } from "./ConversationPicker";
 import { MessageBubble } from "./MessageBubble";
 import { useChat } from "./useChat";
+import { portfolioName } from "@renderer/lib/portfolioName";
 
 /** Earlier threads shown in the picker. */
 const RECENT_THREADS = 12;
@@ -221,7 +222,7 @@ export function ChatView({
         <Database className="mt-px size-3 shrink-0" />
         <span className="min-w-0 flex-1">
           {t("chat.context", {
-            portfolio: sessionName,
+            portfolio: portfolioName(sessionName, t),
             count: dealerships.length,
           })}
           {selected && (

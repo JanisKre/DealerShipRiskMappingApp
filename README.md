@@ -74,6 +74,7 @@ npm run dev       # Main + Preload + Renderer with HMR
 | `npm run typecheck` / `lint` | TypeScript check / ESLint (0 warnings)  |
 | `npm test` / `test:coverage` | Unit tests (Vitest), with coverage      |
 | `npm run build` / `smoke`    | Production build / smoke-test it        |
+| `npm run test:e2e`           | Playwright UI tests against the build   |
 | `npm run pack` / `dist`      | Unpacked app / installer (dmg, nsis, AppImage) |
 
 **Detection model:** the YOLOv26s weights

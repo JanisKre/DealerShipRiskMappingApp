@@ -156,3 +156,45 @@ describe("clipboard:writeText", () => {
     expect(schema.safeParse({}).success).toBe(false);
   });
 });
+
+describe("hail:history", () => {
+  const schema = ipcRequest["hail:history"];
+  it("accepts coordinates and rejects out-of-range ones", () => {
+    expect(schema.safeParse({ lat: 51.05, lon: 13.74 }).success).toBe(true);
+    expect(schema.safeParse({ lat: 91, lon: 13 }).success).toBe(false);
+    expect(schema.safeParse({ lat: 51, lon: "13" }).success).toBe(false);
+  });
+});
+
+describe("report:location", () => {
+  const schema = ipcRequest["report:location"];
+  const dealership = { id: "a", name: "Autohaus", lat: 51, lon: 13 };
+  it("accepts a location with a locale and review notes", () => {
+    expect(
+      schema.safeParse({
+        dealership,
+        locale: "de",
+        reviewNotes: ["Grenze prüfen"],
+      }).success,
+    ).toBe(true);
+  });
+  it("rejects unknown locales, too many or too long notes", () => {
+    expect(
+      schema.safeParse({ dealership, locale: "es", reviewNotes: [] }).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({
+        dealership,
+        locale: "en",
+        reviewNotes: Array(13).fill("x"),
+      }).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({
+        dealership,
+        locale: "en",
+        reviewNotes: ["x".repeat(301)],
+      }).success,
+    ).toBe(false);
+  });
+});

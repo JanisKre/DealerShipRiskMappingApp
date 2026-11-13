@@ -38,6 +38,45 @@ export const RiskEvidenceSchema = z.object({
 });
 export type RiskEvidence = z.infer<typeof RiskEvidenceSchema>;
 
+// --- Hail history (context only) ---------------------------------------
+
+/** Hail days observed at one DWD weather station near a location. */
+export const HailHistoryStationSchema = z.object({
+  stationId: z.string().regex(/^\d{5}$/),
+  name: z.string().max(120),
+  state: z.string().max(60).optional(),
+  distanceKm: z.number().nonnegative(),
+  /** First and last year with enough valid observations. */
+  firstYear: z.number().int(),
+  lastYear: z.number().int(),
+  yearsObserved: z.number().int().nonnegative(),
+  hailDays: z.number().int().nonnegative(),
+  /** Mean hail days per observed year. */
+  hailDaysPerYear: z.number().nonnegative(),
+  /** Most recent days with hail, newest first (YYYY-MM-DD). */
+  recentHailDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(10),
+  hailDaysByYear: z
+    .array(z.object({ year: z.number().int(), days: z.number().int() }))
+    .max(200),
+  /** Every hail day in the observed years, oldest first (YYYY-MM-DD). */
+  hailDates: z
+    .array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/))
+    .max(10_000)
+    .optional(),
+});
+export type HailHistoryStation = z.infer<typeof HailHistoryStationSchema>;
+
+/**
+ * Observed hail days at the nearest DWD stations. Context for the
+ * underwriter only: it does not enter the hail EAL.
+ */
+export const HailHistorySchema = z.object({
+  searchRadiusKm: z.number().positive(),
+  stations: z.array(HailHistoryStationSchema).max(5),
+  evidence: RiskEvidenceSchema,
+});
+export type HailHistory = z.infer<typeof HailHistorySchema>;
+
 // --- Natural-catastrophe provider data -------------------------------------
 
 /**
@@ -108,6 +147,8 @@ export const DealershipChangeKindSchema = z.enum([
   "vehicleCountChanged",
   "vehiclesReviewed",
   "businessTypeChanged",
+  /** The underwriter marked the location's open review points as checked. */
+  "reviewed",
 ]);
 export type DealershipChangeKind = z.infer<typeof DealershipChangeKindSchema>;
 
@@ -738,6 +779,11 @@ export const SessionSchema = z.object({
   dealerships: z.array(AnalyzedDealershipSchema),
   /** Optional for backwards compatibility with older saved sessions. */
   parameters: RiskParametersSchema.optional(),
+  /**
+   * Inputs of a batch analysis that had not finished when the session was
+   * last saved (app closed or crashed mid-import); offered for resuming.
+   */
+  pendingAnalysis: z.array(DealershipInputSchema).max(50_000).optional(),
 });
 export type Session = z.infer<typeof SessionSchema>;
 
@@ -955,6 +1001,8 @@ export type ImportReport = z.infer<typeof ImportReportSchema>;
 
 export const ImportResultSchema = z.object({
   rows: z.array(DealershipInputSchema),
+  /** Source row of each entry in `rows` (1-based, the header is row 1). */
+  rowNumbers: z.array(z.number().int().positive()).optional(),
   report: ImportReportSchema,
 });
 export type ImportResult = z.infer<typeof ImportResultSchema>;

@@ -215,6 +215,32 @@ catastrophe model.
 Import reports and scenario impacts follow the same principle: inputs,
 assumptions, versions, and quality warnings are kept next to the result.
 
+## Hail history (context only)
+
+The detail dialog and the one-page location report show how often hail was
+observed near a location. Source: the Deutscher Wetterdienst Climate Data
+Center, daily weather phenomena of the station network
+(`observations_germany/climate/daily/weather_phenomena`, historical and
+recent archives), column `HAGEL` (1 = hail observed at the station that
+day). Data basis: Deutscher Wetterdienst (open data; attribution shown in
+the app and the report).
+
+Method: the three nearest stations within 30 km with at least ten years of
+records; a year counts when it has at least 180 valid daily values; the
+result is the mean number of hail days per observed year, the observed
+period, hail days per year and every hail date (shown by year and by
+calendar month; years without enough observations are marked as gaps, not
+as years without hail). Station list,
+directory listings and per-station summaries are cached (1–7 days), so the
+history also shows offline once loaded.
+
+Limitations: these are point observations, not an event catalogue — a
+storm that misses the station is not recorded, and most stations stopped
+observing weather phenomena when observation was automated (around 2011),
+so recent years are often missing. **The history never enters the hail EAL**
+and does not change any score; it is context for the underwriter.
+Deterministic fixtures: `hail-history.service.test.ts`.
+
 ## Lot boundary and vehicle detection
 
 `desktop-app/src/main/services/detection.service.ts` runs a sliding-window

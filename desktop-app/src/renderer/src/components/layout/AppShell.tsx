@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { Radar } from "lucide-react";
+import { Radar, WifiOff } from "lucide-react";
 import { useAppStore } from "@renderer/store/appStore";
 import { CommandPalette } from "@renderer/components/command/CommandPalette";
 import { ModelInstallWizard } from "@renderer/components/model/ModelInstallWizard";
@@ -63,6 +63,21 @@ function AutosaveController(): null {
   return null;
 }
 
+/** Browser connectivity, updated by the online/offline events. */
+function useOnline(): boolean {
+  const [online, setOnline] = useState(() => navigator.onLine);
+  useEffect(() => {
+    const update = (): void => setOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+  return online;
+}
+
 /** Restores the most recently saved portfolio when the app starts. */
 function SessionLoader(): null {
   const setSession = useAppStore((s) => s.setSession);
@@ -81,6 +96,9 @@ function SessionLoader(): null {
           setSession(session.id, session.name);
           setParameters(session.parameters);
           setDealerships(session.dealerships);
+          useAppStore.setState({
+            pendingAnalysis: session.pendingAnalysis ?? [],
+          });
         }
       })
       .catch((err: unknown) => {
@@ -97,6 +115,7 @@ function SessionLoader(): null {
 export function AppShell(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { pathname } = useLocation();
+  const online = useOnline();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const lastSavedAt = useAppStore((s) => s.lastSavedAt);
 
@@ -213,9 +232,18 @@ export function AppShell(): React.JSX.Element {
           <h1 className="hidden truncate text-sm leading-tight font-semibold sm:block">
             {t(activeTitleKey)}
           </h1>
+          {!online && (
+            <span
+              role="status"
+              className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-500/50 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400"
+            >
+              <WifiOff className="size-3.5" />
+              {t("shell.offline")}
+            </span>
+          )}
           {lastSavedAt && (
             <span
-              className="ml-auto hidden shrink-0 text-xs text-muted-foreground md:block"
+              className={`${online ? "ml-auto" : ""} hidden shrink-0 text-xs text-muted-foreground md:block`}
               title={new Date(lastSavedAt).toLocaleString(i18n.language)}
             >
               {t("shell.autosaved")} ·{" "}

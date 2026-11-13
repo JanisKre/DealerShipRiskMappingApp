@@ -16,6 +16,13 @@ if (process.platform === "darwin" && !app.isPackaged) {
   app.commandLine.appendSwitch("use-mock-keychain");
 }
 
+// End-to-end tests start the built app against a throw-away profile so they
+// never read or change the user's portfolios. Unpackaged runs only.
+const e2eUserData = process.env["DRM_E2E_USER_DATA"];
+if (!app.isPackaged && e2eUserData) {
+  app.setPath("userData", e2eUserData);
+}
+
 function isSafeExternalUrl(rawUrl: string): boolean {
   try {
     const url = new URL(rawUrl);

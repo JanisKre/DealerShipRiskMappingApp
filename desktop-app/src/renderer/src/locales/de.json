@@ -33,7 +33,8 @@
       "mergeConflicts": "{{count}} Standorte wurden auf beiden Seiten bearbeitet und bleiben hier unverändert: {{names}}",
       "mergeFailed": "Das Portfolio konnte nicht zusammengeführt werden: {{error}}",
       "importOpenFailed": "Die Portfolio-Datei konnte nicht geöffnet werden: {{error}}"
-    }
+    },
+    "offline": "Offline – Daten aus dem Zwischenspeicher"
   },
   "start": {
     "title": "Portfolio & Analyse",
@@ -794,7 +795,8 @@
         "vehicleCountCleared": "Manuelle Fahrzeugzahl entfernt (vorher {{from}})",
         "vehiclesReviewed": "Fahrzeuge auf der Karte geprüft: {{from}} → {{to}}",
         "markedExisting": "Als Bestandsgeschäft markiert",
-        "markedNew": "Als Neugeschäft markiert"
+        "markedNew": "Als Neugeschäft markiert",
+        "reviewed": "Als geprüft markiert"
       },
       "riskTier": {
         "veryLow": "Sehr gering",
@@ -810,7 +812,10 @@
       "boundaryAlternativesCount_one": "{{count}} anderer Grenzvorschlag",
       "boundaryAlternativesCount_other": "{{count}} andere Grenzvorschläge",
       "sourcesUsedCount_one": "{{count}} verwendete Quelle",
-      "sourcesUsedCount_other": "{{count}} verwendete Quellen"
+      "sourcesUsedCount_other": "{{count}} verwendete Quellen",
+      "report": "Bericht",
+      "reportSaved": "Bericht gespeichert: {{path}}",
+      "reportFailed": "Bericht konnte nicht erstellt werden: {{error}}"
     },
     "hailEal": "Hagel-EAL",
     "hailZone": "Hagelzone",
@@ -1132,7 +1137,12 @@
       "detectionWarningHint": "Es ist kein KI-Modell installiert. Installiere es in den Einstellungen und analysiere danach neu.",
       "openSettings": "Einstellungen öffnen",
       "deleteConfirmTitle": "Standort löschen?",
-      "deleteConfirmDescription": "„{{name}}“ wird mit Analyse und Notizen aus diesem Portfolio entfernt. Das lässt sich nicht rückgängig machen."
+      "deleteConfirmDescription": "„{{name}}“ wird mit Analyse und Notizen aus diesem Portfolio entfernt. Das lässt sich nicht rückgängig machen.",
+      "resumeTitle_one": "Analyse unterbrochen: {{count}} Standort offen",
+      "resumeTitle_other": "Analyse unterbrochen: {{count}} Standorte offen",
+      "resumeDetail": "Die App wurde während einer Analyse beendet. Bereits analysierte Standorte sind gespeichert.",
+      "resumeAction": "Fortsetzen",
+      "resumeDiscard": "Verwerfen"
     }
   },
   "ai": {
@@ -1403,5 +1413,124 @@
     },
     "provenanceLabel": "Worauf beruhen die Antworten?",
     "emptyChat": "Frag die KI zu deinem Portfolio – oder steuere die App direkt, z. B. „öffne Autohaus …“ oder „zeige Kumulationen auf der Karte“."
+  },
+  "review": {
+    "start": "Prüfen",
+    "startCount_one": "Prüfen ({{count}})",
+    "startCount_other": "Prüfen ({{count}})",
+    "empty": "Keine offenen Prüfpunkte.",
+    "finished": "Alle Prüfpunkte erledigt.",
+    "position": "Prüfung {{position}} von {{total}}",
+    "remaining_one": "noch {{count}} offen",
+    "remaining_other": "noch {{count}} offen",
+    "alreadyReviewed": "Bereits als geprüft markiert.",
+    "reason": {
+      "boundary": "Grundstücksgrenze prüfen",
+      "imagery": "Luftbild veraltet",
+      "underwriting": "Underwriting-Hinweis"
+    },
+    "skip": "Überspringen",
+    "next": "Weiter",
+    "confirmBoundaryAndNext": "Grenze bestätigen · weiter",
+    "reviewedAndNext": "Geprüft · weiter"
+  },
+  "hailHistory": {
+    "title": "Hagelhistorie",
+    "loading": "Lade Beobachtungen des Deutschen Wetterdienstes …",
+    "failed": "Hagelhistorie konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "none": "Keine DWD-Station mit langer Hagelbeobachtung im Umkreis von {{radius}} km.",
+    "stationPicker": "Wetterstation wählen",
+    "km": "{{distance}} km",
+    "aboutLabel": "Über die Hagelhistorie",
+    "about": {
+      "title": "Woher die Zahlen kommen",
+      "what": "Beobachtungen der nächstgelegenen Wetterstationen des Deutschen Wetterdienstes im Umkreis von {{radius}} km mit mindestens zehn Jahren Aufzeichnung.",
+      "hailDay": "Ein Hageltag ist ein Tag, an dem an der Station Hagel beobachtet wurde – unabhängig von Korngröße und Schaden. Ein Jahr zählt, wenn mindestens 180 Tage gültig beobachtet wurden.",
+      "limits": "Punktbeobachtung, kein Ereigniskatalog: Hagel, der die Station verfehlt, fehlt. Viele Stationen beobachten seit etwa 2011 nicht mehr.",
+      "eal": "Nur Kontext – die Werte fließen nicht in die Hagel-EAL ein.",
+      "source": "Datenbasis: Deutscher Wetterdienst (Climate Data Center, tägliche Wetterphänomene)."
+    },
+    "figure": {
+      "perYear": "Hageltage pro Jahr",
+      "perYearHint": "Mittel {{from}}–{{to}}",
+      "yearsWithHail": "Jahre mit Hagel",
+      "yearsWithHailHint_one": "{{count}} von {{total}} Jahren",
+      "yearsWithHailHint_other": "{{count}} von {{total}} Jahren",
+      "peak": "Höchstwert",
+      "peakHint": "im Jahr {{year}} · anzeigen",
+      "last": "Letzter Hageltag",
+      "season": "meist {{months}}"
+    },
+    "days_one": "{{count}} Hageltag",
+    "days_other": "{{count}} Hageltage",
+    "viewLabel": "Darstellung",
+    "view": {
+      "years": "Nach Jahr",
+      "months": "Nach Monat"
+    },
+    "rangeLabel": "Zeitraum",
+    "range": {
+      "all": "{{from}}–{{to}}",
+      "recent": "Letzte {{count}} Jahre"
+    },
+    "clickHint": "Balken anklicken für die einzelnen Tage",
+    "axisDays": "Hageltage",
+    "axisDaysTotal": "Hageltage gesamt",
+    "notObserved": "Nicht ausreichend beobachtet",
+    "meanLabel": "Ø {{days}}",
+    "monthShare": "{{share}} aller Hageltage",
+    "legend": {
+      "days": "Hageltage im Jahr",
+      "gap": "keine Beobachtung",
+      "mean": "Mittelwert"
+    },
+    "detail": {
+      "monthTitle": "{{month}}",
+      "noHail": "kein Hagel beobachtet",
+      "monthSummary_one": "{{count}} Hageltag in {{years}} Jahr(en)",
+      "monthSummary_other": "{{count}} Hageltage in {{years}} Jahren",
+      "more": "+ {{count}} weitere",
+      "close": "Details schließen"
+    },
+    "notes": {
+      "ended_one": "Die Beobachtung endet {{year}} (vor {{count}} Jahr) – neuere Hagelereignisse sind nicht enthalten.",
+      "ended_other": "Die Beobachtung endet {{year}} (vor {{count}} Jahren) – neuere Hagelereignisse sind nicht enthalten.",
+      "far": "Die Station liegt {{distance}} km entfernt – am Standort kann es deutlich anders hageln.",
+      "short_one": "Nur {{count}} Beobachtungsjahr – der Mittelwert ist unsicher.",
+      "short_other": "Nur {{count}} Beobachtungsjahre – der Mittelwert ist unsicher.",
+      "gaps_one": "{{count}} Jahr im Zeitraum ohne ausreichende Beobachtung (grau).",
+      "gaps_other": "{{count}} Jahre im Zeitraum ohne ausreichende Beobachtung (grau).",
+      "context": "Nur Kontext für die Einschätzung – fließt nicht in die Hagel-EAL ein."
+    },
+    "zeroDays": "Kein Hagel beobachtet"
+  },
+  "importPreview": {
+    "title": "Vorschau",
+    "selected": "{{selected}} von {{total}} ausgewählt",
+    "onlyFlagged": "Nur mit Hinweisen ({{count}})",
+    "stopCheck": "Prüfung anhalten",
+    "checkAddresses": "Adressen prüfen ({{count}})",
+    "toggleAll": "Alle auswählen",
+    "location": "Standort",
+    "placement": "Verortung",
+    "nothingFlagged": "Keine Zeilen mit Hinweisen.",
+    "duplicateExisting": "Schon im Portfolio als „{{name}}“ – wird übersprungen",
+    "duplicateRow": "Dublette von Zeile {{row}}",
+    "include": "„{{name}}“ importieren",
+    "nameLabel": "Name",
+    "addressLabel": "Adresse",
+    "apply": "Übernehmen",
+    "noAddress": "Keine Adresse",
+    "edit": "„{{name}}“ bearbeiten",
+    "skippedRows_one": "{{count}} Zeile nicht übernommen",
+    "skippedRows_other": "{{count}} Zeilen nicht übernommen",
+    "rowLabel": "Zeile {{row}}:",
+    "fromFile": "Koordinaten aus der Datei",
+    "cannotPlace": "Weder Adresse noch Koordinaten",
+    "willGeocode": "Wird über die Adresse verortet",
+    "checking": "Wird geprüft …",
+    "notFound": "Adresse nicht gefunden",
+    "checkFailed": "Prüfung fehlgeschlagen"
   }
 }

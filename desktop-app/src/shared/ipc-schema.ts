@@ -9,6 +9,7 @@ import {
   DealershipInputSchema,
   DetectionResultSchema,
   VehicleTimelineSchema,
+  HailHistorySchema,
   HailZoneSchema,
   ImportResultSchema,
   LlmProviderSchema,
@@ -201,6 +202,10 @@ export const ipcRequest = {
     name: z.string().optional(),
     address: z.string().optional(),
   }),
+  "hail:history": z.object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+  }),
   "detect:vehicles": DetectVehiclesRequestSchema,
   "detect:vehiclesTimeline": DetectVehiclesRequestSchema,
   "weather:fetch": z.object({ lat: z.number(), lon: z.number() }),
@@ -247,6 +252,12 @@ export const ipcRequest = {
     format: z.enum(["csv", "pdf", "excel"]),
   }),
   "report:readonlyView": z.object({ session: SessionSchema }),
+  "report:location": z.object({
+    dealership: AnalyzedDealershipSchema,
+    locale: z.enum(["de", "en", "fr"]),
+    /** Localized titles of the open review points. */
+    reviewNotes: z.array(z.string().min(1).max(300)).max(12),
+  }),
   "llm:memo": z.object({ dealership: AnalyzedDealershipSchema }),
   "llm:testConnection": z.void(),
   "llm:listModels": z.void(),
@@ -309,6 +320,7 @@ export const ipcResponse = {
   "places:autocomplete": z.array(PlaceSuggestionSchema),
   "boundary:detect": BoundaryResultSchema,
   "osm:details": OsmDetailsSchema,
+  "hail:history": HailHistorySchema,
   "detect:vehicles": DetectionResultSchema,
   "detect:vehiclesTimeline": VehicleTimelineSchema,
   "weather:fetch": z.record(z.string(), z.number()),
@@ -339,6 +351,7 @@ export const ipcResponse = {
   "portfolio:import": SessionSchema.nullable(),
   "report:export": z.object({ path: z.string().nullable() }),
   "report:readonlyView": z.object({ path: z.string().nullable() }),
+  "report:location": z.object({ path: z.string().nullable() }),
   "llm:memo": StructuredMemoSchema,
   "llm:testConnection": LlmConnectionTestSchema,
   "llm:listModels": z.object({

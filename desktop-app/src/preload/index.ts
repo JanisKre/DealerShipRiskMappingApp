@@ -93,6 +93,15 @@ const api = {
       address,
     } satisfies IpcRequest["osm:details"]),
 
+  hailHistory: (
+    lat: number,
+    lon: number,
+  ): Promise<IpcResponse["hail:history"]> =>
+    ipcRenderer.invoke(IPC.hailHistory, {
+      lat,
+      lon,
+    } satisfies IpcRequest["hail:history"]),
+
   fetchWeather: (
     lat: number,
     lon: number,
@@ -238,6 +247,14 @@ const api = {
       session,
       format,
     } satisfies IpcRequest["report:export"]),
+
+  exportLocationReport: (
+    request: IpcRequest["report:location"],
+  ): Promise<IpcResponse["report:location"]> =>
+    ipcRenderer.invoke(
+      IPC.exportLocationReport,
+      request satisfies IpcRequest["report:location"],
+    ),
 
   exportReadonlyView: (
     session: IpcRequest["report:readonlyView"]["session"],

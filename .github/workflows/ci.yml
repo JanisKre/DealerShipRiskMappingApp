@@ -36,4 +36,8 @@ jobs:
       - run: npm run test:coverage
       - run: npm run build
       - run: xvfb-run --auto-servernum npm run smoke
+      # Playwright drives the built Electron app (no browser download
+      # needed): page navigation, translations, renderer isolation and the
+      # import preview, on a throw-away profile.
+      - run: xvfb-run --auto-servernum npm run test:e2e
       - run: npm audit --audit-level=high

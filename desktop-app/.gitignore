@@ -17,3 +17,5 @@ resources/models/*.onnx
 # kundenabgeleitete Geometrien und darf nie eingecheckt werden.
 # (Das Exportskript verweigert Pfade im Worktree — dies ist das zweite Netz.)
 *.local.json
+test-results
+playwright-report

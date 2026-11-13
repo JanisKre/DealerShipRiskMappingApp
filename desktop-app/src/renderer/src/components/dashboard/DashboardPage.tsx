@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   BarChart3,
+  ClipboardCheck,
   Download,
   GripVertical,
   LayoutGrid,
@@ -40,6 +41,7 @@ import { TopLocationsChart } from "@renderer/components/dashboard/TopLocationsCh
 import { useAppStore } from "@renderer/store/appStore";
 import { useMapStore } from "@renderer/store/mapStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
+import { useReviewRun } from "./useReviewRun";
 import {
   DEFAULT_TILE_ORDER,
   TILE_DEFINITIONS,
@@ -48,6 +50,7 @@ import {
   moveDashboardTile,
   parseDashboardCommand,
 } from "./dashboardTiles";
+import { portfolioName } from "@renderer/lib/portfolioName";
 
 // v3: hail-focused layout. Bumped so stored v2 layouts (PML, coverage,
 // seasonal tiles) do not carry over.
@@ -96,6 +99,16 @@ export function DashboardPage(): React.JSX.Element {
   const [tileOrder, setTileOrder] = useState<DashboardTileId[]>(readTileOrder);
   const [draggedTile, setDraggedTile] = useState<DashboardTileId | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const reviewRun = useReviewRun({
+    openLocation: (id) => {
+      setDetailId(id);
+      select(id);
+    },
+    closeDialog: () => {
+      setDetailId(null);
+      select(null);
+    },
+  });
 
   const filtered = useFilteredDealerships(dealerships);
 
@@ -184,7 +197,9 @@ export function DashboardPage(): React.JSX.Element {
         <header className="shrink-0 border-b px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="truncate text-2xl font-semibold">{sessionName}</h2>
+              <h2 className="truncate text-2xl font-semibold">
+                {portfolioName(sessionName, t)}
+              </h2>
               <p className="text-sm text-muted-foreground">
                 {filtered.length === dealerships.length
                   ? t("ui.locationsAnalyzed", { count: dealerships.length })
@@ -195,6 +210,17 @@ export function DashboardPage(): React.JSX.Element {
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={reviewRun.start}
+                disabled={reviewRun.openCount === 0}
+              >
+                <ClipboardCheck />
+                {reviewRun.openCount == null
+                  ? t("review.start")
+                  : t("review.startCount", { count: reviewRun.openCount })}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -279,12 +305,14 @@ export function DashboardPage(): React.JSX.Element {
           if (!open) {
             setDetailId(null);
             select(null);
+            reviewRun.stop();
           }
         }}
         onNavigate={(id) => {
           setDetailId(id);
           select(id);
         }}
+        review={reviewRun.review}
       />
     </div>
   );

@@ -45,6 +45,7 @@ beforeEach(() => {
     analysisErrors: {},
     failedInputs: {},
     analysisCancelRequested: false,
+    pendingAnalysis: [],
   });
 });
 
@@ -138,6 +139,83 @@ describe("analysis batch controls", () => {
       total: 7,
     });
     expect(useAppStore.getState().analyzingIds).toEqual([]);
+  });
+});
+
+describe("interrupted batch analysis", () => {
+  it("keeps unfinished inputs pending and saves them with the session", async () => {
+    let release: () => void = () => undefined;
+    api.analyzeDealership.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({ ...firstInput, risk: { overallScore: 20 } });
+        }),
+    );
+    const run = useAppStore.getState().analyzeAll([firstInput]);
+    expect(useAppStore.getState().pendingAnalysis.map((p) => p.id)).toEqual([
+      "one",
+    ]);
+    expect(useAppStore.getState().currentSession().pendingAnalysis).toEqual([
+      firstInput,
+    ]);
+    release();
+    await run;
+    expect(useAppStore.getState().pendingAnalysis).toEqual([]);
+    expect(
+      useAppStore.getState().currentSession().pendingAnalysis,
+    ).toBeUndefined();
+  });
+
+  it("resumes the pending inputs of a restored session", async () => {
+    useAppStore.setState({ pendingAnalysis: [firstInput, secondInput] });
+    api.analyzeDealership.mockImplementation(
+      async (input: DealershipInput) => ({
+        ...input,
+        risk: { overallScore: 20 },
+      }),
+    );
+    await useAppStore.getState().resumeAnalysis();
+    expect(api.analyzeDealership).toHaveBeenCalledTimes(2);
+    expect(useAppStore.getState().pendingAnalysis).toEqual([]);
+    expect(useAppStore.getState().dealerships).toHaveLength(2);
+  });
+
+  it("drops a cancelled batch but keeps failed inputs pending", async () => {
+    api.analyzeDealership.mockImplementationOnce(async () => {
+      useAppStore.getState().cancelAnalysis();
+      throw new Error("offline");
+    });
+    await useAppStore.getState().analyzeAll([firstInput, secondInput]);
+    expect(api.analyzeDealership).toHaveBeenCalledTimes(1);
+    expect(useAppStore.getState().pendingAnalysis.map((p) => p.id)).toEqual([
+      "one",
+    ]);
+  });
+
+  it("discards pending inputs and their unanalysed pins", () => {
+    api.saveSession.mockResolvedValue(undefined);
+    useAppStore.setState({
+      pendingAnalysis: [firstInput],
+      dealerships: [firstInput as AnalyzedDealership],
+    });
+    useAppStore.getState().discardPendingAnalysis();
+    expect(useAppStore.getState().pendingAnalysis).toEqual([]);
+    expect(useAppStore.getState().dealerships).toEqual([]);
+  });
+
+  it("records a review in the change history", async () => {
+    api.saveSession.mockResolvedValue(undefined);
+    useAppStore.setState({
+      dealerships: [
+        { ...firstInput, risk: { overallScore: 20 } } as AnalyzedDealership,
+      ],
+    });
+    await useAppStore.getState().markReviewed("one");
+    expect(useAppStore.getState().dealerships[0].history?.at(-1)?.kind).toBe(
+      "reviewed",
+    );
+    expect(api.saveSession).toHaveBeenCalled();
   });
 });
 

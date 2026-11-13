@@ -32,6 +32,7 @@ npm run lint
 npm test
 npm run test:coverage
 npm run build
+npm run test:e2e
 ```
 
 Native dependencies (`better-sqlite3`, `onnxruntime-node`, and `sharp`) must be

@@ -269,6 +269,9 @@ export function MapPage(): React.JSX.Element {
   const analysisErrors = useAppStore((s) => s.analysisErrors);
   const failedInputs = useAppStore((s) => s.failedInputs);
   const retryFailedAnalyses = useAppStore((s) => s.retryFailedAnalyses);
+  const pendingAnalysis = useAppStore((s) => s.pendingAnalysis);
+  const resumeAnalysis = useAppStore((s) => s.resumeAnalysis);
+  const discardPendingAnalysis = useAppStore((s) => s.discardPendingAnalysis);
   const cancelAnalysis = useAppStore((s) => s.cancelAnalysis);
   const detectionUpdateIds = useAppStore((s) => s.detectionUpdateIds);
   const detectionUpdateErrors = useAppStore((s) => s.detectionUpdateErrors);
@@ -686,10 +689,48 @@ export function MapPage(): React.JSX.Element {
       </div>
     ) : null;
 
+  // An import that was interrupted (app closed or crashed): resume it.
+  const resumeNotice =
+    !analyzing &&
+    pendingAnalysis.length > 0 &&
+    Object.keys(analysisErrors).length === 0 ? (
+      <div className={NOTICE_CLASS}>
+        <RefreshCw className="mt-0.5 size-4 shrink-0 text-primary" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="font-medium">
+            {t("map.page.resumeTitle", { count: pendingAnalysis.length })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {t("map.page.resumeDetail")}
+          </p>
+          <div className="flex gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => void resumeAnalysis()}
+            >
+              {t("map.page.resumeAction")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={discardPendingAnalysis}
+            >
+              {t("map.page.resumeDiscard")}
+            </Button>
+          </div>
+        </div>
+      </div>
+    ) : null;
+
   if (withCoords.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
         {errorNotice}
+        {resumeNotice}
         <EmptyState
           icon={MapPinned}
           title={t("map.page.emptyTitle")}
@@ -905,6 +946,7 @@ export function MapPage(): React.JSX.Element {
         )}
 
         {errorNotice}
+        {resumeNotice}
 
         {editing && boundaryEditIds.length === 0 && (
           <div className={NOTICE_CLASS}>

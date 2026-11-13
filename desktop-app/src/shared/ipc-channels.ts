@@ -18,6 +18,7 @@ export const IPC = {
 
   // Additional OSM info for a location (website, phone, opening hours, ...)
   osmDetails: "osm:details",
+  hailHistory: "hail:history",
 
   // Vehicle detection
   detectVehicles: "detect:vehicles",
@@ -57,6 +58,7 @@ export const IPC = {
   exportPortfolioFile: "portfolio:export",
   importPortfolioFile: "portfolio:import",
   exportReport: "report:export", // CSV/PDF/Excel
+  exportLocationReport: "report:location", // one-page PDF per location
   exportReadonlyView: "report:readonlyView", // standalone HTML bundle
 
   // LLM — invoke-based (non-streaming, structured)

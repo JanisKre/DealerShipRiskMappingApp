@@ -27,7 +27,8 @@
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "benchmark:boundary": "BOUNDARY_BENCHMARK=1 vitest run src/main/services/boundary/boundary-benchmark.run.test.ts",
-    "notices": "node scripts/generate-third-party-notices.mjs"
+    "notices": "node scripts/generate-third-party-notices.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@electron-toolkit/preload": "3.0.2",
@@ -80,6 +81,7 @@
   "devDependencies": {
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "1.0.1",
+    "@playwright/test": "1.64.1",
     "@tailwindcss/vite": "4.1.11",
     "@types/better-sqlite3": "7.6.13",
     "@types/leaflet": "1.9.20",

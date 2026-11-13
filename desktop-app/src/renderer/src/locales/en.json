@@ -33,7 +33,8 @@
       "mergeConflicts": "{{count}} locations were edited on both sides and kept as they were here: {{names}}",
       "mergeFailed": "Could not merge the portfolio: {{error}}",
       "importOpenFailed": "Could not open the portfolio file: {{error}}"
-    }
+    },
+    "offline": "Offline – using cached data"
   },
   "start": {
     "title": "Portfolio & Analysis",
@@ -794,7 +795,8 @@
         "vehicleCountCleared": "Manual vehicle count removed (was {{from}})",
         "vehiclesReviewed": "Vehicles reviewed on the map: {{from}} → {{to}}",
         "markedExisting": "Marked as existing business",
-        "markedNew": "Marked as new business"
+        "markedNew": "Marked as new business",
+        "reviewed": "Marked as reviewed"
       },
       "riskTier": {
         "veryLow": "Very low",
@@ -810,7 +812,10 @@
       "boundaryAlternativesCount_one": "{{count}} other boundary suggestion",
       "boundaryAlternativesCount_other": "{{count}} other boundary suggestions",
       "sourcesUsedCount_one": "{{count}} source used",
-      "sourcesUsedCount_other": "{{count}} sources used"
+      "sourcesUsedCount_other": "{{count}} sources used",
+      "report": "Report",
+      "reportSaved": "Report saved: {{path}}",
+      "reportFailed": "The report could not be created: {{error}}"
     },
     "hailEal": "Hail EAL",
     "hailZone": "Hail zone",
@@ -1132,7 +1137,12 @@
       "detectionWarningHint": "No AI model is installed. Install it in the settings, then re-analyse.",
       "openSettings": "Open settings",
       "deleteConfirmTitle": "Delete location?",
-      "deleteConfirmDescription": "“{{name}}” is removed from this portfolio together with its analysis and notes. This cannot be undone."
+      "deleteConfirmDescription": "“{{name}}” is removed from this portfolio together with its analysis and notes. This cannot be undone.",
+      "resumeTitle_one": "Analysis interrupted: {{count}} location open",
+      "resumeTitle_other": "Analysis interrupted: {{count}} locations open",
+      "resumeDetail": "The app was closed during an analysis. Locations already analysed are saved.",
+      "resumeAction": "Resume",
+      "resumeDiscard": "Discard"
     }
   },
   "ai": {
@@ -1403,5 +1413,124 @@
     },
     "provenanceLabel": "What are the answers based on?",
     "emptyChat": "Ask the AI about your portfolio – or control the app directly, e.g. “open …” or “show accumulations on the map”."
+  },
+  "review": {
+    "start": "Review",
+    "startCount_one": "Review ({{count}})",
+    "startCount_other": "Review ({{count}})",
+    "empty": "No open review points.",
+    "finished": "All review points done.",
+    "position": "Review {{position}} of {{total}}",
+    "remaining_one": "{{count}} still open",
+    "remaining_other": "{{count}} still open",
+    "alreadyReviewed": "Already marked as reviewed.",
+    "reason": {
+      "boundary": "Check lot boundary",
+      "imagery": "Aerial image outdated",
+      "underwriting": "Underwriting notice"
+    },
+    "skip": "Skip",
+    "next": "Next",
+    "confirmBoundaryAndNext": "Confirm boundary · next",
+    "reviewedAndNext": "Reviewed · next"
+  },
+  "hailHistory": {
+    "title": "Hail history",
+    "loading": "Loading observations of the German Weather Service …",
+    "failed": "The hail history could not be loaded.",
+    "retry": "Try again",
+    "none": "No DWD station with a long hail record within {{radius}} km.",
+    "stationPicker": "Choose weather station",
+    "km": "{{distance}} km",
+    "aboutLabel": "About the hail history",
+    "about": {
+      "title": "Where the figures come from",
+      "what": "Observations of the nearest German Weather Service stations within {{radius}} km that have at least ten years of records.",
+      "hailDay": "A hail day is a day on which hail was observed at the station – regardless of stone size or damage. A year counts when at least 180 days were validly observed.",
+      "limits": "Point observations, not an event catalogue: hail that misses the station is missing. Many stations stopped observing around 2011.",
+      "eal": "Context only – the figures do not enter the hail EAL.",
+      "source": "Data basis: Deutscher Wetterdienst (Climate Data Center, daily weather phenomena)."
+    },
+    "figure": {
+      "perYear": "Hail days per year",
+      "perYearHint": "Mean {{from}}–{{to}}",
+      "yearsWithHail": "Years with hail",
+      "yearsWithHailHint_one": "{{count}} of {{total}} years",
+      "yearsWithHailHint_other": "{{count}} of {{total}} years",
+      "peak": "Highest",
+      "peakHint": "in {{year}} · show",
+      "last": "Latest hail day",
+      "season": "mostly {{months}}"
+    },
+    "days_one": "{{count}} hail day",
+    "days_other": "{{count}} hail days",
+    "viewLabel": "View",
+    "view": {
+      "years": "By year",
+      "months": "By month"
+    },
+    "rangeLabel": "Period",
+    "range": {
+      "all": "{{from}}–{{to}}",
+      "recent": "Last {{count}} years"
+    },
+    "clickHint": "Click a bar for the individual days",
+    "axisDays": "Hail days",
+    "axisDaysTotal": "Hail days in total",
+    "notObserved": "Not observed sufficiently",
+    "meanLabel": "Mean {{days}}",
+    "monthShare": "{{share}} of all hail days",
+    "legend": {
+      "days": "Hail days in the year",
+      "gap": "no observation",
+      "mean": "Mean"
+    },
+    "detail": {
+      "monthTitle": "{{month}}",
+      "noHail": "no hail observed",
+      "monthSummary_one": "{{count}} hail day in {{years}} year(s)",
+      "monthSummary_other": "{{count}} hail days in {{years}} years",
+      "more": "+ {{count}} more",
+      "close": "Close details"
+    },
+    "notes": {
+      "ended_one": "Observation ends in {{year}} ({{count}} year ago) – more recent hail is not included.",
+      "ended_other": "Observation ends in {{year}} ({{count}} years ago) – more recent hail is not included.",
+      "far": "The station is {{distance}} km away – hail at the site can differ considerably.",
+      "short_one": "Only {{count}} observed year – the mean is uncertain.",
+      "short_other": "Only {{count}} observed years – the mean is uncertain.",
+      "gaps_one": "{{count}} year in the period without sufficient observation (grey).",
+      "gaps_other": "{{count}} years in the period without sufficient observation (grey).",
+      "context": "Context for the assessment only – not used in the hail EAL."
+    },
+    "zeroDays": "No hail observed"
+  },
+  "importPreview": {
+    "title": "Preview",
+    "selected": "{{selected}} of {{total}} selected",
+    "onlyFlagged": "Only with notes ({{count}})",
+    "stopCheck": "Stop checking",
+    "checkAddresses": "Check addresses ({{count}})",
+    "toggleAll": "Select all",
+    "location": "Location",
+    "placement": "Placement",
+    "nothingFlagged": "No rows with notes.",
+    "duplicateExisting": "Already in the portfolio as “{{name}}” – will be skipped",
+    "duplicateRow": "Duplicate of row {{row}}",
+    "include": "Import “{{name}}”",
+    "nameLabel": "Name",
+    "addressLabel": "Address",
+    "apply": "Apply",
+    "noAddress": "No address",
+    "edit": "Edit “{{name}}”",
+    "skippedRows_one": "{{count}} row not taken over",
+    "skippedRows_other": "{{count}} rows not taken over",
+    "rowLabel": "Row {{row}}:",
+    "fromFile": "Coordinates from the file",
+    "cannotPlace": "Neither address nor coordinates",
+    "willGeocode": "Placed by its address",
+    "checking": "Checking …",
+    "notFound": "Address not found",
+    "checkFailed": "Check failed"
   }
 }

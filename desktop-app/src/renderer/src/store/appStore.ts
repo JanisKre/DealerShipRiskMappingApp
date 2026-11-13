@@ -54,6 +54,15 @@ interface AppState {
   retryFailedAnalyses: () => Promise<void>;
   /** Requests that the current batch stop after the active item. */
   analysisCancelRequested: boolean;
+  /**
+   * Inputs of the current or an interrupted batch that are not analysed
+   * yet. Saved with the session, so a restart can resume the batch.
+   */
+  pendingAnalysis: DealershipInput[];
+  /** Continues an interrupted batch analysis. */
+  resumeAnalysis: () => Promise<void>;
+  /** Drops an interrupted batch without analysing it. */
+  discardPendingAnalysis: () => void;
   /** IDs whose background analysis is currently running (pin feedback). */
   analyzingIds: string[];
   /** Locations whose manually edited boundary has not been re-detected yet. */
@@ -139,6 +148,8 @@ interface AppState {
   saveBoundaryEdit: (id: string) => Promise<void>;
   /** Marks the detected boundary as visually confirmed, clears its review flag and rescores. */
   confirmBoundary: (id: string) => Promise<void>;
+  /** Records that the underwriter checked the location's open review points. */
+  markReviewed: (id: string) => Promise<void>;
   /** Restores the previous manual boundary state and rescored risk. */
   undoBoundaryEdit: (id: string) => Promise<void>;
   /** Restores the original boundary from before manual editing started. */
@@ -306,6 +317,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   analysisErrors: {},
   failedInputs: {},
   analysisCancelRequested: false,
+  pendingAnalysis: [],
   analyzingIds: [],
   pendingBoundaryDetectionIds: [],
   detectionUpdateIds: [],
@@ -360,6 +372,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       scenario: null,
       nlQueryMatchedIds: null,
       filters: EMPTY_FILTERS,
+      pendingAnalysis: session.pendingAnalysis ?? [],
     });
     get().setDealerships(session.dealerships);
     get().setParameters(session.parameters);
@@ -580,6 +593,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
     }
   },
+  markReviewed: async (id) => {
+    const d = get().dealerships.find((x) => x.id === id);
+    if (!d) return;
+    get().upsertDealership(withChange(d, { kind: "reviewed" }));
+    await get().saveSession();
+  },
+
   confirmBoundary: async (id) => {
     const d = get().dealerships.find((x) => x.id === id);
     if (!d?.boundary) return;
@@ -1033,6 +1053,34 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   cancelAnalysis: () => set({ analysisCancelRequested: true }),
 
+  resumeAnalysis: async () => {
+    const inputs = get().pendingAnalysis;
+    if (inputs.length === 0 || get().analyzing) return;
+    set({
+      analyzing: true,
+      progress: { done: 0, total: inputs.length, startedAt: Date.now() },
+      analysisCancelRequested: false,
+    });
+    await runAnalysisQueue(inputs, set, get);
+  },
+
+  discardPendingAnalysis: () => {
+    // Pins of never-analysed locations would stay without a result.
+    const pending = new Set(get().pendingAnalysis.map((input) => input.id));
+    set((s) => ({
+      pendingAnalysis: [],
+      dealerships: s.dealerships.filter((d) => !(pending.has(d.id) && !d.risk)),
+    }));
+    void get()
+      .saveSession()
+      .catch((err: unknown) => {
+        console.error(
+          "Saving after discarding the pending analysis failed:",
+          err,
+        );
+      });
+  },
+
   retryFailedAnalyses: async () => {
     const { analysisErrors, failedInputs, dealerships } = get();
     const inputs = Object.keys(analysisErrors).flatMap((id) => {
@@ -1128,6 +1176,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       updatedAt: now,
       dealerships: s.dealerships,
       parameters: s.parameters,
+      ...(s.pendingAnalysis.length > 0
+        ? { pendingAnalysis: s.pendingAnalysis }
+        : {}),
     };
   },
 
@@ -1204,6 +1255,7 @@ function resetToBlankPortfolio(
     scenario: null,
     nlQueryMatchedIds: null,
     filters: EMPTY_FILTERS,
+    pendingAnalysis: [],
   });
   get().setDealerships([]);
   get().setParameters(DEFAULT_RISK_PARAMETERS);
@@ -1276,6 +1328,17 @@ async function runAnalysisQueue(
   let next = 0;
   let done = 0;
   let checkpoint: Promise<void> | null = null;
+  // Everything of this batch counts as pending until it succeeds; earlier
+  // pending inputs (another interrupted batch) are kept.
+  set((s) => {
+    const ids = new Set(inputs.map((input) => input.id));
+    return {
+      pendingAnalysis: [
+        ...s.pendingAnalysis.filter((input) => !ids.has(input.id)),
+        ...inputs,
+      ],
+    };
+  });
 
   async function worker(): Promise<void> {
     while (next < inputs.length && !get().analysisCancelRequested) {
@@ -1298,6 +1361,9 @@ async function runAnalysisQueue(
           get().parameters,
         );
         get().upsertDealership(withChange(result, analyzedChange(result)));
+        set((s) => ({
+          pendingAnalysis: s.pendingAnalysis.filter((p) => p.id !== input.id),
+        }));
       } catch (err) {
         const message = errorMessage(err);
         console.error(`Analysis failed for ${input.name}:`, err);
@@ -1330,7 +1396,19 @@ async function runAnalysisQueue(
     ),
   );
   if (checkpoint) await checkpoint;
-  set({ analyzing: false, analyzingIds: [], analysisCancelRequested: false });
+  set((s) => {
+    // A cancelled batch is not offered for resuming; failed inputs stay
+    // pending so they can be retried after a restart as well.
+    const failed = new Set(Object.keys(s.analysisErrors));
+    return {
+      analyzing: false,
+      analyzingIds: [],
+      analysisCancelRequested: false,
+      pendingAnalysis: s.analysisCancelRequested
+        ? s.pendingAnalysis.filter((p) => failed.has(p.id))
+        : s.pendingAnalysis,
+    };
+  });
 }
 
 /**
