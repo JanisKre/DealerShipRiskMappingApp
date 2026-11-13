@@ -902,6 +902,11 @@ export const SettingsSchema = z.object({
   modelWizardDismissed: z.boolean().optional(),
   /** First-run installation wizard completed by the user. */
   setupWizardCompleted: z.boolean().optional(),
+  /**
+   * Look for a new release on GitHub at start-up and once a day. Unset means
+   * on; administrators who roll out versions themselves switch it off.
+   */
+  autoUpdateCheck: z.boolean().optional(),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 

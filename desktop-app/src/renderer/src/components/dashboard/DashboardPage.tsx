@@ -506,7 +506,6 @@ function DashboardTile({
     <section
       className={`group relative min-w-0 ${tileSpan(id)} ${dragged ? "opacity-50" : ""}`}
       draggable
-      tabIndex={0}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={(event) => event.preventDefault()}
@@ -514,8 +513,10 @@ function DashboardTile({
       aria-label={label}
     >
       {/* Sits on the tile's top border, not inside it, so it never covers
-          the tile title or its ⓘ button. */}
-      <div className="pointer-events-none invisible absolute -top-3 right-3 z-20 flex items-center gap-1 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+          the tile title or its ⓘ button. Transparent rather than invisible
+          while idle: the remove button stays reachable with Tab and the
+          toolbar shows as soon as it has keyboard focus. */}
+      <div className="pointer-events-none absolute -top-3 right-3 z-20 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         <span
           className="pointer-events-auto rounded-md border bg-background/95 p-1 text-muted-foreground shadow-sm"
           title={t("dashboard.dragTile")}

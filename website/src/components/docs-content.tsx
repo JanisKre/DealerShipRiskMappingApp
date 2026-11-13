@@ -502,7 +502,10 @@ const PRIVACY: Localized<React.ReactNode> = {
       <p>
         There are no accounts, no analytics and no telemetry; the maintainer
         receives none of your data. Portfolios, results and settings live in a
-        local SQLite database.
+        local SQLite database. The app does not encrypt it, so keep full-disk
+        encryption (FileVault, BitLocker) switched on. Settings → General →
+        App &amp; support exports a diagnostics file without your portfolios
+        and deletes all local data.
       </p>
       <H2 id="external-services">External services</H2>
       <p className="text-muted-foreground">
@@ -520,7 +523,11 @@ const PRIVACY: Localized<React.ReactNode> = {
       <p>
         Es gibt keine Konten, keine Analyse-Tools und keine Telemetrie; der
         Maintainer erhält keine deiner Daten. Portfolios, Ergebnisse und
-        Einstellungen liegen in einer lokalen SQLite-Datenbank.
+        Einstellungen liegen in einer lokalen SQLite-Datenbank. Die App
+        verschlüsselt sie nicht selbst, lass deshalb die
+        Festplattenverschlüsselung (FileVault, BitLocker) eingeschaltet. Unter
+        Einstellungen → Allgemein → App &amp; Support exportierst du eine
+        Diagnose ohne deine Portfolios oder löschst alle lokalen Daten.
       </p>
       <H2 id="external-services">Externe Dienste</H2>
       <p className="text-muted-foreground">
@@ -540,7 +547,11 @@ const PRIVACY: Localized<React.ReactNode> = {
       <p>
         Pas de compte, pas d’outil d’analyse d’audience, pas de télémétrie ; le
         mainteneur ne reçoit aucune de vos données. Les portefeuilles, résultats
-        et paramètres sont stockés dans une base SQLite locale.
+        et paramètres sont stockés dans une base SQLite locale. L’application
+        ne la chiffre pas elle-même : gardez le chiffrement du disque
+        (FileVault, BitLocker) activé. Paramètres → Général → Application et
+        support permet d’exporter un diagnostic sans vos portefeuilles et
+        de supprimer toutes les données locales.
       </p>
       <H2 id="external-services">Services externes</H2>
       <p className="text-muted-foreground">

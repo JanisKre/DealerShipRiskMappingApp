@@ -67,7 +67,20 @@ export function MapContainer({
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const instance = L.map(containerRef.current, initialOptions);
+    // "Reduce motion" (OS setting): no zoom, fade or marker animations.
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const instance = L.map(containerRef.current, {
+      ...(reduceMotion
+        ? {
+            zoomAnimation: false,
+            fadeAnimation: false,
+            markerZoomAnimation: false,
+          }
+        : {}),
+      ...initialOptions,
+    });
     setMap(instance);
     return () => {
       instance.remove();

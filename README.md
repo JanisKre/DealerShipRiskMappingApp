@@ -104,6 +104,10 @@ desktop-app/src/
 - API keys are encrypted with `safeStorage` (OS keychain), never stored in
   plain text
 - ONNX inference runs in a separate `utilityProcess`
+- Network requests use Chromium's stack: system proxy and OS certificate
+  store (company TLS inspection) work out of the box
+- Electron fuses lock the packaged app (no `RunAsNode`, ASAR integrity
+  check); CodeQL and the OpenSSF Scorecard run on every push
 
 Details: [ARCHITECTURE.md](./ARCHITECTURE.md) · Reporting a vulnerability:
 [SECURITY.md](./SECURITY.md)
@@ -132,11 +136,15 @@ code signing provided by [SignPath.io](https://signpath.io), certificate by
 The app is local and single-user: the maintainer receives no data and there is
 no telemetry. It contacts third-party map, imagery, weather and (optionally)
 AI services only for analyses you start, and an AI memo is only generated when
-you configure a provider. Details: [PRIVACY.md](./PRIVACY.md).
+you configure a provider. The local database is not encrypted by the app, so
+keep full-disk encryption on. Logs, a diagnostics export and "delete all data"
+are under Settings → General → App & support. Details:
+[PRIVACY.md](./PRIVACY.md).
 
 ## More documentation
 
 [ARCHITECTURE.md](./ARCHITECTURE.md) ·
+[Accessibility](./docs/accessibility.md) ·
 [CONTRIBUTING.md](./CONTRIBUTING.md) ·
 [CHANGELOG.md](./CHANGELOG.md) ·
 [desktop-app/README.md](./desktop-app/README.md) ·

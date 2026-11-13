@@ -1,5 +1,6 @@
 const tseslint = require("@electron-toolkit/eslint-config-ts");
 const reactHooks = require("eslint-plugin-react-hooks");
+const jsxA11y = require("eslint-plugin-jsx-a11y");
 
 module.exports = tseslint.config(
   { ignores: ["out/**", "release/**", "resources/**"] },
@@ -13,6 +14,27 @@ module.exports = tseslint.config(
       // generierte shadcn/ui-Dateien und etablierte Effect-Patterns anschlagen.
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  {
+    // Accessibility (WCAG 2.2 AA / EN 301 549): static checks for labels,
+    // roles, keyboard access and alt texts. axe-core covers the rendered
+    // pages in the end-to-end tests (e2e/accessibility.spec.ts).
+    files: ["src/renderer/**/*.tsx"],
+    ...jsxA11y.flatConfigs.recommended,
+    rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
+      // `role` on our own components (MessageBubble) is a prop, not ARIA.
+      "jsx-a11y/aria-role": ["error", { ignoreNonDOM: true }],
+      // Focusing the field of an inline editor the user just opened (rename,
+      // edit) is deliberate focus management, not focus stolen on page load.
+      // Plain DOM elements are still checked.
+      "jsx-a11y/no-autofocus": ["error", { ignoreNonDOM: true }],
+      // Radix checkboxes render a <button>; a wrapping <label> labels it.
+      "jsx-a11y/label-has-associated-control": [
+        "error",
+        { controlComponents: ["Checkbox", "Switch"], depth: 3 },
+      ],
     },
   },
   {

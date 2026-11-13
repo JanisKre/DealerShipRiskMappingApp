@@ -690,7 +690,7 @@ function ConnectionTestResult({
   const { t } = useTranslation();
   if (result.ok) {
     return (
-      <p className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
+      <p className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
         <CheckCircle2 className="size-4 shrink-0" />
         {t("settings.test.ok", { ms: result.latencyMs })}
       </p>

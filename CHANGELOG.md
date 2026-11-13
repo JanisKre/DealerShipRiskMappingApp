@@ -9,6 +9,20 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- App updates: packaged builds check this repository's GitHub releases at
+  start-up and once a day. Windows downloads the update in the background
+  and installs it on restart; unsigned macOS builds link to the release page.
+  The check can be switched off under Settings → General → App & support.
+- Support tools under Settings → General → App & support: a rotating log
+  file (`userData/logs/main.log`, secrets masked), "Export diagnostics"
+  (versions, settings without API keys, record counts, recent log; no
+  portfolios) and "Delete all data" (everything except the downloaded
+  detection model; the app restarts).
+- Accessibility checks: `eslint-plugin-jsx-a11y` in the lint step and an
+  axe-core end-to-end test of every page in light and dark theme against
+  WCAG 2.2 AA. See `docs/accessibility.md`.
+- CodeQL (TypeScript, Python, workflows) and OpenSSF Scorecard workflows.
+
 - Parcel overlay (layer panel → Basemap → "Parcels (ALKIS)"): official
   Flurstück outlines from the open map services of 15 states (all except
   Saarland), from zoom 17, over any basemap: as published (mostly yellow)
@@ -25,6 +39,20 @@ the project follows [Semantic Versioning](https://semver.org/).
   often lies on the street. The boundary's provenance names the source.
 
 ### Changed
+
+- Network requests from the main process and the dealer-directory worker
+  use Electron's `net.fetch` instead of Node's fetch: the system proxy and the
+  operating system's certificate store (company TLS inspection) now apply.
+  Only HTTP(S) URLs are fetched.
+- Packaged builds set Electron fuses (no `RunAsNode`, `NODE_OPTIONS` or
+  `--inspect`; ASAR integrity validation; app code only from `app.asar`).
+- The release workflow runs the end-to-end tests before packaging.
+- Accessibility: `<html lang>` follows the interface language; "reduce
+  motion" stops animations and map zoom effects; analysis progress, update
+  status and chat answers are announced to screen readers; charts are
+  keyboard-navigable; muted and success text colours meet 4.5:1 contrast;
+  the hazard source select has a label; the dashboard tile toolbar is
+  reachable with Tab.
 
 - AI chat answers are short and stick to the question: lead with the
   answer, about 120 words at most unless more detail is asked for, no

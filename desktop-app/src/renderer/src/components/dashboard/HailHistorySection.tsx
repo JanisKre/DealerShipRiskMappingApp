@@ -585,6 +585,7 @@ function YearChart({
       className="aspect-auto h-48 w-full"
     >
       <BarChart
+        accessibilityLayer
         data={data}
         margin={{ top: 14, right: 44, left: 0, bottom: 0 }}
         barCategoryGap={1}
@@ -716,6 +717,7 @@ function MonthChart({
       className="aspect-auto h-48 w-full"
     >
       <BarChart
+        accessibilityLayer
         data={data}
         margin={{ top: 14, right: 8, left: 0, bottom: 0 }}
         onClick={(state) => {

@@ -166,3 +166,15 @@ dealership-risk-desktop/
 - API keys via `safeStorage` (OS-keychain-encrypted), never in plain text
 - ONNX inference runs in a `utilityProcess` — keeps the heavy YOLOv26 workload
   off the app/IPC event loop (equivalent to DRM's worker_threads)
+- Outgoing HTTP goes through `fetchWithResilience` (`http.service.ts`), whose
+  transport is Electron's `net.fetch` in the main and utility processes:
+  system proxy and OS certificate store, HTTP(S) only, no cookies
+- Electron fuses (`electron-builder.json`): no `RunAsNode`, `NODE_OPTIONS` or
+  `--inspect`; `app.asar` only, with integrity validation
+- Updates (`update.service.ts`): GitHub "latest release" check; Windows
+  downloads and installs through electron-updater (SHA-512 checked), unsigned
+  macOS builds link to the release page
+- Support (`log.service.ts`, `diagnostics.service.ts`,
+  `data-reset.service.ts`): rotating log file with secret masking, a
+  diagnostics export without portfolios, and "delete all data", which
+  removes the app's files on the next start before anything opens them

@@ -59,5 +59,26 @@ Relevant security properties already in place:
   Overture S3 bucket; no portfolio data is sent. Location search sends the
   typed text and the map centre to Photon (`photon.komoot.io`)
 
+Hardening of the packaged app and its supply chain:
+
+- All main-process and worker HTTP requests use Electron's `net.fetch`
+  (Chromium's network stack), so the system proxy (PAC/WPAD, authenticating
+  proxies) and the operating system's certificate store, including a
+  company's TLS-inspection root, apply. Schemes other than HTTP(S) are
+  refused, and requests carry no session cookies
+- Electron fuses are set at packaging time: `RunAsNode`, `NODE_OPTIONS` and
+  `--inspect` are disabled, the app loads only from `app.asar`, whose
+  integrity is validated at start-up, and the cookie store is encrypted
+  (`file://` keeps its extra privileges because the UI is loaded from there)
+- Updates come only from this repository's GitHub releases. On Windows,
+  electron-updater verifies the installer's SHA-512 from the release's
+  `latest.yml` before installing it; the builds are not code-signed yet, so
+  there is no publisher check. Unsigned macOS builds cannot update
+  themselves and only link to the release page
+- The local log file masks API keys, tokens and URL credentials; diagnostics
+  exports contain no portfolios (the log can name analysed locations)
+- CodeQL (security-extended queries) and the OpenSSF Scorecard run on every
+  push to `main` and weekly; GitHub Actions are pinned to commit SHAs
+
 Reports about missing multi-user auth, rate limiting, or similar are out of
 scope by design — this is not a hosted, multi-tenant service.

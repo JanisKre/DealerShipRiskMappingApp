@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchWithResilience } from "./http.service";
+import {
+  electronNetTransport,
+  fetchWithResilience,
+  setHttpTransport,
+} from "./http.service";
 
 afterEach(() => {
+  setHttpTransport(null);
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
@@ -112,5 +117,55 @@ describe("host fair-use gate", () => {
     );
 
     expect(peak).toBe(2);
+  });
+});
+
+describe("Electron network transport", () => {
+  it("sends every request through the installed transport", async () => {
+    const netFetch = vi.fn(async () => new Response("ok", { status: 200 }));
+    const nodeFetch = vi.spyOn(globalThis, "fetch");
+    setHttpTransport(electronNetTransport(netFetch));
+
+    const response = await fetchWithResilience(
+      new URL("https://example.test/a?b=1"),
+      { headers: { "User-Agent": "test" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(nodeFetch).not.toHaveBeenCalled();
+    expect(netFetch).toHaveBeenCalledTimes(1);
+    const [input, init] = netFetch.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(input).toBe("https://example.test/a?b=1");
+    // No session cookies, like Node's fetch; the timeout signal is kept.
+    expect(init.credentials).toBe("omit");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init.headers).toEqual({ "User-Agent": "test" });
+  });
+
+  it("refuses non-HTTP schemes that net.fetch would otherwise read", async () => {
+    const netFetch = vi.fn(async () => new Response("secret"));
+    setHttpTransport(electronNetTransport(netFetch));
+
+    for (const url of ["file:///etc/passwd", "data:text/plain,x"]) {
+      await expect(
+        fetchWithResilience(url, {}, { retries: 0 }),
+      ).rejects.toThrow(/Unsupported URL scheme/);
+    }
+    expect(netFetch).not.toHaveBeenCalled();
+  });
+
+  it("falls back to Node's fetch when the transport is reset", async () => {
+    const nodeFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("ok", { status: 200 }));
+    setHttpTransport(electronNetTransport(vi.fn()));
+    setHttpTransport(null);
+
+    await fetchWithResilience("https://example.test");
+
+    expect(nodeFetch).toHaveBeenCalledTimes(1);
   });
 });

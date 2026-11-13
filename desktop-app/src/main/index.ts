@@ -1,4 +1,12 @@
-import { app, BrowserWindow, shell, nativeImage, session } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  net,
+  shell,
+  nativeImage,
+  session,
+} from "electron";
 import { join } from "path";
 import { pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc";
@@ -7,6 +15,14 @@ import { warmUpDetector } from "./services/detection.service";
 import { configureCustomOverpass } from "./services/boundary/overpass-client";
 import { getSettings } from "./services/settings.service";
 import { closeDb, getDb } from "./db/database";
+import { IPC } from "@shared/ipc-channels";
+import { applyPendingDataReset } from "./services/data-reset.service";
+import {
+  electronNetTransport,
+  setHttpTransport,
+} from "./services/http.service";
+import { installFileLogging, logToFile } from "./services/log.service";
+import { startUpdateChecks } from "./services/update.service";
 
 // Unpackaged dev runs are an unsigned generic "Electron", so macOS re-asks for
 // the Keychain password on every start. A mock keychain avoids that; it is
@@ -22,6 +38,39 @@ const e2eUserData = process.env["DRM_E2E_USER_DATA"];
 if (!app.isPackaged && e2eUserData) {
   app.setPath("userData", e2eUserData);
 }
+
+// "Delete all data" from the previous session runs before any file is open.
+const userDataDir = app.getPath("userData");
+const dataReset = applyPendingDataReset(userDataDir);
+
+// Main-process console output also goes to <userData>/logs/main.log.
+installFileLogging(join(userDataDir, "logs"));
+console.info(
+  `Dealership Risk Mapping ${app.getVersion()} starting (${process.platform} ${process.arch}, Electron ${process.versions.electron}, packaged: ${app.isPackaged})`,
+);
+if (dataReset.applied) console.info("Local data deleted as requested.");
+if (dataReset.failed.length > 0) {
+  console.error("Deleting local data failed for:", dataReset.failed);
+}
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+// Observes without replacing Electron's default crash dialog.
+process.on("uncaughtExceptionMonitor", (error) => {
+  logToFile("error", "Uncaught exception:", error);
+});
+app.on("render-process-gone", (_event, _contents, details) => {
+  console.error("Renderer process gone:", details.reason, details.exitCode);
+});
+app.on("child-process-gone", (_event, details) => {
+  console.error(
+    "Child process gone:",
+    details.type,
+    details.reason,
+    details.name ?? "",
+    details.exitCode,
+  );
+});
 
 function isSafeExternalUrl(rawUrl: string): boolean {
   try {
@@ -84,6 +133,15 @@ function createWindow(): BrowserWindow {
 
   mainWindow.on("ready-to-show", () => mainWindow.show());
 
+  // Renderer warnings and errors are part of the support log as well.
+  mainWindow.webContents.on("console-message", (details) => {
+    if (details.level !== "warning" && details.level !== "error") return;
+    logToFile(
+      details.level === "error" ? "error" : "warn",
+      `[renderer] ${details.message} (${details.sourceId}:${details.lineNumber})`,
+    );
+  });
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isSafeExternalUrl(url)) void shell.openExternal(url);
     return { action: "deny" };
@@ -113,6 +171,11 @@ const STARTUP_CHECK_DELAY_MS = 15_000;
 const DETECTOR_WARM_UP_DELAY_MS = 1_500;
 
 app.whenReady().then(() => {
+  // Chromium's network stack: system proxy and OS certificate store.
+  setHttpTransport(
+    electronNetTransport((input, init) => net.fetch(input, init)),
+  );
+
   session.defaultSession.setPermissionRequestHandler(
     (_webContents, _permission, callback) => {
       callback(false);
@@ -141,8 +204,20 @@ app.whenReady().then(() => {
   } catch (error) {
     console.warn("Reading the Overpass setting failed:", error);
   }
+  if (dataReset.failed.length > 0) {
+    dialog.showErrorBox(
+      "Local data not fully deleted",
+      `These files could not be removed and will be retried on the next start:\n\n${dataReset.failed.join("\n")}`,
+    );
+  }
   mainWindow = createWindow();
   registerIpcHandlers(() => mainWindow);
+  // GitHub release check (packaged builds, unless switched off).
+  startUpdateChecks((status) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC.updateChanged, status);
+    }
+  });
   // Once the app has settled: does Overture have a newer dealer release?
   // Throttled to once a day and skipped until a directory was downloaded.
   setTimeout(() => void checkDealerDirectoryUpdate(), STARTUP_CHECK_DELAY_MS);

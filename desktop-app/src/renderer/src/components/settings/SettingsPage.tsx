@@ -36,6 +36,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@renderer/components/ui/toggle-group";
+import { AppSupportCard } from "./AppSupportCard";
 import { DealerDirectoryCard } from "./DealerDirectoryCard";
 import { LlmSettingsCard } from "./LlmSettingsCard";
 import { NatCatSettingsCard } from "./NatCatSettingsCard";
@@ -209,7 +210,7 @@ export function SettingsPage(): React.JSX.Element {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" className="mt-6">
+        <TabsContent value="general" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
@@ -263,6 +264,7 @@ export function SettingsPage(): React.JSX.Element {
               </SettingRow>
             </CardContent>
           </Card>
+          <AppSupportCard settings={settings} onUpdateSettings={update} />
         </TabsContent>
 
         <TabsContent value="ai" className="mt-6">

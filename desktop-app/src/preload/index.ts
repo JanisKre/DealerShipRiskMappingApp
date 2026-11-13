@@ -8,6 +8,7 @@ import type {
   LlmStreamRequest,
   ModelDownloadChunk,
   OllamaPullChunk,
+  UpdateStatus,
 } from "@shared/ipc-schema";
 
 /**
@@ -480,6 +481,34 @@ const api = {
       ipcRenderer.send(IPC.dealerDirectoryRefreshCancel, { streamId });
     };
   },
+
+  updateStatus: (): Promise<IpcResponse["update:status"]> =>
+    ipcRenderer.invoke(IPC.updateStatus),
+  checkForUpdates: (): Promise<IpcResponse["update:check"]> =>
+    ipcRenderer.invoke(IPC.updateCheck),
+  downloadUpdate: (): Promise<IpcResponse["update:download"]> =>
+    ipcRenderer.invoke(IPC.updateDownload),
+  installUpdate: (): Promise<IpcResponse["update:install"]> =>
+    ipcRenderer.invoke(IPC.updateInstall),
+  /** Calls `onChange` on every update status change; returns the unsubscribe. */
+  onUpdateStatus: (onChange: (status: UpdateStatus) => void): (() => void) => {
+    const listener = (_e: unknown, status: UpdateStatus): void =>
+      onChange(status);
+    ipcRenderer.on(IPC.updateChanged, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.updateChanged, listener);
+    };
+  },
+
+  /** Saves a diagnostics report (no portfolios) where the user picks. */
+  exportDiagnostics: (): Promise<IpcResponse["diagnostics:export"]> =>
+    ipcRenderer.invoke(IPC.diagnosticsExport),
+
+  /** Deletes all local data and restarts the app. */
+  resetAllData: (): Promise<IpcResponse["data:resetAll"]> =>
+    ipcRenderer.invoke(IPC.dataResetAll, {
+      confirm: "delete-all-data",
+    } satisfies IpcRequest["data:resetAll"]),
 };
 
 export type DrmApi = typeof api;

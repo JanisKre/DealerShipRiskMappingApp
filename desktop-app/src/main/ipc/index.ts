@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, ipcMain } from "electron";
+import { app, BrowserWindow, clipboard, ipcMain, session } from "electron";
 import { join } from "path";
 import { z } from "zod";
 import { IPC } from "@shared/ipc-channels";
@@ -16,6 +16,15 @@ import {
   type OllamaPullChunk,
 } from "@shared/ipc-schema";
 import { analyzeDealership } from "../services/analyze.service";
+import { closeDb } from "../db/database";
+import { scheduleDataReset } from "../services/data-reset.service";
+import { exportDiagnostics } from "../services/diagnostics.service";
+import {
+  checkForUpdates,
+  downloadUpdate,
+  getUpdateStatus,
+  installUpdate,
+} from "../services/update.service";
 import {
   checkDealerDirectoryUpdate,
   dealerDirectoryStatus,
@@ -306,6 +315,29 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
 
   handle(IPC.dealerDirectoryStatus, () => dealerDirectoryStatus());
   handle(IPC.dealerDirectoryUpdate, () => checkDealerDirectoryUpdate());
+
+  handle(IPC.updateStatus, () => getUpdateStatus());
+  handle(IPC.updateCheck, () => checkForUpdates());
+  handle(IPC.updateDownload, () => downloadUpdate());
+  handle(IPC.updateInstall, () => ({ ok: installUpdate() }));
+
+  handle(IPC.diagnosticsExport, async () => ({
+    path: await exportDiagnostics(mainWindowProvider()),
+  }));
+  handle(IPC.dataResetAll, async () => {
+    // The files go on the next start, before anything opens them (see
+    // data-reset.service.ts); Chromium's own storage is cleared right away.
+    scheduleDataReset(app.getPath("userData"));
+    await session.defaultSession.clearStorageData();
+    await session.defaultSession.clearCache();
+    console.warn("Deleting all local data on restart, as requested.");
+    setTimeout(() => {
+      closeDb();
+      app.relaunch();
+      app.exit(0);
+    }, 200);
+    return { ok: true };
+  });
 
   registerLlmStreaming();
   registerModelDownload();

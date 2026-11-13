@@ -311,6 +311,45 @@
     },
     "data": {
       "description": "Origine des données de grêle, d’imagerie et de localisation."
+    },
+    "support": {
+      "title": "Application et support",
+      "description": "Version, mises à jour, diagnostic pour le support et suppression de toutes les données locales.",
+      "version": "Version {{version}}",
+      "update": {
+        "autoCheck": "Rechercher automatiquement les mises à jour",
+        "autoCheckHint": "Interroge GitHub au démarrage et une fois par jour. Aucune donnée de portefeuille n’est envoyée.",
+        "unsupported": "Version de développement : pas de recherche de mises à jour.",
+        "idle": "Pas encore vérifié.",
+        "checking": "Recherche de mises à jour …",
+        "upToDate": "L’application est à jour (vérifié le {{date}}).",
+        "availableInstall": "La version {{version}} est disponible et peut être installée directement.",
+        "availableManual": "La version {{version}} est disponible. Téléchargez-la depuis la page de publication (cette version n’est pas signée et ne peut pas se mettre à jour elle-même).",
+        "downloading": "Téléchargement de la mise à jour … {{pct}} %",
+        "ready": "La version {{version}} est téléchargée et sera installée au redémarrage.",
+        "error": "Échec de la recherche de mises à jour : {{message}}",
+        "progressLabel": "Progression du téléchargement de la mise à jour",
+        "checkNow": "Vérifier maintenant",
+        "download": "Télécharger",
+        "openRelease": "Ouvrir la page de publication",
+        "restart": "Redémarrer et installer",
+        "toast": "La version {{version}} est disponible.",
+        "toastAction": "Voir"
+      },
+      "diagnostics": {
+        "title": "Exporter le diagnostic",
+        "hint": "Enregistre les versions, les paramètres (sans clés API), les volumes de données et le journal récent au format JSON. Les portefeuilles ne sont pas inclus, mais le journal peut citer des sites issus d’analyses. Vérifiez-le avant de le transmettre.",
+        "export": "Exporter"
+      },
+      "diagnosticsSaved": "Diagnostic enregistré : {{path}}",
+      "reset": {
+        "title": "Supprimer toutes les données",
+        "hint": "Supprime de cet ordinateur les portefeuilles, conversations, tableaux de bord, paramètres, clés API enregistrées, caches et journaux. Le modèle de détection est conservé.",
+        "button": "Supprimer toutes les données",
+        "confirmTitle": "Supprimer toutes les données locales ?",
+        "confirmText": "Tous les portefeuilles, conversations, tableaux de bord, paramètres, clés API, caches et journaux seront définitivement supprimés. Cette action est irréversible : exportez d’abord ce que vous souhaitez conserver. L’application redémarre ensuite.",
+        "confirmButton": "Supprimer définitivement et redémarrer"
+      }
     }
   },
   "model": {

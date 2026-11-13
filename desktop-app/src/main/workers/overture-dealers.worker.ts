@@ -1,3 +1,8 @@
+import { net } from "electron";
+import {
+  electronNetTransport,
+  setHttpTransport,
+} from "../services/http.service";
 import {
   extractGermanDealers,
   type ExtractProgress,
@@ -18,6 +23,9 @@ type WorkerMessage =
   | { type: "progress"; progress: ExtractProgress }
   | { type: "result"; result: ExtractResult }
   | { type: "error"; error: string };
+
+// Same network stack as the main process: system proxy, OS certificates.
+setHttpTransport(electronNetTransport((input, init) => net.fetch(input, init)));
 
 const port = process.parentPort;
 

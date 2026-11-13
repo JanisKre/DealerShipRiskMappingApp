@@ -454,6 +454,7 @@ function SeriesBars({
         style={{ height: Math.max(120, data.length * 28 + 24) }}
       >
         <BarChart
+          accessibilityLayer
           data={data}
           layout="vertical"
           margin={{ top: 0, right: 12, left: 0, bottom: 0 }}
@@ -499,7 +500,11 @@ function SeriesBars({
       config={{ value: { label: measureLabel(t, result.measure) } }}
       className="aspect-auto h-56 w-full"
     >
-      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+      <BarChart
+        accessibilityLayer
+        data={data}
+        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+      >
         <CartesianGrid vertical={false} strokeOpacity={0.15} />
         <XAxis
           dataKey="label"
@@ -560,7 +565,7 @@ function SeriesPie({
   return (
     <div className="flex flex-col items-center gap-3 @md:flex-row">
       <ChartContainer config={{}} className="aspect-square h-44 shrink-0">
-        <PieChart>
+        <PieChart accessibilityLayer>
           <Tooltip
             content={({ active, payload }) => {
               const p = payload?.[0]?.payload as

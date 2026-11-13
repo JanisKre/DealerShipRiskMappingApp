@@ -78,7 +78,8 @@ export function ConversationPicker({
         <button
           type="button"
           className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-accent"
-          aria-label={t("ui.switchThread")}
+          // Starts with the visible title (WCAG 2.5.3 label in name).
+          aria-label={`${threadName(activeName, t)} – ${t("ui.switchThread")}`}
         >
           <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap, useMapEvents } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -202,8 +202,11 @@ function MarkerContextMenu({
   onDelete: (id: string) => void;
 }>): React.JSX.Element {
   const { t } = useTranslation();
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    function onDocMouseDown(): void {
+    function onDocMouseDown(e: MouseEvent): void {
+      // A press inside the menu belongs to its buttons.
+      if (menuRef.current?.contains(e.target as Node)) return;
       onClose();
     }
     function onKeyDown(e: KeyboardEvent): void {
@@ -220,8 +223,8 @@ function MarkerContextMenu({
   return (
     <div
       className="glass fixed z-[2000] min-w-40 overflow-hidden rounded-md border py-1 shadow-lg"
+      ref={menuRef}
       style={{ left: state.x, top: state.y }}
-      onMouseDown={(e) => e.stopPropagation()}
     >
       <p className="truncate px-3 py-1 text-xs font-medium text-muted-foreground">
         {state.dealership.name}
@@ -916,7 +919,11 @@ export function MapPage(): React.JSX.Element {
           <div className={NOTICE_CLASS}>
             <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />
             <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex items-baseline justify-between gap-3">
+              {/* Announced politely to screen readers as the count moves. */}
+              <div
+                role="status"
+                className="flex items-baseline justify-between gap-3"
+              >
                 <span className="font-medium tabular-nums">
                   {t("map.page.analyzingProgress", {
                     done: progress.done,
@@ -935,6 +942,10 @@ export function MapPage(): React.JSX.Element {
               <Progress
                 value={(progress.done / progress.total) * 100}
                 className="h-1"
+                aria-label={t("map.page.analyzingProgress", {
+                  done: progress.done,
+                  total: progress.total,
+                })}
               />
             </div>
             <Button

@@ -25,4 +25,12 @@ void i18n.use(initReactI18next).init({
   returnNull: false,
 });
 
+// Screen readers pick the pronunciation from <html lang>; keep it in step
+// with the interface language instead of the static "de" in index.html.
+function syncDocumentLanguage(lng: string): void {
+  if (typeof document !== "undefined") document.documentElement.lang = lng;
+}
+syncDocumentLanguage(i18n.language);
+i18n.on("languageChanged", syncDocumentLanguage);
+
 export default i18n;

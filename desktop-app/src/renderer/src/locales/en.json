@@ -520,6 +520,45 @@
     },
     "data": {
       "description": "Where the app gets hail, imagery and location data."
+    },
+    "support": {
+      "title": "App & support",
+      "description": "Version, updates, diagnostics for support and deleting all local data.",
+      "version": "Version {{version}}",
+      "update": {
+        "autoCheck": "Check for updates automatically",
+        "autoCheckHint": "Asks GitHub for a new version at start-up and once a day. No portfolio data is sent.",
+        "unsupported": "Development build: no update checks.",
+        "idle": "Not checked yet.",
+        "checking": "Checking for updates …",
+        "upToDate": "The app is up to date (checked {{date}}).",
+        "availableInstall": "Version {{version}} is available and can be installed right away.",
+        "availableManual": "Version {{version}} is available. Download it from the release page (this build is unsigned and cannot update itself).",
+        "downloading": "Downloading the update … {{pct}} %",
+        "ready": "Version {{version}} is downloaded and installs on restart.",
+        "error": "Update check failed: {{message}}",
+        "progressLabel": "Update download progress",
+        "checkNow": "Check now",
+        "download": "Download",
+        "openRelease": "Open release page",
+        "restart": "Restart and install",
+        "toast": "Version {{version}} is available.",
+        "toastAction": "View"
+      },
+      "diagnostics": {
+        "title": "Export diagnostics",
+        "hint": "Saves versions, settings (without API keys), data counts and the recent log as JSON. Portfolios are not included, but the log can name individual locations from analyses. Please review it before passing it on.",
+        "export": "Export"
+      },
+      "diagnosticsSaved": "Diagnostics saved: {{path}}",
+      "reset": {
+        "title": "Delete all data",
+        "hint": "Removes portfolios, chats, dashboards, settings, saved API keys, caches and logs from this computer. The detection model is kept.",
+        "button": "Delete all data",
+        "confirmTitle": "Delete all local data?",
+        "confirmText": "All portfolios, chats, dashboards, settings, API keys, caches and logs are deleted permanently. This cannot be undone, so export anything you want to keep first. The app restarts afterwards.",
+        "confirmButton": "Delete permanently and restart"
+      }
     }
   },
   "model": {

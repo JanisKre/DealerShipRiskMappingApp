@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
@@ -247,17 +247,18 @@ function HailSourceSelect({
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const value = routing.primary;
+  const selectId = useId();
   return (
     <section className="space-y-3">
       <div className="grid items-center gap-x-3 gap-y-2 sm:grid-cols-[10rem_1fr]">
-        <label className="text-sm font-medium">
+        <label htmlFor={selectId} className="text-sm font-medium">
           {t("settings.natCat.routing.primary")}
         </label>
         <Select
           value={value}
           onValueChange={(v) => onChange(v as NatCatRouting["primary"])}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger id={selectId} className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -396,7 +397,7 @@ function CatalogRow({
           <span
             className={cn(
               "text-xs",
-              status.tone === "ok" && "text-emerald-600 dark:text-emerald-400",
+              status.tone === "ok" && "text-emerald-700 dark:text-emerald-400",
               status.tone === "muted" && "text-muted-foreground",
             )}
           >
@@ -499,7 +500,7 @@ function CatalogRow({
           </div>
           {test &&
             (test.ok ? (
-              <p className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+              <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
                 <CheckCircle2 className="size-3.5 shrink-0" />
                 {t("settings.natCat.connector.testOk", {
                   perils: test.perils.join(", "),

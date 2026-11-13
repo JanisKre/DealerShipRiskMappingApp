@@ -386,7 +386,15 @@ export function ChatView({
           </div>
         ) : (
           <LocationLinkContext.Provider value={onOpenLocation}>
-            <div className="space-y-4 px-4 py-4">
+            {/* A chat log: new answers are announced once complete
+                (aria-busy holds them back while tokens stream in). */}
+            <div
+              role="log"
+              aria-live="polite"
+              aria-relevant="additions"
+              aria-busy={streaming || actionPending}
+              className="space-y-4 px-4 py-4"
+            >
               {messages.map((m, i) => (
                 <MessageBubble
                   key={`${activeId}-${i}-${m.role}`}

@@ -108,7 +108,11 @@ export function HailZoneDistribution({
           config={{ [metric]: { label: t("dashboard.locations") } }}
           className="aspect-auto h-56 w-full"
         >
-          <BarChart data={rows} margin={{ top: 20, right: 8, left: 8 }}>
+          <BarChart
+            accessibilityLayer
+            data={rows}
+            margin={{ top: 20, right: 8, left: 8 }}
+          >
             <CartesianGrid vertical={false} strokeOpacity={0.15} />
             <XAxis
               dataKey="label"

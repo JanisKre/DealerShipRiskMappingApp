@@ -114,7 +114,7 @@ export function ModelInstallWizard(): React.JSX.Element | null {
         </DialogHeader>
 
         {phase === "ready" && (
-          <p className="text-sm text-emerald-600">{t("model.ready")}</p>
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">{t("model.ready")}</p>
         )}
 
         {(phase === "idle" || phase === "unavailable") && (
@@ -144,7 +144,7 @@ export function ModelInstallWizard(): React.JSX.Element | null {
         )}
 
         {phase === "done" && (
-          <p className="text-sm text-emerald-600">{t("model.done")}</p>
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">{t("model.done")}</p>
         )}
 
         {phase === "error" && (

@@ -58,9 +58,14 @@ export function MessageBubble({
   return (
     <div className="group/message text-sm">
       {content === "" && pending ? (
-        <span className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          {pendingLabel}
+        <span
+          role="status"
+          className="flex items-center gap-2 text-muted-foreground"
+        >
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          {pendingLabel ?? (
+            <span className="sr-only">{t("common.loading")}</span>
+          )}
         </span>
       ) : (
         <Markdown text={content} />

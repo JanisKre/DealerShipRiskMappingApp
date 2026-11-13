@@ -520,6 +520,45 @@
     },
     "data": {
       "description": "Woher die App Hagel-, Luftbild- und Standortdaten bezieht."
+    },
+    "support": {
+      "title": "App & Support",
+      "description": "Version, Updates, Diagnose für den Support und das Löschen aller lokalen Daten.",
+      "version": "Version {{version}}",
+      "update": {
+        "autoCheck": "Automatisch nach Updates suchen",
+        "autoCheckHint": "Fragt beim Start und einmal täglich GitHub nach einer neuen Version. Es werden keine Portfolio-Daten gesendet.",
+        "unsupported": "Entwicklungsversion: keine Update-Prüfung.",
+        "idle": "Noch nicht geprüft.",
+        "checking": "Suche nach Updates …",
+        "upToDate": "Die App ist aktuell (geprüft {{date}}).",
+        "availableInstall": "Version {{version}} ist verfügbar und kann direkt installiert werden.",
+        "availableManual": "Version {{version}} ist verfügbar. Laden Sie sie von der Release-Seite herunter (diese Version ist nicht signiert und kann sich nicht selbst aktualisieren).",
+        "downloading": "Update wird heruntergeladen … {{pct}} %",
+        "ready": "Version {{version}} ist heruntergeladen und wird beim Neustart installiert.",
+        "error": "Update-Prüfung fehlgeschlagen: {{message}}",
+        "progressLabel": "Download-Fortschritt des Updates",
+        "checkNow": "Jetzt prüfen",
+        "download": "Herunterladen",
+        "openRelease": "Release-Seite öffnen",
+        "restart": "Neu starten und installieren",
+        "toast": "Version {{version}} ist verfügbar.",
+        "toastAction": "Ansehen"
+      },
+      "diagnostics": {
+        "title": "Diagnose exportieren",
+        "hint": "Speichert Versionen, Einstellungen (ohne API-Keys), Datenmengen und das aktuelle Protokoll als JSON. Portfolios sind nicht enthalten, das Protokoll kann aber einzelne Standortnamen aus Analysen nennen. Bitte vor dem Weitergeben prüfen.",
+        "export": "Exportieren"
+      },
+      "diagnosticsSaved": "Diagnose gespeichert: {{path}}",
+      "reset": {
+        "title": "Alle Daten löschen",
+        "hint": "Entfernt Portfolios, Chats, Dashboards, Einstellungen, gespeicherte API-Keys, Caches und Protokolle von diesem Rechner. Das Erkennungsmodell bleibt erhalten.",
+        "button": "Alle Daten löschen",
+        "confirmTitle": "Wirklich alle lokalen Daten löschen?",
+        "confirmText": "Alle Portfolios, Chats, Dashboards, Einstellungen, API-Keys, Caches und Protokolle werden endgültig gelöscht. Das lässt sich nicht rückgängig machen – exportieren Sie vorher, was Sie behalten möchten. Die App startet danach neu.",
+        "confirmButton": "Endgültig löschen und neu starten"
+      }
     }
   },
   "model": {

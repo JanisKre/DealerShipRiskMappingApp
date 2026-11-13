@@ -28,6 +28,52 @@ export class HttpRequestError extends Error {
   }
 }
 
+/** The function that actually sends a request (see `setHttpTransport`). */
+export type HttpTransport = (
+  input: RequestInfo | URL,
+  init: RequestInit,
+) => Promise<Response>;
+
+// Node's fetch until the process installs Electron's network stack. Looked up
+// on every call so tests can spy on `globalThis.fetch`.
+const nodeFetchTransport: HttpTransport = (input, init) =>
+  globalThis.fetch(input, init);
+let transport: HttpTransport = nodeFetchTransport;
+
+/**
+ * Routes every request of this process through `next`. The main process and
+ * the utility processes install Electron's `net.fetch` at start-up: unlike
+ * Node's fetch it uses Chromium's network stack, so the system proxy
+ * settings (PAC, WPAD, authenticating proxies) and the operating system's
+ * certificate store, including a company's TLS-inspection root, apply.
+ */
+export function setHttpTransport(next: HttpTransport | null): void {
+  transport = next ?? nodeFetchTransport;
+}
+
+/**
+ * Adapts Electron's `net.fetch` to `HttpTransport`. Requests never carry
+ * the session's cookies, as with Node's fetch: map tiles loaded by the
+ * renderer must not turn into tracking state on API calls. Unlike Node's
+ * fetch, `net.fetch` also reads `file:` URLs, so anything but HTTP(S) is
+ * refused here: a configured provider URL must never become a file read.
+ */
+export function electronNetTransport(
+  netFetch: (input: string | Request, init?: RequestInit) => Promise<Response>,
+): HttpTransport {
+  return async (input, init) => {
+    const url = input instanceof Request ? input.url : String(input);
+    const protocol = new URL(url).protocol;
+    if (protocol !== "https:" && protocol !== "http:") {
+      throw new HttpRequestError(`Unsupported URL scheme: ${protocol}`);
+    }
+    return netFetch(input instanceof URL ? input.toString() : input, {
+      ...init,
+      credentials: "omit",
+    });
+  };
+}
+
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_RETRIES = 2;
 const DEFAULT_BACKOFF_MS = 250;
@@ -176,7 +222,7 @@ async function fetchOnce(
   else init.signal?.addEventListener("abort", onCallerAbort, { once: true });
 
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await transport(input, { ...init, signal: controller.signal });
   } catch (error) {
     if (timedOut) {
       throw new HttpRequestError("HTTP request timed out", { timedOut: true });

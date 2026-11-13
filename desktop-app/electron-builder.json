@@ -17,6 +17,17 @@
     "owner": "JanisKre",
     "repo": "DealerShipRiskMappingApp"
   },
+  "electronFuses": {
+    "runAsNode": false,
+    "enableCookieEncryption": true,
+    "enableNodeOptionsEnvironmentVariable": false,
+    "enableNodeCliInspectArguments": false,
+    "enableEmbeddedAsarIntegrityValidation": true,
+    "onlyLoadAppFromAsar": true,
+    "loadBrowserProcessSpecificV8Snapshot": false,
+    "grantFileProtocolExtraPrivileges": true,
+    "resetAdHocDarwinSignature": true
+  },
   "mac": {
     "icon": "resources/icon.icns",
     "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],

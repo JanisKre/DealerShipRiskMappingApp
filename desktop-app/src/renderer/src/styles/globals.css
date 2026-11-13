@@ -25,7 +25,8 @@
   --secondary: oklch(0.968 0.004 255);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.552 0.012 255);
+  /* 0.53 instead of 0.552: at least 4.5:1 on the tinted panels and tabs. */
+  --muted-foreground: oklch(0.53 0.012 255);
   --accent: oklch(0.958 0.018 255);
   --accent-foreground: oklch(0.29 0.06 255);
 
@@ -140,6 +141,19 @@
 /* Border-Default + dünne, token-gefärbte Scrollbars (aus joule übernommen).
    In @layer base: unlayered, this rule beat every Tailwind border-colour
    utility (border-primary, border-amber-500/30, …), so all borders were grey. */
+/* "Reduce motion" (WCAG 2.3.3): animations and transitions end immediately,
+   spinners included, and scrolling jumps instead of gliding. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @layer base {
   * {
     border-color: var(--border);

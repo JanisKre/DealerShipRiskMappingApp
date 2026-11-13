@@ -6,6 +6,7 @@ import { DashboardPage } from "@renderer/components/dashboard/DashboardPage";
 import { SettingsPage } from "@renderer/components/settings/SettingsPage";
 import { WorkspacePage } from "@renderer/components/workspace/WorkspacePage";
 import { ParametersPage } from "@renderer/components/parameters/ParametersPage";
+import { UpdateNotifier } from "@renderer/components/settings/UpdateNotifier";
 import { Toaster } from "@renderer/components/ui/sonner";
 
 export function App(): React.JSX.Element {
@@ -36,6 +37,7 @@ export function App(): React.JSX.Element {
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
+      <UpdateNotifier />
       <Toaster position="bottom-right" richColors />
     </HashRouter>
   );

@@ -34,6 +34,35 @@ import {
 } from "./imagery-sources";
 import { ImageryTimelineSchema } from "./imagery-wayback";
 
+// --- App updates ---------------------------------------------------------------
+
+/**
+ * Update state shown in the settings and as a notification. `canAutoInstall`
+ * is true only where the app can update itself (Windows installer builds);
+ * elsewhere an update is offered as a link to the release page.
+ */
+export const UpdateStatusSchema = z.object({
+  state: z.enum([
+    "unsupported", // development build: no update checks
+    "idle",
+    "checking",
+    "up-to-date",
+    "available",
+    "downloading",
+    "ready", // downloaded, installs on restart
+    "error",
+  ]),
+  currentVersion: z.string(),
+  latestVersion: z.string().optional(),
+  releaseUrl: z.string().url().optional(),
+  canAutoInstall: z.boolean(),
+  /** Download progress 0..1 while `downloading`. */
+  progress: z.number().min(0).max(1).optional(),
+  checkedAt: z.string().optional(),
+  message: z.string().optional(),
+});
+export type UpdateStatus = z.infer<typeof UpdateStatusSchema>;
+
 // --- NatCat connectors --------------------------------------------------------
 
 /** Outcome of a connector test: which perils the endpoint answered. */
@@ -319,6 +348,13 @@ export const ipcRequest = {
   "hailZones:overlay": z.void(),
   "dealerDirectory:status": z.void(),
   "dealerDirectory:update": z.void(),
+  "update:status": z.void(),
+  "update:check": z.void(),
+  "update:download": z.void(),
+  "update:install": z.void(),
+  "diagnostics:export": z.void(),
+  // An explicit literal, so no malformed or replayed call can wipe the data.
+  "data:resetAll": z.object({ confirm: z.literal("delete-all-data") }),
 } as const;
 
 export const ipcResponse = {
@@ -401,6 +437,12 @@ export const ipcResponse = {
     /** Whether a download source is configured (otherwise manual instructions only). */
     downloadConfigured: z.boolean(),
   }),
+  "update:status": UpdateStatusSchema,
+  "update:check": UpdateStatusSchema,
+  "update:download": UpdateStatusSchema,
+  "update:install": z.object({ ok: z.boolean() }),
+  "diagnostics:export": z.object({ path: z.string().nullable() }),
+  "data:resetAll": z.object({ ok: z.boolean() }),
   // Helper type for peril details (not bound to a channel)
   perilScore: PerilScoreSchema,
 } as const;

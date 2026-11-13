@@ -119,6 +119,19 @@ export const IPC = {
   // Streaming like model:download — a multi-minute download with progress.
   dealerDirectoryRefresh: "dealerDirectory:refresh", // renderer -> main (start)
   dealerDirectoryRefreshCancel: "dealerDirectory:refresh:cancel",
+
+  // App updates (GitHub releases). Status changes are pushed over
+  // `update:changed` (main -> renderer); the rest is invoke.
+  updateStatus: "update:status",
+  updateCheck: "update:check",
+  updateDownload: "update:download", // Windows only: download in the background
+  updateInstall: "update:install", // Windows only: restart into the installer
+  updateChanged: "update:changed",
+
+  // Support: diagnostics report (versions, settings, recent log; no portfolios)
+  diagnosticsExport: "diagnostics:export",
+  // Deletes all local data on the next start and restarts the app
+  dataResetAll: "data:resetAll",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
