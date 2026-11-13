@@ -44,7 +44,7 @@ export function reviewReasons(
   if (age != null && age >= IMAGERY_STALE_AFTER_YEARS) reasons.push("imagery");
   if (
     buildUnderwritingMessages(t, d, dealerships, parameters).some(
-      (m) => m.severity === "warning" || m.severity === "danger",
+      (m) => m.severity === "danger",
     )
   ) {
     reasons.push("underwriting");
@@ -75,6 +75,7 @@ export function buildReviewQueue(
   return dealerships
     .filter(
       (d) =>
+        d.risk != null &&
         d.lat != null &&
         d.lon != null &&
         !isReviewCurrent(d) &&

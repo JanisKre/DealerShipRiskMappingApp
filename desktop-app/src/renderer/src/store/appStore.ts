@@ -291,6 +291,20 @@ export interface PortfolioFilters {
   group: string | null;
   clusterId: string | null;
   boundarySource: "fallback" | null;
+  /** Hail zone 1–6, or "none" for locations without a zone yet. */
+  hailZone: number | "none" | null;
+  /** Where a location stands: analysed, still to analyse, or to check. */
+  status: LocationStatus | null;
+}
+
+/** Processing state of a location, for filtering large portfolios. */
+export type LocationStatus = "analyzed" | "pending" | "review";
+
+export function locationStatus(d: {
+  risk?: unknown;
+  boundary?: { reviewRequired?: boolean };
+}): "analyzed" | "pending" {
+  return d.risk ? "analyzed" : "pending";
 }
 
 const EMPTY_FILTERS: PortfolioFilters = {
@@ -300,7 +314,23 @@ const EMPTY_FILTERS: PortfolioFilters = {
   group: null,
   clusterId: null,
   boundarySource: null,
+  hailZone: null,
+  status: null,
 };
+
+/**
+ * Everything still to analyse: the saved queue plus every location without
+ * a result, so an analysis cut short (reload, crash) can always continue.
+ */
+export function unanalyzedInputs(s: {
+  pendingAnalysis: DealershipInput[];
+  dealerships: AnalyzedDealership[];
+}): DealershipInput[] {
+  const byId = new Map(s.pendingAnalysis.map((input) => [input.id, input]));
+  for (const d of s.dealerships)
+    if (!d.risk && !byId.has(d.id)) byId.set(d.id, d);
+  return [...byId.values()];
+}
 
 /** Default name for a freshly created, not-yet-renamed portfolio. */
 export const DEFAULT_PORTFOLIO_NAME = "New Portfolio";
@@ -1054,7 +1084,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   cancelAnalysis: () => set({ analysisCancelRequested: true }),
 
   resumeAnalysis: async () => {
-    const inputs = get().pendingAnalysis;
+    const inputs = unanalyzedInputs(get());
     if (inputs.length === 0 || get().analyzing) return;
     set({
       analyzing: true,
@@ -1065,12 +1095,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   discardPendingAnalysis: () => {
-    // Pins of never-analysed locations would stay without a result.
-    const pending = new Set(get().pendingAnalysis.map((input) => input.id));
-    set((s) => ({
-      pendingAnalysis: [],
-      dealerships: s.dealerships.filter((d) => !(pending.has(d.id) && !d.risk)),
-    }));
+    // Only forgets the queue; imported locations are never deleted here.
+    set({ pendingAnalysis: [] });
     void get()
       .saveSession()
       .catch((err: unknown) => {

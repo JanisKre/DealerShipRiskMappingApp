@@ -947,7 +947,15 @@
     },
     "table": {
       "description": "Alle Standorte mit Hagelzone, Fahrzeugen, Exposure und Hagel-EAL. Zeile anklicken für Details.",
-      "search": "In Tabelle suchen…"
+      "search": "In Tabelle suchen…",
+      "range_one": "{{from}}–{{to}} von {{count}} Standort",
+      "range_other": "{{from}}–{{to}} von {{count}} Standorten",
+      "rowsPerPage": "Zeilen pro Seite",
+      "perPage": "{{count}} pro Seite",
+      "previousPage": "Vorherige Seite",
+      "nextPage": "Nächste Seite",
+      "page": "Seite {{page}} von {{pages}}",
+      "pending": "ausstehend"
     }
   },
   "map": {
@@ -1043,7 +1051,21 @@
       "markNotInsuredToast": "{{count}} Standort(e) als Neugeschäft markiert",
       "directoryHintPrefix": "Händler fehlt?",
       "directoryHintLink": "Händlerverzeichnis laden",
-      "distanceChip": "{{distance}} km entfernt"
+      "distanceChip": "{{distance}} km entfernt",
+      "countOf": "{{shown}} von {{total}}",
+      "search": "Suchen…",
+      "filters": "Filter",
+      "sortLabel": "Sortierung",
+      "sort": {
+        "eal": "Sortiert nach Hagel-EAL",
+        "zone": "Sortiert nach Hagelzone",
+        "name": "Sortiert nach Name",
+        "nearby": "Nähe zu {{name}}"
+      },
+      "noMatches": "Keine Standorte für diese Suche oder Filter.",
+      "showMore": "{{count}} weitere anzeigen (noch {{rest}})",
+      "pending": "ausstehend",
+      "ealValue": "Hagel-EAL {{value}}"
     },
     "hailZones": {
       "loading": "Postleitzahl-Flächen werden geladen …",
@@ -1138,11 +1160,11 @@
       "openSettings": "Einstellungen öffnen",
       "deleteConfirmTitle": "Standort löschen?",
       "deleteConfirmDescription": "„{{name}}“ wird mit Analyse und Notizen aus diesem Portfolio entfernt. Das lässt sich nicht rückgängig machen.",
-      "resumeTitle_one": "Analyse unterbrochen: {{count}} Standort offen",
-      "resumeTitle_other": "Analyse unterbrochen: {{count}} Standorte offen",
-      "resumeDetail": "Die App wurde während einer Analyse beendet. Bereits analysierte Standorte sind gespeichert.",
-      "resumeAction": "Fortsetzen",
-      "resumeDiscard": "Verwerfen"
+      "resumeTitle_one": "{{count}} Standort noch nicht analysiert",
+      "resumeTitle_other": "{{count}} Standorte noch nicht analysiert",
+      "resumeDetail": "Die Analyse wurde unterbrochen. Bereits analysierte Standorte sind gespeichert.",
+      "resumeAction": "Analyse fortsetzen",
+      "resumeDiscard": "Später"
     }
   },
   "ai": {
@@ -1330,7 +1352,18 @@
     "clusterFilterLabel": "Kumulation: {{name}}",
     "newConversation": "Neue Konversation",
     "chatHistory": "Bisherige Konversationen",
-    "deleteThreadConfirm": "„{{name}}“ löschen?"
+    "deleteThreadConfirm": "„{{name}}“ löschen?",
+    "filter": {
+      "allZones": "Alle Hagelzonen",
+      "zone": "Zone {{zone}} ({{count}})",
+      "noZone": "Ohne Zone ({{count}})",
+      "statusLabel": "Bearbeitungsstand",
+      "allStatus": "Alle Stände",
+      "analyzed": "Analysiert ({{count}})",
+      "pending": "Ausstehend ({{count}})",
+      "review": "Grenze prüfen ({{count}})"
+    },
+    "locationsPartlyAnalyzed": "{{analyzed}} von {{total}} analysiert · {{pending}} ausstehend"
   },
   "aiSetup": {
     "missingTitle": "KI-Assistent noch nicht eingerichtet",

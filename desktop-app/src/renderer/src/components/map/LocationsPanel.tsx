@@ -9,7 +9,9 @@ import {
   MapPin,
   Paperclip,
   Plus,
+  Search,
   ShieldCheck,
+  SlidersHorizontal,
   ShieldOff,
   Trash2,
   Users,
@@ -35,6 +37,15 @@ import {
 } from "@renderer/components/ui/dialog";
 import { Input } from "@renderer/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@renderer/components/ui/select";
+import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
+import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -42,8 +53,8 @@ import {
 } from "@renderer/components/ui/tooltip";
 import { cn } from "@renderer/lib/utils";
 import { hailZoneColor } from "@renderer/lib/riskColor";
-import { num } from "@renderer/lib/format";
-import { useAppStore } from "@renderer/store/appStore";
+import { eur, num } from "@renderer/lib/format";
+import { businessType, useAppStore } from "@renderer/store/appStore";
 import { searchBias } from "@renderer/lib/searchBias";
 import { Link } from "react-router-dom";
 import { useDealerDirectoryStore } from "@renderer/store/dealerDirectoryStore";
@@ -70,6 +81,23 @@ interface Row {
   distanceKm: number | null;
   sameGroup: boolean;
   inRadius: boolean;
+}
+
+type SortKey = "eal" | "name" | "zone" | "nearby";
+/** Rows rendered at first and per "show more" click. */
+const PAGE = 100;
+/** From this many locations on, search, sort and filter are offered. */
+const TOOLS_FROM = 10;
+
+/** Matches name or address, ignoring case and accents. */
+function matchesQuery(d: AnalyzedDealership, query: string): boolean {
+  const fold = (text: string): string =>
+    text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  const q = fold(query.trim());
+  return !q || fold(`${d.name} ${d.address ?? ""}`).includes(q);
 }
 
 /**
@@ -105,6 +133,22 @@ export function LocationsPanel({
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // Large portfolios: search, sort, the shared portfolio filters, and rows
+  // rendered in pages so a 500-row list stays quick and scannable.
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<SortKey>("eal");
+  const [showFilters, setShowFilters] = useState(false);
+  const [visible, setVisible] = useState(PAGE);
+  const filtersActive = useAppStore((s) =>
+    Object.values(s.filters).some((v) => v != null),
+  );
+  const filtered = useFilteredDealerships(dealerships);
+  const tools = dealerships.length >= TOOLS_FROM;
+  const mixedBusiness = useMemo(() => {
+    const types = new Set(dealerships.map(businessType));
+    return types.size > 1;
+  }, [dealerships]);
+  useEffect(() => setVisible(PAGE), [query, sort, filtered]);
 
   function toggleSelectMode(): void {
     setSelectMode((v) => !v);
@@ -121,7 +165,8 @@ export function LocationsPanel({
   }
 
   function selectAll(): void {
-    setSelectedIds(new Set(dealerships.map((d) => d.id)));
+    // What the list shows (search and filters applied), not the whole book.
+    setSelectedIds(new Set(rows.map((row) => row.d.id)));
   }
 
   function deselectAll(): void {
@@ -164,9 +209,13 @@ export function LocationsPanel({
     [dealerships, selectedId],
   );
 
-  // Rows with relationship info, sorted: subject on top, otherwise by distance.
+  // Rows with relationship info: subject on top, then by the chosen order
+  // ("nearby" sorts by distance to the subject).
   const rows = useMemo<Row[]>(() => {
-    const built = dealerships.map<Row>((d) => {
+    const source = filtered.filter(
+      (d) => d.id === selectedId || matchesQuery(d, query),
+    );
+    const built = source.map<Row>((d) => {
       const isSubject = subject != null && d.id === subject.id;
       const distanceKm =
         subject && !isSubject
@@ -179,14 +228,24 @@ export function LocationsPanel({
         inRadius: distanceKm != null && distanceKm <= ACCUMULATION_RADIUS_KM,
       };
     });
+    const by: Record<SortKey, (a: Row, b: Row) => number> = {
+      eal: (a, b) => (b.d.risk?.eal ?? -1) - (a.d.risk?.eal ?? -1),
+      name: (a, b) => a.d.name.localeCompare(b.d.name),
+      zone: (a, b) =>
+        (dealershipHailZone(b.d)?.zone ?? 0) -
+        (dealershipHailZone(a.d)?.zone ?? 0),
+      nearby: (a, b) =>
+        a.distanceKm != null && b.distanceKm != null
+          ? a.distanceKm - b.distanceKm
+          : 0,
+    };
+    const order = sort === "nearby" && !subject ? "eal" : sort;
     return built.sort((a, b) => {
       if (a.d.id === selectedId) return -1;
       if (b.d.id === selectedId) return 1;
-      if (a.distanceKm != null && b.distanceKm != null)
-        return a.distanceKm - b.distanceKm;
-      return 0;
+      return by[order](a, b) || a.d.name.localeCompare(b.d.name);
     });
-  }, [dealerships, subject, selectedId]);
+  }, [filtered, subject, selectedId, query, sort]);
 
   // Summary: insured neighbors within the subject's accumulation radius.
   const neighborCount = useMemo(
@@ -227,8 +286,15 @@ export function LocationsPanel({
             {/* No extra pin icon: it pushed the actions onto a second row
                 at the default dock width. */}
             <span>{t("dashboard.locations")}</span>
-            <span className="text-muted-foreground">
-              ({dealerships.length})
+            <span className="text-muted-foreground tabular-nums">
+              (
+              {rows.length === dealerships.length
+                ? dealerships.length
+                : t("map.locationsPanel.countOf", {
+                    shown: rows.length,
+                    total: dealerships.length,
+                  })}
+              )
             </span>
           </button>
           <div className="ml-auto flex shrink-0 items-center gap-1.5">
@@ -295,6 +361,67 @@ export function LocationsPanel({
         {adding && (
           <div className="shrink-0 border-t px-2.5 py-2">
             <AddLocationField onAdded={() => setAdding(false)} />
+          </div>
+        )}
+
+        {open && tools && (
+          <div className="shrink-0 space-y-1.5 border-t px-2.5 py-2">
+            <div className="flex items-center gap-1.5">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("map.locationsPanel.search")}
+                  aria-label={t("map.locationsPanel.search")}
+                  className="h-8 pl-7 text-xs"
+                />
+              </div>
+              <HintButton
+                type="button"
+                size="icon"
+                variant={showFilters || filtersActive ? "secondary" : "ghost"}
+                className="relative size-8 shrink-0"
+                onClick={() => setShowFilters((v) => !v)}
+                aria-label={t("map.locationsPanel.filters")}
+                aria-expanded={showFilters}
+              >
+                <SlidersHorizontal className="size-3.5" />
+                {filtersActive && (
+                  <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" />
+                )}
+              </HintButton>
+            </div>
+            <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+              <SelectTrigger
+                className="h-7 w-full text-xs"
+                aria-label={t("map.locationsPanel.sortLabel")}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="eal">
+                  {t("map.locationsPanel.sort.eal")}
+                </SelectItem>
+                <SelectItem value="zone">
+                  {t("map.locationsPanel.sort.zone")}
+                </SelectItem>
+                <SelectItem value="name">
+                  {t("map.locationsPanel.sort.name")}
+                </SelectItem>
+                {subject && (
+                  <SelectItem value="nearby">
+                    {t("map.locationsPanel.sort.nearby", {
+                      name: subject.name,
+                    })}
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            {showFilters && (
+              <PortfolioFilterBar dealerships={dealerships} variant="panel" />
+            )}
           </div>
         )}
 
@@ -375,24 +502,41 @@ export function LocationsPanel({
             <div className="min-h-0 flex-1 overflow-y-auto border-t">
               {rows.length === 0 ? (
                 <p className="px-2.5 py-3 text-xs text-muted-foreground">
-                  {t("map.locationsPanel.empty")}
+                  {dealerships.length > 0
+                    ? t("map.locationsPanel.noMatches")
+                    : t("map.locationsPanel.empty")}
                 </p>
               ) : (
-                <ul className="divide-y">
-                  {rows.map((row) => (
-                    <LocationRow
-                      key={row.d.id}
-                      row={row}
-                      selected={row.d.id === selectedId}
-                      pending={!row.d.risk || analyzingIds.includes(row.d.id)}
-                      onSelect={onSelect}
-                      onOpenDetails={onOpenDetails}
-                      selectMode={selectMode}
-                      checked={selectedIds.has(row.d.id)}
-                      onToggleCheck={toggleChecked}
-                    />
-                  ))}
-                </ul>
+                <>
+                  <ul className="divide-y">
+                    {rows.slice(0, visible).map((row) => (
+                      <LocationRow
+                        key={row.d.id}
+                        row={row}
+                        selected={row.d.id === selectedId}
+                        analyzing={analyzingIds.includes(row.d.id)}
+                        showBusiness={mixedBusiness}
+                        onSelect={onSelect}
+                        onOpenDetails={onOpenDetails}
+                        selectMode={selectMode}
+                        checked={selectedIds.has(row.d.id)}
+                        onToggleCheck={toggleChecked}
+                      />
+                    ))}
+                  </ul>
+                  {rows.length > visible && (
+                    <button
+                      type="button"
+                      className="w-full border-t px-2.5 py-2 text-xs font-medium text-primary hover:bg-accent/60"
+                      onClick={() => setVisible((v) => v + PAGE)}
+                    >
+                      {t("map.locationsPanel.showMore", {
+                        count: Math.min(PAGE, rows.length - visible),
+                        rest: rows.length - visible,
+                      })}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </>
@@ -493,7 +637,8 @@ function neighborSummaryText(t: TFunction, count: number): string {
 function LocationRow({
   row,
   selected,
-  pending,
+  analyzing,
+  showBusiness,
   onSelect,
   onOpenDetails,
   selectMode = false,
@@ -502,7 +647,10 @@ function LocationRow({
 }: Readonly<{
   row: Row;
   selected: boolean;
-  pending: boolean;
+  /** The analysis of this location is running right now. */
+  analyzing: boolean;
+  /** Business chips only help when the portfolio mixes both types. */
+  showBusiness: boolean;
   onSelect: (id: string) => void;
   onOpenDetails: (id: string) => void;
   selectMode?: boolean;
@@ -544,21 +692,28 @@ function LocationRow({
           }
         />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate font-medium">{d.name}</span>
-            <span className="ml-auto shrink-0 tabular-nums text-muted-foreground">
-              <PendingSpinner pending={pending} />
-            </span>
+          {/* Full width for the name; the figure sits on the second line. */}
+          <div className="truncate font-medium">{d.name}</div>
+          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
+            {analyzing ? (
+              <>
+                <PendingSpinner pending />
+                {t("map.locationsPanel.analyzing")}
+              </>
+            ) : !d.risk ? (
+              t("map.locationsPanel.pending")
+            ) : (
+              t("map.locationsPanel.ealValue", { value: eur(d.risk.eal) })
+            )}
           </div>
-          {/* Meta and relationship badges */}
-          <div className="mt-1 flex flex-wrap gap-1">
+          <div className="mt-1 flex flex-wrap gap-1 empty:hidden">
             {d.group && (
               <Chip>
                 <Users className="size-3" />
                 {d.group}
               </Chip>
             )}
-            {d.insured && (
+            {showBusiness && d.insured && (
               <Chip>
                 <ShieldCheck className="size-3" />
                 {t("map.locationsPanel.insuredChip")}

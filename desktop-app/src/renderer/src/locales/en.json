@@ -947,7 +947,15 @@
     },
     "table": {
       "description": "All locations with hail zone, vehicles, exposure and hail EAL. Click a row for details.",
-      "search": "Search table…"
+      "search": "Search table…",
+      "range_one": "{{from}}–{{to}} of {{count}} location",
+      "range_other": "{{from}}–{{to}} of {{count}} locations",
+      "rowsPerPage": "Rows per page",
+      "perPage": "{{count}} per page",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "page": "Page {{page}} of {{pages}}",
+      "pending": "pending"
     }
   },
   "map": {
@@ -1043,7 +1051,21 @@
       "markNotInsuredToast": "Marked {{count}} location(s) as new business",
       "directoryHintPrefix": "Dealer missing?",
       "directoryHintLink": "Load the dealer directory",
-      "distanceChip": "{{distance}} km away"
+      "distanceChip": "{{distance}} km away",
+      "countOf": "{{shown}} of {{total}}",
+      "search": "Search…",
+      "filters": "Filters",
+      "sortLabel": "Sort order",
+      "sort": {
+        "eal": "Sorted by hail EAL",
+        "zone": "Sorted by hail zone",
+        "name": "Sorted by name",
+        "nearby": "Nearest to {{name}}"
+      },
+      "noMatches": "No locations match this search or filter.",
+      "showMore": "Show {{count}} more ({{rest}} left)",
+      "pending": "pending",
+      "ealValue": "Hail EAL {{value}}"
     },
     "hailZones": {
       "loading": "Loading postcode outlines…",
@@ -1138,11 +1160,11 @@
       "openSettings": "Open settings",
       "deleteConfirmTitle": "Delete location?",
       "deleteConfirmDescription": "“{{name}}” is removed from this portfolio together with its analysis and notes. This cannot be undone.",
-      "resumeTitle_one": "Analysis interrupted: {{count}} location open",
-      "resumeTitle_other": "Analysis interrupted: {{count}} locations open",
-      "resumeDetail": "The app was closed during an analysis. Locations already analysed are saved.",
-      "resumeAction": "Resume",
-      "resumeDiscard": "Discard"
+      "resumeTitle_one": "{{count}} location not analysed yet",
+      "resumeTitle_other": "{{count}} locations not analysed yet",
+      "resumeDetail": "The analysis was interrupted. Locations already analysed are saved.",
+      "resumeAction": "Continue analysis",
+      "resumeDiscard": "Later"
     }
   },
   "ai": {
@@ -1330,7 +1352,18 @@
     "clusterFilterLabel": "Accumulation: {{name}}",
     "newConversation": "New conversation",
     "chatHistory": "Previous conversations",
-    "deleteThreadConfirm": "Delete “{{name}}”?"
+    "deleteThreadConfirm": "Delete “{{name}}”?",
+    "filter": {
+      "allZones": "All hail zones",
+      "zone": "Zone {{zone}} ({{count}})",
+      "noZone": "No zone ({{count}})",
+      "statusLabel": "Processing state",
+      "allStatus": "All states",
+      "analyzed": "Analysed ({{count}})",
+      "pending": "Pending ({{count}})",
+      "review": "Check boundary ({{count}})"
+    },
+    "locationsPartlyAnalyzed": "{{analyzed}} of {{total}} analysed · {{pending}} pending"
   },
   "aiSetup": {
     "missingTitle": "AI assistant not set up yet",

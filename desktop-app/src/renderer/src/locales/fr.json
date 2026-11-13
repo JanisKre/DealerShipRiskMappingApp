@@ -596,6 +596,16 @@
     },
     "hailEalDetail": {
       "severityNote": "λ = événements de grêle par an dans la zone ; le dommage par véhicule est la perte attendue par événement."
+    },
+    "table": {
+      "range_one": "{{from}}–{{to}} sur {{count}} site",
+      "range_other": "{{from}}–{{to}} sur {{count}} sites",
+      "rowsPerPage": "Lignes par page",
+      "perPage": "{{count}} par page",
+      "previousPage": "Page précédente",
+      "nextPage": "Page suivante",
+      "page": "Page {{page}} sur {{pages}}",
+      "pending": "en attente"
     }
   },
   "map": {
@@ -691,7 +701,21 @@
       "markNotInsuredToast": "{{count}} site(s) marqué(s) comme affaire nouvelle",
       "directoryHintPrefix": "Concessionnaire introuvable ?",
       "directoryHintLink": "Charger l’annuaire",
-      "distanceChip": "à {{distance}} km"
+      "distanceChip": "à {{distance}} km",
+      "countOf": "{{shown}} sur {{total}}",
+      "search": "Rechercher…",
+      "filters": "Filtres",
+      "sortLabel": "Tri",
+      "sort": {
+        "eal": "Trié par EAL grêle",
+        "zone": "Trié par zone de grêle",
+        "name": "Trié par nom",
+        "nearby": "Proximité de {{name}}"
+      },
+      "noMatches": "Aucun site ne correspond à cette recherche ou à ces filtres.",
+      "showMore": "Afficher {{count}} de plus (encore {{rest}})",
+      "pending": "en attente",
+      "ealValue": "EAL grêle {{value}}"
     },
     "hailZones": {
       "loading": "Chargement des contours des codes postaux…",
@@ -786,11 +810,11 @@
       "openSettings": "Ouvrir les paramètres",
       "deleteConfirmTitle": "Supprimer le site ?",
       "deleteConfirmDescription": "« {{name}} » est retiré de ce portefeuille avec son analyse et ses notes. Cette action est irréversible.",
-      "resumeTitle_one": "Analyse interrompue : {{count}} site en attente",
-      "resumeTitle_other": "Analyse interrompue : {{count}} sites en attente",
-      "resumeDetail": "L'application a été fermée pendant une analyse. Les sites déjà analysés sont enregistrés.",
-      "resumeAction": "Reprendre",
-      "resumeDiscard": "Abandonner"
+      "resumeTitle_one": "{{count}} site pas encore analysé",
+      "resumeTitle_other": "{{count}} sites pas encore analysés",
+      "resumeDetail": "L'analyse a été interrompue. Les sites déjà analysés sont enregistrés.",
+      "resumeAction": "Poursuivre l'analyse",
+      "resumeDiscard": "Plus tard"
     }
   },
   "ai": {
@@ -978,7 +1002,18 @@
     "clusterFilterLabel": "Cumul : {{name}}",
     "newConversation": "Nouvelle conversation",
     "chatHistory": "Conversations précédentes",
-    "deleteThreadConfirm": "Supprimer « {{name}} » ?"
+    "deleteThreadConfirm": "Supprimer « {{name}} » ?",
+    "filter": {
+      "allZones": "Toutes les zones",
+      "zone": "Zone {{zone}} ({{count}})",
+      "noZone": "Sans zone ({{count}})",
+      "statusLabel": "État",
+      "allStatus": "Tous les états",
+      "analyzed": "Analysés ({{count}})",
+      "pending": "En attente ({{count}})",
+      "review": "Limite à vérifier ({{count}})"
+    },
+    "locationsPartlyAnalyzed": "{{analyzed}} sur {{total}} analysés · {{pending}} en attente"
   },
   "aiSetup": {
     "missingTitle": "Assistant IA pas encore configuré",

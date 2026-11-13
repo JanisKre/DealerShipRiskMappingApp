@@ -34,7 +34,7 @@ import { Button } from "@renderer/components/ui/button";
 import { Progress } from "@renderer/components/ui/progress";
 import { cn } from "@renderer/lib/utils";
 import { useNavigate } from "react-router-dom";
-import { useAppStore } from "@renderer/store/appStore";
+import { unanalyzedInputs, useAppStore } from "@renderer/store/appStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import {
   useImagerySelection,
@@ -269,9 +269,10 @@ export function MapPage(): React.JSX.Element {
   const analysisErrors = useAppStore((s) => s.analysisErrors);
   const failedInputs = useAppStore((s) => s.failedInputs);
   const retryFailedAnalyses = useAppStore((s) => s.retryFailedAnalyses);
-  const pendingAnalysis = useAppStore((s) => s.pendingAnalysis);
   const resumeAnalysis = useAppStore((s) => s.resumeAnalysis);
   const discardPendingAnalysis = useAppStore((s) => s.discardPendingAnalysis);
+  const unanalyzedCount = useAppStore((s) => unanalyzedInputs(s).length);
+  const [resumeDismissed, setResumeDismissed] = useState(false);
   const cancelAnalysis = useAppStore((s) => s.cancelAnalysis);
   const detectionUpdateIds = useAppStore((s) => s.detectionUpdateIds);
   const detectionUpdateErrors = useAppStore((s) => s.detectionUpdateErrors);
@@ -692,13 +693,14 @@ export function MapPage(): React.JSX.Element {
   // An import that was interrupted (app closed or crashed): resume it.
   const resumeNotice =
     !analyzing &&
-    pendingAnalysis.length > 0 &&
+    !resumeDismissed &&
+    unanalyzedCount > 0 &&
     Object.keys(analysisErrors).length === 0 ? (
       <div className={NOTICE_CLASS}>
         <RefreshCw className="mt-0.5 size-4 shrink-0 text-primary" />
         <div className="min-w-0 flex-1 space-y-1">
           <div className="font-medium">
-            {t("map.page.resumeTitle", { count: pendingAnalysis.length })}
+            {t("map.page.resumeTitle", { count: unanalyzedCount })}
           </div>
           <p className="text-xs text-muted-foreground">
             {t("map.page.resumeDetail")}
@@ -717,7 +719,10 @@ export function MapPage(): React.JSX.Element {
               size="sm"
               variant="ghost"
               className="h-7 text-xs"
-              onClick={discardPendingAnalysis}
+              onClick={() => {
+                discardPendingAnalysis();
+                setResumeDismissed(true);
+              }}
             >
               {t("map.page.resumeDiscard")}
             </Button>

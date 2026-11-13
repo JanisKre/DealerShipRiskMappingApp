@@ -324,31 +324,24 @@ body {
 }
 
 /* ── Cluster-Icon ─────────────────────────────────────────────────────── */
-/* Group of several locations: shadcn-style pill (card surface, hairline
-   border) with a risk dot for the worst risk inside, a building icon and
-   the count. Single locations stay teardrop pins. */
+/* Group of several locations: a round badge with the count (its size grows
+   with the count), so hundreds of locations stay readable. Single locations
+   stay teardrop pins. */
 .cluster-icon {
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: max-content;
-  height: 32px;
-  padding: 0 12px 0 10px;
+  justify-content: center;
   border-radius: 9999px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--card-foreground);
-  font-size: 13px;
-  font-weight: 600;
+  border: 2px solid var(--card);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 12px;
+  font-weight: 700;
   line-height: 1;
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.12),
-    0 4px 10px rgba(0, 0, 0, 0.18);
-}
-
-.cluster-icon svg {
-  opacity: 0.6;
+    0 0 0 4px color-mix(in oklab, var(--primary) 25%, transparent),
+    0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 /* Parcel overlay over streets and terrain: one colour for every state

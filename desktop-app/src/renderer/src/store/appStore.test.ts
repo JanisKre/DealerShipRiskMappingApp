@@ -193,7 +193,7 @@ describe("interrupted batch analysis", () => {
     ]);
   });
 
-  it("discards pending inputs and their unanalysed pins", () => {
+  it("forgets the queue but keeps the imported locations", () => {
     api.saveSession.mockResolvedValue(undefined);
     useAppStore.setState({
       pendingAnalysis: [firstInput],
@@ -201,7 +201,7 @@ describe("interrupted batch analysis", () => {
     });
     useAppStore.getState().discardPendingAnalysis();
     expect(useAppStore.getState().pendingAnalysis).toEqual([]);
-    expect(useAppStore.getState().dealerships).toEqual([]);
+    expect(useAppStore.getState().dealerships).toHaveLength(1);
   });
 
   it("records a review in the change history", async () => {

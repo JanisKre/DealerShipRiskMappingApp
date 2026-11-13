@@ -5,11 +5,18 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, AlertTriangle, MapPin } from "lucide-react";
+import {
+  ArrowUpDown,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+} from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { alertIdSet, generateAlerts } from "@shared/analytics";
@@ -20,7 +27,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@renderer/components/ui/card";
+import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@renderer/components/ui/select";
 import {
   Table,
   TableBody,
@@ -65,6 +80,7 @@ export function DealershipTable({
     { id: "eal", desc: true },
   ]);
   const [filter, setFilter] = useState("");
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 25 });
   const parameters = useAppStore((s) => s.parameters);
 
   const alertIds = useMemo(
@@ -90,6 +106,7 @@ export function DealershipTable({
         header: t("dashboard.hailZone"),
         cell: (info) => {
           const zone = info.getValue();
+          if (!info.row.original.risk) return <PendingLabel />;
           if (zone === 0) return "–";
           const estimated =
             dealershipHailZone(info.row.original)?.source === "estimated";
@@ -99,17 +116,17 @@ export function DealershipTable({
       columnHelper.accessor((d) => effectiveVehicleCount(d.detection), {
         id: "vehicles",
         header: t("common.vehicles"),
-        cell: (info) => num(info.getValue()),
+        cell: (info) => (info.row.original.risk ? num(info.getValue()) : "—"),
       }),
       columnHelper.accessor((d) => d.risk?.exposureEur ?? 0, {
         id: "exposure",
         header: t("dashboard.totalExposure"),
-        cell: (info) => eur(info.getValue()),
+        cell: (info) => (info.row.original.risk ? eur(info.getValue()) : "—"),
       }),
       columnHelper.accessor((d) => d.risk?.eal ?? 0, {
         id: "eal",
         header: t("dashboard.hailEal"),
-        cell: (info) => eur(info.getValue()),
+        cell: (info) => (info.row.original.risk ? eur(info.getValue()) : "—"),
       }),
       columnHelper.display({
         id: "actions",
@@ -137,13 +154,25 @@ export function DealershipTable({
   const table = useReactTable({
     data: dealerships,
     columns,
-    state: { sorting, globalFilter: filter },
+    state: { sorting, globalFilter: filter, pagination },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setFilter,
+    onGlobalFilterChange: (value) => {
+      setFilter(value as string);
+      // A new search starts on the first page.
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+    },
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    autoResetPageIndex: false,
   });
+  const matching = table.getFilteredRowModel().rows.length;
+  const pageCount = table.getPageCount();
+  // Fewer rows (a filter changed elsewhere) can leave the page past the end.
+  if (pagination.pageIndex > 0 && pagination.pageIndex >= pageCount)
+    setPagination((p) => ({ ...p, pageIndex: Math.max(0, pageCount - 1) }));
 
   const highlight = highlightIds ? new Set(highlightIds) : null;
 
@@ -263,7 +292,81 @@ export function DealershipTable({
             </TableBody>
           </Table>
         </div>
+        {matching > PAGE_SIZES[0] && (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="tabular-nums">
+              {t("dashboard.table.range", {
+                from: pagination.pageIndex * pagination.pageSize + 1,
+                to: Math.min(
+                  matching,
+                  (pagination.pageIndex + 1) * pagination.pageSize,
+                ),
+                count: matching,
+              })}
+            </span>
+            <div className="flex items-center gap-2">
+              <Select
+                value={String(pagination.pageSize)}
+                onValueChange={(v) =>
+                  setPagination({ pageIndex: 0, pageSize: Number(v) })
+                }
+              >
+                <SelectTrigger
+                  className="h-8 w-auto gap-2 text-xs"
+                  aria-label={t("dashboard.table.rowsPerPage")}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZES.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {t("dashboard.table.perPage", { count: size })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                aria-label={t("dashboard.table.previousPage")}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="tabular-nums">
+                {t("dashboard.table.page", {
+                  page: pagination.pageIndex + 1,
+                  pages: pageCount,
+                })}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                aria-label={t("dashboard.table.nextPage")}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+const PAGE_SIZES = [25, 50, 100];
+
+/** Not analysed yet: no figure to show, rather than a misleading "0 €". */
+function PendingLabel(): React.JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <span className="text-xs text-muted-foreground">
+      {t("dashboard.table.pending")}
+    </span>
   );
 }

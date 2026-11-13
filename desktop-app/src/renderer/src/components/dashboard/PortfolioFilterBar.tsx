@@ -2,7 +2,10 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
-import { computeAccumulationClusters } from "@shared/risk-math";
+import {
+  computeAccumulationClusters,
+  dealershipHailZone,
+} from "@shared/risk-math";
 import { Button } from "@renderer/components/ui/button";
 import {
   Select,
@@ -13,9 +16,53 @@ import {
 } from "@renderer/components/ui/select";
 import {
   businessType,
+  locationStatus,
   useAppStore,
+  type LocationStatus,
   type PortfolioFilters,
 } from "@renderer/store/appStore";
+
+/** Zone filter value of a location ("none" while it has no zone yet). */
+function zoneKey(d: AnalyzedDealership): number | "none" {
+  return dealershipHailZone(d)?.zone ?? "none";
+}
+
+function statusMatches(d: AnalyzedDealership, status: LocationStatus): boolean {
+  if (status === "review") return d.boundary?.reviewRequired === true;
+  return locationStatus(d) === status;
+}
+
+/** Counts per hail zone and per processing state, for the filter options. */
+function useOptionCounts(dealerships: AnalyzedDealership[]): {
+  zones: Array<{ key: number | "none"; count: number }>;
+  status: Record<LocationStatus, number>;
+} {
+  return useMemo(() => {
+    const zones = new Map<number | "none", number>();
+    const status: Record<LocationStatus, number> = {
+      analyzed: 0,
+      pending: 0,
+      review: 0,
+    };
+    for (const d of dealerships) {
+      const key = zoneKey(d);
+      zones.set(key, (zones.get(key) ?? 0) + 1);
+      status[locationStatus(d)]++;
+      if (d.boundary?.reviewRequired) status.review++;
+    }
+    return {
+      zones: [...zones]
+        .map(([key, count]) => ({ key, count }))
+        .sort((a, b) =>
+          a.key === "none" ? 1 : b.key === "none" ? -1 : a.key - b.key,
+        ),
+      status,
+    };
+  }, [dealerships]);
+}
+
+/** Trigger that sizes to its label instead of clipping it. */
+const TRIGGER = "h-9 w-auto min-w-36 gap-2 bg-background text-sm";
 
 const ALL = "__all__";
 
@@ -84,12 +131,20 @@ export function PortfolioFilterBar({
       ? `${largest.name} ${t("dashboard.accumulations.more", { count: cluster.count - 1 })}`
       : largest.name;
   }, [dealerships, filters.clusterId, parameters, t]);
+  const counts = useOptionCounts(dealerships);
+  const showZone = counts.zones.length > 1 || filters.hailZone != null;
+  const showStatus =
+    counts.status.pending > 0 ||
+    counts.status.review > 0 ||
+    filters.status != null;
   const fallbackCount = useMemo(
     () => dealerships.filter((d) => d.boundary?.source === "synthetic").length,
     [dealerships],
   );
 
   const active =
+    filters.hailZone != null ||
+    filters.status ||
     filters.business ||
     filters.subPortfolio ||
     filters.salesPartner ||
@@ -106,7 +161,9 @@ export function PortfolioFilterBar({
     partners.length === 0 &&
     subs.length === 0 &&
     groups.length === 0 &&
-    fallbackCount === 0
+    fallbackCount === 0 &&
+    !showZone &&
+    !showStatus
   )
     return null;
 
@@ -119,6 +176,64 @@ export function PortfolioFilterBar({
         panel ? "flex flex-col gap-2" : "flex flex-wrap items-center gap-2"
       }
     >
+      {showZone && (
+        <Select
+          value={filters.hailZone == null ? ALL : String(filters.hailZone)}
+          onValueChange={(v) =>
+            setFilters({
+              hailZone: v === ALL ? null : v === "none" ? "none" : Number(v),
+            })
+          }
+        >
+          <SelectTrigger
+            className={selectClass ?? TRIGGER}
+            aria-label={t("dashboard.hailZone")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t("ui.filter.allZones")}</SelectItem>
+            {counts.zones.map(({ key, count }) => (
+              <SelectItem key={key} value={String(key)}>
+                {key === "none"
+                  ? t("ui.filter.noZone", { count })
+                  : t("ui.filter.zone", { zone: key, count })}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      {showStatus && (
+        <Select
+          value={filters.status ?? ALL}
+          onValueChange={(v) =>
+            setFilters({ status: v === ALL ? null : (v as LocationStatus) })
+          }
+        >
+          <SelectTrigger
+            className={selectClass ?? TRIGGER}
+            aria-label={t("ui.filter.statusLabel")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t("ui.filter.allStatus")}</SelectItem>
+            <SelectItem value="analyzed">
+              {t("ui.filter.analyzed", { count: counts.status.analyzed })}
+            </SelectItem>
+            {counts.status.pending > 0 && (
+              <SelectItem value="pending">
+                {t("ui.filter.pending", { count: counts.status.pending })}
+              </SelectItem>
+            )}
+            {counts.status.review > 0 && (
+              <SelectItem value="review">
+                {t("ui.filter.review", { count: counts.status.review })}
+              </SelectItem>
+            )}
+          </SelectContent>
+        </Select>
+      )}
       <BusinessTypeSelect dealerships={dealerships} className={selectClass} />
       {subs.length > 0 && (
         <FilterSelect
@@ -157,14 +272,13 @@ export function PortfolioFilterBar({
           }
         >
           <SelectTrigger
-            className={selectClass ?? "h-9 w-52 bg-background text-sm"}
+            className={selectClass ?? TRIGGER}
+            aria-label={t("ui.boundarySource")}
           >
             <SelectValue placeholder={t("ui.boundarySource")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>
-              {t("ui.allBoundaries")} · {t("ui.boundarySource")}
-            </SelectItem>
+            <SelectItem value={ALL}>{t("ui.allBoundaries")}</SelectItem>
             <SelectItem value="fallback">
               {t("ui.fallbackBoundary")} ({fallbackCount})
             </SelectItem>
@@ -204,7 +318,7 @@ function useBusinessCounts(dealerships: AnalyzedDealership[]): {
  */
 function BusinessTypeSelect({
   dealerships,
-  className = "h-9 w-52 bg-background text-sm",
+  className = TRIGGER,
 }: Readonly<{
   dealerships: AnalyzedDealership[];
   className?: string;
@@ -243,7 +357,7 @@ function FilterSelect({
   value,
   options,
   onChange,
-  className = "h-9 w-48 bg-background text-sm",
+  className = TRIGGER,
 }: Readonly<{
   label: string;
   value: string | null;
@@ -257,7 +371,7 @@ function FilterSelect({
       value={value ?? ALL}
       onValueChange={(v) => onChange(v === ALL ? null : v)}
     >
-      <SelectTrigger className={className}>
+      <SelectTrigger className={className} aria-label={label}>
         <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent>
@@ -287,6 +401,8 @@ export function applyMetaFilters(
       (!filters.group || d.group === filters.group) &&
       (!filters.boundarySource ||
         (filters.boundarySource === "fallback" &&
-          d.boundary?.source === "synthetic")),
+          d.boundary?.source === "synthetic")) &&
+      (filters.hailZone == null || zoneKey(d) === filters.hailZone) &&
+      (!filters.status || statusMatches(d, filters.status)),
   );
 }

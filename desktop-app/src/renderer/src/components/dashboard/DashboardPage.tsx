@@ -144,6 +144,10 @@ export function DashboardPage(): React.JSX.Element {
   });
 
   const filtered = useFilteredDealerships(dealerships);
+  const analyzedCount = useMemo(
+    () => dealerships.filter((d) => d.risk).length,
+    [dealerships],
+  );
 
   useEffect(() => {
     window.localStorage.setItem(TILE_STORAGE_KEY, JSON.stringify(tileOrder));
@@ -234,12 +238,18 @@ export function DashboardPage(): React.JSX.Element {
                 {portfolioName(sessionName, t)}
               </h2>
               <p className="text-sm text-muted-foreground">
-                {filtered.length === dealerships.length
-                  ? t("ui.locationsAnalyzed", { count: dealerships.length })
-                  : t("ui.locationsFiltered", {
+                {filtered.length !== dealerships.length
+                  ? t("ui.locationsFiltered", {
                       filtered: filtered.length,
                       total: dealerships.length,
-                    })}
+                    })
+                  : analyzedCount < dealerships.length
+                    ? t("ui.locationsPartlyAnalyzed", {
+                        analyzed: analyzedCount,
+                        total: dealerships.length,
+                        pending: dealerships.length - analyzedCount,
+                      })
+                    : t("ui.locationsAnalyzed", { count: dealerships.length })}
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">

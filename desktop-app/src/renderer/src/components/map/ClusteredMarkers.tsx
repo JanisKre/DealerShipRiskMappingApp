@@ -52,10 +52,6 @@ function zoneOf(d: AnalyzedDealership): number | undefined {
   return dealershipHailZone(d)?.zone;
 }
 
-/** lucide "building-2": a group of locations, as opposed to a single pin. */
-const CLUSTER_ICON_SVG =
-  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>';
-
 /** Six-step hail zone bar; the site's zone is lit, the others are dimmed. */
 function zoneScaleHtml(zone: number): string {
   const cells = [1, 2, 3, 4, 5, 6]
@@ -156,14 +152,15 @@ export function ClusteredMarkers({
       showCoverageOnHover: false,
       iconCreateFunction(cluster) {
         const count = cluster.getChildCount();
+        // A round badge with the number only: wide "30 Standorte" pills
+        // overlapped each other once a portfolio had hundreds of locations.
+        const size = count < 10 ? 32 : count < 100 ? 38 : 46;
         const label = `${count} ${t("dashboard.locations")}`;
-        // Fixed box so Leaflet can anchor it; the pill itself is centered inside.
-        const width = 56 + label.length * 7;
         return L.divIcon({
           className: "",
-          iconSize: [width, 32],
-          iconAnchor: [width / 2, 16],
-          html: `<div class="cluster-icon">${CLUSTER_ICON_SVG}<span>${escapeHtml(label)}</span></div>`,
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2],
+          html: `<div class="cluster-icon" style="width:${size}px;height:${size}px" role="img" aria-label="${escapeHtml(label)}"><span>${count}</span></div>`,
         });
       },
     });
