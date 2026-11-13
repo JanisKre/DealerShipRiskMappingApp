@@ -1,29 +1,28 @@
 # DealerShipRiskMapping Desktop — Architecture
 
-Target architecture for the rebuild as a standalone **Electron desktop app**
-(single-user, local).
-For feature scope, see [CORE_FUNCTIONALITIES.md](./CORE_FUNCTIONALITIES.md).
+Architecture of the standalone **Electron desktop app** (single-user, local).
+For feature scope, see the [README](./README.md#what-it-does).
 
 ## Tech Stack
 
 | Area               | Choice                                                   |
 | ------------------ | ---------------------------------------------------------|
 | Runtime/Shell      | Electron 44                                              |
-| Build/Bundler      | electron-vite 5 + Vite 7                                 |
-| Language           | TypeScript 5.8 (strict), separate tsconfigs (node/web)    |
+| Build/Bundler      | electron-vite 6 + Vite 8                                 |
+| Language           | TypeScript 6 (strict), separate tsconfigs (node/web)      |
 | UI framework       | React 19                                                  |
 | UI components      | **shadcn/ui + Tailwind CSS 4** (Radix primitives)         |
 | State              | Zustand 5                                                 |
 | DB (local)         | better-sqlite3 + Drizzle ORM (in the `userData` path)     |
 | Maps               | Leaflet + own React bindings + Geoman (polygon editing)   |
 | ML inference       | onnxruntime-node (YOLOv26) in a `utilityProcess`           |
-| LLM                | provider-agnostic (Ollama/OpenAI/Claude/Gemini)           |
+| LLM                | provider-agnostic (Ollama/LM Studio/llama.cpp, OpenAI, Claude, custom endpoint) |
 | i18n               | i18next + react-i18next (de/en/fr)                        |
 | IPC validation     | Zod at the IPC boundary                                   |
-| Toolchain          | ESLint + Prettier + Husky + lint-staged                   |
-| Tests              | Vitest (unit) + Playwright (E2E/component)                |
+| Toolchain          | ESLint (incl. jsx-a11y) + Prettier                        |
+| Tests              | Vitest (unit, fast-check) + Playwright (E2E, axe-core)    |
 | Packaging          | electron-builder (mac/win)                                |
-| Error tracking     | Sentry (optional)                                          |
+| Logging            | rotating local log file; no error-tracking service        |
 
 ## 3-Process Model
 
@@ -36,9 +35,9 @@ typed and Zod-validated over IPC.
 │  RENDERER (sandboxed, no Node)                             │
 │  React 19 + shadcn/ui + Tailwind + Zustand + Leaflet       │
 │  ├─ components/  (map, dashboard, upload, ai, settings)    │
-│  ├─ hooks/       (useDealerships, useBoundaryRefinement…)  │
-│  ├─ store/       (Zustand: appStore)                       │
-│  └─ services/    (thin wrappers around window.api.*)       │
+│  ├─ components/  (map, dashboard, upload, chat, settings…) │
+│  ├─ store/       (Zustand stores)                          │
+│  └─ lib/         (formatting, analytics, chat helpers)     │
 └───────────────────────────▲──────────────────────────────┘
                              │  window.api.* (contextBridge)
 ┌────────────────────────────┴─────────────────────────────┐
@@ -48,22 +47,22 @@ typed and Zod-validated over IPC.
                              │  ipcMain.handle  (Zod-validated)
 ┌───────────────────────────┴──────────────────────────────┐
 │  MAIN (Node — "backend", replaces the Express server)     │
-│  ├─ ipc/        (*.handlers.ts per domain)                │
+│  ├─ ipc/        (index.ts: handlers, sender checks)        │
 │  ├─ services/   business logic:                           │
-│  │   ├─ boundary.service   (ALKIS/OSM/Overture→fusion→QA)  │
+│  │   ├─ boundary.service   (source cascade: parcels+cars)  │
 │  │   ├─ detection.service  (YOLOv26 ONNX inference)         │
 │  │   ├─ risk.service       (hail score + hail EAL)         │
-│  │   ├─ weather.service    (Open-Meteo/DWD + cache)        │
-│  │   ├─ llm.service        (memos, chat, NL query)         │
-│  │   └─ export.service     (CSV/PDF/Excel)                 │
+│  │   ├─ weather.service    (Open-Meteo CAPE + cache)       │
+│  │   ├─ hail-history/      (DWD hail days, context only)   │
+│  │   ├─ llm.service        (memos, chat, NL query, A2UI)   │
+│  │   └─ export.service     (CSV/PDF/Excel/.drm)            │
 │  ├─ db/         (Drizzle + better-sqlite3 repos)           │
-│  ├─ workers/    (ONNX inference, Overture dealer download) │
-│  └─ config/     (settings, API keys via safeStorage)       │
+│  └─ workers/    (ONNX inference, Overture dealer download) │
 └──────────────┬────────────────────────────────────────────┘
                │ direct HTTP calls (no CORS in Main!)
-        External APIs: Overpass, Nominatim, Photon, MSFT Buildings,
-        Overture Maps (STAC + S3), weather, LLM providers,
-        Hugging Face Hub (model discovery);
+        External APIs: Overpass, Nominatim, Photon, state cadastre
+        (ALKIS), orthophotos, Overture Maps (STAC + S3), Open-Meteo,
+        DWD, LLM providers, Hugging Face Hub, GitHub releases;
         local: Ollama / LM Studio / llama.cpp (loopback only)
 ```
 
@@ -92,11 +91,13 @@ flags, and limitations. See
 
 The move from web to desktop enables four concrete simplifications:
 
-1. **Overture instead of Overture + MSFT** — Overture has since absorbed the
-   MS Building Footprints via conflation (hierarchical merging, IoU > 0.5)
-   and assigns stable GERS IDs. This collapses the boundary chain from 5 to
-   4 sources: **ALKIS → OSM → Overture (incl. MSFT) → synthetic circle**. One
-   fewer client; GERS IDs give stable building identity for change detection.
+1. **One boundary cascade instead of a chain of building sources** — the web
+   stack merged ALKIS, OSM, Overture and MS Building Footprints. The desktop
+   app runs a vehicle-led source cascade: the cadastral parcel at the point
+   plus adjacent parcels on which detected vehicles stand, else the outline
+   of the vehicle lot, a cached OSM dealer area, the bare parcel or a
+   fallback octagon (see [docs/boundary-model.md](./docs/boundary-model.md)).
+   Overture is used only for the offline dealer directory.
 2. **Persistent local API cache** — a SQLite cache with a per-source TTL
    (Overpass 1 h, Buildings 7 d, weather configurable). Survives app restarts
    (the nginx cache was ephemeral) and enables partial offline operation.
@@ -122,7 +123,7 @@ as the map's satellite basemap; see docs/imagery-sources.md.
 
 | DRM (Express server)              | Electron equivalent                          |
 | ---------------------------------- | --------------------------------------------- |
-| REST routes (`server/routes/*`)   | IPC handlers (`src/main/ipc/*.handlers.ts`)   |
+| REST routes (`server/routes/*`)   | IPC handlers (`src/main/ipc/index.ts`)        |
 | `server/lib/*` business logic      | `src/main/services/*` (largely 1:1)           |
 | Express proxy (CORS/caching)       | Resilient HTTP client in Main + local cache    |
 | oauth2-proxy / nginx / rate limit  | dropped entirely                              |
@@ -138,11 +139,10 @@ dealership-risk-desktop/
 ├─ src/
 │  ├─ main/
 │  │  ├─ index.ts              # app lifecycle, BrowserWindow
-│  │  ├─ ipc/                  # *.handlers.ts per domain
-│  │  ├─ services/             # boundary, detection, risk, weather, llm, export
+│  │  ├─ ipc/                  # index.ts: all IPC handlers
+│  │  ├─ services/             # boundary, detection, risk, weather, llm, export, …
 │  │  ├─ db/                   # database.ts, versioned migrations, *.repo.ts
-│  │  ├─ workers/              # onnx-inference, overture-dealers (utilityProcess)
-│  │  └─ config/               # settings, safeStorage keys
+│  │  └─ workers/              # onnx-inference, overture-dealers (utilityProcess)
 │  ├─ preload/
 │  │  ├─ index.ts              # contextBridge → window.api
 │  │  └─ index.d.ts
@@ -150,7 +150,7 @@ dealership-risk-desktop/
 │  │  ├─ index.html
 │  │  └─ src/
 │  │     ├─ components/        # + ui/ for shadcn
-│  │     ├─ hooks/  store/  services/  styles/
+│  │     ├─ hooks/  store/  lib/  locales/  styles/
 │  │     └─ App.tsx
 │  └─ shared/
 │     ├─ ipc-channels.ts

@@ -29,6 +29,32 @@ export function repoFile(path: string): string {
   return `${REPO_URL}/blob/main/${path}`;
 }
 
+/**
+ * Sample portfolios: real dealership locations from OpenStreetMap (ODbL 1.0)
+ * in a separate repository. Smaller sets are subsets of larger ones.
+ */
+export const DATASET_REPO_URL = "https://github.com/JanisKre/dealership_dataset";
+const DATASET_FILE_BASE = `${DATASET_REPO_URL}/raw/main/data/car_dealerships_germany_`;
+
+export interface SampleDataset {
+  locations: number;
+  states: number;
+  csv: string;
+  xlsx: string;
+}
+
+export const SAMPLE_DATASETS: SampleDataset[] = [
+  { locations: 10, states: 8 },
+  { locations: 50, states: 16 },
+  { locations: 100, states: 16 },
+  { locations: 250, states: 16 },
+  { locations: 500, states: 16 },
+].map((d) => ({
+  ...d,
+  csv: `${DATASET_FILE_BASE}${d.locations}.csv`,
+  xlsx: `${DATASET_FILE_BASE}${d.locations}.xlsx`,
+}));
+
 export type Platform = "mac-arm64" | "mac-x64" | "win-x64";
 
 export interface DownloadOption {

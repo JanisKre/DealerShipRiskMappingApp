@@ -14,9 +14,9 @@ export const DOC_GROUPS = [
         slug: "installation",
         title: { en: "Installation", de: "Installation", fr: "Installation" },
         blurb: {
-          en: "Installers for macOS and Windows, and how to open an unsigned build.",
-          de: "Installer für macOS und Windows und wie sich ein unsignierter Build öffnen lässt.",
-          fr: "Installateurs pour macOS et Windows, et comment ouvrir une version non signée.",
+          en: "Installers for macOS and Windows, opening an unsigned build, and updates.",
+          de: "Installer für macOS und Windows, unsignierte Builds öffnen und Updates.",
+          fr: "Installateurs pour macOS et Windows, ouverture d’une version non signée et mises à jour.",
         },
       },
       {
@@ -32,9 +32,9 @@ export const DOC_GROUPS = [
         slug: "import-format",
         title: { en: "Import format", de: "Importformat", fr: "Format d’import" },
         blurb: {
-          en: "Supported files, recognised columns and a sample CSV.",
-          de: "Unterstützte Dateien, erkannte Spalten und eine Beispiel-CSV.",
-          fr: "Fichiers pris en charge, colonnes reconnues et un exemple de CSV.",
+          en: "Supported files, recognised columns and sample datasets to try the app.",
+          de: "Unterstützte Dateien, erkannte Spalten und Beispieldatensätze zum Ausprobieren.",
+          fr: "Fichiers pris en charge, colonnes reconnues et jeux de données d’exemple pour essayer.",
         },
       },
     ],
@@ -73,9 +73,9 @@ export const DOC_GROUPS = [
         slug: "ai-memo",
         title: { en: "AI memo & chat", de: "KI-Memo & Chat", fr: "Note IA & chat" },
         blurb: {
-          en: "Providers for memos and chat, and how API keys are stored.",
-          de: "Anbieter für Memos und Chat und wie API-Keys gespeichert werden.",
-          fr: "Fournisseurs pour les notes et le chat, et stockage des clés API.",
+          en: "Providers for memos, chat and dashboards, and how API keys are stored.",
+          de: "Anbieter für Memos, Chat und Dashboards und wie API-Keys gespeichert werden.",
+          fr: "Fournisseurs pour les notes, le chat et les tableaux de bord, et stockage des clés API.",
         },
       },
       {

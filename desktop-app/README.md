@@ -1,7 +1,11 @@
 # Dealership Risk Mapping — Desktop
 
-Standalone Electron desktop app for physical risk assessment of dealership
+Standalone Electron desktop app for hail-risk screening of dealership
 portfolios. A rebuild of the web platform as a single-user desktop app.
+
+Test data: the [German car dealership dataset](https://github.com/JanisKre/dealership_dataset)
+(OpenStreetMap, ODbL 1.0) has CSV and Excel files with 10, 50, 100, 250 and
+500 real locations that import as they are.
 
 ## Stack
 
@@ -71,59 +75,36 @@ API.
 
 ## Boundary quality and Germany-wide coverage
 
-Boundary detection is source-aware and geometry-aware rather than silently
-treating every polygon as equally reliable:
+Lot boundaries come from a **source cascade** (`src/main/services/boundary/cascade.ts`,
+cascade v3) in which the detected vehicles decide how far a site reaches and
+the cadastre decides its shape:
 
-- ALKIS is preferred where a verified state WFS adapter is available.
-- OSM/Overpass contributes parking, retail and car-dealer geometries. The
-  resolver ranks them using tags, dealership name/address and point
-  containment, validates geometry, and retains the other candidates for review.
-- Candidates carry an explicit role (`parcel`, `building`, `parkingSurface`,
-  `operationalLot`, or `synthetic`). A cadastral parcel or building footprint
-  is not silently promoted to an operational lot.
-- Overture Buildings can be queried through the official `overturemaps` CLI
-  when installed. Microsoft/Overture-style source confidence, GERS IDs and
-  source metadata are retained.
-- If vector evidence is weak, a low-confidence aerial paved-surface candidate
-  is generated from the configured imagery and must be reviewed.
-- Results are ranked using point relation, area plausibility, geometry validity,
-  source agreement, role fit and the top-2 margin. Provider failures are
-  isolated so one unavailable service does not discard the other candidates.
-- Every automatic result includes `confidence`, `reviewRequired` and up to ten
-  ranked `candidates`, plus explainable quality diagnostics. Low-confidence or
-  semantically incomplete results are surfaced in the map UI.
+1. the ALKIS parcel at the point plus every adjacent parcel on which enough
+   lot vehicles stand,
+2. else the outline of the vehicle lot,
+3. else an OSM dealer area, only when OSM is already cached (the analysis
+   never waits for Overpass),
+4. else the bare parcel at the point,
+5. else a fallback octagon (160 m) around the point, drawn dashed and
+   always flagged for review.
 
-Optional Overture integration:
+Every result carries a source, `confidence`, `reviewRequired` with named
+review reasons (low confidence, vehicles outside, incomplete cadastre,
+winter imagery, …) and the other computed `candidates`, so a reviewer can
+switch with one click or correct the polygon with Geoman. Cadastral parcels
+come from the open WFS services of 14 states; official building footprints
+(13 states) and OSM buildings mask roofs before vehicles are counted.
 
-```bash
-pip install overturemaps
-```
-
-The adapter uses the official bbox-pruned CLI download and otherwise degrades
-gracefully to the other providers. `OVERTURE_COMMAND` can point to a custom
-CLI executable and `OVERTURE_PYTHON` can select the Python runtime.
-
-For a Germany-wide rollout, the next production data layer should be a
-licensed nationwide cadastral feed (for example [BKG FS-DE](https://www.bkg.bund.de/SharedDocs/Produktinformationen/BKG/DE/P-2026/260305_FS-DE.html)
-where access and licensing permit it). [BKG DOP20](https://gdz.bkg.bund.de/index.php/default/webdienste/digitale-orthophotos/wmts-digitale-orthophotos-bodenauflosung-20cm-wmts-dop.html)
-is useful for visual validation and model input, while [BKG LB-DE](https://gdz.bkg.bund.de/index.php/default/wms-landbedeckung-deutschland-wms-lb-de.html)
-and ATKIS/Basis-DLM are useful priors for land-use filtering; they do not
-replace a dealership-lot polygon. OSM and Overture Places are useful for POI
-conflation, but neither should be used alone as proof of the lot boundary.
-
-The acceptance benchmark should use manually verified dealership polygons. The
-new `boundary-benchmark.ts` reports approximate IoU, Boundary-F1 at a 2 m
-tolerance, reference-area coverage, coverage-90% rate, area bias and confidence
-calibration. The existing acceptance target remains: the predicted boundary
-must cover at least 90% of the reference lot area in at least 90% of benchmark
-cases. Cases below that threshold remain reviewable and should feed back into
-source-specific ranking and calibration.
+Method, measurements and limitations: [docs/boundary-model.md](../docs/boundary-model.md).
+`npm run benchmark:boundary` measures the cascade against reference
+polygons; `npm run benchmark:boundary:replay` replays frozen inputs offline.
 
 ## Feature Scope
 
-- CSV import, manual entry, geocoding (Nominatim)
-- Multi-source boundary detection (ALKIS + semantic OSM/Overpass candidates)
-  with confidence, review flags and manual correction via Geoman
+- CSV/TSV/Excel import with preview, manual entry, geocoding (Nominatim,
+  Photon, official house coordinates in 8 states)
+- Lot boundaries from the source cascade (ALKIS parcels + detected vehicles)
+  with confidence, review reasons and manual correction via Geoman
 - Hail risk scoring (GDV hail zones, Open-Meteo CAPE proxy, optional licensed
   provider) with hail EAL breakdown, utilisation, exposure, PML, cluster
   heatmap
@@ -133,7 +114,9 @@ source-specific ranking and calibration.
   scenario corridor
 - Dashboard: KPIs, charts (recharts), sortable/filterable table, detail
   dialog, portfolio comparison
-- AI analysis (Ollama/OpenAI/Claude/Gemini): structured underwriting memo,
-  portfolio chat, executive summary, natural-language query — with streaming
-- Export: PDF, Excel, CSV; portfolio file export/import (.drm)
+- AI analysis (Ollama/LM Studio/llama.cpp, OpenAI, Claude, custom endpoint):
+  structured underwriting memo, portfolio chat, natural-language query and
+  AI dashboards (A2UI) — with streaming
+- Hail history: observed hail days at nearby DWD stations (context only)
+- Export: PDF, Excel, CSV, read-only view; portfolio file export/import (.drm)
 - Session persistence (SQLite), i18n (de/en/fr)

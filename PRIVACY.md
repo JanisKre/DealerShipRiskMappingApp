@@ -40,24 +40,28 @@ dealership names, and image tiles or captured images of a location. Those
 services receive your IP address and are governed by their own privacy
 policies.
 
-| Purpose                            | Services                                                                                | Data sent                                                                                                                          |
-| ---------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Geocoding                          | Nominatim (OpenStreetMap), Photon (Komoot), state address services (ALKIS)              | Address or search text; street, house number and area of an address                                                                |
-| Lot boundaries and buildings       | Overpass API, Overture Maps, state cadastre (ALKIS) services                            | Bounding box or coordinates                                                                                                        |
-| Aerial and satellite imagery       | Esri World Imagery, state orthophoto services, NASA HLS                                 | Tile coordinates and image requests around a location                                                                              |
-| Basemaps and parcel overlay        | Esri, OpenStreetMap, OpenTopoMap, basemap.de (BKG), state cadastre (ALKIS) map services | Tile coordinates or bounding boxes of the visible map                                                                              |
-| Weather and hazard inputs          | Open-Meteo                                                                              | Coordinates                                                                                                                        |
-| AI chat and memo (optional)        | Anthropic, OpenAI or a custom provider URL you configure                                | Portfolio figures and location details (name, postcode and town, group, sales partner); never underwriting notes; your own API key |
-| Detection model lookup (optional)  | Hugging Face                                                                            | Model search queries                                                                                                               |
-| Update check (can be switched off) | GitHub (`api.github.com`, `github.com`, release downloads)                              | The app version in the user agent; nothing about your portfolios                                                                   |
+| Purpose                                               | Services                                                                                | Data sent                                                                                                                          |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Geocoding                                             | Nominatim (OpenStreetMap), Photon (Komoot), state address services (ALKIS)              | Address or search text; street, house number and area of an address                                                                |
+| Lot boundaries and buildings                          | Overpass API, state cadastre (ALKIS) services                                           | Bounding box or coordinates                                                                                                        |
+| Aerial and satellite imagery                          | Esri World Imagery, state orthophoto services, NASA HLS                                 | Tile coordinates and image requests around a location                                                                              |
+| Basemaps and parcel overlay                           | Esri, OpenStreetMap, OpenTopoMap, basemap.de (BKG), state cadastre (ALKIS) map services | Tile coordinates or bounding boxes of the visible map                                                                              |
+| Weather and hazard inputs                             | Open-Meteo                                                                              | Coordinates                                                                                                                        |
+| Hail history (context only)                           | Deutscher Wetterdienst open data (`opendata.dwd.de`)                                    | Requests for the station list and the files of the nearest stations; no coordinates or addresses                                   |
+| Dealer directory (when downloaded)                    | Overture Maps (STAC catalogue, public S3 bucket)                                        | Range requests for the places files; no search text or portfolio data                                                              |
+| AI chat and memo (optional)                           | Anthropic, OpenAI or a custom provider URL you configure                                | Portfolio figures and location details (name, postcode and town, group, sales partner); never underwriting notes; your own API key |
+| Detection model lookup (optional)                     | Hugging Face                                                                            | Model search queries                                                                                                               |
+| Update check (can be switched off), model download    | GitHub (`api.github.com`, `github.com`, release downloads)                              | The app version in the user agent; nothing about your portfolios                                                                   |
 
 The complete list of imagery sources is in
 [docs/imagery-sources.md](./docs/imagery-sources.md). AI memos are only
 generated when you configure a provider and request one; nothing is sent to an
 AI provider otherwise. Packaged builds ask GitHub for a newer release at
 start-up and once a day; switch this off under **Settings → General → App &
-support** if your organisation rolls out versions itself. Do not import confidential customer data unless you are
-allowed to share it with the services above.
+support** if your organisation rolls out versions itself; the detection model
+is downloaded from the same release page only when you install it. Do not
+import confidential customer data unless you are allowed to share it with the
+services above.
 
 ## Contact
 

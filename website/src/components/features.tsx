@@ -37,7 +37,7 @@ const T: Localized<{
     items: {
       boundaries: {
         title: "Lot boundary detection",
-        text: "Cadastre, OpenStreetMap or building footprints — each with a confidence score.",
+        text: "Cadastral parcels joined by the detected vehicles — with a confidence score and reasons to review.",
       },
       vehicles: {
         title: "AI vehicle counts",
@@ -53,7 +53,7 @@ const T: Localized<{
       },
       memo: {
         title: "AI underwriting memo",
-        text: "Optional, with a local model, OpenAI, Claude or a custom endpoint.",
+        text: "Memos, portfolio chat and dashboards — optional, with a local model, OpenAI, Claude or a custom endpoint.",
       },
       local: {
         title: "Local & private",
@@ -67,7 +67,7 @@ const T: Localized<{
     items: {
       boundaries: {
         title: "Grundstücksgrenzen",
-        text: "Kataster, OpenStreetMap oder Gebäudeumrisse — jeweils mit Konfidenzwert.",
+        text: "Flurstücke, verbunden über die erkannten Fahrzeuge — mit Konfidenzwert und Prüfgründen.",
       },
       vehicles: {
         title: "KI-Fahrzeugzählung",
@@ -83,7 +83,7 @@ const T: Localized<{
       },
       memo: {
         title: "KI-Underwriting-Memo",
-        text: "Optional, mit lokalem Modell, OpenAI, Claude oder eigenem Endpunkt.",
+        text: "Memos, Portfolio-Chat und Dashboards — optional, mit lokalem Modell, OpenAI, Claude oder eigenem Endpunkt.",
       },
       local: {
         title: "Lokal & privat",
@@ -97,7 +97,7 @@ const T: Localized<{
     items: {
       boundaries: {
         title: "Limites de parcelle",
-        text: "Cadastre, OpenStreetMap ou emprises de bâtiments — chacune avec un indice de confiance.",
+        text: "Parcelles cadastrales reliées par les véhicules détectés — avec indice de confiance et motifs de vérification.",
       },
       vehicles: {
         title: "Comptage IA des véhicules",
@@ -113,7 +113,7 @@ const T: Localized<{
       },
       memo: {
         title: "Note de souscription IA",
-        text: "En option, avec un modèle local, OpenAI, Claude ou un point d’accès personnalisé.",
+        text: "Notes, chat et tableaux de bord — en option, avec un modèle local, OpenAI, Claude ou un point d’accès personnalisé.",
       },
       local: {
         title: "Local & privé",

@@ -26,7 +26,12 @@ the project follows [Semantic Versioning](https://semver.org/).
   stored with the portfolio, so Undo and the edit banner come back. Ctrl+Z
   (⌘Z on a Mac) undoes the last boundary change. A saved edit is no longer
   stored as still open.
-
+- Documentation brought in line with the app: website pages for updates,
+  hail history, AI dashboards, the import preview and the boundary review;
+  the privacy table now lists the DWD hail history and the Overture dealer
+  directory; README, ARCHITECTURE.md and desktop-app/README.md no longer
+  describe the removed fusion engine, Overture CLI, executive summary,
+  Gemini, Sentry or Husky.
 - Lot boundary, cascade v3 (`docs/boundary-model.md`, "Cascade v3"):
   complete cadastre answers (WFS paging, smaller fallback query), a street
   test that keeps L-shaped and deep yards, no more empty meadows joined at
@@ -50,6 +55,11 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Sample data: the docs (Import format → Sample datasets), the quick start
+  and the READMEs link the
+  [German car dealership dataset](https://github.com/JanisKre/dealership_dataset)
+  with 10, 50, 100, 250 and 500 real dealership locations from OpenStreetMap
+  (ODbL 1.0) as CSV and Excel. The files import without changes.
 - App updates: packaged builds check this repository's GitHub releases at
   start-up and once a day. Windows downloads the update in the background
   and installs it on restart; unsigned macOS builds link to the release page.

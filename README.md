@@ -36,19 +36,22 @@ anyway**. Linux: build an AppImage from source (`npm run dist`).
 > **Import CSV → detect lot boundaries → count vehicles on aerial imagery →
 > score hail and the hail EAL → map + dashboard → AI memo → export.**
 
-- **Import** — CSV/TSV/Excel or single addresses, geocoded via Nominatim
-- **Lot boundaries** — ALKIS → OSM/Overpass → MS Building Footprints →
-  synthetic circle, with confidence scores and manual correction (Geoman)
+- **Import** — CSV/TSV/Excel or single addresses with a preview, geocoded via
+  Nominatim/Photon and official house coordinates where a state publishes them
+- **Lot boundaries** — cadastral parcels (ALKIS) joined by the detected
+  vehicles, else the outline of the vehicle lot, a cached OSM dealer area or
+  a dashed fallback octagon; with confidence, named review reasons, manual
+  correction (Geoman) and undo
 - **Vehicle counts** — YOLOv26 ONNX inference on aerial imagery tiles; edited
   boundaries can be recounted
 - **Hail risk** — hail only: score from GDV hail zones, a licensed provider or
-  an Open-Meteo CAPE proxy; expected annual loss (EAL), accumulations and
-  hailstorm scenarios
+  an Open-Meteo CAPE proxy; expected annual loss (EAL), accumulations,
+  hailstorm scenarios and observed hail days (DWD) as context
 - **Dashboard** — KPIs, charts, sortable table, location details, portfolio
   comparison
-- **AI layer (optional)** — underwriting memos, summaries and portfolio chat
-  with a local runtime (Ollama, LM Studio, llama.cpp), OpenAI, Claude or a
-  custom endpoint
+- **AI layer (optional)** — underwriting memos, portfolio chat and
+  dashboards built from the chat, with a local runtime (Ollama, LM Studio,
+  llama.cpp), OpenAI, Claude or a custom endpoint
 - **Local & exportable** — SQLite in the user data folder, offline API cache;
   export to PDF, Excel, CSV and `.drm` portfolio files; German, English, French.
   There is no multi-user mode: share a `.drm` file (it carries manually edited
@@ -58,6 +61,17 @@ anyway**. Linux: build an AppImage from source (`npm run dist`).
 Results are screening estimates, not an engineering, legal or insurance
 decision — see the [risk model](./docs/risk-model.md) for sources and
 limitations.
+
+## Sample data
+
+No portfolio at hand? The
+[German car dealership dataset](https://github.com/JanisKre/dealership_dataset)
+has 500 real dealership locations from OpenStreetMap across all 16 federal
+states, plus nested subsets of 250, 100, 50 and 10 locations, each as CSV and
+Excel. The files import as they are; start with
+[`car_dealerships_germany_10.csv`](https://github.com/JanisKre/dealership_dataset/raw/main/data/car_dealerships_germany_10.csv)
+for a quick run. They carry no portfolio terms (insured value, business type,
+limit, deductible). Data © OpenStreetMap contributors, ODbL 1.0.
 
 ## Development
 
@@ -84,7 +98,7 @@ npm run dev       # Main + Preload + Renderer with HMR
 first-run wizard download them. Without the model the app falls back to an
 area-based estimate.
 
-**Stack:** Electron 44 · electron-vite 5 · TypeScript 5.8 · React 19 ·
+**Stack:** Electron 44 · electron-vite 6 · TypeScript 6 · React 19 ·
 shadcn/ui + Tailwind CSS 4 · Zustand · better-sqlite3 + Drizzle · Leaflet +
 Geoman · onnxruntime-node · Zod · i18next · electron-builder.
 
