@@ -44,6 +44,10 @@ so it does not silently downgrade to a vulnerable `onnx`.
 | 8. Evaluate | `python evaluate.py` | mAP50 and per-site count MAE, bias, within-10 %, also per native resolution and false detections on negatives |
 | 9. Install | `python export.py --install --default-conf 0.45` | ONNX and manifest in the app's `userData/models` |
 
+From the second round on, steps 3–4 become `autolabel.py` + `review.py`
+(you confirm instead of draw); see
+[Confirm instead of draw](#confirm-instead-of-draw-round-2-onwards).
+
 The app picks up `dealer_vehicles.onnx` with its manifest `dealer_vehicles.json`
 after a restart. It prefers this model over the downloaded VisDrone model.
 
@@ -180,6 +184,117 @@ anyway. Instead of drawing those by hand:
 4. Run `python label.py` again. The new suggestions are loaded, and the
    formerly weak states now show up because they get enough suggestions.
    Correct them, then train again.
+
+From round 2 on, the confirm-only pipeline below replaces steps 3 and 4.
+
+## Confirm instead of draw (round 2 onwards)
+
+Once you have a model of your own, you no longer correct boxes in
+X-AnyLabeling. The model labels, you answer yes/no.
+
+| Step | Command | Result |
+|---|---|---|
+| A. Pre-label | `python autolabel.py` | Each tile predicted 8× (4 rotations × mirrored), boxes merged and sorted into `sure` / `check` / `candidate` in `data/autolabel/` |
+| B. Claude (optional) | `python claude_review.py sheets --buckets candidate`, ask Claude Code to answer the sheets, then `python claude_review.py apply --auto` | Claude's answers as hints; its "no" on weak candidates decides them |
+| C. Review | `python review.py` | Browser page on 127.0.0.1: J/L/N per question, then one look at the whole tile; Enter writes `data/raw/<tile>.json` (ticked) |
+| D. Dataset | `python make_dataset.py [--pseudo]` | As before; validation sites stay where they were |
+
+**Buckets** (`autolabel.Buckets`): `sure` = mean score over the 8 passes
+≥ 0.55 in at least 7 passes, accepted without a question but shown on the
+tile check; `check` = mean score ≥ 0.25; `candidate` = ≥ 0.12. Weaker hits
+are dropped.
+
+**Measured on the 11 validation sites** (2026-11-13, `python autolabel.py
+--eval && python measure_autolabel.py --grid`; the model never trained on
+them):
+
+- 92 % of your labelled vehicles land in `sure`, 3.5 % in `check`, 1 % in
+  `candidate`, 3.5 % are not found at all and need a click.
+- `sure` boxes matched your labels 94 % of the time. Of the 90 that did not,
+  Claude judged 65 to be real vehicles missing from the labels (many cut by
+  the tile edge) and 7 to be wrong; true precision is likely about 98 %.
+- Work per tile: about 4 yes/no answers plus 0.6 clicks for missed vehicles.
+  On these sites round 1 (correcting DOTA suggestions) was cheap too, about
+  1.6 edits per tile, because they are in states where DOTA works and the
+  labels started from DOTA. The pipeline pays off where DOTA failed: on the
+  24 unfinished BY/SH/SN/TH sites it gives 2580 `sure` boxes against 1394
+  DOTA suggestions (BY-osm296363718: 150 against 11).
+
+**review.py keys.** Questions: `J` car, `L` large vehicle (van, truck, bus),
+`N` not a vehicle, `Backspace` back, `Tab` skip to the tile. Tile check:
+click on a vehicle without a box to add one (oriented like its neighbours),
+click on a wrong box to drop it, `R` / `[` / `]` turn the last added box,
+arrows move it, `L` toggles its size, `U` undo, `Enter` tile done. Tiles
+you have already started in X-AnyLabeling are left out; finish them there.
+
+### Claude as second reviewer
+
+`claude_review.py sheets` renders open questions as numbered crops, 20 per
+sheet, in `data/claude/sheets/`. In Claude Code, ask for example "Prüf die
+Sheets in training/data/claude/sheets/open-candidates_*.png" and let Claude
+write one answer file per sheet (`data/claude/answers/<sheet>.txt`, lines
+`<n> car|large|no|unsure`). `apply` stores the answers; review.py shows
+them under the zoom.
+
+Measured on 200 random questions of the validation sites
+(`sheets --eval --sample 200`, `score --eval`): Claude's "no" on a weak
+candidate matched your labels 59 of 61 times; its "no" on a `check` box 16
+of 21; its "vehicle" 17 of 46 (partly vehicles missing from the labels).
+So `apply --auto` lets Claude decide only "no" on candidates; everything
+else stays your question. On the 24 unfinished sites that removed 143 of
+837 questions. The crops leave the machine when Claude reads them (open
+state orthophotos of OSM sites).
+
+### Audit finished sites
+
+`python autolabel.py --audit` then `python review.py --audit` asks about
+finished sites: model boxes (score ≥ 0.55) that no label covers ("does this
+vehicle miss a label?") and labels no model box supports at all ("is this
+label right?"). Confirmed vehicles are appended to the tile JSON, rejected
+labels removed. On the 56 finished sites it found 538 likely missing
+vehicles and 236 doubtful labels, about 1.5 questions per tile. Audit the
+validation sites first: their labels are what every score is measured
+against.
+
+### Pseudo-labels (no human per tile)
+
+`python make_dataset.py --pseudo` also puts autolabel tiles of unfinished
+sites into **train**: `sure` boxes plus answered questions. Open questions
+are painted over with the tile's mean colour, so the model learns neither
+"vehicle" nor "background" there. Guard rails:
+
+- Validation is 100 % human labels; pseudo tiles never go there.
+- The validation split is stable: `make_dataset.py` keeps the previous val
+  and train sites and adds new finished sites to val until there are at
+  least 15. `--resplit` draws a fresh split (scores then stop being
+  comparable).
+- Keep a pseudo-label model only if it beats the current one on the
+  validation sites: train it with `python train.py --name dealer-obb-pseudo`
+  and compare `python evaluate.py --sweep` for both weights before
+  `export.py --install`.
+
+### Corrections from the app
+
+Vehicle points you add or remove on the map in the app are labels too.
+`python harvest_app.py sites` reads them from the app database (read-only)
+for analyses on a state DOP, writes `data/app_sites.csv` with anonymous site
+ids, and `harvest_app.py apply` turns them into decisions in
+`data/autolabel/` after `fetch_tiles.py` and `autolabel.py --sites $(python
+harvest_app.py ids)`. An added point confirms the model box under it or
+adds a box; a removed point rejects the box under it. Confirm in review.py
+as usual.
+
+### Where the model fails
+
+`python analyze_errors.py --sheets` lists misses and false detections on
+the validation sites by tag (edge, dark, large, small, dense) and writes
+crop sheets to `data/errors/`. At the app's base confidence 0.45
+(2026-11-13): 93 % of labelled vehicles found; large vehicles are missed
+24 % of the time, small or cut ones 21 %, vehicles at the tile edge 13 %,
+dense rows only 5 %. Yellow buses and vans are a visible gap. The crop
+sheets also show labels on empty asphalt or shadows; fix those with the
+audit. The burned-in attribution text of some state services
+("© GeoBasis-DE/…") is sometimes detected as a vehicle; answer N.
 
 ## Training on the MacBook Air M4 (16 GB)
 

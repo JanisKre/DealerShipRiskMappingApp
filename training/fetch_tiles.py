@@ -94,6 +94,16 @@ def xyz_tile(template: str, z: int, bbox: tuple[float, float, float, float], cac
     return canvas.resize((TILE_PX, TILE_PX), Image.BICUBIC, box=crop)
 
 
+def site_grid(lat: float, lon: float, radius: float) -> tuple[int, float, float, float]:
+    """Tile grid around a site: (n tiles per side, left x, top y, tile edge), EPSG:3857.
+    Tile (row, col) covers x0 + col*edge … x0 + (col+1)*edge and y1 - (row+1)*edge … y1 - row*edge."""
+    tile_m = TILE_PX * TARGET_GSD_M  # ground metres per tile edge
+    n = max(1, math.ceil(2 * radius / tile_m))
+    cx, cy = lonlat_to_3857(lon, lat)
+    edge = tile_m * mercator_scale(lat)  # tile edge in EPSG:3857 units
+    return n, cx - n * edge / 2, cy + n * edge / 2, edge
+
+
 def looks_empty(img: Image.Image) -> bool:
     """Blank/no-coverage responses are a single colour."""
     return max(ImageStat.Stat(img).stddev) < 3
@@ -109,7 +119,6 @@ def main() -> None:
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    tile_m = TILE_PX * TARGET_GSD_M  # ground metres per tile edge
 
     with open(args.sites_csv, newline="") as f:
         sites = list(csv.DictReader(f))
@@ -123,10 +132,7 @@ def main() -> None:
         sid = f"{state}-{site['id']}".replace("__", "_").replace("/", "-")
         lat, lon = float(site["lat"]), float(site["lon"])
         radius = float(site.get("radius_m") or args.radius)
-        n = max(1, math.ceil(2 * radius / tile_m))
-        cx, cy = lonlat_to_3857(lon, lat)
-        edge = tile_m * mercator_scale(lat)  # tile edge in EPSG:3857 units
-        x0, y1 = cx - n * edge / 2, cy + n * edge / 2
+        n, x0, y1, edge = site_grid(lat, lon, radius)
         cache: dict = {}
         for row in range(n):
             for col in range(n):

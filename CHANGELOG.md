@@ -9,6 +9,16 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Detector training: confirm instead of draw. `training/autolabel.py`
+  labels each tile 8× with your own model and sorts boxes into sure /
+  check / candidate; `training/review.py` is a local keyboard review page
+  (J/N per question, one click per missed vehicle) that writes the same
+  X-AnyLabeling JSON as before. Also: Claude Code as second reviewer
+  (`claude_review.py`, measured against your labels), an audit of finished
+  sites, pseudo-labels for train only with a stable validation split,
+  corrections harvested from the app's map review, and an error report by
+  vehicle type (`training/README.md`, "Confirm instead of draw").
+
 - A vehicle model can carry its own calibrated base confidence
   (`defaultConfidence` in the manifest, `training/export.py --default-conf`).
   The app uses it while the detection-confidence parameter is still the

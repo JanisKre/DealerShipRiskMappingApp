@@ -3,6 +3,7 @@
     caffeinate -i python train.py                 # ~2–4 h on a MacBook Air M4 (16 GB)
     caffeinate -i python train.py --resume        # continue after an interruption
     python train.py --epochs 3 --fraction 0.1     # smoke test (minutes)
+    python train.py --name dealer-obb-pseudo      # experiment next to the current run, not over it
 
 MacBook Air notes: it has no fan and throttles on long runs — keep it on the
 charger, close other heavy apps, and don't use it for other work meanwhile.
@@ -23,7 +24,7 @@ from ultralytics import YOLO  # noqa: E402
 from common import ROOT  # noqa: E402
 
 RUN_DIR = ROOT / "runs"
-RUN_NAME = "dealer-obb"
+RUN_NAME = "dealer-obb"  # the run export.py and evaluate.py read by default
 
 
 def main() -> None:
@@ -34,11 +35,12 @@ def main() -> None:
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--device", default="mps")
     ap.add_argument("--fraction", type=float, default=1.0, help="share of the training set, for smoke tests")
+    ap.add_argument("--name", default=RUN_NAME, help="run folder under runs/ (default overwrites the current model's run)")
     ap.add_argument("--resume", action="store_true")
     args = ap.parse_args()
 
     if args.resume:
-        YOLO(str(RUN_DIR / RUN_NAME / "weights" / "last.pt")).train(resume=True)
+        YOLO(str(RUN_DIR / args.name / "weights" / "last.pt")).train(resume=True)
         return
 
     YOLO(args.model).train(
@@ -59,7 +61,7 @@ def main() -> None:
         # Keep scale jitter moderate — the app feeds the model a fixed 0.10 m/px.
         scale=0.3,
         project=str(RUN_DIR),
-        name=RUN_NAME,
+        name=args.name,
         exist_ok=True,
     )
 

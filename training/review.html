@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label-Prüfung</title>
+<style>
+  :root {
+    --bg: #15171a; --panel: #1f2226; --text: #e8eaed; --muted: #9aa0a6; --line: #33373c;
+    --sure: #34c759; --yes: #0a84ff; --manual: #ff9f0a; --ask: #ff2d92; --no: #ff453a; --existing: #b0b3b8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, system-ui, sans-serif; }
+  header { display: flex; gap: 16px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header b { font-size: 15px; }
+  .muted { color: var(--muted); }
+  main { display: grid; grid-template-columns: auto 360px; gap: 16px; padding: 16px; align-items: start; justify-content: start; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+  #tile { background: #000; cursor: crosshair; width: min(640px, calc(100vh - 90px), 100%); height: auto; border: 1px solid var(--line); }
+  aside { width: 360px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  #zoom { width: 336px; height: 336px; background: #000; display: block; border-radius: 4px; }
+  .phase { font-size: 16px; font-weight: 600; }
+  .hint { padding: 6px 8px; border-radius: 6px; background: #2b2f34; margin-top: 8px; }
+  kbd { background: #2b2f34; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font: 12px ui-monospace, monospace; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; }
+  .legend span { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+  button { background: #2b2f34; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  #msg { min-height: 20px; color: var(--manual); }
+  .bar { height: 6px; background: #2b2f34; border-radius: 3px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--sure); }
+</style>
+</head>
+<body>
+<header>
+  <b id="title">Label-Prüfung</b>
+  <span id="where" class="muted"></span>
+  <span id="progress" class="muted"></span>
+  <span style="flex:1"></span>
+  <button id="prev">← Kachel <kbd>,</kbd></button>
+  <button id="next">Kachel → <kbd>.</kbd></button>
+</header>
+<main>
+  <canvas id="tile" width="640" height="640"></canvas>
+  <aside>
+    <div class="card">
+      <div class="phase" id="phase"></div>
+      <div class="muted" id="sub"></div>
+      <div class="bar" style="margin-top:8px"><div id="bar" style="width:0"></div></div>
+    </div>
+    <div class="card" id="zoomCard">
+      <canvas id="zoom" width="336" height="336"></canvas>
+      <div id="boxInfo" class="muted" style="margin-top:8px"></div>
+      <div id="claude" class="hint" hidden></div>
+    </div>
+    <div class="card keys" id="keys"></div>
+    <div class="card legend muted">
+      <span style="background:var(--sure)"></span>sicher
+      <span style="background:var(--yes);margin-left:8px"></span>bestätigt
+      <span style="background:var(--manual);margin-left:8px"></span>von Hand
+      <span style="background:var(--existing);margin-left:8px"></span>vorhandenes Label
+    </div>
+    <div id="msg"></div>
+  </aside>
+</main>
+<script>
+"use strict";
+const CAR = { w: 46, h: 19 };        // 4.6 m x 1.9 m at 0.10 m/px
+const LARGE = { w: 75, h: 26 };      // 7.5 m x 2.6 m
+const ZOOM_SRC = 112;                // 11.2 m around the box
+const $ = (id) => document.getElementById(id);
+const tileCanvas = $("tile"), tctx = tileCanvas.getContext("2d");
+const zoomCanvas = $("zoom"), zctx = zoomCanvas.getContext("2d");
+
+let state = null;      // /api/state
+let index = 0;         // current tile in state.tiles
+let tile = null;       // current tile data
+let img = null;
+let phase = "questions";
+let queue = [];        // ids of open questions
+let qpos = 0;
+let history = [];      // undo stack of {id, decision} or {added: id}
+let lastAdded = null;
+let dirty = false;     // tile-check edits not saved yet
+
+const isAudit = () => state && state.mode === "audit";
+const boxById = (id) => tile.boxes.find((b) => b.id === id);
+const center = (b) => b.corners.reduce((a, p) => [a[0] + p[0] / 4, a[1] + p[1] / 4], [0, 0]);
+
+function boxAngle(b) {
+  const [p0, p1, p2] = b.corners;
+  const e1 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+  const e2 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+  const [a, c] = e1 >= e2 ? [p0, p1] : [p1, p2];
+  return Math.atan2(c[1] - a[1], c[0] - a[0]);
+}
+
+function rectCorners(cx, cy, w, h, ang) {
+  const cos = Math.cos(ang), sin = Math.sin(ang);
+  return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]].map(([dx, dy]) =>
+    [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos]);
+}
+
+const isQuestion = (b) => (b.origin === "model" || b.origin === "label") && b.bucket !== "sure";
+
+function accepted(b) {
+  if (b.decision === "no") return false;
+  if (b.origin === "label") return true;
+  if (b.decision === "car" || b.decision === "large_vehicle") return true;
+  return b.bucket === "sure";
+}
+
+function color(b) {
+  if (b.origin === "manual") return "--manual";
+  if (b.origin === "label") return "--existing";
+  if (b.decision === "car" || b.decision === "large_vehicle") return "--yes";
+  return "--sure";
+}
+
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function drawPoly(ctx, corners, stroke, width, scale = 1, ox = 0, oy = 0, dash = []) {
+  ctx.beginPath();
+  corners.forEach(([x, y], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, (x - ox) * scale, (y - oy) * scale));
+  ctx.closePath();
+  ctx.setLineDash(dash);
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = width;
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function current() { return phase === "questions" && qpos < queue.length ? boxById(queue[qpos]) : null; }
+
+function draw() {
+  if (!img) return;
+  tctx.drawImage(img, 0, 0, 640, 640);
+  for (const e of tile.existing || []) drawPoly(tctx, e.corners, css("--existing"), 1.5);
+  const cur = current();
+  for (const b of tile.boxes) {
+    if (b === cur) continue;
+    if (phase === "questions" && b.decision == null && isQuestion(b)) continue;
+    if (accepted(b)) drawPoly(tctx, b.corners, css(color(b)), b.id === lastAdded ? 3 : 1.5);
+  }
+  if (cur) {
+    drawPoly(tctx, cur.corners, css("--ask"), 3);
+    const [cx, cy] = center(cur);
+    const ox = cx - ZOOM_SRC / 2, oy = cy - ZOOM_SRC / 2, s = 336 / ZOOM_SRC;
+    zctx.fillStyle = "#000";
+    zctx.fillRect(0, 0, 336, 336);
+    zctx.imageSmoothingQuality = "high";
+    zctx.drawImage(img, ox, oy, ZOOM_SRC, ZOOM_SRC, 0, 0, 336, 336);
+    for (const e of tile.existing || []) drawPoly(zctx, e.corners, css("--existing"), 1.5, s, ox, oy);
+    drawPoly(zctx, cur.corners, css("--ask"), 2, s, ox, oy, [6, 4]);
+  }
+}
+
+function render() {
+  const t = state.tiles[index];
+  const doneTiles = state.tiles.filter((x) => x.done).length;
+  $("where").textContent = `${t.site} · Kachel ${t.stem.split("__")[1]} · ${index + 1}/${state.tiles.length}`;
+  $("progress").textContent = `${doneTiles} Kacheln fertig`;
+  $("title").textContent = isAudit() ? "Label-Audit" : "Label-Prüfung";
+  const cur = current();
+  $("zoomCard").hidden = !cur;
+  if (phase === "questions") {
+    $("phase").textContent = !isAudit() ? "Ist das ein Fahrzeug?"
+      : cur && cur.origin === "label" ? "Stimmt dieses vorhandene Label?" : "Fehlt dieses Fahrzeug in deinen Labels?";
+    $("sub").textContent = `Frage ${Math.min(qpos + 1, queue.length)} von ${queue.length}`;
+    $("bar").style.width = `${queue.length ? (100 * qpos) / queue.length : 100}%`;
+    $("keys").innerHTML = `<kbd>J</kbd><span>Auto</span><kbd>L</kbd><span>großes Fahrzeug (Lkw, Bus, Transporter)</span>
+      <kbd>N</kbd><span>kein Fahrzeug</span><kbd>⌫</kbd><span>zurück</span><kbd>Tab</kbd><span>Fragen überspringen</span>`;
+    if (cur) {
+      const bucket = { check: "unsicher", candidate: "schwacher Treffer" }[cur.bucket] || cur.bucket;
+      $("boxInfo").textContent = cur.origin === "label"
+        ? `dein Label (${state.classes[cur.cls]}) · das Modell sieht hier nichts · N entfernt es`
+        : `${bucket} · Score ${cur.score.toFixed(2)} · in ${cur.votes} von 8 Durchläufen · Modell: ${state.classes[cur.cls]}`;
+      const c = $("claude");
+      c.hidden = !cur.claude;
+      if (cur.claude) c.textContent = `Claude: ${{ car: "Auto", large_vehicle: "großes Fahrzeug", no: "kein Fahrzeug", unsure: "unsicher" }[cur.claude]}`;
+    }
+  } else {
+    const n = tile.boxes.filter(accepted).length;
+    $("phase").textContent = isAudit() ? "Gefundene Fahrzeuge übernehmen" : "Kachel prüfen";
+    $("sub").textContent = isAudit()
+      ? `${n} neue Fahrzeuge werden zu deinen Labels hinzugefügt`
+      : `${n} Fahrzeuge · fehlt eins? Klick drauf. Falsche Box? Klick drauf.`;
+    $("bar").style.width = "100%";
+    $("keys").innerHTML = `<span>Klick</span><span>Box hinzufügen / entfernen</span>
+      <kbd>R</kbd><span>letzte Box 90° drehen</span><kbd>[</kbd><kbd>]</kbd><span>±5° drehen</span>
+      <kbd>←↑→↓</kbd><span>letzte Box verschieben</span><kbd>L</kbd><span>letzte Box: Auto ↔ groß</span>
+      <kbd>U</kbd><span>rückgängig</span><kbd>Esc</kbd><span>zurück zu den Fragen</span>
+      <kbd>↵</kbd><span><b>Kachel fertig</b>, nächste</span>`;
+  }
+  draw();
+}
+
+async function api(path, body) {
+  const res = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+  return res.json();
+}
+
+async function save(done) {
+  dirty = false;
+  await api(`/api/tile/${state.tiles[index].stem}`, { boxes: tile.boxes, done });
+  state.tiles[index].done = done || state.tiles[index].done;
+  state.tiles[index].questions = tile.boxes.filter((b) => isQuestion(b) && b.decision == null).length;
+}
+
+async function load(i) {
+  if (dirty && tile) await save(false).catch((e) => ($("msg").textContent = e.message));
+  index = Math.max(0, Math.min(state.tiles.length - 1, i));
+  const stem = state.tiles[index].stem;
+  tile = await api(`/api/tile/${stem}`);
+  img = new Image();
+  img.src = `/img/${stem}`;
+  await img.decode();
+  queue = tile.boxes.filter((b) => isQuestion(b) && b.decision == null)
+    .sort((a, b) => (a.bucket === b.bucket ? b.score - a.score : a.bucket === "check" ? -1 : 1)).map((b) => b.id);
+  qpos = 0;
+  history = [];
+  lastAdded = null;
+  phase = queue.length && !tile.done ? "questions" : "tile";
+  $("msg").textContent = tile.done ? "Diese Kachel ist schon fertig — Änderungen werden erneut gespeichert." : "";
+  render();
+}
+
+function answer(decision) {
+  const b = current();
+  if (!b) return;
+  history.push({ id: b.id, decision: b.decision });
+  b.decision = decision;
+  b.decidedBy = "you";
+  qpos += 1;
+  if (qpos >= queue.length) phase = "tile";
+  save(false).catch((e) => ($("msg").textContent = e.message));
+  render();
+}
+
+function nearestAngle(x, y) {
+  const near = tile.boxes.filter(accepted).map((b) => ({ b, d: Math.hypot(center(b)[0] - x, center(b)[1] - y) }))
+    .sort((a, b) => a.d - b.d).slice(0, 3);
+  return near.length ? boxAngle(near[0].b) : 0;
+}
+
+function hit(x, y) {
+  // point-in-polygon on accepted boxes, smallest first
+  const inside = (c) => {
+    let r = false;
+    for (let i = 0, j = 3; i < 4; j = i++) {
+      const [xi, yi] = c[i], [xj, yj] = c[j];
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) r = !r;
+    }
+    return r;
+  };
+  return tile.boxes.filter((b) => accepted(b) && inside(b.corners))[0];
+}
+
+tileCanvas.addEventListener("click", (ev) => {
+  if (phase !== "tile") return;
+  const r = tileCanvas.getBoundingClientRect();
+  const x = ((ev.clientX - r.left) / r.width) * 640, y = ((ev.clientY - r.top) / r.height) * 640;
+  const b = hit(x, y);
+  if (b) {
+    history.push({ id: b.id, decision: b.decision, origin: b.origin });
+    if (b.origin === "manual") tile.boxes = tile.boxes.filter((o) => o !== b);
+    else b.decision = "no";
+    if (lastAdded === b.id) lastAdded = null;
+  } else {
+    const id = Math.max(-1, ...tile.boxes.map((o) => o.id)) + 1;
+    tile.boxes.push({ id, origin: "manual", bucket: "manual", cls: 0, decision: "car", decidedBy: "you",
+      corners: rectCorners(x, y, CAR.w, CAR.h, nearestAngle(x, y)), score: 1, votes: 0 });
+    history.push({ added: id });
+    lastAdded = id;
+  }
+  dirty = true;
+  render();
+});
+
+function editLast(fn) {
+  const b = lastAdded != null && boxById(lastAdded);
+  if (!b) return;
+  const [cx, cy] = center(b);
+  const size = b.cls === 1 ? LARGE : CAR;
+  const ang = boxAngle(b);
+  const next = fn({ cx, cy, ang, size, cls: b.cls });
+  b.cls = next.cls;
+  b.decision = next.cls === 1 ? "large_vehicle" : "car";
+  const s = next.cls === 1 ? LARGE : CAR;
+  b.corners = rectCorners(next.cx, next.cy, s.w, s.h, next.ang);
+  dirty = true;
+  render();
+}
+
+function undo() {
+  const h = history.pop();
+  if (!h) return;
+  if (h.added != null) {
+    tile.boxes = tile.boxes.filter((b) => b.id !== h.added);
+    lastAdded = null;
+  } else {
+    const b = boxById(h.id);
+    if (b) b.decision = h.decision;
+    if (phase === "questions" || (h.origin == null && queue.includes(h.id))) {
+      if (phase === "questions" || queue.indexOf(h.id) === qpos - 1) {
+        phase = "questions";
+        qpos = Math.max(0, queue.indexOf(h.id));
+      }
+    }
+  }
+  save(false).catch((e) => ($("msg").textContent = e.message));
+  render();
+}
+
+window.addEventListener("beforeunload", () => {
+  if (dirty && tile) fetch(`/api/tile/${state.tiles[index].stem}`, {
+    method: "POST", keepalive: true, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ boxes: tile.boxes, done: false }) });
+});
+
+document.addEventListener("keydown", async (ev) => {
+  if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  const k = ev.key;
+  if (k === ",") return load(index - 1);
+  if (k === ".") return load(index + 1);
+  if (phase === "questions") {
+    if (k === "j" || k === "J") answer("car");
+    else if (k === "l" || k === "L") answer("large_vehicle");
+    else if (k === "n" || k === "N") answer("no");
+    else if (k === "Backspace") { ev.preventDefault(); undo(); }
+    else if (k === "Tab") { ev.preventDefault(); phase = "tile"; render(); }
+    return;
+  }
+  const step = ev.shiftKey ? 5 : 1;
+  if (k === "Enter") {
+    try {
+      await save(true);
+      const nextOpen = state.tiles.findIndex((t, i) => i > index && !t.done);
+      await load(nextOpen >= 0 ? nextOpen : index + 1);
+      if (nextOpen < 0) $("msg").textContent = "Alle Kacheln in dieser Liste sind fertig.";
+    } catch (e) { $("msg").textContent = e.message; }
+  } else if (k === "Escape" && queue.length) { phase = "questions"; qpos = 0; render(); }
+  else if (k === "u" || k === "U" || k === "Backspace") { ev.preventDefault(); undo(); }
+  else if (k === "r" || k === "R") editLast((s) => ({ ...s, ang: s.ang + Math.PI / 2 }));
+  else if (k === "[") editLast((s) => ({ ...s, ang: s.ang - Math.PI / 36 }));
+  else if (k === "]") editLast((s) => ({ ...s, ang: s.ang + Math.PI / 36 }));
+  else if (k === "l" || k === "L") editLast((s) => ({ ...s, cls: s.cls === 1 ? 0 : 1 }));
+  else if (k.startsWith("Arrow")) {
+    ev.preventDefault();
+    const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[k];
+    editLast((s) => ({ ...s, cx: s.cx + d[0], cy: s.cy + d[1] }));
+  }
+});
+
+$("prev").onclick = () => load(index - 1);
+$("next").onclick = () => load(index + 1);
+
+(async () => {
+  state = await api("/api/state");
+  if (!state.tiles.length) { $("msg").textContent = "Keine Kacheln."; return; }
+  const firstOpen = state.tiles.findIndex((t) => !t.done);
+  await load(firstOpen >= 0 ? firstOpen : 0);
+})().catch((e) => ($("msg").textContent = e.message));
+</script>
+</body>
+</html>
