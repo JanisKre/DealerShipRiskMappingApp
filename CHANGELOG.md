@@ -7,6 +7,8 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] – 2026-11-14
+
 ### Added
 
 - **Hail simulation on the map.** A panel to play with hail: generate a
@@ -861,7 +863,8 @@ the project follows [Semantic Versioning](https://semver.org/).
 - Export as PDF, Excel, CSV, plus portfolio file (`.drm`).
 - i18n (de / en / fr).
 
-[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.5.0
 [0.4.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.4.0
 [0.3.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.3.0
 [0.2.1]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.2.1
