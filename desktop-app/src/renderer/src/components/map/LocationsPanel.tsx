@@ -871,6 +871,8 @@ function AddLocationField({
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  /** Photon unreachable for the current answer: local suggestions only. */
+  const [onlineUnavailable, setOnlineUnavailable] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const directoryStatus = useDealerDirectoryStore((s) => s.status);
   const directoryUpdate = useDealerDirectoryStore((s) => s.update);
@@ -892,6 +894,7 @@ function AddLocationField({
       setSuggestions([]);
       setAnsweredFor(null);
       setError(false);
+      setOnlineUnavailable(false);
       return;
     }
     let cancelled = false;
@@ -899,9 +902,13 @@ function AddLocationField({
       setLoading(true);
       setError(false);
       try {
-        const hits = await window.api.placesAutocomplete(trimmed, searchBias());
+        const result = await window.api.placesAutocomplete(
+          trimmed,
+          searchBias(),
+        );
         if (!cancelled) {
-          setSuggestions(hits);
+          setSuggestions(result.suggestions);
+          setOnlineUnavailable(result.onlineUnavailable);
           setActive(0);
           setAnsweredFor(trimmed);
         }
@@ -912,6 +919,7 @@ function AddLocationField({
           console.warn("Address autocomplete failed:", e);
           setSuggestions([]);
           setAnsweredFor(null);
+          setOnlineUnavailable(false);
           setError(true);
         }
       } finally {
@@ -958,6 +966,7 @@ function AddLocationField({
   const noMatches =
     !loading &&
     !error &&
+    !onlineUnavailable &&
     answeredFor === trimmed &&
     trimmed.length >= MIN_CHARS &&
     suggestions.length === 0;
@@ -986,6 +995,15 @@ function AddLocationField({
           <span className="block text-muted-foreground">
             {t("map.locationsPanel.searchFailedHint")}
           </span>
+        </p>
+      )}
+      {onlineUnavailable && answeredFor === trimmed && (
+        <p role="status" className="mt-1 text-xs text-muted-foreground">
+          {t(
+            suggestions.length > 0
+              ? "places.onlineUnavailable"
+              : "places.onlineUnavailableNoLocal",
+          )}
         </p>
       )}
       {noMatches && (

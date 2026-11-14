@@ -17,8 +17,15 @@ vi.mock("./portfolio-index.service", async (importOriginal) => ({
 import {
   normalisePlaceQuery,
   placesAutocomplete,
+  resetPhotonState,
   similarBusinessNames,
 } from "./places.service";
+
+async function search(
+  ...args: Parameters<typeof placesAutocomplete>
+): Promise<Awaited<ReturnType<typeof placesAutocomplete>>["suggestions"]> {
+  return (await placesAutocomplete(...args)).suggestions;
+}
 
 function noLocality(query: { nameTokens: string[] }): unknown {
   return { locality: null, nameTokens: query.nameTokens };
@@ -29,7 +36,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
+  resetPhotonState();
   directory.search.mockReset();
   directory.search.mockReturnValue([]);
   directory.portfolio.mockReset();
@@ -95,7 +104,7 @@ describe("placesAutocomplete", () => {
       ],
     });
 
-    const hits = await placesAutocomplete("Autohaus Muster GmbH");
+    const hits = await search("Autohaus Muster GmbH");
 
     expect(hits.map((h) => h.label)).toEqual([
       "Autohaus Muster, Musterstadt",
@@ -119,7 +128,7 @@ describe("placesAutocomplete", () => {
       ],
     });
 
-    const hits = await placesAutocomplete("Ringweg 3");
+    const hits = await search("Ringweg 3");
 
     expect(hits[0].label).toBe("Ringweg 3, Musterstadt");
   });
@@ -127,7 +136,7 @@ describe("placesAutocomplete", () => {
   it("biases towards the map view, clamped to city level", async () => {
     const fetchMock = photonResponses({ dealers: [], general: [] });
 
-    await placesAutocomplete("Autohaus", { lat: 51.05, lon: 13.74, zoom: 17 });
+    await search("Autohaus", { lat: 51.05, lon: 13.74, zoom: 17 });
 
     const url = new URL(String(fetchMock.mock.calls[0][0]));
     expect(url.searchParams.get("lat")).toBe("51.05");
@@ -147,7 +156,7 @@ describe("placesAutocomplete", () => {
       );
     });
 
-    const hits = await placesAutocomplete("Musterhof");
+    const hits = await search("Musterhof");
 
     expect(hits.map((h) => h.label)).toEqual(["Musterhof, Musterstadt"]);
   });
@@ -178,7 +187,7 @@ describe("OSM + Overture merge", () => {
       },
     ] as never);
 
-    const hits = await placesAutocomplete("Autohaus Dresden");
+    const hits = await search("Autohaus Dresden");
 
     expect(hits.map((h) => [h.label, h.source])).toEqual([
       ["Opel - Autohaus Dresden GmbH, Musterstadt", "osm"],
@@ -201,7 +210,7 @@ describe("OSM + Overture merge", () => {
       },
     ] as never);
 
-    const hits = await placesAutocomplete("Auto");
+    const hits = await search("Auto");
 
     expect(hits).toHaveLength(2);
   });
@@ -224,7 +233,7 @@ describe("ranking", () => {
       },
     ] as never);
 
-    const [hit] = await placesAutocomplete("Autohaus Beispiel");
+    const [hit] = await search("Autohaus Beispiel");
 
     expect(hit.source).toBe("osm");
     expect(hit.sources).toEqual(["osm", "overture"]);
@@ -246,7 +255,7 @@ describe("ranking", () => {
       },
     ] as never);
 
-    const hits = await placesAutocomplete("Bernd Herzog");
+    const hits = await search("Bernd Herzog");
 
     expect(hits[0].source).toBe("overture");
   });
@@ -262,7 +271,7 @@ describe("ranking", () => {
       ],
     });
 
-    const hits = await placesAutocomplete("Autohaus Muster 01067");
+    const hits = await search("Autohaus Muster 01067");
 
     expect(hits[0].label).toBe("Autohaus Muster, Musterstadt");
   });
@@ -280,7 +289,7 @@ describe("ranking", () => {
       nameTokens: ["autohaus", "mueller"],
     });
 
-    await placesAutocomplete("Autohaus Müller Leipzig", {
+    await search("Autohaus Müller Leipzig", {
       lat: 53.55,
       lon: 9.99,
       zoom: 12,
@@ -314,7 +323,7 @@ describe("ranking", () => {
       },
     ] as never);
 
-    const hits = await placesAutocomplete("Autohaus Muster");
+    const hits = await search("Autohaus Muster");
 
     expect(hits[0].label).toBe("Autohaus Muster Süd, Musterstadt");
     expect(hits[0].portfolio).toEqual([
@@ -339,7 +348,106 @@ describe("ranking", () => {
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    expect(await placesAutocomplete("Autohaus Muster")).toHaveLength(1);
+    expect(await search("Autohaus Muster")).toHaveLength(1);
+  });
+});
+
+describe("Photon unavailable", () => {
+  const overtureHit = {
+    id: "ovt-1",
+    name: "Autohaus Lokal",
+    label: "Autohaus Lokal, Musterstadt",
+    lat: 50.5,
+    lon: 9.5,
+    street: "Hauptstraße 1",
+    category: "car",
+  };
+
+  it("answers from the local directory and says the online part is missing", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new TypeError("fetch failed: ECONNREFUSED"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    directory.search.mockReturnValue([overtureHit] as never);
+
+    const result = await placesAutocomplete("Autohaus Lokal");
+
+    expect(result.onlineUnavailable).toBe(true);
+    expect(result.suggestions.map((s) => [s.label, s.source])).toEqual([
+      ["Autohaus Lokal, Musterstadt", "overture"],
+    ]);
+    // Type-ahead does not retry: one attempt per query, two queries.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves Photon alone during the cooldown and asks again afterwards", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new TypeError("fetch failed"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await placesAutocomplete("Autohaus A");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const paused = await placesAutocomplete("Autohaus B");
+    expect(paused.onlineUnavailable).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    vi.setSystemTime(Date.now() + 2 * 60_000 + 1);
+    fetchMock.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ features: [] }), { status: 200 }),
+    );
+    const back = await placesAutocomplete("Autohaus B");
+    expect(back.onlineUnavailable).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("honours Retry-After on 429 and does not retry", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        new Response("slow down", {
+          status: 429,
+          headers: { "Retry-After": "600" },
+        }),
+    );
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await placesAutocomplete("Autohaus A");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    vi.setSystemTime(Date.now() + 5 * 60_000);
+    await placesAutocomplete("Autohaus B");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not pause Photon for a rejected single query (400)", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => new Response("bad", { status: 400 }));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await placesAutocomplete("Autohaus A");
+    await placesAutocomplete("Autohaus B");
+
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("Photon cache", () => {
+  it("reuses an answer for the same query instead of asking again", async () => {
+    const fetchMock = photonResponses({
+      dealers: [feature(9, "Autohaus Cache", 50, 8)],
+      general: [],
+    });
+
+    const first = await search("Autohaus Cache");
+    const second = await search("Autohaus Cache");
+
+    expect(second).toEqual(first);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -247,6 +247,13 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Address search when Photon is unreachable.** When Photon (the online
+  geocoder) refuses the connection, times out or rate-limits, the search now
+  answers from the local dealer directory and the portfolios and says that
+  online results are missing, instead of failing with "check your internet
+  connection". Photon is asked less often: answers are cached, type-ahead
+  requests are not retried, and Photon is paused for a few minutes after a
+  failure (`docs/location-search.md`).
 - Hailstorm scenario: the map drew the corridor in screen pixels, so its
   width changed with the zoom level and did not match the counted sites. It
   is now a geographic buffer of the set width, measured like the affected

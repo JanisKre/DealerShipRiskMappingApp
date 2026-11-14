@@ -1116,7 +1116,7 @@
       "addAddress": "Ajouter une adresse",
       "addressPlaceholder": "Ajouter une adresse…",
       "searchFailed": "Échec de la recherche",
-      "searchFailedHint": "Vérifiez la connexion Internet et réessayez.",
+      "searchFailedHint": "Réessayez. Si l’erreur persiste, l’export de diagnostic dans les paramètres peut aider.",
       "empty": "Aucun site pour l’instant. Ajoutez une adresse avec le « + » ci-dessus.",
       "sampleData": "Pas de portefeuille ? Données d'exemple avec 10 à 500 vraies concessions",
       "neighborSummary": {
@@ -1519,7 +1519,9 @@
     "inPortfolio": "Dans le portefeuille : {{portfolio}}",
     "inPortfolioMore": "Dans le portefeuille : {{portfolio}} +{{count}}",
     "updateAvailable": "Nouvelle version Overture {{release}} disponible.",
-    "updateLink": "Mettre à jour"
+    "updateLink": "Mettre à jour",
+    "onlineUnavailable": "Recherche en ligne (Photon) indisponible pour le moment – seuls les résultats de l’annuaire local des concessionnaires et des portefeuilles sont affichés.",
+    "onlineUnavailableNoLocal": "Recherche en ligne (Photon) indisponible pour le moment et aucun résultat local. Réessayez dans quelques minutes."
   },
   "chat": {
     "copy": "Copier la réponse",

@@ -123,6 +123,8 @@ export function Omnibox({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Photon unreachable for the current answer: local suggestions only. */
+  const [onlineUnavailable, setOnlineUnavailable] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -158,6 +160,7 @@ export function Omnibox({
     if (!isAddress || trimmed.length < MIN_CHARS) {
       setSuggestions([]);
       setError(null);
+      setOnlineUnavailable(false);
       setOpen(false);
       return;
     }
@@ -166,17 +169,23 @@ export function Omnibox({
       setLoading(true);
       setError(null);
       try {
-        const hits = await window.api.placesAutocomplete(trimmed, searchBias());
+        const result = await window.api.placesAutocomplete(
+          trimmed,
+          searchBias(),
+        );
         if (!cancelled) {
-          setSuggestions(hits);
+          setSuggestions(result.suggestions);
+          setOnlineUnavailable(result.onlineUnavailable);
           setOpen(true);
         }
       } catch (e) {
         if (!cancelled) {
+          // The raw IPC message ("Error invoking remote method …") is for
+          // the log, not for the user.
+          console.warn("Address autocomplete failed:", e);
           setSuggestions([]);
-          setError(
-            e instanceof Error ? e.message : t("upload.omnibox.searchFailed"),
-          );
+          setOnlineUnavailable(false);
+          setError(t("upload.omnibox.searchFailed"));
           setOpen(true);
         }
       } finally {
@@ -245,7 +254,9 @@ export function Omnibox({
       <p className="px-3 py-2 text-sm text-muted-foreground">
         {loading
           ? t("upload.omnibox.searching")
-          : t("upload.omnibox.noResults")}
+          : onlineUnavailable
+            ? t("places.onlineUnavailableNoLocal")
+            : t("upload.omnibox.noResults")}
       </p>
     );
   } else {
@@ -320,6 +331,9 @@ export function Omnibox({
         <div className="absolute bottom-full left-0 z-50 mb-2 w-full overflow-hidden rounded-md border bg-popover shadow-md">
           {dropdownBody}
           <div className="flex items-center gap-2 border-t px-3 py-1 text-[10px] text-muted-foreground">
+            {onlineUnavailable && suggestions.length > 0 && (
+              <span role="status">{t("places.onlineUnavailable")}</span>
+            )}
             {directoryUpdate?.updateAvailable && (
               <span>
                 {t("places.updateAvailable", {

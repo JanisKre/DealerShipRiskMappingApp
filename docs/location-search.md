@@ -33,6 +33,12 @@ something more specific, so "Autohaus Müller" also finds "Müller Automobile".
 - **OpenStreetMap via Photon** (live): one query restricted to car dealers
   (`shop=car`) and one for everything. Photon is biased towards the city the
   query names, else the map view (city level at most), else Germany.
+  Photon is a shared public service that throttles heavy clients and may
+  refuse an address for a while. Answers are therefore cached for 10 minutes
+  per query and bias, a failed request is not retried, and after a refusal,
+  timeout (6 s), 403, 429 or 5xx Photon is not asked for 2 minutes (longer
+  when `Retry-After` says so, at most 15). Meanwhile the search answers from
+  the directory and the portfolios and says that the online part is missing.
 - **Overture Maps directory** (local, see [dealer-directory.md](./dealer-directory.md)):
   SQLite FTS5 prefix search over name, brand, street, postcode and city. Each
   word also matches the spellings the index may hold ("mueller" → "muller",

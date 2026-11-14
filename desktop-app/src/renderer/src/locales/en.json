@@ -1116,7 +1116,7 @@
       "addAddress": "Add address",
       "addressPlaceholder": "Add address…",
       "searchFailed": "Search failed",
-      "searchFailedHint": "Check your internet connection and try again.",
+      "searchFailedHint": "Try again. If it keeps failing, the diagnostics export in Settings helps.",
       "empty": "No locations yet. Add an address with the “+” above.",
       "sampleData": "No portfolio at hand? Sample data with 10 to 500 real dealerships",
       "neighborSummary": {
@@ -1519,7 +1519,9 @@
     "inPortfolio": "In portfolio: {{portfolio}}",
     "inPortfolioMore": "In portfolio: {{portfolio}} +{{count}}",
     "updateAvailable": "New Overture release {{release}} available.",
-    "updateLink": "Update"
+    "updateLink": "Update",
+    "onlineUnavailable": "Online search (Photon) is unavailable right now – showing matches from the local dealer directory and portfolios only.",
+    "onlineUnavailableNoLocal": "Online search (Photon) is unavailable right now and there is no local match. Try again in a few minutes."
   },
   "chat": {
     "copy": "Copy answer",

@@ -1116,7 +1116,7 @@
       "addAddress": "Adresse hinzufügen",
       "addressPlaceholder": "Adresse hinzufügen…",
       "searchFailed": "Suche fehlgeschlagen",
-      "searchFailedHint": "Prüfe die Internetverbindung und versuche es erneut.",
+      "searchFailedHint": "Versuche es erneut. Bleibt der Fehler, hilft der Diagnose-Export in den Einstellungen.",
       "empty": "Noch keine Standorte. Füge über das „+“ oben eine Adresse hinzu.",
       "sampleData": "Kein Portfolio zur Hand? Beispieldaten mit 10 bis 500 echten Autohäusern",
       "neighborSummary": {
@@ -1519,7 +1519,9 @@
     "inPortfolio": "Im Portfolio: {{portfolio}}",
     "inPortfolioMore": "Im Portfolio: {{portfolio}} +{{count}}",
     "updateAvailable": "Neues Overture-Release {{release}} verfügbar.",
-    "updateLink": "Aktualisieren"
+    "updateLink": "Aktualisieren",
+    "onlineUnavailable": "Online-Suche (Photon) gerade nicht erreichbar – nur Treffer aus dem lokalen Händlerverzeichnis und den Portfolios.",
+    "onlineUnavailableNoLocal": "Online-Suche (Photon) gerade nicht erreichbar, und lokal gibt es keinen Treffer. In ein paar Minuten erneut versuchen."
   },
   "chat": {
     "copy": "Antwort kopieren",

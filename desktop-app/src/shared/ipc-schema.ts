@@ -368,7 +368,11 @@ export const ipcResponse = {
   "geocode:search": z.array(
     z.object({ label: z.string(), lat: z.number(), lon: z.number() }),
   ),
-  "places:autocomplete": z.array(PlaceSuggestionSchema),
+  "places:autocomplete": z.object({
+    suggestions: z.array(PlaceSuggestionSchema),
+    /** Photon unreachable: suggestions are local (directory, portfolios). */
+    onlineUnavailable: z.boolean(),
+  }),
   "boundary:detect": BoundaryResultSchema,
   "osm:details": OsmDetailsSchema,
   "hail:history": HailHistorySchema,
