@@ -72,7 +72,7 @@ import { ClusteredMarkers } from "./ClusteredMarkers";
 import { DetectionOverlay, type DetectionEditDraft } from "./DetectionOverlay";
 import { HailstormScenarioLayer } from "./HailstormScenarioLayer";
 import { HailEventReplayLayer } from "./HailEventReplayLayer";
-import { HailSimPanel } from "./HailSimPanel";
+import { HailEventCard } from "./HailEventCard";
 import { HailZoneLayer } from "./HailZoneLayer";
 import { LayerPanel } from "./LayerPanel";
 import { DeleteSelectedDialog } from "./LocationsPanel";
@@ -1357,9 +1357,10 @@ export function MapPage(): React.JSX.Element {
           )}
       </div>
 
-      {/* Hail simulation: button, or the panel, right of the zoom control. */}
-      <div className="pointer-events-none absolute bottom-24 left-16 top-3 z-[1001] flex flex-col items-start">
-        <HailSimPanel />
+      {/* Hail simulation: the playing storm and its impact, right of the
+          zoom control and clear of the layer panel on the right. */}
+      <div className="pointer-events-none absolute bottom-24 left-16 top-3 z-[1001] flex w-[min(30rem,calc(100%-21rem))] min-w-72 flex-col items-stretch [&>*]:pointer-events-auto">
+        <HailEventCard />
       </div>
 
       {/* Legend (left) and layer control (right) share one bottom bar: as

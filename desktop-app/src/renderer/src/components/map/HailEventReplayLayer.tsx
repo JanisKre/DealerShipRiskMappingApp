@@ -172,22 +172,95 @@ export function HailEventReplayLayer(): null {
         [n, e],
       ],
       {
-        // The hail panel covers the map's left side (w-80 plus margins).
-        // On a narrow map it takes at most 40 % of the width, or the
-        // padding would leave no room and Leaflet would zoom out to Europe.
-        paddingTopLeft: [
-          useHailReplayStore.getState().panelOpen
-            ? Math.min(400, map.getSize().x * 0.4)
-            : 64,
-          64,
+        // Room for the event card at the top and the layer panel at the
+        // bottom right; at most a third of a narrow map each, or Leaflet
+        // would zoom out to Europe.
+        paddingTopLeft: [48, Math.min(200, map.getSize().y * 0.3)],
+        paddingBottomRight: [
+          Math.min(280, map.getSize().x * 0.3),
+          Math.min(96, map.getSize().y * 0.15),
         ],
-        paddingBottomRight: [48, 96],
         maxZoom: 11,
       },
     );
     // Only on a new event, not on every shift.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, eventId]);
+
+  // A handle in the middle of the event: drag it to move the whole storm
+  // ("what if it had passed 30 km further south").
+  const shift = useHailReplayStore((st) => st.shift);
+  const handle = useRef<L.Marker | null>(null);
+  const dragStart = useRef<{
+    lat: number;
+    lon: number;
+    east: number;
+    north: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!detail) return undefined;
+    const [w, s0, e, n] = detail.summary.bbox;
+    const lat0 = (s0 + n) / 2;
+    const lon0 = (w + e) / 2;
+    const icon = L.divIcon({
+      className: "",
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      html:
+        '<div style="width:30px;height:30px;border-radius:9999px;background:#fff;border:2px solid #b91c1c;box-shadow:0 1px 4px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:grab">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></div>',
+    });
+    const marker = L.marker([lat0, lon0], {
+      icon,
+      draggable: true,
+      keyboard: false,
+      zIndexOffset: 1000,
+    }).addTo(map);
+    marker.on("dragstart", () => {
+      const st = useHailReplayStore.getState();
+      const ll = marker.getLatLng();
+      dragStart.current = {
+        lat: ll.lat,
+        lon: ll.lng,
+        east: st.shift.eastKm,
+        north: st.shift.northKm,
+      };
+    });
+    marker.on("drag", () => {
+      const from = dragStart.current;
+      if (!from) return;
+      const ll = marker.getLatLng();
+      const kx = 111.32 * Math.cos((lat0 * Math.PI) / 180);
+      useHailReplayStore.getState().setShift({
+        eastKm: Math.round((from.east + (ll.lng - from.lon) * kx) * 10) / 10,
+        northKm:
+          Math.round((from.north + (ll.lat - from.lat) * 111.32) * 10) / 10,
+      });
+    });
+    marker.on("dragend", () => {
+      dragStart.current = null;
+    });
+    handle.current = marker;
+    return () => {
+      marker.remove();
+      handle.current = null;
+    };
+    // A new handle per event; the shift moves it below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, eventId]);
+
+  // Keep the handle on the moved event (e.g. after "reset").
+  useEffect(() => {
+    const marker = handle.current;
+    if (!marker || !detail || dragStart.current) return;
+    const [w, s0, e, n] = detail.summary.bbox;
+    const lat0 = (s0 + n) / 2;
+    const kx = 111.32 * Math.cos((lat0 * Math.PI) / 180);
+    marker.setLatLng([
+      lat0 + shift.northKm / 111.32,
+      (w + e) / 2 + shift.eastKm / kx,
+    ]);
+  }, [shift, detail]);
 
   // Track lines: static per event and shift.
   useEffect(() => {

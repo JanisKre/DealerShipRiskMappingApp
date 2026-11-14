@@ -28,10 +28,10 @@ export type HailMapMode = "pickStart" | "draw" | null;
  * have sensible defaults.
  */
 interface HailReplayState {
-  panelOpen: boolean;
-  /** Only the player and the key figures, to watch the map. */
-  collapsed: boolean;
+  /** Creation mode in the layer panel's hail section. */
   tab: HailPanelTab;
+  /** The event card's list of reached locations and settings is open. */
+  detailsOpen: boolean;
   list: HailEventList | null;
   listLoading: boolean;
   listError: string | null;
@@ -59,8 +59,7 @@ interface HailReplayState {
   historicDay: string;
   historicLoading: boolean;
 
-  setPanelOpen: (open: boolean) => void;
-  setCollapsed: (collapsed: boolean) => void;
+  setDetailsOpen: (open: boolean) => void;
   setTab: (tab: HailPanelTab) => void;
   setList: (list: HailEventList | null) => void;
   setListLoading: (loading: boolean) => void;
@@ -82,8 +81,7 @@ interface HailReplayState {
 }
 
 export const useHailReplayStore = create<HailReplayState>((set) => ({
-  panelOpen: false,
-  collapsed: false,
+  detailsOpen: false,
   tab: "simulate",
   list: null,
   listLoading: false,
@@ -102,11 +100,7 @@ export const useHailReplayStore = create<HailReplayState>((set) => ({
   historicDay: "2013-07-28",
   historicLoading: false,
 
-  setPanelOpen: (panelOpen) =>
-    set(
-      panelOpen ? { panelOpen } : { panelOpen, mapMode: null, drawPoints: [] },
-    ),
-  setCollapsed: (collapsed) => set({ collapsed }),
+  setDetailsOpen: (detailsOpen) => set({ detailsOpen }),
   setTab: (tab) => set({ tab, mapMode: null, drawPoints: [] }),
   setList: (list) => set({ list }),
   setListLoading: (listLoading) => set({ listLoading }),
@@ -118,9 +112,6 @@ export const useHailReplayStore = create<HailReplayState>((set) => ({
       time: detail?.summary.timed
         ? detail.summary.start
         : (detail?.summary.end ?? 0),
-      // A storm that starts playing gets the map: the panel folds to the
-      // player and the key figures.
-      collapsed: autoplay && detail != null,
       playing: autoplay && detail?.summary.timed === true,
       shift: NO_SHIFT,
     }),

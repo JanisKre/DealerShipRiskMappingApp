@@ -7,6 +7,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Hail simulation in the layer panel.** The simulation is now a section of
+  the layer panel (random, draw, historic, archive) instead of a separate
+  button and panel. An event card next to the zoom control plays the storm
+  and counts reached locations, exposure and stress-test loss as it moves,
+  with the list, reach and closest miss under "Details". The storm is moved
+  by dragging its handle on the map instead of with sliders.
+
 ## [0.5.0] – 2026-11-14
 
 ### Added
