@@ -206,10 +206,12 @@ export function generateAlerts(
     });
   }
 
-  // Critical first; the sort is stable, so rule order is kept within a level.
-  return out.sort((a, b) =>
-    a.level === b.level ? 0 : a.level === "critical" ? -1 : 1,
-  );
+  // Critical first, then accumulations to check because their exposure is
+  // mostly estimated, then data quality; the sort is stable, so rule order
+  // is kept within a rank.
+  const rank = (a: Alert): number =>
+    a.level === "critical" ? 0 : a.dataBasis === "estimated" ? 1 : 2;
+  return out.sort((a, b) => rank(a) - rank(b));
 }
 
 /** IDs of all locations with at least one alert — for table badges. */

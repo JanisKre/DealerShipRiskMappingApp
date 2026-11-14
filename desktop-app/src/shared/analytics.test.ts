@@ -216,6 +216,13 @@ describe("generateAlerts", () => {
     );
     expect(alert?.level).toBe("warning");
     expect(alert?.dataBasis).toBe("estimated");
+    // Listed before the plain data-quality notes.
+    const kinds = generateAlerts(ds, parameters).map((a) => a.kind);
+    expect(kinds.indexOf("accumulation")).toBeLessThan(
+      kinds.indexOf("estimated-hail-zone") === -1
+        ? Infinity
+        : kinds.indexOf("estimated-hail-zone"),
+    );
     expect(alert?.estimatedShare).toBe(1);
 
     // A counted accumulation stays critical.
