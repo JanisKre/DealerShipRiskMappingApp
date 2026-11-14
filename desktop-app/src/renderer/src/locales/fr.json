@@ -875,7 +875,8 @@
         "winterImagery": "image d’hiver : des véhicules à l’ombre peuvent manquer",
         "legacyEngine": "détectée par une version antérieure – relancez l’analyse",
         "anchorOffLot": "le point se trouve à côté du parc de véhicules – vérifiez la parcelle",
-        "staleImagery": "l’image aérienne date de plusieurs années – le site a pu changer"
+        "staleImagery": "l’image aérienne date de plusieurs années – le site a pu changer",
+        "pointOffSite": "le point se trouve en forêt ou en terrain ouvert, sans bâtiment ni véhicule – corrigez la position"
       },
       "boundaryReviewBecause": "À vérifier car : {{reasons}}"
     },
@@ -1520,6 +1521,7 @@
     "inPortfolioMore": "Dans le portefeuille : {{portfolio}} +{{count}}",
     "updateAvailable": "Nouvelle version Overture {{release}} disponible.",
     "updateLink": "Mettre à jour",
+    "approximate": "Position approximative – aucune adresse connue, le point peut être hors du site",
     "onlineUnavailable": "Recherche en ligne (Photon) indisponible pour le moment – seuls les résultats de l’annuaire local des concessionnaires et des portefeuilles sont affichés.",
     "onlineUnavailableNoLocal": "Recherche en ligne (Photon) indisponible pour le moment et aucun résultat local. Réessayez dans quelques minutes."
   },

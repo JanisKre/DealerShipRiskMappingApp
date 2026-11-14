@@ -25,6 +25,7 @@ vi.mock("./detection/roof-mask.service", () => ({
 
 import {
   detectBoundary,
+  OFF_SITE_MARKER_RADIUS_M,
   SYNTHETIC_BOUNDARY_RADIUS_M,
   syntheticFallbackBoundary,
 } from "./boundary.service";
@@ -126,6 +127,36 @@ describe("detectBoundary", () => {
         "no vehicle detection — re-analyse with a model",
         "cadastre service unreachable — re-analyse when online",
       ]),
+    );
+  });
+
+  it("draws only a small marker at a point in a wood", async () => {
+    mocks.fetchParcelsNear.mockRejectedValue(new Error("offline"));
+    const r = 0.01;
+    const forest = {
+      west: LON - r,
+      south: LAT - r,
+      east: LON + r,
+      north: LAT + r,
+      width: 50,
+      height: 50,
+      cells: new Uint8Array(2500).fill(1),
+    };
+    const result = await detectBoundary(
+      LAT,
+      LON,
+      undefined,
+      undefined,
+      undefined,
+      [],
+      { vegetation: forest },
+    );
+    expect(result.source).toBe("synthetic");
+    expect(result.quality?.reviewFlags).toContain("pointOffSite");
+    const full = syntheticFallbackBoundary(LAT, LON).areaSqm;
+    expect(result.areaSqm).toBeLessThan(full / 20);
+    expect(result.quality?.reasons).toContain(
+      `stage 5: ${OFF_SITE_MARKER_RADIUS_M} m marker at the point (off the site)`,
     );
   });
 });

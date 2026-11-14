@@ -87,8 +87,13 @@ import { addressKeys, sharesAddress } from "./parcel-address";
  * parcel does not carry the dealership's address moves to the parcel that
  * does; housing and open land join only when dense with vehicles
  * (docs/boundary-model.md, "Cascade v9").
+ * 10: parcels in all states; a dense lot across a street joins.
+ * 11: a point in woodland or open land, with no building and no vehicles
+ * near it, is off the site (`pointOffSite`): its parcel is not returned,
+ * the nearest vehicle lot within reach is, else a small marker
+ * (docs/boundary-model.md, "Cascade v11").
  */
-export const CASCADE_VERSION = 10;
+export const CASCADE_VERSION = 11;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -366,6 +371,11 @@ export interface CascadeOutcome {
   lotVehicles?: number;
   /** Conditions that send the result to review on their own. */
   flags: BoundaryReviewFlag[];
+  /**
+   * The point lies in woodland or open land with nothing of a dealership
+   * near it; the caller then draws a small marker, not the full circle.
+   */
+  pointOffSite?: boolean;
   /**
    * The point the stages started from, when it is not the given one: a
    * point inside the parcel that carries the dealership's address.
@@ -2028,6 +2038,136 @@ export function parcelStage(input: CascadeInput): StageOutcome {
   };
 }
 
+// --- Point plausibility (v11) -------------------------------------------
+
+/** Limits of the off-site test. See docs/boundary-model.md, "Cascade v11". */
+export const POINT_SITE_LIMITS = {
+  /** A building this close to the point may be the showroom. */
+  buildingM: 50,
+  /** Radius of the disc around the point whose vegetation is measured. */
+  discM: 60,
+  /** This many vehicles within `discM` are some kind of site. */
+  maxVehicles: 3,
+  /** Share of the disc that is vegetation on the image for "woodland". */
+  greenShare: 0.75,
+  /** Share of the parcel the cadastre lists as open land (farm, wood, water). */
+  openShare: 0.8,
+  /** The nearest vehicle lot is looked for this far from the point. */
+  nearestLotM: 250,
+  /** Confidence cap for a lot found away from an off-site point. */
+  movedConfidence: 0.3,
+} as const;
+
+/** Octagon of `radiusM` around a point, closed. */
+function discRing(center: LonLat, radiusM: number): LonLat[] {
+  const dLat = radiusM / 111_320;
+  const dLon = dLat / Math.max(0.1, Math.cos((center[1] * Math.PI) / 180));
+  const ring: LonLat[] = [];
+  for (let i = 0; i <= 8; i += 1) {
+    const a = (i / 8) * 2 * Math.PI;
+    ring.push([center[0] + dLon * Math.cos(a), center[1] + dLat * Math.sin(a)]);
+  }
+  return ring;
+}
+
+/**
+ * Whether the point can be on a dealership at all. Off the site means: no
+ * building within `buildingM`, hardly any vehicles around, and the ground is
+ * woodland or open land — by the aerial image (vegetation share of the disc
+ * around the point) or by the cadastre (open-land share of its parcel).
+ * Null when neither source says anything about the ground.
+ */
+export function pointSiteCheck(
+  input: CascadeInput,
+): { offSite: boolean; reason: string } | null {
+  const { anchor } = input;
+  const building = (input.buildings ?? []).some(
+    (ring) =>
+      contains(ring, anchor) ||
+      distanceToRingM(anchor, ring) <= POINT_SITE_LIMITS.buildingM,
+  );
+  if (building) {
+    return { offSite: false, reason: "a building is near the point" };
+  }
+  const nearVehicles = (input.vehicles ?? []).filter(
+    (v) => metres(anchor, v) <= POINT_SITE_LIMITS.discM,
+  ).length;
+  if (nearVehicles >= POINT_SITE_LIMITS.maxVehicles) {
+    return { offSite: false, reason: "vehicles stand near the point" };
+  }
+  const green = greenShare(
+    discRing(anchor, POINT_SITE_LIMITS.discM),
+    input.vegetationAt,
+    input.buildings,
+  );
+  const use = anchorParcelOf(input)?.landUse;
+  const open = use ? (use.open ?? 0) : null;
+  if (green == null && open == null) return null;
+  if (green != null && green >= POINT_SITE_LIMITS.greenShare) {
+    return {
+      offSite: true,
+      reason: `the point lies in vegetation (${Math.round(green * 100)} % within ${POINT_SITE_LIMITS.discM} m) with no building or vehicles near it`,
+    };
+  }
+  if (open != null && open >= POINT_SITE_LIMITS.openShare) {
+    return {
+      offSite: true,
+      reason: `the cadastre lists the parcel at the point as open land (${Math.round(open * 100)} %) and no building or vehicles are near it`,
+    };
+  }
+  return { offSite: false, reason: "the ground at the point is not open land" };
+}
+
+/**
+ * The nearest vehicle lot within `nearestLotM` of an off-site point, outlined
+ * as stage 1 or 2 would from one of its vehicles. Null when there is none.
+ */
+function nearestLot(
+  input: CascadeInput,
+): { result: BoundaryResult; stage: CascadeStage; distanceM: number } | null {
+  if (!input.vehicles || input.vehicles.length === 0) return null;
+  const tried: LonLat[] = [];
+  const nearby = input.vehicles
+    .map((v) => ({ v, d: metres(input.anchor, v) }))
+    .filter(({ d }) => d <= POINT_SITE_LIMITS.nearestLotM)
+    .sort((a, b) => a.d - b.d);
+  for (const { v, d } of nearby) {
+    if (tried.some((t) => metres(t, v) <= CASCADE_LIMITS.vehicleLinkM)) {
+      continue;
+    }
+    const at = { ...input, anchor: v };
+    const lot = vehicleLot(
+      input.vehicles,
+      v,
+      anchorParcelOf(at)?.ring,
+      anchorBuildingOf(at),
+    );
+    tried.push(...(lot.length > 0 ? lot : [v]));
+    if (lot.length < CASCADE_LIMITS.hullMinVehicles) continue;
+    for (const [stage, run] of [
+      [1, vehicleParcelStage],
+      [2, vehicleHullStage],
+    ] as const) {
+      const outcome = run(at);
+      if (outcome.result) {
+        return {
+          result: {
+            ...outcome.result,
+            confidence: Math.min(
+              outcome.result.confidence,
+              POINT_SITE_LIMITS.movedConfidence,
+            ),
+          },
+          stage,
+          distanceM: d,
+        };
+      }
+    }
+    if (tried.length > 400) break;
+  }
+  return null;
+}
+
 // --- Orchestration ------------------------------------------------------
 
 /**
@@ -2094,6 +2234,32 @@ export function runCascade(given: CascadeInput): CascadeOutcome {
     // geocoded point is not where the dealership is.
     flags.push("noLotAtPoint");
   }
+  let pointOffSite = false;
+  if (chosen == null || chosen.stage >= 4) {
+    const check = pointSiteCheck(input);
+    if (check?.offSite) {
+      // A wood or a field is no dealership, whatever its parcel: drop it and
+      // look for the nearest lot instead.
+      pointOffSite = true;
+      flags.push("pointOffSite");
+      trace.push(`point check: ${check.reason}`);
+      if (chosen?.stage === 4) {
+        alternatives.push(chosen.result);
+        chosen = null;
+      }
+      const near = nearestLot(input);
+      if (near) {
+        chosen = { result: near.result, stage: near.stage };
+        trace.push(
+          `point check: nearest vehicle lot ${Math.round(near.distanceM)} m away used instead; check that it is the dealership`,
+        );
+      } else {
+        trace.push(
+          `point check: no vehicle lot within ${POINT_SITE_LIMITS.nearestLotM} m; correct the position`,
+        );
+      }
+    }
+  }
   return {
     result: chosen?.result ?? null,
     stage: chosen?.stage ?? null,
@@ -2101,6 +2267,7 @@ export function runCascade(given: CascadeInput): CascadeOutcome {
     alternatives,
     ...(lotVehicles != null ? { lotVehicles } : {}),
     flags,
+    ...(pointOffSite ? { pointOffSite } : {}),
     ...(moved ? { anchor: moved.anchor } : {}),
   };
 }

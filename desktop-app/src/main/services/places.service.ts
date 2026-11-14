@@ -75,6 +75,8 @@ export interface PlaceSuggestion {
   sources?: PlaceSource[];
   /** Saved portfolio locations this place already is. */
   portfolio?: PortfolioMatch[];
+  /** No source knows the street; the point may be off the site. */
+  approximate?: boolean;
 }
 
 export interface PlacesAutocompleteResult {
@@ -322,6 +324,7 @@ export async function placesAutocomplete(
     source: "overture",
     dealer: true,
     hasHouseNumber: /\d/u.test(hit.street ?? ""),
+    addressKnown: Boolean(hit.street?.trim()),
     sourceRank: index,
   }));
 
@@ -339,13 +342,14 @@ export async function placesAutocomplete(
     focus: locality ?? near,
     locality,
     portfolio: (place) => matchPortfolio(place, entries),
-  }).map(({ label, lat, lon, source, sources, portfolio }) => ({
+  }).map(({ label, lat, lon, source, sources, portfolio, approximate }) => ({
     label,
     lat,
     lon,
     source,
     sources,
     ...(portfolio.length > 0 ? { portfolio } : {}),
+    ...(approximate ? { approximate } : {}),
   }));
   return { suggestions, onlineUnavailable };
 }

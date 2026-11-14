@@ -30,6 +30,12 @@ export interface PlaceCandidate {
   dealer: boolean;
   /** The address carries a house number. */
   hasHouseNumber: boolean;
+  /**
+   * False for a directory entry without a street: Overture then often knows
+   * only the town, and its point may lie anywhere (a wood, a field).
+   * Missing means known (OSM hits are drawn on the object itself).
+   */
+  addressKnown?: boolean;
   /** 0-based position in its own source's ranking. */
   sourceRank: number;
 }
@@ -44,6 +50,8 @@ export interface RankedPlace {
   sources: PlaceSource[];
   /** Saved portfolio locations this place already is. */
   portfolio: PortfolioMatch[];
+  /** No source knows the street: the position is approximate. */
+  approximate: boolean;
   score: number;
 }
 
@@ -81,6 +89,8 @@ export const RANK_WEIGHTS = {
   proximity: 0.5,
   /** Per position in the source's own list (capped at 5): keeps its order on ties. */
   sourceRank: 0.15,
+  /** 1 when no source knows the street, so the point may be anywhere in town. */
+  approximate: 1,
 } as const;
 
 const MAX_RESULTS = 8;
@@ -91,6 +101,15 @@ const DUPLICATE_DISTANCE_M = 75;
  * vs. roof centroid); within this distance a similar name means one place.
  */
 const CROSS_SOURCE_DISTANCE_M = 150;
+/**
+ * An entry without a street is dropped when the same business name with a
+ * street lies within this distance: it is the same dealer, poorly placed.
+ */
+const APPROXIMATE_TWIN_KM = 30;
+
+function addressKnown(members: readonly PlaceCandidate[]): boolean {
+  return members.some((m) => m.addressKnown !== false);
+}
 
 function samePlace(a: PlaceCandidate, b: PlaceCandidate): boolean {
   if (b.osmKey != null && a.osmKey === b.osmKey) return true;
@@ -166,7 +185,8 @@ export function scorePlace(
     RANK_WEIGHTS.locality * locality +
     RANK_WEIGHTS.portfolio * (portfolio.length > 0 ? 1 : 0) +
     RANK_WEIGHTS.proximity * proximity -
-    RANK_WEIGHTS.sourceRank * sourceRank;
+    RANK_WEIGHTS.sourceRank * sourceRank -
+    RANK_WEIGHTS.approximate * (addressKnown(members) ? 0 : 1);
 
   return {
     label: shown.label,
@@ -175,8 +195,37 @@ export function scorePlace(
     source: shown.source,
     sources,
     portfolio,
+    approximate: !addressKnown(members),
     score,
   };
+}
+
+/**
+ * Drops places no source knows the street of when the same business with a
+ * street is in the list nearby. Overture keeps such duplicates (one entry
+ * per data provider); the one without a street usually sits on the town's
+ * centroid or a random spot, which then misleads the boundary search.
+ */
+export function dropApproximateTwins(
+  clusters: readonly PlaceCandidate[][],
+): PlaceCandidate[][] {
+  const located = clusters.filter(addressKnown);
+  return clusters.filter((members) => {
+    if (addressKnown(members)) return true;
+    return !members.some(
+      (member) =>
+        member.name != null &&
+        located.some((other) =>
+          other.some(
+            (o) =>
+              o.name != null &&
+              o.addressKnown !== false &&
+              distanceKm(member, o) <= APPROXIMATE_TWIN_KM &&
+              similarBusinessNames(member.name!, o.name),
+          ),
+        ),
+    );
+  });
 }
 
 /** Merges, scores and orders all hits; equal scores keep first-seen order. */
@@ -185,7 +234,7 @@ export function rankPlaces(
   context: RankContext,
   limit = MAX_RESULTS,
 ): RankedPlace[] {
-  return clusterCandidates(candidates)
+  return dropApproximateTwins(clusterCandidates(candidates))
     .map((members, order) => ({ place: scorePlace(members, context), order }))
     .sort((a, b) => b.place.score - a.place.score || a.order - b.order)
     .slice(0, limit)

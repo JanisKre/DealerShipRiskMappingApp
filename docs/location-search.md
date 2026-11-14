@@ -56,6 +56,13 @@ within 75 m, or — across OSM and Overture — a similar business name within
 usually carries the full address. The tag on the suggestion lists every
 source ("OSM + Overture").
 
+Overture often lists one dealer several times, once per data provider.
+An entry without a street usually has only the town, and its point may lie
+anywhere: in one reported case it was in a forest 1 km from the yard. Such
+an entry is dropped when the same business name with a street lies within
+30 km. Otherwise it stays, ranked lower, and the suggestion reads
+"approximate position – no street known".
+
 ## 4. Rank
 
 Every merged place gets one score (`place-ranking.ts`, `RANK_WEIGHTS`):
@@ -69,6 +76,7 @@ Every merged place gets one score (`place-ranking.ts`, `RANK_WEIGHTS`):
 | In a portfolio | 1 | 1 when the place already is a saved portfolio location |
 | Proximity | 0.5 | −log10(1 + km/10) from the named place, else the map view |
 | Source order | −0.15 | Per position in the source's own list (capped at 5) |
+| Approximate | −1 | 1 when no source knows the street |
 
 The name match dominates, so a wrong name never wins on proximity. Equal
 scores keep the order the sources returned, which makes the ranking

@@ -172,3 +172,64 @@ describe("rankPlaces", () => {
     );
   });
 });
+
+describe("entries without a street", () => {
+  const context = { tokens: ["muster"], addressIntent: false };
+  // Mirrors a real Overture case: the same dealer three times, once with only
+  // the town and a point in a wood 1 km from the yard.
+  const withStreet = candidate({
+    label: "Autohaus Muster, Automeile 14, 35394 Musterstadt",
+    name: "Autohaus Muster GmbH & Co. KG",
+    source: "overture",
+    dealer: true,
+    hasHouseNumber: true,
+    addressKnown: true,
+    lat: 50.573,
+    lon: 8.71,
+  });
+  const townOnly = candidate({
+    label: "Autohaus Muster Gmbh, Musterstadt",
+    name: "Autohaus Muster Gmbh",
+    source: "overture",
+    dealer: true,
+    addressKnown: false,
+    lat: 50.5797,
+    lon: 8.7211,
+    sourceRank: 0,
+  });
+
+  it("drops it when the same dealer with a street is nearby", () => {
+    const ranked = rankPlaces([townOnly, withStreet], context);
+    expect(ranked.map((p) => p.label)).toEqual([withStreet.label]);
+    expect(ranked[0].approximate).toBe(false);
+  });
+
+  it("keeps it, flagged and ranked lower, when it is the only entry", () => {
+    const other = candidate({
+      label: "Beispiel Automobile, Ring 3, Musterstadt",
+      name: "Beispiel Automobile",
+      source: "overture",
+      dealer: true,
+      addressKnown: true,
+      lat: 50.6,
+      lon: 8.7,
+    });
+    const byLabel = new Map(
+      rankPlaces([townOnly, other], { ...context, tokens: [] }).map((p) => [
+        p.label,
+        p,
+      ]),
+    );
+    expect(byLabel.get(townOnly.label)?.approximate).toBe(true);
+    expect(byLabel.get(other.label)?.approximate).toBe(false);
+    expect(byLabel.get(townOnly.label)!.score).toBeLessThan(
+      byLabel.get(other.label)!.score,
+    );
+  });
+
+  it("keeps a far-away namesake with a street from removing it", () => {
+    const farAway = { ...withStreet, lat: 52.5, lon: 13.4 };
+    const ranked = rankPlaces([townOnly, farAway], context);
+    expect(ranked.map((p) => p.label)).toContain(townOnly.label);
+  });
+});

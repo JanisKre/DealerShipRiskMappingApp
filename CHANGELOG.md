@@ -259,6 +259,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Dealership points in a forest.** A point in woodland or open land with
+  no building or vehicles near it no longer gets a 160 m lot drawn into the
+  trees. Cascade v11 uses the nearest vehicle lot within 250 m, at low
+  confidence, or else a 25 m marker. Either way the result is flagged
+  "point lies in woodland or open land – correct the position". In the
+  location search, an Overture entry without a street is hidden when the
+  same dealer with an address is nearby. Otherwise it is marked as an
+  approximate position (`docs/boundary-model.md`, "Cascade v11";
+  `docs/location-search.md`).
 - **Address search when Photon is unreachable.** When Photon (the online
   geocoder) refuses the connection, times out or rate-limits, the search now
   answers from the local dealer directory and the portfolios and says that

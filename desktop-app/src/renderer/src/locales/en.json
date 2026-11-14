@@ -875,7 +875,8 @@
         "winterImagery": "winter image: vehicles in shadow may be missing",
         "legacyEngine": "detected by an older version – re-analyse",
         "anchorOffLot": "the point lies beside the vehicle lot – check the plot",
-        "staleImagery": "the aerial image is several years old – the site may have changed"
+        "staleImagery": "the aerial image is several years old – the site may have changed",
+        "pointOffSite": "the point lies in woodland or open land with no building or vehicles – correct the position"
       },
       "boundaryReviewBecause": "Check because: {{reasons}}"
     },
@@ -1520,6 +1521,7 @@
     "inPortfolioMore": "In portfolio: {{portfolio}} +{{count}}",
     "updateAvailable": "New Overture release {{release}} available.",
     "updateLink": "Update",
+    "approximate": "Approximate position – no street known, the point may lie off the site",
     "onlineUnavailable": "Online search (Photon) is unavailable right now – showing matches from the local dealer directory and portfolios only.",
     "onlineUnavailableNoLocal": "Online search (Photon) is unavailable right now and there is no local match. Try again in a few minutes."
   },

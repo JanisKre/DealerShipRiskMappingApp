@@ -52,3 +52,19 @@ export function PlacePortfolioBadge({
     </span>
   );
 }
+
+/**
+ * Warns that no source knows the street of a suggestion: the directory then
+ * often has only the town, and the point may lie in a wood or a field.
+ */
+export function PlaceApproximateNote({
+  approximate,
+}: Readonly<Pick<PlaceSuggestion, "approximate">>): React.JSX.Element | null {
+  const { t } = useTranslation();
+  if (!approximate) return null;
+  return (
+    <span className="mt-0.5 text-xs text-muted-foreground">
+      {t("places.approximate")}
+    </span>
+  );
+}

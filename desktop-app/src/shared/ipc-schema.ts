@@ -163,6 +163,8 @@ export const PlaceSuggestionSchema = z.object({
   source: PlaceSourceSchema.optional(),
   /** Every source that knows the place; both = confirmed. */
   sources: z.array(PlaceSourceSchema).optional(),
+  /** No source knows the street; the point may lie off the site. */
+  approximate: z.boolean().optional(),
   /** Saved portfolio locations this place already is (local notes excerpt). */
   portfolio: z
     .array(

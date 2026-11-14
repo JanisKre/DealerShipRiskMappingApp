@@ -751,6 +751,56 @@ on the first lot.
 - The SH stored query returns every layer of the area, about 2.5 MB for a
   120 m box, mostly administrative boundaries; it is cached for 30 days.
 
+## Cascade v11 (November 2026, point off the site)
+
+`CASCADE_VERSION` 11. A user added a dealership from a directory entry
+without a street. Its point lay in a closed forest about 1 km from the yard.
+The parcel at the point was a 52 ha forest parcel, no vehicles were seen,
+and stage 5 drew the 160 m fallback octagon (about 7 ha) into the trees.
+Hessen publishes no land use, so nothing told the engine the ground was
+woodland.
+
+### What changed
+
+| Change | Where | Failure it addresses |
+| --- | --- | --- |
+| **Point check.** When no vehicle lot formed at the point (no result, or only the stage 4 parcel), the point is called off the site if no building lies within 50 m, fewer than 3 vehicles stand within 60 m, and the ground is woodland or open land: at least 75 % vegetation in a 60 m disc on the aerial image (`greenShare`, roofs excluded), or at least 80 % open land on the parcel in the cadastre. With neither image nor land use the check says nothing and the result stays as before. | `pointSiteCheck` | A lot drawn into a forest or a field. |
+| **No woodland parcel.** An off-site point does not get its stage 4 parcel. The parcel stays an alternative for review. | `runCascade` | A forest parcel offered as the lot. |
+| **Nearest lot.** The nearest vehicle lot (at least 20 vehicles) within 250 m is outlined as stage 1 or 2 would from one of its vehicles. Its confidence is capped at 0.3, so it is always reviewed, and the trace gives the distance. | `nearestLot` | The point a few rows off a real lot. |
+| **Small marker.** Without such a lot the caller draws a 25 m marker instead of the 160 m octagon. | `boundary.service.ts` (`OFF_SITE_MARKER_RADIUS_M`) | A 7 ha "lot" nobody can tell from a real one. |
+
+Every off-site result carries the review flag `pointOffSite` ("the point
+lies in woodland or open land with no building or vehicles – correct the
+position"). The engine never moves the point itself. A lot 250 m away may
+belong to a neighbour, so the user confirms or corrects the position.
+
+### Measured
+
+Frozen inputs, v10 against v11:
+
+| | v10 | v11 |
+| --- | --- | --- |
+| replay set, 105 sites: results changed | — | 0 |
+| fresh set, 73 sites: results changed | — | 0 |
+| refetched SH/MV/BW/Saarland set, 17 sites: results changed | — | 0 |
+| the reported forest point (live capture) | 72,408 m² octagon | 1,768 m² marker, `pointOffSite` |
+
+None of the 195 frozen sites trips the check: every real dealership point
+has a building within 50 m or vehicles around it. The nearest-lot path has
+not occurred on a real site yet. It is covered by fixtures only
+(`cascade-v11.test.ts`).
+
+### Limitations
+
+- The vegetation test needs the context image. A point in a field shown
+  as bare soil (after harvest) passes as "not open" unless the cadastre
+  publishes land use.
+- A dealership on a forest clearing with its building more than 50 m from
+  the point and no stock outside would be called off the site. On the
+  review flag the user corrects the point or confirms the result.
+- The thresholds were chosen on one reported case and checked for false
+  positives on 195 sites, not tuned on a set of off-site points.
+
 ## Earlier engines (removed)
 
 Version 0.2 ranked candidates from ALKIS, OSM, Nominatim and Overture; 0.2.x

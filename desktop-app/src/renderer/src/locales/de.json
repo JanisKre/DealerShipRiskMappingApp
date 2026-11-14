@@ -875,7 +875,8 @@
         "winterImagery": "Winterbild: Fahrzeuge im Schatten können fehlen",
         "legacyEngine": "mit einer älteren Version erkannt – neu analysieren",
         "anchorOffLot": "der Punkt liegt neben dem Fahrzeug-Lot – Grundstück prüfen",
-        "staleImagery": "Luftbild ist mehrere Jahre alt – das Gelände kann sich verändert haben"
+        "staleImagery": "Luftbild ist mehrere Jahre alt – das Gelände kann sich verändert haben",
+        "pointOffSite": "der Punkt liegt im Wald oder auf freiem Feld, ohne Gebäude oder Fahrzeuge – Position korrigieren"
       },
       "boundaryReviewBecause": "Prüfen, weil: {{reasons}}"
     },
@@ -1520,6 +1521,7 @@
     "inPortfolioMore": "Im Portfolio: {{portfolio}} +{{count}}",
     "updateAvailable": "Neues Overture-Release {{release}} verfügbar.",
     "updateLink": "Aktualisieren",
+    "approximate": "Lage ungenau – keine Adresse bekannt, Punkt kann neben dem Betrieb liegen",
     "onlineUnavailable": "Online-Suche (Photon) gerade nicht erreichbar – nur Treffer aus dem lokalen Händlerverzeichnis und den Portfolios.",
     "onlineUnavailableNoLocal": "Online-Suche (Photon) gerade nicht erreichbar, und lokal gibt es keinen Treffer. In ein paar Minuten erneut versuchen."
   },

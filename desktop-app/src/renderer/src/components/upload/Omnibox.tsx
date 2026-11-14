@@ -19,6 +19,7 @@ import { classifyInput } from "@renderer/lib/classifyInput";
 import { cn } from "@renderer/lib/utils";
 import { searchBias } from "@renderer/lib/searchBias";
 import {
+  PlaceApproximateNote,
   PlacePortfolioBadge,
   PlaceSourceTag,
 } from "@renderer/components/map/PlaceSourceTag";
@@ -276,6 +277,7 @@ export function Omnibox({
               <span className="flex min-w-0 flex-col">
                 <span>{s.label}</span>
                 <PlacePortfolioBadge portfolio={s.portfolio} />
+                <PlaceApproximateNote approximate={s.approximate} />
               </span>
               <PlaceSourceTag source={s.source} sources={s.sources} />
             </button>

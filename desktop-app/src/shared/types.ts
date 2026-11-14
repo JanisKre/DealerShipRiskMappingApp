@@ -322,6 +322,8 @@ export type BoundaryGrowthStop = z.infer<typeof BoundaryGrowthStopSchema>;
  *   the point may be on a neighbouring plot.
  * - staleImagery: the image is older than the review limit; the site may
  *   have changed since.
+ * - pointOffSite: the point lies in woodland or open land with no building
+ *   or vehicles near it — its position is almost certainly wrong.
  */
 export const BoundaryReviewFlagSchema = z.enum([
   "cadastreIncomplete",
@@ -329,6 +331,7 @@ export const BoundaryReviewFlagSchema = z.enum([
   "winterImagery",
   "anchorOffLot",
   "staleImagery",
+  "pointOffSite",
 ]);
 export type BoundaryReviewFlag = z.infer<typeof BoundaryReviewFlagSchema>;
 

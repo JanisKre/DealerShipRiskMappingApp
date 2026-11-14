@@ -58,7 +58,11 @@ import { businessType, useAppStore } from "@renderer/store/appStore";
 import { searchBias } from "@renderer/lib/searchBias";
 import { Link } from "react-router-dom";
 import { useDealerDirectoryStore } from "@renderer/store/dealerDirectoryStore";
-import { PlacePortfolioBadge, PlaceSourceTag } from "./PlaceSourceTag";
+import {
+  PlaceApproximateNote,
+  PlacePortfolioBadge,
+  PlaceSourceTag,
+} from "./PlaceSourceTag";
 import { allRowsSelected } from "./mapSelection";
 import type { PlaceSuggestion } from "@shared/ipc-schema";
 import { nameForPlace } from "@renderer/lib/placeName";
@@ -1047,6 +1051,7 @@ function AddLocationField({
                 <span className="flex min-w-0 flex-col">
                   <span>{s.label}</span>
                   <PlacePortfolioBadge portfolio={s.portfolio} />
+                  <PlaceApproximateNote approximate={s.approximate} />
                 </span>
                 <PlaceSourceTag source={s.source} sources={s.sources} />
               </button>

@@ -22,6 +22,12 @@ import {
 
 export { fetchOverpass } from "./boundary/overpass-client";
 
+/**
+ * Radius of the marker drawn at a point that is off the site (cascade v11):
+ * visible on the map, but no area anyone would take for a lot.
+ */
+export const OFF_SITE_MARKER_RADIUS_M = 25;
+
 export interface BoundaryRunOptions {
   /**
    * Epoch ms after which the cascade stops waiting for OpenStreetMap. The
@@ -120,13 +126,18 @@ export async function detectBoundary(
       ? { result: cascade.result, stage: cascade.stage }
       : null;
   if (!chosen) {
-    trace.push("stage 5: synthetic circle around the point");
+    // A point in a wood or a field gets a small marker: the full circle
+    // would only draw a lot into the trees.
+    const radiusM = cascade.pointOffSite
+      ? Math.min(OFF_SITE_MARKER_RADIUS_M, parameters.syntheticBoundaryRadiusM)
+      : parameters.syntheticBoundaryRadiusM;
+    trace.push(
+      cascade.pointOffSite
+        ? `stage 5: ${Math.round(radiusM)} m marker at the point (off the site)`
+        : "stage 5: synthetic circle around the point",
+    );
     chosen = {
-      result: syntheticFallbackBoundary(
-        lat,
-        lon,
-        parameters.syntheticBoundaryRadiusM,
-      ),
+      result: syntheticFallbackBoundary(lat, lon, radiusM),
       stage: 5,
     };
   }

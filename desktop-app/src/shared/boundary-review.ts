@@ -14,6 +14,7 @@ export const BOUNDARY_REVIEW_REASONS = [
   "winterImagery",
   "anchorOffLot",
   "staleImagery",
+  "pointOffSite",
   /** A result of the removed fusion/legacy engines failed one of their checks. */
   "legacyEngine",
 ] as const;
