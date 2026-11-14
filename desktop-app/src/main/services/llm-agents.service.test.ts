@@ -12,6 +12,7 @@ vi.mock("./settings.service", () => ({
 }));
 
 import {
+  draftScenario,
   explainSystemPrompt,
   planChatTools,
   proposeReviewOrder,
@@ -183,5 +184,34 @@ describe("chat lookups", () => {
     expect(portfolioChatSystemPrompt("ctx", "German")).not.toContain(
       "lookup_results",
     );
+  });
+});
+
+describe("scenario draft", () => {
+  it("extracts and normalises the draft", async () => {
+    fetchMock.mockResolvedValueOnce(
+      reply({
+        places: ["München", "Augsburg"],
+        widthKm: 8,
+        intensityLevel: "EXTREME",
+        name: "Superzelle A8",
+      }),
+    );
+    expect(
+      await draftScenario("Superzelle München–Augsburg, 8 km", "Szenario"),
+    ).toEqual({
+      places: ["München", "Augsburg"],
+      widthKm: 8,
+      intensityLevel: "EXTREME",
+      name: "Superzelle A8",
+    });
+    expect(sentMessages(0)[1].content).toBe(
+      "<description>Superzelle München–Augsburg, 8 km</description>",
+    );
+  });
+
+  it("fails when the sentence holds no track", async () => {
+    fetchMock.mockResolvedValueOnce(reply({ places: ["München"] }));
+    await expect(draftScenario("Hagel", "x")).rejects.toThrow(/two places/);
   });
 });

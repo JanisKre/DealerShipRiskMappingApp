@@ -18,6 +18,7 @@ import {
 import { analyzeDealership } from "../services/analyze.service";
 import {
   explainStream,
+  draftScenario,
   planChatTools,
   proposeReviewOrder,
   suggestColumnMapping,
@@ -246,6 +247,9 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     intent: await classifyChatIntent(message, dashboardTitle),
   }));
   handle(IPC.llmReviewPlan, ({ items }) => proposeReviewOrder(items));
+  handle(IPC.llmScenarioDraft, ({ description, fallbackName }) =>
+    draftScenario(description, fallbackName),
+  );
   handle(IPC.llmChatTools, async ({ question, locations, selectedId }) => ({
     calls: await planChatTools(question, locations, selectedId),
   }));

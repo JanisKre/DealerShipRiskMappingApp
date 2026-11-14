@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SCENARIO_MODEL_VERSION } from "./ScenarioFromSentence";
 import { MapContainer, TileLayer, useMap, useMapEvents } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -725,7 +726,7 @@ export function MapPage(): React.JSX.Element {
       intensityLevel: scenario?.intensityLevel ?? "HIGH",
       returnPeriodYears: scenario?.returnPeriodYears ?? 100,
       exposureMultiplier: scenario?.exposureMultiplier ?? 1,
-      modelVersion: scenario?.modelVersion ?? "scenario-screening-0.2.0",
+      modelVersion: scenario?.modelVersion ?? SCENARIO_MODEL_VERSION,
     });
     setDrawingScenario(false);
   }

@@ -1875,5 +1875,16 @@
     "review_one": "{{count}} point à vérifier ouvert",
     "review_other": "{{count}} points à vérifier ouverts",
     "explain": "Résumer"
+  },
+  "scenarioDraft": {
+    "label": "Décrire un scénario",
+    "placeholder": "p. ex. orage de grêle de Munich à Augsbourg, 10 km, fort",
+    "run": "Esquisser",
+    "hint": "Esquisse IA à partir d’une phrase : lieux, largeur et intensité. L’application recherche elle-même les lieux et montre l’esquisse avant de l’appliquer.",
+    "summary": "Largeur {{width}} km · intensité {{intensity}}",
+    "apply": "Appliquer",
+    "discard": "Rejeter",
+    "notFound": "Introuvable : {{places}}. Merci de préciser ou de dessiner le corridor.",
+    "failed": "Aucune esquisse possible : {{error}}"
   }
 }

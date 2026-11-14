@@ -56,6 +56,7 @@ export const IPC = {
   llmReviewPlan: "llm:reviewPlan", // reorders the review queue, notes per location
   llmColumnMapping: "llm:columnMapping", // suggests fields for unused import columns
   llmChatTools: "llm:chatTools", // picks read-only lookups before a chat answer
+  llmScenarioDraft: "llm:scenarioDraft", // places, width and intensity from one sentence
   listDashboards: "dashboards:list",
   loadDashboard: "dashboards:load",
   saveDashboard: "dashboards:save",

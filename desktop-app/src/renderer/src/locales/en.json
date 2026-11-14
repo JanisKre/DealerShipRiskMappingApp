@@ -1875,5 +1875,16 @@
     "review_one": "{{count}} open review point",
     "review_other": "{{count}} open review points",
     "explain": "Summarise"
+  },
+  "scenarioDraft": {
+    "label": "Describe a scenario",
+    "placeholder": "e.g. hailstorm from Munich to Augsburg, 10 km, strong",
+    "run": "Draft",
+    "hint": "AI draft from one sentence: places, width and intensity. The app looks up the places itself and shows the draft before it is applied.",
+    "summary": "Width {{width}} km · intensity {{intensity}}",
+    "apply": "Apply",
+    "discard": "Discard",
+    "notFound": "Not found: {{places}}. Please describe more precisely or draw the corridor.",
+    "failed": "No draft possible: {{error}}"
   }
 }

@@ -223,6 +223,15 @@ const api = {
       request satisfies IpcRequest["llm:chatIntent"],
     ),
 
+  /** Optional AI draft of a hailstorm scenario from one sentence. */
+  draftScenario: (
+    request: IpcRequest["llm:scenarioDraft"],
+  ): Promise<IpcResponse["llm:scenarioDraft"]> =>
+    ipcRenderer.invoke(
+      IPC.llmScenarioDraft,
+      request satisfies IpcRequest["llm:scenarioDraft"],
+    ),
+
   /** Optional AI choice of read-only lookups before a chat answer. */
   planChatTools: (
     request: IpcRequest["llm:chatTools"],

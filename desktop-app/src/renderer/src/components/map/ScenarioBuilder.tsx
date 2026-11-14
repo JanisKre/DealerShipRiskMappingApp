@@ -16,6 +16,8 @@ import {
 } from "@renderer/components/ui/select";
 import { eur, num } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
+import { useLlmReady } from "@renderer/lib/useLlmReady";
+import { ScenarioFromSentence } from "./ScenarioFromSentence";
 import { INTENSITY_LEVELS } from "./HailstormScenarioLayer";
 import {
   PANEL_ACTION_CLASS,
@@ -41,6 +43,7 @@ export function ScenarioBuilder({
   const scenario = useAppStore((s) => s.scenario);
   const parameters = useAppStore((s) => s.parameters);
   const setScenario = useAppStore((s) => s.setScenario);
+  const llmReady = useLlmReady();
 
   const impact = useMemo(
     () =>
@@ -83,6 +86,8 @@ export function ScenarioBuilder({
       </div>
 
       {drawing && <p className={PANEL_HINT_CLASS}>{t("ui.drawingHint")}</p>}
+
+      {llmReady && !drawing && <ScenarioFromSentence />}
 
       {scenario && (
         <>

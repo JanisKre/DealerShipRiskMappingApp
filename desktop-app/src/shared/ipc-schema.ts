@@ -4,6 +4,7 @@ import {
   ReviewPlanItemSchema,
   ReviewPlanSchema,
 } from "./review-plan";
+import { ScenarioDraftSchema } from "./scenario-draft";
 import {
   CHAT_TOOL_MAX_LOCATIONS,
   CHAT_TOOL_RESULTS_MAX_CHARS,
@@ -299,6 +300,10 @@ export const ipcRequest = {
     message: z.string().trim().min(1).max(2_000),
     dashboardTitle: z.string().max(120).nullable(),
   }),
+  "llm:scenarioDraft": z.object({
+    description: z.string().trim().min(3).max(500),
+    fallbackName: z.string().trim().min(1).max(80),
+  }),
   "llm:chatTools": z.object({
     question: z.string().trim().min(1).max(2_000),
     locations: z
@@ -437,6 +442,7 @@ export const ipcResponse = {
   "llm:reviewPlan": ReviewPlanSchema,
   "llm:columnMapping": ColumnOverridesSchema,
   "llm:chatTools": z.object({ calls: z.array(ChatToolCallSchema) }),
+  "llm:scenarioDraft": ScenarioDraftSchema,
   "llm:dashboardSurface": z.discriminatedUnion("ok", [
     z.object({
       ok: z.literal(true),

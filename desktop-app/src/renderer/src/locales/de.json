@@ -1875,5 +1875,16 @@
     "review_one": "{{count}} offener Prüfpunkt",
     "review_other": "{{count}} offene Prüfpunkte",
     "explain": "Zusammenfassen"
+  },
+  "scenarioDraft": {
+    "label": "Szenario beschreiben",
+    "placeholder": "z. B. Hagelzug von München nach Augsburg, 10 km, stark",
+    "run": "Entwerfen",
+    "hint": "KI-Entwurf aus einem Satz: Orte, Breite und Stärke. Die App sucht die Orte selbst und zeigt den Entwurf vor der Übernahme.",
+    "summary": "Breite {{width}} km · Intensität {{intensity}}",
+    "apply": "Übernehmen",
+    "discard": "Verwerfen",
+    "notFound": "Nicht gefunden: {{places}}. Bitte genauer beschreiben oder den Korridor zeichnen.",
+    "failed": "Kein Entwurf möglich: {{error}}"
   }
 }
