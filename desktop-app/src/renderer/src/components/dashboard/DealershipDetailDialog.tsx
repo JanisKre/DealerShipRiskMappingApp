@@ -97,6 +97,9 @@ import {
   estimateHailZoneFromScore,
   isAreaEstimatedDetection,
 } from "@shared/risk-math";
+import { hasEalBasis } from "@shared/estimates";
+import type { HailVehicleSource } from "@shared/risk-math";
+import { NoEalBadge } from "./EstimateMark";
 import { buildUnderwritingMessages } from "./UnderwritingMessages";
 import { DetectionImageryNote } from "./DetectionImageryNote";
 import { ImageryHistorySection } from "./ImageryHistorySection";
@@ -323,6 +326,7 @@ function DetailBody({
     d.risk?.ealBreakdown?.hailDetail?.vehicleSource,
     d.detection,
   );
+  const ealBasis = hasEalBasis(d);
   const rank = portfolioRank(d, dealerships);
   const boundary = d.boundary;
   return (
@@ -491,23 +495,31 @@ function DetailBody({
         <div className="grid grid-cols-3 gap-2">
           <KeyFigure
             label={t("dashboard.detailDialog.kpiHailEal")}
-            value={eur(d.risk?.eal)}
+            value={
+              d.risk && !ealBasis ? (
+                <NoEalBadge className="text-xs" />
+              ) : (
+                eur(d.risk?.eal)
+              )
+            }
             hint={
               rank != null
                 ? t("dashboard.detailDialog.kpiRank", rank)
-                : undefined
+                : d.risk && !ealBasis
+                  ? t("dashboard.detailDialog.kpiNoRank")
+                  : undefined
             }
           />
           <KeyFigure
             label={t("common.vehicles")}
-            value={num(vehicles ?? undefined)}
-            hint={
-              vehicleSource === "manual"
-                ? t("dashboard.detailDialog.kpiVehiclesManual")
-                : vehicleSource === "estimated"
-                  ? t("dashboard.detailDialog.kpiVehiclesEstimated")
-                  : t("dashboard.detailDialog.kpiVehiclesDetected")
+            value={
+              vehicles != null &&
+              isAreaEstimatedDetection(d.detection) &&
+              vehicleSource !== "manual"
+                ? `≈${num(vehicles)}`
+                : num(vehicles ?? undefined)
             }
+            hint={vehicleHint(t, vehicleSource, d.detection)}
           />
           <KeyFigure
             label={t("dashboard.detailDialog.exposureLabel")}
@@ -957,6 +969,27 @@ function AttentionRow({
   );
 }
 
+/**
+ * Where the vehicle figure in the header comes from. "aus dem Luftbild" only
+ * for a model count; an area estimate is never presented as seen on the
+ * aerial image (UW-03).
+ */
+function vehicleHint(
+  t: TFunction,
+  source: HailVehicleSource,
+  detection: AnalyzedDealership["detection"],
+): string | undefined {
+  if (!detection) return undefined;
+  if (source === "manual") return t("dashboard.detailDialog.kpiVehiclesManual");
+  if (source === "detected")
+    return t("dashboard.detailDialog.kpiVehiclesDetected");
+  if (isAreaEstimatedDetection(detection))
+    return t("dashboard.detailDialog.kpiVehiclesAreaEstimate");
+  if (source === "estimated" || source === "assetValue")
+    return t("dashboard.detailDialog.kpiVehiclesEstimated");
+  return undefined;
+}
+
 function KeyFigure({
   label,
   value,
@@ -964,7 +997,7 @@ function KeyFigure({
   tone,
 }: Readonly<{
   label: string;
-  value: string;
+  value: React.ReactNode;
   hint?: string;
   tone?: "warning";
 }>): React.JSX.Element {
@@ -1014,7 +1047,11 @@ function buildAttention(
       },
     });
   }
-  if (isAreaEstimatedDetection(d.detection)) {
+  // A reviewed count replaces the estimate, so nothing is left to set up.
+  if (
+    isAreaEstimatedDetection(d.detection) &&
+    d.detection?.manualVehicleCount == null
+  ) {
     items.push({
       key: "model",
       tone: "warning",
@@ -1067,9 +1104,12 @@ function portfolioRank(
   d: AnalyzedDealership,
   dealerships: AnalyzedDealership[],
 ): { rank: number; total: number } | null {
+  // Only sites with a vehicle count have a hail EAL to rank by.
+  if (!hasEalBasis(d)) return null;
   const own = d.risk?.eal;
   if (own == null) return null;
   const eals = dealerships
+    .filter(hasEalBasis)
     .map((x) => x.risk?.eal)
     .filter((eal): eal is number => eal != null);
   if (eals.length < 3) return null;
@@ -1140,6 +1180,10 @@ function HailEalSection({
             )}{" "}
             {t(`dashboard.hailEalDetail.zoneSource.${detail.zoneSource}`)}{" "}
             {t("dashboard.hailEalDetail.severityNote")}
+          </p>
+          {/* λ, p and S are placeholders until calibrated (UX-06). */}
+          <p className="text-xs text-muted-foreground">
+            {t("parameters.hailEal.placeholders")}
           </p>
           {detail.stockRange ? (
             <p className="text-xs tabular-nums">
@@ -1931,8 +1975,29 @@ function ManualVehicleCountEditor({
   async function save(value: number | null): Promise<void> {
     if (!valid) return;
     setSaving(true);
+    const before = d.risk?.exposureEur;
     try {
       await updateManualVehicleCount(d.id, value);
+      // The count replaces the area estimate in the exposure, often by an
+      // order of magnitude: say so instead of changing it silently (UX-04).
+      const after = useAppStore
+        .getState()
+        .dealerships.find((x) => x.id === d.id)?.risk?.exposureEur;
+      if (before != null && after != null && before !== after) {
+        toast.info(
+          t("dashboard.detailDialog.exposureChanged", {
+            from: eur(before),
+            to: eur(after),
+          }),
+          value != null
+            ? {
+                description: t("dashboard.detailDialog.exposureChangedDetail", {
+                  count: num(value),
+                }),
+              }
+            : undefined,
+        );
+      }
       onDone();
     } finally {
       setSaving(false);
@@ -1966,7 +2031,7 @@ function ManualVehicleCountEditor({
           onChange={(event) => setDraft(event.target.value)}
         />
         <Button type="submit" size="sm" disabled={saving || !valid}>
-          {t("dashboard.detailDialog.websiteSave")}
+          {t("dashboard.detailDialog.vehicleCountSave")}
         </Button>
         {d.detection?.manualVehicleCount != null && (
           <Button

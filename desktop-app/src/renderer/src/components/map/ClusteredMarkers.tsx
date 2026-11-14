@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import L from "leaflet";
 import "leaflet.markercluster";
+import { hasEalBasis } from "@shared/estimates";
 import type { AnalyzedDealership } from "@shared/types";
 import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { isHttpWebsiteUrl, websiteLabel } from "@shared/website";
@@ -33,7 +34,8 @@ function vehicleLabel(
 ): string {
   if (!d.detection) return "—";
   const count = effectiveVehicleCount(d.detection);
-  return d.detection.model === "stub-area-heuristic"
+  return d.detection.model === "stub-area-heuristic" &&
+    d.detection.manualVehicleCount == null
     ? `~${count} (${t("ui.estimated")})`
     : String(count);
 }
@@ -68,7 +70,12 @@ function popupHtml(
   d: AnalyzedDealership,
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string {
-  const eal = d.risk?.eal != null ? eur(d.risk.eal) : "—";
+  const eal =
+    d.risk == null
+      ? "—"
+      : hasEalBasis(d)
+        ? eur(d.risk.eal)
+        : escapeHtml(t("dashboard.noEal.badge"));
   const vehicles = vehicleLabel(d, t);
   const zone = dealershipHailZone(d)?.zone;
   const color = zone != null ? hailZoneColor(zone) : "#6b7280";

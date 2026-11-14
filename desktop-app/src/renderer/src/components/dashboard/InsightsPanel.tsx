@@ -91,7 +91,7 @@ export function InsightsPanel({
                   onClick={() => open(a)}
                   className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
                 >
-                  <AlertBadge level={a.level} />
+                  <AlertBadge level={a.level} dataBasis={a.dataBasis} />
                   <span className="min-w-0 flex-1">
                     <span className="font-medium">{a.name}</span>
                     {a.memberIds && a.memberIds.length > 1 && (
@@ -148,8 +148,19 @@ function ruleValues(p: RiskParameters): Record<string, string | number> {
 
 function AlertBadge({
   level,
-}: Readonly<{ level: Alert["level"] }>): React.JSX.Element {
+  dataBasis,
+}: Readonly<{
+  level: Alert["level"];
+  dataBasis?: Alert["dataBasis"];
+}>): React.JSX.Element {
   const { t } = useTranslation();
+  // Mostly estimated exposure: a data check, not a critical finding.
+  if (dataBasis === "estimated")
+    return (
+      <Badge variant="warning" className="shrink-0">
+        {t("dashboard.alertLevel.estimatedBasis")}
+      </Badge>
+    );
   return level === "critical" ? (
     <Badge variant="destructive" className="shrink-0">
       {t("dashboard.alertLevel.critical")}
@@ -170,10 +181,16 @@ function alertMessage(alert: Alert, t: TFunction): string {
         share: (alert.value ?? 0).toFixed(0),
       });
     case "accumulation":
-      return t("dashboard.alert.accumulation", {
-        count: alert.memberIds?.length ?? 0,
-        exposure: eur(alert.value),
-      });
+      return (alert.estimatedShare ?? 0) > 0
+        ? t("dashboard.alert.accumulationEstimated", {
+            count: alert.memberIds?.length ?? 0,
+            exposure: eur(alert.value),
+            share: Math.round((alert.estimatedShare ?? 0) * 100),
+          })
+        : t("dashboard.alert.accumulation", {
+            count: alert.memberIds?.length ?? 0,
+            exposure: eur(alert.value),
+          });
     case "overcapacity":
       return t("dashboard.alert.overcapacity", {
         utilisation: num(alert.value),

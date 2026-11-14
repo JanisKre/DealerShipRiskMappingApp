@@ -20,7 +20,8 @@ import { Card, CardContent } from "@renderer/components/ui/card";
 import { eur, num, pct } from "@renderer/lib/format";
 import { cn } from "@renderer/lib/utils";
 import { useAppStore } from "@renderer/store/appStore";
-import { estimateReasons } from "./estimates";
+import { ealCoverage, estimateReasons, estimatedExposure } from "./estimates";
+import { estimatedShareSuffix } from "./EstimateMark";
 import { TileInfo } from "./TileInfo";
 
 type Stat = {
@@ -65,6 +66,9 @@ export function SummaryCards({
     0,
   );
   const totalEal = dealerships.reduce((a, d) => a + (d.risk?.eal ?? 0), 0);
+  // Without a vehicle count a site has no hail EAL (N = 0 by design), so the
+  // sum covers only the counted sites — say how many.
+  const coverage = ealCoverage(dealerships);
   // Locations with a stock count over time contribute their range, the
   // others their point EAL (docs/risk-model.md, "Stock range").
   const withRange = dealerships.filter(
@@ -106,6 +110,7 @@ export function SummaryCards({
     estimated > 0
       ? t("dashboard.kpi.estimatedSites", { count: estimated })
       : undefined;
+  const exposureEstimatedShare = estimatedExposure(dealerships).share;
   const withProvisional = (hint?: string): string | undefined =>
     provisional ? [provisional, hint].filter(Boolean).join(" · ") : hint;
 
@@ -119,6 +124,11 @@ export function SummaryCards({
       .filter((c) => c.count > 1)
       .sort((a, b) => b.totalExposureEur - a.totalExposureEur)[0];
   }, [dealerships, parameters]);
+  const largestEstimatedShare = useMemo(() => {
+    if (!largest) return 0;
+    const ids = new Set(largest.memberIds);
+    return estimatedExposure(dealerships.filter((d) => ids.has(d.id))).share;
+  }, [dealerships, largest]);
 
   const stats: Stat[] = [
     {
@@ -134,34 +144,54 @@ export function SummaryCards({
     },
     {
       label: t("dashboard.totalExposure"),
-      value: eur(totalExposure),
-      hint: withProvisional(estimatedHint),
+      value: `${exposureEstimatedShare > 0 ? "≈" : ""}${eur(totalExposure)}`,
+      hint: withProvisional(
+        estimatedShareSuffix(t, exposureEstimatedShare) || undefined,
+      ),
       icon: Coins,
     },
     {
       label: t("dashboard.hailEal"),
-      value: eur(totalEal),
+      value:
+        coverage.analyzed > 0 && coverage.withBasis === 0 ? "–" : eur(totalEal),
       hint: withProvisional(
-        ealRange
-          ? t("dashboard.kpi.ealStockRange", {
-              low: eur(ealRange[0]),
-              high: eur(ealRange[1]),
-              count: withRange.length,
-            })
-          : undefined,
+        [
+          coverage.analyzed > 0
+            ? t("dashboard.kpi.ealCoverage", {
+                withBasis: coverage.withBasis,
+                analyzed: coverage.analyzed,
+              })
+            : undefined,
+          ealRange
+            ? t("dashboard.kpi.ealStockRange", {
+                low: eur(ealRange[0]),
+                high: eur(ealRange[1]),
+                count: withRange.length,
+              })
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join(" · ") || undefined,
       ),
       icon: CloudHail,
       info: { topic: "hailEal" },
     },
     {
       label: t("dashboard.kpi.largestAccumulation"),
-      value: largest ? eur(largest.totalExposureEur) : "–",
+      value: largest
+        ? `${largestEstimatedShare > 0 ? "≈" : ""}${eur(largest.totalExposureEur)}`
+        : "–",
       hint: withProvisional(
         largest
-          ? t("dashboard.kpi.accumulationHint", {
-              count: largest.count,
-              radius: parameters.accumulationRadiusKm,
-            })
+          ? [
+              t("dashboard.kpi.accumulationHint", {
+                count: largest.count,
+                radius: parameters.accumulationRadiusKm,
+              }),
+              estimatedShareSuffix(t, largestEstimatedShare),
+            ]
+              .filter(Boolean)
+              .join(" · ")
           : t("dashboard.kpi.noAccumulation", {
               radius: parameters.accumulationRadiusKm,
             }),

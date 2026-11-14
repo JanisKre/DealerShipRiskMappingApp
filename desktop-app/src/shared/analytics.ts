@@ -7,6 +7,13 @@ import {
   dealershipHailZone,
   effectiveVehicleCount,
 } from "./risk-math";
+import {
+  ESTIMATED_EXPOSURE_REVIEW_SHARE,
+  MIN_EAL_COVERAGE_FOR_SHARE_RULE,
+  ealCoverage,
+  estimatedExposure,
+  hasEalBasis,
+} from "./estimates";
 
 /**
  * Portfolio analytics: pure functions without I/O (called from the renderer).
@@ -45,14 +52,26 @@ export interface Alert {
   source?: string;
   /** Accumulation alerts: every location in the accumulation. */
   memberIds?: string[];
+  /**
+   * Accumulation alerts: share (0..1) of the exposure that is an estimate
+   * (area-based vehicle figure or fallback circle). Above
+   * `ESTIMATED_EXPOSURE_REVIEW_SHARE` the note is a data check, not critical.
+   */
+  estimatedShare?: number;
+  /** `estimated`: the figure behind the note is mostly an estimate. */
+  dataBasis?: "estimated";
 }
 
 /**
  * Rules, in order of severity:
  * - high-hail-zone: hail zone >= alertHailZone
- * - high-eal: location causes >= alertEalPortfolioShare of the portfolio EAL
+ * - high-eal: location causes >= alertEalPortfolioShare of the portfolio EAL;
+ *   only locations with a vehicle count, and only once at least
+ *   MIN_EAL_COVERAGE_FOR_SHARE_RULE of the analysed locations have one
  * - accumulation: accumulation (accumulationRadiusKm) with exposure >=
- *   accumulationReinsureThresholdEur — one alert per accumulation
+ *   accumulationReinsureThresholdEur — one alert per accumulation; a
+ *   warning with `dataBasis: "estimated"` when more than
+ *   ESTIMATED_EXPOSURE_REVIEW_SHARE of its exposure is estimated
  * - data quality: utilisation > alertOvercapacity, boundary confidence <=
  *   alertLowBoundaryConfidence, zero vehicles, hail zone only estimated
  */
@@ -60,7 +79,14 @@ export function generateAlerts(
   dealerships: AnalyzedDealership[],
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): Alert[] {
-  const totalEal = dealerships.reduce((a, d) => a + (d.risk?.eal ?? 0), 0);
+  const totalEal = dealerships.reduce(
+    (a, d) => a + (hasEalBasis(d) ? (d.risk?.eal ?? 0) : 0),
+    0,
+  );
+  const coverage = ealCoverage(dealerships);
+  const shareRuleActive =
+    coverage.analyzed > 0 &&
+    coverage.withBasis / coverage.analyzed >= MIN_EAL_COVERAGE_FOR_SHARE_RULE;
   const out: Alert[] = [];
 
   for (const d of dealerships) {
@@ -79,7 +105,12 @@ export function generateAlerts(
       });
     }
 
-    if (totalEal > 0 && r.eal / totalEal >= parameters.alertEalPortfolioShare) {
+    if (
+      shareRuleActive &&
+      totalEal > 0 &&
+      hasEalBasis(d) &&
+      r.eal / totalEal >= parameters.alertEalPortfolioShare
+    ) {
       out.push({
         dealershipId: d.id,
         name: d.name,
@@ -157,14 +188,21 @@ export function generateAlerts(
         (a, b) => (b.risk?.exposureEur ?? 0) - (a.risk?.exposureEur ?? 0),
       )[0];
     if (!anchor) continue;
+    const members = cluster.memberIds
+      .map((id) => byId.get(id))
+      .filter((d): d is AnalyzedDealership => d != null);
+    const estimatedShare = estimatedExposure(members).share;
+    const mostlyEstimated = estimatedShare > ESTIMATED_EXPOSURE_REVIEW_SHARE;
     out.push({
       dealershipId: anchor.id,
       name: anchor.name,
-      level: "critical",
+      level: mostlyEstimated ? "warning" : "critical",
       kind: "accumulation",
-      message: `Accumulation of ${cluster.count} locations with ${cluster.totalExposureEur} EUR exposure.`,
+      message: `Accumulation of ${cluster.count} locations with ${cluster.totalExposureEur} EUR exposure (${Math.round(estimatedShare * 100)}% estimated).`,
       value: cluster.totalExposureEur,
       memberIds: cluster.memberIds,
+      estimatedShare,
+      ...(mostlyEstimated ? { dataBasis: "estimated" as const } : {}),
     });
   }
 

@@ -48,10 +48,14 @@ function make(
             computedAt: "2026-01-01T00:00:00.000Z",
           }
         : undefined,
+    // A positive EAL implies a counted lot (N > 0); without a count the
+    // model gives no EAL (hasEalBasis).
     detection:
       opts.vehicleCount != null
         ? { vehicleCount: opts.vehicleCount, confidence: 0.9, model: "test" }
-        : undefined,
+        : (opts.eal ?? 0) > 0
+          ? { vehicleCount: 10, confidence: 0.9, model: "test" }
+          : undefined,
     boundary:
       opts.boundaryConfidence != null
         ? {
@@ -159,6 +163,72 @@ describe("generateAlerts", () => {
       accumulationReinsureThresholdEur: 2_000_000,
     });
     expect(below.some((a) => a.kind === "accumulation")).toBe(false);
+  });
+
+  it("ignores sites without a vehicle count for the EAL share rule", () => {
+    // One counted site among many uncounted ones would otherwise "cause
+    // 100 % of the portfolio EAL".
+    const ds = [
+      make("1", { hailZone: 2, eal: 6240 }),
+      ...Array.from({ length: 9 }, (_, i) =>
+        make(`n${i}`, { hailZone: 2, score: 10, lat: 53 + i }),
+      ),
+    ];
+    expect(generateAlerts(ds).some((a) => a.kind === "high-eal")).toBe(false);
+    // With enough counted sites the rule fires again.
+    const covered = [
+      make("1", { hailZone: 2, eal: 9000 }),
+      make("2", { hailZone: 2, eal: 100, lat: 52 }),
+      make("3", { hailZone: 2, score: 10, lat: 53 }),
+    ];
+    expect(
+      generateAlerts(covered).some(
+        (a) => a.kind === "high-eal" && a.dealershipId === "1",
+      ),
+    ).toBe(true);
+  });
+
+  it("downgrades an accumulation built on estimated exposure to a data check", () => {
+    const parameters = {
+      ...DEFAULT_RISK_PARAMETERS,
+      accumulationRadiusKm: 10,
+      accumulationReinsureThresholdEur: 1_000_000,
+    };
+    const estimated = (
+      id: string,
+      lat: number,
+      exposure: number,
+    ): AnalyzedDealership => {
+      const d = make(id, { hailZone: 1, score: 10, exposure, lat });
+      d.detection = {
+        vehicleCount: 2896,
+        confidence: 0.3,
+        model: "stub-area-heuristic",
+      };
+      return d;
+    };
+    const ds = [
+      estimated("a", 51, 72_400_000),
+      estimated("b", 51.01, 6_200_000),
+    ];
+    const alert = generateAlerts(ds, parameters).find(
+      (a) => a.kind === "accumulation",
+    );
+    expect(alert?.level).toBe("warning");
+    expect(alert?.dataBasis).toBe("estimated");
+    expect(alert?.estimatedShare).toBe(1);
+
+    // A counted accumulation stays critical.
+    const counted = [
+      make("a", { hailZone: 1, eal: 1, exposure: 800_000, lat: 51 }),
+      make("b", { hailZone: 1, eal: 1, exposure: 800_000, lat: 51.01 }),
+    ];
+    const critical = generateAlerts(counted, parameters).find(
+      (a) => a.kind === "accumulation",
+    );
+    expect(critical?.level).toBe("critical");
+    expect(critical?.dataBasis).toBeUndefined();
+    expect(critical?.estimatedShare).toBe(0);
   });
 
   it("lists critical alerts before warnings", () => {

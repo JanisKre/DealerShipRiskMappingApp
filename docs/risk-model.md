@@ -112,6 +112,34 @@ table, top list and KPI tiles mark such values with "≈". Results stored by
 older builds that labelled the area figure `detected` are shown as
 `estimated` (`displayedHailVehicleSource`); that is a label only.
 
+### Presenting a missing EAL basis (UI, November 2026)
+
+Presentation and review-rule gating only; λ, p, S, N and the exposure
+formula are unchanged (`shared/estimates.ts`).
+
+- **No vehicle count, no EAL.** A location whose `vehicleSource` is `none`
+  (`hasEalBasis` false) shows "keine Fahrzeugzahl" instead of "0 €" in the
+  list, table, top list, detail header, accumulation rows and map popup. It
+  gets no portfolio rank, and sorting by EAL puts counted locations first,
+  then the uncounted ones by exposure. The EAL KPI says from how many of the
+  analysed locations it is summed ("aus X von Y Standorten mit
+  Fahrzeugzahl"); with no counted location it shows "–".
+- **Share-of-EAL rule.** "Standort verursacht ≥ x % der Portfolio-EAL" only
+  considers counted locations and stays silent until at least
+  `MIN_EAL_COVERAGE_FOR_SHARE_RULE` (50 %) of the analysed locations have a
+  vehicle count. One counted site among fifty no longer "causes 100 %".
+- **Estimated exposure.** Exposure of a location is estimated when its
+  vehicle figure is the area estimate or its lot is the fallback circle
+  (`estimateReasons`). Accumulation values, the largest-accumulation and
+  exposure tiles and the scenario card carry "≈" and "davon X % geschätzt".
+  An accumulation above the threshold whose exposure is more than
+  `ESTIMATED_EXPOSURE_REVIEW_SHARE` (50 %) estimated is listed as "Prüfen –
+  Datenbasis geschätzt" (a data check), not "Kritisch". Whether such
+  exposure should enter accumulations at all is an open owner decision.
+- **Manual count.** Saving a manual vehicle count reports the exposure
+  change ("Exposure 72,4 Mio € → 7,5 Mio €"), because the count replaces the
+  area estimate in the exposure.
+
 ### Default values (placeholders)
 
 The defaults are **uncalibrated screening placeholders** agreed as starting

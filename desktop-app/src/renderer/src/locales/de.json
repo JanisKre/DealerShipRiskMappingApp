@@ -611,7 +611,8 @@
     "totalEal": "Gesamt-EAL",
     "alertLevel": {
       "critical": "Kritisch",
-      "warning": "Warnung"
+      "warning": "Warnung",
+      "estimatedBasis": "Prüfen – Datenbasis geschätzt"
     },
     "alert": {
       "highEal": "Verursacht {{share}} % der Portfolio-EAL.",
@@ -620,7 +621,8 @@
       "noDetection": "Keine Fahrzeuge erkannt – Grenze und Luftbild prüfen.",
       "highHailZone": "Liegt in Hagelzone {{zone}}.",
       "accumulation": "Kumulation mit {{count}} Standorten und {{exposure}} Exposure.",
-      "estimatedHailZone": "Hagelzone {{zone}} nur geschätzt – Adresse/PLZ prüfen."
+      "estimatedHailZone": "Hagelzone {{zone}} nur geschätzt – Adresse/PLZ prüfen.",
+      "accumulationEstimated": "Kumulation mit {{count}} Standorten und ≈{{exposure}} Exposure · {{share}} % geschätzt."
     },
     "utilisation": "Auslastung",
     "capacity": "Kapazität",
@@ -794,7 +796,7 @@
       "attentionBoundaryDetail": "Die Grenze bestimmt, welche Fahrzeuge zählen. Bestätige sie oder wähle eine andere.",
       "attentionBoundaryAction": "Zur Grenze",
       "attentionModelTitle": "Fahrzeugzahl nur geschätzt",
-      "attentionModelDetail": "Die Fahrzeugerkennung ist nicht eingerichtet. Die Zahl ist Grundstücksfläche ÷ Stellfläche je Fahrzeug, keine Zählung.",
+      "attentionModelDetail": "Die Fahrzeugerkennung ist nicht eingerichtet. Die Zahl ist Grundstücksfläche ÷ Stellfläche je Fahrzeug, keine Zählung. Ohne Fahrzeugzahl gibt es keine Hagel-EAL.",
       "attentionModelAction": "Fahrzeugerkennung einrichten",
       "attentionImageryTitle_one": "Luftbild ist {{count}} Jahr alt",
       "attentionImageryTitle_other": "Luftbild ist {{count}} Jahre alt",
@@ -879,7 +881,12 @@
         "staleImagery": "Luftbild ist mehrere Jahre alt – das Gelände kann sich verändert haben",
         "pointOffSite": "der Punkt liegt im Wald oder auf freiem Feld, ohne Gebäude oder Fahrzeuge – Position korrigieren"
       },
-      "boundaryReviewBecause": "Prüfen, weil: {{reasons}}"
+      "boundaryReviewBecause": "Prüfen, weil: {{reasons}}",
+      "kpiNoRank": "kein Rang ohne Fahrzeugzahl",
+      "kpiVehiclesAreaEstimate": "flächenbasierte Schätzung",
+      "vehicleCountSave": "Fahrzeugzahl speichern",
+      "exposureChanged": "Exposure {{from}} → {{to}}",
+      "exposureChangedDetail": "Exposure und Hagel-EAL folgen jetzt der eingetragenen Fahrzeugzahl ({{count}})."
     },
     "hailEal": "Hagel-EAL",
     "hailZone": "Hagelzone",
@@ -890,8 +897,8 @@
     "showLess": "Weniger anzeigen",
     "kpi": {
       "largestAccumulation": "Größte Kumulation",
-      "accumulationHint_one": "{{count}} Standort · {{radius}} km",
-      "accumulationHint_other": "{{count}} Standorte · {{radius}} km",
+      "accumulationHint_one": "{{count}} Standort · verkettet über Nachbarn ≤ {{radius}} km",
+      "accumulationHint_other": "{{count}} Standorte · verkettet über Nachbarn ≤ {{radius}} km",
       "noAccumulation": "keine im {{radius}}-km-Umkreis",
       "provisional": "vorläufig · {{analyzed}}/{{total}} analysiert",
       "estimatedSites_one": "davon {{count}} Standort geschätzt",
@@ -899,7 +906,8 @@
       "elevatedZones": "In Hagelzone ≥ {{zone}}",
       "exposureShare": "{{share}} des Exposures",
       "ealStockRange_one": "Spanne {{low}}–{{high}} über den Bestand von {{count}} Standort mit Bildreihe",
-      "ealStockRange_other": "Spanne {{low}}–{{high}} über den Bestand von {{count}} Standorten mit Bildreihe"
+      "ealStockRange_other": "Spanne {{low}}–{{high}} über den Bestand von {{count}} Standorten mit Bildreihe",
+      "ealCoverage": "aus {{withBasis}} von {{analyzed}} Standorten mit Fahrzeugzahl"
     },
     "accumulations": {
       "title": "Größte Kumulationen",
@@ -914,7 +922,9 @@
       "more_other": "+ {{count}} weitere",
       "showOnMap": "Karte",
       "expand": "Standorte von „{{name}}“ zeigen",
-      "collapse": "Standorte von „{{name}}“ ausblenden"
+      "collapse": "Standorte von „{{name}}“ ausblenden",
+      "partial": "teilweise analysiert ({{analyzed}}/{{total}})",
+      "extent": "Ausdehnung ≈ {{km}} km"
     },
     "zones": {
       "title": "Hagelzonen-Verteilung",
@@ -932,7 +942,8 @@
       "empty": "Noch keine Standorte mit Hagel-EAL.",
       "share": "{{share}} der Portfolio-EAL",
       "description_one": "Der Standort mit dem höchsten erwarteten Hagelschaden pro Jahr.",
-      "description_other": "Die {{count}} Standorte mit dem höchsten erwarteten Hagelschaden pro Jahr."
+      "description_other": "Die {{count}} Standorte mit dem höchsten erwarteten Hagelschaden pro Jahr.",
+      "emptyNoCount": "Noch keine Standorte mit Fahrzeugzahl – ohne Fahrzeugzahl gibt es keine Hagel-EAL."
     },
     "review": {
       "title": "Prüfhinweise",
@@ -941,8 +952,8 @@
       "ruleLabel": "Regel:",
       "rules": {
         "high-hail-zone": "Hagelzone ≥ {{zone}}",
-        "high-eal": "Standort verursacht ≥ {{share}} der Portfolio-EAL",
-        "accumulation": "Kumulation (Umkreis {{radius}} km) mit Exposure ≥ {{threshold}}",
+        "high-eal": "Standort verursacht ≥ {{share}} der Portfolio-EAL (nur Standorte mit Fahrzeugzahl, ab der Hälfte gezählter Standorte)",
+        "accumulation": "Kumulation (verkettet über Nachbarn ≤ {{radius}} km) mit Exposure ≥ {{threshold}}; ist mehr als die Hälfte des Exposures geschätzt: „Prüfen – Datenbasis geschätzt“",
         "overcapacity": "Auslastung > {{utilisation}} der geschätzten Stellplatzkapazität",
         "low-boundary-confidence": "Konfidenz der Grundstücksgrenze ≤ {{confidence}}",
         "no-detection": "0 Fahrzeuge erkannt",
@@ -994,12 +1005,12 @@
       "limits": "Einschränkungen",
       "hailEal": {
         "what": "Erwarteter jährlicher Hagelschaden (Expected Annual Loss, EAL) für die angezeigten Standorte.",
-        "how": "EAL = N × λ × (pₛ·Sₛ + pₘ·Sₘ + pₗ·Sₗ). N = auf dem Gelände gezählte Fahrzeuge (ohne Erkennungsmodell aus der Fläche geschätzt), λ = Hagelereignisse pro Jahr je Hagelzone, p = Anteil kleiner/mittlerer/großer Ereignisse, S = Schaden je Fahrzeug. Werte unter „Parameter → Hagel-EAL“.",
-        "limits": "λ, p und S sind unkalibrierte Platzhalter; mit ≈ markierte Fahrzeugzahlen sind flächenbasierte Schätzungen. Screening-Schätzung, keine Tarif-, Zeichnungs- oder Versicherungsentscheidung."
+        "how": "EAL = N × λ × (pₛ·Sₛ + pₘ·Sₘ + pₗ·Sₗ). N = auf dem Gelände gezählte Fahrzeuge (Erkennungsmodell oder manuell eingetragen) – ohne Fahrzeugzahl keine Hagel-EAL; eine flächenbasierte Schätzung geht nicht in N ein. λ = Hagelereignisse pro Jahr je Hagelzone, p = Anteil kleiner/mittlerer/großer Ereignisse, S = Schaden je Fahrzeug. Werte unter „Parameter → Hagel-EAL“.",
+        "limits": "λ, p und S sind unkalibrierte Platzhalter. Die Summe umfasst nur Standorte mit Fahrzeugzahl (siehe „aus X von Y Standorten“). Screening-Schätzung, keine Tarif-, Zeichnungs- oder Versicherungsentscheidung."
       },
       "accumulations": {
         "what": "Gruppen von Standorten, die ein einzelnes Hagelereignis gemeinsam treffen könnte – sortiert nach Exposure.",
-        "how": "Zwei Standorte gehören zusammen, wenn sie höchstens {{radius}} km voneinander entfernt sind; über Nachbarn entstehen Ketten (Single Linkage). Schadenszenario = Exposure der Kumulation × {{scenario}} Schadenquote.",
+        "how": "Zwei Standorte gehören zusammen, wenn sie höchstens {{radius}} km voneinander entfernt sind; über Nachbarn entstehen Ketten (Single Linkage), eine Kumulation kann daher deutlich größer als {{radius}} km sein (Ausdehnung je Zeile). Schadenszenario = Exposure der Kumulation × {{scenario}} Schadenquote. „≈ … geschätzt“ = Anteil des Exposures aus Flächenschätzung oder Ersatzgrenze.",
         "limits": "Der Radius ist eine Annahme zur typischen Größe einer Hagelzelle; Zugbahnen und Wetterlagen werden nicht modelliert. Das Schadenszenario ist kein PML aus einem Katastrophenmodell."
       },
       "zones": {
@@ -1010,17 +1021,17 @@
       "topLocations": {
         "what": "Die Standorte mit dem höchsten erwarteten Hagelschaden pro Jahr.",
         "how": "Sortiert nach Hagel-EAL (€). Das Badge zeigt die Hagelzone; „≈“ = geschätzte Zone.",
-        "limits": "Die EAL hängt stark von der Fahrzeugzahl ab – manuell geprüfte Zahlen verbessern das Ranking."
+        "limits": "Nur Standorte mit Fahrzeugzahl haben eine Hagel-EAL; Standorte ohne Fahrzeugzahl fehlen in dieser Liste."
       },
       "review": {
         "what": "Standorte, die ein Underwriter genauer ansehen sollte, mit der Regel, die den Hinweis ausgelöst hat.",
-        "how": "Kritisch: Hagelzone ≥ {{zone}}; Anteil an der Portfolio-EAL ≥ {{share}}; Kumulation im {{radius}}-km-Umkreis mit Exposure ≥ {{threshold}}. Datenqualität: Auslastung > {{utilisation}}, Grenz-Konfidenz ≤ {{confidence}}, 0 erkannte Fahrzeuge, geschätzte Hagelzone. Schwellen unter „Parameter“.",
+        "how": "Kritisch: Hagelzone ≥ {{zone}}; Anteil an der Portfolio-EAL ≥ {{share}} (nur wenn mindestens die Hälfte der Standorte eine Fahrzeugzahl hat); Kumulation, verkettet über Nachbarn ≤ {{radius}} km, mit Exposure ≥ {{threshold}} – ist mehr als die Hälfte dieses Exposures geschätzt, lautet der Hinweis „Prüfen – Datenbasis geschätzt“. Datenqualität: Auslastung > {{utilisation}}, Grenz-Konfidenz ≤ {{confidence}}, 0 erkannte Fahrzeuge, geschätzte Hagelzone. Schwellen unter „Parameter“.",
         "limits": "Regelbasiert und ohne Gewichtung – ein Hinweis ist ein Prüfauftrag, keine Ablehnung."
       },
       "table": {
         "what": "Alle Standorte des Portfolios mit Hagelzone, Fahrzeugen, Exposure und Hagel-EAL.",
         "how": "Spaltenköpfe anklicken zum Sortieren. Das Suchfeld durchsucht nur diese Tabelle; die übrigen Kacheln folgen den Portfolio-Filtern oberhalb.",
-        "limits": "Fahrzeugzahl und EAL stammen aus der Luftbild-Erkennung oder, ohne Erkennungsmodell, aus der Grundstücksfläche (mit ≈ markiert) und sind Screening-Schätzungen."
+        "limits": "Fahrzeugzahl und Exposure stammen aus der Luftbild-Erkennung oder, ohne Erkennungsmodell, aus der Grundstücksfläche (mit ≈ markiert). Eine Hagel-EAL gibt es nur mit Fahrzeugzahl; Standorte ohne sie stehen bei Sortierung nach EAL nach Exposure hinter den gezählten. Screening-Schätzungen."
       },
       "changes": {
         "what": "Was sich an den Standorten seit ihrer letzten Analyse geändert hat: neuere Luftbilder, Radar-Hagel in der Nähe, offene Prüfpunkte.",
@@ -1043,7 +1054,7 @@
       "pending": "ausstehend",
       "estimate": {
         "mark": "geschätzt",
-        "vehicles": "Fahrzeugzahl aus der Grundstücksfläche geschätzt (keine Fahrzeugerkennung); Exposure und EAL folgen daraus.",
+        "vehicles": "Fahrzeugzahl aus der Grundstücksfläche geschätzt (keine Fahrzeugerkennung); das Exposure folgt daraus. Eine Hagel-EAL gibt es ohne Fahrzeugzahl nicht.",
         "boundary": "Geschätzte Grenze (Kreis um den Adresspunkt); Fläche und Fahrzeugzahl hängen vom angenommenen Radius ab."
       }
     },
@@ -1056,7 +1067,12 @@
       "stop": "Anhalten",
       "done_one": "Bestand für {{count}} Standort gezählt ({{failed}} fehlgeschlagen). Die Hagel-EAL zeigt jetzt die Spanne.",
       "done_other": "Bestand für {{count}} Standorte gezählt ({{failed}} fehlgeschlagen). Die Hagel-EAL zeigt jetzt die Spanne."
-    }
+    },
+    "noEal": {
+      "badge": "keine Fahrzeugzahl",
+      "tooltip": "Ohne Fahrzeugzahl gibt es keine Hagel-EAL (keine 0 €). Fahrzeugerkennung einrichten oder die Fahrzeugzahl im Standort unter „Gelände & Fahrzeuge“ eintragen."
+    },
+    "estimatedShare": "davon {{share}} % geschätzt"
   },
   "map": {
     "satellite": "Luftbild",

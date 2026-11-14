@@ -611,7 +611,8 @@
     "totalEal": "Total EAL",
     "alertLevel": {
       "critical": "Critical",
-      "warning": "Warning"
+      "warning": "Warning",
+      "estimatedBasis": "Check – data mostly estimated"
     },
     "alert": {
       "highEal": "Contributes {{share}}% of the portfolio EAL.",
@@ -620,7 +621,8 @@
       "noDetection": "No vehicles detected — check boundary and aerial imagery.",
       "highHailZone": "Located in hail zone {{zone}}.",
       "accumulation": "Accumulation of {{count}} locations with {{exposure}} exposure.",
-      "estimatedHailZone": "Hail zone {{zone}} is only estimated – check the address/postcode."
+      "estimatedHailZone": "Hail zone {{zone}} is only estimated – check the address/postcode.",
+      "accumulationEstimated": "Accumulation of {{count}} sites with ≈{{exposure}} exposure · {{share}}% estimated."
     },
     "utilisation": "Utilisation",
     "capacity": "Capacity",
@@ -794,7 +796,7 @@
       "attentionBoundaryDetail": "The boundary decides which vehicles count. Confirm it or pick another one.",
       "attentionBoundaryAction": "Go to boundary",
       "attentionModelTitle": "Vehicle count is estimated",
-      "attentionModelDetail": "Vehicle detection is not set up. The figure is lot area ÷ space per vehicle, not a count.",
+      "attentionModelDetail": "Vehicle detection is not set up. The figure is lot area ÷ space per vehicle, not a count. Without a vehicle count there is no hail EAL.",
       "attentionModelAction": "Set up vehicle detection",
       "attentionImageryTitle_one": "Aerial image is {{count}} year old",
       "attentionImageryTitle_other": "Aerial image is {{count}} years old",
@@ -879,7 +881,12 @@
         "staleImagery": "the aerial image is several years old – the site may have changed",
         "pointOffSite": "the point lies in woodland or open land with no building or vehicles – correct the position"
       },
-      "boundaryReviewBecause": "Check because: {{reasons}}"
+      "boundaryReviewBecause": "Check because: {{reasons}}",
+      "kpiNoRank": "no rank without a vehicle count",
+      "kpiVehiclesAreaEstimate": "area-based estimate",
+      "vehicleCountSave": "Save vehicle count",
+      "exposureChanged": "Exposure {{from}} → {{to}}",
+      "exposureChangedDetail": "Exposure and hail EAL now follow the entered vehicle count ({{count}})."
     },
     "hailEal": "Hail EAL",
     "hailZone": "Hail zone",
@@ -890,8 +897,8 @@
     "showLess": "Show less",
     "kpi": {
       "largestAccumulation": "Largest accumulation",
-      "accumulationHint_one": "{{count}} location · {{radius}} km",
-      "accumulationHint_other": "{{count}} locations · {{radius}} km",
+      "accumulationHint_one": "{{count}} location · chained via neighbours ≤ {{radius}} km",
+      "accumulationHint_other": "{{count}} locations · chained via neighbours ≤ {{radius}} km",
       "noAccumulation": "none within {{radius}} km",
       "provisional": "provisional · {{analyzed}}/{{total}} analysed",
       "estimatedSites_one": "{{count}} site estimated",
@@ -899,7 +906,8 @@
       "elevatedZones": "In hail zone ≥ {{zone}}",
       "exposureShare": "{{share}} of exposure",
       "ealStockRange_one": "Range {{low}}–{{high}} over the stock of {{count}} location with an image series",
-      "ealStockRange_other": "Range {{low}}–{{high}} over the stock of {{count}} locations with an image series"
+      "ealStockRange_other": "Range {{low}}–{{high}} over the stock of {{count}} locations with an image series",
+      "ealCoverage": "from {{withBasis}} of {{analyzed}} sites with a vehicle count"
     },
     "accumulations": {
       "title": "Largest accumulations",
@@ -914,7 +922,9 @@
       "more_other": "+ {{count}} more",
       "showOnMap": "Map",
       "expand": "Show the sites of “{{name}}”",
-      "collapse": "Hide the sites of “{{name}}”"
+      "collapse": "Hide the sites of “{{name}}”",
+      "partial": "partly analysed ({{analyzed}}/{{total}})",
+      "extent": "extent ≈ {{km}} km"
     },
     "zones": {
       "title": "Hail zone distribution",
@@ -932,7 +942,8 @@
       "empty": "No locations with a hail EAL yet.",
       "share": "{{share}} of the portfolio EAL",
       "description_one": "The location with the highest expected hail loss per year.",
-      "description_other": "The {{count}} locations with the highest expected hail loss per year."
+      "description_other": "The {{count}} locations with the highest expected hail loss per year.",
+      "emptyNoCount": "No sites with a vehicle count yet – without a vehicle count there is no hail EAL."
     },
     "review": {
       "title": "Review notes",
@@ -941,8 +952,8 @@
       "ruleLabel": "Rule:",
       "rules": {
         "high-hail-zone": "Hail zone ≥ {{zone}}",
-        "high-eal": "Location causes ≥ {{share}} of the portfolio EAL",
-        "accumulation": "Accumulation ({{radius}} km radius) with exposure ≥ {{threshold}}",
+        "high-eal": "Location causes ≥ {{share}} of the portfolio EAL (only sites with a vehicle count, once at least half the sites are counted)",
+        "accumulation": "Accumulation (chained via neighbours ≤ {{radius}} km) with exposure ≥ {{threshold}}; if more than half of the exposure is estimated: “Check – data mostly estimated”",
         "overcapacity": "Utilisation > {{utilisation}} of the estimated parking capacity",
         "low-boundary-confidence": "Lot boundary confidence ≤ {{confidence}}",
         "no-detection": "0 vehicles detected",
@@ -994,12 +1005,12 @@
       "limits": "Limitations",
       "hailEal": {
         "what": "Expected annual loss (EAL) from hail for the locations shown.",
-        "how": "EAL = N × λ × (pₛ·Sₛ + pₘ·Sₘ + pₗ·Sₗ). N = vehicles counted on the lot (estimated from the area without a detection model), λ = hail events per year by hail zone, p = share of small/medium/large events, S = loss per vehicle. Values under “Parameters → Hail EAL”.",
-        "limits": "λ, p, and S are uncalibrated placeholders; vehicle counts marked ≈ are area-based estimates. A screening estimate, not a tariff, underwriting, or insurance decision."
+        "how": "EAL = N × λ × (pₛ·Sₛ + pₘ·Sₘ + pₗ·Sₗ). N = vehicles counted on the lot (detection model or entered manually) – no vehicle count, no hail EAL; an area-based estimate does not enter N. λ = hail events per year per hail zone, p = share of small/medium/large events, S = loss per vehicle. Values under “Parameters → Hail EAL”.",
+        "limits": "λ, p and S are uncalibrated placeholders. The sum covers only sites with a vehicle count (see “from X of Y sites”). Screening estimate, not a tariff, underwriting or insurance decision."
       },
       "accumulations": {
         "what": "Groups of locations that a single hail event could hit together – sorted by exposure.",
-        "how": "Two locations belong together when they are at most {{radius}} km apart; neighbors form chains (single linkage). Loss scenario = accumulation exposure × {{scenario}} damage ratio.",
+        "how": "Two locations belong together when they are at most {{radius}} km apart; neighbours form chains (single linkage), so an accumulation can be much larger than {{radius}} km (extent per row). Loss scenario = accumulation exposure × {{scenario}} damage ratio. “≈ … estimated” = share of the exposure from an area estimate or fallback boundary.",
         "limits": "The radius is an assumption about the typical size of a hail cell; storm tracks and weather situations are not modeled. The loss scenario is not a PML from a catastrophe model."
       },
       "zones": {
@@ -1010,17 +1021,17 @@
       "topLocations": {
         "what": "The locations with the highest expected hail loss per year.",
         "how": "Sorted by hail EAL (€). The badge shows the hail zone; “≈” = estimated zone.",
-        "limits": "The EAL depends strongly on the vehicle count – manually reviewed counts improve the ranking."
+        "limits": "Only sites with a vehicle count have a hail EAL; sites without one are missing from this list."
       },
       "review": {
         "what": "Locations an underwriter should look at more closely, with the rule that raised the note.",
-        "how": "Critical: hail zone ≥ {{zone}}; share of the portfolio EAL ≥ {{share}}; accumulation within {{radius}} km with exposure ≥ {{threshold}}. Data quality: utilisation > {{utilisation}}, boundary confidence ≤ {{confidence}}, 0 detected vehicles, estimated hail zone. Thresholds under “Parameters”.",
+        "how": "Critical: hail zone ≥ {{zone}}; share of the portfolio EAL ≥ {{share}} (only once at least half the sites have a vehicle count); accumulation chained via neighbours ≤ {{radius}} km with exposure ≥ {{threshold}} – if more than half of that exposure is estimated, the note reads “Check – data mostly estimated”. Data quality: utilisation > {{utilisation}}, boundary confidence ≤ {{confidence}}, 0 detected vehicles, estimated hail zone. Thresholds under “Parameters”.",
         "limits": "Rule-based and unweighted – a note is a request to review, not a decline."
       },
       "table": {
         "what": "All portfolio locations with hail zone, vehicles, exposure and hail EAL.",
         "how": "Click a column header to sort. The search field only searches this table; the other tiles follow the portfolio filters above.",
-        "limits": "Vehicle counts and EAL come from aerial-image detection or, without a detection model, from the lot area (marked ≈) and are screening estimates."
+        "limits": "Vehicle count and exposure come from aerial detection or, without a detection model, from the lot area (marked ≈). A hail EAL exists only with a vehicle count; sorted by EAL, sites without one follow the counted sites, ordered by exposure. Screening estimates."
       },
       "changes": {
         "what": "What changed at the locations since they were last analysed: newer aerial imagery, radar hail nearby, open review points.",
@@ -1043,7 +1054,7 @@
       "pending": "pending",
       "estimate": {
         "mark": "estimated",
-        "vehicles": "Vehicle count estimated from the lot area (no vehicle detection); exposure and EAL follow from it.",
+        "vehicles": "Vehicle count estimated from the lot area (no vehicle detection); exposure follows from it. Without a vehicle count there is no hail EAL.",
         "boundary": "Estimated boundary (circle around the address point); area and vehicle count depend on the assumed radius."
       }
     },
@@ -1056,7 +1067,12 @@
       "stop": "Stop",
       "done_one": "Stock counted for {{count}} location ({{failed}} failed). The hail EAL now shows the range.",
       "done_other": "Stock counted for {{count}} locations ({{failed}} failed). The hail EAL now shows the range."
-    }
+    },
+    "noEal": {
+      "badge": "no vehicle count",
+      "tooltip": "Without a vehicle count there is no hail EAL (not €0). Set up vehicle detection or enter the vehicle count under “Site & vehicles” for this location."
+    },
+    "estimatedShare": "{{share}}% estimated"
   },
   "map": {
     "satellite": "Aerial",

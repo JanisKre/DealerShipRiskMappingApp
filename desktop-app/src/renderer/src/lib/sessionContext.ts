@@ -1,3 +1,4 @@
+import { ealCoverage, estimatedExposure, hasEalBasis } from "@shared/estimates";
 import type { AnalyzedDealership, RiskParameters } from "@shared/types";
 import { LLM_CONTEXT_MAX_CHARS } from "@shared/ipc-schema";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
@@ -60,7 +61,11 @@ export function locationLine(d: AnalyzedDealership, selected: boolean): string {
     d.risk?.exposureEur != null
       ? `exposure ${round(d.risk.exposureEur)} €`
       : undefined,
-    d.risk ? `hail EAL ${round(d.risk.eal)} €` : "not analysed",
+    !d.risk
+      ? "not analysed"
+      : hasEalBasis(d)
+        ? `hail EAL ${round(d.risk.eal)} €`
+        : "hail EAL n/a (no vehicle count)",
     d.productLimitEur != null
       ? `limit ${round(d.productLimitEur)} €`
       : undefined,
@@ -90,6 +95,7 @@ export function buildSessionContext(
     dealerships.reduce((acc, d) => acc + pick(d), 0);
   const totalExposure = sum((d) => d.risk?.exposureEur ?? 0);
   const totalEal = sum((d) => d.risk?.eal ?? 0);
+  const coverage = ealCoverage(dealerships);
   const totalVehicles = sum((d) => effectiveVehicleCount(d.detection));
   const insured = dealerships.filter((d) => d.insured === true).length;
   const prospects = dealerships.filter((d) => d.insured === false).length;
@@ -143,7 +149,7 @@ export function buildSessionContext(
 
   const text = [
     `Portfolio: ${count} locations (${insured} insured, ${prospects} prospects, ${count - insured - prospects} status unknown).`,
-    `Totals: ${round(totalVehicles)} vehicles, exposure ${round(totalExposure)} €, hail EAL ${round(totalEal)} € per year.`,
+    `Totals: ${round(totalVehicles)} vehicles, exposure ${round(totalExposure)} € (${Math.round(estimatedExposure(dealerships).share * 100)}% estimated from lot area or fallback boundary), hail EAL ${round(totalEal)} € per year from ${coverage.withBasis} of ${coverage.analyzed} analysed locations with a vehicle count (no vehicle count = no hail EAL).`,
     `PML 100-year (worst cluster within ${pml100.clusterRadiusKm} km): ${round(pml100.estimatedLossEur)} € across ${pml100.dealershipsInScenario} locations.`,
     `Hail zones: ${zoneLine}.`,
     `Needing review: ${review}. Not yet analysed: ${notAnalysed}.`,

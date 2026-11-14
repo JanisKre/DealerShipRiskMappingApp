@@ -7,6 +7,25 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **No "0 €" hail EAL without a vehicle count.** Locations without a
+  detected or reviewed vehicle count show "keine Fahrzeugzahl" instead of
+  "0 €", get no rank, sort after counted locations (by exposure), and no
+  longer trigger "causes 100 % of the portfolio EAL". The EAL tile says from
+  how many locations it is summed. Area estimates are labelled
+  "flächenbasierte Schätzung", never "aus dem Luftbild"; the detail dialog
+  shows the placeholder note under the EAL formula. The manual-count button
+  reads "Fahrzeugzahl speichern", and the "Fahrzeugzahl nur geschätzt"
+  notice disappears once a count is entered.
+- **Estimated exposure is labelled.** Accumulations, the exposure and
+  largest-accumulation tiles and the scenario card show "≈" and "davon X %
+  geschätzt"; an accumulation whose exposure is mostly estimated is a
+  "Prüfen – Datenbasis geschätzt" note instead of "Kritisch". Saving a
+  manual count reports the exposure change. A scenario loss is red only when
+  it is above 0 €. Accumulations explain that they chain via neighbours,
+  show their extent and partial sums while members are still analysed.
+
 ### Changed
 
 - **Hail simulation in the layer panel.** The simulation is now a section of

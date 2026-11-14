@@ -13,7 +13,7 @@ import {
 import { eur, pct } from "@renderer/lib/format";
 import { HintButton } from "@renderer/components/ui/hint-button";
 import { EstimateMark } from "./EstimateMark";
-import { estimateReasons } from "./estimates";
+import { ealCoverage, estimateReasons, hasEalBasis } from "./estimates";
 import { HailZoneBadge } from "./HailZoneBadge";
 import { TileInfo } from "./TileInfo";
 
@@ -38,7 +38,7 @@ export function TopLocationsChart({
   const top = useMemo(
     () =>
       dealerships
-        .filter((d) => (d.risk?.eal ?? 0) > 0)
+        .filter((d) => hasEalBasis(d) && (d.risk?.eal ?? 0) > 0)
         .sort((a, b) => (b.risk?.eal ?? 0) - (a.risk?.eal ?? 0))
         .slice(0, TOP_N),
     [dealerships],
@@ -64,7 +64,10 @@ export function TopLocationsChart({
       <CardContent>
         {top.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {t("dashboard.topLocations.empty")}
+            {ealCoverage(dealerships).withBasis === 0 &&
+            dealerships.some((d) => d.risk)
+              ? t("dashboard.topLocations.emptyNoCount")
+              : t("dashboard.topLocations.empty")}
           </p>
         ) : (
           <ol className="space-y-1">

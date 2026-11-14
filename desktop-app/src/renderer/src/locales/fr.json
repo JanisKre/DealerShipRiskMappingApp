@@ -611,7 +611,8 @@
     "totalEal": "EAL total",
     "alertLevel": {
       "critical": "Critique",
-      "warning": "Avertissement"
+      "warning": "Avertissement",
+      "estimatedBasis": "À vérifier – données estimées"
     },
     "alert": {
       "highEal": "Représente {{share}} % de l’EAL du portefeuille.",
@@ -620,7 +621,8 @@
       "noDetection": "Aucun véhicule détecté — vérifier la limite et l’image aérienne.",
       "highHailZone": "Situé en zone de grêle {{zone}}.",
       "accumulation": "Cumul de {{count}} sites avec une exposition de {{exposure}}.",
-      "estimatedHailZone": "Zone de grêle {{zone}} seulement estimée – vérifiez l’adresse et le code postal."
+      "estimatedHailZone": "Zone de grêle {{zone}} seulement estimée – vérifiez l’adresse et le code postal.",
+      "accumulationEstimated": "Cumul de {{count}} sites avec ≈{{exposure}} d’exposition · {{share}} % estimés."
     },
     "utilisation": "Utilisation",
     "capacity": "Capacité",
@@ -794,7 +796,7 @@
       "attentionBoundaryDetail": "La limite détermine quels véhicules comptent. Confirmez-la ou choisissez-en une autre.",
       "attentionBoundaryAction": "Vers la limite",
       "attentionModelTitle": "Nombre de véhicules estimé",
-      "attentionModelDetail": "La détection des véhicules n’est pas configurée. Le nombre correspond à la surface du terrain ÷ la surface par véhicule, pas à un comptage.",
+      "attentionModelDetail": "La détection des véhicules n’est pas configurée. Le nombre correspond à la surface du terrain ÷ la surface par véhicule, pas à un comptage. Sans nombre de véhicules, pas d’EAL grêle.",
       "attentionModelAction": "Configurer la détection des véhicules",
       "attentionImageryTitle_one": "L’image aérienne a {{count}} an",
       "attentionImageryTitle_other": "L’image aérienne a {{count}} ans",
@@ -879,7 +881,12 @@
         "staleImagery": "l’image aérienne date de plusieurs années – le site a pu changer",
         "pointOffSite": "le point se trouve en forêt ou en terrain ouvert, sans bâtiment ni véhicule – corrigez la position"
       },
-      "boundaryReviewBecause": "À vérifier car : {{reasons}}"
+      "boundaryReviewBecause": "À vérifier car : {{reasons}}",
+      "kpiNoRank": "pas de rang sans nombre de véhicules",
+      "kpiVehiclesAreaEstimate": "estimation basée sur la surface",
+      "vehicleCountSave": "Enregistrer le nombre de véhicules",
+      "exposureChanged": "Exposition {{from}} → {{to}}",
+      "exposureChangedDetail": "L’exposition et l’EAL grêle suivent désormais le nombre saisi ({{count}})."
     },
     "hailEal": "EAL grêle",
     "hailZone": "Zone de grêle",
@@ -890,8 +897,8 @@
     "showLess": "Afficher moins",
     "kpi": {
       "largestAccumulation": "Plus grand cumul",
-      "accumulationHint_one": "{{count}} site · {{radius}} km",
-      "accumulationHint_other": "{{count}} sites · {{radius}} km",
+      "accumulationHint_one": "{{count}} site · chaînés par voisins ≤ {{radius}} km",
+      "accumulationHint_other": "{{count}} sites · chaînés par voisins ≤ {{radius}} km",
       "noAccumulation": "aucun dans un rayon de {{radius}} km",
       "provisional": "provisoire · {{analyzed}}/{{total}} analysés",
       "estimatedSites_one": "dont {{count}} site estimé",
@@ -899,7 +906,8 @@
       "elevatedZones": "En zone de grêle ≥ {{zone}}",
       "exposureShare": "{{share}} de l’exposition",
       "ealStockRange_one": "Fourchette {{low}}–{{high}} selon le stock de {{count}} site avec série d’images",
-      "ealStockRange_other": "Fourchette {{low}}–{{high}} selon le stock de {{count}} sites avec série d’images"
+      "ealStockRange_other": "Fourchette {{low}}–{{high}} selon le stock de {{count}} sites avec série d’images",
+      "ealCoverage": "sur {{withBasis}} des {{analyzed}} sites avec nombre de véhicules"
     },
     "accumulations": {
       "title": "Plus grands cumuls",
@@ -914,7 +922,9 @@
       "more_other": "+ {{count}} autres",
       "showOnMap": "Carte",
       "expand": "Afficher les sites de « {{name}} »",
-      "collapse": "Masquer les sites de « {{name}} »"
+      "collapse": "Masquer les sites de « {{name}} »",
+      "partial": "partiellement analysé ({{analyzed}}/{{total}})",
+      "extent": "étendue ≈ {{km}} km"
     },
     "zones": {
       "title": "Répartition par zone de grêle",
@@ -932,7 +942,8 @@
       "empty": "Aucun site avec une EAL grêle pour l’instant.",
       "share": "{{share}} de l’EAL du portefeuille",
       "description_one": "Le site avec la plus forte perte annuelle attendue due à la grêle.",
-      "description_other": "Les {{count}} sites avec la plus forte perte annuelle attendue due à la grêle."
+      "description_other": "Les {{count}} sites avec la plus forte perte annuelle attendue due à la grêle.",
+      "emptyNoCount": "Aucun site avec nombre de véhicules – sans nombre de véhicules, pas d’EAL grêle."
     },
     "review": {
       "title": "Points à vérifier",
@@ -941,8 +952,8 @@
       "ruleLabel": "Règle :",
       "rules": {
         "high-hail-zone": "Zone de grêle ≥ {{zone}}",
-        "high-eal": "Le site représente ≥ {{share}} de l’EAL du portefeuille",
-        "accumulation": "Cumul (rayon de {{radius}} km) avec une exposition ≥ {{threshold}}",
+        "high-eal": "Le site représente ≥ {{share}} de l’EAL du portefeuille (sites avec nombre de véhicules uniquement, dès que la moitié des sites sont comptés)",
+        "accumulation": "Cumul (chaîné par voisins ≤ {{radius}} km) avec une exposition ≥ {{threshold}} ; si plus de la moitié de l’exposition est estimée : « À vérifier – données estimées »",
         "overcapacity": "Utilisation > {{utilisation}} de la capacité de stationnement estimée",
         "low-boundary-confidence": "Confiance de la limite du terrain ≤ {{confidence}}",
         "no-detection": "0 véhicule détecté",
@@ -994,12 +1005,12 @@
       "limits": "Limites",
       "hailEal": {
         "what": "Perte annuelle attendue due à la grêle (Expected Annual Loss, EAL) pour les sites affichés.",
-        "how": "EAL = N × λ × (pₛ·Sₛ + pₘ·Sₘ + pₗ·Sₗ). N = véhicules comptés sur le terrain (estimés à partir de la surface sans modèle de détection), λ = événements de grêle par an selon la zone de grêle, p = part des événements petits/moyens/grands, S = dommage par véhicule. Valeurs sous « Paramètres → EAL grêle ».",
-        "limits": "λ, p et S sont des valeurs provisoires non calibrées ; les nombres de véhicules marqués ≈ sont des estimations fondées sur la surface. Estimation de screening, pas une décision tarifaire, de souscription ou d’assurance."
+        "how": "EAL = N × λ × (pₛ·Sₛ + pₘ·Sₘ + pₗ·Sₗ). N = véhicules comptés sur le site (modèle de détection ou saisie manuelle) – sans nombre de véhicules, pas d’EAL grêle ; une estimation basée sur la surface n’entre pas dans N. λ = événements de grêle par an et par zone, p = part des événements petits/moyens/grands, S = dommage par véhicule. Valeurs sous « Paramètres → EAL grêle ».",
+        "limits": "λ, p et S sont des valeurs provisoires non calibrées. La somme ne couvre que les sites avec nombre de véhicules (voir « sur X des Y sites »). Estimation de criblage, pas une décision tarifaire, de souscription ou d’assurance."
       },
       "accumulations": {
         "what": "Groupes de sites qu’un même événement de grêle pourrait toucher ensemble – triés par exposition.",
-        "how": "Deux sites sont regroupés s’ils sont distants d’au plus {{radius}} km ; les voisins forment des chaînes (single linkage). Scénario de dommage = exposition du cumul × taux de dommage de {{scenario}}.",
+        "how": "Deux sites sont regroupés s’ils sont distants d’au plus {{radius}} km ; les voisins forment des chaînes (single linkage), un cumul peut donc dépasser largement {{radius}} km (étendue par ligne). Scénario de dommage = exposition du cumul × taux de dommage de {{scenario}}. « ≈ … estimés » = part de l’exposition issue d’une estimation de surface ou d’une limite de repli.",
         "limits": "Le rayon est une hypothèse sur la taille typique d’une cellule de grêle ; les trajectoires et les situations météo ne sont pas modélisées. Le scénario de dommage n’est pas un PML issu d’un modèle catastrophe."
       },
       "zones": {
@@ -1010,17 +1021,17 @@
       "topLocations": {
         "what": "Les sites avec la plus forte perte annuelle attendue due à la grêle.",
         "how": "Triés par EAL grêle (€). Le badge indique la zone de grêle ; « ≈ » = zone estimée.",
-        "limits": "L’EAL dépend fortement du nombre de véhicules – des nombres vérifiés manuellement améliorent le classement."
+        "limits": "Seuls les sites avec nombre de véhicules ont une EAL grêle ; les autres n’apparaissent pas dans cette liste."
       },
       "review": {
         "what": "Sites qu’un souscripteur devrait examiner de plus près, avec la règle qui a déclenché le point.",
-        "how": "Critique : zone de grêle ≥ {{zone}} ; part de l’EAL du portefeuille ≥ {{share}} ; cumul dans un rayon de {{radius}} km avec une exposition ≥ {{threshold}}. Qualité des données : utilisation > {{utilisation}}, confiance de la limite ≤ {{confidence}}, 0 véhicule détecté, zone de grêle estimée. Seuils sous « Paramètres ».",
+        "how": "Critique : zone de grêle ≥ {{zone}} ; part de l’EAL du portefeuille ≥ {{share}} (seulement si au moins la moitié des sites ont un nombre de véhicules) ; cumul chaîné par voisins ≤ {{radius}} km avec une exposition ≥ {{threshold}} – si plus de la moitié de cette exposition est estimée, la note devient « À vérifier – données estimées ». Qualité des données : utilisation > {{utilisation}}, confiance de la limite ≤ {{confidence}}, 0 véhicule détecté, zone de grêle estimée. Seuils sous « Paramètres ».",
         "limits": "Fondé sur des règles, sans pondération – un point est une demande de vérification, pas un refus."
       },
       "table": {
         "what": "Tous les sites du portefeuille avec zone de grêle, véhicules, exposition et EAL grêle.",
         "how": "Cliquez sur un en-tête de colonne pour trier. Le champ de recherche ne filtre que ce tableau ; les autres tuiles suivent les filtres de portefeuille ci-dessus.",
-        "limits": "Le nombre de véhicules et l’EAL proviennent de la détection sur l’image aérienne ou, sans modèle de détection, de la surface du terrain (marqués ≈) et sont des estimations de screening."
+        "limits": "Le nombre de véhicules et l’exposition proviennent de la détection aérienne ou, sans modèle, de la surface du terrain (marqués ≈). Une EAL grêle n’existe qu’avec un nombre de véhicules ; triés par EAL, les sites sans nombre suivent les sites comptés, par exposition. Estimations de criblage."
       },
       "changes": {
         "what": "Ce qui a changé sur les sites depuis leur dernière analyse : images aériennes plus récentes, grêle radar à proximité, points à vérifier ouverts.",
@@ -1043,7 +1054,7 @@
       "pending": "en attente",
       "estimate": {
         "mark": "estimé",
-        "vehicles": "Nombre de véhicules estimé à partir de la surface du terrain (sans détection des véhicules) ; l’exposition et l’EAL en découlent.",
+        "vehicles": "Nombre de véhicules estimé à partir de la surface (pas de détection) ; l’exposition en découle. Sans nombre de véhicules, pas d’EAL grêle.",
         "boundary": "Limite estimée (cercle autour du point d’adresse) ; la surface et le nombre de véhicules dépendent du rayon supposé."
       }
     },
@@ -1056,7 +1067,12 @@
       "stop": "Arrêter",
       "done_one": "Stock compté pour {{count}} site ({{failed}} en échec). L’EAL grêle affiche maintenant la fourchette.",
       "done_other": "Stock compté pour {{count}} sites ({{failed}} en échec). L’EAL grêle affiche maintenant la fourchette."
-    }
+    },
+    "noEal": {
+      "badge": "aucun nombre de véhicules",
+      "tooltip": "Sans nombre de véhicules, pas d’EAL grêle (pas 0 €). Configurez la détection des véhicules ou saisissez le nombre de véhicules sous « Site & véhicules »."
+    },
+    "estimatedShare": "dont {{share}} % estimés"
   },
   "map": {
     "satellite": "Vue aérienne",

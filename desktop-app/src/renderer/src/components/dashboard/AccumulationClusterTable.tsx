@@ -10,6 +10,7 @@ import {
   computeAccumulationClusters,
   dealershipHailZone,
   effectiveVehicleCount,
+  haversineKm,
 } from "@shared/risk-math";
 import { Button } from "@renderer/components/ui/button";
 import { HintButton } from "@renderer/components/ui/hint-button";
@@ -31,7 +32,29 @@ import {
 import { eur, num, pct } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
 import { HailZoneBadge } from "./HailZoneBadge";
+import { EstimateMark, NoEalBadge, estimatedShareSuffix } from "./EstimateMark";
+import {
+  ealCoverage,
+  estimateReasons,
+  estimatedExposure,
+  hasEalBasis,
+} from "./estimates";
 import { TileInfo } from "./TileInfo";
+
+/**
+ * Largest distance between two members (km): single linkage chains sites,
+ * so an accumulation can span far more than the radius (UW-21).
+ */
+export function clusterExtentKm(members: AnalyzedDealership[]): number {
+  let max = 0;
+  for (let i = 0; i < members.length; i++)
+    for (let j = i + 1; j < members.length; j++) {
+      const a = members[i];
+      const b = members[j];
+      max = Math.max(max, haversineKm(a.lat, a.lon, b.lat, b.lon));
+    }
+  return max;
+}
 
 /** Accumulations shown before "show all". */
 const INITIAL_ROWS = 10;
@@ -185,10 +208,15 @@ export function AccumulationClusterTable({
                   .map((d) => dealershipHailZone(d)?.zone ?? 0)
                   .filter((z) => z > 0);
                 const maxZone = zones.length ? Math.max(...zones) : 0;
-                // Members still waiting for analysis: the sums would read
-                // as final ("0 €"), so they show "–" until all are in.
-                const pending = list.some((d) => !d.risk);
-                const sum = (text: string): string => (pending ? "–" : text);
+                // Members still waiting for analysis: the sums are partial,
+                // so they carry "teilweise analysiert" instead of reading as
+                // final (UW-21).
+                const analyzedCount = list.filter((d) => d.risk).length;
+                const pending = analyzedCount < list.length;
+                const sum = (text: string): string =>
+                  analyzedCount === 0 ? "–" : text;
+                const estimated = estimatedExposure(list);
+                const coverage = ealCoverage(list);
                 const label = list[0]?.name ?? c.clusterId;
                 return (
                   <Fragment key={c.clusterId}>
@@ -233,6 +261,13 @@ export function AccumulationClusterTable({
                             })}
                           </span>
                         )}
+                        {list.length > 1 && (
+                          <span className="block text-xs font-normal text-muted-foreground">
+                            {t("dashboard.accumulations.extent", {
+                              km: num(clusterExtentKm(list), 0),
+                            })}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="hidden @4xl:table-cell text-right tabular-nums">
                         {c.count}
@@ -241,17 +276,35 @@ export function AccumulationClusterTable({
                         {sum(num(c.totalVehicles))}
                       </TableCell>
                       <TableCell className="text-right font-medium tabular-nums">
-                        {sum(eur(c.totalExposureEur))}
+                        {sum(
+                          `${estimated.share > 0 ? "≈" : ""}${eur(c.totalExposureEur)}`,
+                        )}
+                        {analyzedCount > 0 &&
+                          (estimated.share > 0 || pending) && (
+                            <span className="block text-xs font-normal text-muted-foreground">
+                              {[
+                                estimatedShareSuffix(t, estimated.share),
+                                pending
+                                  ? t("dashboard.accumulations.partial", {
+                                      analyzed: analyzedCount,
+                                      total: list.length,
+                                    })
+                                  : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          )}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {sum(eur(c.totalEalEur))}
+                        {analyzedCount > 0 && coverage.withBasis === 0 ? (
+                          <NoEalBadge />
+                        ) : (
+                          sum(eur(c.totalEalEur))
+                        )}
                       </TableCell>
                       <TableCell>
-                        {maxZone > 0 && !pending ? (
-                          <HailZoneBadge zone={maxZone} />
-                        ) : (
-                          "–"
-                        )}
+                        {maxZone > 0 ? <HailZoneBadge zone={maxZone} /> : "–"}
                       </TableCell>
                       <TableCell className="hidden @7xl:table-cell text-right tabular-nums">
                         {sum(eur(c.natCatKpiEur))}
@@ -314,10 +367,23 @@ export function AccumulationClusterTable({
                               {num(effectiveVehicleCount(d.detection))}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {eur(d.risk?.exposureEur)}
+                              {d.risk ? (
+                                <>
+                                  <EstimateMark reasons={estimateReasons(d)} />
+                                  {eur(d.risk.exposureEur)}
+                                </>
+                              ) : (
+                                "–"
+                              )}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {eur(d.risk?.eal)}
+                              {!d.risk ? (
+                                "–"
+                              ) : hasEalBasis(d) ? (
+                                eur(d.risk.eal)
+                              ) : (
+                                <NoEalBadge />
+                              )}
                             </TableCell>
                             <TableCell>
                               {zone ? (

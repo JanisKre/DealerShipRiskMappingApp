@@ -1,3 +1,4 @@
+import { hasEalBasis } from "@shared/estimates";
 import type {
   AnalyzedDealership,
   HailHistory,
@@ -78,7 +79,9 @@ export function formatEvidence(d: AnalyzedDealership): string {
     return lines.join("\n");
   }
   lines.push(
-    `  Hail EAL ${round(d.risk.eal)} EUR (screening estimate; frequency and severity are uncalibrated placeholder values).`,
+    hasEalBasis(d)
+      ? `  Hail EAL ${round(d.risk.eal)} EUR (screening estimate; frequency and severity are uncalibrated placeholder values).`
+      : "  Hail EAL not available: no vehicle count (no detection model ran and no manual count); do not report it as 0 EUR.",
   );
   if (detail) {
     lines.push(

@@ -44,6 +44,8 @@ import {
   SelectValue,
 } from "@renderer/components/ui/select";
 import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
+import { NoEalBadge } from "@renderer/components/dashboard/EstimateMark";
+import { ealSortValue, hasEalBasis } from "@shared/estimates";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import {
   Tooltip,
@@ -236,7 +238,7 @@ export function LocationsPanel({
       };
     });
     const by: Record<SortKey, (a: Row, b: Row) => number> = {
-      eal: (a, b) => (b.d.risk?.eal ?? -1) - (a.d.risk?.eal ?? -1),
+      eal: (a, b) => ealSortValue(b.d) - ealSortValue(a.d),
       name: (a, b) => a.d.name.localeCompare(b.d.name),
       zone: (a, b) =>
         (dealershipHailZone(b.d)?.zone ?? 0) -
@@ -731,8 +733,10 @@ function LocationRow({
                   ? "map.locationsPanel.pending"
                   : "map.locationsPanel.notAnalyzed",
               )
-            ) : (
+            ) : hasEalBasis(d) ? (
               t("map.locationsPanel.ealValue", { value: eur(d.risk.eal) })
+            ) : (
+              <NoEalBadge className="px-1.5 py-0 text-[11px]" />
             )}
           </div>
           <div className="mt-1 flex flex-wrap gap-1 empty:hidden">

@@ -36,6 +36,8 @@ import {
   type ReplaySpeed,
 } from "@renderer/store/hailReplayStore";
 import { computeScenarioImpact } from "@shared/risk-math";
+import { estimatedExposure } from "@shared/estimates";
+import type { AnalyzedDealership } from "@shared/types";
 import { HAIL_CLASS_COLOR } from "./HailEventReplayLayer";
 import { INTENSITY_COLOR } from "./HailstormScenarioLayer";
 import { replayClockLabel, replayDateLabel } from "@renderer/lib/hailTime";
@@ -54,30 +56,53 @@ function Figure({
   now,
   total,
   tone,
+  estimatedShare = 0,
 }: Readonly<{
   label: string;
   now: string;
   total?: string;
-  tone?: "loss";
+  /** `loss` colours the figure red, but only when `lossEur` > 0 (UX-12). */
+  tone?: { kind: "loss"; lossEur: number };
+  /** Share of the exposure behind the figure that is estimated (≈). */
+  estimatedShare?: number;
 }>): React.JSX.Element {
   const { t } = useTranslation();
+  const approx = estimatedShare > 0 ? "≈" : "";
+  const red = tone?.kind === "loss" && tone.lossEur > 0;
   return (
     <div className="min-w-0">
       <div className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
       <div
-        className={`truncate text-base font-semibold tabular-nums ${tone === "loss" ? "text-destructive" : ""}`}
+        className={`truncate text-base font-semibold tabular-nums ${red ? "text-destructive" : ""}`}
       >
+        {approx}
         {now}
       </div>
       {total !== undefined && (
         <div className="truncate text-[11px] tabular-nums text-muted-foreground">
-          {t("hailReplay.ofTotal", { total })}
+          {t("hailReplay.ofTotal", { total: `${approx}${total}` })}
+        </div>
+      )}
+      {estimatedShare > 0 && (
+        <div className="truncate text-[11px] tabular-nums text-muted-foreground">
+          {t("dashboard.estimatedShare", {
+            share: Math.round(estimatedShare * 100),
+          })}
         </div>
       )}
     </div>
   );
+}
+
+/** Share of the reached sites' exposure that is an estimate. */
+function estimatedShareOf(
+  ids: readonly string[],
+  dealerships: readonly AnalyzedDealership[],
+): number {
+  const wanted = new Set(ids);
+  return estimatedExposure(dealerships.filter((d) => wanted.has(d.id))).share;
 }
 
 /** Money as a short figure: 0,6 Mio. € instead of a cut-off 600.000 €. */
@@ -139,6 +164,7 @@ function CorridorCard(): React.JSX.Element | null {
 
   const byId = new Map(dealerships.map((d) => [d.id, d]));
   const affected = impact.affectedDealershipIds;
+  const estimatedShare = estimatedShareOf(affected, dealerships);
   const multiplier = scenario.exposureMultiplier ?? 1;
   return (
     <div className={CARD_CLASS} data-testid="hail-corridor">
@@ -176,11 +202,13 @@ function CorridorCard(): React.JSX.Element | null {
         <Figure
           label={t("hailReplay.figureExposure")}
           now={moneyLabel(impact.totalExposureEur, t)}
+          estimatedShare={estimatedShare}
         />
         <Figure
           label={t("hailReplay.stressLoss")}
           now={moneyLabel(impact.estimatedLossEur, t)}
-          tone="loss"
+          tone={{ kind: "loss", lossEur: impact.estimatedLossEur }}
+          estimatedShare={estimatedShare}
         />
       </div>
 
@@ -380,6 +408,10 @@ function EventCard(): React.JSX.Element | null {
   if (!detail || !impact) return null;
 
   const { summary } = detail;
+  const hitsEstimatedShare = estimatedShareOf(
+    impact.hits.map((h) => h.id),
+    dealerships,
+  );
   const canSave = summary.source === "simulation" || summary.source === "drawn";
   const shifted = s.shift.eastKm !== 0 || s.shift.northKm !== 0;
   const atEnd = s.time >= stop;
@@ -496,12 +528,14 @@ function EventCard(): React.JSX.Element | null {
           label={t("hailReplay.figureExposure")}
           now={money(sofar.exposure)}
           total={money(impact.totalExposureEur)}
+          estimatedShare={hitsEstimatedShare}
         />
         <Figure
           label={t("hailReplay.stressLoss")}
           now={money(sofar.loss)}
           total={money(impact.totalLossEur)}
-          tone="loss"
+          tone={{ kind: "loss", lossEur: sofar.loss }}
+          estimatedShare={hitsEstimatedShare}
         />
       </div>
 

@@ -55,8 +55,8 @@ import {
 } from "@renderer/components/ui/table";
 import { eur, num } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
-import { EstimateMark } from "./EstimateMark";
-import { estimateReasons } from "./estimates";
+import { EstimateMark, NoEalBadge } from "./EstimateMark";
+import { ealSortValue, estimateReasons, hasEalBasis } from "./estimates";
 import { HailZoneBadge } from "./HailZoneBadge";
 import { matchesLocationSearch } from "./tableSearch";
 import { TileInfo } from "./TileInfo";
@@ -206,17 +206,17 @@ export function DealershipTable({
               "–"
             ),
         }),
-        columnHelper.accessor((d) => d.risk?.eal ?? 0, {
+        // Sort key, not the figure: counted sites by EAL, then sites
+        // without a vehicle count by exposure (`ealSortValue`).
+        columnHelper.accessor(ealSortValue, {
           id: "eal",
           header: t("dashboard.hailEal"),
-          cell: (info) =>
-            info.row.original.risk ? (
-              <Estimated d={info.row.original}>
-                {eur(info.getValue())}
-              </Estimated>
-            ) : (
-              "–"
-            ),
+          cell: (info) => {
+            const d = info.row.original;
+            if (!d.risk) return "–";
+            if (!hasEalBasis(d)) return <NoEalBadge />;
+            return <Estimated d={d}>{eur(d.risk.eal)}</Estimated>;
+          },
         }),
         columnHelper.display({
           id: "actions",
