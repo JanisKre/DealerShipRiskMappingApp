@@ -1,3 +1,4 @@
+import { etaRangeMinutes } from "@renderer/lib/analysisEta";
 import { toastExported } from "@renderer/lib/exportToast";
 import { exportLocale } from "@renderer/lib/format";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -1450,24 +1451,29 @@ function metersPerPixel(lat: number, zoom: number): number {
   return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom;
 }
 
-/** Remaining-time estimate for a batch analysis, from the average so far. */
+/** Remaining-time estimate for a batch analysis, as a coarse range. */
 function remainingLabel(
   t: TFunction,
   progress: { done: number; total: number; startedAt: number },
 ): string {
   // The first results include warm-up (model load, cold caches); wait for a
   // few before extrapolating.
-  if (progress.done < 3) return t("map.page.analyzingEstimating");
-  const elapsed = Date.now() - progress.startedAt;
-  const remainingMs =
-    (elapsed / progress.done) * (progress.total - progress.done);
-  const minutes = Math.max(1, Math.round(remainingMs / 60_000));
-  const time =
+  const range = etaRangeMinutes(
+    progress.done,
+    progress.total,
+    Date.now() - progress.startedAt,
+  );
+  if (!range) return t("map.page.analyzingEstimating");
+  const duration = (minutes: number): string =>
     minutes < 60
       ? t("map.page.durationMinutes", { minutes })
       : t("map.page.durationHours", {
           hours: Math.floor(minutes / 60),
           minutes: minutes % 60,
         });
+  const time = t("map.page.durationRange", {
+    low: duration(range[0]),
+    high: duration(range[1]),
+  });
   return t("map.page.analyzingRemaining", { time });
 }

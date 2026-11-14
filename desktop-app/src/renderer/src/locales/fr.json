@@ -1198,7 +1198,8 @@
       "unlocatedFailed": "Non importé : {{reason}}",
       "unlocatedNotFound": "adresse introuvable",
       "unlocatedOther": "échec de l’analyse",
-      "unlocatedDiscard": "Supprimer la ligne"
+      "unlocatedDiscard": "Supprimer la ligne",
+      "sortPaused": "Analyse en cours – tri suspendu"
     },
     "hailZones": {
       "loading": "Chargement des contours des codes postaux…",
@@ -1307,7 +1308,8 @@
       "mapCopied": "Image de la carte copiée dans le presse-papiers",
       "mapSaved": "Image de carte enregistrée : {{name}}",
       "mapCopyFailed": "Impossible de copier l’image de la carte.",
-      "mapSaveFailed": "Impossible d’enregistrer l’image de la carte."
+      "mapSaveFailed": "Impossible d’enregistrer l’image de la carte.",
+      "durationRange": "{{low}}–{{high}}"
     }
   },
   "ai": {

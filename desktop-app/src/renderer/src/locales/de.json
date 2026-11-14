@@ -1198,7 +1198,8 @@
       "unlocatedFailed": "Nicht übernommen: {{reason}}",
       "unlocatedNotFound": "Adresse nicht gefunden",
       "unlocatedOther": "Analyse fehlgeschlagen",
-      "unlocatedDiscard": "Zeile verwerfen"
+      "unlocatedDiscard": "Zeile verwerfen",
+      "sortPaused": "Analyse läuft – Sortierung pausiert"
     },
     "hailZones": {
       "loading": "Postleitzahl-Flächen werden geladen …",
@@ -1307,7 +1308,8 @@
       "mapCopied": "Kartenbild in die Zwischenablage kopiert",
       "mapSaved": "Kartenbild gespeichert: {{name}}",
       "mapCopyFailed": "Das Kartenbild konnte nicht kopiert werden.",
-      "mapSaveFailed": "Das Kartenbild konnte nicht gespeichert werden."
+      "mapSaveFailed": "Das Kartenbild konnte nicht gespeichert werden.",
+      "durationRange": "{{low}}–{{high}}"
     }
   },
   "ai": {

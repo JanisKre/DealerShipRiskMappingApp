@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AnalyzedDealership, BoundaryResult } from "@shared/types";
 import {
   allRowsSelected,
+  frozenOrder,
   boundaryReviewQueue,
   geometryBounds,
   withSelected,
@@ -93,5 +94,18 @@ describe("allRowsSelected", () => {
 
   it("is false for an empty list", () => {
     expect(allRowsSelected(new Set(), [])).toBe(false);
+  });
+});
+
+describe("frozenOrder", () => {
+  it("keeps shown rows in place and appends new ones", () => {
+    expect(frozenOrder(["b", "a", "c"], ["a", "d", "b", "c"])).toEqual([
+      "b",
+      "a",
+      "c",
+      "d",
+    ]);
+    expect(frozenOrder(["b", "x"], ["a", "b"])).toEqual(["b", "a"]);
+    expect(frozenOrder(null, ["a", "b"])).toEqual(["a", "b"]);
   });
 });

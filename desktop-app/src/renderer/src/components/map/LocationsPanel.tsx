@@ -69,7 +69,7 @@ import {
   PlacePortfolioBadge,
   PlaceSourceTag,
 } from "./PlaceSourceTag";
-import { allRowsSelected } from "./mapSelection";
+import { allRowsSelected, frozenOrder } from "./mapSelection";
 import type { PlaceSuggestion } from "@shared/ipc-schema";
 import { nameForPlace } from "@renderer/lib/placeName";
 
@@ -241,6 +241,7 @@ export function LocationsPanel({
   // Rows with relationship info, in the chosen order ("nearby" sorts by
   // distance to the subject). The selected row keeps its place: moving it to
   // the top while the scroll position stayed made it jump out of view.
+  const frozenRef = useRef<{ key: string; ids: string[] } | null>(null);
   const rows = useMemo<Row[]>(() => {
     const source = filtered.filter(
       (d) => d.id === selectedId || matchesQuery(d, query),
@@ -270,10 +271,25 @@ export function LocationsPanel({
           : 0,
     };
     const order = sort === "nearby" && !subject ? "eal" : sort;
-    return built.sort(
+    const sorted = built.sort(
       (a, b) => by[order](a, b) || a.d.name.localeCompare(b.d.name),
     );
-  }, [filtered, subject, selectedId, query, sort]);
+    // While a batch runs, results would make rows jump (a site moves up as
+    // soon as it has an EAL): keep the order and append new rows (UW-04).
+    // A different sort, search or filter re-sorts once.
+    const key = `${sort}|${query}|${subject?.id ?? ""}`;
+    const previous =
+      batchRunning && frozenRef.current?.key === key
+        ? frozenRef.current.ids
+        : null;
+    const ids = frozenOrder(
+      previous,
+      sorted.map((row) => row.d.id),
+    );
+    frozenRef.current = batchRunning ? { key, ids } : null;
+    const byId = new Map(sorted.map((row) => [row.d.id, row]));
+    return ids.map((id) => byId.get(id)).filter((r): r is Row => r != null);
+  }, [filtered, subject, selectedId, query, sort, batchRunning]);
 
   // A site selected elsewhere (map, chat) is scrolled into view once: the
   // page of rows grows to include it, then the row is brought into view.
@@ -469,6 +485,11 @@ export function LocationsPanel({
                 )}
               </SelectContent>
             </Select>
+            {batchRunning && (
+              <p className="text-[11px] text-muted-foreground">
+                {t("map.locationsPanel.sortPaused")}
+              </p>
+            )}
             {showFilters && (
               <PortfolioFilterBar dealerships={dealerships} variant="panel" />
             )}

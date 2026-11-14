@@ -1198,7 +1198,8 @@
       "unlocatedFailed": "Not imported: {{reason}}",
       "unlocatedNotFound": "address not found",
       "unlocatedOther": "analysis failed",
-      "unlocatedDiscard": "Discard row"
+      "unlocatedDiscard": "Discard row",
+      "sortPaused": "Analysis running – sorting paused"
     },
     "hailZones": {
       "loading": "Loading postcode outlines…",
@@ -1307,7 +1308,8 @@
       "mapCopied": "Map image copied to the clipboard",
       "mapSaved": "Map image saved: {{name}}",
       "mapCopyFailed": "Couldn't copy the map image.",
-      "mapSaveFailed": "Couldn't save the map image."
+      "mapSaveFailed": "Couldn't save the map image.",
+      "durationRange": "{{low}}–{{high}}"
     }
   },
   "ai": {

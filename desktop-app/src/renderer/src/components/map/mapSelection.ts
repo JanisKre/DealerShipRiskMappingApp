@@ -60,3 +60,19 @@ export function allRowsSelected(
 ): boolean {
   return rowIds.length > 0 && rowIds.every((id) => selectedIds.has(id));
 }
+
+/**
+ * Keeps the list order while a batch analysis runs (UW-04): rows already
+ * shown stay where they are, rows that newly appear go to the end in their
+ * sorted order. Without a previous order the sorted order is used.
+ */
+export function frozenOrder(
+  previous: readonly string[] | null,
+  sorted: readonly string[],
+): string[] {
+  if (!previous) return [...sorted];
+  const present = new Set(sorted);
+  const kept = previous.filter((id) => present.has(id));
+  const known = new Set(kept);
+  return [...kept, ...sorted.filter((id) => !known.has(id))];
+}
