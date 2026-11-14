@@ -38,6 +38,7 @@ describe("tile layout storage", () => {
       "clusters",
       "topLocations",
       "insights",
+      "changes",
     ]);
   });
 
@@ -181,8 +182,9 @@ describe("tileSpans", () => {
     expect(spans.get("summary")).toBe("@3xl:col-span-2 @5xl:col-span-3");
     expect(spans.get("zones")).toBe("@3xl:col-span-1 @5xl:col-span-1");
     expect(spans.get("topLocations")).toBe("@3xl:col-span-1 @5xl:col-span-1");
-    // Alone in its row at two columns.
-    expect(spans.get("insights")).toBe("@3xl:col-span-2 @5xl:col-span-1");
+    // Insights and changes share a row at two columns; changes alone at three.
+    expect(spans.get("insights")).toBe("@3xl:col-span-1 @5xl:col-span-1");
+    expect(spans.get("changes")).toBe("@3xl:col-span-1 @5xl:col-span-3");
   });
 
   it("stretches a narrow tile left alone after its neighbours are hidden", () => {

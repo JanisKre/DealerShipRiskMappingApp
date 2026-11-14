@@ -1,5 +1,11 @@
 export type DashboardTileId =
-  "summary" | "clusters" | "zones" | "topLocations" | "insights" | "table";
+  | "summary"
+  | "clusters"
+  | "zones"
+  | "topLocations"
+  | "insights"
+  | "changes"
+  | "table";
 
 export const DEFAULT_TILE_ORDER: DashboardTileId[] = [
   "summary",
@@ -7,6 +13,7 @@ export const DEFAULT_TILE_ORDER: DashboardTileId[] = [
   "zones",
   "topLocations",
   "insights",
+  "changes",
   "table",
 ];
 
@@ -65,6 +72,7 @@ export const TILE_DEFINITIONS: Array<{
   { id: "zones", labelKey: "dashboard.tiles.zones" },
   { id: "topLocations", labelKey: "dashboard.tiles.topLocations" },
   { id: "insights", labelKey: "dashboard.tiles.insights" },
+  { id: "changes", labelKey: "dashboard.tiles.changes" },
   { id: "table", labelKey: "dashboard.tiles.table" },
 ];
 
@@ -189,6 +197,10 @@ const TILE_ALIASES: Array<{ id: DashboardTileId; words: string[] }> = [
       "warnung",
       "a verifier",
     ],
+  },
+  {
+    id: "changes",
+    words: ["änderung", "aenderung", "changes", "changement"],
   },
   {
     id: "table",

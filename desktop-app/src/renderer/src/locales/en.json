@@ -646,7 +646,8 @@
       "clusters": "Largest accumulations",
       "table": "Location table",
       "zones": "Hail zone distribution",
-      "topLocations": "Top locations by hail EAL"
+      "topLocations": "Top locations by hail EAL",
+      "changes": "Changes since analysis"
     },
     "detailDialog": {
       "imageryCountedOn": "Vehicles counted on",
@@ -1020,6 +1021,11 @@
         "what": "All portfolio locations with hail zone, vehicles, exposure and hail EAL.",
         "how": "Click a column header to sort. The search field only searches this table; the other tiles follow the portfolio filters above.",
         "limits": "Vehicle counts and EAL come from aerial-image detection or, without a detection model, from the lot area (marked ≈) and are screening estimates."
+      },
+      "changes": {
+        "what": "What changed at the locations since they were last analysed: newer aerial imagery, radar hail nearby, open review points.",
+        "how": "On request the app checks the available aerial imagery per location (only sources of 0.25 m or sharper, captured after the image the vehicles were counted on) and the local archive of DWD radar hail cells (cells within 1 km after the analysis date).",
+        "limits": "The radar archive only holds days on which the app ran. A newer image changes the count only after a new analysis. Fully usable without AI; the AI summary is optional."
       }
     },
     "table": {
@@ -1810,5 +1816,23 @@
     "archive": "Local archive {{from}} to {{to}}.",
     "offline": "DWD could not be reached; showing the stored archive.",
     "note": "Source: DWD cell tracking KONRAD3D. The outline is the whole storm cell; hail falls in only part of it. Context only, not part of the hail EAL."
+  },
+  "changeReport": {
+    "title": "Changes since analysis",
+    "description": "Checks on request for newer aerial imagery, radar hail nearby and open review points.",
+    "run": "Check for changes",
+    "rerun": "Check again",
+    "cancel": "Cancel",
+    "progress": "{{done}} of {{total}} locations checked",
+    "summary_one": "{{count}} of {{checked}} locations with changes · radar hail {{hail}} · newer image {{imagery}} · open review points {{review}}",
+    "summary_other": "{{count}} of {{checked}} locations with changes · radar hail {{hail}} · newer image {{imagery}} · open review points {{review}}",
+    "none": "No changes found since the last analysis.",
+    "failed_one": "Neither imagery nor radar could be looked up for {{count}} location.",
+    "failed_other": "Neither imagery nor radar could be looked up for {{count}} locations.",
+    "hail": "Radar hail on {{dates}}",
+    "imagery": "newer image {{source}} from {{date}} (counted on {{previous}})",
+    "review_one": "{{count}} open review point",
+    "review_other": "{{count}} open review points",
+    "explain": "Summarise"
   }
 }

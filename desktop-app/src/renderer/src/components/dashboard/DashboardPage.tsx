@@ -49,6 +49,7 @@ import { DealershipDetailDialog } from "@renderer/components/dashboard/Dealershi
 import { DealershipTable } from "@renderer/components/dashboard/DealershipTable";
 import { HailZoneDistribution } from "@renderer/components/dashboard/HailZoneDistribution";
 import { InsightsPanel } from "@renderer/components/dashboard/InsightsPanel";
+import { ChangeReportPanel } from "@renderer/components/dashboard/ChangeReportPanel";
 import { ModelVersionBanner } from "@renderer/components/dashboard/ModelVersionBanner";
 import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
 import { SummaryCards } from "@renderer/components/dashboard/SummaryCards";
@@ -576,6 +577,13 @@ function renderTile(
           dealerships={props.filtered}
           onSelect={props.onSelect}
           onShowAccumulation={props.onShowLocations}
+        />
+      );
+    case "changes":
+      return (
+        <ChangeReportPanel
+          dealerships={props.filtered}
+          onSelect={props.onSelect}
         />
       );
     case "table":

@@ -646,7 +646,8 @@
       "clusters": "Größte Kumulationen",
       "table": "Standorttabelle",
       "zones": "Hagelzonen-Verteilung",
-      "topLocations": "Top-Standorte nach Hagel-EAL"
+      "topLocations": "Top-Standorte nach Hagel-EAL",
+      "changes": "Änderungen seit der Analyse"
     },
     "detailDialog": {
       "imageryCountedOn": "Fahrzeuge gezählt auf",
@@ -1020,6 +1021,11 @@
         "what": "Alle Standorte des Portfolios mit Hagelzone, Fahrzeugen, Exposure und Hagel-EAL.",
         "how": "Spaltenköpfe anklicken zum Sortieren. Das Suchfeld durchsucht nur diese Tabelle; die übrigen Kacheln folgen den Portfolio-Filtern oberhalb.",
         "limits": "Fahrzeugzahl und EAL stammen aus der Luftbild-Erkennung oder, ohne Erkennungsmodell, aus der Grundstücksfläche (mit ≈ markiert) und sind Screening-Schätzungen."
+      },
+      "changes": {
+        "what": "Was sich an den Standorten seit ihrer letzten Analyse geändert hat: neuere Luftbilder, Radar-Hagel in der Nähe, offene Prüfpunkte.",
+        "how": "Auf Knopfdruck prüft die App je Standort die verfügbaren Luftbilder (nur Quellen mit 0,25 m oder schärfer, aufgenommen nach dem Bild der Fahrzeugzählung) und das lokale Archiv der DWD-Radar-Hagelzellen (Zellen bis 1 km nach dem Analysedatum).",
+        "limits": "Das Radararchiv enthält nur Tage, an denen die App lief. Ein neueres Luftbild ändert die Zählung erst nach einer neuen Analyse. Ohne KI vollständig nutzbar; die KI-Zusammenfassung ist optional."
       }
     },
     "table": {
@@ -1810,5 +1816,23 @@
     "archive": "Lokales Archiv {{from}} bis {{to}}.",
     "offline": "Der DWD war nicht erreichbar; gezeigt wird das gespeicherte Archiv.",
     "note": "Quelle: DWD-Zellverfolgung KONRAD3D. Der Umriss ist die ganze Gewitterzelle, Hagel fällt nur in einem Teil davon. Nur Kontext, geht nicht in die Hagel-EAL ein."
+  },
+  "changeReport": {
+    "title": "Änderungen seit der Analyse",
+    "description": "Prüft auf Knopfdruck neuere Luftbilder, Radar-Hagel in der Nähe und offene Prüfpunkte.",
+    "run": "Änderungen prüfen",
+    "rerun": "Erneut prüfen",
+    "cancel": "Abbrechen",
+    "progress": "{{done}} von {{total}} Standorten geprüft",
+    "summary_one": "{{count}} von {{checked}} Standorten mit Änderungen · Radar-Hagel {{hail}} · neueres Luftbild {{imagery}} · offene Prüfpunkte {{review}}",
+    "summary_other": "{{count}} von {{checked}} Standorten mit Änderungen · Radar-Hagel {{hail}} · neueres Luftbild {{imagery}} · offene Prüfpunkte {{review}}",
+    "none": "Keine Änderungen seit der letzten Analyse gefunden.",
+    "failed_one": "Für {{count}} Standort konnten weder Luftbild noch Radar abgefragt werden.",
+    "failed_other": "Für {{count}} Standorte konnten weder Luftbild noch Radar abgefragt werden.",
+    "hail": "Radar-Hagel am {{dates}}",
+    "imagery": "neueres Luftbild {{source}} vom {{date}} (gezählt auf {{previous}})",
+    "review_one": "{{count}} offener Prüfpunkt",
+    "review_other": "{{count}} offene Prüfpunkte",
+    "explain": "Zusammenfassen"
   }
 }

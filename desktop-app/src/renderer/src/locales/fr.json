@@ -646,7 +646,8 @@
       "clusters": "Plus grands cumuls",
       "table": "Tableau des sites",
       "zones": "Répartition par zone de grêle",
-      "topLocations": "Principaux sites par EAL grêle"
+      "topLocations": "Principaux sites par EAL grêle",
+      "changes": "Changements depuis l’analyse"
     },
     "detailDialog": {
       "imageryCountedOn": "Véhicules comptés sur",
@@ -1020,6 +1021,11 @@
         "what": "Tous les sites du portefeuille avec zone de grêle, véhicules, exposition et EAL grêle.",
         "how": "Cliquez sur un en-tête de colonne pour trier. Le champ de recherche ne filtre que ce tableau ; les autres tuiles suivent les filtres de portefeuille ci-dessus.",
         "limits": "Le nombre de véhicules et l’EAL proviennent de la détection sur l’image aérienne ou, sans modèle de détection, de la surface du terrain (marqués ≈) et sont des estimations de screening."
+      },
+      "changes": {
+        "what": "Ce qui a changé sur les sites depuis leur dernière analyse : images aériennes plus récentes, grêle radar à proximité, points à vérifier ouverts.",
+        "how": "Sur demande, l’application vérifie par site les images aériennes disponibles (uniquement des sources de 0,25 m ou plus nettes, prises après l’image du comptage) et l’archive locale des cellules de grêle radar du DWD (cellules à moins de 1 km après la date d’analyse).",
+        "limits": "L’archive radar ne contient que les jours où l’application a tourné. Une image plus récente ne modifie le comptage qu’après une nouvelle analyse. Entièrement utilisable sans IA ; le résumé IA est facultatif."
       }
     },
     "table": {
@@ -1810,5 +1816,23 @@
     "archive": "Archive locale du {{from}} au {{to}}.",
     "offline": "Le DWD n’était pas joignable ; l’archive enregistrée est affichée.",
     "note": "Source : suivi des cellules KONRAD3D du DWD. Le contour est la cellule orageuse entière ; la grêle ne tombe que dans une partie. Contexte uniquement, hors EAL grêle."
+  },
+  "changeReport": {
+    "title": "Changements depuis l’analyse",
+    "description": "Vérifie sur demande les images aériennes plus récentes, la grêle radar à proximité et les points à vérifier ouverts.",
+    "run": "Vérifier les changements",
+    "rerun": "Vérifier à nouveau",
+    "cancel": "Annuler",
+    "progress": "{{done}} sites sur {{total}} vérifiés",
+    "summary_one": "{{count}} site sur {{checked}} avec changements · grêle radar {{hail}} · image plus récente {{imagery}} · points ouverts {{review}}",
+    "summary_other": "{{count}} sites sur {{checked}} avec changements · grêle radar {{hail}} · image plus récente {{imagery}} · points ouverts {{review}}",
+    "none": "Aucun changement trouvé depuis la dernière analyse.",
+    "failed_one": "Ni l’image ni le radar n’ont pu être consultés pour {{count}} site.",
+    "failed_other": "Ni l’image ni le radar n’ont pu être consultés pour {{count}} sites.",
+    "hail": "Grêle radar le {{dates}}",
+    "imagery": "image plus récente {{source}} du {{date}} (comptage sur {{previous}})",
+    "review_one": "{{count}} point à vérifier ouvert",
+    "review_other": "{{count}} points à vérifier ouverts",
+    "explain": "Résumer"
   }
 }
