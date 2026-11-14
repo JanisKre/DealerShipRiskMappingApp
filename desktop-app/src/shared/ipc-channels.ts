@@ -21,6 +21,11 @@ export const IPC = {
   hailHistory: "hail:history",
   // Radar hail cells (DWD KONRAD3D), local archive; context only
   radarHail: "hail:radar",
+  // Hail events for the map replay: radar archive + imported footprints
+  hailEventsList: "hailEvents:list",
+  hailEventsGet: "hailEvents:get",
+  hailEventsImport: "hailEvents:import",
+  hailEventsDelete: "hailEvents:delete",
 
   // Vehicle detection
   detectVehicles: "detect:vehicles",

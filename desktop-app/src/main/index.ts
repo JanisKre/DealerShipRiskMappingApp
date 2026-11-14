@@ -10,6 +10,7 @@ import {
 import { join } from "path";
 import { pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc";
+import { startRadarHailBackgroundSync } from "./services/hail-history/radar-hail.service";
 import { checkDealerDirectoryUpdate } from "./services/dealer-directory.service";
 import { warmUpDetector } from "./services/detection.service";
 import { configureCustomOverpass } from "./services/boundary/overpass-client";
@@ -224,6 +225,8 @@ app.whenReady().then(() => {
   // Load the vehicle model while the user is still looking at the map, so
   // the first analysis does not wait for the inference processes to start.
   setTimeout(() => warmUpDetector(), DETECTOR_WARM_UP_DELAY_MS);
+  // DWD keeps radar hail cells for 48 h only: keep the archive filling.
+  startRadarHailBackgroundSync();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();

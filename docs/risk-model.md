@@ -88,13 +88,13 @@ The portfolio is underwritten for hail only, so the expected annual loss
 EAL = N × λ_z × (p_S·S_S + p_M·S_M + p_L·S_L)
 ```
 
-| Symbol | Meaning | Source |
-|---|---|---|
-| N | Vehicles counted on the lot | Manually reviewed count, else the detector count. Only vehicles on the lot are counted: no count is estimated from the asset value and no vehicles inside buildings are assumed |
-| z | Hail zone 1–6 | Licensed provider hail score if chosen, else the postcode table (`shared/hail-zones.ts`), else estimated from the weather-based hail score as `1 + round(score / 20)` (flagged, lower confidence) |
-| λ_z | Damaging hail events per year at a site in zone z | Parameter per zone |
-| p_S, p_M, p_L | Share of small, medium, large events | Parameters; normalized by their sum, so they act as weights |
-| S_S, S_M, S_L | Loss per vehicle in an event of that class (EUR) | Parameters |
+| Symbol        | Meaning                                           | Source                                                                                                                                                                                            |
+| ------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| N             | Vehicles counted on the lot                       | Manually reviewed count, else the detector count. Only vehicles on the lot are counted: no count is estimated from the asset value and no vehicles inside buildings are assumed                   |
+| z             | Hail zone 1–6                                     | Licensed provider hail score if chosen, else the postcode table (`shared/hail-zones.ts`), else estimated from the weather-based hail score as `1 + round(score / 20)` (flagged, lower confidence) |
+| λ_z           | Damaging hail events per year at a site in zone z | Parameter per zone                                                                                                                                                                                |
+| p_S, p_M, p_L | Share of small, medium, large events              | Parameters; normalized by their sum, so they act as weights                                                                                                                                       |
+| S_S, S_M, S_L | Loss per vehicle in an event of that class (EUR)  | Parameters                                                                                                                                                                                        |
 
 The implementation is `computeHailEal` in `shared/risk-math.ts`; the result
 stores every input (`ealBreakdown.hailDetail`), so the detail dialog shows the
@@ -119,15 +119,15 @@ values until the underwriting team supplies calibrated figures. They are not
 derived from loss data. Every result carries the limitation "Hail EAL
 frequency and severity parameters are uncalibrated placeholders".
 
-| Zone | 1 | 2 | 3 | 4 | 5 | 6 |
-|---|---|---|---|---|---|---|
+| Zone              | 1    | 2    | 3    | 4    | 5    | 6    |
+| ----------------- | ---- | ---- | ---- | ---- | ---- | ---- |
 | λ_z (events/year) | 0.01 | 0.02 | 0.04 | 0.07 | 0.10 | 0.15 |
 
-| Class | p | S (EUR per vehicle) |
-|---|---|---|
-| small | 0.60 | 800 |
-| medium | 0.30 | 3,000 |
-| large | 0.10 | 7,000 |
+| Class  | p    | S (EUR per vehicle) |
+| ------ | ---- | ------------------- |
+| small  | 0.60 | 800                 |
+| medium | 0.30 | 3,000               |
+| large  | 0.10 | 7,000               |
 
 With these values Σ p·S = 2,080 EUR, so a zone-6 site loses about 312 EUR per
 open-air vehicle and year. The values are editable under Parameters → Hail
@@ -324,18 +324,27 @@ Deterministic fixtures: `hail-history.service.test.ts`.
 The station history ends around 2011 at most stations, and no open,
 licence-compatible hail event catalogue for Germany was found (checked
 14 November 2026): the European Severe Weather Database (ESWD) is licensed
-for non-commercial use only, and the radar hail tracks of KIT (Mohr et al.,
-2026) are published as an article, not as data. Hourly present-weather codes
+for non-commercial use only, and the radar hail tracks of KIT (Mohr et al., 2026) are published as an article, not as data. Hourly present-weather codes
 of the DWD stations were checked too: three airport stations recorded almost
 no hail days after automation, so they do not fill the gap.
 
 What is open is DWD's radar cell tracking KONRAD3D
 (`opendata.dwd.de/weather/radar/konrad3d/`, 5-minute XML files of the last
 48 hours, Germany-wide). Each cell has an outline and a hydrometeor
-classification. The app keeps a **local archive**: on each sync (detail
-dialog, at most every 10 minutes) it downloads the files it does not have
-yet and stores only cells with hail. The archive therefore starts with the
-first use and grows while the app is used at least every two days.
+classification. The app keeps a **local archive**: on each sync it
+downloads the files it does not have yet and stores only cells with hail.
+It syncs in the background every 30 minutes while it runs (first run 20 s
+after start) and when the detail dialog or the event list asks, at most
+every 10 minutes. The archive therefore starts with the first use and has
+no gaps as long as the app runs at least every two days.
+
+Storage (database schema 3): one row per cell in `radar_hail_cells` with
+its centroid and KONRAD3D's +5 min centroid forecast, its bounding box in
+the R-tree `radar_hail_cells_box`, and the radar steps per day in
+`radar_hail_coverage`. Each file is written in one transaction as soon as it
+is parsed; nothing is rewritten. A location query reads only the cells whose
+box is near it. Schema 2 kept each day as one JSON blob in `api_cache`;
+the migration copies those cells over and removes the blobs.
 
 - Classes: `large` (area classified as large hail), `hail` (area classified
   as hail), `mixed` (rain–hail mixture with the cell's hail flag).
@@ -351,7 +360,70 @@ mixtures in the cold season are mostly graupel. Gaps of more than 48 hours
 between uses are missing from the archive. **The radar cells never enter the
 hail EAL** and do not change any score. Data basis: Deutscher Wetterdienst
 (open data; attribution shown in the app). Deterministic fixtures:
-`radar-hail.service.test.ts`.
+`radar-hail.service.test.ts`, `hail-events.service.test.ts`.
+
+## Hail event replay (stress test)
+
+The map can replay a hail event and show which locations it reached
+(layer panel, "Hail events (replay)"). Code: `main/services/hail-history/
+hail-events.service.ts` (tracks, events, import) and `shared/hail-events.ts`
+(impact, shift, replay frames).
+
+**Events from the radar archive.** Cells are sorted by time and linked into
+tracks step by step: a cell continues a track when it lies within 12 km of
+the position predicted for it (KONRAD3D's own +5 min centroid forecast, else
+the track's last motion) or its box overlaps the track's last box; one
+missing radar step is bridged, matching is one-to-one, nearest first. Cells
+that match no track start one. An event ends after 3 hours without any hail
+cell in Germany, so a convective day is usually one event with several
+tracks. The id is the start time (`radar-YYYYMMDDTHHMM`).
+
+**Imported footprints.** Events before the archive's start are not in it
+(DWD keeps 48 hours, and no open hail catalogue was found, see above). The
+user can import a GeoJSON FeatureCollection of Polygon/MultiPolygon features
+in WGS84, for example from a licensed provider. Optional properties: `time`
+(ISO or Unix ms; features without times form a static footprint), `track`
+(features with the same value form one track) and a class (`large`, `hail`,
+`mixed`, German names accepted) or a hail size in cm (≥ 3 cm large, ≥ 1 cm
+hail, below that mixture; an app convention). Only outer rings are used.
+Limits: 20 MB, 50,000 polygons. The file's content is stored locally in
+`hail_event_imports`; its source and licence are the user's responsibility,
+and the evidence says the data was supplied by the user and not verified.
+
+**Impact.** A location is reached when a cell outline passes within 1 km of
+it on the ground (the same radius as the radar hail days). It keeps the
+first time, the closest distance and the worst class among the cells that
+reached it. The stress-test loss is exposure × damage rate of that class,
+taken from the scenario parameters: large hail → `scenarioDamageHigh`,
+hail → `scenarioDamageMedium`, mixture → `scenarioDamageLow`.
+
+**Moving an event.** The event can be shifted up to 150 km north/south and
+east/west ("what if the storm had passed 30 km further south"). The shift is
+applied in kilometres on the ground, converted at the event's centre
+latitude; the impact is recomputed for the moved cells.
+
+**Replay.** Between two radar steps a cell is moved towards its track's next
+centroid, so it glides instead of jumping; a track whose last step is more
+than 5 minutes old is no longer drawn as live. The swath drawn so far, the
+track lines and the reached locations stay on the map.
+
+Limitations:
+
+- The outline is the whole storm cell, not the hail swath, so the impact
+  overstates where hail fell; the 1 km radius adds to that.
+- Every reached location gets the damage rate of the worst class, with no
+  hail size, duration or vehicle protection (covered parking) taken into
+  account.
+- Track linking is a heuristic; splits and merges of cells can start or end
+  a track. It changes the drawing, not the impact, which uses all cells.
+- **A stress test, not the hail EAL and not a catastrophe-model PML.** Like
+  the drawn hailstorm scenario, it does not change any score.
+
+Deterministic tests: `shared/hail-events.test.ts` and
+`hail-events.service.test.ts`, which run a synthetic KONRAD3D hail day
+(`konrad3d.fixture.ts`: two storms on one day, one a week later, in the DWD
+file format) through parsing, the SQLite archive, track linking, events and
+impact.
 
 ## Lot boundary and vehicle detection
 

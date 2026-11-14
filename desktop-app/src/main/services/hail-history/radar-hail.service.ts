@@ -6,7 +6,8 @@ import {
   type RadarHailDay,
   type RadarHailResult,
 } from "@shared/radar-hail";
-import { cacheGet, cacheSet } from "../cache.service";
+import { distanceToRingsKm, nearBbox } from "@shared/hail-events";
+import { getDb } from "../../db/database";
 import { fetchWithResilience } from "../http.service";
 
 /**
@@ -15,7 +16,14 @@ import { fetchWithResilience } from "../http.service";
  * hours of 5-minute XML files on the server; each sync downloads the files
  * not yet in the archive and keeps only cells with hail (by the hydrometeor
  * classification in the file), so the archive grows from the first use on
- * and costs a few kilobytes per hail cell.
+ * and costs a few kilobytes per hail cell. While the app runs it syncs in
+ * the background every {@link BACKGROUND_SYNC_INTERVAL_MS}.
+ *
+ * Storage (schema 3): one row per cell in `radar_hail_cells`, its bounding
+ * box in the R-tree `radar_hail_cells_box`, the processed file names in
+ * `radar_hail_files` (pruned once DWD no longer lists them) and the steps
+ * per day in `radar_hail_coverage`. A sync appends rows; nothing is
+ * rewritten, and a location query reads only the cells near it.
  *
  * Nothing about the portfolio is sent: the files cover all of Germany and
  * the comparison with the locations runs locally.
@@ -26,17 +34,13 @@ import { fetchWithResilience } from "../http.service";
 
 export const KONRAD3D_URL = "https://opendata.dwd.de/weather/radar/konrad3d/";
 const FILE_PATTERN = /KONRAD3D_(\d{8})T(\d{6})\.xml/g;
-const KEY = "radarhail:v1";
-const INDEX_KEY = `${KEY}:days`;
-/** The archive is the point: entries never expire in practice. */
-const ARCHIVE_TTL = 50 * 365 * 24 * 60 * 60 * 1000;
 /** A sync within this interval is skipped (DWD adds a file every 5 min). */
 const MIN_SYNC_INTERVAL_MS = 10 * 60 * 1000;
 /** Files are 4 KB to a few MB; anything far larger is not one. */
 const MAX_FILE_BYTES = 40 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 30_000;
 
-/** A hail cell as stored: time, class, max reflectivity, bbox, outlines. */
+/** A hail cell as parsed: time, class, max reflectivity, bbox, outlines. */
 export interface StoredHailCell {
   /** ISO time of the radar step. */
   t: string;
@@ -47,12 +51,10 @@ export interface StoredHailCell {
   b: [number, number, number, number];
   /** Outlines as flat [lon, lat, lon, lat, …] arrays. */
   r: number[][];
-}
-
-interface StoredDay {
-  /** Radar steps processed for this day (file names). */
-  files: string[];
-  cells: StoredHailCell[];
+  /** Centroid [lon, lat]; the bbox centre when the file has none. */
+  p?: [number, number];
+  /** KONRAD3D's centroid forecast for the next step (+5 min), [lon, lat]. */
+  f?: [number, number];
 }
 
 // --- Parsing (pure, unit-tested) ---------------------------------------
@@ -105,6 +107,22 @@ export function cellHailClass(feature: string): RadarHailClass | null {
 }
 
 const round4 = (n: number): number => Math.round(n * 1e4) / 1e4;
+
+/**
+ * The first [lon, lat] inside the first `<block…>` element of a feature
+ * (`centroid_3d`, or the first `centroid_forecast`, which is +5 min).
+ */
+function coordinateIn(feature: string, block: string): [number, number] | null {
+  const start = feature.search(new RegExp(`<${block}[\\s>]`));
+  if (start < 0) return null;
+  const end = feature.indexOf(`</${block}>`, start);
+  const part = feature.slice(start, end < 0 ? undefined : end);
+  const lat = numberIn(part, "latitude");
+  const lon = numberIn(part, "longitude");
+  if (lat == null || lon == null || Math.abs(lat) > 90 || Math.abs(lon) > 180)
+    return null;
+  return [round4(lon), round4(lat)];
+}
 /** Points kept per outline: cells are a few km across, the grid 250 m. */
 const MAX_RING_POINTS = 32;
 
@@ -150,12 +168,16 @@ export function parseKonradHailCells(xml: string): StoredHailCell[] {
       if (flat.length >= 6) rings.push(flat);
     }
     if (rings.length === 0) continue;
+    const centroid = coordinateIn(feature, "centroid_3d");
+    const forecast = coordinateIn(feature, "centroid_forecast");
     cells.push({
       t: new Date(time.trim()).toISOString(),
       c: hailClass,
       d: numberIn(feature, "max_value") ?? 0,
       b: [round4(west), round4(south), round4(east), round4(north)],
       r: rings,
+      p: centroid ?? [round4((west + east) / 2), round4((south + north) / 2)],
+      ...(forecast ? { f: forecast } : {}),
     });
   }
   return cells;
@@ -163,54 +185,13 @@ export function parseKonradHailCells(xml: string): StoredHailCell[] {
 
 // --- Geometry ----------------------------------------------------------
 
-const KM_PER_DEG_LAT = 111.32;
-
 /** Distance from a point to a cell's outlines in km; 0 inside one. */
 export function distanceToCellKm(
   lat: number,
   lon: number,
   cell: StoredHailCell,
 ): number {
-  const kx = KM_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180);
-  let best = Infinity;
-  for (const ring of cell.r) {
-    let inside = false;
-    const n = ring.length / 2;
-    for (let i = 0, j = n - 1; i < n; j = i++) {
-      const xi = (ring[2 * i] - lon) * kx;
-      const yi = (ring[2 * i + 1] - lat) * KM_PER_DEG_LAT;
-      const xj = (ring[2 * j] - lon) * kx;
-      const yj = (ring[2 * j + 1] - lat) * KM_PER_DEG_LAT;
-      if (yi > 0 !== yj > 0 && 0 < ((xj - xi) * (0 - yi)) / (yj - yi) + xi)
-        inside = !inside;
-      // Distance from the origin (the point) to the segment.
-      const dx = xj - xi;
-      const dy = yj - yi;
-      const len2 = dx * dx + dy * dy;
-      const t =
-        len2 === 0 ? 0 : Math.max(0, Math.min(1, -(xi * dx + yi * dy) / len2));
-      best = Math.min(best, Math.hypot(xi + t * dx, yi + t * dy));
-    }
-    if (inside) return 0;
-  }
-  return best;
-}
-
-function nearBox(
-  lat: number,
-  lon: number,
-  b: StoredHailCell["b"],
-  radiusKm: number,
-): boolean {
-  const dLat = radiusKm / KM_PER_DEG_LAT;
-  const dLon =
-    radiusKm / (KM_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180) || 1);
-  return (
-    lon >= b[0] - dLon &&
-    lon <= b[2] + dLon &&
-    lat >= b[1] - dLat &&
-    lat <= b[3] + dLat
-  );
+  return distanceToRingsKm(lat, lon, cell.r);
 }
 
 /** Days with a hail cell within `radiusKm` of the point, newest first. */
@@ -222,7 +203,7 @@ export function hailDaysAt(
 ): RadarHailDay[] {
   const byDate = new Map<string, RadarHailDay>();
   for (const cell of cells) {
-    if (!nearBox(lat, lon, cell.b, radiusKm)) continue;
+    if (!nearBbox(lat, lon, cell.b, radiusKm)) continue;
     const distance = distanceToCellKm(lat, lon, cell);
     if (distance > radiusKm) continue;
     const date = cell.t.slice(0, 10);
@@ -254,53 +235,222 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-// --- Archive -----------------------------------------------------------
+// --- Archive (SQLite) --------------------------------------------------
 
-function dayKey(day: string): string {
-  return `${KEY}:day:${day}`;
+/** File names older than this are no longer on the DWD server. */
+const FILE_NAME_RETENTION_MS = 4 * 24 * 60 * 60 * 1000;
+
+/** A cell row as the archive returns it. */
+export interface ArchivedHailCell {
+  id: number;
+  /** Unix ms. */
+  t: number;
+  c: RadarHailClass;
+  d: number;
+  lat: number;
+  lon: number;
+  /** Forecast centroid +5 min, when KONRAD3D gave one. */
+  flat: number | null;
+  flon: number | null;
+  b: [number, number, number, number];
 }
 
-function archiveDays(): string[] {
-  return cacheGet<string[]>(INDEX_KEY) ?? [];
+interface CellRow {
+  id: number;
+  t: number;
+  class: RadarHailClass;
+  dbz: number;
+  lat: number;
+  lon: number;
+  flat: number | null;
+  flon: number | null;
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+  rings?: string;
 }
 
-function readDay(day: string): StoredDay {
-  return cacheGet<StoredDay>(dayKey(day)) ?? { files: [], cells: [] };
+const CELL_COLUMNS =
+  "c.id, c.t, c.class, c.dbz, c.lat, c.lon, c.flat, c.flon, b.west, b.south, b.east, b.north";
+
+function toArchived(row: CellRow): ArchivedHailCell {
+  return {
+    id: row.id,
+    t: row.t,
+    c: row.class,
+    d: row.dbz,
+    lat: row.lat,
+    lon: row.lon,
+    flat: row.flat,
+    flon: row.flon,
+    b: [row.west, row.south, row.east, row.north],
+  };
 }
 
-interface Archive {
-  cells: StoredHailCell[];
+function parseRings(json: string | undefined): number[][] {
+  try {
+    const rings = JSON.parse(json ?? "[]") as unknown;
+    return Array.isArray(rings)
+      ? rings.filter(
+          (r): r is number[] => Array.isArray(r) && r.every(Number.isFinite),
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Stores the hail cells of one radar file, once: a file already processed
+ * is ignored. One transaction per file, so an interrupted sync leaves only
+ * complete steps behind. True when the file was new.
+ */
+export function storeKonradFile(
+  name: string,
+  cells: readonly StoredHailCell[],
+): boolean {
+  const time = konradFileTime(name);
+  if (!time) return false;
+  const db = getDb();
+  const t = Date.parse(time.iso);
+  return db.transaction(() => {
+    const added = db
+      .prepare("INSERT OR IGNORE INTO radar_hail_files (name, t) VALUES (?, ?)")
+      .run(name, t);
+    if (added.changes === 0) return false;
+    db.prepare(
+      `INSERT INTO radar_hail_coverage (day, steps, first_t, last_t) VALUES (?, 1, ?, ?)
+       ON CONFLICT(day) DO UPDATE SET steps = steps + 1,
+         first_t = MIN(first_t, excluded.first_t), last_t = MAX(last_t, excluded.last_t)`,
+    ).run(time.day, t, t);
+    const insertCell = db.prepare(
+      "INSERT INTO radar_hail_cells (t, class, dbz, lat, lon, flat, flon, rings) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    );
+    const insertBox = db.prepare(
+      "INSERT INTO radar_hail_cells_box (id, west, east, south, north) VALUES (?, ?, ?, ?, ?)",
+    );
+    for (const cell of cells) {
+      const p = cell.p ?? [
+        (cell.b[0] + cell.b[2]) / 2,
+        (cell.b[1] + cell.b[3]) / 2,
+      ];
+      const { lastInsertRowid } = insertCell.run(
+        Date.parse(cell.t),
+        cell.c,
+        cell.d,
+        p[1],
+        p[0],
+        cell.f?.[1] ?? null,
+        cell.f?.[0] ?? null,
+        JSON.stringify(cell.r),
+      );
+      insertBox.run(
+        lastInsertRowid,
+        cell.b[0],
+        cell.b[2],
+        cell.b[1],
+        cell.b[3],
+      );
+    }
+    archiveVersion++;
+    return true;
+  })();
+}
+
+/** Names of the files already in the archive. */
+function knownFiles(): Set<string> {
+  const rows = getDb()
+    .prepare("SELECT name FROM radar_hail_files")
+    .all() as Array<{
+    name: string;
+  }>;
+  return new Set(rows.map((r) => r.name));
+}
+
+/** Drops file names DWD no longer lists; coverage and cells stay. */
+export function pruneFileNames(now = Date.now()): void {
+  getDb()
+    .prepare("DELETE FROM radar_hail_files WHERE t < ?")
+    .run(now - FILE_NAME_RETENTION_MS);
+}
+
+/** Cells whose box lies within `radiusKm` of the point (R-tree query). */
+export function cellsNear(
+  lat: number,
+  lon: number,
+  radiusKm: number,
+): StoredHailCell[] {
+  const dLat = radiusKm / 111.32;
+  const dLon = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180) || 1);
+  const rows = getDb()
+    .prepare(
+      `SELECT ${CELL_COLUMNS}, c.rings FROM radar_hail_cells_box b
+       JOIN radar_hail_cells c ON c.id = b.id
+       WHERE b.west <= ? AND b.east >= ? AND b.south <= ? AND b.north >= ?`,
+    )
+    .all(lon + dLon, lon - dLon, lat + dLat, lat - dLat) as CellRow[];
+  return rows.map((row) => ({
+    t: new Date(row.t).toISOString(),
+    c: row.class,
+    d: row.dbz,
+    b: [row.west, row.south, row.east, row.north],
+    r: parseRings(row.rings),
+    p: [row.lon, row.lat],
+  }));
+}
+
+/** Every cell without outlines, oldest first: enough to link tracks. */
+export function archivedCells(): ArchivedHailCell[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT ${CELL_COLUMNS} FROM radar_hail_cells c
+       JOIN radar_hail_cells_box b ON b.id = c.id ORDER BY c.t, c.id`,
+    )
+    .all() as CellRow[];
+  return rows.map(toArchived);
+}
+
+/** Cells between two times (inclusive) with their outlines. */
+export function archivedCellsBetween(
+  from: number,
+  to: number,
+): Array<ArchivedHailCell & { r: number[][] }> {
+  const rows = getDb()
+    .prepare(
+      `SELECT ${CELL_COLUMNS}, c.rings FROM radar_hail_cells c
+       JOIN radar_hail_cells_box b ON b.id = c.id
+       WHERE c.t BETWEEN ? AND ? ORDER BY c.t, c.id`,
+    )
+    .all(from, to) as CellRow[];
+  return rows.map((row) => ({ ...toArchived(row), r: parseRings(row.rings) }));
+}
+
+interface ArchiveSpan {
   from: string | null;
   to: string | null;
   steps: number;
 }
 
-/** Read once per sync: a season of cells is several megabytes of JSON. */
-let archiveMemo: Archive | null = null;
-
-/** Every stored cell, plus the archive's time span and step count. */
-export function readArchive(): Archive {
-  archiveMemo ??= loadArchive();
-  return archiveMemo;
+/** Time span and radar steps the archive covers. */
+export function archiveSpan(): ArchiveSpan {
+  const row = getDb()
+    .prepare(
+      "SELECT MIN(first_t) AS first, MAX(last_t) AS last, COALESCE(SUM(steps), 0) AS steps FROM radar_hail_coverage",
+    )
+    .get() as { first: number | null; last: number | null; steps: number };
+  return {
+    from: row.first == null ? null : new Date(row.first).toISOString(),
+    to: row.last == null ? null : new Date(row.last).toISOString(),
+    steps: row.steps,
+  };
 }
 
-function loadArchive(): Archive {
-  const cells: StoredHailCell[] = [];
-  let from: string | null = null;
-  let to: string | null = null;
-  let steps = 0;
-  for (const day of archiveDays()) {
-    const stored = readDay(day);
-    cells.push(...stored.cells);
-    steps += stored.files.length;
-    for (const file of stored.files) {
-      const iso = konradFileTime(file)?.iso;
-      if (!iso) continue;
-      if (from == null || iso < from) from = iso;
-      if (to == null || iso > to) to = iso;
-    }
-  }
-  return { cells, from, to, steps };
+/** Bumped on every stored file, so derived results know to recompute. */
+let archiveVersion = 0;
+
+export function radarArchiveVersion(): number {
+  return archiveVersion;
 }
 
 let syncing: Promise<boolean> | null = null;
@@ -312,7 +462,7 @@ export function resetRadarHailSyncForTests(): void {
   syncing = null;
   lastSyncAt = 0;
   lastSyncOk = false;
-  archiveMemo = null;
+  archiveVersion = 0;
 }
 
 async function fetchText(url: string): Promise<string> {
@@ -330,9 +480,14 @@ async function fetchText(url: string): Promise<string> {
   return text;
 }
 
+/** Files fetched at once; the host gate allows two requests to DWD. */
+const SYNC_BATCH = 4;
+
 /**
- * Downloads the files on the server that are not in the archive yet. True
- * when DWD was reached. Concurrent calls share one run; a call within
+ * Downloads the files on the server that are not in the archive yet and
+ * stores each one as soon as it is parsed, so memory stays at a few files
+ * and an interrupted sync keeps what it fetched. True when DWD was
+ * reached. Concurrent calls share one run; a call within
  * {@link MIN_SYNC_INTERVAL_MS} of a successful sync returns at once.
  */
 export function syncRadarHail(): Promise<boolean> {
@@ -341,61 +496,25 @@ export function syncRadarHail(): Promise<boolean> {
     return Promise.resolve(true);
   syncing = (async () => {
     try {
-      const names = parseKonradListing(await fetchText(KONRAD3D_URL));
-      const known = new Map<string, Set<string>>();
-      const pending = names.filter((name) => {
-        const time = konradFileTime(name);
-        if (!time) return false;
-        let files = known.get(time.day);
-        if (!files) {
-          files = new Set(readDay(time.day).files);
-          known.set(time.day, files);
-        }
-        return !files.has(name);
-      });
-      // The host gate limits parallel requests to opendata.dwd.de.
-      const results = await Promise.all(
-        pending.map(async (name) => {
-          try {
-            return {
-              name,
-              cells: parseKonradHailCells(await fetchText(KONRAD3D_URL + name)),
-            };
-          } catch (error) {
-            console.warn(`KONRAD3D file ${name} skipped`, error);
-            return null;
-          }
-        }),
+      const known = knownFiles();
+      const pending = parseKonradListing(await fetchText(KONRAD3D_URL)).filter(
+        (name) => konradFileTime(name) != null && !known.has(name),
       );
-      const byDay = new Map<
-        string,
-        Array<{ name: string; cells: StoredHailCell[] }>
-      >();
-      for (const result of results) {
-        if (!result) continue;
-        const day = konradFileTime(result.name)!.day;
-        const list = byDay.get(day) ?? [];
-        list.push(result);
-        byDay.set(day, list);
-      }
-      const days = new Set(archiveDays());
-      for (const [day, list] of byDay) {
-        const stored = readDay(day);
-        const files = new Set(stored.files);
-        for (const { name, cells } of list) {
-          if (files.has(name)) continue;
-          files.add(name);
-          stored.cells.push(...cells);
-        }
-        cacheSet(
-          dayKey(day),
-          { files: [...files].sort(), cells: stored.cells },
-          ARCHIVE_TTL,
+      for (let i = 0; i < pending.length; i += SYNC_BATCH) {
+        await Promise.all(
+          pending.slice(i, i + SYNC_BATCH).map(async (name) => {
+            try {
+              const cells = parseKonradHailCells(
+                await fetchText(KONRAD3D_URL + name),
+              );
+              storeKonradFile(name, cells);
+            } catch (error) {
+              console.warn(`KONRAD3D file ${name} skipped`, error);
+            }
+          }),
         );
-        days.add(day);
       }
-      cacheSet(INDEX_KEY, [...days].sort(), ARCHIVE_TTL);
-      archiveMemo = null;
+      pruneFileNames();
       lastSyncOk = true;
       return true;
     } catch (error) {
@@ -408,6 +527,30 @@ export function syncRadarHail(): Promise<boolean> {
     }
   })();
   return syncing;
+}
+
+/** Background sync while the app runs: DWD keeps only 48 hours. */
+export const BACKGROUND_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+const BACKGROUND_SYNC_FIRST_DELAY_MS = 20_000;
+let backgroundTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Starts the background sync (first run shortly after start, then every
+ * {@link BACKGROUND_SYNC_INTERVAL_MS}). The timers do not keep the
+ * process alive. Only file names are requested from DWD; nothing about
+ * the portfolio leaves the machine.
+ */
+export function startRadarHailBackgroundSync(): void {
+  if (backgroundTimer) return;
+  const run = (): void => void syncRadarHail();
+  setTimeout(run, BACKGROUND_SYNC_FIRST_DELAY_MS).unref?.();
+  backgroundTimer = setInterval(run, BACKGROUND_SYNC_INTERVAL_MS);
+  backgroundTimer.unref?.();
+}
+
+export function stopRadarHailBackgroundSync(): void {
+  if (backgroundTimer) clearInterval(backgroundTimer);
+  backgroundTimer = null;
 }
 
 export function radarHailEvidence(from: string | null): RiskEvidence {
@@ -424,6 +567,7 @@ export function radarHailEvidence(from: string | null): RiskEvidence {
       from
         ? `Local archive since ${from.slice(0, 10)}: DWD keeps only the last 48 hours, earlier hail is not in it`
         : "The local archive is empty: DWD keeps only the last 48 hours",
+      "The app fetches new files every 30 minutes while it runs; hail on days when it was closed for more than 48 hours is missing",
       "The outline is the whole storm cell; hail falls in part of it, so a cell over the site does not prove hail on the lot",
       "Rain–hail mixtures in the cold season are mostly graupel",
       "Context only: not used in the hail EAL",
@@ -439,7 +583,7 @@ const SYNC_WAIT_MS = 4_000;
  * sync fetches 48 hours of files (a few minutes) and keeps running in the
  * background. True when the sync finished and reached DWD.
  */
-async function syncBriefly(): Promise<boolean> {
+export async function syncBriefly(): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<false>((resolve) => {
     timer = setTimeout(() => resolve(false), SYNC_WAIT_MS);
@@ -462,15 +606,15 @@ export async function radarHailAt(
   lon: number,
 ): Promise<RadarHailResult> {
   const synced = await syncBriefly();
-  const archive = readArchive();
+  const span = archiveSpan();
   return {
-    days: hailDaysAt(lat, lon, archive.cells),
-    archiveFrom: archive.from,
-    archiveTo: archive.to,
-    steps: archive.steps,
+    days: hailDaysAt(lat, lon, cellsNear(lat, lon, RADAR_HAIL_RADIUS_KM)),
+    archiveFrom: span.from,
+    archiveTo: span.to,
+    steps: span.steps,
     radiusKm: RADAR_HAIL_RADIUS_KM,
     synced,
     syncing: radarHailSyncing(),
-    evidence: radarHailEvidence(archive.from),
+    evidence: radarHailEvidence(span.from),
   };
 }

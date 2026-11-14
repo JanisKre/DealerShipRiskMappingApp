@@ -70,6 +70,8 @@ import { CadastreLayer } from "./CadastreLayer";
 import { ClusteredMarkers } from "./ClusteredMarkers";
 import { DetectionOverlay, type DetectionEditDraft } from "./DetectionOverlay";
 import { HailstormScenarioLayer } from "./HailstormScenarioLayer";
+import { HailEventReplayLayer } from "./HailEventReplayLayer";
+import { HailReplayBar } from "./HailReplayBar";
 import { HailZoneLayer } from "./HailZoneLayer";
 import { LayerPanel } from "./LayerPanel";
 import { DeleteSelectedDialog } from "./LocationsPanel";
@@ -953,6 +955,8 @@ export function MapPage(): React.JSX.Element {
           />
         )}
 
+        <HailEventReplayLayer />
+
         <HailstormScenarioLayer
           scenario={scenario}
           drawing={drawingScenario}
@@ -987,6 +991,8 @@ export function MapPage(): React.JSX.Element {
       {/* Status banner top center: analysis progress + data quality hints,
           stacked; at most about half the map high, scrolling beyond that. */}
       <div className="pointer-events-none absolute inset-x-0 top-3 z-[1000] flex max-h-[55%] flex-col items-center gap-2 overflow-y-auto px-14 pb-2 [&>*]:pointer-events-auto [&>*]:shrink-0">
+        {/* Hail event replay: play, time slider, running count. */}
+        <HailReplayBar />
         {detectionEditing && detectionDraft && detectionReviewDealership && (
           <div className={NOTICE_CLASS}>
             <ScanSearch className="mt-0.5 size-4 shrink-0 text-primary" />

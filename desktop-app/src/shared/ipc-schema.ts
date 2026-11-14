@@ -50,6 +50,17 @@ import {
 } from "./imagery-sources";
 import { ImageryTimelineSchema } from "./imagery-wayback";
 import { RadarHailResultSchema } from "./radar-hail";
+import {
+  HailEventDetailSchema,
+  HailEventListSchema,
+  HailEventSummarySchema,
+  MAX_FOOTPRINT_BYTES,
+} from "./hail-events";
+
+/** Ids of radar events (`radar-…`) and imports (`import-…`). */
+const HailEventIdSchema = z
+  .string()
+  .regex(/^(radar|import)-[0-9A-Za-z]{1,40}$/);
 
 // --- App updates ---------------------------------------------------------------
 
@@ -265,6 +276,13 @@ export const ipcRequest = {
     lat: z.number().min(-90).max(90),
     lon: z.number().min(-180).max(180),
   }),
+  "hailEvents:list": z.void(),
+  "hailEvents:get": z.object({ id: HailEventIdSchema }),
+  "hailEvents:import": z.object({
+    name: z.string().max(200),
+    content: z.string().min(1).max(MAX_FOOTPRINT_BYTES),
+  }),
+  "hailEvents:delete": z.object({ id: HailEventIdSchema }),
   "detect:vehicles": DetectVehiclesRequestSchema,
   "detect:vehiclesTimeline": DetectVehiclesRequestSchema,
   "weather:fetch": z.object({ lat: z.number(), lon: z.number() }),
@@ -419,6 +437,10 @@ export const ipcResponse = {
   "osm:details": OsmDetailsSchema,
   "hail:history": HailHistorySchema,
   "hail:radar": RadarHailResultSchema,
+  "hailEvents:list": HailEventListSchema,
+  "hailEvents:get": HailEventDetailSchema.nullable(),
+  "hailEvents:import": HailEventSummarySchema,
+  "hailEvents:delete": z.boolean(),
   "detect:vehicles": DetectionResultSchema,
   "detect:vehiclesTimeline": VehicleTimelineSchema,
   "weather:fetch": z.record(z.string(), z.number()),

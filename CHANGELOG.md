@@ -9,6 +9,13 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Hail event replay on the map.** Hail events from the radar archive play
+  as an animation: cells glide across the map along their tracks, the swath
+  stays behind, and each location the storm reaches lights up with time and
+  hail class. A running count shows locations reached and the stress-test
+  loss. Events can be moved on the ground ("30 km further south") and
+  footprints of older events imported as GeoJSON. Stress test only, not part
+  of the EAL (`docs/risk-model.md`, "Hail event replay").
 - **Installers ship the fine-tuned vehicle model.** Release builds bundle
   `dealer_vehicles` 2026-10-10 from a pinned model release, and the setup
   wizard downloads the same files, both checked by SHA-256. Before, the
@@ -50,8 +57,11 @@ the project follows [Semantic Versioning](https://semver.org/).
 - **Radar hail cells (DWD KONRAD3D).** The detail dialog lists the days on
   which a hail cell tracked by the DWD radar passed within 1 km of the
   location, with class, time and reflectivity. DWD keeps only 48 hours, so
-  the app builds a local archive from the first use on. Context only, not
-  part of the EAL (`docs/risk-model.md`, "Radar hail cells").
+  the app builds a local archive from the first use on and fills it in the
+  background every 30 minutes while it runs. The archive lives in its own
+  SQLite tables with a spatial index (database schema 3; the earlier cache
+  entries are migrated). Context only, not part of the EAL
+  (`docs/risk-model.md`, "Radar hail cells").
 - **Boundary cascade v10** (`docs/boundary-model.md`, "Cascade v10"):
   parcels in all 16 states (Saarland's service had moved); addresses in
   Schleswig-Holstein, Mecklenburg-Vorpommern and Baden-Württemberg, land use

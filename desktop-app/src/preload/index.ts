@@ -117,6 +117,28 @@ const api = {
       lon,
     } satisfies IpcRequest["hail:radar"]),
 
+  hailEventsList: (): Promise<IpcResponse["hailEvents:list"]> =>
+    ipcRenderer.invoke(IPC.hailEventsList),
+
+  hailEventsGet: (id: string): Promise<IpcResponse["hailEvents:get"]> =>
+    ipcRenderer.invoke(IPC.hailEventsGet, {
+      id,
+    } satisfies IpcRequest["hailEvents:get"]),
+
+  hailEventsImport: (
+    name: string,
+    content: string,
+  ): Promise<IpcResponse["hailEvents:import"]> =>
+    ipcRenderer.invoke(IPC.hailEventsImport, {
+      name,
+      content,
+    } satisfies IpcRequest["hailEvents:import"]),
+
+  hailEventsDelete: (id: string): Promise<IpcResponse["hailEvents:delete"]> =>
+    ipcRenderer.invoke(IPC.hailEventsDelete, {
+      id,
+    } satisfies IpcRequest["hailEvents:delete"]),
+
   fetchWeather: (
     lat: number,
     lon: number,
