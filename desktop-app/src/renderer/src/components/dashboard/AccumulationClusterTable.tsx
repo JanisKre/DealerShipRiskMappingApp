@@ -264,7 +264,7 @@ export function AccumulationClusterTable({
                         {list.length > 1 && (
                           <span className="block text-xs font-normal text-muted-foreground">
                             {t("dashboard.accumulations.extent", {
-                              km: num(clusterExtentKm(list), 0),
+                              km: num(clusterExtentKm(list), 1),
                             })}
                           </span>
                         )}

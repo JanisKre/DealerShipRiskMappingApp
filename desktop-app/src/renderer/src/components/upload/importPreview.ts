@@ -20,7 +20,33 @@ export interface PreviewRow {
   duplicateOfExisting?: string;
   /** Source row of the earlier file row this one repeats. */
   duplicateOfRow?: number;
+  /**
+   * Coordinates from the file that cannot be right for a German dealer:
+   * outside Germany, or lat/lon swapped (swapping them lands in Germany).
+   * Such rows start unticked (UW-06).
+   */
+  coordinateWarning?: "outsideGermany" | "swapped";
   include: boolean;
+}
+
+/** Generous bounding box of Germany (WGS84). */
+const GERMANY = { minLat: 47.2, maxLat: 55.1, minLon: 5.8, maxLon: 15.1 };
+
+function inGermany(lat: number, lon: number): boolean {
+  return (
+    lat >= GERMANY.minLat &&
+    lat <= GERMANY.maxLat &&
+    lon >= GERMANY.minLon &&
+    lon <= GERMANY.maxLon
+  );
+}
+
+export function coordinateWarning(
+  row: DealershipInput,
+): PreviewRow["coordinateWarning"] {
+  if (row.lat == null || row.lon == null) return undefined;
+  if (inGermany(row.lat, row.lon)) return undefined;
+  return inGermany(row.lon, row.lat) ? "swapped" : "outsideGermany";
 }
 
 export function placement(row: DealershipInput): Placement {
@@ -62,6 +88,7 @@ export function buildPreviewRows(
     const fileMatch =
       original && !existingMatch ? sourceRowById.get(original) : undefined;
     const where = placement(row);
+    const warning = coordinateWarning(row);
     return {
       row,
       ...(sourceRow != null ? { sourceRow } : {}),
@@ -69,7 +96,12 @@ export function buildPreviewRows(
       issues: sourceRow != null ? (issuesByRow.get(sourceRow) ?? []) : [],
       ...(existingMatch ? { duplicateOfExisting: existingMatch.name } : {}),
       ...(fileMatch != null ? { duplicateOfRow: fileMatch } : {}),
-      include: where !== "missing" && !existingMatch && fileMatch == null,
+      ...(warning ? { coordinateWarning: warning } : {}),
+      include:
+        where !== "missing" &&
+        !existingMatch &&
+        fileMatch == null &&
+        warning == null,
     };
   });
 }
@@ -78,6 +110,7 @@ export function buildPreviewRows(
 export function needsAttention(row: PreviewRow): boolean {
   return (
     row.placement === "missing" ||
+    row.coordinateWarning != null ||
     row.issues.length > 0 ||
     row.duplicateOfExisting != null ||
     row.duplicateOfRow != null

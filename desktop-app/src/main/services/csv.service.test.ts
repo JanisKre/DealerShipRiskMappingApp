@@ -280,3 +280,13 @@ describe("quoted CSV cells", () => {
     ).toBeUndefined();
   });
 });
+
+describe("insured-value headers (UW-20)", () => {
+  it("maps Insured Value to the maximum indemnity", () => {
+    const result = parseCsvWithReport(
+      'Name,Address,Insured Value\nAutohaus,"Ring 1, Leipzig",250000',
+    );
+    expect(result.report.columnMapping.productLimitEur).toBe("Insured Value");
+    expect(result.rows[0].productLimitEur).toBe(250000);
+  });
+});

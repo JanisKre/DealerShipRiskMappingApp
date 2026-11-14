@@ -48,6 +48,17 @@ the project follows [Semantic Versioning](https://semver.org/).
   λ/p/S values, EAL coverage, estimated exposure share, sources and model
   version.
 
+- **Sturdier import.** CSV files saved by German Excel (Windows-1252) are
+  detected and read correctly (with a note in the dialog); UTF-16 with BOM
+  works; binary files and broken .xlsx files are refused with a plain
+  message. Coordinates outside Germany (Paris, 0/0) or with latitude and
+  longitude swapped start unticked with the reason. Parser notes are
+  translated, dropped duplicate rows are listed with their reason, the
+  "choose business type" hint sits next to the import button, and "Insured
+  Value"/"TIV" columns map to the maximum indemnity.
+- **Export toasts no longer block the toolbar.** They name the file, can be
+  closed, offer "Im Ordner zeigen" and appear at the top centre.
+
 ### Changed
 
 - **Hail simulation in the layer panel.** The simulation is now a section of

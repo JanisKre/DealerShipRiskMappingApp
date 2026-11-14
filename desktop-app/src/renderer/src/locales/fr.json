@@ -913,8 +913,8 @@
     },
     "accumulations": {
       "title": "Plus grands cumuls",
-      "description_one": "{{count}} cumul : sites reliés par des voisins dans un rayon de {{radius}} km. Cliquez sur une ligne pour voir les sites.",
-      "description_other": "{{count}} cumuls : sites reliés par des voisins dans un rayon de {{radius}} km. Cliquez sur une ligne pour voir les sites.",
+      "description_one": "{{count}} cumul : sites chaînés par voisins ≤ {{radius}} km. Cliquez sur une ligne pour ses sites.",
+      "description_other": "{{count}} cumuls : sites chaînés par voisins ≤ {{radius}} km. Cliquez sur une ligne pour ses sites.",
       "empty": "Aucun cumul : aucun site n’a de voisin dans un rayon de {{radius}} km.",
       "clearFilter": "Supprimer le filtre de cumul",
       "name": "Cumul (plus grand site)",
@@ -1423,8 +1423,6 @@
     "locationsAnalyzed_other": "{{count}} sites analysés",
     "locationsFiltered": "{{filtered}} sur {{total}} sites (filtrés)",
     "noRowsFound": "Aucune ligne importable trouvée.",
-    "importIssuesRecorded_one": "{{count}} problème d’importation enregistré.",
-    "importIssuesRecorded_other": "{{count}} problèmes d’importation enregistrés.",
     "website": "Site web",
     "reportExported": "Rapport exporté : {{name}}",
     "portfolioExported": "Portefeuille exporté : {{name}}",
@@ -1512,8 +1510,8 @@
     "summary": "{{file}} : lignes reconnues : {{imported}} sur {{total}}.",
     "skipped_one": "{{count}} ligne ignorée.",
     "skipped_other": "{{count}} lignes ignorées.",
-    "issues_one": "{{count}} remarque dans le rapport d’import.",
-    "issues_other": "{{count}} remarques dans le rapport d’import.",
+    "issues_one": "{{count}} remarque – affichée avec sa ligne dans l’aperçu ci-dessous.",
+    "issues_other": "{{count}} remarques – affichées avec leurs lignes dans l’aperçu ci-dessous.",
     "parseFailed": "Raison technique : {{error}}",
     "detectedColumns": "Colonnes détectées",
     "noTermsColumns": "Aucune colonne d’indemnité maximale ou de franchise détectée – ces données peuvent être ajoutées par site ultérieurement.",
@@ -1577,7 +1575,19 @@
       "suggested_other": "{{count}} suggestions saisies – merci de vérifier et d’appliquer.",
       "noSuggestion": "L’IA n’a trouvé aucune affectation adaptée.",
       "suggestFailed": "Suggestion IA indisponible : {{error}}"
-    }
+    },
+    "issue": {
+      "missingName": "Nom manquant – ligne ignorée",
+      "latRange": "La latitude doit être comprise entre −90 et 90",
+      "lonRange": "La longitude doit être comprise entre −180 et 180",
+      "duplicateRow": "Ligne en double (même nom et adresse) – ignorée",
+      "invalidNumber": "Nombre invalide « {{value}} » ignoré",
+      "invalidAmount": "Montant invalide « {{value}} » ignoré",
+      "unknownBusiness": "Type d’affaire « {{value}} » non reconnu – non classé"
+    },
+    "notExcel": "Le fichier n’est pas un classeur Excel valide (.xlsx).",
+    "notText": "Le fichier n’est pas un fichier CSV ou texte.",
+    "encodingWindows1252": "Encodage : Windows-1252 détecté (CSV Excel) – les accents sont lus correctement."
   },
   "places": {
     "inPortfolio": "Dans le portefeuille : {{portfolio}}",
@@ -1784,7 +1794,11 @@
     "willGeocode": "Localisé par l'adresse",
     "checking": "Vérification …",
     "notFound": "Adresse introuvable",
-    "checkFailed": "Échec de la vérification"
+    "checkFailed": "Échec de la vérification",
+    "coords": {
+      "outsideGermany": "Coordonnées hors d’Allemagne – à vérifier (non sélectionné)",
+      "swapped": "Latitude/longitude inversées ? Inversé, le point serait en Allemagne (non sélectionné)"
+    }
   },
   "a2ui": {
     "needsAi": "Les tableaux de bord IA sont créés par l’assistant IA. Configurez d’abord un fournisseur d’IA.",

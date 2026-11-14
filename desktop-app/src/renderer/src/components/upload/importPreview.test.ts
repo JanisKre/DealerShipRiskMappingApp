@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { DealershipInput, ImportIssue } from "@shared/types";
 import {
   buildPreviewRows,
+  coordinateWarning,
   editPreviewRow,
   needsAttention,
   placement,
@@ -81,5 +82,29 @@ describe("import preview", () => {
 
   it("lists the notes of rows the parser dropped", () => {
     expect(skippedIssues(issues, rowNumbers).map((i) => i.row)).toEqual([4]);
+  });
+});
+
+describe("coordinate plausibility (UW-06)", () => {
+  it("flags Paris, 0/0 and swapped coordinates and leaves them unticked", () => {
+    const odd: DealershipInput[] = [
+      { id: "ok", name: "Anröchte", lat: 51.566, lon: 8.312 },
+      { id: "paris", name: "Paris", lat: 48.8566, lon: 2.3522 },
+      { id: "null", name: "Null", lat: 0, lon: 0 },
+      { id: "swap", name: "Vertauscht", lat: 8.312, lon: 51.566 },
+    ];
+    expect(odd.map(coordinateWarning)).toEqual([
+      undefined,
+      "outsideGermany",
+      "outsideGermany",
+      "swapped",
+    ]);
+    const preview = buildPreviewRows(odd, [2, 3, 4, 5], [], []);
+    expect(preview.map((r) => r.include)).toEqual([true, false, false, false]);
+    expect(preview.filter(needsAttention).map((r) => r.row.id)).toEqual([
+      "paris",
+      "null",
+      "swap",
+    ]);
   });
 });

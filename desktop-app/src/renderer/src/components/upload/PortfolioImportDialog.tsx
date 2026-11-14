@@ -44,13 +44,28 @@ import {
   type PreviewRow,
 } from "./importPreview";
 import { portfolioName } from "@renderer/lib/portfolioName";
+import { decodeImportText, type TextEncodingName } from "./decodeText";
+import { isBrokenWorkbookError, localizeImportIssue } from "./importMessages";
 
 interface PendingImport {
   fileName: string;
   result: ImportResult;
   /** File content, kept to parse it again with columns assigned by hand. */
-  source: { kind: "csv"; content: string } | { kind: "xlsx"; base64: string };
+  source:
+    | { kind: "csv"; content: string; encoding: TextEncodingName }
+    | { kind: "xlsx"; base64: string };
   overrides: ColumnOverrides;
+}
+
+/**
+ * Reads a CSV/TSV with encoding detection (UTF-8, UTF-16, Windows-1252);
+ * null for a binary file.
+ */
+async function csvSource(file: File): Promise<PendingImport["source"] | null> {
+  const decoded = decodeImportText(await file.arrayBuffer());
+  return decoded.ok
+    ? { kind: "csv", content: decoded.text, encoding: decoded.encoding }
+    : null;
 }
 
 function parseSource(
@@ -95,12 +110,16 @@ export function usePortfolioImport(onImported?: () => void): {
   async function startImport(file: File): Promise<void> {
     try {
       const isXlsx = /\.xlsx$/i.test(file.name);
-      const source: PendingImport["source"] = isXlsx
+      const source: PendingImport["source"] | null = isXlsx
         ? {
             kind: "xlsx",
             base64: arrayBufferToBase64(await file.arrayBuffer()),
           }
-        : { kind: "csv", content: await file.text() };
+        : await csvSource(file);
+      if (!source) {
+        toast.error(t("portfolioImport.notText"));
+        return;
+      }
       const result = await parseSource(source);
       if (result.rows.length === 0) {
         setImportReport(result.report);
@@ -109,12 +128,21 @@ export function usePortfolioImport(onImported?: () => void): {
       }
       setPending({ fileName: file.name, result, source, overrides: {} });
     } catch (error) {
-      // The technical reason stays available, below a plain explanation.
-      toast.error(t("portfolioImport.parseFailedTitle"), {
-        description: t("portfolioImport.parseFailed", {
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      });
+      const message = error instanceof Error ? error.message : String(error);
+      // The technical reason stays available, below a plain explanation;
+      // a file that is no workbook gets just that sentence (UW-17).
+      toast.error(
+        isBrokenWorkbookError(message)
+          ? t("portfolioImport.notExcel")
+          : t("portfolioImport.parseFailedTitle"),
+        isBrokenWorkbookError(message)
+          ? undefined
+          : {
+              description: t("portfolioImport.parseFailed", {
+                error: message,
+              }),
+            },
+      );
     }
   }
 
@@ -281,10 +309,6 @@ function ImportForm({
       });
       if (skipped > 0)
         toast.info(t("start.duplicatesSkipped", { count: skipped }));
-      if (report.issues.length > 0)
-        toast.info(
-          t("ui.importIssuesRecorded", { count: report.issues.length }),
-        );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
@@ -306,6 +330,9 @@ function ImportForm({
             ` ${t("portfolioImport.skipped", { count: report.skippedRows })}`}
           {report.issues.length > 0 &&
             ` ${t("portfolioImport.issues", { count: report.issues.length })}`}
+          {pending.source.kind === "csv" &&
+            pending.source.encoding === "windows-1252" &&
+            ` ${t("portfolioImport.encodingWindows1252")}`}
         </DialogDescription>
       </DialogHeader>
 
@@ -434,10 +461,17 @@ function ImportForm({
       </div>
 
       <DialogFooter className="gap-2 sm:items-center">
-        {analyzing && (
+        {analyzing ? (
           <span className="text-xs text-muted-foreground sm:mr-auto">
             {t("portfolioImport.waitForAnalysis")}
           </span>
+        ) : (
+          !business && (
+            // Next to the disabled button, not only below the fold (UW-20).
+            <span className="text-xs text-muted-foreground sm:mr-auto">
+              {t("portfolioImport.businessRequired")}
+            </span>
+          )
         )}
         <Button variant="outline" onClick={onDone}>
           {t("portfolioImport.cancel")}
@@ -635,7 +669,12 @@ function ImportPreviewTable({
                       }),
                     ]
                   : []),
-                ...row.issues.map((issue) => issue.message),
+                ...(row.coordinateWarning
+                  ? [t(`importPreview.coords.${row.coordinateWarning}`)]
+                  : []),
+                ...row.issues.map((issue) =>
+                  localizeImportIssue(t, issue.message),
+                ),
               ];
               return (
                 <TableRow key={id} className={row.include ? "" : "opacity-60"}>
@@ -754,8 +793,10 @@ function ImportPreviewTable({
         </Table>
       </div>
 
+      {/* Open: dropped rows (exact repeats, rows without a name) are listed
+          with their reason instead of hiding behind a count (UW-18). */}
       {skipped.length > 0 && (
-        <details className="rounded-md border text-xs">
+        <details open className="rounded-md border text-xs">
           <summary className="px-3 py-1.5 text-muted-foreground">
             {t("importPreview.skippedRows", {
               count: new Set(skipped.map((s) => s.row)).size,
@@ -767,7 +808,7 @@ function ImportPreviewTable({
                 <span className="tabular-nums text-muted-foreground">
                   {t("importPreview.rowLabel", { row: issue.row })}
                 </span>{" "}
-                {issue.message}
+                {localizeImportIssue(t, issue.message)}
               </li>
             ))}
           </ul>

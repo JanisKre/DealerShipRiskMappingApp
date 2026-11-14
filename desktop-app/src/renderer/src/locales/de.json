@@ -913,8 +913,8 @@
     },
     "accumulations": {
       "title": "Größte Kumulationen",
-      "description_one": "{{count}} Kumulation: Standorte, die über Nachbarn im Umkreis von {{radius}} km verbunden sind. Zeile anklicken für die Standorte.",
-      "description_other": "{{count}} Kumulationen: Standorte, die über Nachbarn im Umkreis von {{radius}} km verbunden sind. Zeile anklicken für die Standorte.",
+      "description_one": "{{count}} Kumulation: Standorte, die über Nachbarn ≤ {{radius}} km verkettet sind. Zeile anklicken für die Standorte.",
+      "description_other": "{{count}} Kumulationen: Standorte, die über Nachbarn ≤ {{radius}} km verkettet sind. Zeile anklicken für die Standorte.",
       "empty": "Keine Kumulationen: Kein Standort hat einen Nachbarn im Umkreis von {{radius}} km.",
       "clearFilter": "Kumulationsfilter aufheben",
       "name": "Kumulation (größter Standort)",
@@ -1423,8 +1423,6 @@
     "locationsAnalyzed_other": "{{count}} Standorte analysiert",
     "locationsFiltered": "{{filtered}} von {{total}} Standorten (gefiltert)",
     "noRowsFound": "Keine importierbaren Zeilen gefunden.",
-    "importIssuesRecorded_one": "{{count}} Importproblem protokolliert.",
-    "importIssuesRecorded_other": "{{count}} Importprobleme protokolliert.",
     "website": "Website",
     "reportExported": "Bericht exportiert: {{name}}",
     "portfolioExported": "Portfolio exportiert: {{name}}",
@@ -1512,8 +1510,8 @@
     "summary": "{{file}}: {{imported}} von {{total}} Zeilen erkannt.",
     "skipped_one": "{{count}} Zeile übersprungen.",
     "skipped_other": "{{count}} Zeilen übersprungen.",
-    "issues_one": "{{count}} Hinweis im Importbericht.",
-    "issues_other": "{{count}} Hinweise im Importbericht.",
+    "issues_one": "{{count}} Hinweis – in der Vorschau unten bei der Zeile.",
+    "issues_other": "{{count}} Hinweise – in der Vorschau unten bei den Zeilen.",
     "parseFailed": "Technischer Grund: {{error}}",
     "detectedColumns": "Erkannte Spalten",
     "noTermsColumns": "Keine Spalten für Höchstentschädigung oder Selbstbehalt erkannt – diese Angaben lassen sich später je Standort ergänzen.",
@@ -1577,7 +1575,19 @@
       "suggested_other": "{{count}} Vorschläge eingetragen – bitte prüfen und übernehmen.",
       "noSuggestion": "Die KI hat keine passende Zuordnung gefunden.",
       "suggestFailed": "KI-Vorschlag nicht verfügbar: {{error}}"
-    }
+    },
+    "issue": {
+      "missingName": "Name fehlt – Zeile übersprungen",
+      "latRange": "Breite muss zwischen −90 und 90 liegen",
+      "lonRange": "Länge muss zwischen −180 und 180 liegen",
+      "duplicateRow": "Doppelte Zeile (gleicher Name und gleiche Adresse) – übersprungen",
+      "invalidNumber": "Ungültige Zahl „{{value}}“ ignoriert",
+      "invalidAmount": "Ungültiger Betrag „{{value}}“ ignoriert",
+      "unknownBusiness": "Geschäftsart „{{value}}“ nicht erkannt – ohne Zuordnung"
+    },
+    "notExcel": "Die Datei ist keine gültige Excel-Datei (.xlsx).",
+    "notText": "Die Datei ist keine CSV- oder Textdatei.",
+    "encodingWindows1252": "Zeichenkodierung: Windows-1252 erkannt (Excel-CSV) – Umlaute werden korrekt gelesen."
   },
   "places": {
     "inPortfolio": "Im Portfolio: {{portfolio}}",
@@ -1784,7 +1794,11 @@
     "willGeocode": "Wird über die Adresse verortet",
     "checking": "Wird geprüft …",
     "notFound": "Adresse nicht gefunden",
-    "checkFailed": "Prüfung fehlgeschlagen"
+    "checkFailed": "Prüfung fehlgeschlagen",
+    "coords": {
+      "outsideGermany": "Koordinaten liegen außerhalb Deutschlands – bitte prüfen (nicht ausgewählt)",
+      "swapped": "Breite/Länge vertauscht? Vertauscht läge der Punkt in Deutschland (nicht ausgewählt)"
+    }
   },
   "a2ui": {
     "needsAi": "KI-Dashboards baut der KI-Assistent. Richte dafür zuerst einen KI-Anbieter ein.",

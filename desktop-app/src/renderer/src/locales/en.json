@@ -913,8 +913,8 @@
     },
     "accumulations": {
       "title": "Largest accumulations",
-      "description_one": "{{count}} accumulation: locations linked through neighbors within {{radius}} km. Click a row to see its locations.",
-      "description_other": "{{count}} accumulations: locations linked through neighbors within {{radius}} km. Click a row to see its locations.",
+      "description_one": "{{count}} accumulation: locations chained via neighbours ≤ {{radius}} km. Click a row for its locations.",
+      "description_other": "{{count}} accumulations: locations chained via neighbours ≤ {{radius}} km. Click a row for its locations.",
       "empty": "No accumulations: no location has a neighbor within {{radius}} km.",
       "clearFilter": "Clear accumulation filter",
       "name": "Accumulation (largest location)",
@@ -1423,8 +1423,6 @@
     "locationsAnalyzed_other": "{{count}} locations analyzed",
     "locationsFiltered": "{{filtered}} of {{total}} locations (filtered)",
     "noRowsFound": "No importable rows found.",
-    "importIssuesRecorded_one": "{{count}} import issue recorded.",
-    "importIssuesRecorded_other": "{{count}} import issues recorded.",
     "website": "Website",
     "reportExported": "Report exported: {{name}}",
     "portfolioExported": "Portfolio exported: {{name}}",
@@ -1512,8 +1510,8 @@
     "summary": "{{file}}: {{imported}} of {{total}} rows recognised.",
     "skipped_one": "{{count}} row skipped.",
     "skipped_other": "{{count}} rows skipped.",
-    "issues_one": "{{count}} note in the import report.",
-    "issues_other": "{{count}} notes in the import report.",
+    "issues_one": "{{count}} note – shown with its row in the preview below.",
+    "issues_other": "{{count}} notes – shown with their rows in the preview below.",
     "parseFailed": "Technical reason: {{error}}",
     "detectedColumns": "Detected columns",
     "noTermsColumns": "No maximum indemnity or deductible column detected – these can be added per location later.",
@@ -1577,7 +1575,19 @@
       "suggested_other": "{{count}} suggestions filled in – please check and apply.",
       "noSuggestion": "The AI found no fitting assignment.",
       "suggestFailed": "AI suggestion not available: {{error}}"
-    }
+    },
+    "issue": {
+      "missingName": "Dealership name missing – row skipped",
+      "latRange": "Latitude must be between −90 and 90",
+      "lonRange": "Longitude must be between −180 and 180",
+      "duplicateRow": "Duplicate row (same name and address) – skipped",
+      "invalidNumber": "Invalid number “{{value}}” ignored",
+      "invalidAmount": "Invalid amount “{{value}}” ignored",
+      "unknownBusiness": "Business type “{{value}}” not recognised – left unclassified"
+    },
+    "notExcel": "The file is not a valid Excel workbook (.xlsx).",
+    "notText": "The file is not a CSV or text file.",
+    "encodingWindows1252": "Character encoding: Windows-1252 detected (Excel CSV) – accented characters are read correctly."
   },
   "places": {
     "inPortfolio": "In portfolio: {{portfolio}}",
@@ -1784,7 +1794,11 @@
     "willGeocode": "Placed by its address",
     "checking": "Checking …",
     "notFound": "Address not found",
-    "checkFailed": "Check failed"
+    "checkFailed": "Check failed",
+    "coords": {
+      "outsideGermany": "Coordinates lie outside Germany – please check (not selected)",
+      "swapped": "Latitude/longitude swapped? Swapped, the point would lie in Germany (not selected)"
+    }
   },
   "a2ui": {
     "needsAi": "AI dashboards are built by the AI assistant. Set up an AI provider first.",
