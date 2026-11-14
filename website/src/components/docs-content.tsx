@@ -847,6 +847,14 @@ const FURTHER_READING: { path: string; text: Localized }[] = [
     },
   },
   {
+    path: "docs/ai-features.md",
+    text: {
+      en: "Optional AI features on top of fixed functions",
+      de: "Optionale KI-Funktionen auf festen Funktionen",
+      fr: "Fonctions IA facultatives sur des fonctions fixes",
+    },
+  },
+  {
     path: "docs/local-overpass.md",
     text: {
       en: "Running your own Overpass server",

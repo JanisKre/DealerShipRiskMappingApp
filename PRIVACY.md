@@ -51,13 +51,15 @@ policies.
 | Radar hail cells (context only)                       | Deutscher Wetterdienst open data (`opendata.dwd.de/weather/radar/konrad3d`)             | Requests for the Germany-wide files of the last 48 hours; no coordinates or addresses (the comparison with your locations runs locally) |
 | Dealer directory (when downloaded)                    | Overture Maps (STAC catalogue, public S3 bucket)                                        | Range requests for the places files; no search text or portfolio data                                                              |
 | AI chat and memo (optional)                           | Anthropic, OpenAI or a custom provider URL you configure                                | Portfolio figures and location details (name, postcode and town, group, sales partner); never underwriting notes; your own API key |
+| Optional AI features (review order, change summary, chat lookups, column suggestion, scenario draft, dealer questions, comparison) | The same AI provider                                                    | Only what each feature lists in [docs/ai-features.md](./docs/ai-features.md); for the import only column names and type hints, never cell values; never underwriting notes |
 | Detection model lookup (optional)                     | Hugging Face                                                                            | Model search queries                                                                                                               |
 | Update check (can be switched off), model download    | GitHub (`api.github.com`, `github.com`, release downloads)                              | The app version in the user agent; nothing about your portfolios                                                                   |
 
 The complete list of imagery sources is in
-[docs/imagery-sources.md](./docs/imagery-sources.md). AI memos are only
-generated when you configure a provider and request one; nothing is sent to an
-AI provider otherwise. Packaged builds ask GitHub for a newer release at
+[docs/imagery-sources.md](./docs/imagery-sources.md). AI memos and the
+optional AI features are only used when you configure a provider and request
+them; nothing is sent to an AI provider otherwise, and the app works fully
+without one. Packaged builds ask GitHub for a newer release at
 start-up and once a day; switch this off under **Settings → General → App &
 support** if your organisation rolls out versions itself; the detection model
 is downloaded from the same release page only when you install it. Do not

@@ -20,6 +20,25 @@ the project follows [Semantic Versioning](https://semver.org/).
   threshold sweeps, export, install and the release pin.
 - `npm run benchmark:detection` sweeps a model's base confidence through the
   app's own inference on the training validation tiles.
+- **Optional AI features on top of fixed functions** (`docs/ai-features.md`).
+  Each works without AI; with a provider, the AI only explains, orders or
+  proposes and every effect waits for a click:
+  - **Review queue:** a fixed recommended action per review reason, with a
+    re-analyse button for outdated imagery; optional "AI order".
+  - **Change report** (new dashboard tile): newer imagery sharp enough for
+    vehicle counting, radar hail after the analysis and open review points,
+    on request; optional summary.
+  - **Chat lookups:** for questions about a location, the chat can look up
+    evidence, station hail history, radar hail and imagery before it answers,
+    and shows which.
+  - **Import:** unrecognised columns can be assigned by hand; optional AI
+    suggestion from column names and type hints only.
+  - **Scenario from a sentence:** optional draft of a hailstorm corridor,
+    geocoded by the app and applied on confirmation.
+  - **Questions for the dealership:** rule-based questions in the detail
+    dialog, copied as text; optional rewording as a message.
+  - **Portfolio comparison** lists added and removed locations; optional
+    explanation of the changes.
 
 - **Hail EAL as a range over the stock.** Where the stock was counted on
   archived images, the hail EAL detail shows the EAL at the lowest, median
