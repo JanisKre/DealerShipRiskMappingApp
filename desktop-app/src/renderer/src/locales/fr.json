@@ -1886,5 +1886,31 @@
     "discard": "Rejeter",
     "notFound": "Introuvable : {{places}}. Merci de préciser ou de dessiner le corridor.",
     "failed": "Aucune esquisse possible : {{error}}"
+  },
+  "questionnaire": {
+    "title": "Questions au concessionnaire",
+    "description": "Questions ouvertes pour ce site, choisies selon des règles fixes. À copier dans votre propre e-mail ; l’application n’envoie rien.",
+    "intro": "Questions sur le site {{name}} :",
+    "copy": "Copier en texte",
+    "copied": "Questions copiées dans le presse-papiers.",
+    "reword": "Rédiger en message",
+    "q": {
+      "hailProtection": "Le site dispose-t-il d’une protection contre la grêle (filets, auvents) ? Si oui, pour combien de places ?",
+      "coveredSpaces": "Combien de véhicules peuvent être abrités (halls, atelier, parking souterrain) ?",
+      "outdoorAtNight": "Combien de véhicules stationnent habituellement en plein air la nuit et le week-end ?",
+      "averageStock": "Quel est le stock moyen de véhicules sur l’année (neufs, occasions, démonstration) ?",
+      "seasonalPeak": "Le site est en zone de grêle {{zone}} : quel est le stock de mai à août ?",
+      "hailWarning": "Existe-t-il une procédure en cas d’alerte orage ou grêle, par exemple mettre les véhicules à l’abri ?",
+      "lotExtent": "Quelles surfaces appartiennent au site, y compris les surfaces annexes et d’exposition hors de la parcelle principale ?",
+      "siteChanges": "Le site a-t-il changé depuis {{year}} (nouveaux halls, auvents, extensions) ?",
+      "pastLosses": "Y a-t-il eu des dommages de grêle sur le stock ces {{years}} dernières années ? Si oui, quand et de quel montant ?"
+    },
+    "why": {
+      "always": "question de base sur le risque grêle",
+      "estimatedStock": "nombre de véhicules estimé ou image atypique",
+      "highZone": "zone de grêle élevée",
+      "boundary": "limite de parcelle à vérifier",
+      "oldImage": "image aérienne de plusieurs années"
+    }
   }
 }

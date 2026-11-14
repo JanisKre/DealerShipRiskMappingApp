@@ -109,6 +109,7 @@ import {
   type ReviewReason,
 } from "./reviewQueue";
 import { RadarHailSection } from "./RadarHailSection";
+import { QuestionnaireSection } from "./QuestionnaireSection";
 
 /** A review run: the queue snapshot taken when it started. */
 export interface ReviewRun {
@@ -572,6 +573,14 @@ function DetailBody({
               detecting={osmLoading}
             />
             <OsmDetailsSection details={osmDetails} loading={false} />
+            <details className="rounded-md border text-sm">
+              <summary className="px-3 py-2 font-medium text-muted-foreground">
+                {t("questionnaire.title")}
+              </summary>
+              <div className="border-t p-3">
+                <QuestionnaireSection d={d} />
+              </div>
+            </details>
           </TabsContent>
 
           <TabsContent value="sources" className="space-y-4 pt-2">

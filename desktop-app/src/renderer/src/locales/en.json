@@ -1886,5 +1886,31 @@
     "discard": "Discard",
     "notFound": "Not found: {{places}}. Please describe more precisely or draw the corridor.",
     "failed": "No draft possible: {{error}}"
+  },
+  "questionnaire": {
+    "title": "Questions for the dealership",
+    "description": "Questions that are open at this location, picked by fixed rules. Copy them into your own e-mail; the app sends nothing.",
+    "intro": "Questions about the location {{name}}:",
+    "copy": "Copy as text",
+    "copied": "Questions copied to the clipboard.",
+    "reword": "Write as a message",
+    "q": {
+      "hailProtection": "Is there hail protection on the lot (hail nets, canopies)? If so, for how many parking spaces?",
+      "coveredSpaces": "How many vehicles can be parked indoors (halls, workshop, underground car park)?",
+      "outdoorAtNight": "How many vehicles are usually parked in the open at night and at weekends?",
+      "averageStock": "What is the average vehicle stock over the year (new, used and demonstration vehicles)?",
+      "seasonalPeak": "The location is in hail zone {{zone}}: how large is the stock from May to August?",
+      "hailWarning": "Is there a procedure for storm or hail warnings, such as moving vehicles under cover?",
+      "lotExtent": "Which areas belong to the site, including secondary and display areas away from the main plot?",
+      "siteChanges": "Has the site changed since {{year}} (new halls, canopies, extensions)?",
+      "pastLosses": "Were there hail losses to the vehicle stock in the last {{years}} years? If so, when and how large?"
+    },
+    "why": {
+      "always": "basic hail risk question",
+      "estimatedStock": "vehicle count estimated or image untypical",
+      "highZone": "high hail zone",
+      "boundary": "lot boundary to check",
+      "oldImage": "aerial image several years old"
+    }
   }
 }

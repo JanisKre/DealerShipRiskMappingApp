@@ -1886,5 +1886,31 @@
     "discard": "Verwerfen",
     "notFound": "Nicht gefunden: {{places}}. Bitte genauer beschreiben oder den Korridor zeichnen.",
     "failed": "Kein Entwurf möglich: {{error}}"
+  },
+  "questionnaire": {
+    "title": "Rückfragen an den Händler",
+    "description": "Fragen, die bei diesem Standort offen sind, nach festen Regeln ausgewählt. Zum Kopieren in eine eigene E-Mail; die App versendet nichts.",
+    "intro": "Rückfragen zum Standort {{name}}:",
+    "copy": "Als Text kopieren",
+    "copied": "Rückfragen in die Zwischenablage kopiert.",
+    "reword": "Als Nachricht formulieren",
+    "q": {
+      "hailProtection": "Gibt es auf dem Gelände Hagelschutz (Hagelnetze, Überdachungen)? Wenn ja: für wie viele Stellplätze?",
+      "coveredSpaces": "Wie viele Fahrzeuge können in Hallen, Werkstatt oder Tiefgarage untergestellt werden?",
+      "outdoorAtNight": "Wie viele Fahrzeuge stehen nachts und am Wochenende üblicherweise im Freien?",
+      "averageStock": "Wie hoch ist der durchschnittliche Fahrzeugbestand im Jahresverlauf (Neu-, Gebraucht- und Vorführwagen)?",
+      "seasonalPeak": "Der Standort liegt in Hagelzone {{zone}}: Wie hoch ist der Bestand in den Monaten Mai bis August?",
+      "hailWarning": "Gibt es einen Ablauf bei Unwetter- oder Hagelwarnung, etwa das Umparken von Fahrzeugen unter Dach?",
+      "lotExtent": "Welche Flächen gehören zum Betriebsgelände, auch Neben- und Ausstellungsflächen abseits des Hauptgrundstücks?",
+      "siteChanges": "Hat sich das Gelände seit {{year}} baulich verändert (neue Hallen, Überdachungen, Erweiterungen)?",
+      "pastLosses": "Gab es in den letzten {{years}} Jahren Hagelschäden am Fahrzeugbestand? Wenn ja: wann und in welcher Höhe?"
+    },
+    "why": {
+      "always": "Grundfrage zum Hagelrisiko",
+      "estimatedStock": "Fahrzeugzahl geschätzt oder Bildstand untypisch",
+      "highZone": "hohe Hagelzone",
+      "boundary": "Grundstücksgrenze zu prüfen",
+      "oldImage": "Luftbild mehrere Jahre alt"
+    }
   }
 }
