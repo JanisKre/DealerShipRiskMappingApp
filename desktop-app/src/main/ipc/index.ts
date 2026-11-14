@@ -16,6 +16,10 @@ import {
   type OllamaPullChunk,
 } from "@shared/ipc-schema";
 import { analyzeDealership } from "../services/analyze.service";
+import {
+  explainStream,
+  proposeReviewOrder,
+} from "../services/llm-agents.service";
 import { closeDb } from "../db/database";
 import { scheduleDataReset } from "../services/data-reset.service";
 import { exportDiagnostics } from "../services/diagnostics.service";
@@ -235,6 +239,7 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.llmChatIntent, async ({ message, dashboardTitle }) => ({
     intent: await classifyChatIntent(message, dashboardTitle),
   }));
+  handle(IPC.llmReviewPlan, ({ items }) => proposeReviewOrder(items));
   handle(IPC.llmDashboardSurface, ({ prompt, current, context }) =>
     generateDashboardSurface(prompt, current, context),
   );
@@ -495,6 +500,10 @@ async function runStream(
       req.sessionContext,
       signal,
     )) {
+      send({ type: "token", token });
+    }
+  } else if (req.kind === "explain") {
+    for await (const token of explainStream(req.topic, req.facts, signal)) {
       send({ type: "token", token });
     }
   } else {

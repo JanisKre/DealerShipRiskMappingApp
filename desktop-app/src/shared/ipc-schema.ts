@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  REVIEW_PLAN_MAX_ITEMS,
+  ReviewPlanItemSchema,
+  ReviewPlanSchema,
+} from "./review-plan";
 import { A2uiSurfaceSchema } from "./a2ui";
 import {
   AnalyzedDealershipSchema,
@@ -277,6 +282,9 @@ export const ipcRequest = {
     message: z.string().trim().min(1).max(2_000),
     dashboardTitle: z.string().max(120).nullable(),
   }),
+  "llm:reviewPlan": z.object({
+    items: z.array(ReviewPlanItemSchema).min(1).max(REVIEW_PLAN_MAX_ITEMS),
+  }),
   "llm:dashboardSurface": z.object({
     prompt: z.string().trim().min(1).max(2_000),
     current: A2uiSurfaceSchema.nullable(),
@@ -399,6 +407,7 @@ export const ipcResponse = {
   "conversations:save": z.object({ ok: z.boolean() }),
   "conversations:delete": z.object({ ok: z.boolean() }),
   "llm:chatIntent": z.object({ intent: z.enum(["create", "edit", "chat"]) }),
+  "llm:reviewPlan": ReviewPlanSchema,
   "llm:dashboardSurface": z.discriminatedUnion("ok", [
     z.object({
       ok: z.literal(true),
@@ -473,6 +482,8 @@ export type IpcResponse = {
  */
 /** Upper bound for the portfolio context a stream request may carry. */
 export const LLM_CONTEXT_MAX_CHARS = 60_000;
+/** Facts of one explanation request (a few dozen lines). */
+export const LLM_EXPLAIN_MAX_CHARS = 12_000;
 
 export const llmStreamRequest = {
   chat: z.object({
@@ -486,11 +497,22 @@ export const llmStreamRequest = {
     dealerships: z.array(NlQueryDealershipSchema),
     sessionContext: z.string(),
   }),
+  /**
+   * Optional AI explanation of facts the app computed (comparison, change
+   * report, dealer questionnaire). The main process picks the prompt by
+   * topic; the facts are fenced as data.
+   */
+  explain: z.object({
+    kind: z.literal("explain"),
+    topic: z.enum(["comparison", "changes", "questionnaire"]),
+    facts: z.string().min(1).max(LLM_EXPLAIN_MAX_CHARS),
+  }),
 } as const;
 
 export const LlmStreamRequestSchema = z.discriminatedUnion("kind", [
   llmStreamRequest.chat,
   llmStreamRequest.nlquery,
+  llmStreamRequest.explain,
 ]);
 export type LlmStreamRequest = z.infer<typeof LlmStreamRequestSchema>;
 

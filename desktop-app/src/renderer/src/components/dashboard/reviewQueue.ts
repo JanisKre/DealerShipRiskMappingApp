@@ -8,7 +8,10 @@ import {
   IMAGERY_STALE_AFTER_YEARS,
   imageryAgeYears,
 } from "@shared/imagery-metadata";
+import { dealershipHailZone } from "@shared/risk-math";
+import type { ReviewPlanItem } from "@shared/review-plan";
 import { buildUnderwritingMessages } from "./UnderwritingMessages";
+import { estimateReasons } from "./estimates";
 
 /**
  * The underwriter's review queue: locations with an open point that needs
@@ -99,4 +102,67 @@ export function nextInReview(
     if (isOpen(ids[i])) return ids[i];
   }
   return null;
+}
+
+/**
+ * The fixed next step per review reason, each backed by a control the
+ * review strip already has: correct the boundary on the map, re-analyse on
+ * the newest imagery the automatic selection finds, or read the underwriting
+ * notices in the dialog.
+ */
+export type ReviewAction = "correctBoundary" | "reanalyze" | "readUnderwriting";
+
+const REASON_ACTION: Record<ReviewReason, ReviewAction> = {
+  boundary: "correctBoundary",
+  imagery: "reanalyze",
+  underwriting: "readUnderwriting",
+};
+
+/** Recommended actions for the reasons, in reason order, each once. */
+export function recommendedActions(reasons: ReviewReason[]): ReviewAction[] {
+  return [...new Set(reasons.map((r) => REASON_ACTION[r]))];
+}
+
+function vehicleSourceOf(
+  d: AnalyzedDealership,
+): ReviewPlanItem["vehicleSource"] {
+  if (d.detection?.manualVehicleCount != null) return "manual";
+  if (estimateReasons(d).includes("vehicles")) return "estimated";
+  return d.detection ? "detected" : "none";
+}
+
+/**
+ * What the optional AI review order sees for the queue: reasons, hail zone,
+ * EAL rank, image age and boundary provenance. No names, addresses, notes
+ * or amounts.
+ */
+export function reviewPlanItems(
+  t: TFunction,
+  queue: string[],
+  dealerships: AnalyzedDealership[],
+  parameters: RiskParameters,
+): ReviewPlanItem[] {
+  const byId = new Map(dealerships.map((d) => [d.id, d]));
+  return queue.flatMap((id, index) => {
+    const d = byId.get(id);
+    if (!d) return [];
+    const reasons = reviewReasons(t, d, dealerships, parameters);
+    if (reasons.length === 0) return [];
+    const capturedAt = d.detection?.imagery?.chosen.capturedAt;
+    return [
+      {
+        id,
+        reasons,
+        hailZone: dealershipHailZone(d)?.zone ?? null,
+        ealRank: index + 1,
+        imageryAgeYears: capturedAt ? imageryAgeYears(capturedAt) : null,
+        boundarySource: d.boundary?.source ?? null,
+        boundaryConfidence:
+          d.boundary?.confidence == null
+            ? null
+            : Math.round(d.boundary.confidence * 100) / 100,
+        vehicleSource: vehicleSourceOf(d),
+      },
+    ];
+  });
 }

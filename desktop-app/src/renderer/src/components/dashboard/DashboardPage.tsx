@@ -326,7 +326,7 @@ export function DashboardPage(): React.JSX.Element {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={reviewRun.start}
+                onClick={() => reviewRun.start()}
                 disabled={reviewRun.openCount === 0}
               >
                 <ClipboardCheck />
@@ -334,6 +334,22 @@ export function DashboardPage(): React.JSX.Element {
                   ? t("review.start")
                   : t("review.startCount", { count: reviewRun.openCount })}
               </Button>
+              {llmReady && (reviewRun.openCount ?? 0) > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void reviewRun.startWithAiOrder()}
+                  disabled={reviewRun.planning}
+                  title={t("review.aiOrderHint")}
+                >
+                  {reviewRun.planning ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Sparkles />
+                  )}
+                  {t("review.aiOrder")}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"

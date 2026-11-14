@@ -215,6 +215,15 @@ const api = {
       request satisfies IpcRequest["llm:chatIntent"],
     ),
 
+  /** Optional AI order for the review queue (the fixed queue always works). */
+  proposeReviewOrder: (
+    request: IpcRequest["llm:reviewPlan"],
+  ): Promise<IpcResponse["llm:reviewPlan"]> =>
+    ipcRenderer.invoke(
+      IPC.llmReviewPlan,
+      request satisfies IpcRequest["llm:reviewPlan"],
+    ),
+
   generateDashboard: (
     request: IpcRequest["llm:dashboardSurface"],
   ): Promise<IpcResponse["llm:dashboardSurface"]> =>

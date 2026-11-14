@@ -1292,7 +1292,11 @@
     "exampleEal": "Locations with EAL over €100,000",
     "showInDashboard": "Show in dashboard",
     "generate": "Generate",
-    "streaming": "Responding…"
+    "streaming": "Responding…",
+    "explain": {
+      "stop": "Cancel",
+      "disclaimer": "AI explanation of the values the app computed above. The values themselves do not come from the AI."
+    }
   },
   "risk": {
     "LOW": "Low",
@@ -1465,7 +1469,13 @@
       "review": "Check boundary ({{count}})"
     },
     "locationsPartlyAnalyzed": "{{analyzed}} of {{total}} analysed · {{pending}} pending",
-    "fallbackBoundaryReview": "Estimated boundary (circle) – review or edit for an accurate vehicle count"
+    "fallbackBoundaryReview": "Estimated boundary (circle) – review or edit for an accurate vehicle count",
+    "compareTotals": "{{added}} added · {{removed}} removed · {{changed}} changed · {{unchanged}} unchanged",
+    "compareExplain": "Explain the changes",
+    "compareStatus": {
+      "added": "new",
+      "removed": "removed"
+    }
   },
   "aiSetup": {
     "missingTitle": "AI assistant not set up yet",
@@ -1596,7 +1606,17 @@
     "pausedTitle": "Review paused",
     "pausedHint": "Edit and save the boundary, then the review continues with this location.",
     "resume": "Resume review",
-    "endRun": "End review"
+    "endRun": "End review",
+    "recommendation": "Recommended:",
+    "action": {
+      "correctBoundary": "check or correct the boundary on the map",
+      "reanalyze": "re-analyse on the newest available aerial image",
+      "readUnderwriting": "read the underwriting notices in the dialog"
+    },
+    "reanalyze": "Re-analyse",
+    "aiOrder": "AI order",
+    "aiOrderHint": "The AI orders the open review points so that the locations where a check is most likely to change the hail EAL come first. The review points and actions stay the same.",
+    "aiOrderFailed": "AI order not available ({{error}}). The review starts in the fixed order."
   },
   "hailHistory": {
     "title": "Hail history",

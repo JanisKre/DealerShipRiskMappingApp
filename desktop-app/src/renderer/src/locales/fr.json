@@ -1292,7 +1292,11 @@
     "exampleEal": "Sites avec une EAL supérieure à 100 000 €",
     "showInDashboard": "Afficher dans le tableau de bord",
     "generate": "Générer",
-    "streaming": "Réponse en cours…"
+    "streaming": "Réponse en cours…",
+    "explain": {
+      "stop": "Annuler",
+      "disclaimer": "Explication par l’IA des valeurs calculées par l’application ci-dessus. Les valeurs elles-mêmes ne proviennent pas de l’IA."
+    }
   },
   "risk": {
     "LOW": "Faible",
@@ -1465,7 +1469,13 @@
       "review": "Limite à vérifier ({{count}})"
     },
     "locationsPartlyAnalyzed": "{{analyzed}} sur {{total}} analysés · {{pending}} en attente",
-    "fallbackBoundaryReview": "Limite estimée (cercle) – à vérifier ou modifier pour un comptage précis des véhicules"
+    "fallbackBoundaryReview": "Limite estimée (cercle) – à vérifier ou modifier pour un comptage précis des véhicules",
+    "compareTotals": "{{added}} ajoutés · {{removed}} supprimés · {{changed}} modifiés · {{unchanged}} inchangés",
+    "compareExplain": "Expliquer les changements",
+    "compareStatus": {
+      "added": "nouveau",
+      "removed": "supprimé"
+    }
   },
   "aiSetup": {
     "missingTitle": "Assistant IA pas encore configuré",
@@ -1596,7 +1606,17 @@
     "pausedTitle": "Revue en pause",
     "pausedHint": "Modifiez et enregistrez la limite, puis la revue reprend avec ce site.",
     "resume": "Reprendre la revue",
-    "endRun": "Terminer la revue"
+    "endRun": "Terminer la revue",
+    "recommendation": "Recommandation :",
+    "action": {
+      "correctBoundary": "vérifier ou corriger la limite sur la carte",
+      "reanalyze": "réanalyser sur l’image aérienne la plus récente disponible",
+      "readUnderwriting": "lire les remarques de souscription dans la fenêtre"
+    },
+    "reanalyze": "Réanalyser",
+    "aiOrder": "Ordre IA",
+    "aiOrderHint": "L’IA classe les points à vérifier de sorte que les sites où une vérification est le plus susceptible de modifier l’EAL grêle viennent en premier. Les points et les actions restent les mêmes.",
+    "aiOrderFailed": "Ordre IA indisponible ({{error}}). La vérification démarre dans l’ordre fixe."
   },
   "hailHistory": {
     "title": "Historique de grêle",

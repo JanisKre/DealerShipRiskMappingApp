@@ -52,6 +52,8 @@ export const IPC = {
   // AI dashboards (SQLite) + A2UI surface generation (invoke)
   llmDashboardSurface: "llm:dashboardSurface",
   llmChatIntent: "llm:chatIntent",
+  // Optional AI layer over deterministic features (docs/ai-features.md)
+  llmReviewPlan: "llm:reviewPlan", // reorders the review queue, notes per location
   listDashboards: "dashboards:list",
   loadDashboard: "dashboards:load",
   saveDashboard: "dashboards:save",

@@ -41,7 +41,7 @@ import { fetchWithResilience, HttpRequestError } from "./http.service";
  */
 
 /** Human-readable name of the active UI language, for prompt instructions. */
-function responseLanguageName(): string {
+export function responseLanguageName(): string {
   const names: Record<string, string> = {
     en: "English",
     de: "German",
@@ -531,7 +531,7 @@ function isOpenAiChatModel(id: string): boolean {
 // --- JSON parsing of model responses ----------------------------------------
 
 /** Extracts the first JSON object/array from a model response and validates it. */
-function parseLLMJson<T>(
+export function parseLLMJson<T>(
   content: string,
   schema: { parse: (v: unknown) => T },
 ): T {

@@ -20,6 +20,7 @@ import {
   Phone,
   RefreshCw,
   RotateCcw,
+  Sparkles,
   StickyNote,
   Tag,
   Trash2,
@@ -103,6 +104,7 @@ import { HailHistorySection } from "./HailHistorySection";
 import {
   isReviewCurrent,
   nextInReview,
+  recommendedActions,
   reviewReasons,
   type ReviewReason,
 } from "./reviewQueue";
@@ -111,6 +113,8 @@ import { RadarHailSection } from "./RadarHailSection";
 /** A review run: the queue snapshot taken when it started. */
 export interface ReviewRun {
   ids: string[];
+  /** Optional AI notes per location (an AI-ordered run only). */
+  notes?: Record<string, string>;
   /** Called after the last open location; the page closes the dialog. */
   onFinish: () => void;
   /**
@@ -686,8 +690,12 @@ function ReviewStrip({
   const parameters = useAppStore((s) => s.parameters);
   const markReviewed = useAppStore((s) => s.markReviewed);
   const confirmBoundary = useAppStore((s) => s.confirmBoundary);
+  const reanalyze = useAppStore((s) => s.reanalyzeDealership);
+  const reanalyzing = useAppStore((s) => s.analyzingIds.includes(d.id));
   const [busy, setBusy] = useState(false);
   const reasons = reviewReasons(t, d, dealerships, parameters);
+  const actions = recommendedActions(reasons);
+  const aiNote = run.notes?.[d.id];
   const byId = new Map(dealerships.map((x) => [x.id, x]));
   const open = (id: string): boolean => {
     const x = byId.get(id);
@@ -762,6 +770,18 @@ function ReviewStrip({
                 .map((r: ReviewReason) => t(`review.reason.${r}`))
                 .join(" · ")}
         </div>
+        {!done && actions.length > 0 && (
+          <div className="text-xs">
+            {t("review.recommendation")}{" "}
+            {actions.map((a) => t(`review.action.${a}`)).join(" · ")}
+          </div>
+        )}
+        {!done && aiNote && (
+          <div className="flex items-start gap-1 text-xs text-muted-foreground">
+            <Sparkles className="mt-0.5 size-3 shrink-0" />
+            <span>{aiNote}</span>
+          </div>
+        )}
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <Button
@@ -772,6 +792,22 @@ function ReviewStrip({
         >
           {t("review.skip")}
         </Button>
+        {actions.includes("reanalyze") && !done && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5 px-2 text-xs"
+            disabled={reanalyzing}
+            onClick={() => void reanalyze(d.id)}
+          >
+            {reanalyzing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="size-3.5" />
+            )}
+            {t("review.reanalyze")}
+          </Button>
+        )}
         {confirmsBoundary && !done && onCorrectBoundary && d.boundary && (
           <Button
             size="sm"

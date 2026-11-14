@@ -6,6 +6,8 @@ import {
   buildReviewQueue,
   isReviewCurrent,
   nextInReview,
+  recommendedActions,
+  reviewPlanItems,
   reviewReasons,
 } from "./reviewQueue";
 
@@ -124,5 +126,38 @@ describe("review queue", () => {
     expect(
       nextInReview(["a", "b", "c", "d"], "d", (id) => open.has(id)),
     ).toBeNull();
+  });
+});
+
+describe("review recommendations", () => {
+  it("maps every reason to one fixed action", () => {
+    expect(recommendedActions(["boundary", "imagery", "underwriting"])).toEqual(
+      ["correctBoundary", "reanalyze", "readUnderwriting"],
+    );
+    expect(recommendedActions([])).toEqual([]);
+  });
+
+  it("gives the AI order only reasons, ranks and provenance", () => {
+    const flagged = site("b", { boundary, notes: "geheime Notiz" });
+    const items = reviewPlanItems(
+      t,
+      ["b", "missing"],
+      [flagged],
+      DEFAULT_RISK_PARAMETERS,
+    );
+    expect(items).toEqual([
+      {
+        id: "b",
+        reasons: ["boundary"],
+        hailZone: expect.any(Number) as number,
+        ealRank: 1,
+        imageryAgeYears: null,
+        boundarySource: "alkis",
+        boundaryConfidence: 0.4,
+        vehicleSource: "none",
+      },
+    ]);
+    expect(JSON.stringify(items)).not.toContain("Autohaus");
+    expect(JSON.stringify(items)).not.toContain("Notiz");
   });
 });

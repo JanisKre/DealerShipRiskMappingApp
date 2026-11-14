@@ -1292,7 +1292,11 @@
     "exampleEal": "Standorte mit EAL über 100.000 €",
     "showInDashboard": "Im Dashboard anzeigen",
     "generate": "Generieren",
-    "streaming": "Antwortet…"
+    "streaming": "Antwortet…",
+    "explain": {
+      "stop": "Abbrechen",
+      "disclaimer": "KI-Erklärung zu den von der App berechneten Werten oben. Die Werte selbst stammen nicht von der KI."
+    }
   },
   "risk": {
     "LOW": "Niedrig",
@@ -1465,7 +1469,13 @@
       "review": "Grenze prüfen ({{count}})"
     },
     "locationsPartlyAnalyzed": "{{analyzed}} von {{total}} analysiert · {{pending}} ausstehend",
-    "fallbackBoundaryReview": "Geschätzte Grenze (Kreis) – prüfen oder bearbeiten für eine genaue Fahrzeugzählung"
+    "fallbackBoundaryReview": "Geschätzte Grenze (Kreis) – prüfen oder bearbeiten für eine genaue Fahrzeugzählung",
+    "compareTotals": "{{added}} hinzugekommen · {{removed}} entfernt · {{changed}} geändert · {{unchanged}} unverändert",
+    "compareExplain": "Veränderungen erklären",
+    "compareStatus": {
+      "added": "neu",
+      "removed": "entfernt"
+    }
   },
   "aiSetup": {
     "missingTitle": "KI-Assistent noch nicht eingerichtet",
@@ -1596,7 +1606,17 @@
     "pausedTitle": "Prüfung pausiert",
     "pausedHint": "Grenze bearbeiten und speichern, dann geht es mit diesem Standort in der Prüfung weiter.",
     "resume": "Prüfung fortsetzen",
-    "endRun": "Prüfung beenden"
+    "endRun": "Prüfung beenden",
+    "recommendation": "Empfehlung:",
+    "action": {
+      "correctBoundary": "Grenze auf der Karte prüfen oder korrigieren",
+      "reanalyze": "auf dem neuesten verfügbaren Luftbild neu analysieren",
+      "readUnderwriting": "Underwriting-Hinweise im Dialog lesen"
+    },
+    "reanalyze": "Neu analysieren",
+    "aiOrder": "KI-Reihenfolge",
+    "aiOrderHint": "Die KI ordnet die offenen Prüfpunkte so, dass die Standorte zuerst kommen, bei denen eine Prüfung die Hagel-EAL am ehesten verändert. Die Prüfpunkte und Aktionen bleiben dieselben.",
+    "aiOrderFailed": "KI-Reihenfolge nicht verfügbar ({{error}}). Die Prüfung startet in der festen Reihenfolge."
   },
   "hailHistory": {
     "title": "Hagelhistorie",

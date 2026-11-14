@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import type { AnalyzedDealership, Session } from "@shared/types";
-import { effectiveVehicleCount } from "@shared/risk-math";
+import { diffPortfolios, portfolioDiffFacts } from "@shared/portfolio-diff";
+import { AiExplanation } from "@renderer/components/ai/AiExplanation";
+import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import {
   Dialog,
@@ -173,53 +175,84 @@ export function ComparisonView({
 
         {loading && <Loader2 className="mx-auto animate-spin" />}
         {baseline && (
-          <DiffTable current={dealerships} baseline={baseline.dealerships} />
+          <DiffResult
+            current={dealerships}
+            baseline={baseline.dealerships}
+            baselineName={portfolioName(baseline.name, t)}
+          />
         )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function DiffTable({
+function DiffResult({
   current,
   baseline,
+  baselineName,
 }: {
   current: AnalyzedDealership[];
   baseline: AnalyzedDealership[];
+  baselineName: string;
 }): React.JSX.Element {
   const { t } = useTranslation();
-  const baseMap = new Map(baseline.map((d) => [d.id || d.name, d]));
+  const diff = useMemo(
+    () => diffPortfolios(current, baseline),
+    [current, baseline],
+  );
+  const facts = useMemo(
+    () => portfolioDiffFacts(diff, baselineName),
+    [diff, baselineName],
+  );
+  const { totals } = diff;
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>{t("dashboard.locations")}</TableHead>
-          <TableHead>Δ {t("common.vehicles")}</TableHead>
-          <TableHead>Δ EAL</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {current.map((d) => {
-          const base = baseMap.get(d.id || d.name);
-          const dVeh =
-            effectiveVehicleCount(d.detection) -
-            effectiveVehicleCount(base?.detection);
-          const dEal = (d.risk?.eal ?? 0) - (base?.risk?.eal ?? 0);
-          return (
-            <TableRow key={d.id}>
-              <TableCell className="font-medium">{d.name}</TableCell>
-              <TableCell>
-                <Delta value={dVeh} fmt={(n) => num(n)} />
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        {t("ui.compareTotals", {
+          added: totals.added,
+          removed: totals.removed,
+          changed: totals.changed,
+          unchanged: totals.unchanged,
+        })}
+      </p>
+      <AiExplanation
+        topic="comparison"
+        facts={
+          totals.added + totals.removed + totals.changed > 0 ? facts : null
+        }
+        label={t("ui.compareExplain")}
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("dashboard.locations")}</TableHead>
+            <TableHead>Δ {t("common.vehicles")}</TableHead>
+            <TableHead>Δ EAL</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {diff.rows.map((row) => (
+            <TableRow key={`${row.status}:${row.id}`}>
+              <TableCell className="font-medium">
+                {row.name}
+                {(row.status === "added" || row.status === "removed") && (
+                  <Badge variant="outline" className="ml-2">
+                    {t(`ui.compareStatus.${row.status}`)}
+                  </Badge>
+                )}
               </TableCell>
               <TableCell>
-                <Delta value={dEal} fmt={(n) => eur(n)} />
+                <Delta value={row.vehicles.delta} fmt={(n) => num(n)} />
+              </TableCell>
+              <TableCell>
+                <Delta value={row.eal.delta} fmt={(n) => eur(n)} />
               </TableCell>
             </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
