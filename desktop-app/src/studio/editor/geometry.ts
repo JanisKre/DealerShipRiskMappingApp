@@ -18,11 +18,8 @@ export interface Obb {
 }
 
 export const TILE_PX = 640;
-/** Typical sizes at 0.10 m/px: a car is ~4.6 × 1.9 m, a van or truck ~8 × 2.6 m. */
-export const DEFAULT_SIZE = {
-  0: { w: 46, h: 19 },
-  1: { w: 80, h: 26 },
-} as const;
+/** Typical car at 0.10 m/px: ~4.6 × 1.9 m. */
+export const DEFAULT_SIZE = { w: 46, h: 19 } as const;
 
 export function toCorners(o: Obb): Pt[] {
   const c = Math.cos(o.angle);
@@ -165,17 +162,10 @@ export function boxFromDrag(a: Pt, b: Pt): Pt[] {
 
 /**
  * A vehicle-sized box at a click, oriented like the nearest boxes (cars on a
- * lot park in rows) and sized like the median box of that class on the tile.
+ * lot park in rows) and sized like the median box on the tile.
  */
-export function boxAtClick(
-  p: Pt,
-  cls: 0 | 1,
-  neighbours: { corners: Pt[]; cls: number }[],
-): Pt[] {
-  const obbs = neighbours.map((n) => ({
-    o: fromCorners(n.corners),
-    cls: n.cls,
-  }));
+export function boxAtClick(p: Pt, neighbours: { corners: Pt[] }[]): Pt[] {
+  const obbs = neighbours.map((n) => ({ o: fromCorners(n.corners) }));
   const near = obbs
     .map((n) => ({ ...n, d: Math.hypot(n.o.cx - p[0], n.o.cy - p[1]) }))
     .filter((n) => n.d < 160)
@@ -184,12 +174,11 @@ export function boxAtClick(
   const angle = near.length
     ? circularMeanAxis(near.map((n) => longAxis(n.o)))
     : 0;
-  const same = obbs.filter((n) => n.cls === cls);
-  let w: number = DEFAULT_SIZE[cls].w;
-  let h: number = DEFAULT_SIZE[cls].h;
-  if (same.length >= 3) {
-    w = median(same.map((n) => Math.max(n.o.w, n.o.h)));
-    h = median(same.map((n) => Math.min(n.o.w, n.o.h)));
+  let w: number = DEFAULT_SIZE.w;
+  let h: number = DEFAULT_SIZE.h;
+  if (obbs.length >= 3) {
+    w = median(obbs.map((n) => Math.max(n.o.w, n.o.h)));
+    h = median(obbs.map((n) => Math.min(n.o.w, n.o.h)));
   }
   return toCorners({ cx: p[0], cy: p[1], w, h, angle });
 }

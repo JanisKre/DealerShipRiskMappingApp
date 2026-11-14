@@ -40,19 +40,19 @@ The studio is one page with four tabs:
   rounds, installed model) and what to do next.
 - **Labeln** – the labelling editor. Left: the open sites, each with its
   nine tiles (pink = open questions, green = done). Middle: the tile with
-  the model's boxes and a toolbar:
-  - tools: select/move, **set a vehicle with one click** (sized and turned
-    like its neighbours), **drag a box**, pan;
-  - class: car or large vehicle;
-  - for the selected box: yes, no, turn 15°, delete;
-  - undo/redo, zoom (also the mouse wheel), fit.
-  A question card asks about each uncertain box ("Auto / Groß / Kein
-  Fahrzeug"); drag a box to move it, its corners to resize, the round
-  handle to turn it. "Kachel fertig" saves the tile (unanswered questions
-  count as "no", as in `review.py`) and opens the next one. Leaving a tile
-  keeps your changes as a draft. Shortcuts exist (V/A/B/H, J/L/N, Del,
-  ⌘Z, Enter, Tab) but every action has a button. The "Audit" tab does the
-  same for finished sites.
+  the model's boxes. The toolbar holds the tools for new boxes (select,
+  **set a vehicle with one click**, sized and turned like its neighbours,
+  **drag a box**), undo/redo and fit; zoom with the mouse wheel, pan by
+  dragging empty ground. A card at the tile shows what you can do with the
+  selected box: "Ist das ein Fahrzeug?" Ja / Nein / Später for suggestions,
+  turn 90° or delete for accepted boxes. Drag a box to move it, its corners
+  to resize, the round handle to turn it. Changes save themselves; "Kachel
+  fertig" finishes the tile (unanswered questions count as "no", as in
+  `review.py`) and opens the next one. There is **one class**: every box
+  is a vehicle (see below). The "Audit" tab does the same for finished
+  sites. Seldom-used steps (new suggestions, audit questions, error
+  analysis, tiles, app corrections, Claude sheets) are in the "Werkzeuge"
+  menu.
 - **Training** – rounds, mAP curves, dataset, and a full training from the
   DOTA weights.
 - **Modelle** – count error per threshold (app pipeline and Ultralytics),
@@ -219,10 +219,9 @@ On macOS the tool's `Ctrl` shortcuts use **⌘ (Cmd)**, not the ctrl key.
 Rules:
 
 - Draw one rotated box per vehicle, tight around the body.
-- Use class `car` for cars, vans and pickups, and `large_vehicle` for trucks,
-  buses, campers and trailers.
-- The class matters little: the app counts every box as one vehicle. Fix
-  it only when it is clearly wrong (`⌘E`). New boxes reuse the last class.
+- The class does not matter: the app counts every box as one vehicle and
+  `make_dataset.py` trains one `vehicle` class (`--classes car-large` for
+  the old two-class split). New boxes reuse the last class.
 - Label vehicles that are partly hidden or cut off at the tile edge.
 - Leave out vehicles you cannot see, for example in garages, under roofs or
   carports, or completely under trees.

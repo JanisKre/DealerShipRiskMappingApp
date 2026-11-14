@@ -1,13 +1,6 @@
-import {
-  CircleCheck,
-  CircleX,
-  LoaderCircle,
-  Square,
-  Terminal,
-} from "lucide-react";
+import { CircleCheck, CircleX, LoaderCircle, Square } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import {
   Sheet,
@@ -68,25 +61,37 @@ export function JobSheet({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="max-w-[360px]">
-          {job?.status === "running" ? (
-            <LoaderCircle className="animate-spin" />
-          ) : (
-            <Terminal />
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "max-w-[320px]",
+            job?.status !== "running" && "text-muted-foreground",
           )}
-          <span className="truncate">{job ? job.title : "Konsole"}</span>
-          {state && (
-            <Badge variant={state.variant}>
-              {job?.status === "running" && job.stages.length > 1
-                ? `${job.stage + 1}/${job.stages.length}`
-                : state.label}
-            </Badge>
+        >
+          {job?.status === "running" ? (
+            <>
+              <LoaderCircle className="size-3.5 animate-spin" />
+              <span className="truncate">{job.title}</span>
+              {job.stages.length > 1 && (
+                <span className="text-muted-foreground tabular-nums">
+                  {job.stage + 1}/{job.stages.length}
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              {state && job?.status !== "done" && (
+                <span className="bg-destructive size-1.5 rounded-full" />
+              )}
+              Protokoll
+            </>
           )}
         </Button>
       </SheetTrigger>
       <SheetContent className="flex w-full flex-col gap-0 sm:max-w-xl">
         <SheetHeader>
-          <SheetTitle>{job?.title ?? "Konsole"}</SheetTitle>
+          <SheetTitle>{job?.title ?? "Protokoll"}</SheetTitle>
           <SheetDescription>
             {job
               ? `Gestartet ${job.started.replace("T", " ")}${job.ended ? ` · beendet ${job.ended.slice(11)}` : ""}`

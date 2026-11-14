@@ -31,6 +31,12 @@ go into train only: `sure` boxes plus the questions you or Claude answered.
 Open questions are greyed out in the image copy, so the model learns neither
 "vehicle" nor "background" there. Validation stays 100 % your labels.
 
+Classes (`--classes`): by default every box becomes the one class
+`vehicle`. The app counts all vehicles alike (the hail EAL sums every class,
+size filter and NMS are class-agnostic), so a car / large-vehicle split only
+costs labelling time and adds class confusion. Labels keep their class in the
+tile files; `--classes car-large` rebuilds the old two-class dataset.
+
     python make_dataset.py --val-share 0.2 --seed 7 --degrade 0.5
     python make_dataset.py --pseudo
 """
@@ -64,6 +70,17 @@ MIN_VAL_SITES = 15
 SHARP_GSD_M = 0.13
 DEGRADED_GSD_M = (0.18, 0.25)
 DEGRADED_JPEG_QUALITY = (60, 85)
+
+
+# What the model learns; the tile files keep car / large_vehicle either way.
+TRAIN_CLASSES = {"vehicle": {0: "vehicle"}, "car-large": CLASS_NAMES}
+
+
+def merge_classes(labels_dir: Path) -> None:
+    """Rewrites every YOLO-OBB label line to class 0 (one `vehicle` class)."""
+    for path in labels_dir.rglob("*.txt"):
+        lines = [line.split(maxsplit=1) for line in path.read_text().splitlines() if line.strip()]
+        path.write_text("".join(f"0 {rest[1]}\n" for rest in lines if len(rest) == 2))
 
 
 def place(img: Path, label: Path, split: str) -> None:
@@ -139,6 +156,7 @@ def main() -> None:
     ap.add_argument("--degrade", type=float, default=0.5, help="share of sharp train tiles that get a degraded copy (0 = off)")
     ap.add_argument("--resplit", action="store_true", help="new random train/val split instead of keeping the previous one")
     ap.add_argument("--pseudo", action="store_true", help="add autolabel.py tiles of unfinished sites to train")
+    ap.add_argument("--classes", choices=sorted(TRAIN_CLASSES), default="vehicle", help="vehicle (one class, default) or car-large (two classes)")
     args = ap.parse_args()
 
     reviewed = reviewed_sites()
@@ -172,8 +190,10 @@ def main() -> None:
             degraded += 1
     pseudo_tiles, pseudo_boxes = add_pseudo(val_sites, reviewed) if args.pseudo else (0, 0)
 
+    if args.classes == "vehicle":
+        merge_classes(DATASET / "labels")
     yaml = DATA.parent / "dataset.yaml"
-    names = "\n".join(f"  {i}: {n}" for i, n in CLASS_NAMES.items())
+    names = "\n".join(f"  {i}: {n}" for i, n in TRAIN_CLASSES[args.classes].items())
     yaml.write_text(f"path: {DATASET}\ntrain: images/train\nval: images/val\nnames:\n{names}\n")
     (DATASET / "val_sites.txt").write_text("\n".join(sorted(val_sites)) + "\n")
     n_train = len(list((DATASET / "images" / "train").glob("*.jpg")))

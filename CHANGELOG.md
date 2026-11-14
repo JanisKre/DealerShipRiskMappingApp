@@ -33,6 +33,10 @@ the project follows [Semantic Versioning](https://semver.org/).
   round, evaluation through the app pipeline and fresh suggestions for the
   open tiles. Training curves, threshold sweeps, export, install (with
   backup) and the release pin are on the same page.
+- **One vehicle class for training.** `make_dataset.py` trains a single
+  `vehicle` class and the studio labels without a car / large-vehicle
+  choice, matching the app, which sums all classes
+  (`docs/detection-benchmark.md`, "One vehicle class").
 - `npm run benchmark:detection` sweeps a model's base confidence through the
   app's own inference on the training validation tiles.
 - **Optional AI features on top of fixed functions** (`docs/ai-features.md`).

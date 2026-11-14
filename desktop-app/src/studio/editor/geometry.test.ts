@@ -94,16 +94,15 @@ describe("click to add", () => {
   it("orients a new box like its neighbours and sizes it like them", () => {
     const row = [0, 1, 2].map((i) => ({
       corners: toCorners({ cx: 100 + i * 25, cy: 100, w: 20, h: 48, angle: 0 }),
-      cls: 0,
     }));
-    const added = fromCorners(boxAtClick([175, 100], 0, row));
+    const added = fromCorners(boxAtClick([175, 100], row));
     close(longAxis(added), Math.PI / 2, 1e-6);
     close(Math.max(added.w, added.h), 48);
     close(Math.min(added.w, added.h), 20);
   });
 
   it("falls back to the default car size without neighbours", () => {
-    const o = fromCorners(boxAtClick([300, 300], 0, []));
+    const o = fromCorners(boxAtClick([300, 300], []));
     close(o.w, 46);
     close(o.h, 19);
     close(o.angle, 0);

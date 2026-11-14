@@ -59,14 +59,18 @@ export function decide(b: TileBox, decision: Decision): TileBox {
   return { ...b, decision };
 }
 
-export function manualBox(corners: Pt[], cls: 0 | 1): TileBox {
-  // A box you draw is a yes by definition; review.py stores it the same way.
+/**
+ * A box you draw is a yes by definition; review.py stores it the same way.
+ * The studio labels one class only: the app counts every vehicle alike and
+ * make_dataset.py trains a single `vehicle` class.
+ */
+export function manualBox(corners: Pt[]): TileBox {
   return {
-    cls,
+    cls: 0,
     corners,
     origin: "manual",
     bucket: "manual",
-    decision: CLASS_NAME[cls],
+    decision: "car",
     score: 1,
     votes: 0,
   };

@@ -25,7 +25,7 @@ from common import APP_MODELS_DIR, DATA, ROOT, TARGET_GSD_M
 
 NAME = "dealer_vehicles"
 # Model class name → the app's vehicle class
-APP_CLASS = {"car": "car", "large_vehicle": "truck"}
+APP_CLASS = {"vehicle": "car", "car": "car", "large_vehicle": "truck"}
 # Added to the user's base confidence threshold, per model class name
 CLASS_OFFSETS = {"large_vehicle": 0.05}
 DEFAULT_INSTALL_DIR = APP_MODELS_DIR

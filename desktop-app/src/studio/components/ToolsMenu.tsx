@@ -1,4 +1,4 @@
-import { Wrench } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
 import {
   DropdownMenu,
@@ -37,8 +37,8 @@ export function ToolsMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm">
-          <Wrench /> Werkzeuge
+        <Button variant="ghost" size="sm" className="text-muted-foreground">
+          Werkzeuge <ChevronDown className="size-3.5 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">

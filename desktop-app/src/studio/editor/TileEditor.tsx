@@ -1,5 +1,4 @@
 import {
-  Car,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -14,7 +13,6 @@ import {
   SquareDashed,
   SquarePlus,
   Trash2,
-  Truck,
   Undo2,
   X,
 } from "lucide-react";
@@ -38,7 +36,6 @@ import {
   boxState,
   counts,
   decide,
-  effectiveClass,
   finalize,
   manualBox,
   openIndices,
@@ -78,7 +75,6 @@ interface View {
 
 const COLORS = {
   car: "var(--box-car)",
-  large: "var(--box-large)",
   open: "var(--box-open)",
   no: "var(--box-no)",
   existing: "var(--box-existing)",
@@ -111,7 +107,6 @@ export function TileEditor({
   const [future, setFuture] = useState<TileBox[][]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [tool, setTool] = useState<Tool>("select");
-  const [cls, setCls] = useState<0 | 1>(0);
   const [view, setView] = useState<View>({ z: 1, px: 0, py: 0 });
   const [drag, setDrag] = useState<Drag | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -287,13 +282,7 @@ export function TileEditor({
   );
 
   const acceptAllOpen = (): void => {
-    commit(
-      boxes.map((b) =>
-        boxState(b) === "open"
-          ? decide(b, b.cls === 1 ? "large_vehicle" : "car")
-          : b,
-      ),
-    );
+    commit(boxes.map((b) => (boxState(b) === "open" ? decide(b, "car") : b)));
   };
 
   const removeSelected = (): void => {
@@ -319,13 +308,10 @@ export function TileEditor({
     );
   };
 
-  const setClassOfSelected = (c: 0 | 1): void => {
+  /** "Doch ein Fahrzeug": turns a rejected box back into a vehicle. */
+  const setClassOfSelected = (): void => {
     if (selected == null) return;
-    commit(
-      boxes.map((x, i) =>
-        i === selected ? decide(x, c === 1 ? "large_vehicle" : "car") : x,
-      ),
-    );
+    commit(boxes.map((x, i) => (i === selected ? decide(x, "car") : x)));
   };
 
   const nextQuestion = (): void => {
@@ -395,8 +381,8 @@ export function TileEditor({
     if (tool === "add" && inside) {
       const neighbours = boxes
         .filter((b) => boxState(b) === "accepted")
-        .map((b) => ({ corners: b.corners, cls: effectiveClass(b) }));
-      const added = manualBox(round2(boxAtClick(p, cls, neighbours)), cls);
+        .map((b) => ({ corners: b.corners }));
+      const added = manualBox(round2(boxAtClick(p, neighbours)));
       commit([...boxes, added]);
       setSelected(boxes.length);
       return;
@@ -445,7 +431,7 @@ export function TileEditor({
     if (drag.kind === "draw") {
       const [a, b] = [drag.start, drag.current];
       if (Math.abs(a[0] - b[0]) > 5 && Math.abs(a[1] - b[1]) > 5) {
-        commit([...boxes, manualBox(round2(boxFromDrag(a, b)), cls)]);
+        commit([...boxes, manualBox(round2(boxFromDrag(a, b)))]);
         setSelected(boxes.length);
       }
     } else if (drag.kind !== "pan") {
@@ -520,7 +506,6 @@ export function TileEditor({
         a: () => setTool("add"),
         b: () => setTool("draw"),
         j: () => answer("car"),
-        l: () => answer("large_vehicle"),
         n: () => answer("no"),
         r: () => rotateSelected(Math.PI / 2),
         Delete: removeSelected,
@@ -556,7 +541,7 @@ export function TileEditor({
     const s = boxState(b);
     if (s === "rejected") return COLORS.no;
     if (s === "open") return COLORS.open;
-    return effectiveClass(b) === 1 ? COLORS.large : COLORS.car;
+    return COLORS.car;
   };
 
   const cursor =
@@ -598,23 +583,6 @@ export function TileEditor({
             <SquareDashed /> Box ziehen
           </ToolItem>
         </ToggleGroup>
-        {tool !== "select" && (
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            size="sm"
-            value={String(cls)}
-            onValueChange={(v) => v && setCls(Number(v) as 0 | 1)}
-            aria-label="Klasse neuer Boxen"
-          >
-            <ToolItem value="0" label="Auto, Transporter, Pickup">
-              <Car />
-            </ToolItem>
-            <ToolItem value="1" label="Lkw, Bus, Wohnmobil, Anhänger">
-              <Truck />
-            </ToolItem>
-          </ToggleGroup>
-        )}
         <Separator orientation="vertical" className="mx-1 h-6" />
         <IconButton
           label="Rückgängig"
@@ -819,19 +787,8 @@ export function TileEditor({
                   )}
                 </div>
                 <div className="mt-2 flex items-center gap-1.5">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => answer("car")}
-                  >
-                    <Car /> Auto
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => answer("large_vehicle")}
-                  >
-                    <Truck /> Groß
+                  <Button size="sm" onClick={() => answer("car")}>
+                    <Check /> Ja
                   </Button>
                   <Button
                     size="sm"
@@ -859,30 +816,16 @@ export function TileEditor({
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => setClassOfSelected(sel.cls)}
+                  onClick={() => setClassOfSelected()}
                 >
                   <Check /> Doch ein Fahrzeug
                 </Button>
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  size="sm"
-                  value={String(effectiveClass(sel))}
-                  onValueChange={(v) =>
-                    v && setClassOfSelected(Number(v) as 0 | 1)
-                  }
-                  aria-label="Klasse"
-                >
-                  <ToggleGroupItem value="0" className="gap-1.5 px-2.5">
-                    <Car /> Auto
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="1" className="gap-1.5 px-2.5">
-                    <Truck /> Groß
-                  </ToggleGroupItem>
-                </ToggleGroup>
+                <span className="text-muted-foreground px-1 text-sm">
+                  Fahrzeug
+                </span>
                 <IconButton
                   label="90° drehen"
                   keyHint="R"

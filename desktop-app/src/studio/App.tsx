@@ -1,15 +1,9 @@
-import {
-  BrainCircuit,
-  Gauge,
-  LayoutDashboard,
-  LoaderCircle,
-  PenTool,
-} from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Toaster } from "@renderer/components/ui/sonner";
-import { Tabs, TabsList, TabsTrigger } from "@renderer/components/ui/tabs";
 import { TooltipProvider } from "@renderer/components/ui/tooltip";
+import { cn } from "@renderer/lib/utils";
 import { api, type Status } from "./api";
 import { JOB_STATE, JobSheet } from "./components/JobSheet";
 import { ToolsMenu } from "./components/ToolsMenu";
@@ -19,6 +13,13 @@ import { OverviewView } from "./views/OverviewView";
 import { TrainingView } from "./views/TrainingView";
 
 export type View = "overview" | "label" | "training" | "models";
+
+const NAV: { view: View; label: string }[] = [
+  { view: "overview", label: "Übersicht" },
+  { view: "label", label: "Labeln" },
+  { view: "training", label: "Training" },
+  { view: "models", label: "Modelle" },
+];
 
 const VIEW_KEY = "studio.view";
 
@@ -95,39 +96,33 @@ export function App(): React.JSX.Element {
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex h-full flex-col">
-        <header className="bg-card/80 flex items-center gap-4 border-b px-4 py-2 backdrop-blur">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary text-primary-foreground grid size-7 place-items-center rounded-md">
-              <BrainCircuit className="size-4" />
-            </div>
-            <div>
-              <div className="text-sm leading-tight font-semibold">
-                Training Studio
-              </div>
-              <div className="text-muted-foreground text-[11px] leading-tight">
-                Fahrzeugerkennung · lokal
-              </div>
+        <header className="bg-background border-b">
+          <div className="flex h-12 items-center gap-6 px-4">
+            <span className="text-sm font-semibold tracking-tight">
+              Training Studio
+            </span>
+            <nav aria-label="Bereiche" className="flex items-center gap-1">
+              {NAV.map((item) => (
+                <button
+                  key={item.view}
+                  type="button"
+                  aria-current={view === item.view ? "page" : undefined}
+                  onClick={() => go(item.view)}
+                  className={cn(
+                    "text-muted-foreground hover:text-foreground rounded-md px-3 py-1.5 text-sm transition-colors",
+                    view === item.view &&
+                      "bg-muted text-foreground font-medium",
+                  )}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+            <div className="ml-auto flex items-center gap-1">
+              {status && <ToolsMenu status={status} reload={reload} />}
+              <JobSheet job={status?.job ?? null} onChanged={reload} />
             </div>
           </div>
-          <Tabs value={view} onValueChange={(v) => go(v as View)}>
-            <TabsList>
-              <TabsTrigger value="overview">
-                <LayoutDashboard /> Übersicht
-              </TabsTrigger>
-              <TabsTrigger value="label">
-                <PenTool /> Labeln
-              </TabsTrigger>
-              <TabsTrigger value="training">
-                <BrainCircuit /> Training
-              </TabsTrigger>
-              <TabsTrigger value="models">
-                <Gauge /> Modelle
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <div className="flex-1" />
-          {status && <ToolsMenu status={status} reload={reload} />}
-          <JobSheet job={status?.job ?? null} onChanged={reload} />
         </header>
         <main className="min-h-0 flex-1 overflow-auto">
           {!status ? (

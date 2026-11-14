@@ -214,6 +214,30 @@ changes vehicle counts and therefore the hail EAL of every location.
 **Limitations.** Same as above: 11 validation sites, tiles scored whole
 without boundary clip and roof mask, and German state orthophotos only.
 
+## One vehicle class (2026-11)
+
+**Change.** From 2026-11-14, `training/make_dataset.py` trains a single
+class `vehicle` instead of `car` and `large_vehicle`, and the training
+studio no longer asks for a class. Labels keep their class in the tile
+files, so `--classes car-large` rebuilds the old dataset.
+
+**Why.** The app is class-blind where it matters: the hail EAL uses the
+sum of all classes (`hailVehicleBasis` in `src/shared/risk-math.ts`), and
+the size filter and NMS ignore the class. A second class therefore only
+cost labelling time (a class decision per box) and added class confusion;
+large vehicles are rare (156 of 1,638 validation vehicles) and were missed
+24 % of the time at base confidence 0.45.
+
+**Effect on models.** The shipped model `dealer_vehicles` 2026-10-10 keeps
+its two classes; its manifest maps both to app vehicle classes and the
+counts are summed as before. A one-class model gets the manifest
+`classes {0: vehicle}`, `vehicleClasses {0: car}` and no class offset (the
+two-class model raised the threshold for large vehicles by 0.05). Its first
+fine-tuning round starts from the two-class weights with a new
+classification head. Whether one class counts better is decided by the
+app-pipeline benchmark of that round, not assumed; until then nothing
+changes for users.
+
 ## Benchmark runs
 
 | Date | Model | Imagery | Sites | Count MAE | Bias | Within 10 % |
