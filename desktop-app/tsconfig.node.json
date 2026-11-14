@@ -5,6 +5,7 @@
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*",
+    "src/shared/model-release.json",
     "playwright.config.ts",
     "e2e/**/*"
   ],
@@ -14,6 +15,7 @@
     "moduleResolution": "bundler",
     "types": ["node"],
     "strict": true,
+    "resolveJsonModule": true,
     "paths": {
       "@shared/*": ["./src/shared/*"]
     }

@@ -21,14 +21,14 @@ from pathlib import Path
 import onnxruntime as ort
 from ultralytics import YOLO
 
-from common import DATA, ROOT, TARGET_GSD_M
+from common import APP_MODELS_DIR, DATA, ROOT, TARGET_GSD_M
 
 NAME = "dealer_vehicles"
 # Model class name → the app's vehicle class
 APP_CLASS = {"car": "car", "large_vehicle": "truck"}
 # Added to the user's base confidence threshold, per model class name
 CLASS_OFFSETS = {"large_vehicle": 0.05}
-DEFAULT_INSTALL_DIR = Path.home() / "Library" / "Application Support" / "Dealership Risk Mapping" / "models"
+DEFAULT_INSTALL_DIR = APP_MODELS_DIR
 
 
 def sha256(path: Path) -> str:
@@ -124,6 +124,14 @@ def main() -> None:
     if args.install:
         dst = Path(args.install_dir)
         dst.mkdir(parents=True, exist_ok=True)
+        if (dst / onnx_path.name).exists():
+            # Keep the model being replaced, so a worse retrain is one copy away from undone.
+            backup = dst / f"backup-{dt.datetime.now():%Y-%m-%d-%H%M%S}"
+            backup.mkdir()
+            for name in (onnx_path.name, manifest_path.name):
+                if (dst / name).exists():
+                    shutil.copy2(dst / name, backup / name)
+            print(f"previous model kept in {backup}")
         shutil.copy2(onnx_path, dst / onnx_path.name)
         shutil.copy2(manifest_path, dst / manifest_path.name)
         print(f"installed into {dst} — restart the app to pick it up")

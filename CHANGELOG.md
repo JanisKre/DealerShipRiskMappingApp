@@ -9,6 +9,18 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Installers ship the fine-tuned vehicle model.** Release builds bundle
+  `dealer_vehicles` 2026-10-10 from a pinned model release, and the setup
+  wizard downloads the same files, both checked by SHA-256. Before, the
+  wizard pointed at a model file no release contained, so new installs
+  counted vehicles from the lot area only
+  (`docs/detection-benchmark.md`, "Shipped model").
+- **Training studio** (`training/studio.py`): the detector pipeline in one
+  local browser page, with progress, review links, training curves,
+  threshold sweeps, export, install and the release pin.
+- `npm run benchmark:detection` sweeps a model's base confidence through the
+  app's own inference on the training validation tiles.
+
 - **Hail EAL as a range over the stock.** Where the stock was counted on
   archived images, the hail EAL detail shows the EAL at the lowest, median
   and highest count, says when the analysed image shows an unusually full or

@@ -9,11 +9,14 @@ are left out of those metrics and reported as false detections per tile instead.
     python evaluate.py
     python evaluate.py --weights yolo11s-obb.pt --dota   # baseline: pretrained model as-is
     python evaluate.py --sweep                           # count metrics at several confidence thresholds
+    python evaluate.py --sweep --json out.json           # …and write them as JSON (studio.py reads these)
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import json
 import os
 from collections import defaultdict
 from pathlib import Path
@@ -35,12 +38,15 @@ def main() -> None:
     ap.add_argument("--sweep", action="store_true", help="count metrics for several thresholds instead of per-site rows")
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--device", default="mps")
+    ap.add_argument("--json", help="also write the results to this JSON file")
     args = ap.parse_args()
 
     model = YOLO(args.weights)
+    report: dict = {"weights": args.weights, "date": dt.datetime.now().isoformat(timespec="seconds"), "map50": None, "map50_95": None}
     if not args.dota:
         metrics = model.val(data=str(ROOT / "dataset.yaml"), imgsz=args.imgsz, device=args.device, verbose=False)
         print(f"mAP50 {metrics.box.map50:.3f}   mAP50-95 {metrics.box.map:.3f}")
+        report["map50"], report["map50_95"] = round(float(metrics.box.map50), 4), round(float(metrics.box.map), 4)
 
     images = sorted((DATA / "dataset" / "images" / "val").glob("*.jpg"))
     labels_dir = DATA / "dataset" / "labels" / "val"
@@ -81,6 +87,18 @@ def main() -> None:
     by_gsd: dict[float | None, list[str]] = defaultdict(list)
     for s in rows:
         by_gsd[native_gsd(s)].append(s)
+
+    report["sites"] = len(rows)
+    report["vehicles"] = sum(expected[s] for s in rows)
+    report["thresholds"] = []
+    for t in thresholds:
+        mae, bias, within = summary(predicted[t], rows)
+        report["thresholds"].append(
+            {"conf": t, "mae": round(mae, 2), "bias": round(bias, 4), "within10": round(within, 4), "negFpPerTile": round(false_per_tile(predicted[t]), 3) if negatives else None}
+        )
+    if args.json:
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json).write_text(json.dumps(report, indent=1) + "\n")
 
     if args.sweep:
         neg_col = f" {'neg FP/tile':>12}" if negatives else ""

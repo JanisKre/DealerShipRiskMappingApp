@@ -1,23 +1,35 @@
 import { createHash } from "crypto";
 import { createReadStream, createWriteStream } from "fs";
-import { mkdir, rename, unlink, writeFile } from "fs/promises";
+import { mkdir, readFile, rename, unlink } from "fs/promises";
 import { join } from "path";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
+import { parseVehicleModelManifest } from "@shared/model-manifest";
 import {
-  parseVehicleModelManifest,
-  type VehicleModelManifest,
-} from "@shared/model-manifest";
-import { MODEL_FILENAME, modelsDir, resetDetector } from "./detection.service";
+  MODEL_RELEASE,
+  modelReleaseFile,
+  modelReleaseUrl,
+  type ModelRelease,
+} from "@shared/model-release";
+import { modelsDir, resetDetector } from "./detection.service";
 import { fetchWithResilience } from "./http.service";
 
 /**
- * Download source of the vehicle detection model for the installation wizard.
- * The model is published as a release asset so it is downloaded outside the
- * application bundle and survives app updates.
+ * Download source of the vehicle detection model for the installation wizard:
+ * the pinned model release (see @shared/model-release). Release builds bundle
+ * the same files, so the wizard only downloads in builds without a model.
+ * The files land in `userData/models/`, which survives app updates.
  */
-export const MODEL_DOWNLOAD_URL =
-  "https://github.com/JanisKre/DealerShipRiskMappingApp/releases/latest/download/yolov26s_aerial_vehicles.onnx";
+export const MODEL_DOWNLOAD_URL = modelReleaseUrl(
+  MODEL_RELEASE,
+  modelReleaseFile(MODEL_RELEASE, "onnx").name,
+);
+
+/** Filename the wizard installs the model under. */
+export const MODEL_INSTALL_FILENAME = modelReleaseFile(
+  MODEL_RELEASE,
+  "onnx",
+).name;
 
 /** Thrown when no download is configured (→ IPC reports `unavailable`). */
 export class ModelDownloadUnavailableError extends Error {
@@ -28,85 +40,101 @@ export class ModelDownloadUnavailableError extends Error {
 }
 
 /**
- * Downloads the ONNX model into `userData/models/` (survives app updates,
- * unlike `resources/` in the app bundle). Writes to a temp file and only
- * renames it after success — an abort therefore never leaves a broken
- * file that's recognized as "present".
+ * Downloads the model and its manifest into `userData/models/`. Both files
+ * are written to temp files and checked against the SHA-256 pinned in the
+ * app; the manifest must also parse and name the same ONNX hash. Only then
+ * are they renamed into place, manifest first, so an abort never leaves a
+ * model that's recognized as "present" without its manifest.
  */
 export async function downloadModel(
   onProgress: (receivedBytes: number, totalBytes: number | null) => void,
   signal: AbortSignal,
+  release: ModelRelease = MODEL_RELEASE,
+  targetDir: string = modelsDir(),
 ): Promise<void> {
-  if (!MODEL_DOWNLOAD_URL) throw new ModelDownloadUnavailableError();
+  const onnx = modelReleaseFile(release, "onnx");
+  const manifest = modelReleaseFile(release, "json");
 
-  const dir = modelsDir();
-  await mkdir(dir, { recursive: true });
-  const finalPath = join(dir, MODEL_FILENAME);
-  const tmpPath = `${finalPath}.download`;
+  await mkdir(targetDir, { recursive: true });
+  const onnxPath = join(targetDir, onnx.name);
+  const manifestPath = join(targetDir, manifest.name);
+  const onnxTmp = `${onnxPath}.download`;
+  const manifestTmp = `${manifestPath}.download`;
 
+  try {
+    await downloadTo(
+      modelReleaseUrl(release, manifest.name),
+      manifestTmp,
+      signal,
+      30_000,
+    );
+    await verifySha256(manifestTmp, manifest.sha256, manifest.name);
+    const parsed = parseVehicleModelManifest(
+      JSON.parse(await readFile(manifestTmp, "utf8")),
+    );
+    if (!parsed || parsed.sha256 !== onnx.sha256) {
+      throw new Error("Model manifest does not describe the pinned model");
+    }
+
+    await downloadTo(
+      modelReleaseUrl(release, onnx.name),
+      onnxTmp,
+      signal,
+      120_000,
+      onProgress,
+    );
+    await verifySha256(onnxTmp, onnx.sha256, onnx.name);
+
+    await rename(manifestTmp, manifestPath);
+    await rename(onnxTmp, onnxPath);
+    resetDetector();
+  } catch (err) {
+    for (const tmp of [onnxTmp, manifestTmp]) {
+      await unlink(tmp).catch(() => {
+        // Temp file doesn't exist or couldn't be removed — doesn't matter.
+      });
+    }
+    throw err;
+  }
+}
+
+async function downloadTo(
+  url: string,
+  path: string,
+  signal: AbortSignal,
+  timeoutMs: number,
+  onProgress?: (receivedBytes: number, totalBytes: number | null) => void,
+): Promise<void> {
   const res = await fetchWithResilience(
-    MODEL_DOWNLOAD_URL,
+    url,
     { signal },
-    { retries: 0, timeoutMs: 120_000 },
+    { retries: 0, timeoutMs },
   );
   if (!res.ok || !res.body) {
     throw new Error(`Download failed: HTTP ${res.status}`);
   }
   const totalBytes = Number(res.headers.get("content-length")) || null;
   let receivedBytes = 0;
-
   const nodeStream = Readable.fromWeb(
     res.body as unknown as import("stream/web").ReadableStream,
   );
-  nodeStream.on("data", (chunk: Buffer) => {
-    receivedBytes += chunk.length;
-    onProgress(receivedBytes, totalBytes);
-  });
-
-  try {
-    await pipeline(nodeStream, createWriteStream(tmpPath), { signal });
-    const manifest = await fetchManifest(signal);
-    if (manifest?.sha256 && (await sha256File(tmpPath)) !== manifest.sha256) {
-      throw new Error("Downloaded model does not match its manifest checksum");
-    }
-    if (manifest) {
-      await writeFile(
-        finalPath.replace(/\.onnx$/, ".json"),
-        JSON.stringify(manifest, null, 2),
-      );
-    }
-    await rename(tmpPath, finalPath);
-    resetDetector();
-  } catch (err) {
-    await unlink(tmpPath).catch(() => {
-      // Temp file doesn't exist or couldn't be removed — doesn't matter.
+  if (onProgress) {
+    nodeStream.on("data", (chunk: Buffer) => {
+      receivedBytes += chunk.length;
+      onProgress(receivedBytes, totalBytes);
     });
-    throw err;
   }
+  await pipeline(nodeStream, createWriteStream(path), { signal });
 }
 
-/**
- * The release may publish a sidecar manifest next to the model. It is
- * optional for the legacy model (which has a built-in description), so a
- * missing or invalid manifest is not an error.
- */
-async function fetchManifest(
-  signal: AbortSignal,
-): Promise<VehicleModelManifest | null> {
-  try {
-    const res = await fetchWithResilience(
-      MODEL_DOWNLOAD_URL.replace(/\.onnx$/, ".json"),
-      { signal },
-      { retries: 0, timeoutMs: 30_000 },
-    );
-    return res.ok ? parseVehicleModelManifest(await res.json()) : null;
-  } catch {
-    return null;
-  }
-}
-
-async function sha256File(path: string): Promise<string> {
+async function verifySha256(
+  path: string,
+  expected: string,
+  name: string,
+): Promise<void> {
   const hash = createHash("sha256");
   await pipeline(createReadStream(path), hash);
-  return hash.digest("hex");
+  if (hash.digest("hex") !== expected) {
+    throw new Error(`Downloaded ${name} does not match its pinned checksum`);
+  }
 }

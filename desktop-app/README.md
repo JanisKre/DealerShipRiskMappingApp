@@ -15,20 +15,23 @@ Electron 44 · electron-vite · React 19 · TypeScript · shadcn/ui + Tailwind C
 
 ## ONNX Model (required)
 
-The vehicle detection model — YOLOv26s, fine-tuned on VisDrone (aerial
-vehicle imagery), ~36 MB, see [`dronefreak/visdrone-yolov26s`](https://huggingface.co/dronefreak/visdrone-yolov26s)
-on Hugging Face (AGPL-3.0) — is **not** included in the repo. Place it
-locally before starting the app:
+The vehicle detection model `dealer_vehicles.onnx` (YOLO11s-OBB fine-tuned on
+dealership orthophotos with `training/`, ~39 MB, AGPL-3.0 weights) is **not**
+in the repo. `src/shared/model-release.json` pins the GitHub release it comes
+from and the SHA-256 of the model and its manifest.
 
-```
-resources/models/yolov26s_aerial_vehicles.onnx
-```
+- Release builds run `npm run fetch:model` before packaging, so installers
+  ship with the model in `resources/models/`.
+- Development builds show the installation wizard, which downloads the same
+  pinned files into the user-data directory (kept across app updates). Or run
+  `npm run fetch:model` once.
+- A model you train yourself (`training/export.py --install`) goes into the
+  user-data directory and takes precedence.
 
-On first launch, the app shows an installation wizard. If the model is
-missing, the wizard downloads it from the latest GitHub release into the
-user-data directory and keeps it across app updates. Until the model is
-installed, the app falls back to the `StubVehicleDetector` (an area-based
-heuristic) — the app still runs, but does not produce real vehicle detections.
+Until a model is installed, the app falls back to the `StubVehicleDetector`
+(an area-based heuristic): it still runs, but does not count vehicles.
+`npm run benchmark:detection` measures a model through the app's own
+inference on the training validation tiles (docs/detection-benchmark.md).
 
 ## Development
 

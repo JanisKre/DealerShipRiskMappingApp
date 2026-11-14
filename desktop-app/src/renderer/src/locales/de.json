@@ -595,7 +595,7 @@
     "title": "Fahrzeugerkennungsmodell installieren",
     "description": "Ohne dieses Modell schätzt die App die Fahrzeugzahl nur anhand der Grundstücksfläche, statt die Fahrzeuge im Luftbild zu zählen.",
     "ready": "Das Erkennungsmodell ist bereits installiert. Du kannst die App direkt verwenden.",
-    "idle": "Das Erkennungsmodell (ca. 36 MB) wird einmalig heruntergeladen und lokal gespeichert.",
+    "idle": "Das Erkennungsmodell (ca. 39 MB) wird einmalig heruntergeladen und lokal gespeichert.",
     "done": "Erkennungsmodell installiert – die Fahrzeugerkennung ist jetzt aktiv.",
     "downloadFailed": "Download fehlgeschlagen: {{error}}",
     "unavailable": "Der automatische Download ist noch nicht eingerichtet. Bitte lege die Modelldatei manuell hier ab:",

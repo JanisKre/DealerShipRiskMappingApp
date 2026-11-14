@@ -1,0 +1,14 @@
+{
+  "repository": "JanisKre/DealerShipRiskMappingApp",
+  "tag": "model-dealer-vehicles-2026-10-10",
+  "files": [
+    {
+      "name": "dealer_vehicles.json",
+      "sha256": "56626a7c507ab05f78bc463adb8eb6c15d8b9df0886fba7746006e03592fdde0"
+    },
+    {
+      "name": "dealer_vehicles.onnx",
+      "sha256": "944d81642c829d2b1be4b612ccd7458b1c0633a9d8cb86ea7eae55d330b51264"
+    }
+  ]
+}

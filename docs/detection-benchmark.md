@@ -69,11 +69,14 @@ this order:
 
 1. `dealer_vehicles.onnx` with its manifest `dealer_vehicles.json`, produced
    by `training/` (DOTA-pretrained YOLO-OBB fine-tuned on dealership
-   orthophotos).
-2. Otherwise the downloadable `yolov26s_aerial_vehicles.onnx`.
+   orthophotos). Release installers bundle the shipped version (see
+   [Shipped model](#shipped-model-2026-11)); `training/export.py --install`
+   puts a locally trained one into `userData/models`, which wins.
+2. Otherwise a manually placed `yolov26s_aerial_vehicles.onnx`.
    - It was trained on VisDrone (low-altitude, partly oblique drone video).
    - It uses a built-in manifest.
    - Its known weakness is under-counting dense, angled parking rows.
+   - The app no longer downloads it.
 
 **Fixes in this revision** (they change counts for the existing model too):
 
@@ -154,9 +157,69 @@ dealership sites at 0.10 m/px, compared with the corrected labels per site.
   sweep before `--default-conf` is set; without it the global default
   applies.
 
+## Shipped model (2026-11)
+
+**What ships.** Release installers contain `dealer_vehicles` 2026-10-10
+(YOLO11s-OBB fine-tuned on state DOP tiles of dealership sites and DLR 3K
+Munich, base confidence 0.45). It comes from the GitHub release
+`model-dealer-vehicles-2026-10-10`, which holds only the ONNX model and its
+manifest and is not marked as the latest release (the app updater reads the
+latest one). `desktop-app/src/shared/model-release.json` pins the tag and the
+SHA-256 of both files:
+
+- The release build runs `npm run fetch:model` before `electron-builder`. It
+  downloads both files into `resources/models/`, checks both hashes and fails
+  the build on a missing asset or a mismatch.
+- The installation wizard downloads the same two files when a build has no
+  model (development builds). It checks both pinned hashes and that the
+  manifest names the same ONNX hash, then installs them into
+  `userData/models`. Before this change the wizard pointed at a
+  `latest/download/yolov26s_aerial_vehicles.onnx` asset that no release had,
+  so a fresh install ran without a model and fell back to the area heuristic.
+
+**Why this model.** Two newer runs were measured against it on 2026-11-14
+with the app's own window inference (`npm run benchmark:detection`, the
+11 held-out sites, 99 tiles, 1,638 labelled vehicles):
+
+| Base confidence | dealer_vehicles 2026-10-10 | Pseudo-label run (YOLO11s) | YOLO26s run |
+|---|---|---|---|
+| 0.30 | 11.0 / +7.4 % / 64 % | 12.5 / +7.3 % / 55 % | **7.8 / −1.2 % / 73 %** |
+| 0.35 | 9.1 / +5.3 % / 64 % | 11.2 / +5.4 % / 73 % | 8.5 / −4.0 % / 82 % |
+| 0.40 | **7.5 / +2.7 % / 73 %** | 8.9 / +3.5 % / 82 % | 10.9 / −6.1 % / 73 % |
+| 0.45 | 8.0 / +0.2 % / 73 % | 8.9 / +2.0 % / 73 % | 13.6 / −8.6 % / 64 % |
+| 0.50 | 8.1 / −1.2 % / 82 % | **8.6 / +0.7 % / 82 %** | 17.6 / −11.8 % / 45 % |
+| 0.55 | 8.9 / −2.8 % / 82 % | 9.3 / −1.2 % / 82 % | 22.3 / −15.0 % / 36 % |
+
+Cells are count MAE / bias / share of sites within 10 %. The pseudo-label run
+(`make_dataset.py --pseudo`, 24 unreviewed sites added from model labels) and
+the YOLO26s run reach the same accuracy at their best threshold. Neither beats
+the installed model by more than the noise of 11 sites, so the measured and
+documented model ships unchanged. Its manifest threshold 0.45 stays: it has
+the smallest bias in the flat optimum (0.40–0.50).
+
+**Licences.** The model weights derive from Ultralytics (AGPL-3.0) and were
+pretrained on DOTA and fine-tuned with DLR 3K Munich tiles, both released for
+research (`training/README.md`, "Licences"). The app itself is PolyForm Noncommercial.
+Check these terms before any commercial use of the app or the model.
+
+**Publishing a new model.** Train and evaluate it (`training/studio.py`
+does every step), measure it with `npm run benchmark:detection`, export it
+with `--default-conf`, then upload `dealer_vehicles.onnx` and
+`dealer_vehicles.json` to a new `model-dealer-vehicles-<version>` release
+with `--latest=false`, and update the tag and both hashes in
+`model-release.json` (the studio's "Release-Modell" buttons write the file and
+print the commands). Add the run to the table below. A new shipped model
+changes vehicle counts and therefore the hail EAL of every location.
+
+**Limitations.** Same as above: 11 validation sites, tiles scored whole
+without boundary clip and roof mask, and German state orthophotos only.
+
 ## Benchmark runs
 
 | Date | Model | Imagery | Sites | Count MAE | Bias | Within 10 % |
 |---|---|---|---|---|---|---|
 | 2026-11-13 | dealer_vehicles 2026-10-10, base conf 0.22 | State DOP tiles, 0.10 m/px | 11 | 18.5 | +12.5 % | 36 % |
 | 2026-11-13 | dealer_vehicles 2026-10-10, base conf 0.45 | State DOP tiles, 0.10 m/px | 11 | 8.5 | +0.9 % | 73 % |
+| 2026-11-14 | dealer_vehicles 2026-10-10, base conf 0.45 (shipped) | State DOP tiles, 0.10 m/px | 11 | 8.0 | +0.2 % | 73 % |
+| 2026-11-14 | Pseudo-label run 2026-11-14, base conf 0.50 | State DOP tiles, 0.10 m/px | 11 | 8.6 | +0.7 % | 82 % |
+| 2026-11-14 | YOLO26s run 2026-11-14, base conf 0.30 | State DOP tiles, 0.10 m/px | 11 | 7.8 | −1.2 % | 73 % |

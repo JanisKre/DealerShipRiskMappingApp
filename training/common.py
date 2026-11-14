@@ -30,6 +30,9 @@ CLASS_NAMES = {0: "car", 1: "large_vehicle"}
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
 
+# The app's userData/models on macOS: export.py --install and studio.py put models here.
+APP_MODELS_DIR = Path.home() / "Library" / "Application Support" / "Dealership Risk Mapping" / "models"
+
 
 def label_path(image: Path) -> Path:
     """YOLO label of a tile: `<image dir>/../labels/<stem>.txt` — the layout

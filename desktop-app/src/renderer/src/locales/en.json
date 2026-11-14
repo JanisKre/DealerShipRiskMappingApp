@@ -595,7 +595,7 @@
     "title": "Install vehicle-detection model",
     "description": "Without this model, the app only estimates vehicle counts from the lot area instead of counting the vehicles on the aerial image.",
     "ready": "The detection model is already installed. You can start using the app.",
-    "idle": "The detection model (approx. 36 MB) will be downloaded once and stored locally.",
+    "idle": "The detection model (approx. 39 MB) will be downloaded once and stored locally.",
     "done": "Detection model installed – vehicle detection is now active.",
     "downloadFailed": "Download failed: {{error}}",
     "unavailable": "Automatic download is not yet set up. Please place the model file here manually:",

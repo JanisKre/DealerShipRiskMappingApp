@@ -27,6 +27,25 @@ with known security advisories. On macOS with Python < 3.13, Ultralytics'
 export check asks for `onnx<1.18`; run step 9 with `YOLO_AUTOINSTALL=false`
 so it does not silently downgrade to a vulnerable `onnx`.
 
+## Studio: the whole pipeline in the browser
+
+```bash
+python studio.py          # opens http://127.0.0.1:8770
+```
+
+One page with every step below: where each one stands (sites per state,
+open review questions, dataset, runs with their mAP curves, threshold
+sweeps, installed / exported / released model) and a button with checked
+options to start it. The review steps open the existing `review.py` page.
+Long steps (autolabel, training, evaluation) run detached, so they keep
+going when you close the page or stop the studio. "Release-Modell" points
+`desktop-app/src/shared/model-release.json` at the exported or installed
+model and prints the `gh release` commands; publishing stays your step.
+
+The studio binds to 127.0.0.1, refuses other hosts and origins and needs a
+per-start token for every action. Its job logs and evaluation results are in
+`data/studio/` (git-ignored like all of `data/`).
+
 ## Workflow
 
 | Step | Command | Result |
@@ -42,7 +61,8 @@ so it does not silently downgrade to a vulnerable `onnx`.
 | 6. Baseline | `python evaluate.py --weights yolo11s-obb.pt --dota` | Pretrained model, unchanged |
 | 7. Train | `caffeinate -i python train.py` | `runs/dealer-obb/weights/best.pt` |
 | 8. Evaluate | `python evaluate.py` | mAP50 and per-site count MAE, bias, within-10 %, also per native resolution and false detections on negatives |
-| 9. Install | `python export.py --install --default-conf 0.45` | ONNX and manifest in the app's `userData/models` |
+| 8b. App benchmark | `npm run benchmark:detection` in `desktop-app/` (see below) | Count MAE, bias and within-10 % per threshold through the app's own inference |
+| 9. Install | `python export.py --install --default-conf 0.45` | ONNX and manifest in the app's `userData/models`; the replaced model is kept in `backup-<time>/` |
 
 From the second round on, steps 3–4 become `autolabel.py` + `review.py`
 (you confirm instead of draw); see
@@ -53,8 +73,17 @@ after a restart. It prefers this model over the downloaded VisDrone model.
 
 `--default-conf` stores the base confidence the app uses for this model while
 its detection-confidence parameter is still the default. Pick it from the
-count metrics of `python evaluate.py --sweep` on the held-out sites (lowest
-bias in the flat MAE optimum), not from mAP. Omit it for a model you have not
+count metrics on the held-out sites (lowest bias in the flat MAE optimum),
+not from mAP. `evaluate.py --sweep` counts with Ultralytics' own
+post-processing; the app's size filter and NMS count a few percent lower, so
+take the final value from the app benchmark:
+
+```bash
+cd ../desktop-app
+DETECTION_SWEEP_MODEL=../training/export/dealer_vehicles.onnx \
+DETECTION_SWEEP_JSON=../training/data/studio/evals/app-<run>.json \
+npm run benchmark:detection
+``` Omit it for a model you have not
 swept; the app then keeps its global default. See
 [docs/detection-benchmark.md](../docs/detection-benchmark.md#model-default-threshold-2026-11).
 

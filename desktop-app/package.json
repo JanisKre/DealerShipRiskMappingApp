@@ -25,9 +25,11 @@
     "test:coverage": "vitest run --coverage",
     "smoke": "node scripts/smoke-test.mjs",
     "release:metadata": "node scripts/create-release-metadata.mjs",
+    "fetch:model": "node scripts/fetch-release-model.mjs",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "benchmark:boundary": "BOUNDARY_BENCHMARK=1 vitest run src/main/services/boundary/boundary-benchmark.run.test.ts",
+    "benchmark:detection": "vitest run src/main/services/detection/detection-sweep.run.test.ts",
     "benchmark:boundary:replay": "vitest run src/main/services/boundary/boundary-replay.run.test.ts",
     "notices": "node scripts/generate-third-party-notices.mjs",
     "test:e2e": "playwright test"

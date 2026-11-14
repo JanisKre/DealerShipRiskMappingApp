@@ -36,12 +36,12 @@ import {
   detectVehicles,
   isModelAvailable,
   modelsDir,
-  MODEL_FILENAME,
 } from "../services/detection.service";
 import { maskRoofDetections } from "../services/detection/roof-mask.service";
 import {
   downloadModel,
   MODEL_DOWNLOAD_URL,
+  MODEL_INSTALL_FILENAME,
   ModelDownloadUnavailableError,
 } from "../services/model.service";
 import {
@@ -309,8 +309,8 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
 
   handle(IPC.modelStatus, () => ({
     available: isModelAvailable(),
-    installDir: join(modelsDir(), MODEL_FILENAME),
-    downloadConfigured: MODEL_DOWNLOAD_URL !== null,
+    installDir: join(modelsDir(), MODEL_INSTALL_FILENAME),
+    downloadConfigured: MODEL_DOWNLOAD_URL.length > 0,
   }));
 
   handle(IPC.hailZoneOverlay, () => getHailZoneOverlay());

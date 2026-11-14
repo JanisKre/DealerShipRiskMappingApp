@@ -595,7 +595,7 @@
     "title": "Installer le modèle de détection des véhicules",
     "description": "Sans ce modèle, l’application estime seulement le nombre de véhicules d’après la surface du terrain, au lieu de compter les véhicules sur l’image aérienne.",
     "ready": "Le modèle de détection est déjà installé. Vous pouvez utiliser l’application directement.",
-    "idle": "Le modèle de détection (environ 36 Mo) sera téléchargé une fois et stocké localement.",
+    "idle": "Le modèle de détection (environ 39 Mo) sera téléchargé une fois et stocké localement.",
     "done": "Modèle de détection installé – la détection des véhicules est maintenant active.",
     "downloadFailed": "Échec du téléchargement : {{error}}",
     "unavailable": "Le téléchargement automatique n'est pas encore configuré. Placez manuellement le fichier du modèle ici :",

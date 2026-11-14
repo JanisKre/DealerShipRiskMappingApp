@@ -8,6 +8,8 @@ data
 
 # ONNX-Modell (99 MB) – nicht versioniert, lokal ablegen (siehe README)
 resources/models/*.onnx
+resources/models/*.json
+resources/models/*.download
 *.tsbuildinfo
 
 # Lokales Build-/Venv-Verzeichnis für das ONNX-Modell
