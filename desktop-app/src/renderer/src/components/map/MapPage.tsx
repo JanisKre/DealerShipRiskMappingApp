@@ -1,3 +1,4 @@
+import { toastExported } from "@renderer/lib/exportToast";
 import { exportLocale } from "@renderer/lib/format";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap, useMapEvents } from "./leaflet-react";
@@ -744,7 +745,7 @@ export function MapPage(): React.JSX.Element {
       if (mode === "clipboard" && result.ok)
         toast.success(t("map.page.mapCopied"));
       else if (mode === "save" && result.path)
-        toast.success(t("map.page.mapSaved"), { description: result.path });
+        toastExported(t, "map.page.mapSaved", result.path);
     } catch (error) {
       console.warn("Map capture failed:", error);
       toast.error(

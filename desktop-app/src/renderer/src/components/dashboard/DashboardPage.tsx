@@ -1,3 +1,4 @@
+import { toastExported } from "@renderer/lib/exportToast";
 import { exportLocale } from "@renderer/lib/format";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -725,7 +726,7 @@ function Actions({
         format,
         exportLocale(),
       );
-      if (path) toast.success(t("ui.reportExported", { path }));
+      if (path) toastExported(t, "ui.reportExported", path);
     } catch (err) {
       toast.error(t("ui.exportFailed", { error: (err as Error).message }));
     }
@@ -737,7 +738,7 @@ function Actions({
         useAppStore.getState().currentSession(),
         exportLocale(),
       );
-      if (path) toast.success(t("ui.viewExported", { path }));
+      if (path) toastExported(t, "ui.viewExported", path);
     } catch (err) {
       toast.error(t("ui.exportFailed", { error: (err as Error).message }));
     }
@@ -749,7 +750,7 @@ function Actions({
         useAppStore.getState().currentSession(),
         exportLocale(),
       );
-      if (path) toast.success(t("ui.portfolioExported", { path }));
+      if (path) toastExported(t, "ui.portfolioExported", path);
     } catch (err) {
       toast.error(t("ui.exportFailed", { error: (err as Error).message }));
     }

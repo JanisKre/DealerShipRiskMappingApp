@@ -235,6 +235,8 @@ export const CLIPBOARD_TEXT_MAX_CHARS = 100_000;
 export const ExportLocaleSchema = z.enum(["de", "en", "fr"]);
 
 export const ipcRequest = {
+  /** Only paths the main process remembered from a save dialog are shown. */
+  "file:showExported": z.object({ path: z.string().min(1).max(4096) }),
   "csv:parse": z.object({
     content: z.string(),
     /** Columns assigned by hand in the import dialog. */
@@ -448,6 +450,7 @@ export const ipcRequest = {
 } as const;
 
 export const ipcResponse = {
+  "file:showExported": z.object({ ok: z.boolean() }),
   "csv:parse": ImportResultSchema,
   "xlsx:parse": ImportResultSchema,
   "geocode:search": z.array(

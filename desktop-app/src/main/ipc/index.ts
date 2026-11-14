@@ -60,6 +60,7 @@ import {
 } from "../services/export.service";
 import { geocode } from "../services/geocoding.service";
 import { exportLocationReport } from "../services/location-report.service";
+import { rememberExport, showExportInFolder } from "../services/exported-files";
 import { getHailZoneOverlay } from "../services/hail-zone-overlay/overlay.service";
 import { getOsmDetails } from "../services/osmDetails.service";
 import { getHailHistory } from "../services/hail-history/hail-history.service";
@@ -287,19 +288,19 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   });
 
   handle(IPC.exportPortfolioFile, async ({ session, locale }) => ({
-    path: await exportPortfolioFile(session, locale),
+    path: rememberExport(await exportPortfolioFile(session, locale)),
   }));
   handle(IPC.importPortfolioFile, (request) =>
     importPortfolioFile(request?.locale),
   );
   handle(IPC.exportReport, async ({ session, format, locale }) => ({
-    path: await exportReport(session, format, locale),
+    path: rememberExport(await exportReport(session, format, locale)),
   }));
   handle(IPC.exportLocationReport, async (input) => ({
-    path: await exportLocationReport(input),
+    path: rememberExport(await exportLocationReport(input)),
   }));
   handle(IPC.exportReadonlyView, async ({ session, locale }) => ({
-    path: await exportReadonlyView(session, locale),
+    path: rememberExport(await exportReadonlyView(session, locale)),
   }));
 
   handle(IPC.llmMemo, ({ dealership }) => generateMemo(dealership));
@@ -330,9 +331,14 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     return { ok: true };
   });
 
-  handle(IPC.mapCapture, ({ rect, mode, locale }) =>
-    captureMap(rect, mode, locale),
-  );
+  handle(IPC.mapCapture, async ({ rect, mode, locale }) => {
+    const result = await captureMap(rect, mode, locale);
+    rememberExport(result.path);
+    return result;
+  });
+  handle(IPC.showExportedFile, ({ path }) => ({
+    ok: showExportInFolder(path),
+  }));
   handle(IPC.clipboardWriteText, ({ text }) => {
     clipboard.writeText(text);
     return { ok: true };

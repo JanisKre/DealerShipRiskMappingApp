@@ -1,3 +1,4 @@
+import { toastExported } from "@renderer/lib/exportToast";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18next, { type TFunction } from "i18next";
@@ -309,8 +310,7 @@ function DetailBody({
           .map((item) => item.title.slice(0, 300))
           .slice(0, 12),
       });
-      if (path)
-        toast.success(t("dashboard.detailDialog.reportSaved", { path }));
+      if (path) toastExported(t, "dashboard.detailDialog.reportSaved", path);
     } catch (err) {
       toast.error(
         t("dashboard.detailDialog.reportFailed", {

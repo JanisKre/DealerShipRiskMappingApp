@@ -46,6 +46,9 @@ export const IPC = {
   // Complete analysis pipeline run for one dataset
   analyzeDealership: "analyze:dealership",
 
+  // Reveal a file this run exported in the file manager
+  showExportedFile: "file:showExported",
+
   // Sessions (SQLite)
   listSessions: "sessions:list",
   loadSession: "sessions:load",

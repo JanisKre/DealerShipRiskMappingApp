@@ -337,6 +337,12 @@ const api = {
       locale,
     } satisfies IpcRequest["portfolio:import"]),
 
+  /** Reveals a file this run exported (main refuses any other path). */
+  showExportedFile: (path: string): Promise<IpcResponse["file:showExported"]> =>
+    ipcRenderer.invoke(IPC.showExportedFile, {
+      path,
+    } satisfies IpcRequest["file:showExported"]),
+
   exportReport: (
     session: IpcRequest["report:export"]["session"],
     format: IpcRequest["report:export"]["format"],

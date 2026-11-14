@@ -868,7 +868,7 @@
       "sourcesUsedCount_one": "{{count}} verwendete Quelle",
       "sourcesUsedCount_other": "{{count}} verwendete Quellen",
       "report": "Bericht",
-      "reportSaved": "Bericht gespeichert: {{path}}",
+      "reportSaved": "Bericht gespeichert: {{name}}",
       "reportFailed": "Bericht konnte nicht erstellt werden: {{error}}",
       "boundaryReviewReason": {
         "synthetic": "keine Quelle am Punkt, nur eine geschätzte Grenze (Kreis)",
@@ -1305,7 +1305,7 @@
       "setupDetection": "Fahrzeugerkennung einrichten",
       "cancellingAnalysis": "Wird gestoppt…",
       "mapCopied": "Kartenbild in die Zwischenablage kopiert",
-      "mapSaved": "Kartenbild gespeichert",
+      "mapSaved": "Kartenbild gespeichert: {{name}}",
       "mapCopyFailed": "Das Kartenbild konnte nicht kopiert werden.",
       "mapSaveFailed": "Das Kartenbild konnte nicht gespeichert werden."
     }
@@ -1426,9 +1426,9 @@
     "importIssuesRecorded_one": "{{count}} Importproblem protokolliert.",
     "importIssuesRecorded_other": "{{count}} Importprobleme protokolliert.",
     "website": "Website",
-    "reportExported": "Bericht exportiert: {{path}}",
-    "portfolioExported": "Portfolio exportiert: {{path}}",
-    "viewExported": "Ansicht exportiert: {{path}}",
+    "reportExported": "Bericht exportiert: {{name}}",
+    "portfolioExported": "Portfolio exportiert: {{name}}",
+    "viewExported": "Ansicht exportiert: {{name}}",
     "exportFailed": "Export fehlgeschlagen: {{error}}",
     "pdfReport": "PDF-Bericht",
     "portfolioFile": "Portfolio-Datei (.drm)",
@@ -1497,7 +1497,8 @@
     "compareStatus": {
       "added": "neu",
       "removed": "entfernt"
-    }
+    },
+    "showInFolder": "Im Ordner zeigen"
   },
   "aiSetup": {
     "missingTitle": "KI-Assistent noch nicht eingerichtet",

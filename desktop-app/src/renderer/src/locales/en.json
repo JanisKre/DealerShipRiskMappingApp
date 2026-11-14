@@ -868,7 +868,7 @@
       "sourcesUsedCount_one": "{{count}} source used",
       "sourcesUsedCount_other": "{{count}} sources used",
       "report": "Report",
-      "reportSaved": "Report saved: {{path}}",
+      "reportSaved": "Report saved: {{name}}",
       "reportFailed": "The report could not be created: {{error}}",
       "boundaryReviewReason": {
         "synthetic": "no source at the point, only an estimated boundary (circle)",
@@ -1305,7 +1305,7 @@
       "setupDetection": "Set up vehicle detection",
       "cancellingAnalysis": "Stopping…",
       "mapCopied": "Map image copied to the clipboard",
-      "mapSaved": "Map image saved",
+      "mapSaved": "Map image saved: {{name}}",
       "mapCopyFailed": "Couldn't copy the map image.",
       "mapSaveFailed": "Couldn't save the map image."
     }
@@ -1426,9 +1426,9 @@
     "importIssuesRecorded_one": "{{count}} import issue recorded.",
     "importIssuesRecorded_other": "{{count}} import issues recorded.",
     "website": "Website",
-    "reportExported": "Report exported: {{path}}",
-    "portfolioExported": "Portfolio exported: {{path}}",
-    "viewExported": "View exported: {{path}}",
+    "reportExported": "Report exported: {{name}}",
+    "portfolioExported": "Portfolio exported: {{name}}",
+    "viewExported": "View exported: {{name}}",
     "exportFailed": "Export failed: {{error}}",
     "pdfReport": "PDF Report",
     "portfolioFile": "Portfolio file (.drm)",
@@ -1497,7 +1497,8 @@
     "compareStatus": {
       "added": "new",
       "removed": "removed"
-    }
+    },
+    "showInFolder": "Show in folder"
   },
   "aiSetup": {
     "missingTitle": "AI assistant not set up yet",

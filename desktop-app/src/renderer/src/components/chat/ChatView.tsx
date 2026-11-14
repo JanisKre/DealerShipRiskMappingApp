@@ -1,3 +1,4 @@
+import { fileNameOf } from "@renderer/lib/exportToast";
 import { exportLocale } from "@renderer/lib/format";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -164,7 +165,7 @@ export function ChatView({
           exportLocale(),
         );
         return path
-          ? t("chat.actions.exported", { path })
+          ? t("chat.actions.exported", { path: fileNameOf(path) })
           : t("chat.actions.exportCancelled");
       }
     }
