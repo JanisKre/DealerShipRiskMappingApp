@@ -418,3 +418,26 @@ test("a key figure dragged out of a four-up row can be dragged back", async () =
   await page.getByRole("tab", { name: "Vier Kennzahlen" }).click();
   await expect.poll(row).toEqual(["k1", "k2", "k3", "k4"]);
 });
+
+test("the detail dialog lists questions for the dealership by rule", async () => {
+  await page.getByRole("link", { name: "Dashboard" }).click();
+  await page.getByRole("tab", { name: "Übersicht" }).click();
+  const table = page
+    .getByRole("table")
+    .filter({ has: page.getByRole("button", { name: "Name" }) });
+  await table.getByRole("row").filter({ hasText: "Autohaus Alpha" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("tab", { name: "Vertrag & Notizen" }).click();
+  await dialog.getByText("Rückfragen an den Händler").click();
+  // Zone 5: the season and hail-warning questions apply.
+  await expect(dialog.getByText(/liegt in Hagelzone 5/)).toBeVisible();
+  await expect(dialog.getByText(/Unwetter- oder Hagelwarnung/)).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Als Text kopieren" }),
+  ).toBeVisible();
+  // With an AI provider the optional rewording is offered.
+  await expect(
+    dialog.getByRole("button", { name: "Als Nachricht formulieren" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+});

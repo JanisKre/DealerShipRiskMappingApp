@@ -133,3 +133,29 @@ test("import preview lists rows before anything is analysed", async () => {
   await dialog.getByRole("button", { name: "Abbrechen" }).click();
   await expect(dialog).toBeHidden();
 });
+
+test("an unrecognised import column can be assigned by hand", async () => {
+  await page.getByRole("link", { name: "Karte" }).first().click();
+  await page
+    .locator('input[type="file"]')
+    .first()
+    .setInputFiles(join(__dirname, "fixtures", "portfolio-unknown-column.csv"));
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Portfolio importieren")).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "1 weitere Spalte zuordnen" })
+    .click();
+  // Without an AI provider there is no suggestion button.
+  await expect(
+    dialog.getByRole("button", { name: "KI-Vorschlag" }),
+  ).toHaveCount(0);
+  await dialog.getByLabel("Feld für Spalte Vermittler").click();
+  await page.getByRole("option", { name: "Vertriebspartner" }).click();
+  await dialog.getByRole("button", { name: "Zuordnung übernehmen" }).click();
+  await expect(dialog.getByText("← Vermittler")).toBeVisible();
+  await expectTranslated();
+
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(dialog).toBeHidden();
+});
