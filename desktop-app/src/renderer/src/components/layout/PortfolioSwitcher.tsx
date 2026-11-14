@@ -301,7 +301,7 @@ export function PortfolioSwitcher({
                 <span className="truncate text-sm font-medium">
                   {portfolioName(session.name, t)}
                 </span>
-                {isSnapshot(session) && (
+                {isSnapshot(session, sessions ?? []) && (
                   <Badge
                     variant="outline"
                     className="shrink-0 px-1.5 py-0 font-normal"

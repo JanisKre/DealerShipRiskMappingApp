@@ -24,6 +24,17 @@ describe("portfolio sessions", () => {
     expect(pickActiveSession([snap, live, older], "live")?.id).toBe("old");
   });
 
+  it("recognises saved states made before the flag by their name", () => {
+    const legacy = {
+      id: "legacy",
+      name: "West – Stand 14.11.26, 14:47",
+      updatedAt: "2026-11-14T14:47:00Z",
+    };
+    expect(pickActiveSession([legacy, live])?.id).toBe("live");
+    // Without the portfolio it was taken from, the name alone is not enough.
+    expect(pickActiveSession([legacy])?.id).toBe("legacy");
+  });
+
   it("groups saved states below the portfolios", () => {
     const { portfolios, snapshots } = groupSessions([snap, live, older]);
     expect(portfolios.map((s) => s.id)).toEqual(["live", "old"]);
