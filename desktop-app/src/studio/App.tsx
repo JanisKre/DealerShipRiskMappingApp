@@ -4,16 +4,15 @@ import {
   LayoutDashboard,
   LoaderCircle,
   PenTool,
-  RefreshCw,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@renderer/components/ui/button";
 import { Toaster } from "@renderer/components/ui/sonner";
 import { Tabs, TabsList, TabsTrigger } from "@renderer/components/ui/tabs";
 import { TooltipProvider } from "@renderer/components/ui/tooltip";
 import { api, type Status } from "./api";
 import { JOB_STATE, JobSheet } from "./components/JobSheet";
+import { ToolsMenu } from "./components/ToolsMenu";
 import { LabelView } from "./views/LabelView";
 import { ModelsView } from "./views/ModelsView";
 import { OverviewView } from "./views/OverviewView";
@@ -127,15 +126,8 @@ export function App(): React.JSX.Element {
             </TabsList>
           </Tabs>
           <div className="flex-1" />
+          {status && <ToolsMenu status={status} reload={reload} />}
           <JobSheet job={status?.job ?? null} onChanged={reload} />
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label="Neu laden"
-            onClick={reload}
-          >
-            <RefreshCw />
-          </Button>
         </header>
         <main className="min-h-0 flex-1 overflow-auto">
           {!status ? (
@@ -149,7 +141,7 @@ export function App(): React.JSX.Element {
           ) : view === "models" ? (
             <ModelsView status={status} reload={reload} />
           ) : (
-            <OverviewView status={status} go={go} reload={reload} />
+            <OverviewView status={status} go={go} />
           )}
         </main>
       </div>

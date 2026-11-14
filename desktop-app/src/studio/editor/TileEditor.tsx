@@ -6,22 +6,17 @@ import {
   CircleHelp,
   Eye,
   EyeOff,
-  Hand,
   LoaderCircle,
   Maximize,
   MousePointer2,
   Redo2,
-  RotateCcw,
   RotateCw,
-  Save,
   SquareDashed,
   SquarePlus,
   Trash2,
   Truck,
   Undo2,
   X,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -211,6 +206,13 @@ export function TileEditor({
     }
   }, [boxes, save, hasNext, onNavigate]);
 
+  // Drafts save themselves a moment after the last change (no save button).
+  useEffect(() => {
+    if (!dirty || saving || locked || drag) return;
+    const t = setTimeout(() => void save(false), 1200);
+    return () => clearTimeout(t);
+  }, [dirty, saving, locked, drag, boxes, save]);
+
   // --- editing ---------------------------------------------------------------------
 
   const commit = useCallback(
@@ -318,10 +320,7 @@ export function TileEditor({
   };
 
   const setClassOfSelected = (c: 0 | 1): void => {
-    setCls(c);
     if (selected == null) return;
-    const b = boxes[selected];
-    if (boxState(b) === "rejected") return;
     commit(
       boxes.map((x, i) =>
         i === selected ? decide(x, c === 1 ? "large_vehicle" : "car") : x,
@@ -489,20 +488,6 @@ export function TileEditor({
     return () => svg.removeEventListener("wheel", onWheel);
   }, [tile]);
 
-  const zoomBy = (factor: number): void => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
-    setView((v) => {
-      const z = Math.min(12, Math.max(0.3, v.z * factor));
-      return {
-        z,
-        px: width / 2 - ((width / 2 - v.px) / v.z) * z,
-        py: height / 2 - ((height / 2 - v.py) / v.z) * z,
-      };
-    });
-  };
-
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -534,7 +519,6 @@ export function TileEditor({
         v: () => setTool("select"),
         a: () => setTool("add"),
         b: () => setTool("draw"),
-        h: () => setTool("pan"),
         j: () => answer("car"),
         l: () => answer("large_vehicle"),
         n: () => answer("no"),
@@ -586,97 +570,52 @@ export function TileEditor({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* toolbar */}
-      <div className="bg-card flex flex-wrap items-center gap-2 border-b px-3 py-2">
+      {/* toolbar: tools for new boxes, undo, view */}
+      <div className="bg-card flex items-center gap-2 border-b px-3 py-2">
         <ToggleGroup
           type="single"
           variant="outline"
           size="sm"
-          value={tool}
+          value={tool === "pan" ? "select" : tool}
           onValueChange={(v) => v && setTool(v as Tool)}
           aria-label="Werkzeug"
         >
           <ToolItem
             value="select"
-            label="Auswählen und verschieben"
+            label="Auswählen, verschieben, drehen"
             keyHint="V"
           >
-            <MousePointer2 />
+            <MousePointer2 /> Auswählen
           </ToolItem>
           <ToolItem
             value="add"
-            label="Fahrzeug per Klick setzen (richtet sich nach den Nachbarn aus)"
+            label="Ein Klick setzt ein Fahrzeug, ausgerichtet wie die Nachbarn"
             keyHint="A"
           >
-            <SquarePlus />
+            <SquarePlus /> Fahrzeug setzen
           </ToolItem>
-          <ToolItem value="draw" label="Box aufziehen" keyHint="B">
-            <SquareDashed />
+          <ToolItem value="draw" label="Box mit der Maus aufziehen" keyHint="B">
+            <SquareDashed /> Box ziehen
           </ToolItem>
-          <ToolItem
-            value="pan"
-            label="Bild verschieben (auch Leertaste halten)"
-            keyHint="H"
+        </ToggleGroup>
+        {tool !== "select" && (
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            value={String(cls)}
+            onValueChange={(v) => v && setCls(Number(v) as 0 | 1)}
+            aria-label="Klasse neuer Boxen"
           >
-            <Hand />
-          </ToolItem>
-        </ToggleGroup>
-        <Separator orientation="vertical" className="h-6" />
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          size="sm"
-          value={String(cls)}
-          onValueChange={(v) => v && setClassOfSelected(Number(v) as 0 | 1)}
-          aria-label="Klasse"
-        >
-          <ToolItem value="0" label="Auto, Transporter, Pickup">
-            <Car /> Auto
-          </ToolItem>
-          <ToolItem value="1" label="Lkw, Bus, Wohnmobil, Anhänger">
-            <Truck /> Groß
-          </ToolItem>
-        </ToggleGroup>
-        <Separator orientation="vertical" className="h-6" />
-        <IconButton
-          label="Ja, Fahrzeug"
-          keyHint="J"
-          disabled={!sel}
-          onClick={() => answer(cls === 1 ? "large_vehicle" : "car")}
-        >
-          <Check className="text-[var(--box-car)]" />
-        </IconButton>
-        <IconButton
-          label="Nein, kein Fahrzeug"
-          keyHint="N"
-          disabled={!sel}
-          onClick={() => answer("no")}
-        >
-          <X className="text-[var(--box-no)]" />
-        </IconButton>
-        <IconButton
-          label="15° nach links drehen"
-          disabled={!sel}
-          onClick={() => rotateSelected(-Math.PI / 12)}
-        >
-          <RotateCcw />
-        </IconButton>
-        <IconButton
-          label="15° nach rechts drehen (R: 90°)"
-          disabled={!sel}
-          onClick={() => rotateSelected(Math.PI / 12)}
-        >
-          <RotateCw />
-        </IconButton>
-        <IconButton
-          label="Löschen bzw. ablehnen"
-          keyHint="Entf"
-          disabled={!sel}
-          onClick={removeSelected}
-        >
-          <Trash2 />
-        </IconButton>
-        <Separator orientation="vertical" className="h-6" />
+            <ToolItem value="0" label="Auto, Transporter, Pickup">
+              <Car />
+            </ToolItem>
+            <ToolItem value="1" label="Lkw, Bus, Wohnmobil, Anhänger">
+              <Truck />
+            </ToolItem>
+          </ToggleGroup>
+        )}
+        <Separator orientation="vertical" className="mx-1 h-6" />
         <IconButton
           label="Rückgängig"
           keyHint="⌘Z"
@@ -693,22 +632,6 @@ export function TileEditor({
         >
           <Redo2 />
         </IconButton>
-        <Separator orientation="vertical" className="h-6" />
-        <IconButton label="Verkleinern" onClick={() => zoomBy(1 / 1.4)}>
-          <ZoomOut />
-        </IconButton>
-        <span className="text-muted-foreground w-12 text-center text-xs tabular-nums">
-          {Math.round(view.z * 100)} %
-        </span>
-        <IconButton
-          label="Vergrößern (auch Mausrad)"
-          onClick={() => zoomBy(1.4)}
-        >
-          <ZoomIn />
-        </IconButton>
-        <IconButton label="Ganze Kachel" onClick={fit}>
-          <Maximize />
-        </IconButton>
         <div className="flex-1" />
         <IconButton
           label={
@@ -718,6 +641,22 @@ export function TileEditor({
         >
           {showRejected ? <Eye /> : <EyeOff />}
         </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="tabular-nums"
+              onClick={fit}
+            >
+              <Maximize /> {Math.round(view.z * 100)} %
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Ganze Kachel zeigen. Zoomen mit dem Mausrad, verschieben durch
+            Ziehen auf freier Fläche.
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* canvas */}
@@ -856,57 +795,110 @@ export function TileEditor({
           </g>
         </svg>
 
-        {/* question card */}
-        {sel && (selState === "open" || sel.origin === "label") && (
+        {/* selection card: what you can do with the selected box */}
+        {sel && (
           <div className="bg-card/95 absolute bottom-3 left-1/2 z-10 w-max max-w-[calc(100%-24px)] -translate-x-1/2 rounded-lg border px-3 py-2.5 shadow-lg backdrop-blur">
-            <div className="flex items-center gap-2">
-              <CircleHelp className="size-4 text-[var(--box-open)]" />
-              <span className="text-sm font-medium">
-                {sel.origin === "label"
-                  ? "Ist dieses Label richtig?"
-                  : mode === "audit"
-                    ? "Fehlt hier ein Fahrzeug-Label?"
-                    : "Ist das ein Fahrzeug?"}
-              </span>
-              {questionNo > 0 && (
-                <span className="text-muted-foreground text-xs">
-                  Frage {questionNo} von {open.length}
-                </span>
-              )}
-              {typeof sel.claude === "string" && sel.claude && (
-                <Badge variant="outline">Claude: {sel.claude}</Badge>
-              )}
-            </div>
-            <div className="mt-2 flex items-center gap-1.5">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => answer("car")}
-              >
-                <Car /> Auto
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => answer("large_vehicle")}
-              >
-                <Truck /> Groß
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => answer("no")}
-              >
-                <X /> Kein Fahrzeug
-              </Button>
-              <Separator orientation="vertical" className="mx-1 h-5" />
-              <Button size="sm" variant="ghost" onClick={nextQuestion}>
-                Überspringen
-              </Button>
-              <Button size="sm" variant="ghost" onClick={acceptAllOpen}>
-                Alle {open.length} annehmen
-              </Button>
-            </div>
+            {selState === "open" || sel.origin === "label" ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <CircleHelp className="size-4 text-[var(--box-open)]" />
+                  <span className="text-sm font-medium">
+                    {sel.origin === "label"
+                      ? "Ist dieses Label richtig?"
+                      : mode === "audit"
+                        ? "Fehlt hier ein Fahrzeug-Label?"
+                        : "Ist das ein Fahrzeug?"}
+                  </span>
+                  {questionNo > 0 && (
+                    <span className="text-muted-foreground text-xs">
+                      {questionNo} / {open.length}
+                    </span>
+                  )}
+                  {typeof sel.claude === "string" && sel.claude && (
+                    <Badge variant="outline">Claude: {sel.claude}</Badge>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => answer("car")}
+                  >
+                    <Car /> Auto
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => answer("large_vehicle")}
+                  >
+                    <Truck /> Groß
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => answer("no")}
+                  >
+                    <X /> Nein
+                  </Button>
+                  {open.length > 1 && (
+                    <>
+                      <Separator orientation="vertical" className="mx-1 h-5" />
+                      <Button size="sm" variant="ghost" onClick={nextQuestion}>
+                        Später
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={acceptAllOpen}>
+                        Alle {open.length} = Fahrzeug
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : selState === "rejected" ? (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-sm">Abgelehnt</span>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setClassOfSelected(sel.cls)}
+                >
+                  <Check /> Doch ein Fahrzeug
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  size="sm"
+                  value={String(effectiveClass(sel))}
+                  onValueChange={(v) =>
+                    v && setClassOfSelected(Number(v) as 0 | 1)
+                  }
+                  aria-label="Klasse"
+                >
+                  <ToggleGroupItem value="0" className="gap-1.5 px-2.5">
+                    <Car /> Auto
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="1" className="gap-1.5 px-2.5">
+                    <Truck /> Groß
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <IconButton
+                  label="90° drehen"
+                  keyHint="R"
+                  onClick={() => rotateSelected(Math.PI / 2)}
+                >
+                  <RotateCw />
+                </IconButton>
+                <IconButton
+                  label={sel.origin === "manual" ? "Löschen" : "Ablehnen"}
+                  keyHint="Entf"
+                  onClick={removeSelected}
+                >
+                  <Trash2 />
+                </IconButton>
+              </div>
+            )}
           </div>
         )}
         {!tile && (
@@ -941,20 +933,12 @@ export function TileEditor({
         <div className="flex-1" />
         {c.open > 0 && !(sel && selState === "open") && (
           <Button size="sm" variant="outline" onClick={nextQuestion}>
-            <CircleHelp /> {c.open} offene Fragen
+            <CircleHelp /> {c.open} offen
           </Button>
         )}
         <span className="text-muted-foreground hidden text-xs whitespace-nowrap lg:inline">
-          {saving ? "Speichert…" : dirty ? "Ungespeichert" : "Gespeichert"}
+          {saving || dirty ? "Speichert…" : "Gespeichert"}
         </span>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!dirty || saving || locked}
-          onClick={() => void save(false)}
-        >
-          <Save /> Speichern
-        </Button>
         <Button
           size="sm"
           disabled={saving || locked || !tile}

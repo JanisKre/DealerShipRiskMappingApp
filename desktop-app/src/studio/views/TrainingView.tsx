@@ -1,4 +1,4 @@
-import { BrainCircuit, Play, RotateCw } from "lucide-react";
+import { BrainCircuit, ChevronRight, RotateCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@renderer/components/ui/badge";
@@ -30,7 +30,6 @@ import {
 } from "@renderer/components/ui/table";
 import { api, fmt, pct, runColor, type Run, type Status } from "@studio/api";
 import { RunLines } from "@studio/components/LineChartCard";
-import { RoundDialog } from "@studio/components/RoundDialog";
 
 const RUN_STATE: Record<
   Run["state"],
@@ -49,7 +48,6 @@ export function TrainingView({
   status: Status;
   reload: () => void;
 }): React.JSX.Element {
-  const [roundOpen, setRoundOpen] = useState(false);
   const busy = status.job?.status === "running";
   const names = status.runs.map((r) => r.name);
   const ds = status.dataset;
@@ -80,9 +78,6 @@ export function TrainingView({
               → neue Vorschläge. Nichts wird automatisch installiert.
             </CardDescription>
           </div>
-          <Button disabled={busy} onClick={() => setRoundOpen(true)}>
-            <Play /> Neue Runde
-          </Button>
         </CardHeader>
         <CardContent>
           {status.rounds.length ? (
@@ -149,8 +144,8 @@ export function TrainingView({
             </Table>
           ) : (
             <p className="text-muted-foreground text-sm">
-              Noch keine Runde. Label einen Schwung Kacheln und starte dann
-              „Speichern &amp; neu trainieren“.
+              Noch keine Runde. Runden startest du beim Labeln mit „Speichern
+              &amp; neu trainieren“.
             </p>
           )}
         </CardContent>
@@ -204,12 +199,6 @@ export function TrainingView({
       </div>
 
       <ManualTraining status={status} busy={busy} run={run} />
-      <RoundDialog
-        open={roundOpen}
-        onOpenChange={setRoundOpen}
-        status={status}
-        onStarted={reload}
-      />
     </div>
   );
 }
@@ -233,15 +222,16 @@ function ManualTraining({
     (r) => r.state === "interrupted" && r.hasLast,
   );
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Von Grund auf</CardTitle>
-        <CardDescription>
-          Volles Training ab den DOTA-Gewichten (1–2 Stunden) oder einen
-          abgebrochenen Lauf fortsetzen.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap items-end gap-3">
+    <details className="group bg-card rounded-xl border">
+      <summary className="flex cursor-pointer list-none items-center gap-2 p-5 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-4 transition-transform group-open:rotate-90" />
+        Erweitert: Training von Grund auf
+        <span className="text-muted-foreground font-normal">
+          – volles Training ab den DOTA-Gewichten (1–2 Stunden) oder einen
+          abgebrochenen Lauf fortsetzen
+        </span>
+      </summary>
+      <div className="flex flex-wrap items-end gap-3 px-5 pb-5">
         <div className="space-y-1.5">
           <Label htmlFor="mt-name">Name</Label>
           <Input
@@ -307,8 +297,8 @@ function ManualTraining({
             <RotateCw /> {r.name} fortsetzen
           </Button>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </details>
   );
 }
 

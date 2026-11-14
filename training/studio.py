@@ -345,6 +345,11 @@ def models_status() -> dict:
     exports = read_json(EXPORTS_FILE, []) or []
     if export:
         export["weights"] = next((e["run"] for e in reversed(exports) if e.get("sha256") == export["sha256"]), None)
+    if installed:
+        # Which run the installed model came from: a recorded export, or a run's own best.onnx.
+        installed["weights"] = next((e["run"] for e in reversed(exports) if e.get("sha256") == installed["sha256"]), None) or next(
+            (p.parent.parent.name for p in sorted(RUNS.glob("*/weights/best.onnx")) if sha256(p) == installed["sha256"]), None
+        )
     backups = sorted(p.name for p in APP_MODELS_DIR.glob("backup-*") if p.is_dir()) if APP_MODELS_DIR.exists() else []
     return {
         "installed": installed,
@@ -527,6 +532,10 @@ def build_job(step: str, opts: dict) -> dict:
         title = f"Exportieren: {run}" + (" und in der App installieren" if install else "")
     elif step == "round":
         return build_round(opts)
+    elif step == "measure":
+        run = opt_run(opts)
+        stages = measure_stages(run, dt.datetime.now().strftime("%Y-%m-%d-%H%M%S"))
+        title = f"Messen: {run}"
     else:
         raise ValueError(f"unknown step {step!r}")
     return {"step": step, "title": title, "run": run, "stages": stages, "options": opts}
@@ -557,21 +566,9 @@ def rounds_status() -> list[dict]:
     return out
 
 
-def build_round(opts: dict) -> dict:
-    """Dataset → fine-tune from the base run → measure (Ultralytics + app pipeline) →
-    fresh suggestions for the open tiles. Human labels only unless `pseudo` is set:
-    a model that saw its own pseudo-labels would be over-confident on exactly the
-    tiles it suggests boxes for next."""
-    numbers = [int(m.group(1)) for p in RUNS.glob("round-*") if (m := ROUND.match(p.name))] + [int(m.group(1)) for r in rounds() if (m := ROUND.match(r["run"]))]
-    run = f"round-{max(numbers, default=0) + 1:02d}"
-    base = opt_run(opts, "base")
-    epochs = opt_int(opts, "epochs", 3, 120, 15)
-    pseudo = opt_bool(opts, "pseudo")
-    sites = sites_status()
-    stamp = dt.datetime.now().strftime("%Y-%m-%d-%H%M%S")
+def measure_stages(run: str, stamp: str) -> list[dict]:
+    """Ultralytics sweep, ONNX export (not installed) and the app-pipeline benchmark."""
     stages = [
-        stage("Datensatz bauen", py("make_dataset.py", *(["--pseudo"] if pseudo else []))),
-        stage("Feintuning", awake(py("train.py", "--name", run, "--model", weights_path(base), "--epochs", str(epochs)))),
         stage("Messen (Ultralytics)", awake(py("evaluate.py", "--weights", weights_path(run), "--sweep", "--json", str(EVALS / f"ultralytics-{run}-{stamp}.json")))),
         stage("Exportieren", py("export.py", "--weights", weights_path(run))),
         stage("Export merken", py("studio.py", "--record-export", run)),
@@ -591,6 +588,26 @@ def build_round(opts: dict) -> dict:
                 cwd=DESKTOP_APP,
             )
         )
+    return stages
+
+
+def build_round(opts: dict) -> dict:
+    """Dataset → fine-tune from the base run → measure (Ultralytics + app pipeline) →
+    fresh suggestions for the open tiles. Human labels only unless `pseudo` is set:
+    a model that saw its own pseudo-labels would be over-confident on exactly the
+    tiles it suggests boxes for next."""
+    numbers = [int(m.group(1)) for p in RUNS.glob("round-*") if (m := ROUND.match(p.name))] + [int(m.group(1)) for r in rounds() if (m := ROUND.match(r["run"]))]
+    run = f"round-{max(numbers, default=0) + 1:02d}"
+    base = opt_run(opts, "base")
+    epochs = opt_int(opts, "epochs", 3, 120, 15)
+    pseudo = opt_bool(opts, "pseudo")
+    sites = sites_status()
+    stamp = dt.datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    stages = [
+        stage("Datensatz bauen", py("make_dataset.py", *(["--pseudo"] if pseudo else []))),
+        stage("Feintuning", awake(py("train.py", "--name", run, "--model", weights_path(base), "--epochs", str(epochs)))),
+        *measure_stages(run, stamp),
+    ]
     stages.append(stage("Neue Vorschläge für offene Kacheln", awake(py("autolabel.py", "--weights", weights_path(run))), lock=True))
     entry = {
         "run": run,
