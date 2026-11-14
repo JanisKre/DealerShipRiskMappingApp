@@ -281,10 +281,12 @@
       "large": "Groß",
       "shareSum": "Die Anteile p summieren sich auf {{sum}} statt 1 – sie werden für die Berechnung auf 1 normiert.",
       "frequencyHint": "Wie oft pro Jahr ein Hagelereignis einen Standort der jeweiligen Zone trifft.",
-      "probabilityHint": "Anteil der Ereignisse je Größenklasse; zusammen 1.",
+      "probabilityHint": "Anteil der Ereignisse je Größenklasse; die drei Anteile werden auf 1 normiert.",
       "severityHint": "Schaden je Fahrzeug, wenn ein Ereignis dieser Klasse eintritt.",
       "frequencyOrder_one": "λ in Zone {{zones}} ist kleiner als in der Zone darunter – bitte prüfen.",
-      "frequencyOrder_other": "λ in den Zonen {{zones}} ist kleiner als in der jeweils niedrigeren Zone – bitte prüfen."
+      "frequencyOrder_other": "λ in den Zonen {{zones}} ist kleiner als in der jeweils niedrigeren Zone – bitte prüfen.",
+      "frequencyHigh_one": "λ in Zone {{zones}} liegt über 1 Ereignis pro Jahr – für eine Zonenrate unplausibel, nur für Stresstests gedacht.",
+      "frequencyHigh_other": "λ in den Zonen {{zones}} liegt über 1 Ereignis pro Jahr – für eine Zonenrate unplausibel, nur für Stresstests gedacht."
     },
     "resetUndo": "Rückgängig",
     "resetNothing": "Alle Werte entsprechen bereits den Standardwerten.",

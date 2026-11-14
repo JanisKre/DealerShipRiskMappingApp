@@ -38,6 +38,7 @@ import {
   parameterInputError,
   parseLocaleNumber,
   zonesWithFallingFrequency,
+  zonesWithImplausibleFrequency,
 } from "./parameterInput";
 import {
   Table,
@@ -410,6 +411,13 @@ function HailEalNotice({
     parameters.hailFrequencyZone5,
     parameters.hailFrequencyZone6,
   ]);
+  // More than one damaging event a year is implausible for a zone rate;
+  // allowed for stress tests, but said (UW-12).
+  const highZones = zonesWithImplausibleFrequency(
+    ([1, 2, 3, 4, 5, 6] as const).map(
+      (z) => parameters[`hailFrequencyZone${z}`],
+    ),
+  );
   return (
     <div className="space-y-2 rounded-lg border border-warning/40 p-4 text-sm">
       <p className="font-mono text-xs">
@@ -427,6 +435,14 @@ function HailEalNotice({
         <WarningLine className="text-xs">
           {t("parameters.hailEal.shareSum", {
             sum: formatParameterValue(Number(shareSum.toFixed(2)), locale),
+          })}
+        </WarningLine>
+      )}
+      {highZones.length > 0 && (
+        <WarningLine className="text-xs">
+          {t("parameters.hailEal.frequencyHigh", {
+            count: highZones.length,
+            zones: highZones.join(", "),
           })}
         </WarningLine>
       )}
@@ -451,6 +467,7 @@ type EditorBindings = {
   onCommit: (field: ParameterField, raw: string) => void;
   onRevert: (field: ParameterField) => void;
   locale: string;
+  errors: Partial<Record<ParameterKey, string>>;
 };
 
 /**
@@ -480,6 +497,7 @@ function HailEalTables({
         onCommit={(raw) => bindings.onCommit(field, raw)}
         onRevert={() => bindings.onRevert(field)}
         disabled={bindings.disabled}
+        error={bindings.errors[key]}
         compact
       />
     );
@@ -587,6 +605,8 @@ type ParameterEditorProps = {
   onRevert: () => void;
   /** Narrow table cell: smaller minimum width, no readable-value line. */
   compact?: boolean;
+  /** Why the typed value was not taken; shown under the field. */
+  error?: string;
 };
 
 function ParameterEditor({
@@ -600,7 +620,9 @@ function ParameterEditor({
   onCommit,
   onRevert,
   compact = false,
+  error,
 }: ParameterEditorProps): React.JSX.Element {
+  const errorId = `parameter-${field.key}-error`;
   const readable = compact
     ? null
     : readableValue(field, parseLocaleNumber(value, locale));
@@ -636,6 +658,8 @@ function ParameterEditor({
           // field drops the focus right after Enter.
           readOnly={disabled}
           aria-busy={disabled || undefined}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
           className="h-full min-w-0 flex-1 border-0 px-2 text-right tabular-nums shadow-none focus-visible:ring-0"
         />
         {unit && (
@@ -644,10 +668,18 @@ function ParameterEditor({
           </span>
         )}
       </div>
-      {readable && (
-        <p className="pr-2 text-right text-xs text-muted-foreground tabular-nums">
-          = {readable}
+      {error ? (
+        // Inline, at the field it belongs to (UW-29): toasts piled up and
+        // could be read as belonging to another field.
+        <p id={errorId} className="text-xs text-destructive" role="alert">
+          {error}
         </p>
+      ) : (
+        readable && (
+          <p className="pr-2 text-right text-xs text-muted-foreground tabular-nums">
+            = {readable}
+          </p>
+        )
       )}
     </div>
   );
@@ -772,6 +804,9 @@ function ParametersContent(): React.JSX.Element {
   const updateParameters = useAppStore((s) => s.updateParameters);
   const resetParameters = useAppStore((s) => s.resetParameters);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Partial<Record<ParameterKey, string>>>(
+    {},
+  );
   const [confirmReset, setConfirmReset] = useState(false);
   useEffect(() => {
     setDraft(
@@ -783,7 +818,16 @@ function ParametersContent(): React.JSX.Element {
       ),
     );
   }, [parameters, locale]);
+  function setError(key: ParameterKey, message?: string): void {
+    setErrors((current) => {
+      const next = { ...current };
+      if (message) next[key] = message;
+      else delete next[key];
+      return next;
+    });
+  }
   function revertDraft(field: ParameterField): void {
+    setError(field.key);
     setDraft((current) => ({
       ...current,
       [field.key]: formatParameterValue(parameters[field.key], locale),
@@ -806,9 +850,10 @@ function ParametersContent(): React.JSX.Element {
   ): Promise<void> {
     const error = parameterInputError(raw, field, locale);
     if (error) {
-      revertDraft(field);
-      // Say why the value jumped back instead of reverting silently.
-      toast.error(
+      // Keep what was typed and say, at this field, why it was not taken;
+      // Escape restores the stored value.
+      setError(
+        field.key,
         t(`parameters.validation.${error}`, {
           label: fieldLabel(field),
           rule: ruleText(field),
@@ -817,6 +862,7 @@ function ParametersContent(): React.JSX.Element {
       );
       return;
     }
+    setError(field.key);
     const value = parseLocaleNumber(raw, locale);
     // Unchanged ("30000" for 30.000): show it in the usual notation again.
     if (value === parameters[field.key]) {
@@ -826,8 +872,8 @@ function ParametersContent(): React.JSX.Element {
     try {
       await updateParameters({ [field.key]: value } as Partial<RiskParameters>);
     } catch (err) {
-      revertDraft(field);
-      toast.error(
+      setError(
+        field.key,
         t("parameters.validation.rejected", {
           label: fieldLabel(field),
           error: (err as Error).message,
@@ -868,6 +914,7 @@ function ParametersContent(): React.JSX.Element {
     onDraftChange: (key, value) =>
       setDraft((current) => ({ ...current, [key]: value })),
     onCommit: (field, raw) => void commitValue(field, raw),
+    errors,
     onRevert: revertDraft,
     locale,
   };
@@ -1010,6 +1057,7 @@ function ParametersContent(): React.JSX.Element {
                               }
                               onCommit={(raw) => void commitValue(field, raw)}
                               disabled={parametersUpdating}
+                              error={errors[field.key]}
                             />
                           </div>
                         ),

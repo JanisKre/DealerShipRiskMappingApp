@@ -1,3 +1,7 @@
+import {
+  formatParameterValue,
+  parseLocaleNumber,
+} from "@renderer/components/parameters/parameterInput";
 import { toastExported } from "@renderer/lib/exportToast";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -89,7 +93,7 @@ import {
 } from "@shared/imagery-metadata";
 import { Textarea } from "@renderer/components/ui/textarea";
 import { useAppStore } from "@renderer/store/appStore";
-import { eur, num, pct } from "@renderer/lib/format";
+import { eur, num, pct, uiLocale } from "@renderer/lib/format";
 import { HailZoneBadge } from "./HailZoneBadge";
 import {
   dealershipHailZone,
@@ -2379,26 +2383,34 @@ function PortfolioMetaSection({
     </label>
   );
 
+  // Amounts in the UI notation ("3.967.001 €"), read back with the same
+  // locale rules as the parameters page (UW-30).
   const amountField = (
     label: string,
     key: "productLimitEur" | "deductibleEur",
   ): React.JSX.Element => (
-    <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-      {label}
+    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+      <Label htmlFor={`${key}-${d.id}`} className="text-xs font-normal">
+        {label}
+      </Label>
       <Input
+        id={`${key}-${d.id}`}
         // Remount when the stored value changes (e.g. after an import).
         key={`${key}-${d[key] ?? ""}`}
-        type="number"
-        min={0}
-        defaultValue={d[key] ?? ""}
+        type="text"
+        inputMode="decimal"
+        defaultValue={
+          d[key] != null ? formatParameterValue(d[key], uiLocale()) : ""
+        }
         onBlur={(e) => {
-          const n = Number(e.target.value);
+          const raw = e.target.value.replace(/€/g, "").trim();
+          const n = raw ? parseLocaleNumber(raw, uiLocale()) : Number.NaN;
           updateMeta(d.id, {
-            [key]: e.target.value && !Number.isNaN(n) && n >= 0 ? n : undefined,
+            [key]: raw && !Number.isNaN(n) && n >= 0 ? n : undefined,
           });
         }}
       />
-    </label>
+    </div>
   );
 
   return (

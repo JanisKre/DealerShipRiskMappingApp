@@ -4,6 +4,7 @@ import {
   parameterInputError,
   parseLocaleNumber,
   zonesWithFallingFrequency,
+  zonesWithImplausibleFrequency,
 } from "./parameterInput";
 
 describe("parseLocaleNumber", () => {
@@ -102,5 +103,14 @@ describe("zonesWithFallingFrequency", () => {
       zonesWithFallingFrequency([0.01, 0.02, 0.04, 0.07, 0.1, 0.15]),
     ).toEqual([]);
     expect(zonesWithFallingFrequency([0.02, 0.02, 0.02])).toEqual([]);
+  });
+});
+
+describe("zonesWithImplausibleFrequency", () => {
+  it("names the zones above one event per year", () => {
+    expect(
+      zonesWithImplausibleFrequency([0.01, 0.02, 5, 0.07, 1, 1.5]),
+    ).toEqual([3, 6]);
+    expect(zonesWithImplausibleFrequency([0.01, 0.1])).toEqual([]);
   });
 });

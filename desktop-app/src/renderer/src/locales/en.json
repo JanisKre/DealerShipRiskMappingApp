@@ -281,10 +281,12 @@
       "large": "Large",
       "shareSum": "The shares p add up to {{sum}} instead of 1 – they are normalized to 1 for the calculation.",
       "frequencyHint": "How often per year a hail event hits a location in that zone.",
-      "probabilityHint": "Share of events per size class; together 1.",
+      "probabilityHint": "Share of events per size class; the three shares are normalised to 1.",
       "severityHint": "Damage per vehicle when an event of that class occurs.",
       "frequencyOrder_one": "λ in zone {{zones}} is lower than in the zone below – please check.",
-      "frequencyOrder_other": "λ in zones {{zones}} is lower than in the zone below each – please check."
+      "frequencyOrder_other": "λ in zones {{zones}} is lower than in the zone below each – please check.",
+      "frequencyHigh_one": "λ in zone {{zones}} is above 1 event per year – implausible for a zone rate, meant for stress tests only.",
+      "frequencyHigh_other": "λ in zones {{zones}} is above 1 event per year – implausible for a zone rate, meant for stress tests only."
     },
     "resetUndo": "Undo",
     "resetNothing": "All values already match the defaults.",

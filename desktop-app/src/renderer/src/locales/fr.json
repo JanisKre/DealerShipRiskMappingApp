@@ -281,10 +281,12 @@
       "large": "Grand",
       "shareSum": "Les parts p totalisent {{sum}} au lieu de 1 – elles sont normalisées à 1 pour le calcul.",
       "frequencyHint": "Nombre de fois par an qu’un événement de grêle touche un site de la zone.",
-      "probabilityHint": "Part des événements par classe de taille ; total 1.",
+      "probabilityHint": "Part des événements par classe de taille ; les trois parts sont normalisées à 1.",
       "severityHint": "Dommage par véhicule lorsqu’un événement de cette classe survient.",
       "frequencyOrder_one": "λ en zone {{zones}} est inférieur à celui de la zone précédente – à vérifier.",
-      "frequencyOrder_other": "λ dans les zones {{zones}} est inférieur à celui de la zone précédente – à vérifier."
+      "frequencyOrder_other": "λ dans les zones {{zones}} est inférieur à celui de la zone précédente – à vérifier.",
+      "frequencyHigh_one": "λ en zone {{zones}} dépasse 1 événement par an – peu plausible pour un taux de zone, réservé aux tests de stress.",
+      "frequencyHigh_other": "λ en zones {{zones}} dépasse 1 événement par an – peu plausible pour un taux de zone, réservé aux tests de stress."
     },
     "resetUndo": "Annuler",
     "resetNothing": "Toutes les valeurs correspondent déjà aux valeurs par défaut.",

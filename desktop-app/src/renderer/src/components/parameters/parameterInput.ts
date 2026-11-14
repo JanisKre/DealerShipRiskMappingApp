@@ -103,3 +103,11 @@ export function zonesWithFallingFrequency(lambdas: number[]): number[] {
   }
   return zones;
 }
+
+/**
+ * Zones (1-based) whose λ exceeds one damaging event per year: allowed for
+ * stress tests, but implausible as a zone rate (UW-12).
+ */
+export function zonesWithImplausibleFrequency(lambdas: number[]): number[] {
+  return lambdas.flatMap((lambda, i) => (lambda > 1 ? [i + 1] : []));
+}
