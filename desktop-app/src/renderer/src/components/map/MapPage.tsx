@@ -1,3 +1,4 @@
+import { exportLocale } from "@renderer/lib/format";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap, useMapEvents } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
@@ -739,7 +740,7 @@ export function MapPage(): React.JSX.Element {
           height: Math.round(r.height * dpr),
         };
       }
-      const result = await window.api.captureMap(rect, mode);
+      const result = await window.api.captureMap(rect, mode, exportLocale());
       if (mode === "clipboard" && result.ok)
         toast.success(t("map.page.mapCopied"));
       else if (mode === "save" && result.path)

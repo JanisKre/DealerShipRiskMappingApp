@@ -323,21 +323,29 @@ const api = {
 
   exportPortfolioFile: (
     session: IpcRequest["portfolio:export"]["session"],
+    locale?: IpcRequest["portfolio:export"]["locale"],
   ): Promise<IpcResponse["portfolio:export"]> =>
     ipcRenderer.invoke(IPC.exportPortfolioFile, {
       session,
+      locale,
     } satisfies IpcRequest["portfolio:export"]),
 
-  importPortfolioFile: (): Promise<IpcResponse["portfolio:import"]> =>
-    ipcRenderer.invoke(IPC.importPortfolioFile),
+  importPortfolioFile: (
+    locale?: NonNullable<IpcRequest["portfolio:import"]>["locale"],
+  ): Promise<IpcResponse["portfolio:import"]> =>
+    ipcRenderer.invoke(IPC.importPortfolioFile, {
+      locale,
+    } satisfies IpcRequest["portfolio:import"]),
 
   exportReport: (
     session: IpcRequest["report:export"]["session"],
     format: IpcRequest["report:export"]["format"],
+    locale?: IpcRequest["report:export"]["locale"],
   ): Promise<IpcResponse["report:export"]> =>
     ipcRenderer.invoke(IPC.exportReport, {
       session,
       format,
+      locale,
     } satisfies IpcRequest["report:export"]),
 
   exportLocationReport: (
@@ -350,9 +358,11 @@ const api = {
 
   exportReadonlyView: (
     session: IpcRequest["report:readonlyView"]["session"],
+    locale?: IpcRequest["report:readonlyView"]["locale"],
   ): Promise<IpcResponse["report:readonlyView"]> =>
     ipcRenderer.invoke(IPC.exportReadonlyView, {
       session,
+      locale,
     } satisfies IpcRequest["report:readonlyView"]),
 
   llmMemo: (
@@ -476,10 +486,12 @@ const api = {
   captureMap: (
     rect: IpcRequest["map:capture"]["rect"],
     mode: IpcRequest["map:capture"]["mode"],
+    locale?: IpcRequest["map:capture"]["locale"],
   ): Promise<IpcResponse["map:capture"]> =>
     ipcRenderer.invoke(IPC.mapCapture, {
       rect,
       mode,
+      locale,
     } satisfies IpcRequest["map:capture"]),
 
   selectImagery: (

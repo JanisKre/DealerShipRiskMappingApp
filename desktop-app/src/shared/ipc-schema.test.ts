@@ -198,3 +198,38 @@ describe("report:location", () => {
     ).toBe(false);
   });
 });
+
+describe("export locale", () => {
+  const session = {
+    id: "s",
+    name: "P",
+    createdAt: "2026-11-14T00:00:00Z",
+    updatedAt: "2026-11-14T00:00:00Z",
+    dealerships: [],
+  };
+
+  it("accepts the three UI languages and nothing else", () => {
+    const report = ipcRequest["report:export"];
+    expect(
+      report.safeParse({ session, format: "csv", locale: "de" }).success,
+    ).toBe(true);
+    expect(report.safeParse({ session, format: "csv" }).success).toBe(true);
+    expect(
+      report.safeParse({ session, format: "csv", locale: "../x" }).success,
+    ).toBe(false);
+  });
+
+  it("keeps the portfolio import callable without a payload", () => {
+    const request = ipcRequest["portfolio:import"];
+    expect(request.safeParse(undefined).success).toBe(true);
+    expect(request.safeParse({ locale: "fr" }).success).toBe(true);
+    expect(request.safeParse({ locale: "es" }).success).toBe(false);
+  });
+
+  it("keeps the snapshot flag of a saved state", () => {
+    const parsed = ipcRequest["sessions:save"].parse({
+      session: { ...session, snapshotOf: "live" },
+    });
+    expect(parsed.session.snapshotOf).toBe("live");
+  });
+});

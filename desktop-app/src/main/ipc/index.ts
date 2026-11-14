@@ -286,18 +286,20 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     return { ok: true };
   });
 
-  handle(IPC.exportPortfolioFile, async ({ session }) => ({
-    path: await exportPortfolioFile(session),
+  handle(IPC.exportPortfolioFile, async ({ session, locale }) => ({
+    path: await exportPortfolioFile(session, locale),
   }));
-  handle(IPC.importPortfolioFile, () => importPortfolioFile());
-  handle(IPC.exportReport, async ({ session, format }) => ({
-    path: await exportReport(session, format),
+  handle(IPC.importPortfolioFile, (request) =>
+    importPortfolioFile(request?.locale),
+  );
+  handle(IPC.exportReport, async ({ session, format, locale }) => ({
+    path: await exportReport(session, format, locale),
   }));
   handle(IPC.exportLocationReport, async (input) => ({
     path: await exportLocationReport(input),
   }));
-  handle(IPC.exportReadonlyView, async ({ session }) => ({
-    path: await exportReadonlyView(session),
+  handle(IPC.exportReadonlyView, async ({ session, locale }) => ({
+    path: await exportReadonlyView(session, locale),
   }));
 
   handle(IPC.llmMemo, ({ dealership }) => generateMemo(dealership));
@@ -328,7 +330,9 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     return { ok: true };
   });
 
-  handle(IPC.mapCapture, ({ rect, mode }) => captureMap(rect, mode));
+  handle(IPC.mapCapture, ({ rect, mode, locale }) =>
+    captureMap(rect, mode, locale),
+  );
   handle(IPC.clipboardWriteText, ({ text }) => {
     clipboard.writeText(text);
     return { ok: true };

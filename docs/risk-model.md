@@ -139,6 +139,18 @@ formula are unchanged (`shared/estimates.ts`).
 - **Manual count.** Saving a manual vehicle count reports the exposure
   change ("Exposure 72,4 Mio € → 7,5 Mio €"), because the count replaces the
   area estimate in the exposure.
+- **Exports.** PDF, Excel, CSV and the read-only HTML view are written in
+  the UI language and carry per-site provenance: vehicle source (manual,
+  detected, area estimate not in the EAL), hail-zone source, exposure and
+  whether it is estimated, EAL status (an empty EAL cell plus "keine
+  Fahrzeugzahl" instead of 0 €), boundary source and confidence, result
+  confidence and model version. PDF, Excel and HTML add a methodology
+  block: the screening qualification, the λ/p/S values in use marked as
+  placeholders, the EAL coverage, the estimated share of the exposure, the
+  accumulation chaining, the evidence sources and the model versions
+  (`main/services/export-content.ts`). German and French CSVs use `;`,
+  decimal commas and a UTF-8 BOM; the English CSV keeps its
+  machine-readable header and `,`.
 
 ### Default values (placeholders)
 

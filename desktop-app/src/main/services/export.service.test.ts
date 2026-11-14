@@ -32,7 +32,9 @@ import {
   exportReadonlyView,
   exportReport,
   importPortfolioFile,
+  toCsv,
 } from "./export.service";
+import ExcelJS from "exceljs";
 
 function site(id: string, vehicles: number, zone: number): AnalyzedDealership {
   return {
@@ -123,5 +125,130 @@ describe("dashboard exports", () => {
   it("does nothing when the save dialog is cancelled", async () => {
     mocks.next = "";
     expect(await exportReport(session, "pdf")).toBeNull();
+  });
+});
+
+/** A site without a detection model: area estimate on a fallback circle. */
+const estimatedSite = {
+  id: "E",
+  name: "Egon Senger",
+  address: "Spandauer Damm 1, 14059 Berlin",
+  lat: 52.52,
+  lon: 13.29,
+  hailZone: 3,
+  boundary: {
+    source: "synthetic",
+    polygon: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [13.29, 52.52],
+          [13.291, 52.52],
+          [13.291, 52.521],
+          [13.29, 52.52],
+        ],
+      ],
+    },
+    areaSqm: 72_408,
+    confidence: 0.2,
+  },
+  detection: {
+    vehicleCount: 2896,
+    confidence: 0.3,
+    model: "stub-area-heuristic",
+  },
+  risk: {
+    overallScore: 40,
+    perils: [],
+    eal: 0,
+    exposureEur: 72_400_000,
+    modelVersion: "screening-0.5.1",
+    confidence: 0.4,
+    evidence: [
+      {
+        source: "Postcode hail zones",
+        retrievedAt: "2026-11-11T00:00:00Z",
+        method: "postcode hail-zone lookup",
+        confidence: 0.7,
+      },
+    ],
+    computedAt: "2026-11-11T00:00:00Z",
+  },
+};
+
+const mixed: Session = SessionSchema.parse({
+  ...session,
+  dealerships: [site("A", 886, 2), estimatedSite],
+});
+
+describe("limitations and provenance in exports (UW-11, UW-03)", () => {
+  const ownDir = mkdtempSync(join(tmpdir(), "drm-export-prov-"));
+  const target = (name: string): string => {
+    mocks.next = join(ownDir, name);
+    return mocks.next;
+  };
+  afterAll(() => rmSync(ownDir, { recursive: true, force: true }));
+  it("adds provenance columns and leaves the EAL empty without a count", () => {
+    const [header, counted, estimated] = toCsv(mixed).split("\n");
+    expect(header).toContain(
+      "vehicleSource,hailZone,hailZoneSource,exposureEur,exposureEstimated,eal,ealStatus",
+    );
+    expect(header).toContain("boundarySource,boundaryConfidence");
+    expect(header).toContain("modelVersion");
+    expect(counted).toContain(",detected,");
+    expect(counted).toContain(",ok,");
+    // Area estimate: flagged, exposure exported, EAL blank with the reason.
+    expect(estimated).toContain(",areaEstimate,");
+    expect(estimated).toContain(",72400000,yes,,noCount,");
+    expect(estimated).toContain(",synthetic,0.2,0.4,screening-0.5.1,");
+  });
+
+  it("writes German CSVs with semicolons, decimal commas and a BOM", () => {
+    const text = toCsv(mixed, "de");
+    expect(text.startsWith("\uFEFF")).toBe(true);
+    const [header, , estimated] = text.slice(1).split("\n");
+    expect(header).toMatch(/^Name;Adresse;Breite;Länge;/);
+    expect(header).toContain("Quelle Fahrzeugzahl");
+    expect(estimated).toContain(";52,52;13,29;");
+    expect(estimated).toContain("Flächenschätzung (nicht in der EAL)");
+    expect(estimated).toContain(";keine Fahrzeugzahl;");
+  });
+
+  it("puts the methodology and placeholder note into the workbook", async () => {
+    const path = target("method.xlsx");
+    expect(await exportReport(mixed, "excel", "de")).toBe(path);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path);
+    const notes = wb.worksheets[1];
+    const text = notes
+      .getColumn(1)
+      .values.filter((v): v is string => typeof v === "string")
+      .join("\n");
+    expect(text).toContain("Screening-Schätzung");
+    expect(text).toContain("Platzhalterwerte");
+    expect(text).toContain("aus 1 von 2 Standorten mit Fahrzeugzahl");
+    expect(text).toContain("Postcode hail zones");
+    expect(text).toContain("screening-0.5.1");
+    const header = wb.worksheets[0].getRow(1).values as unknown[];
+    expect(header).toContain("Quelle Fahrzeugzahl");
+    expect(header).toContain("Konfidenz Grenze");
+  });
+
+  it("writes a localised HTML view with the limitations", async () => {
+    const path = target("view-de.html");
+    expect(await exportReadonlyView(mixed, "de")).toBe(path);
+    const html = readFileSync(path, "utf-8");
+    expect(html).toContain('<html lang="de">');
+    expect(html).toContain("Methodik, Datenquellen und Einschränkungen");
+    expect(html).toContain("Platzhalterwerte");
+    expect(html).toContain("keine Fahrzeugzahl");
+    expect(html).toContain("≈2.896");
+    expect(html).not.toContain(">0 €<");
+  });
+
+  it("writes a PDF with the methodology page", async () => {
+    const path = target("report-de.pdf");
+    expect(await exportReport(mixed, "pdf", "de")).toBe(path);
+    expect(readFileSync(path).length).toBeGreaterThan(2_000);
   });
 });

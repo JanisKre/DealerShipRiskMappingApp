@@ -1,3 +1,4 @@
+import { exportLocale } from "@renderer/lib/format";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -160,6 +161,7 @@ export function ChatView({
         const { path } = await window.api.exportReport(
           useAppStore.getState().currentSession(),
           action.format,
+          exportLocale(),
         );
         return path
           ? t("chat.actions.exported", { path })

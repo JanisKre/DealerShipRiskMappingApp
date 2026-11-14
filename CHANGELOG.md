@@ -39,6 +39,15 @@ the project follows [Semantic Versioning](https://semver.org/).
   portfolio after every finished location instead of every 25 locations or
   15 seconds.
 
+- **Exports state their limits and provenance.** PDF, Excel, CSV and the
+  read-only view are written in the app language (German headers, `;`,
+  decimal commas and BOM in German/French CSVs, localised save dialogs) and
+  include per-site vehicle source, estimated-exposure flag, EAL status,
+  exposure, boundary source and confidence and model version. PDF, Excel
+  and HTML add a methodology page: screening qualification, placeholder
+  λ/p/S values, EAL coverage, estimated exposure share, sources and model
+  version.
+
 ### Changed
 
 - **Hail simulation in the layer panel.** The simulation is now a section of

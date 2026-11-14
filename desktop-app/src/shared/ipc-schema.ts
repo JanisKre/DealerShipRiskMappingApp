@@ -231,6 +231,9 @@ const DetectVehiclesRequestSchema: z.ZodType<DetectVehiclesRequest, unknown> =
 /** Longest text the renderer may put on the clipboard (a long chat answer). */
 export const CLIPBOARD_TEXT_MAX_CHARS = 100_000;
 
+/** UI language passed to exports so files and dialogs match the app. */
+export const ExportLocaleSchema = z.enum(["de", "en", "fr"]);
+
 export const ipcRequest = {
   "csv:parse": z.object({
     content: z.string(),
@@ -359,13 +362,24 @@ export const ipcRequest = {
   "dashboards:load": z.object({ id: z.string() }),
   "dashboards:save": z.object({ dashboard: DashboardSchema }),
   "dashboards:delete": z.object({ id: z.string() }),
-  "portfolio:export": z.object({ session: SessionSchema }),
-  "portfolio:import": z.void(),
+  "portfolio:export": z.object({
+    session: SessionSchema,
+    locale: ExportLocaleSchema.optional(),
+  }),
+  /** Optional for callers that predate the localised dialog title. */
+  "portfolio:import": z
+    .object({ locale: ExportLocaleSchema.optional() })
+    .optional(),
   "report:export": z.object({
     session: SessionSchema,
     format: z.enum(["csv", "pdf", "excel"]),
+    /** Language of the report, its headers and the save dialog. */
+    locale: ExportLocaleSchema.optional(),
   }),
-  "report:readonlyView": z.object({ session: SessionSchema }),
+  "report:readonlyView": z.object({
+    session: SessionSchema,
+    locale: ExportLocaleSchema.optional(),
+  }),
   "report:location": z.object({
     dealership: AnalyzedDealershipSchema,
     locale: z.enum(["de", "en", "fr"]),
@@ -401,6 +415,7 @@ export const ipcRequest = {
     text: z.string().min(1).max(CLIPBOARD_TEXT_MAX_CHARS),
   }),
   "map:capture": z.object({
+    locale: ExportLocaleSchema.optional(),
     /** Optional crop rect in CSS pixels (renderer coordinates). */
     rect: z
       .object({
@@ -518,7 +533,11 @@ export const ipcResponse = {
   "settings:setLlmApiKey": z.object({ ok: z.boolean() }),
   "settings:setNatCatApiKey": z.object({ ok: z.boolean() }),
   "settings:deleteNatCatApiKey": z.object({ ok: z.boolean() }),
-  "map:capture": z.object({ path: z.string().nullable(), ok: z.boolean() }),
+  "map:capture": z.object({
+    locale: ExportLocaleSchema.optional(),
+    path: z.string().nullable(),
+    ok: z.boolean(),
+  }),
   "clipboard:writeText": z.object({ ok: z.boolean() }),
   "imagery:select": ImagerySelectionSchema,
   "imagery:timeline": ImageryTimelineSchema,

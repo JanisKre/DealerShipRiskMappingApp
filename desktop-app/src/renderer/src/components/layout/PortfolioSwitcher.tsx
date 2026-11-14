@@ -1,3 +1,4 @@
+import { exportLocale } from "@renderer/lib/format";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -130,7 +131,7 @@ export function PortfolioSwitcher({
   async function handleImportFile(): Promise<void> {
     setBusy(true);
     try {
-      const session = await window.api.importPortfolioFile();
+      const session = await window.api.importPortfolioFile(exportLocale());
       if (session) setPendingImport(session);
     } catch (err) {
       toast.error(

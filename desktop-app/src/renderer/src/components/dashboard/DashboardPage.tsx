@@ -1,3 +1,4 @@
+import { exportLocale } from "@renderer/lib/format";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -722,6 +723,7 @@ function Actions({
       const { path } = await window.api.exportReport(
         useAppStore.getState().currentSession(),
         format,
+        exportLocale(),
       );
       if (path) toast.success(t("ui.reportExported", { path }));
     } catch (err) {
@@ -733,6 +735,7 @@ function Actions({
     try {
       const { path } = await window.api.exportReadonlyView(
         useAppStore.getState().currentSession(),
+        exportLocale(),
       );
       if (path) toast.success(t("ui.viewExported", { path }));
     } catch (err) {
@@ -744,6 +747,7 @@ function Actions({
     try {
       const { path } = await window.api.exportPortfolioFile(
         useAppStore.getState().currentSession(),
+        exportLocale(),
       );
       if (path) toast.success(t("ui.portfolioExported", { path }));
     } catch (err) {

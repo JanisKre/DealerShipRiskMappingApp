@@ -10,6 +10,12 @@ export function uiLocale(): string {
   return i18n.language || "de";
 }
 
+/** The UI language as an export locale (files and save dialogs). */
+export function exportLocale(): "de" | "en" | "fr" {
+  const language = uiLocale().slice(0, 2);
+  return language === "en" || language === "fr" ? language : "de";
+}
+
 export function eur(
   n: number | undefined | null,
   maximumFractionDigits = 0,
