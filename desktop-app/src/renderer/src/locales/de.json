@@ -1311,7 +1311,8 @@
       "mapSaved": "Kartenbild gespeichert: {{name}}",
       "mapCopyFailed": "Das Kartenbild konnte nicht kopiert werden.",
       "mapSaveFailed": "Das Kartenbild konnte nicht gespeichert werden.",
-      "durationRange": "{{low}}–{{high}}"
+      "durationRange": "{{low}}–{{high}}",
+      "nextHint": "Nächster Hinweis ({{current}} von {{total}})"
     }
   },
   "ai": {

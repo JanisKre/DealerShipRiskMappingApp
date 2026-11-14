@@ -59,6 +59,22 @@ the project follows [Semantic Versioning](https://semver.org/).
 - **Export toasts no longer block the toolbar.** They name the file, can be
   closed, offer "Im Ordner zeigen" and appear at the top centre.
 
+- **More room for the map in small windows.** Narrowing the window below
+  1280 px folds the sidebar and closes the assistant once. The passive map
+  hints share one slot with "Nächster Hinweis (1 von N)", and "Hinweis
+  ausblenden" is remembered per portfolio. The detection-model wizard no
+  longer opens on its own after start-up (it covered ⌘K); the map notice
+  and Settings lead to it. Opening a layer-panel section scrolls it into
+  view. While an analysis runs the list keeps its order and the remaining
+  time is a range.
+- **Unavailable actions say why.** "Bestand über Zeit" is disabled with the
+  reason when the detection model is missing; the offline chat commands
+  stay visible after the first one ran.
+- **Parameters.** Invalid entries are explained at the field instead of in
+  piling toasts; λ above one event per year gets a stress-test note; the p
+  hint says the shares are normalised. Maximum indemnity and deductible use
+  the German number format.
+
 ### Changed
 
 - **Hail simulation in the layer panel.** The simulation is now a section of

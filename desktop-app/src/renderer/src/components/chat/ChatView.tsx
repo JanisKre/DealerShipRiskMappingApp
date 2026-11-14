@@ -484,6 +484,16 @@ export function ChatView({
               )}
               {error && <LlmErrorMessage error={error} />}
             </div>
+            {/* Without AI the offline commands stay at hand after the first
+                one ran (UW-26). */}
+            {llmReady === false && !streaming && !actionPending && (
+              <div className="flex flex-col items-center gap-2 px-4 pb-4 text-center">
+                <p className="text-xs text-muted-foreground">
+                  {t("chat.commandsWithoutAi")}
+                </p>
+                {promptChips}
+              </div>
+            )}
           </LocationLinkContext.Provider>
         )}
       </div>

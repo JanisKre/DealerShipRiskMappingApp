@@ -1,3 +1,4 @@
+import { crossedIntoNarrow } from "@renderer/lib/narrowWindow";
 import { pickActiveSession } from "@renderer/lib/portfolioSessions";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,7 +7,6 @@ import { List, MessageSquare, Radar, Search, WifiOff } from "lucide-react";
 import { useAppStore } from "@renderer/store/appStore";
 import { WIDE_WINDOW_PX, useMapStore } from "@renderer/store/mapStore";
 import { CommandPalette } from "@renderer/components/command/CommandPalette";
-import { ModelInstallWizard } from "@renderer/components/model/ModelInstallWizard";
 import {
   ALL_NAV_ITEMS,
   NAV_ITEMS,
@@ -31,6 +31,7 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
+  useSidebar,
 } from "@renderer/components/ui/sidebar";
 
 /** Checks whether a nav entry is active for the current path. */
@@ -93,6 +94,29 @@ function useOnline(): boolean {
 }
 
 /** Restores the most recently saved portfolio when the app starts. */
+/**
+ * Narrowing the window below WIDE_WINDOW_PX folds the sidebar to icons and
+ * closes the assistant once, so the map keeps at least half the width.
+ */
+function NarrowWindowWatcher(): null {
+  const { setOpen } = useSidebar();
+  useEffect(() => {
+    let previous = window.innerWidth;
+    function onResize(): void {
+      const width = window.innerWidth;
+      if (crossedIntoNarrow(previous, width, WIDE_WINDOW_PX)) {
+        setOpen(false);
+        if (useMapStore.getState().chatPanelOpen)
+          useMapStore.getState().toggleChatPanel();
+      }
+      previous = width;
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [setOpen]);
+  return null;
+}
+
 function SessionLoader(): null {
   const setSession = useAppStore((s) => s.setSession);
   const setDealerships = useAppStore((s) => s.setDealerships);
@@ -178,6 +202,7 @@ export function AppShell(): React.JSX.Element {
     >
       <SessionLoader />
       <AutosaveController />
+      <NarrowWindowWatcher />
       <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center gap-2 px-1 py-1.5">
@@ -332,7 +357,6 @@ export function AppShell(): React.JSX.Element {
           <Outlet />
         </div>
       </SidebarInset>
-      <ModelInstallWizard />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </SidebarProvider>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
@@ -75,14 +75,26 @@ function Section({
   children: React.ReactNode;
 }>): React.JSX.Element {
   const [open, setOpen] = useState(defaultOpen || forceOpen);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const openedByClick = useRef(false);
   useEffect(() => {
     if (forceOpen) setOpen(true);
   }, [forceOpen]);
+  // An opened section can lie below the visible part of the panel: bring
+  // it into view (UW-25).
+  useEffect(() => {
+    if (!open || !openedByClick.current) return;
+    openedByClick.current = false;
+    rootRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [open]);
   return (
-    <div className="border-t first:border-t-0">
+    <div ref={rootRef} className="border-t first:border-t-0">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          openedByClick.current = !open;
+          setOpen((o) => !o);
+        }}
         className="flex w-full items-center gap-1.5 rounded-sm px-1 py-2 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         aria-expanded={open}
       >

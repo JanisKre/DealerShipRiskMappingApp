@@ -1311,7 +1311,8 @@
       "mapSaved": "Map image saved: {{name}}",
       "mapCopyFailed": "Couldn't copy the map image.",
       "mapSaveFailed": "Couldn't save the map image.",
-      "durationRange": "{{low}}–{{high}}"
+      "durationRange": "{{low}}–{{high}}",
+      "nextHint": "Next hint ({{current}} of {{total}})"
     }
   },
   "ai": {

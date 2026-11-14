@@ -1311,7 +1311,8 @@
       "mapSaved": "Image de carte enregistrée : {{name}}",
       "mapCopyFailed": "Impossible de copier l’image de la carte.",
       "mapSaveFailed": "Impossible d’enregistrer l’image de la carte.",
-      "durationRange": "{{low}}–{{high}}"
+      "durationRange": "{{low}}–{{high}}",
+      "nextHint": "Conseil suivant ({{current}} sur {{total}})"
     }
   },
   "ai": {

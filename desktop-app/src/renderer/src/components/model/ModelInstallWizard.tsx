@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, Loader2 } from "lucide-react";
 import type { ModelDownloadChunk } from "@shared/ipc-schema";
@@ -12,7 +12,6 @@ import {
   DialogTitle,
 } from "@renderer/components/ui/dialog";
 import { Progress } from "@renderer/components/ui/progress";
-import { useAppStore } from "@renderer/store/appStore";
 
 type Phase =
   "ready" | "idle" | "downloading" | "done" | "error" | "unavailable";
@@ -24,10 +23,10 @@ function mb(bytes: number): string {
 /**
  * Installation wizard for the vehicle detection model.
  *
- * Without props it is the first-run prompt: shown once per installation, but
- * only after the first portfolio has analysed sites — a dialog about vehicle
- * detection means nothing on an empty start screen. With `open` it is opened
- * from Settings → Data sources ("Fahrzeugerkennung"), any number of times.
+ * Opened from Settings → Data sources ("Fahrzeugerkennung"). It no longer
+ * opens on its own after start-up: the modal appeared seconds after launch,
+ * took the focus and even covered ⌘K (UW-23); the map banner and the
+ * detail dialog's notice already lead here (UX-07).
  */
 export function ModelInstallWizard({
   open: controlledOpen,
@@ -44,8 +43,6 @@ export function ModelInstallWizard({
     if (controlled) onOpenChange?.(next);
     else setAutoOpen(next);
   };
-  const hasSites = useAppStore((s) => s.dealerships.length > 0 && !s.analyzing);
-  const autoChecked = useRef(false);
   const [installDir, setInstallDir] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState<{
@@ -66,24 +63,6 @@ export function ModelInstallWizard({
     );
     return status.available;
   }
-
-  // First-run prompt: once, when there are analysed sites to improve.
-  useEffect(() => {
-    if (controlled || !hasSites || autoChecked.current) return;
-    autoChecked.current = true;
-    let cancelled = false;
-    async function check(): Promise<void> {
-      const settings = await window.api.getSettings();
-      if (settings.setupWizardCompleted || settings.modelWizardDismissed)
-        return;
-      await loadStatus();
-      if (!cancelled) setAutoOpen(true);
-    }
-    void check();
-    return () => {
-      cancelled = true;
-    };
-  }, [controlled, hasSites]);
 
   // Opened from Settings: show the current state, never a stale "done".
   useEffect(() => {

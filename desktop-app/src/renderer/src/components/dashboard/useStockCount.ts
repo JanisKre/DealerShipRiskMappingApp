@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useAppStore } from "@renderer/store/appStore";
@@ -9,10 +9,30 @@ import { stockCountCandidates } from "./stockCount";
  * highest hail EAL that have no such count yet, one after another, with a
  * progress toast that can stop the run between locations.
  */
-export function useStockCount(): { running: boolean; start: () => void } {
+export function useStockCount(): {
+  running: boolean;
+  /** False when the detection model is missing: the action is unavailable. */
+  available: boolean | null;
+  start: () => void;
+} {
   const { t } = useTranslation();
   const [running, setRunning] = useState(false);
+  const [available, setAvailable] = useState<boolean | null>(null);
   const stopRef = useRef(false);
+  // Known up front, so the button can be disabled with its reason instead
+  // of looking available and only answering with a toast (UW-26).
+  useEffect(() => {
+    let cancelled = false;
+    void window.api
+      .modelStatus()
+      .then((status) => {
+        if (!cancelled) setAvailable(status.available);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function run(): Promise<void> {
     const status = await window.api.modelStatus().catch(() => null);
@@ -60,6 +80,7 @@ export function useStockCount(): { running: boolean; start: () => void } {
 
   return {
     running,
+    available,
     start: () => {
       if (!running) void run();
     },

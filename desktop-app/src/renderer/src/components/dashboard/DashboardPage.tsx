@@ -1,3 +1,8 @@
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@renderer/components/ui/tooltip";
 import { toastExported } from "@renderer/lib/exportToast";
 import { exportLocale } from "@renderer/lib/format";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -786,20 +791,31 @@ function Actions({
         >
           <GitCompare /> {t("ui.compare")}
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={stockCount.start}
-          disabled={stockCount.running}
-          title={t("dashboard.stockCount.hint")}
-        >
-          {stockCount.running ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <History />
-          )}
-          {t("dashboard.stockCount.button")}
-        </Button>
+        <Tooltip delayDuration={150}>
+          <TooltipTrigger asChild>
+            {/* span keeps the tooltip working while the button is disabled */}
+            <span className="inline-flex">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={stockCount.start}
+                disabled={stockCount.running || stockCount.available === false}
+              >
+                {stockCount.running ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <History />
+                )}
+                {t("dashboard.stockCount.button")}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-64">
+            {stockCount.available === false
+              ? t("dashboard.stockCount.needsModel")
+              : t("dashboard.stockCount.hint")}
+          </TooltipContent>
+        </Tooltip>
         <Button
           variant="outline"
           size="sm"
@@ -835,10 +851,18 @@ function Actions({
               <GitCompare /> {t("ui.compare")}
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={stockCount.running}
+              disabled={stockCount.running || stockCount.available === false}
               onSelect={stockCount.start}
             >
-              <History /> {t("dashboard.stockCount.button")}
+              <History />
+              <span className="flex flex-col">
+                {t("dashboard.stockCount.button")}
+                {stockCount.available === false && (
+                  <span className="text-xs text-muted-foreground">
+                    {t("dashboard.stockCount.needsModel")}
+                  </span>
+                )}
+              </span>
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={snapshot.saving}

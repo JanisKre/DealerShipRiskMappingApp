@@ -1,3 +1,4 @@
+import { useDismissedHint } from "@renderer/lib/dismissedHints";
 import { etaRangeMinutes } from "@renderer/lib/analysisEta";
 import { toastExported } from "@renderer/lib/exportToast";
 import { exportLocale } from "@renderer/lib/format";
@@ -394,9 +395,14 @@ export function MapPage(): React.JSX.Element {
   const [pendingDelete, setPendingDelete] = useState<AnalyzedDealership | null>(
     null,
   );
+  const sessionId = useAppStore((s) => s.sessionId);
   const [boundaryWarningDismissed, setBoundaryWarningDismissed] =
-    useState(false);
-  const [modelWarningDismissed, setModelWarningDismissed] = useState(false);
+    useDismissedHint(sessionId, "boundaryReview");
+  const [modelWarningDismissed, setModelWarningDismissed] = useDismissedHint(
+    sessionId,
+    "detectionModel",
+  );
+  const [hintIndex, setHintIndex] = useState(0);
   const [errorsDismissed, setErrorsDismissed] = useState(false);
   const [clustersInfoDismissed, setClustersInfoDismissed] = useState(false);
   const [detectionEditId, setDetectionEditId] = useState<string | null>(null);
@@ -802,6 +808,162 @@ export function MapPage(): React.JSX.Element {
   // conspicuous "max zoom / layer = 17" error tiles.
   const tileMaxNativeZoom = basemap === "terrain" ? 17 : undefined;
 
+  // Passive hints share one slot with "1 von N" paging instead of stacking
+  // over half the map; dismissing one is remembered per portfolio (UW-14).
+  const passiveHints = [
+    !analyzing &&
+      !editing &&
+      !boundaryWarningDismissed &&
+      boundaryReviewCount > 0 && (
+        <div className={cn(NOTICE_CLASS, "border-warning/40")}>
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="font-medium">
+              {t("map.page.boundaryWarning", {
+                count: boundaryReviewCount,
+              })}
+            </div>
+            {fallbackReviewCount > 0 && (
+              <p className="text-xs leading-snug text-muted-foreground">
+                {t("map.page.fallbackBoundaries", {
+                  count: fallbackReviewCount,
+                })}
+              </p>
+            )}
+            {reviewTarget ? (
+              <>
+                <p
+                  className="line-clamp-3 break-words text-xs leading-snug text-muted-foreground"
+                  title={reviewTarget.name}
+                >
+                  {t("map.page.boundaryReviewQuestion", {
+                    name: reviewTarget.name,
+                    position: boundaryReviewIds.indexOf(reviewTarget.id) + 1,
+                    count: boundaryReviewCount,
+                  })}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => void confirmAndContinue(reviewTarget.id)}
+                  >
+                    <Check className="size-3" />
+                    {t("map.page.boundaryConfirm")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => startBoundaryEditing(reviewTarget)}
+                  >
+                    <Pencil className="size-3" />
+                    {t("map.page.boundaryCorrect")}
+                  </Button>
+                  {boundaryReviewCount > 1 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs"
+                      onClick={reviewNextBoundary}
+                    >
+                      {t("map.page.boundaryNext")}
+                      <ArrowRight className="size-3" />
+                    </Button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs leading-snug text-muted-foreground">
+                  {t("map.page.boundaryWarningHint")}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={reviewNextBoundary}
+                  >
+                    {t("map.page.boundaryStartReview")}
+                    <ArrowRight className="size-3" />
+                  </Button>
+                  {fallbackReviewCount > 0 && !fallbackFilterActive && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => setFilters({ boundarySource: "fallback" })}
+                    >
+                      <Filter className="size-3" />
+                      {t("map.page.showFallbackBoundaries")}
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          <DismissButton
+            label={t("map.page.dismissHint")}
+            onClick={() => setBoundaryWarningDismissed(true)}
+          />
+        </div>
+      ),
+    !analyzing && !modelWarningDismissed && stubDetectionCount > 0 && (
+      <div className={cn(NOTICE_CLASS, "border-warning/40")}>
+        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="font-medium">
+            {t("map.page.detectionWarning", {
+              count: stubDetectionCount,
+              total: withCoords.length,
+            })}
+          </div>
+          <p className="text-xs leading-snug text-muted-foreground">
+            {t("map.page.detectionWarningHint")}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={() => navigate("/settings?section=data")}
+          >
+            <ScanEye className="size-3" />
+            {t("map.page.setupDetection")}
+          </Button>
+        </div>
+        <DismissButton
+          label={t("map.page.dismissHint")}
+          onClick={() => setModelWarningDismissed(true)}
+        />
+      </div>
+    ),
+    layers.accumulationClusters &&
+      !clustersInfoDismissed &&
+      visibleDealerships.length > 0 &&
+      accumulationClusterCount === 0 && (
+        <div className={NOTICE_CLASS}>
+          <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <p className="min-w-0 flex-1 text-xs leading-snug text-muted-foreground">
+            {t("map.page.noClustersInfo", {
+              radius: parameters.accumulationRadiusKm,
+            })}
+          </p>
+          <DismissButton
+            label={t("map.page.dismissHint")}
+            onClick={() => setClustersInfoDismissed(true)}
+          />
+        </div>
+      ),
+  ].filter((hint): hint is React.JSX.Element => Boolean(hint));
+  const hintPosition =
+    passiveHints.length > 0 ? hintIndex % passiveHints.length : 0;
+
   // Shown on the map and on the empty state: when every imported row fails,
   // nothing reaches the map, and this is the only way back.
   const errorNotice =
@@ -1183,160 +1345,22 @@ export function MapPage(): React.JSX.Element {
           </div>
         )}
 
-        {!analyzing &&
-          !editing &&
-          !boundaryWarningDismissed &&
-          boundaryReviewCount > 0 && (
-            <div className={cn(NOTICE_CLASS, "border-warning/40")}>
-              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
-              <div className="min-w-0 flex-1 space-y-1.5">
-                <div className="font-medium">
-                  {t("map.page.boundaryWarning", {
-                    count: boundaryReviewCount,
-                  })}
-                </div>
-                {fallbackReviewCount > 0 && (
-                  <p className="text-xs leading-snug text-muted-foreground">
-                    {t("map.page.fallbackBoundaries", {
-                      count: fallbackReviewCount,
-                    })}
-                  </p>
-                )}
-                {reviewTarget ? (
-                  <>
-                    <p
-                      className="line-clamp-3 break-words text-xs leading-snug text-muted-foreground"
-                      title={reviewTarget.name}
-                    >
-                      {t("map.page.boundaryReviewQuestion", {
-                        name: reviewTarget.name,
-                        position:
-                          boundaryReviewIds.indexOf(reviewTarget.id) + 1,
-                        count: boundaryReviewCount,
-                      })}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => void confirmAndContinue(reviewTarget.id)}
-                      >
-                        <Check className="size-3" />
-                        {t("map.page.boundaryConfirm")}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => startBoundaryEditing(reviewTarget)}
-                      >
-                        <Pencil className="size-3" />
-                        {t("map.page.boundaryCorrect")}
-                      </Button>
-                      {boundaryReviewCount > 1 && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs"
-                          onClick={reviewNextBoundary}
-                        >
-                          {t("map.page.boundaryNext")}
-                          <ArrowRight className="size-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-xs leading-snug text-muted-foreground">
-                      {t("map.page.boundaryWarningHint")}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={reviewNextBoundary}
-                      >
-                        {t("map.page.boundaryStartReview")}
-                        <ArrowRight className="size-3" />
-                      </Button>
-                      {fallbackReviewCount > 0 && !fallbackFilterActive && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() =>
-                            setFilters({ boundarySource: "fallback" })
-                          }
-                        >
-                          <Filter className="size-3" />
-                          {t("map.page.showFallbackBoundaries")}
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-              <DismissButton
-                label={t("map.page.dismissHint")}
-                onClick={() => setBoundaryWarningDismissed(true)}
-              />
-            </div>
-          )}
-
-        {!analyzing && !modelWarningDismissed && stubDetectionCount > 0 && (
-          <div className={cn(NOTICE_CLASS, "border-warning/40")}>
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="font-medium">
-                {t("map.page.detectionWarning", {
-                  count: stubDetectionCount,
-                  total: withCoords.length,
-                })}
-              </div>
-              <p className="text-xs leading-snug text-muted-foreground">
-                {t("map.page.detectionWarningHint")}
-              </p>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={() => navigate("/settings?section=data")}
-              >
-                <ScanEye className="size-3" />
-                {t("map.page.setupDetection")}
-              </Button>
-            </div>
-            <DismissButton
-              label={t("map.page.dismissHint")}
-              onClick={() => setModelWarningDismissed(true)}
-            />
-          </div>
+        {passiveHints[hintPosition]}
+        {passiveHints.length > 1 && (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="h-6 text-xs shadow-sm"
+            onClick={() => setHintIndex((i) => i + 1)}
+          >
+            {t("map.page.nextHint", {
+              current: hintPosition + 1,
+              total: passiveHints.length,
+            })}
+            <ArrowRight className="size-3" />
+          </Button>
         )}
-
-        {layers.accumulationClusters &&
-          !clustersInfoDismissed &&
-          visibleDealerships.length > 0 &&
-          accumulationClusterCount === 0 && (
-            <div className={NOTICE_CLASS}>
-              <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              <p className="min-w-0 flex-1 text-xs leading-snug text-muted-foreground">
-                {t("map.page.noClustersInfo", {
-                  radius: parameters.accumulationRadiusKm,
-                })}
-              </p>
-              <DismissButton
-                label={t("map.page.dismissHint")}
-                onClick={() => setClustersInfoDismissed(true)}
-              />
-            </div>
-          )}
       </div>
 
       {/* Hail simulation: the playing storm and its impact, right of the
