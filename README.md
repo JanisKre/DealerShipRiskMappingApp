@@ -41,9 +41,10 @@ vehicles on aerial imagery and scores the hail exposure.
 - The hail score is based on GDV hail zones, a licensed provider or an
   Open-Meteo CAPE proxy. The app also estimates the expected annual loss and
   shows observed hail days from DWD.
-- Hail event replay: radar hail cells from DWD play across the map, the app
-  shows which dealerships each storm reached, and an event can be moved or
-  imported as GeoJSON for a stress test.
+- Hail simulation: generate storms over Germany or aimed at the portfolio,
+  draw a track, or replay historic storm days since 2001 (DWD radar
+  climatology) and the live radar archive; the map shows which dealerships
+  each storm reaches, for a stress test.
 - A dashboard with KPIs, charts, a location table and portfolio comparison.
 - Optional AI memos and portfolio chat via Ollama, LM Studio, llama.cpp,
   OpenAI, Claude or a custom endpoint.

@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
 import type { RiskEvidence } from "@shared/types";
-import { radarHailRank, type RadarHailClass } from "@shared/radar-hail";
+import type { RadarHailClass } from "@shared/radar-hail";
 import {
   HailEventCellSchema,
+  isStoredEventId,
+  summarizeEvent,
   MAX_EVENT_CELLS,
   MAX_FOOTPRINT_BYTES,
   type Bbox,
@@ -11,7 +13,9 @@ import {
   type HailEventList,
   type HailEventSummary,
 } from "@shared/hail-events";
+import { simulationEvidence } from "@shared/hail-sim";
 import { getDb } from "../../db/database";
+import { loadRadklimDay, radklimEvidence } from "./radklim.service";
 import {
   archiveSpan,
   archivedCells,
@@ -154,40 +158,6 @@ function radarEventId(start: number): string {
   return `radar-${new Date(start).toISOString().replace(/[-:]/g, "").slice(0, 13)}`;
 }
 
-function summarize(
-  id: string,
-  source: HailEventSummary["source"],
-  name: string | null,
-  timed: boolean,
-  cells: ReadonlyArray<{ t: number; c: RadarHailClass; d: number; b: Bbox }>,
-  tracks: number,
-): HailEventSummary {
-  let maxClass: RadarHailClass = "mixed";
-  let maxDbz = 0;
-  const bbox: Bbox = [Infinity, Infinity, -Infinity, -Infinity];
-  for (const c of cells) {
-    if (radarHailRank(c.c) > radarHailRank(maxClass)) maxClass = c.c;
-    maxDbz = Math.max(maxDbz, c.d);
-    bbox[0] = Math.min(bbox[0], c.b[0]);
-    bbox[1] = Math.min(bbox[1], c.b[1]);
-    bbox[2] = Math.max(bbox[2], c.b[2]);
-    bbox[3] = Math.max(bbox[3], c.b[3]);
-  }
-  return {
-    id,
-    source,
-    name,
-    start: cells[0]?.t ?? 0,
-    end: cells.at(-1)?.t ?? 0,
-    timed,
-    maxClass,
-    maxDbz,
-    tracks,
-    cells: cells.length,
-    bbox,
-  };
-}
-
 /** Radar events of the archive, newest first. */
 export function radarEvents(
   cells: readonly ArchivedHailCell[],
@@ -196,7 +166,7 @@ export function radarEvents(
     .map(([from, to]) => {
       const part = cells.slice(from, to);
       const tracks = new Set(linkTracks(part)).size;
-      return summarize(
+      return summarizeEvent(
         radarEventId(part[0].t),
         "radar",
         null,
@@ -243,8 +213,8 @@ function radarEventEvidence(): RiskEvidence {
 
 // --- Imported footprints ---------------------------------------------------
 
-/** An imported event as stored in `hail_event_imports`. */
-interface ImportedEvent {
+/** A stored event (import, saved scenario, historic day) in `hail_event_imports`. */
+export interface ImportedEvent {
   summary: HailEventSummary;
   cells: HailEventCell[];
 }
@@ -434,7 +404,7 @@ export function parseFootprintGeoJson(
   const id = `import-${createHash("sha1").update(text).digest("hex").slice(0, 12)}`;
   const label = name.trim().slice(0, 120) || "Imported footprint";
   return {
-    summary: summarize(id, "import", label, timed, cells, trackIds.size),
+    summary: summarizeEvent(id, "import", label, timed, cells, trackIds.size),
     cells,
   };
 }
@@ -482,12 +452,8 @@ function readImport(id: string): ImportedEvent | null {
   }
 }
 
-/** Stores an imported footprint; importing the same file again replaces it. */
-export function importFootprint(
-  content: string,
-  name: string,
-): HailEventSummary {
-  const event = parseFootprintGeoJson(content, name);
+/** Stores an event; the same id replaces the earlier one. */
+export function storeEvent(event: ImportedEvent): HailEventSummary {
   getDb()
     .prepare(
       "INSERT OR REPLACE INTO hail_event_imports (id, name, created_at, data) VALUES (?, ?, ?, ?)",
@@ -499,6 +465,41 @@ export function importFootprint(
       JSON.stringify(event),
     );
   return event.summary;
+}
+
+/** Stores an imported footprint; importing the same file again replaces it. */
+export function importFootprint(
+  content: string,
+  name: string,
+): HailEventSummary {
+  return storeEvent(parseFootprintGeoJson(content, name));
+}
+
+/**
+ * Saves a generated or drawn storm as a scenario, so it can be replayed
+ * later. The id is a hash of the cells: saving the same storm twice keeps
+ * one copy.
+ */
+export function saveScenario(
+  name: string,
+  source: "simulation" | "drawn",
+  cells: HailEventCell[],
+): HailEventSummary {
+  if (cells.length === 0) throw new Error("The scenario has no cells.");
+  const sorted = [...cells].sort((a, b) => a.t - b.t || a.track - b.track);
+  const id = `saved-${createHash("sha1").update(JSON.stringify(sorted)).digest("hex").slice(0, 12)}`;
+  const label = name.trim().slice(0, 120) || "Scenario";
+  return storeEvent({
+    summary: summarizeEvent(id, source, label, true, sorted),
+    cells: sorted,
+  });
+}
+
+function storedEvidence(summary: HailEventSummary): RiskEvidence {
+  if (summary.source === "radklim") return radklimEvidence();
+  if (summary.source === "simulation" || summary.source === "drawn")
+    return simulationEvidence(summary.source);
+  return importEvidence(summary.name);
 }
 
 export function deleteImportedEvent(id: string): boolean {
@@ -526,13 +527,13 @@ export async function listHailEvents(): Promise<HailEventList> {
 
 /** One event with its cells, ready to replay. Null when it is gone. */
 export function hailEventDetail(id: string): HailEventDetail | null {
-  if (id.startsWith("import-")) {
+  if (isStoredEventId(id)) {
     const event = readImport(id);
     return event
       ? {
           summary: event.summary,
           cells: event.cells,
-          evidence: importEvidence(event.summary.name),
+          evidence: storedEvidence(event.summary),
         }
       : null;
   }
@@ -553,4 +554,15 @@ export function hailEventDetail(id: string): HailEventDetail | null {
     r: row.r,
   }));
   return { summary, cells, evidence: radarEventEvidence() };
+}
+
+/**
+ * A historic day from the DWD radar climatology, downloaded once and then
+ * kept like an import.
+ */
+export async function loadHistoricDay(day: string): Promise<HailEventSummary> {
+  const id = `radklim-${day.replace(/-/g, "")}`;
+  const stored = readImport(id);
+  if (stored) return stored.summary;
+  return storeEvent(await loadRadklimDay(day, linkTracks));
 }

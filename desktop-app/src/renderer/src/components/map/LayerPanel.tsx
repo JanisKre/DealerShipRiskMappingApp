@@ -4,7 +4,6 @@ import type { TFunction } from "i18next";
 import {
   Camera,
   ChevronDown,
-  CloudHail,
   ChevronRight,
   Clipboard,
   Layers,
@@ -40,8 +39,6 @@ import {
   type MapLayers,
 } from "@renderer/store/mapStore";
 import { ScenarioBuilder } from "./ScenarioBuilder";
-import { HailEventPanel } from "./HailEventPanel";
-import { useHailReplayStore } from "@renderer/store/hailReplayStore";
 import {
   PANEL_ACTION_CLASS,
   PANEL_CONTROL_CLASS,
@@ -392,7 +389,6 @@ export function LayerPanel({
   const activeLayerCount = countActiveLayers(layers);
   const activeOverlayCount = countActiveLayers(layers, OVERLAY_KEYS);
   const [open, setOpen] = useState(false);
-  const replayLoaded = useHailReplayStore((s) => s.detail != null);
   // Editing started from a map notice must not stay hidden in a closed panel.
   useEffect(() => {
     if (editing || detectionEditing) setOpen(true);
@@ -612,15 +608,6 @@ export function LayerPanel({
                   </p>
                 </>
               )}
-            </Section>
-
-            {/* Hail event replay (radar archive, imported footprints) */}
-            <Section
-              icon={<CloudHail className="size-3" />}
-              title={t("hailReplay.sectionTitle")}
-              badge={replayLoaded ? t("hailReplay.loadedBadge") : undefined}
-            >
-              <HailEventPanel />
             </Section>
 
             {/* Hailstorm scenario — collapsed */}

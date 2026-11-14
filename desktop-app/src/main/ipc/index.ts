@@ -69,6 +69,8 @@ import {
   hailEventDetail,
   importFootprint,
   listHailEvents,
+  loadHistoricDay,
+  saveScenario,
 } from "../services/hail-history/hail-events.service";
 import { placesAutocomplete } from "../services/places.service";
 import {
@@ -199,6 +201,10 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     importFootprint(content, name),
   );
   handle(IPC.hailEventsDelete, ({ id }) => deleteImportedEvent(id));
+  handle(IPC.hailEventsLoadHistoric, ({ day }) => loadHistoricDay(day));
+  handle(IPC.hailEventsSave, ({ name, source, cells }) =>
+    saveScenario(name, source, cells),
+  );
   handle(
     IPC.scoreRisk,
     ({

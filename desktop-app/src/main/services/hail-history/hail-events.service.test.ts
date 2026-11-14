@@ -3,7 +3,9 @@ import type BetterSqlite3 from "better-sqlite3";
 import {
   classDamageFromParameters,
   computeHailEventImpact,
+  summarizeEvent,
 } from "@shared/hail-events";
+import { generateOutbreak } from "@shared/hail-sim";
 import { fixtureFiles, fixtureXml } from "./konrad3d.fixture";
 import type { ArchivedHailCell } from "./radar-hail.service";
 
@@ -305,6 +307,52 @@ describe.skipIf(!Sqlite)("radar archive and replay (SQLite)", () => {
     expect(events.hailEventDetail(summary.id)?.cells).toHaveLength(1);
     expect(events.deleteImportedEvent(summary.id)).toBe(true);
     expect(events.hailEventDetail(summary.id)).toBeNull();
+  });
+
+  it("saves a generated storm once and replays it with its evidence", async () => {
+    const cells = generateOutbreak({
+      seed: 9,
+      storms: 2,
+      strength: "severe",
+      heading: "sw-ne",
+      t0: DAY_A,
+    });
+    const first = events.saveScenario("Test", "simulation", cells);
+    const again = events.saveScenario("Test", "simulation", cells);
+    expect(again.id).toBe(first.id);
+    expect(first).toMatchObject({
+      source: "simulation",
+      tracks: 2,
+      name: "Test",
+    });
+    expect((await events.listHailEvents()).events.map((e) => e.id)).toEqual([
+      first.id,
+    ]);
+    const detail = events.hailEventDetail(first.id)!;
+    expect(detail.cells).toEqual(cells);
+    expect(detail.evidence.source).toMatch(/generator/);
+    expect(() => events.saveScenario("Empty", "drawn", [])).toThrow();
+  });
+
+  it("reuses a historic day that was loaded before, without DWD", async () => {
+    const stored = events.storeEvent({
+      summary: summarizeEvent(
+        "radklim-20130728",
+        "radklim",
+        "2013-07-28",
+        true,
+        [],
+      ),
+      cells: [],
+    });
+    expect(await events.loadHistoricDay("2013-07-28")).toEqual(stored);
+    expect(events.hailEventDetail("radklim-20130728")?.evidence.source).toMatch(
+      /RADKLIM/,
+    );
+    // Not stored and DWD offline: a readable error.
+    await expect(events.loadHistoricDay("2013-07-27")).rejects.toThrow(
+      /no data|not reachable/,
+    );
   });
 
   it("migrates the schema-2 cache archive into the tables", () => {

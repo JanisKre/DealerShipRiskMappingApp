@@ -72,7 +72,7 @@ import { ClusteredMarkers } from "./ClusteredMarkers";
 import { DetectionOverlay, type DetectionEditDraft } from "./DetectionOverlay";
 import { HailstormScenarioLayer } from "./HailstormScenarioLayer";
 import { HailEventReplayLayer } from "./HailEventReplayLayer";
-import { HailReplayBar } from "./HailReplayBar";
+import { HailSimPanel } from "./HailSimPanel";
 import { HailZoneLayer } from "./HailZoneLayer";
 import { LayerPanel } from "./LayerPanel";
 import { DeleteSelectedDialog } from "./LocationsPanel";
@@ -1003,8 +1003,6 @@ export function MapPage(): React.JSX.Element {
       {/* Status banner top center: analysis progress + data quality hints,
           stacked; at most about half the map high, scrolling beyond that. */}
       <div className="pointer-events-none absolute inset-x-0 top-3 z-[1000] flex max-h-[55%] flex-col items-center gap-2 overflow-y-auto px-14 pb-2 [&>*]:pointer-events-auto [&>*]:shrink-0">
-        {/* Hail event replay: play, time slider, running count. */}
-        <HailReplayBar />
         {detectionEditing && detectionDraft && detectionReviewDealership && (
           <div className={NOTICE_CLASS}>
             <ScanSearch className="mt-0.5 size-4 shrink-0 text-primary" />
@@ -1357,6 +1355,11 @@ export function MapPage(): React.JSX.Element {
               />
             </div>
           )}
+      </div>
+
+      {/* Hail simulation: button, or the panel, right of the zoom control. */}
+      <div className="pointer-events-none absolute bottom-24 left-16 top-3 z-[1001] flex flex-col items-start">
+        <HailSimPanel />
       </div>
 
       {/* Legend (left) and layer control (right) share one bottom bar: as

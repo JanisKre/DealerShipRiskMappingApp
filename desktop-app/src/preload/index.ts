@@ -139,6 +139,18 @@ const api = {
       id,
     } satisfies IpcRequest["hailEvents:delete"]),
 
+  hailEventsLoadHistoric: (
+    day: string,
+  ): Promise<IpcResponse["hailEvents:loadHistoric"]> =>
+    ipcRenderer.invoke(IPC.hailEventsLoadHistoric, {
+      day,
+    } satisfies IpcRequest["hailEvents:loadHistoric"]),
+
+  hailEventsSave: (
+    request: IpcRequest["hailEvents:save"],
+  ): Promise<IpcResponse["hailEvents:save"]> =>
+    ipcRenderer.invoke(IPC.hailEventsSave, request),
+
   fetchWeather: (
     lat: number,
     lon: number,

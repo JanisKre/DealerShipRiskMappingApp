@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Pause, Play, RotateCcw, X } from "lucide-react";
-import { Button } from "@renderer/components/ui/button";
+import { Pause, Play, RotateCcw } from "lucide-react";
 import { HintButton } from "@renderer/components/ui/hint-button";
 import { Slider } from "@renderer/components/ui/slider";
 import {
@@ -18,17 +17,6 @@ import {
   useHailReplayStore,
   type ReplaySpeed,
 } from "@renderer/store/hailReplayStore";
-
-/** Local date and time of a replay moment. */
-export function replayTimeLabel(ms: number): string {
-  return new Date(ms).toLocaleString(uiLocale(), {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 /** Local date of a replay moment. */
 export function replayDateLabel(ms: number): string {
@@ -48,9 +36,9 @@ export function replayClockLabel(ms: number): string {
 }
 
 /**
- * Playback bar at the bottom of the map while a timed hail event is
- * loaded: play / pause, the time slider, speed, and a running count of the
- * locations reached so far with their stress-test loss.
+ * Player of the loaded hail event, at the top of the hail panel: play /
+ * pause, the time slider, speed, and a running count of the locations
+ * reached so far with their stress-test loss.
  */
 export function HailReplayBar(): React.JSX.Element | null {
   const { t } = useTranslation();
@@ -61,7 +49,6 @@ export function HailReplayBar(): React.JSX.Element | null {
   const setTime = useHailReplayStore((s) => s.setTime);
   const setPlaying = useHailReplayStore((s) => s.setPlaying);
   const setSpeed = useHailReplayStore((s) => s.setSpeed);
-  const setDetail = useHailReplayStore((s) => s.setDetail);
   const impact = useHailEventImpact();
 
   const start = detail?.summary.start ?? 0;
@@ -105,7 +92,7 @@ export function HailReplayBar(): React.JSX.Element | null {
 
   const atEnd = time >= stop;
   return (
-    <div className="pointer-events-auto flex w-[min(40rem,100%)] flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2 shadow-lg">
+    <div className="flex w-full flex-wrap items-center gap-2">
       <HintButton
         size="icon"
         variant="default"
@@ -144,7 +131,7 @@ export function HailReplayBar(): React.JSX.Element | null {
         />
         <div className="mt-1 flex justify-between gap-2 text-[11px] tabular-nums text-muted-foreground">
           <span className="font-medium text-foreground">
-            {replayTimeLabel(Math.min(time, end))}
+            {replayClockLabel(Math.min(time, end))}
           </span>
           <span>
             {t("hailReplay.reachedSoFar", {
@@ -169,16 +156,6 @@ export function HailReplayBar(): React.JSX.Element | null {
           ))}
         </SelectContent>
       </Select>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="size-8 shrink-0"
-        aria-label={t("hailReplay.close")}
-        title={t("hailReplay.close")}
-        onClick={() => setDetail(null)}
-      >
-        <X className="size-4" />
-      </Button>
     </div>
   );
 }

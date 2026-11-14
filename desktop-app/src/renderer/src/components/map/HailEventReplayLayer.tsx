@@ -12,6 +12,8 @@ import {
   useHailEventImpact,
   useShiftedEventCells,
 } from "@renderer/lib/useHailEventImpact";
+import { groundKm } from "@shared/hail-sim";
+import { useHailSimActions } from "@renderer/lib/useHailSimActions";
 import { useMap } from "./leaflet-react";
 
 /** Colours per hail class, the same ramp as the scenario intensities. */
@@ -59,7 +61,80 @@ export function HailEventReplayLayer(): null {
   const impact = useHailEventImpact();
   const dealerships = useAppStore((s) => s.dealerships);
 
+  const mapMode = useHailReplayStore((s) => s.mapMode);
+  const { simulateAt, simulateAlong } = useHailSimActions();
+
   const renderer = useMemo(() => L.canvas({ padding: 0.3 }), []);
+
+  // "Pick a start point": the next click on the map starts a storm there.
+  useEffect(() => {
+    if (mapMode !== "pickStart") return undefined;
+    const container = map.getContainer();
+    container.style.cursor = "crosshair";
+    const onClick = (e: L.LeafletMouseEvent): void =>
+      simulateAt([e.latlng.lng, e.latlng.lat]);
+    map.on("click", onClick);
+    return () => {
+      map.off("click", onClick);
+      container.style.cursor = "";
+    };
+  }, [map, mapMode, simulateAt]);
+
+  // "Draw a track": clicks add points, a double click (or the panel's
+  // "done" button) turns the line into a storm. Own handling instead of
+  // Geoman: its hint marker under the cursor swallowed the double click.
+  const drawPoints = useHailReplayStore((s) => s.drawPoints);
+  useEffect(() => {
+    if (mapMode !== "draw") return undefined;
+    const container = map.getContainer();
+    container.style.cursor = "crosshair";
+    map.doubleClickZoom.disable();
+    const onClick = (e: L.LeafletMouseEvent): void => {
+      const st = useHailReplayStore.getState();
+      const point: [number, number] = [e.latlng.lng, e.latlng.lat];
+      const last = st.drawPoints.at(-1);
+      // The two clicks of a double click land on the same spot.
+      if (last && groundKm(last, point) < 0.2) return;
+      st.setDrawPoints([...st.drawPoints, point]);
+    };
+    const onDblClick = (): void => {
+      const points = useHailReplayStore.getState().drawPoints;
+      if (points.length >= 2) simulateAlong(points);
+    };
+    map.on("click", onClick);
+    map.on("dblclick", onDblClick);
+    return () => {
+      map.off("click", onClick);
+      map.off("dblclick", onDblClick);
+      map.doubleClickZoom.enable();
+      container.style.cursor = "";
+    };
+  }, [map, mapMode, simulateAlong]);
+
+  // The track being drawn.
+  useEffect(() => {
+    if (drawPoints.length === 0) return undefined;
+    const latlngs = drawPoints.map(([lon, lat]) => [lat, lon] as L.LatLngTuple);
+    const group = L.layerGroup().addTo(map);
+    L.polyline(latlngs, {
+      interactive: false,
+      color: "#b91c1c",
+      weight: 3,
+      dashArray: "6 6",
+    }).addTo(group);
+    for (const ll of latlngs)
+      L.circleMarker(ll, {
+        interactive: false,
+        radius: 5,
+        color: "#b91c1c",
+        weight: 2,
+        fillColor: "#fff",
+        fillOpacity: 1,
+      }).addTo(group);
+    return () => {
+      group.remove();
+    };
+  }, [map, drawPoints]);
   const groups = useRef<{
     swath: L.LayerGroup;
     tracks: L.LayerGroup;
@@ -96,7 +171,19 @@ export function HailEventReplayLayer(): null {
         [s, w],
         [n, e],
       ],
-      { paddingTopLeft: [48, 120], paddingBottomRight: [48, 140], maxZoom: 11 },
+      {
+        // The hail panel covers the map's left side (w-80 plus margins).
+        // On a narrow map it takes at most 40 % of the width, or the
+        // padding would leave no room and Leaflet would zoom out to Europe.
+        paddingTopLeft: [
+          useHailReplayStore.getState().panelOpen
+            ? Math.min(400, map.getSize().x * 0.4)
+            : 64,
+          64,
+        ],
+        paddingBottomRight: [48, 96],
+        maxZoom: 11,
+      },
     );
     // Only on a new event, not on every shift.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -166,7 +253,7 @@ export function HailEventReplayLayer(): null {
         interactive: false,
         stroke: false,
         fillColor: HAIL_CLASS_COLOR[c.c],
-        fillOpacity: 0.12,
+        fillOpacity: 0.22,
       }).addTo(g.swath);
     }
     swathDrawn.current = upTo;
@@ -179,9 +266,9 @@ export function HailEventReplayLayer(): null {
           renderer,
           interactive: false,
           color: HAIL_CLASS_COLOR[cell.c],
-          weight: 2,
+          weight: 2.5,
           fillColor: HAIL_CLASS_COLOR[cell.c],
-          fillOpacity: 0.55,
+          fillOpacity: 0.7,
         }).addTo(g.live);
       }
     }

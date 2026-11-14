@@ -26,6 +26,10 @@ export const IPC = {
   hailEventsGet: "hailEvents:get",
   hailEventsImport: "hailEvents:import",
   hailEventsDelete: "hailEvents:delete",
+  // Historic storm day from the DWD radar climatology (RADKLIM)
+  hailEventsLoadHistoric: "hailEvents:loadHistoric",
+  // Generated or drawn storm saved as a scenario
+  hailEventsSave: "hailEvents:save",
 
   // Vehicle detection
   detectVehicles: "detect:vehicles",

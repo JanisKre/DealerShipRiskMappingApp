@@ -15,7 +15,18 @@ import type { RadarHailClass } from "./radar-hail";
  * PML. Methodology and limitations: docs/risk-model.md, "Hail event replay".
  */
 
-export const HAIL_EVENT_SOURCES = ["radar", "import"] as const;
+/**
+ * Where an event comes from: the live radar archive, a historic day from
+ * the DWD radar climatology (RADKLIM), an imported footprint, a generated
+ * storm, or a storm drawn on the map.
+ */
+export const HAIL_EVENT_SOURCES = [
+  "radar",
+  "radklim",
+  "import",
+  "simulation",
+  "drawn",
+] as const;
 export const HailEventSourceSchema = z.enum(HAIL_EVENT_SOURCES);
 export type HailEventSource = z.infer<typeof HailEventSourceSchema>;
 
@@ -85,6 +96,56 @@ export type HailEventDetail = z.infer<typeof HailEventDetailSchema>;
 export const MAX_EVENT_CELLS = 50_000;
 /** Largest GeoJSON file accepted for an import. */
 export const MAX_FOOTPRINT_BYTES = 20 * 1024 * 1024;
+
+/** Summary of an event from its cells (sorted by time). */
+export function summarizeEvent(
+  id: string,
+  source: HailEventSource,
+  name: string | null,
+  timed: boolean,
+  cells: ReadonlyArray<{
+    t: number;
+    c: RadarHailClass;
+    d: number;
+    b: Bbox;
+    track?: number;
+  }>,
+  tracks?: number,
+): HailEventSummary {
+  let maxClass: RadarHailClass = "mixed";
+  let maxDbz = 0;
+  const bbox: Bbox = [Infinity, Infinity, -Infinity, -Infinity];
+  const trackIds = new Set<number>();
+  for (const c of cells) {
+    if (radarHailRank(c.c) > radarHailRank(maxClass)) maxClass = c.c;
+    maxDbz = Math.max(maxDbz, c.d);
+    bbox[0] = Math.min(bbox[0], c.b[0]);
+    bbox[1] = Math.min(bbox[1], c.b[1]);
+    bbox[2] = Math.max(bbox[2], c.b[2]);
+    bbox[3] = Math.max(bbox[3], c.b[3]);
+    if (c.track != null) trackIds.add(c.track);
+  }
+  return {
+    id,
+    source,
+    name,
+    start: cells[0]?.t ?? 0,
+    end: cells.at(-1)?.t ?? 0,
+    timed,
+    maxClass,
+    maxDbz,
+    tracks: tracks ?? trackIds.size,
+    cells: cells.length,
+    bbox: cells.length > 0 ? bbox : [0, 0, 0, 0],
+  };
+}
+
+/** Ids of stored events: import, saved scenario or historic day. */
+export const STORED_EVENT_PREFIXES = ["import-", "saved-", "radklim-"] as const;
+
+export function isStoredEventId(id: string): boolean {
+  return STORED_EVENT_PREFIXES.some((p) => id.startsWith(p));
+}
 
 // --- Geometry -------------------------------------------------------------
 

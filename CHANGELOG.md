@@ -9,13 +9,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Hail event replay on the map.** Hail events from the radar archive play
-  as an animation: cells glide across the map along their tracks, the swath
-  stays behind, and each location the storm reaches lights up with time and
-  hail class. A running count shows locations reached and the stress-test
-  loss. Events can be moved on the ground ("30 km further south") and
-  footprints of older events imported as GeoJSON. Stress test only, not part
-  of the EAL (`docs/risk-model.md`, "Hail event replay").
+- **Hail simulation on the map.** A panel to play with hail: generate a
+  storm day over Germany or storms aimed at the portfolio, start a storm with
+  a click, draw a track, or load a historic storm day since 2001 from the DWD
+  radar climatology (RADKLIM; e.g. 28 July 2013, "Andreas"). Storms glide
+  across the map, reached locations light up, and the panel shows reached
+  locations, exposure and stress-test loss, the closest miss, and a "what
+  if" shift and reach. Scenarios can be saved, footprints imported as
+  GeoJSON, and the live radar archive replayed. Stress test only, not part
+  of the EAL (`docs/risk-model.md`, "Hail simulation and event replay").
 - **Installers ship the fine-tuned vehicle model.** Release builds bundle
   `dealer_vehicles` 2026-10-10 from a pinned model release, and the setup
   wizard downloads the same files, both checked by SHA-256. Before, the
