@@ -56,7 +56,11 @@ import {
 import { cn } from "@renderer/lib/utils";
 import { hailZoneColor } from "@renderer/lib/riskColor";
 import { eur, num } from "@renderer/lib/format";
-import { businessType, useAppStore } from "@renderer/store/appStore";
+import {
+  businessType,
+  unlocatedInputs,
+  useAppStore,
+} from "@renderer/store/appStore";
 import { searchBias } from "@renderer/lib/searchBias";
 import { Link } from "react-router-dom";
 import { useDealerDirectoryStore } from "@renderer/store/dealerDirectoryStore";
@@ -132,6 +136,23 @@ export function LocationsPanel({
   const [adding, setAdding] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
   const removeDealerships = useAppStore((s) => s.removeDealerships);
+  const discardUnlocated = useAppStore((s) => s.discardUnlocatedInput);
+  const pendingAnalysis = useAppStore((s) => s.pendingAnalysis);
+  const failedInputs = useAppStore((s) => s.failedInputs);
+  const analysisErrors = useAppStore((s) => s.analysisErrors);
+  const allDealerships = useAppStore((s) => s.dealerships);
+  // Imported rows without coordinates are not on the map until the address
+  // search placed them; they are listed here so none disappears (UW-07).
+  const unlocated = useMemo(
+    () =>
+      unlocatedInputs({
+        pendingAnalysis,
+        failedInputs,
+        analysisErrors,
+        dealerships: allDealerships,
+      }),
+    [pendingAnalysis, failedInputs, analysisErrors, allDealerships],
+  );
   const setInsuredForDealerships = useAppStore(
     (s) => s.setInsuredForDealerships,
   );
@@ -529,6 +550,66 @@ export function LocationsPanel({
               ref={listRef}
               className="min-h-0 flex-1 overflow-y-auto border-t"
             >
+              {unlocated.length > 0 && (
+                <ul
+                  className="divide-y border-b bg-muted/30"
+                  aria-label={t("map.locationsPanel.unlocatedTitle", {
+                    count: unlocated.length,
+                  })}
+                >
+                  <li className="px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
+                    {t("map.locationsPanel.unlocatedTitle", {
+                      count: unlocated.length,
+                    })}
+                  </li>
+                  {unlocated.map(({ input, error }) => (
+                    <li
+                      key={input.id}
+                      className="flex items-start gap-2 px-2.5 py-2 text-sm"
+                      data-testid="unlocated-row"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{input.name}</div>
+                        {input.address && (
+                          <div className="truncate text-xs text-muted-foreground">
+                            {input.address}
+                          </div>
+                        )}
+                        <div
+                          className={cn(
+                            "mt-0.5 text-xs",
+                            error
+                              ? "text-destructive"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {error
+                            ? t("map.locationsPanel.unlocatedFailed", {
+                                reason: /could not be resolved/i.test(error)
+                                  ? t("map.locationsPanel.unlocatedNotFound")
+                                  : t("map.locationsPanel.unlocatedOther"),
+                              })
+                            : analyzingIds.includes(input.id)
+                              ? t("map.locationsPanel.unlocatedSearching")
+                              : t("map.locationsPanel.unlocatedWaiting")}
+                        </div>
+                      </div>
+                      {error && (
+                        <HintButton
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-7 shrink-0"
+                          aria-label={t("map.locationsPanel.unlocatedDiscard")}
+                          onClick={() => discardUnlocated(input.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </HintButton>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {rows.length === 0 ? (
                 <p className="px-2.5 py-3 text-xs text-muted-foreground">
                   {dealerships.length > 0

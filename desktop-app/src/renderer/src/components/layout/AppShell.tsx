@@ -1,3 +1,4 @@
+import { pickActiveSession } from "@renderer/lib/portfolioSessions";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
@@ -102,11 +103,16 @@ function SessionLoader(): null {
     void window.api
       .listSessions()
       .then(async (sessions) => {
-        const latest = sessions[0];
+        // The most recent live portfolio; a saved state ("Stand") is a
+        // comparison point and never becomes the active portfolio (UW-09).
+        const latest = pickActiveSession(sessions);
         if (!latest) return;
         const session = await window.api.loadSession(latest.id);
         if (!cancelled && session) {
           setSession(session.id, session.name);
+          useAppStore.setState({
+            sessionSnapshotOf: session.snapshotOf ?? null,
+          });
           setParameters(session.parameters);
           setDealerships(session.dealerships, session.boundaryEdits);
           useAppStore.setState({

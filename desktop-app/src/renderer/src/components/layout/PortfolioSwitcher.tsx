@@ -24,12 +24,12 @@ import { hasManualEdits } from "@shared/portfolio-merge";
 import { useAppStore } from "@renderer/store/appStore";
 import { cn } from "@renderer/lib/utils";
 import { portfolioName } from "@renderer/lib/portfolioName";
-
-interface SessionSummary {
-  id: string;
-  name: string;
-  updatedAt: string;
-}
+import {
+  groupSessions,
+  isSnapshot,
+  type SessionSummary,
+} from "@renderer/lib/portfolioSessions";
+import { Badge } from "@renderer/components/ui/badge";
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -55,6 +55,7 @@ export function PortfolioSwitcher({
   const openImportedSession = useAppStore((s) => s.openImportedSession);
   const mergeSession = useAppStore((s) => s.mergeSession);
   const hasLocations = useAppStore((s) => s.dealerships.length > 0);
+  const activeIsSnapshot = useAppStore((s) => s.sessionSnapshotOf != null);
 
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
@@ -238,6 +239,119 @@ export function PortfolioSwitcher({
     }
   }
 
+  const grouped = groupSessions(sessions ?? []);
+
+  function renderRow(session: SessionSummary): React.JSX.Element {
+    return (
+      <div
+        key={session.id}
+        className={cn(
+          "group rounded-sm px-2 py-1.5",
+          session.id === sessionId && "bg-accent",
+        )}
+      >
+        {confirmingDeleteId === session.id ? (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="min-w-0 flex-1 truncate text-destructive">
+              {t("shell.portfolioSwitcher.confirmDelete", {
+                name: portfolioName(session.name, t),
+              })}
+            </span>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-7 shrink-0 px-2"
+              onClick={() => void confirmDelete(session.id)}
+            >
+              {t("shell.portfolioSwitcher.deleteConfirmButton")}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 shrink-0 px-2"
+              onClick={() => setConfirmingDeleteId(null)}
+            >
+              {t("common.cancel")}
+            </Button>
+          </div>
+        ) : renamingId === session.id ? (
+          <Input
+            autoFocus
+            value={renameDraft}
+            aria-label={t("shell.portfolioSwitcher.renameFor", {
+              name: portfolioName(session.name, t),
+            })}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void commitRename(session.id);
+              if (e.key === "Escape") setRenamingId(null);
+            }}
+            onBlur={() => void commitRename(session.id)}
+            className="h-7 text-sm"
+          />
+        ) : (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              onClick={() => void handleSwitch(session.id)}
+            >
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate text-sm font-medium">
+                  {portfolioName(session.name, t)}
+                </span>
+                {isSnapshot(session) && (
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 px-1.5 py-0 font-normal"
+                  >
+                    {t("shell.portfolioSwitcher.snapshotBadge")}
+                  </Badge>
+                )}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {new Date(session.updatedAt).toLocaleString(i18n.language)}
+              </span>
+            </button>
+            {/* Also shown while the row has keyboard focus. */}
+            <HintButton
+              type="button"
+              size="icon"
+              variant="ghost"
+              side="left"
+              className="size-7 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                startRename(session);
+              }}
+              aria-label={t("shell.portfolioSwitcher.renameFor", {
+                name: portfolioName(session.name, t),
+              })}
+            >
+              <Pencil className="size-3.5" />
+            </HintButton>
+            <HintButton
+              type="button"
+              size="icon"
+              variant="ghost"
+              side="left"
+              className="size-7 shrink-0 text-destructive opacity-0 hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmingDeleteId(session.id);
+              }}
+              aria-label={t("shell.portfolioSwitcher.deleteFor", {
+                name: portfolioName(session.name, t),
+              })}
+            >
+              <Trash2 className="size-3.5" />
+            </HintButton>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
@@ -248,8 +362,18 @@ export function PortfolioSwitcher({
           title={t("shell.portfolioSwitcher.trigger")}
         >
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm font-semibold leading-tight">
-              {portfolioName(sessionName, t)}
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-sm font-semibold leading-tight">
+                {portfolioName(sessionName, t)}
+              </span>
+              {activeIsSnapshot && (
+                <Badge
+                  variant="outline"
+                  className="shrink-0 px-1.5 py-0 font-normal"
+                >
+                  {t("shell.portfolioSwitcher.snapshotBadge")}
+                </Badge>
+              )}
             </span>
             {descriptionKey && (
               <span className="truncate text-xs leading-tight text-muted-foreground">
@@ -349,107 +473,17 @@ export function PortfolioSwitcher({
               {t("shell.portfolioSwitcher.empty")}
             </p>
           )}
-          {!loading &&
-            sessions?.map((session) => (
-              <div
-                key={session.id}
-                className={cn(
-                  "group rounded-sm px-2 py-1.5",
-                  session.id === sessionId && "bg-accent",
-                )}
-              >
-                {confirmingDeleteId === session.id ? (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate text-destructive">
-                      {t("shell.portfolioSwitcher.confirmDelete", {
-                        name: portfolioName(session.name, t),
-                      })}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="h-7 shrink-0 px-2"
-                      onClick={() => void confirmDelete(session.id)}
-                    >
-                      {t("shell.portfolioSwitcher.deleteConfirmButton")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 shrink-0 px-2"
-                      onClick={() => setConfirmingDeleteId(null)}
-                    >
-                      {t("common.cancel")}
-                    </Button>
-                  </div>
-                ) : renamingId === session.id ? (
-                  <Input
-                    autoFocus
-                    value={renameDraft}
-                    aria-label={t("shell.portfolioSwitcher.renameFor", {
-                      name: portfolioName(session.name, t),
-                    })}
-                    onChange={(e) => setRenameDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void commitRename(session.id);
-                      if (e.key === "Escape") setRenamingId(null);
-                    }}
-                    onBlur={() => void commitRename(session.id)}
-                    className="h-7 text-sm"
-                  />
-                ) : (
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                      onClick={() => void handleSwitch(session.id)}
-                    >
-                      <span className="block truncate text-sm font-medium">
-                        {portfolioName(session.name, t)}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {new Date(session.updatedAt).toLocaleString(
-                          i18n.language,
-                        )}
-                      </span>
-                    </button>
-                    {/* Also shown while the row has keyboard focus. */}
-                    <HintButton
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      side="left"
-                      className="size-7 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startRename(session);
-                      }}
-                      aria-label={t("shell.portfolioSwitcher.renameFor", {
-                        name: portfolioName(session.name, t),
-                      })}
-                    >
-                      <Pencil className="size-3.5" />
-                    </HintButton>
-                    <HintButton
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      side="left"
-                      className="size-7 shrink-0 text-destructive opacity-0 hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmingDeleteId(session.id);
-                      }}
-                      aria-label={t("shell.portfolioSwitcher.deleteFor", {
-                        name: portfolioName(session.name, t),
-                      })}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </HintButton>
-                  </div>
-                )}
-              </div>
-            ))}
+          {!loading && sessions && (
+            <>
+              {grouped.portfolios.map(renderRow)}
+              {grouped.snapshots.length > 0 && (
+                <div className="mt-1 flex items-center gap-1.5 border-t px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground">
+                  {t("shell.portfolioSwitcher.snapshotsHeading")}
+                </div>
+              )}
+              {grouped.snapshots.map(renderRow)}
+            </>
+          )}
         </div>
       </PopoverContent>
     </Popover>

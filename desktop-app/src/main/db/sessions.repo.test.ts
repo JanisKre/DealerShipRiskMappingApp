@@ -22,12 +22,27 @@ vi.mock("../db/database", () => ({
             }
           : undefined;
       },
+      // Mirrors the json_extract column of listSessions.
+      all: () =>
+        [...rows.values()].map((row) => ({
+          id: row.id,
+          name: row.name,
+          updatedAt: row.updatedAt,
+          snapshotOf:
+            (JSON.parse(row.data) as { snapshotOf?: string }).snapshotOf ??
+            null,
+        })),
     }),
   }),
 }));
 
-const { loadSession, saveSession, validBoundaryEdits, validPendingAnalysis } =
-  await import("./sessions.repo");
+const {
+  listSessions,
+  loadSession,
+  saveSession,
+  validBoundaryEdits,
+  validPendingAnalysis,
+} = await import("./sessions.repo");
 
 const boundary = (areaSqm: number): BoundaryResult => ({
   source: "manual",
@@ -129,5 +144,17 @@ describe("damaged session rows", () => {
       data: "null",
     });
     expect(loadSession("broken")).toBeNull();
+  });
+});
+
+describe("saved states (UW-09)", () => {
+  it("keeps the snapshot flag through save, load and list", () => {
+    saveSession(session());
+    saveSession(session({ id: "snap", name: "P – Stand", snapshotOf: "s1" }));
+    expect(loadSession("snap")?.snapshotOf).toBe("s1");
+    expect(loadSession("s1")?.snapshotOf).toBeUndefined();
+    const list = listSessions();
+    expect(list.find((s) => s.id === "snap")?.snapshotOf).toBe("s1");
+    expect(list.find((s) => s.id === "s1")).not.toHaveProperty("snapshotOf");
   });
 });

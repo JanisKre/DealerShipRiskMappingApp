@@ -13,9 +13,16 @@ export interface LaunchedApp {
   close: () => Promise<void>;
 }
 
-/** Starts the built app on a temporary profile (see DRM_E2E_USER_DATA). */
-export async function launchApp(): Promise<LaunchedApp> {
-  const userData = mkdtempSync(join(tmpdir(), "drm-e2e-"));
+/**
+ * Starts the built app on a temporary profile (see DRM_E2E_USER_DATA).
+ * With `userData`, it starts on that profile and `close` keeps it, so a test
+ * can restart the app on the same data (the caller removes it).
+ */
+export async function launchApp(
+  options: { userData?: string } = {},
+): Promise<LaunchedApp> {
+  const keepProfile = options.userData != null;
+  const userData = options.userData ?? mkdtempSync(join(tmpdir(), "drm-e2e-"));
   const args = ["out/main/index.cjs", "--disable-gpu"];
   // GitHub's Linux runners lack the setuid chrome-sandbox helper (see the
   // smoke test); packaged builds keep the sandbox.
@@ -38,7 +45,7 @@ export async function launchApp(): Promise<LaunchedApp> {
     page,
     close: async () => {
       await app.close();
-      rmSync(userData, { recursive: true, force: true });
+      if (!keepProfile) rmSync(userData, { recursive: true, force: true });
     },
   };
 }

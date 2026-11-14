@@ -35,7 +35,9 @@
       "mergeFailed": "Impossible de fusionner le portefeuille : {{error}}",
       "importOpenFailed": "Impossible d’ouvrir le fichier de portefeuille : {{error}}",
       "deletedOpen": "« {{name}} » supprimé",
-      "deletedOpenSwitched": "« {{name}} » supprimé – « {{next}} » est maintenant ouvert"
+      "deletedOpenSwitched": "« {{name}} » supprimé – « {{next}} » est maintenant ouvert",
+      "snapshotBadge": "État enregistré",
+      "snapshotsHeading": "États enregistrés (points de comparaison)"
     },
     "offline": "Hors ligne – données en cache",
     "toggleLocationsDock": "Afficher ou masquer le panneau des sites",
@@ -1188,7 +1190,15 @@
       "pending": "en attente",
       "notAnalyzed": "Pas encore analysé",
       "selectFor": "Sélectionner {{name}}",
-      "ealValue": "EAL grêle {{value}}"
+      "ealValue": "EAL grêle {{value}}",
+      "unlocatedTitle_one": "{{count}} ligne pas encore sur la carte",
+      "unlocatedTitle_other": "{{count}} lignes pas encore sur la carte",
+      "unlocatedWaiting": "Sans coordonnées – en attente de la recherche d’adresse",
+      "unlocatedSearching": "Recherche de l’adresse…",
+      "unlocatedFailed": "Non importé : {{reason}}",
+      "unlocatedNotFound": "adresse introuvable",
+      "unlocatedOther": "échec de l’analyse",
+      "unlocatedDiscard": "Supprimer la ligne"
     },
     "hailZones": {
       "loading": "Chargement des contours des codes postaux…",

@@ -26,6 +26,19 @@ the project follows [Semantic Versioning](https://semver.org/).
   it is above 0 €. Accumulations explain that they chain via neighbours,
   show their extent and partial sums while members are still analysed.
 
+- **No silent row loss on import.** Imported rows without coordinates are
+  listed in the locations panel as "noch nicht auf der Karte" until the
+  address search places them, or as "Nicht übernommen: Adresse nicht
+  gefunden" with a discard button. The resume notice no longer counts
+  locations that already have a result.
+- **Saved states stay saved states.** "Stand speichern" marks the copy as a
+  saved state of the portfolio; at start-up the most recent live portfolio
+  opens, and the switcher lists saved states separately with a "Stand"
+  badge.
+- **Analysis results survive quitting.** A running analysis saves the
+  portfolio after every finished location instead of every 25 locations or
+  15 seconds.
+
 ### Changed
 
 - **Hail simulation in the layer panel.** The simulation is now a section of

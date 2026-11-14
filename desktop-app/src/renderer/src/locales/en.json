@@ -35,7 +35,9 @@
       "mergeFailed": "Could not merge the portfolio: {{error}}",
       "importOpenFailed": "Could not open the portfolio file: {{error}}",
       "deletedOpen": "Deleted “{{name}}”",
-      "deletedOpenSwitched": "Deleted “{{name}}” – “{{next}}” is open now"
+      "deletedOpenSwitched": "Deleted “{{name}}” – “{{next}}” is open now",
+      "snapshotBadge": "Saved state",
+      "snapshotsHeading": "Saved states (comparison points)"
     },
     "offline": "Offline – using cached data",
     "toggleLocationsDock": "Show or hide the locations panel",
@@ -1188,7 +1190,15 @@
       "pending": "pending",
       "notAnalyzed": "Not analyzed yet",
       "selectFor": "Select {{name}}",
-      "ealValue": "Hail EAL {{value}}"
+      "ealValue": "Hail EAL {{value}}",
+      "unlocatedTitle_one": "{{count}} row not on the map yet",
+      "unlocatedTitle_other": "{{count}} rows not on the map yet",
+      "unlocatedWaiting": "No coordinates – waiting for the address search",
+      "unlocatedSearching": "Searching for the address…",
+      "unlocatedFailed": "Not imported: {{reason}}",
+      "unlocatedNotFound": "address not found",
+      "unlocatedOther": "analysis failed",
+      "unlocatedDiscard": "Discard row"
     },
     "hailZones": {
       "loading": "Loading postcode outlines…",

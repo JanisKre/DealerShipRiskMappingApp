@@ -461,7 +461,13 @@ export const ipcResponse = {
   "natcat:testConnector": NatCatConnectorTestSchema,
   "analyze:dealership": AnalyzedDealershipSchema,
   "sessions:list": z.array(
-    z.object({ id: z.string(), name: z.string(), updatedAt: z.string() }),
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      updatedAt: z.string(),
+      /** Saved state of this portfolio id (see `Session.snapshotOf`). */
+      snapshotOf: z.string().optional(),
+    }),
   ),
   "sessions:load": SessionSchema.nullable(),
   "sessions:save": z.object({ ok: z.boolean() }),

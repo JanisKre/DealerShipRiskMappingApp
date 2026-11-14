@@ -60,6 +60,9 @@ export async function saveComparisonSnapshot(
     // Nothing to resume or undo in a snapshot.
     pendingAnalysis: undefined,
     boundaryEdits: undefined,
+    // Marks it as a saved state of the active portfolio: it is listed under
+    // "Gespeicherte Stände" and never opened at start-up (UW-09).
+    snapshotOf: session.snapshotOf ?? session.id,
   });
   return name;
 }

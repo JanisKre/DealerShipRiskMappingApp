@@ -874,6 +874,12 @@ export const SessionSchema = z.object({
    * Kept with the session so both survive closing the app.
    */
   boundaryEdits: z.record(z.string(), BoundaryEditStateSchema).optional(),
+  /**
+   * Set on a saved state ("Stand speichern"): the id of the portfolio it
+   * was taken from. Such a session is a comparison point; it is never
+   * opened as the active portfolio at start-up (UW-09).
+   */
+  snapshotOf: z.string().min(1).max(200).optional(),
 });
 export type Session = z.infer<typeof SessionSchema>;
 

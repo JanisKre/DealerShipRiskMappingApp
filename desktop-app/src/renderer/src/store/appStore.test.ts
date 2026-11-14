@@ -4,6 +4,9 @@ import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import {
   DEFAULT_PORTFOLIO_NAME,
   applyBusinessClassification,
+  createCoalescedSaver,
+  unanalyzedInputs,
+  unlocatedInputs,
   useAppStore,
   withChange,
 } from "./appStore";
@@ -51,6 +54,95 @@ beforeEach(() => {
     failedInputs: {},
     analysisCancelRequested: false,
     pendingAnalysis: [],
+  });
+});
+
+describe("import row accounting (UW-07) and per-result persistence (UW-04)", () => {
+  const coordless: DealershipInput = {
+    id: "nc",
+    name: "Autohaus Ohne Koord",
+    address: "Marienplatz 1, 80331 München",
+  };
+
+  it("saves the session after every finished location", async () => {
+    const inputs = Array.from({ length: 4 }, (_, i) => ({
+      ...firstInput,
+      id: `s-${i}`,
+    }));
+    api.analyzeDealership.mockImplementation(
+      async (input: DealershipInput) =>
+        ({ ...input, risk: { overallScore: 10 } }) as AnalyzedDealership,
+    );
+    const saved: number[] = [];
+    api.saveSession.mockImplementation(
+      async (session: { dealerships: AnalyzedDealership[] }) => {
+        saved.push(session.dealerships.filter((d) => d.risk).length);
+      },
+    );
+    await useAppStore.getState().analyzeAll(inputs);
+    // The last save holds every result; no result waits for a 25er batch.
+    expect(saved.at(-1)).toBe(4);
+    expect(saved.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("does not count a queued input again once it has a result", () => {
+    const analysed = {
+      ...firstInput,
+      risk: { overallScore: 1 },
+    } as AnalyzedDealership;
+    expect(
+      unanalyzedInputs({
+        pendingAnalysis: [firstInput, secondInput],
+        dealerships: [analysed],
+      }).map((i) => i.id),
+    ).toEqual(["two"]);
+  });
+
+  it("lists rows without coordinates that are queued or failed", () => {
+    const rows = unlocatedInputs({
+      pendingAnalysis: [coordless, firstInput],
+      dealerships: [],
+      failedInputs: {
+        nc: coordless,
+        other: { id: "other", name: "Kaputt", address: "nowhere" },
+      },
+      analysisErrors: { other: "Address could not be resolved: nowhere" },
+    });
+    expect(rows.map((r) => r.input.id)).toEqual(["nc", "other"]);
+    expect(rows[1].error).toMatch(/could not be resolved/);
+  });
+
+  it("keeps a failed coordless row visible until it is discarded", async () => {
+    api.analyzeDealership.mockRejectedValueOnce(
+      new Error("Address could not be resolved: Marienplatz 1"),
+    );
+    api.saveSession.mockResolvedValue(undefined);
+    await useAppStore.getState().analyzeAll([coordless]);
+    expect(unlocatedInputs(useAppStore.getState())).toHaveLength(1);
+    useAppStore.getState().discardUnlocatedInput("nc");
+    expect(unlocatedInputs(useAppStore.getState())).toHaveLength(0);
+    expect(useAppStore.getState().pendingAnalysis).toEqual([]);
+  });
+});
+
+describe("createCoalescedSaver", () => {
+  it("never overlaps saves and runs one follow-up for late requests", async () => {
+    let active = 0;
+    let peak = 0;
+    let calls = 0;
+    const saver = createCoalescedSaver(async () => {
+      calls++;
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      active--;
+    });
+    saver.request();
+    saver.request();
+    saver.request();
+    await saver.flush();
+    expect(peak).toBe(1);
+    expect(calls).toBe(2);
   });
 });
 

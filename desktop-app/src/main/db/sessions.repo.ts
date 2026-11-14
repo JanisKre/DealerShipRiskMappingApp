@@ -17,12 +17,26 @@ export function listSessions(): Array<{
   id: string;
   name: string;
   updatedAt: string;
+  snapshotOf?: string;
 }> {
-  return getDb()
+  const rows = getDb()
     .prepare(
-      "SELECT id, name, updated_at as updatedAt FROM sessions ORDER BY updated_at DESC",
+      `SELECT id, name, updated_at as updatedAt,
+              CASE WHEN json_valid(data)
+                   THEN json_extract(data, '$.snapshotOf') END as snapshotOf
+         FROM sessions ORDER BY updated_at DESC`,
     )
-    .all() as Array<{ id: string; name: string; updatedAt: string }>;
+    .all() as Array<{
+    id: string;
+    name: string;
+    updatedAt: string;
+    snapshotOf: unknown;
+  }>;
+  return rows.map(({ snapshotOf, ...row }) =>
+    typeof snapshotOf === "string" && snapshotOf.length > 0
+      ? { ...row, snapshotOf }
+      : row,
+  );
 }
 
 export function loadSession(id: string): Session | null {
@@ -66,6 +80,11 @@ export function loadSession(id: string): Session | null {
     ...(!Array.isArray(stored) && stored.pendingAnalysis
       ? { pendingAnalysis: validPendingAnalysis(stored.pendingAnalysis) }
       : {}),
+    ...(!Array.isArray(stored) &&
+    typeof stored.snapshotOf === "string" &&
+    stored.snapshotOf.length > 0
+      ? { snapshotOf: stored.snapshotOf }
+      : {}),
   };
 }
 
@@ -74,6 +93,7 @@ interface StoredEnvelope {
   parameters?: RiskParameters;
   boundaryEdits?: unknown;
   pendingAnalysis?: unknown;
+  snapshotOf?: unknown;
 }
 
 /**
@@ -133,6 +153,7 @@ export function saveSession(session: Session): void {
         ...(session.pendingAnalysis && session.pendingAnalysis.length > 0
           ? { pendingAnalysis: session.pendingAnalysis }
           : {}),
+        ...(session.snapshotOf ? { snapshotOf: session.snapshotOf } : {}),
       }),
     });
 }

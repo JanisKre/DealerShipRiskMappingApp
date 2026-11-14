@@ -35,7 +35,9 @@
       "mergeFailed": "Das Portfolio konnte nicht zusammengeführt werden: {{error}}",
       "importOpenFailed": "Die Portfolio-Datei konnte nicht geöffnet werden: {{error}}",
       "deletedOpen": "„{{name}}“ gelöscht",
-      "deletedOpenSwitched": "„{{name}}“ gelöscht – jetzt ist „{{next}}“ geöffnet"
+      "deletedOpenSwitched": "„{{name}}“ gelöscht – jetzt ist „{{next}}“ geöffnet",
+      "snapshotBadge": "Stand",
+      "snapshotsHeading": "Gespeicherte Stände (Vergleichspunkte)"
     },
     "offline": "Offline – Daten aus dem Zwischenspeicher",
     "toggleLocationsDock": "Standorte-Leiste ein-/ausblenden",
@@ -1188,7 +1190,15 @@
       "pending": "ausstehend",
       "notAnalyzed": "Noch nicht analysiert",
       "selectFor": "{{name}} auswählen",
-      "ealValue": "Hagel-EAL {{value}}"
+      "ealValue": "Hagel-EAL {{value}}",
+      "unlocatedTitle_one": "{{count}} Zeile noch nicht auf der Karte",
+      "unlocatedTitle_other": "{{count}} Zeilen noch nicht auf der Karte",
+      "unlocatedWaiting": "Ohne Koordinaten – wartet auf die Adresssuche",
+      "unlocatedSearching": "Adresse wird gesucht…",
+      "unlocatedFailed": "Nicht übernommen: {{reason}}",
+      "unlocatedNotFound": "Adresse nicht gefunden",
+      "unlocatedOther": "Analyse fehlgeschlagen",
+      "unlocatedDiscard": "Zeile verwerfen"
     },
     "hailZones": {
       "loading": "Postleitzahl-Flächen werden geladen …",
