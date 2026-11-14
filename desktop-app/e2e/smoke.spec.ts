@@ -114,7 +114,7 @@ test("import preview lists rows before anything is analysed", async () => {
 
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Portfolio importieren")).toBeVisible();
-  await expect(dialog.getByText("Vorschau")).toBeVisible();
+  await expect(dialog.getByText(/^Vorschau/)).toBeVisible();
   // The nameless row is dropped; the row without address or coordinates
   // stays unticked.
   await expect(dialog.getByText("2 von 3 ausgewählt")).toBeVisible();
