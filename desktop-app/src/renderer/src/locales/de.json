@@ -1055,7 +1055,7 @@
       "previousPage": "Vorherige Seite",
       "nextPage": "Nächste Seite",
       "page": "Seite {{page}} von {{pages}}",
-      "pending": "ausstehend",
+      "pending": "Noch nicht analysiert",
       "estimate": {
         "mark": "geschätzt",
         "vehicles": "Fahrzeugzahl aus der Grundstücksfläche geschätzt (keine Fahrzeugerkennung); das Exposure folgt daraus. Eine Hagel-EAL gibt es ohne Fahrzeugzahl nicht.",
@@ -1189,7 +1189,7 @@
       },
       "noMatches": "Keine Standorte für diese Suche oder Filter.",
       "showMore": "{{count}} weitere anzeigen (noch {{rest}})",
-      "pending": "ausstehend",
+      "pending": "Noch nicht analysiert · in der Warteschlange",
       "notAnalyzed": "Noch nicht analysiert",
       "selectFor": "{{name}} auswählen",
       "ealValue": "Hagel-EAL {{value}}",

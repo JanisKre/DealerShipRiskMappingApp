@@ -1055,7 +1055,7 @@
       "previousPage": "Previous page",
       "nextPage": "Next page",
       "page": "Page {{page}} of {{pages}}",
-      "pending": "pending",
+      "pending": "Not analyzed yet",
       "estimate": {
         "mark": "estimated",
         "vehicles": "Vehicle count estimated from the lot area (no vehicle detection); exposure follows from it. Without a vehicle count there is no hail EAL.",
@@ -1189,7 +1189,7 @@
       },
       "noMatches": "No locations match this search or filter.",
       "showMore": "Show {{count}} more ({{rest}} left)",
-      "pending": "pending",
+      "pending": "Not analyzed yet · queued",
       "notAnalyzed": "Not analyzed yet",
       "selectFor": "Select {{name}}",
       "ealValue": "Hail EAL {{value}}",

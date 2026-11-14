@@ -1055,7 +1055,7 @@
       "previousPage": "Page précédente",
       "nextPage": "Page suivante",
       "page": "Page {{page}} sur {{pages}}",
-      "pending": "en attente",
+      "pending": "Pas encore analysé",
       "estimate": {
         "mark": "estimé",
         "vehicles": "Nombre de véhicules estimé à partir de la surface (pas de détection) ; l’exposition en découle. Sans nombre de véhicules, pas d’EAL grêle.",
@@ -1189,7 +1189,7 @@
       },
       "noMatches": "Aucun site ne correspond à cette recherche ou à ces filtres.",
       "showMore": "Afficher {{count}} de plus (encore {{rest}})",
-      "pending": "en attente",
+      "pending": "Pas encore analysé · en file d’attente",
       "notAnalyzed": "Pas encore analysé",
       "selectFor": "Sélectionner {{name}}",
       "ealValue": "EAL grêle {{value}}",
