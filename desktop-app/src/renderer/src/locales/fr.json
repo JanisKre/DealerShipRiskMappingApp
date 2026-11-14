@@ -1617,7 +1617,18 @@
       "hailZones": "Afficher les zones de grêle sur la carte",
       "exportPdf": "Exporter le rapport PDF"
     },
-    "emptyChat": "Interrogez l’IA sur votre portefeuille – ou pilotez l’application directement, p. ex. « ouvrir Autohaus … » ou « afficher les cumuls sur la carte »."
+    "emptyChat": "Interrogez l’IA sur votre portefeuille – ou pilotez l’application directement, p. ex. « ouvrir Autohaus … » ou « afficher les cumuls sur la carte ».",
+    "lookups": {
+      "running": "Recherche des justificatifs …",
+      "used": "Justificatifs consultés :",
+      "failed": "échec",
+      "tool": {
+        "evidence": "Origine des valeurs",
+        "hailHistory": "Historique de grêle (stations DWD)",
+        "radarHail": "Grêle radar",
+        "imagery": "Images aériennes"
+      }
+    }
   },
   "review": {
     "start": "Vérifier",

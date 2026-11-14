@@ -1617,7 +1617,18 @@
       "hailZones": "Zeige Hagelzonen auf der Karte",
       "exportPdf": "Exportiere den PDF-Bericht"
     },
-    "emptyChat": "Frag die KI zu deinem Portfolio – oder steuere die App direkt, z. B. „öffne Autohaus …“ oder „zeige Kumulationen auf der Karte“."
+    "emptyChat": "Frag die KI zu deinem Portfolio – oder steuere die App direkt, z. B. „öffne Autohaus …“ oder „zeige Kumulationen auf der Karte“.",
+    "lookups": {
+      "running": "Belege werden abgerufen …",
+      "used": "Abgerufene Belege:",
+      "failed": "fehlgeschlagen",
+      "tool": {
+        "evidence": "Herkunft der Werte",
+        "hailHistory": "Hagelhistorie (DWD-Stationen)",
+        "radarHail": "Radar-Hagel",
+        "imagery": "Luftbilder"
+      }
+    }
   },
   "review": {
     "start": "Prüfen",

@@ -1,7 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LLM_CONTEXT_MAX_CHARS } from "@shared/ipc-schema";
 import type { ChatMessage } from "@shared/types";
 import { condenseHistory } from "@renderer/lib/chatAssist";
+import {
+  mayNeedLookups,
+  plannerLocations,
+  runChatLookups,
+  type LookupRun,
+} from "@renderer/lib/chatLookups";
 import { buildSessionContext } from "@renderer/lib/sessionContext";
 import { useLlmStream } from "@renderer/lib/useLlmStream";
 import { useAppStore } from "@renderer/store/appStore";
@@ -11,7 +17,12 @@ export interface UseChat {
   messages: ChatMessage[];
   activeId: string | null;
   streamingText: string;
+  /** True while lookups run or the answer streams. */
   streaming: boolean;
+  /** True while the optional lookups for the question run. */
+  lookingUp: boolean;
+  /** Lookups behind the latest answer; null when none ran. */
+  lookups: LookupRun["done"] | null;
   error: string | null;
   send: (question: string) => void;
   /** Asks the last question again, replacing the answer after it. */
@@ -35,6 +46,10 @@ export function useChat(): UseChat {
   const activeId = useConversationStore((s) => s.activeId);
   const { text, streaming, error, start, cancel } = useLlmStream();
   const committedRef = useRef(true);
+  const [lookingUp, setLookingUp] = useState(false);
+  const [lookups, setLookups] = useState<LookupRun["done"] | null>(null);
+  /** Bumped by stop/new requests so a finished lookup does not start a stale answer. */
+  const requestRef = useRef(0);
 
   // Commit the finished (or stopped) stream answer exactly once + persist it.
   useEffect(() => {
@@ -46,8 +61,45 @@ export function useChat(): UseChat {
     }
   }, [streaming, text]);
 
+  /**
+   * Optional lookups before the answer: only with an AI provider (the chat
+   * needs one anyway) and only when the question can refer to a location.
+   * Any failure means an answer from the portfolio context alone.
+   */
+  async function lookUp(question: string): Promise<string | undefined> {
+    if (!mayNeedLookups(question, dealerships, selectedId)) return undefined;
+    try {
+      const { calls } = await window.api.planChatTools({
+        question: question.slice(0, 2_000),
+        locations: plannerLocations(dealerships, selectedId),
+        selectedId,
+      });
+      if (calls.length === 0) return undefined;
+      const run = await runChatLookups(calls, dealerships, window.api);
+      setLookups(run.done);
+      return run.results || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   /** Streams an answer to the conversation as it stands in the store. */
-  function stream(): void {
+  async function stream(): Promise<void> {
+    const request = ++requestRef.current;
+    setLookups(null);
+    const question = [...useConversationStore.getState().messages]
+      .reverse()
+      .find((m) => m.role === "user")?.content;
+    let toolResults: string | undefined;
+    if (question) {
+      setLookingUp(true);
+      try {
+        toolResults = await lookUp(question);
+      } finally {
+        setLookingUp(false);
+      }
+    }
+    if (request !== requestRef.current) return;
     committedRef.current = false;
     // The request carries at most 20 messages; older turns travel as a
     // condensed note inside the (data-only) portfolio context instead of
@@ -66,43 +118,52 @@ export function useChat(): UseChat {
       kind: "chat",
       messages: recent,
       sessionContext: (portfolio + memory).slice(0, LLM_CONTEXT_MAX_CHARS),
+      toolResults,
     });
   }
 
+  const busy = streaming || lookingUp;
+
   function send(question: string): void {
     const q = question.trim();
-    if (!q || streaming) return;
+    if (!q || busy) return;
     const store = useConversationStore.getState();
     if (!store.activeId) store.newConversation();
     store.appendMessage({ role: "user", content: q });
-    stream();
+    void stream();
     // Persist the user message immediately -> conversation appears in the list.
     void store.persistActive();
   }
 
   function respond(): void {
-    if (streaming) return;
-    stream();
+    if (busy) return;
+    void stream();
     void useConversationStore.getState().persistActive();
   }
 
   function regenerate(): void {
-    if (streaming) return;
+    if (busy) return;
     const store = useConversationStore.getState();
     if (!store.messages.some((m) => m.role === "user")) return;
     store.truncateAfterLastUser();
-    stream();
+    void stream();
   }
 
   return {
     messages,
     activeId,
     streamingText: text,
-    streaming,
+    streaming: busy,
+    lookingUp,
+    lookups,
     error,
     send,
     regenerate,
     respond,
-    stop: cancel,
+    stop: () => {
+      requestRef.current++;
+      setLookingUp(false);
+      cancel();
+    },
   };
 }

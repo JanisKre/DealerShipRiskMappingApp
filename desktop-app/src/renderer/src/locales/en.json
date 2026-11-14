@@ -1617,7 +1617,18 @@
       "hailZones": "Show hail zones on the map",
       "exportPdf": "Export the PDF report"
     },
-    "emptyChat": "Ask the AI about your portfolio – or control the app directly, e.g. “open …” or “show accumulations on the map”."
+    "emptyChat": "Ask the AI about your portfolio – or control the app directly, e.g. “open …” or “show accumulations on the map”.",
+    "lookups": {
+      "running": "Looking up evidence …",
+      "used": "Evidence looked up:",
+      "failed": "failed",
+      "tool": {
+        "evidence": "Where the figures come from",
+        "hailHistory": "Hail history (DWD stations)",
+        "radarHail": "Radar hail",
+        "imagery": "Aerial imagery"
+      }
+    }
   },
   "review": {
     "start": "Review",

@@ -55,6 +55,7 @@ export const IPC = {
   // Optional AI layer over deterministic features (docs/ai-features.md)
   llmReviewPlan: "llm:reviewPlan", // reorders the review queue, notes per location
   llmColumnMapping: "llm:columnMapping", // suggests fields for unused import columns
+  llmChatTools: "llm:chatTools", // picks read-only lookups before a chat answer
   listDashboards: "dashboards:list",
   loadDashboard: "dashboards:load",
   saveDashboard: "dashboards:save",

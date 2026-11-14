@@ -13,9 +13,11 @@ vi.mock("./settings.service", () => ({
 
 import {
   explainSystemPrompt,
+  planChatTools,
   proposeReviewOrder,
   suggestColumnMapping,
 } from "./llm-agents.service";
+import { portfolioChatSystemPrompt } from "./llm.service";
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -143,5 +145,43 @@ describe("column mapping", () => {
   it("does not ask when every column is used", async () => {
     expect(await suggestColumnMapping([columns[0]])).toEqual({});
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("chat lookups", () => {
+  const locations = [
+    { id: "a", name: "Autohaus Nord" },
+    { id: "b", name: "Autohaus Süd" },
+  ];
+
+  it("returns cleaned calls and marks the selected location", async () => {
+    fetchMock.mockResolvedValueOnce(
+      reply({
+        calls: [
+          { tool: "radarHail", locationId: "b" },
+          { tool: "shell", locationId: "b" },
+          { tool: "evidence", locationId: "nope" },
+        ],
+      }),
+    );
+    expect(await planChatTools("Hagel bei Süd?", locations, "b")).toEqual([
+      { tool: "radarHail", locationId: "b" },
+    ]);
+    expect(sentMessages(0)[1].content).toContain("b\tAutohaus Süd\tSELECTED");
+  });
+
+  it("falls back to no lookups on any failure", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
+    expect(await planChatTools("x", locations, null)).toEqual([]);
+  });
+
+  it("fences the lookup results in the chat prompt", () => {
+    const prompt = portfolioChatSystemPrompt("ctx", "German", "[radarHail] A");
+    expect(prompt).toContain(
+      "<lookup_results>\n[radarHail] A\n</lookup_results>",
+    );
+    expect(portfolioChatSystemPrompt("ctx", "German")).not.toContain(
+      "lookup_results",
+    );
   });
 });

@@ -223,6 +223,15 @@ const api = {
       request satisfies IpcRequest["llm:chatIntent"],
     ),
 
+  /** Optional AI choice of read-only lookups before a chat answer. */
+  planChatTools: (
+    request: IpcRequest["llm:chatTools"],
+  ): Promise<IpcResponse["llm:chatTools"]> =>
+    ipcRenderer.invoke(
+      IPC.llmChatTools,
+      request satisfies IpcRequest["llm:chatTools"],
+    ),
+
   /** Optional AI suggestion for unused import columns (names and hints only). */
   suggestColumnMapping: (
     request: IpcRequest["llm:columnMapping"],

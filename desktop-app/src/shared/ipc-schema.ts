@@ -5,6 +5,11 @@ import {
   ReviewPlanSchema,
 } from "./review-plan";
 import {
+  CHAT_TOOL_MAX_LOCATIONS,
+  CHAT_TOOL_RESULTS_MAX_CHARS,
+  ChatToolCallSchema,
+} from "./chat-tools";
+import {
   ColumnOverridesSchema,
   ImportColumnSchema,
   MAPPING_MAX_COLUMNS,
@@ -294,6 +299,13 @@ export const ipcRequest = {
     message: z.string().trim().min(1).max(2_000),
     dashboardTitle: z.string().max(120).nullable(),
   }),
+  "llm:chatTools": z.object({
+    question: z.string().trim().min(1).max(2_000),
+    locations: z
+      .array(z.object({ id: z.string().max(100), name: z.string().max(200) }))
+      .max(CHAT_TOOL_MAX_LOCATIONS),
+    selectedId: z.string().max(100).nullable(),
+  }),
   "llm:columnMapping": z.object({
     columns: z.array(ImportColumnSchema).min(1).max(MAPPING_MAX_COLUMNS),
   }),
@@ -424,6 +436,7 @@ export const ipcResponse = {
   "llm:chatIntent": z.object({ intent: z.enum(["create", "edit", "chat"]) }),
   "llm:reviewPlan": ReviewPlanSchema,
   "llm:columnMapping": ColumnOverridesSchema,
+  "llm:chatTools": z.object({ calls: z.array(ChatToolCallSchema) }),
   "llm:dashboardSurface": z.discriminatedUnion("ok", [
     z.object({
       ok: z.literal(true),
@@ -506,6 +519,8 @@ export const llmStreamRequest = {
     kind: z.literal("chat"),
     messages: z.array(ChatMessageSchema).max(20),
     sessionContext: z.string().max(LLM_CONTEXT_MAX_CHARS).optional(),
+    /** Results of the lookups the app ran for this question (optional AI planner). */
+    toolResults: z.string().max(CHAT_TOOL_RESULTS_MAX_CHARS).optional(),
   }),
   nlquery: z.object({
     kind: z.literal("nlquery"),

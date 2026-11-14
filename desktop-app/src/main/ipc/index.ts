@@ -18,6 +18,7 @@ import {
 import { analyzeDealership } from "../services/analyze.service";
 import {
   explainStream,
+  planChatTools,
   proposeReviewOrder,
   suggestColumnMapping,
 } from "../services/llm-agents.service";
@@ -245,6 +246,9 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     intent: await classifyChatIntent(message, dashboardTitle),
   }));
   handle(IPC.llmReviewPlan, ({ items }) => proposeReviewOrder(items));
+  handle(IPC.llmChatTools, async ({ question, locations, selectedId }) => ({
+    calls: await planChatTools(question, locations, selectedId),
+  }));
   handle(IPC.llmColumnMapping, ({ columns }) => suggestColumnMapping(columns));
   handle(IPC.llmDashboardSurface, ({ prompt, current, context }) =>
     generateDashboardSurface(prompt, current, context),
@@ -505,6 +509,7 @@ async function runStream(
       req.messages,
       req.sessionContext,
       signal,
+      req.toolResults,
     )) {
       send({ type: "token", token });
     }

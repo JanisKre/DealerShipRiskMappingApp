@@ -88,6 +88,8 @@ export function ChatView({
     activeId,
     streamingText,
     streaming,
+    lookingUp,
+    lookups,
     error,
     send,
     regenerate,
@@ -451,11 +453,30 @@ export function ChatView({
                   }
                 />
               )}
+              {lookups && lookups.length > 0 && (
+                <p className="flex items-start gap-1.5 px-1 text-xs text-muted-foreground">
+                  <Database className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    {t("chat.lookups.used")}{" "}
+                    {lookups
+                      .map(
+                        (l) =>
+                          `${t(`chat.lookups.tool.${l.tool}`)} – ${l.name}${l.ok ? "" : ` (${t("chat.lookups.failed")})`}`,
+                      )
+                      .join(" · ")}
+                  </span>
+                </p>
+              )}
               {streaming && (
                 <MessageBubble
                   role="assistant"
-                  content={linkifyLocations(streamingText, locations)}
+                  content={
+                    lookingUp ? "" : linkifyLocations(streamingText, locations)
+                  }
                   pending
+                  pendingLabel={
+                    lookingUp ? t("chat.lookups.running") : undefined
+                  }
                 />
               )}
               {error && <LlmErrorMessage error={error} />}
