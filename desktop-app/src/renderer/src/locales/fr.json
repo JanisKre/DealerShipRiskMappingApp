@@ -1512,7 +1512,11 @@
       "salesPartner": "Partenaire commercial",
       "subPortfolio": "Sous-portefeuille",
       "group": "Groupe",
-      "website": "Site web"
+      "website": "Site web",
+      "street": "Rue",
+      "houseNumber": "Numéro",
+      "postalCode": "Code postal",
+      "city": "Ville"
     },
     "targetTitle": "Destination",
     "targetNew": "Créer un nouveau portefeuille",
@@ -1530,7 +1534,33 @@
     "cancel": "Annuler",
     "confirm_one": "Importer {{count}} site",
     "confirm_other": "Importer {{count}} sites",
-    "parseFailedTitle": "Le fichier n'a pas pu être lu. Enregistrez-le à nouveau dans Excel au format .xlsx ou exportez-le en CSV."
+    "parseFailedTitle": "Le fichier n'a pas pu être lu. Enregistrez-le à nouveau dans Excel au format .xlsx ou exportez-le en CSV.",
+    "hint": {
+      "empty": "vide",
+      "text": "texte",
+      "number": "nombre",
+      "amount": "montant",
+      "latitude": "latitude",
+      "longitude": "longitude",
+      "postcode": "code postal",
+      "url": "adresse web",
+      "yesNo": "oui/non"
+    },
+    "assign": {
+      "title_one": "Affecter {{count}} colonne supplémentaire",
+      "title_other": "Affecter {{count}} colonnes supplémentaires",
+      "description": "L’application n’a pas reconnu ces colonnes. Affecte-les à un champ qu’aucune colonne ne remplit encore.",
+      "unused": "ne pas utiliser",
+      "fieldFor": "Champ pour la colonne {{column}}",
+      "apply": "Appliquer l’affectation",
+      "applyHint": "Le fichier est relu ; les modifications de l’aperçu recommencent.",
+      "suggest": "Suggestion IA",
+      "suggestHint": "L’IA propose des champs. Elle ne voit que les noms de colonnes et les indications de type, aucune valeur. Rien ne change avant « Appliquer l’affectation ».",
+      "suggested_one": "{{count}} suggestion saisie – merci de vérifier et d’appliquer.",
+      "suggested_other": "{{count}} suggestions saisies – merci de vérifier et d’appliquer.",
+      "noSuggestion": "L’IA n’a trouvé aucune affectation adaptée.",
+      "suggestFailed": "Suggestion IA indisponible : {{error}}"
+    }
   },
   "places": {
     "inPortfolio": "Dans le portefeuille : {{portfolio}}",

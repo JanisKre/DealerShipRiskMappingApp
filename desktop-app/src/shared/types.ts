@@ -6,6 +6,7 @@ import {
   HAIL_SEVERITY_CLASSES,
 } from "./constants";
 import { ImagerySelectionSchema } from "./imagery-sources";
+import { ImportColumnSchema } from "./import-fields";
 import { isHttpWebsiteUrl, WEBSITE_SOURCES } from "./website";
 
 /**
@@ -1087,6 +1088,11 @@ export const ImportReportSchema = z.object({
   skippedRows: z.number().int().nonnegative(),
   duplicateRows: z.number().int().nonnegative(),
   columnMapping: z.record(z.string(), z.string().nullable()),
+  /**
+   * Every column of the header row with a local type hint and the field it
+   * feeds. Missing in reports from before manual column assignment.
+   */
+  columns: z.array(ImportColumnSchema).max(500).optional(),
   issues: z.array(ImportIssueSchema),
   warnings: z.array(z.string()),
   createdAt: z.string(),

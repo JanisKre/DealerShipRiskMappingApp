@@ -232,4 +232,51 @@ describe("quoted CSV cells", () => {
     );
     expect(result.rows.map((r) => r.name)).toContain("Closed");
   });
+
+  it("lists every column with a type hint and the field it feeds", () => {
+    const result = parseCsvWithReport(
+      [
+        "name,Kundennr,Breite,Laenge,PLZ Standort,Fahrzeugwert",
+        "Autohaus Nord,K-1,52.52001,13.40495,10115,1.250.000",
+        "Autohaus Süd,K-2,48.13743,11.57549,80331,980.000",
+      ].join("\n"),
+    );
+    expect(result.report.columns).toEqual([
+      { name: "name", hint: "text", field: "name" },
+      { name: "Kundennr", hint: "text", field: null },
+      { name: "Breite", hint: "latitude", field: "lat" },
+      { name: "Laenge", hint: "longitude", field: "lon" },
+      { name: "PLZ Standort", hint: "postcode", field: null },
+      { name: "Fahrzeugwert", hint: "amount", field: null },
+    ]);
+  });
+
+  it("uses columns assigned by hand instead of the detection", () => {
+    const csv = [
+      "Firma,Ort,Wert in Euro,Region",
+      "Autohaus Nord,Berlin,1.250.000,Nord",
+    ].join("\n");
+    const result = parseCsvWithReport(csv, {
+      assetValue: "Wert in Euro",
+      city: "Region",
+      subPortfolio: "Ort",
+    });
+    expect(result.rows[0]).toMatchObject({
+      name: "Autohaus Nord",
+      assetValue: 1_250_000,
+      address: "Nord",
+      subPortfolio: "Berlin",
+    });
+    expect(result.report.columns?.map((c) => [c.name, c.field])).toEqual([
+      ["Firma", "name"],
+      ["Ort", "subPortfolio"],
+      ["Wert in Euro", "assetValue"],
+      ["Region", "city"],
+    ]);
+    // A header that is not in the file changes nothing.
+    expect(
+      parseCsvWithReport(csv, { assetValue: "Gibt es nicht" }).rows[0]
+        .assetValue,
+    ).toBeUndefined();
+  });
 });

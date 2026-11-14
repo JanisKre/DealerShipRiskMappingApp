@@ -11,7 +11,11 @@ vi.mock("./settings.service", () => ({
   getLlmApiKey: () => "sk-test",
 }));
 
-import { explainSystemPrompt, proposeReviewOrder } from "./llm-agents.service";
+import {
+  explainSystemPrompt,
+  proposeReviewOrder,
+  suggestColumnMapping,
+} from "./llm-agents.service";
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -107,5 +111,37 @@ describe("review order", () => {
     await expect(proposeReviewOrder(items)).rejects.toThrow(
       /could not be used/,
     );
+  });
+});
+
+describe("column mapping", () => {
+  const columns = [
+    { name: "Firma", hint: "text" as const, field: "name" as const },
+    { name: "Wert in Euro", hint: "amount" as const, field: null },
+    { name: "Vermittler", hint: "text" as const, field: null },
+  ];
+
+  it("sends names and hints only and keeps applicable suggestions", async () => {
+    fetchMock.mockResolvedValueOnce(
+      reply({
+        mapping: [
+          { column: "Wert in Euro", field: "assetValue" },
+          { column: "Vermittler", field: "salesPartner" },
+          { column: "Firma", field: "group" },
+        ],
+      }),
+    );
+    expect(await suggestColumnMapping(columns)).toEqual({
+      assetValue: "Wert in Euro",
+      salesPartner: "Vermittler",
+    });
+    const user = sentMessages(0)[1].content;
+    expect(user).toContain('"hint":"amount"');
+    expect(user).not.toMatch(/\d{3}/);
+  });
+
+  it("does not ask when every column is used", async () => {
+    expect(await suggestColumnMapping([columns[0]])).toEqual({});
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -1512,7 +1512,11 @@
       "salesPartner": "Sales partner",
       "subPortfolio": "Sub-portfolio",
       "group": "Group",
-      "website": "Website"
+      "website": "Website",
+      "street": "Street",
+      "houseNumber": "House number",
+      "postalCode": "Postcode",
+      "city": "City"
     },
     "targetTitle": "Destination",
     "targetNew": "Create a new portfolio",
@@ -1530,7 +1534,33 @@
     "cancel": "Cancel",
     "confirm_one": "Import {{count}} location",
     "confirm_other": "Import {{count}} locations",
-    "parseFailedTitle": "The file could not be read. Please save it again in Excel as an .xlsx workbook or export it as CSV."
+    "parseFailedTitle": "The file could not be read. Please save it again in Excel as an .xlsx workbook or export it as CSV.",
+    "hint": {
+      "empty": "empty",
+      "text": "text",
+      "number": "number",
+      "amount": "amount",
+      "latitude": "latitude",
+      "longitude": "longitude",
+      "postcode": "postcode",
+      "url": "web address",
+      "yesNo": "yes/no"
+    },
+    "assign": {
+      "title_one": "Assign {{count}} more column",
+      "title_other": "Assign {{count}} more columns",
+      "description": "The app did not recognise these columns. Assign them to a field no column fills yet.",
+      "unused": "do not use",
+      "fieldFor": "Field for column {{column}}",
+      "apply": "Apply assignment",
+      "applyHint": "The file is read again; edits in the preview start over.",
+      "suggest": "AI suggestion",
+      "suggestHint": "The AI suggests fields. It sees only column names and type hints, no cell values. Nothing changes until “Apply assignment”.",
+      "suggested_one": "{{count}} suggestion filled in – please check and apply.",
+      "suggested_other": "{{count}} suggestions filled in – please check and apply.",
+      "noSuggestion": "The AI found no fitting assignment.",
+      "suggestFailed": "AI suggestion not available: {{error}}"
+    }
   },
   "places": {
     "inPortfolio": "In portfolio: {{portfolio}}",

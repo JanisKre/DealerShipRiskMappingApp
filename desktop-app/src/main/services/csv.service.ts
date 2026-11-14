@@ -1,6 +1,12 @@
 import { randomUUID } from "crypto";
 import ExcelJS from "exceljs";
 import { normalizeWebsiteUrl } from "@shared/website";
+import {
+  columnHint,
+  type ColumnOverrides,
+  type ImportColumn,
+  type ImportField,
+} from "@shared/import-fields";
 import { normalizeXlsx } from "./xlsx-normalize";
 import type {
   DealershipInput,
@@ -21,14 +27,17 @@ export function parseCsv(content: string): DealershipInput[] {
 }
 
 /** CSV/TSV import with row-level diagnostics and a reproducible mapping report. */
-export function parseCsvWithReport(content: string): ImportResult {
+export function parseCsvWithReport(
+  content: string,
+  overrides?: ColumnOverrides,
+): ImportResult {
   // Blank lines stay (rowsFromMatrix skips them) so row numbers match the file.
   const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/);
   if (lines.every((l) => l.trim().length === 0)) return emptyResult("csv");
 
   const delimiter = chooseDelimiter(lines);
   const matrix = splitRecords(lines.join("\n"), delimiter);
-  return rowsFromMatrix(matrix, delimiter === "\t" ? "tsv" : "csv");
+  return rowsFromMatrix(matrix, delimiter === "\t" ? "tsv" : "csv", overrides);
 }
 
 /** XLSX import: first worksheet, same column heuristic as CSV. */
@@ -39,6 +48,7 @@ export async function parseXlsx(base64: string): Promise<DealershipInput[]> {
 /** XLSX import with the same diagnostics as CSV/TSV. */
 export async function parseXlsxWithReport(
   base64: string,
+  overrides?: ColumnOverrides,
 ): Promise<ImportResult> {
   const wb = new ExcelJS.Workbook();
   // exceljs typings expect an older Buffer type → cast at the boundary.
@@ -66,7 +76,7 @@ export async function parseXlsxWithReport(
   }
   if (!best) return emptyResult("xlsx");
   const matrix = best.matrix;
-  return rowsFromMatrix(matrix, "xlsx");
+  return rowsFromMatrix(matrix, "xlsx", overrides);
 }
 
 /**
@@ -191,6 +201,26 @@ const HEADER_ALIASES = {
   website: ["website", "webseite", "homepage", "internetseite", "web", "url"],
 } satisfies Record<string, string[]>;
 
+/** Alias list behind each import field. */
+const FIELD_ALIASES: Record<ImportField, keyof typeof HEADER_ALIASES> = {
+  name: "name",
+  address: "addr",
+  street: "street",
+  houseNumber: "houseNumber",
+  postalCode: "postalCode",
+  city: "city",
+  lat: "lat",
+  lon: "lon",
+  assetValue: "val",
+  insured: "insured",
+  salesPartner: "partner",
+  subPortfolio: "subPortfolio",
+  group: "group",
+  productLimitEur: "limit",
+  deductibleEur: "deductible",
+  website: "website",
+};
+
 /** Every recognised header, for finding the header row. */
 const KNOWN_HEADERS = new Map(
   Object.entries(HEADER_ALIASES).flatMap(([field, names]) =>
@@ -239,24 +269,39 @@ function headerScore(matrix: string[][]): number {
 function rowsFromMatrix(
   matrix: string[][],
   format: ImportReport["format"],
+  overrides: ColumnOverrides = {},
 ): ImportResult {
   if (matrix.length === 0) return emptyResult(format);
   // Title or note lines above the column names are skipped.
   const headerRow = findHeaderRow(matrix);
   const rawHeader = matrix[headerRow].map((h) => h.trim());
   const header = rawHeader.map(normaliseHeader);
-  const idx = (names: string[]): number =>
-    header.findIndex((h) => names.includes(h));
+  // Columns assigned by hand feed only their field; the recognised headers
+  // fill the remaining fields.
+  const overridden = new Map<ImportField, number>();
+  for (const [field, column] of Object.entries(overrides) as Array<
+    [ImportField, string]
+  >) {
+    const index = rawHeader.indexOf(column.trim());
+    if (index >= 0) overridden.set(field, index);
+  }
+  const claimed = new Set(overridden.values());
+  const idx = (field: ImportField): number => {
+    const manual = overridden.get(field);
+    if (manual != null) return manual;
+    const names: string[] = HEADER_ALIASES[FIELD_ALIASES[field]];
+    return header.findIndex((h, i) => !claimed.has(i) && names.includes(h));
+  };
 
-  const nameIdx = idx(HEADER_ALIASES.name);
-  const addrIdx = idx(HEADER_ALIASES.addr);
+  const nameIdx = idx("name");
+  const addrIdx = idx("address");
   // Split address columns, combined when there is no single address column.
-  const streetIdx = idx(HEADER_ALIASES.street);
-  const houseNumberIdx = idx(HEADER_ALIASES.houseNumber);
-  const postalCodeIdx = idx(HEADER_ALIASES.postalCode);
-  const cityIdx = idx(HEADER_ALIASES.city);
-  const latIdx = idx(HEADER_ALIASES.lat);
-  const lonIdx = idx(HEADER_ALIASES.lon);
+  const streetIdx = idx("street");
+  const houseNumberIdx = idx("houseNumber");
+  const postalCodeIdx = idx("postalCode");
+  const cityIdx = idx("city");
+  const latIdx = idx("lat");
+  const lonIdx = idx("lon");
   // Without a name column, use the first column that is not a row id —
   // otherwise every location would be called "1", "2", "3", ….
   const fallbackNameIdx = header.findIndex(
@@ -290,16 +335,49 @@ function rowsFromMatrix(
       : [streetIdx, houseNumberIdx, postalCodeIdx, cityIdx].filter(
           (i) => i >= 0,
         );
-  const valIdx = idx(HEADER_ALIASES.val);
+  const valIdx = idx("assetValue");
   // Existing vs. new business ("Bestand"/"Neugeschäft", yes/no, …).
-  const insuredIdx = idx(HEADER_ALIASES.insured);
-  const partnerIdx = idx(HEADER_ALIASES.partner);
-  const subPortfolioIdx = idx(HEADER_ALIASES.subPortfolio);
-  const groupIdx = idx(HEADER_ALIASES.group);
+  const insuredIdx = idx("insured");
+  const partnerIdx = idx("salesPartner");
+  const subPortfolioIdx = idx("subPortfolio");
+  const groupIdx = idx("group");
   // Maximum indemnity per location (stored as `productLimitEur`).
-  const limitIdx = idx(HEADER_ALIASES.limit);
-  const deductibleIdx = idx(HEADER_ALIASES.deductible);
-  const websiteIdx = idx(HEADER_ALIASES.website);
+  const limitIdx = idx("productLimitEur");
+  const deductibleIdx = idx("deductibleEur");
+  const websiteIdx = idx("website");
+  const fieldByColumn = new Map<number, ImportField>();
+  for (const [field, index] of [
+    ["name", nameIdx],
+    ["address", addrIdx],
+    ["street", streetIdx],
+    ["houseNumber", houseNumberIdx],
+    ["postalCode", postalCodeIdx],
+    ["city", cityIdx],
+    ["lat", latIdx],
+    ["lon", lonIdx],
+    ["assetValue", valIdx],
+    ["insured", insuredIdx],
+    ["salesPartner", partnerIdx],
+    ["subPortfolio", subPortfolioIdx],
+    ["group", groupIdx],
+    ["productLimitEur", limitIdx],
+    ["deductibleEur", deductibleIdx],
+    ["website", websiteIdx],
+  ] as Array<[ImportField, number]>) {
+    if (index >= 0 && !fieldByColumn.has(index))
+      fieldByColumn.set(index, field);
+  }
+  // A split address is used only without an address column.
+  if (addrIdx >= 0)
+    for (const i of [streetIdx, houseNumberIdx, postalCodeIdx, cityIdx])
+      if (fieldByColumn.get(i) !== "address") fieldByColumn.delete(i);
+  const columns: ImportColumn[] = rawHeader.map((name, i) => ({
+    name: name.slice(0, 200),
+    hint: columnHint(
+      matrix.slice(headerRow + 1, headerRow + 201).map((row) => row[i] ?? ""),
+    ),
+    field: fieldByColumn.get(i) ?? (i === nameCol ? "name" : null),
+  }));
   const rows: DealershipInput[] = [];
   /** Source row (1-based, header = 1) of each entry in `rows`. */
   const rowNumbers: number[] = [];
@@ -437,6 +515,7 @@ function rowsFromMatrix(
         deductibleEur: rawHeader[deductibleIdx] ?? null,
         website: rawHeader[websiteIdx] ?? null,
       },
+      columns,
       issues,
       warnings,
       createdAt: new Date().toISOString(),

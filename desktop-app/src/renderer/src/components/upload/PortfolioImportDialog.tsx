@@ -12,6 +12,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import type { ImportResult } from "@shared/types";
+import type { ColumnOverrides } from "@shared/import-fields";
+import { ColumnAssignment } from "./ColumnAssignment";
 import { Button } from "@renderer/components/ui/button";
 import { Checkbox } from "@renderer/components/ui/checkbox";
 import {
@@ -46,6 +48,18 @@ import { portfolioName } from "@renderer/lib/portfolioName";
 interface PendingImport {
   fileName: string;
   result: ImportResult;
+  /** File content, kept to parse it again with columns assigned by hand. */
+  source: { kind: "csv"; content: string } | { kind: "xlsx"; base64: string };
+  overrides: ColumnOverrides;
+}
+
+function parseSource(
+  source: PendingImport["source"],
+  overrides?: ColumnOverrides,
+): Promise<ImportResult> {
+  return source.kind === "xlsx"
+    ? window.api.parseXlsx(source.base64, overrides)
+    : window.api.parseCsv(source.content, overrides);
 }
 
 /** Mapped fields shown in the dialog, in display order. */
@@ -81,17 +95,19 @@ export function usePortfolioImport(onImported?: () => void): {
   async function startImport(file: File): Promise<void> {
     try {
       const isXlsx = /\.xlsx$/i.test(file.name);
-      const result = isXlsx
-        ? await window.api.parseXlsx(
-            arrayBufferToBase64(await file.arrayBuffer()),
-          )
-        : await window.api.parseCsv(await file.text());
+      const source: PendingImport["source"] = isXlsx
+        ? {
+            kind: "xlsx",
+            base64: arrayBufferToBase64(await file.arrayBuffer()),
+          }
+        : { kind: "csv", content: await file.text() };
+      const result = await parseSource(source);
       if (result.rows.length === 0) {
         setImportReport(result.report);
         toast.warning(t("ui.noRowsFound"));
         return;
       }
-      setPending({ fileName: file.name, result });
+      setPending({ fileName: file.name, result, source, overrides: {} });
     } catch (error) {
       // The technical reason stays available, below a plain explanation.
       toast.error(t("portfolioImport.parseFailedTitle"), {
@@ -99,6 +115,21 @@ export function usePortfolioImport(onImported?: () => void): {
           error: error instanceof Error ? error.message : String(error),
         }),
       });
+    }
+  }
+
+  /** Parses the file again with the assigned columns; edits in the preview start over. */
+  async function remap(overrides: ColumnOverrides): Promise<void> {
+    if (!pending) return;
+    try {
+      const result = await parseSource(pending.source, overrides);
+      setPending({ ...pending, result, overrides });
+    } catch (error) {
+      toast.error(
+        t("portfolioImport.parseFailed", {
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
     }
   }
 
@@ -117,7 +148,9 @@ export function usePortfolioImport(onImported?: () => void): {
       >
         {pending && (
           <ImportForm
+            key={JSON.stringify(pending.overrides)}
             pending={pending}
+            onRemap={remap}
             onDone={() => {
               setPending(null);
               onImported?.();
@@ -143,9 +176,11 @@ function keepOpenWhileEditing(event: KeyboardEvent): void {
 
 function ImportForm({
   pending,
+  onRemap,
   onDone,
 }: {
   pending: PendingImport;
+  onRemap: (overrides: ColumnOverrides) => Promise<void>;
   onDone: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
@@ -299,6 +334,11 @@ function ImportForm({
                 {t("portfolioImport.noTermsColumns")}
               </p>
             )}
+          <ColumnAssignment
+            columns={report.columns ?? []}
+            overrides={pending.overrides}
+            onApply={onRemap}
+          />
         </div>
 
         {showTarget && (

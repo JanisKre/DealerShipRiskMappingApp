@@ -16,14 +16,22 @@ import type {
  * direct ipcRenderer access — only these methods.
  */
 const api = {
-  parseCsv: (content: string): Promise<IpcResponse["csv:parse"]> =>
+  parseCsv: (
+    content: string,
+    overrides?: IpcRequest["csv:parse"]["overrides"],
+  ): Promise<IpcResponse["csv:parse"]> =>
     ipcRenderer.invoke(IPC.parseCsv, {
       content,
+      overrides,
     } satisfies IpcRequest["csv:parse"]),
 
-  parseXlsx: (base64: string): Promise<IpcResponse["xlsx:parse"]> =>
+  parseXlsx: (
+    base64: string,
+    overrides?: IpcRequest["xlsx:parse"]["overrides"],
+  ): Promise<IpcResponse["xlsx:parse"]> =>
     ipcRenderer.invoke(IPC.parseXlsx, {
       base64,
+      overrides,
     } satisfies IpcRequest["xlsx:parse"]),
 
   geocode: (query: string): Promise<IpcResponse["geocode:search"]> =>
@@ -213,6 +221,15 @@ const api = {
     ipcRenderer.invoke(
       IPC.llmChatIntent,
       request satisfies IpcRequest["llm:chatIntent"],
+    ),
+
+  /** Optional AI suggestion for unused import columns (names and hints only). */
+  suggestColumnMapping: (
+    request: IpcRequest["llm:columnMapping"],
+  ): Promise<IpcResponse["llm:columnMapping"]> =>
+    ipcRenderer.invoke(
+      IPC.llmColumnMapping,
+      request satisfies IpcRequest["llm:columnMapping"],
     ),
 
   /** Optional AI order for the review queue (the fixed queue always works). */

@@ -4,6 +4,11 @@ import {
   ReviewPlanItemSchema,
   ReviewPlanSchema,
 } from "./review-plan";
+import {
+  ColumnOverridesSchema,
+  ImportColumnSchema,
+  MAPPING_MAX_COLUMNS,
+} from "./import-fields";
 import { A2uiSurfaceSchema } from "./a2ui";
 import {
   AnalyzedDealershipSchema,
@@ -208,8 +213,15 @@ const DetectVehiclesRequestSchema: z.ZodType<DetectVehiclesRequest, unknown> =
 export const CLIPBOARD_TEXT_MAX_CHARS = 100_000;
 
 export const ipcRequest = {
-  "csv:parse": z.object({ content: z.string() }),
-  "xlsx:parse": z.object({ base64: z.string() }),
+  "csv:parse": z.object({
+    content: z.string(),
+    /** Columns assigned by hand in the import dialog. */
+    overrides: ColumnOverridesSchema.optional(),
+  }),
+  "xlsx:parse": z.object({
+    base64: z.string(),
+    overrides: ColumnOverridesSchema.optional(),
+  }),
   "geocode:search": z.object({ query: z.string().min(1) }),
   "places:autocomplete": z.object({
     query: z.string().min(1).max(200),
@@ -281,6 +293,9 @@ export const ipcRequest = {
   "llm:chatIntent": z.object({
     message: z.string().trim().min(1).max(2_000),
     dashboardTitle: z.string().max(120).nullable(),
+  }),
+  "llm:columnMapping": z.object({
+    columns: z.array(ImportColumnSchema).min(1).max(MAPPING_MAX_COLUMNS),
   }),
   "llm:reviewPlan": z.object({
     items: z.array(ReviewPlanItemSchema).min(1).max(REVIEW_PLAN_MAX_ITEMS),
@@ -408,6 +423,7 @@ export const ipcResponse = {
   "conversations:delete": z.object({ ok: z.boolean() }),
   "llm:chatIntent": z.object({ intent: z.enum(["create", "edit", "chat"]) }),
   "llm:reviewPlan": ReviewPlanSchema,
+  "llm:columnMapping": ColumnOverridesSchema,
   "llm:dashboardSurface": z.discriminatedUnion("ok", [
     z.object({
       ok: z.literal(true),

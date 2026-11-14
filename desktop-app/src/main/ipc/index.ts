@@ -19,6 +19,7 @@ import { analyzeDealership } from "../services/analyze.service";
 import {
   explainStream,
   proposeReviewOrder,
+  suggestColumnMapping,
 } from "../services/llm-agents.service";
 import { closeDb } from "../db/database";
 import { scheduleDataReset } from "../services/data-reset.service";
@@ -151,8 +152,12 @@ function handle<K extends keyof typeof ipcRequest>(
 
 export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   mainWindowProvider = getMainWindow;
-  handle(IPC.parseCsv, ({ content }) => parseCsvWithReport(content));
-  handle(IPC.parseXlsx, ({ base64 }) => parseXlsxWithReport(base64));
+  handle(IPC.parseCsv, ({ content, overrides }) =>
+    parseCsvWithReport(content, overrides),
+  );
+  handle(IPC.parseXlsx, ({ base64, overrides }) =>
+    parseXlsxWithReport(base64, overrides),
+  );
   handle(IPC.geocode, ({ query }) => geocode(query));
   handle(IPC.placesAutocomplete, ({ query, near }) =>
     placesAutocomplete(query, near),
@@ -240,6 +245,7 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     intent: await classifyChatIntent(message, dashboardTitle),
   }));
   handle(IPC.llmReviewPlan, ({ items }) => proposeReviewOrder(items));
+  handle(IPC.llmColumnMapping, ({ columns }) => suggestColumnMapping(columns));
   handle(IPC.llmDashboardSurface, ({ prompt, current, context }) =>
     generateDashboardSurface(prompt, current, context),
   );

@@ -54,6 +54,7 @@ export const IPC = {
   llmChatIntent: "llm:chatIntent",
   // Optional AI layer over deterministic features (docs/ai-features.md)
   llmReviewPlan: "llm:reviewPlan", // reorders the review queue, notes per location
+  llmColumnMapping: "llm:columnMapping", // suggests fields for unused import columns
   listDashboards: "dashboards:list",
   loadDashboard: "dashboards:load",
   saveDashboard: "dashboards:save",

@@ -1512,7 +1512,11 @@
       "salesPartner": "Vertriebspartner",
       "subPortfolio": "Teilportfolio",
       "group": "Gruppe",
-      "website": "Website"
+      "website": "Website",
+      "street": "Straße",
+      "houseNumber": "Hausnummer",
+      "postalCode": "PLZ",
+      "city": "Ort"
     },
     "targetTitle": "Ziel",
     "targetNew": "Neues Portfolio anlegen",
@@ -1530,7 +1534,33 @@
     "cancel": "Abbrechen",
     "confirm_one": "{{count}} Standort importieren",
     "confirm_other": "{{count}} Standorte importieren",
-    "parseFailedTitle": "Die Datei konnte nicht gelesen werden. Speichere sie in Excel bitte erneut als .xlsx-Arbeitsmappe oder exportiere sie als CSV."
+    "parseFailedTitle": "Die Datei konnte nicht gelesen werden. Speichere sie in Excel bitte erneut als .xlsx-Arbeitsmappe oder exportiere sie als CSV.",
+    "hint": {
+      "empty": "leer",
+      "text": "Text",
+      "number": "Zahl",
+      "amount": "Betrag",
+      "latitude": "Breitengrad",
+      "longitude": "Längengrad",
+      "postcode": "Postleitzahl",
+      "url": "Webadresse",
+      "yesNo": "Ja/Nein"
+    },
+    "assign": {
+      "title_one": "{{count}} weitere Spalte zuordnen",
+      "title_other": "{{count}} weitere Spalten zuordnen",
+      "description": "Diese Spalten hat die App nicht erkannt. Ordne sie einem Feld zu, das noch keine Spalte füllt.",
+      "unused": "nicht verwenden",
+      "fieldFor": "Feld für Spalte {{column}}",
+      "apply": "Zuordnung übernehmen",
+      "applyHint": "Die Datei wird neu eingelesen; Änderungen in der Vorschau beginnen neu.",
+      "suggest": "KI-Vorschlag",
+      "suggestHint": "Die KI schlägt Felder vor. Sie sieht nur Spaltennamen und Typ-Hinweise, keine Zellwerte. Übernommen wird erst mit „Zuordnung übernehmen“.",
+      "suggested_one": "{{count}} Vorschlag eingetragen – bitte prüfen und übernehmen.",
+      "suggested_other": "{{count}} Vorschläge eingetragen – bitte prüfen und übernehmen.",
+      "noSuggestion": "Die KI hat keine passende Zuordnung gefunden.",
+      "suggestFailed": "KI-Vorschlag nicht verfügbar: {{error}}"
+    }
   },
   "places": {
     "inPortfolio": "Im Portfolio: {{portfolio}}",
