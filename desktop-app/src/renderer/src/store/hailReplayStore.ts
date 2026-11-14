@@ -6,6 +6,7 @@ import {
   type HailEventList,
 } from "@shared/hail-events";
 import type { SimHeading, SimStrength } from "@shared/hail-sim";
+import type { HailstormScenario } from "@shared/types";
 import { RADAR_HAIL_RADIUS_KM } from "@shared/radar-hail";
 
 /** Replay speeds: radar time per second of playback. */
@@ -17,6 +18,20 @@ export const REPLAY_SPEEDS = [
 export type ReplaySpeed = (typeof REPLAY_SPEEDS)[number]["id"];
 
 export type HailPanelTab = "simulate" | "draw" | "history" | "library";
+
+/**
+ * What a drawn line becomes: a storm that moves along it (played like a
+ * simulation) or a static corridor screened with a return period.
+ */
+export type DrawKind = "track" | "corridor";
+
+/** Settings a newly drawn corridor starts with. */
+export interface CorridorSettings {
+  widthKm: number;
+  intensityLevel: HailstormScenario["intensityLevel"];
+  returnPeriodYears: 10 | 50 | 100;
+  exposureMultiplier: number;
+}
 
 /** What a map click does while the hail panel is open. */
 export type HailMapMode = "pickStart" | "draw" | null;
@@ -53,7 +68,9 @@ interface HailReplayState {
     storms: number;
     seed: number;
   };
-  draw: { strength: SimStrength; speedKmh: number };
+  draw: { kind: DrawKind; strength: SimStrength; speedKmh: number };
+  /** Settings of the next corridor (the drawn one carries its own). */
+  corridor: CorridorSettings;
   /** Points of the track being drawn ([lon, lat]). */
   drawPoints: [number, number][];
   historicDay: string;
@@ -75,6 +92,7 @@ interface HailReplayState {
   setMapMode: (mode: HailMapMode) => void;
   setSim: (patch: Partial<HailReplayState["sim"]>) => void;
   setDraw: (patch: Partial<HailReplayState["draw"]>) => void;
+  setCorridor: (patch: Partial<CorridorSettings>) => void;
   setDrawPoints: (points: [number, number][]) => void;
   setHistoricDay: (day: string) => void;
   setHistoricLoading: (loading: boolean) => void;
@@ -95,7 +113,13 @@ export const useHailReplayStore = create<HailReplayState>((set) => ({
   radiusKm: RADAR_HAIL_RADIUS_KM,
   mapMode: null,
   sim: { strength: "severe", heading: "sw-ne", storms: 5, seed: 1 },
-  draw: { strength: "severe", speedKmh: 50 },
+  draw: { kind: "track", strength: "severe", speedKmh: 50 },
+  corridor: {
+    widthKm: 20,
+    intensityLevel: "HIGH",
+    returnPeriodYears: 100,
+    exposureMultiplier: 1,
+  },
   drawPoints: [],
   historicDay: "2013-07-28",
   historicLoading: false,
@@ -124,6 +148,8 @@ export const useHailReplayStore = create<HailReplayState>((set) => ({
   setMapMode: (mapMode) => set({ mapMode, drawPoints: [] }),
   setSim: (patch) => set((s) => ({ sim: { ...s.sim, ...patch } })),
   setDraw: (patch) => set((s) => ({ draw: { ...s.draw, ...patch } })),
+  setCorridor: (patch) =>
+    set((s) => ({ corridor: { ...s.corridor, ...patch } })),
   setDrawPoints: (drawPoints) => set({ drawPoints }),
   setHistoricDay: (historicDay) => set({ historicDay }),
   setHistoricLoading: (historicLoading) => set({ historicLoading }),

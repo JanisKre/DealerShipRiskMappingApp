@@ -3,7 +3,7 @@ import type { DrmApi } from "../src/preload";
 import { dismissModelWizard, launchApp, type LaunchedApp } from "./app";
 
 /**
- * Hail event replay end to end: a made-up portfolio near Dresden
+ * Hail scenarios end to end: a made-up portfolio near Dresden
  * and an imported GeoJSON footprint of a storm moving east over it. Checks
  * that the event plays, that the locations it reaches are counted as the
  * clock passes them, and that moving the event changes who it reaches.
@@ -116,12 +116,10 @@ async function openDetails(): Promise<void> {
 }
 
 test("storms generated on the portfolio play and reach its locations", async () => {
-  // The simulation is a section of the layer panel.
+  // Simulation and corridor share one section of the layer panel.
   await page.getByRole("button", { name: /^Ebenen/ }).click();
-  await page.getByRole("button", { name: "Hagel-Simulation" }).click();
-  await page
-    .getByRole("button", { name: "Unwetter auf mein Portfolio" })
-    .click();
+  await page.getByRole("button", { name: "Hagel-Szenarien" }).click();
+  await page.getByRole("button", { name: "Auf mein Portfolio" }).click();
   // The event card on the map plays the storm.
   await expect(result().getByText(/^Simuliert ·/)).toBeVisible();
   await expect(result().getByRole("button", { name: "Pause" })).toBeVisible();
@@ -143,7 +141,7 @@ test("storms generated on the portfolio play and reach its locations", async () 
   await expect(
     page
       .getByTestId("hail-section")
-      .getByRole("button", { name: /Unwetter auf Portfolio #\d+/ }),
+      .getByRole("button", { name: /^Unwetter auf Portfolio #\d+/ }),
   ).toBeVisible();
 });
 
@@ -208,4 +206,35 @@ test("an imported storm reaches the locations on its path and can be dragged off
   await shot("hail-replay-shifted");
   await result().getByRole("button", { name: "Zurück" }).click();
   await expect(reached().getByRole("button")).toHaveCount(2);
+});
+
+test("a drawn corridor shows its impact, follows its settings and can be removed", async () => {
+  await page.getByRole("radio", { name: "Zeichnen" }).click();
+  await page.getByRole("radio", { name: "Korridor" }).click();
+  await page.getByRole("button", { name: "Korridor einzeichnen" }).click();
+  // Drawing a corridor works like drawing a storm track.
+  await expect(page.getByTestId("hail-hint")).toContainText("Korridor");
+  const map = page.locator(".leaflet-container");
+  const box = (await map.boundingBox())!;
+  await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.6);
+  await page.mouse.click(box.x + box.width * 0.45, box.y + box.height * 0.6);
+  await page
+    .getByTestId("hail-hint")
+    .getByRole("button", { name: "Fertig (2 Punkte)" })
+    .click();
+  const card = page.getByTestId("hail-corridor");
+  await expect(card).toContainText("Korridor · Hoch · 20 km · 100 Jahre");
+  await shot("hail-corridor");
+
+  // The panel's settings change the drawn corridor.
+  await page.locator("#corridor-width").fill("60");
+  await page.locator("#corridor-intensity").click();
+  await page.getByRole("option", { name: "Extrem" }).click();
+  await expect(card).toContainText("Korridor · Extrem · 60 km · 100 Jahre");
+  await expect(
+    page.getByRole("button", { name: "Korridor neu zeichnen" }),
+  ).toBeVisible();
+
+  await card.getByRole("button", { name: "Korridor entfernen" }).click();
+  await expect(card).toHaveCount(0);
 });

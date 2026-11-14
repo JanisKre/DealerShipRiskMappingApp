@@ -82,14 +82,14 @@ export function ScenarioFromSentence(): React.JSX.Element {
   return (
     <div className="space-y-1.5 border-t pt-2.5">
       <form
-        className="flex gap-1.5"
+        className="space-y-1.5"
         onSubmit={(e) => {
           e.preventDefault();
           void run();
         }}
       >
         <Input
-          className={`${PANEL_CONTROL_CLASS} flex-1`}
+          className={PANEL_CONTROL_CLASS}
           value={text}
           maxLength={500}
           placeholder={t("scenarioDraft.placeholder")}
@@ -112,7 +112,9 @@ export function ScenarioFromSentence(): React.JSX.Element {
           {t("scenarioDraft.run")}
         </Button>
       </form>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && (
+        <p className="text-[11px] leading-snug text-destructive">{error}</p>
+      )}
       {draft && (
         <div className="space-y-1.5 rounded-md border bg-muted/40 p-2 text-xs">
           <div className="font-medium">{draft.draft.name}</div>
@@ -125,7 +127,7 @@ export function ScenarioFromSentence(): React.JSX.Element {
               intensity: t(`risk.${draft.draft.intensityLevel}`),
             })}
           </div>
-          <div className="flex gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
             <Button
               size="sm"
               className={PANEL_ACTION_CLASS}
@@ -140,7 +142,7 @@ export function ScenarioFromSentence(): React.JSX.Element {
             </Button>
             <Button
               size="sm"
-              variant="ghost"
+              variant="outline"
               className={PANEL_ACTION_CLASS}
               onClick={() => setDraft(null)}
             >

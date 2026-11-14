@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SCENARIO_MODEL_VERSION } from "./ScenarioFromSentence";
 import { MapContainer, TileLayer, useMap, useMapEvents } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -344,7 +343,6 @@ export function MapPage(): React.JSX.Element {
   const dealerships = useAppStore((s) => s.dealerships);
   const parameters = useAppStore((s) => s.parameters);
   const scenario = useAppStore((s) => s.scenario);
-  const setScenario = useAppStore((s) => s.setScenario);
   const selectedId = useAppStore((s) => s.selectedId);
   const select = useAppStore((s) => s.select);
   const navigate = useNavigate();
@@ -388,7 +386,6 @@ export function MapPage(): React.JSX.Element {
   const setDetectionEditing = useMapStore((s) => s.setDetectionEditing);
   const openDetailDialog = useMapStore((s) => s.openDetailDialog);
 
-  const [drawingScenario, setDrawingScenario] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AnalyzedDealership | null>(
@@ -723,20 +720,6 @@ export function MapPage(): React.JSX.Element {
     }
   }, [detectionEditing, detectionEditId, selectedId, setDetectionEditing]);
 
-  function onScenarioPath(path: [number, number][]): void {
-    setScenario({
-      id: scenario?.id ?? crypto.randomUUID(),
-      name: scenario?.name ?? t("map.page.defaultScenarioName"),
-      pathCoordinates: path,
-      widthKm: scenario?.widthKm ?? 20,
-      intensityLevel: scenario?.intensityLevel ?? "HIGH",
-      returnPeriodYears: scenario?.returnPeriodYears ?? 100,
-      exposureMultiplier: scenario?.exposureMultiplier ?? 1,
-      modelVersion: scenario?.modelVersion ?? SCENARIO_MODEL_VERSION,
-    });
-    setDrawingScenario(false);
-  }
-
   /** Export the map as PNG or copy it to the clipboard. */
   async function exportMap(mode: "save" | "clipboard"): Promise<void> {
     setCapturing(true);
@@ -969,11 +952,7 @@ export function MapPage(): React.JSX.Element {
 
         <HailEventReplayLayer />
 
-        <HailstormScenarioLayer
-          scenario={scenario}
-          drawing={drawingScenario}
-          onPath={onScenarioPath}
-        />
+        <HailstormScenarioLayer scenario={scenario} />
 
         {/* Risk-colored markers with clustering (replaces the old <Marker>) */}
         <ClusteredMarkers
@@ -1359,7 +1338,7 @@ export function MapPage(): React.JSX.Element {
 
       {/* Hail simulation: the playing storm and its impact, right of the
           zoom control and clear of the layer panel on the right. */}
-      <div className="pointer-events-none absolute bottom-24 left-16 top-3 z-[1001] flex w-[min(30rem,calc(100%-21rem))] min-w-72 flex-col items-stretch [&>*]:pointer-events-auto">
+      <div className="pointer-events-none absolute bottom-24 left-16 top-3 z-[1001] flex w-[min(30rem,calc(100%-21rem))] min-w-72 flex-col items-stretch gap-2 [&>*]:pointer-events-auto">
         <HailEventCard />
       </div>
 
@@ -1378,8 +1357,6 @@ export function MapPage(): React.JSX.Element {
         </div>
         <div className="flex max-h-full min-h-0 w-60 min-w-0 shrink flex-col justify-end">
           <LayerPanel
-            drawing={drawingScenario}
-            onToggleDraw={() => setDrawingScenario((d) => !d)}
             capturing={capturing}
             onExport={exportMap}
             selectedId={selectedId}

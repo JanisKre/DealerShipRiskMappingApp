@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { toast } from "sonner";
 import {
   MAX_FOOTPRINT_BYTES,
@@ -16,6 +17,8 @@ import {
   stormAlongPath,
 } from "@shared/hail-sim";
 import { useHailReplayStore } from "@renderer/store/hailReplayStore";
+import { useAppStore } from "@renderer/store/appStore";
+import { SCENARIO_MODEL_VERSION } from "@renderer/components/map/ScenarioFromSentence";
 import { usePortfolioTargets } from "./useHailEventImpact";
 
 /** Afternoon of today (13:00 UTC): when generated storms start. */
@@ -47,6 +50,20 @@ function mainMessage(error: unknown): string {
     : "";
 }
 
+/** Known import errors of the main process, in the UI's language. */
+const IMPORT_ERRORS: [RegExp, string][] = [
+  [/larger than 20 MB/, "hailReplay.importTooLarge"],
+  [/not valid JSON/, "hailReplay.importInvalidJson"],
+  [/Expected a GeoJSON/, "hailReplay.importNotGeojson"],
+  [/no polygon footprints/, "hailReplay.importNoPolygons"],
+  [/more than \d+ polygons/, "hailReplay.importTooManyPolygons"],
+];
+
+function importErrorText(message: string, t: TFunction): string {
+  const known = IMPORT_ERRORS.find(([pattern]) => pattern.test(message));
+  return known ? t(known[1]) : message;
+}
+
 /**
  * Everything the hail panel and the map can do with events: load the
  * list, open, generate, draw, fetch a historic day, save, import, delete.
@@ -57,6 +74,7 @@ export function useHailSimActions(): {
   simulateOutbreak: (aim: "portfolio" | "germany") => void;
   simulateAt: (point: [number, number]) => void;
   simulateAlong: (path: [number, number][]) => void;
+  finishDrawing: (path: [number, number][]) => void;
   loadHistoric: (day: string) => Promise<void>;
   saveCurrent: () => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -208,6 +226,31 @@ export function useHailSimActions(): {
     [nextSeed, store, t],
   );
 
+  /**
+   * A finished line on the map: a storm along it, or the corridor (which
+   * keeps the current corridor's name and id, so redrawing replaces it).
+   */
+  const finishDrawing = useCallback(
+    (path: [number, number][]): void => {
+      const { draw, corridor } = store.getState();
+      if (draw.kind === "track") {
+        simulateAlong(path);
+        return;
+      }
+      if (path.length < 2) return;
+      const current = useAppStore.getState().scenario;
+      useAppStore.getState().setScenario({
+        id: current?.id ?? crypto.randomUUID(),
+        name: current?.name ?? t("map.page.defaultScenarioName"),
+        pathCoordinates: path,
+        ...corridor,
+        modelVersion: SCENARIO_MODEL_VERSION,
+      });
+      store.getState().setMapMode(null);
+    },
+    [simulateAlong, store, t],
+  );
+
   const loadHistoric = useCallback(
     async (day: string): Promise<void> => {
       const s = store.getState();
@@ -277,7 +320,7 @@ export function useHailSimActions(): {
         await open(summary.id, true);
       } catch (error) {
         toast.error(t("hailReplay.importFailed"), {
-          description: mainMessage(error),
+          description: importErrorText(mainMessage(error), t),
         });
       }
     },
@@ -290,6 +333,7 @@ export function useHailSimActions(): {
     simulateOutbreak,
     simulateAt,
     simulateAlong,
+    finishDrawing,
     loadHistoric,
     saveCurrent,
     remove,

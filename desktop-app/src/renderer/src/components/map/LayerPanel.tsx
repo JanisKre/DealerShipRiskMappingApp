@@ -12,7 +12,6 @@ import {
   Map,
   MousePointerClick,
   Pencil,
-  Zap,
 } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
 import { Checkbox } from "@renderer/components/ui/checkbox";
@@ -39,9 +38,9 @@ import {
   type Basemap,
   type MapLayers,
 } from "@renderer/store/mapStore";
-import { ScenarioBuilder } from "./ScenarioBuilder";
 import { HailSimSection } from "./HailSimSection";
 import { useHailReplayStore } from "@renderer/store/hailReplayStore";
+import { useAppStore } from "@renderer/store/appStore";
 import {
   PANEL_ACTION_CLASS,
   PANEL_CONTROL_CLASS,
@@ -137,8 +136,6 @@ const OVERLAY_KEYS: readonly (keyof MapLayers)[] = [
 ];
 
 export interface LayerPanelProps {
-  drawing: boolean;
-  onToggleDraw: () => void;
   capturing: boolean;
   onExport: (mode: "save" | "clipboard") => void;
   selectedId: string | null;
@@ -365,8 +362,6 @@ function ImageryVersionSelect({
 }
 
 export function LayerPanel({
-  drawing,
-  onToggleDraw,
   capturing,
   onExport,
   selectedId,
@@ -393,6 +388,15 @@ export function LayerPanel({
   const activeOverlayCount = countActiveLayers(layers, OVERLAY_KEYS);
   const [open, setOpen] = useState(false);
   const hailPlaying = useHailReplayStore((st) => st.detail != null);
+  const hailMapMode = useHailReplayStore((st) => st.mapMode);
+  const hasCorridor = useAppStore((st) => st.scenario != null);
+  const hailBadge = hailMapMode
+    ? t("map.layerPanel.drawingBadge")
+    : hailPlaying
+      ? t("hailReplay.loadedBadge")
+      : hasCorridor
+        ? t("hailReplay.corridorBadge")
+        : undefined;
   // Editing started from a map notice must not stay hidden in a closed panel.
   useEffect(() => {
     if (editing || detectionEditing) setOpen(true);
@@ -614,22 +618,15 @@ export function LayerPanel({
               )}
             </Section>
 
-            {/* Hail simulation: generated, drawn, historic or archived storms */}
+            {/* Hail scenarios: generated, drawn (track or corridor),
+                historic or archived storms */}
             <Section
               icon={<CloudHail className="size-3" />}
               title={t("hailReplay.title")}
-              badge={hailPlaying ? t("hailReplay.loadedBadge") : undefined}
+              badge={hailBadge}
+              forceOpen={hailMapMode != null}
             >
               <HailSimSection />
-            </Section>
-
-            {/* Hailstorm scenario — collapsed */}
-            <Section
-              icon={<Zap className="size-3" />}
-              title={t("map.scenario")}
-              badge={drawing ? t("map.layerPanel.drawingBadge") : undefined}
-            >
-              <ScenarioBuilder drawing={drawing} onToggleDraw={onToggleDraw} />
             </Section>
           </div>
 

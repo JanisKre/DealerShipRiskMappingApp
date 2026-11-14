@@ -1,7 +1,6 @@
-import { useEffect, useMemo } from "react";
-import { Polygon, Polyline, useMap } from "./leaflet-react";
+import { useMemo } from "react";
+import { Polygon, Polyline } from "./leaflet-react";
 import { corridorRings } from "./scenarioCorridor";
-import type { Layer, LeafletEvent } from "leaflet";
 import type { HailstormScenario } from "@shared/types";
 import { SCENARIO_INTENSITY_DAMAGE } from "@shared/constants";
 
@@ -12,59 +11,17 @@ const INTENSITY_COLOR: Record<HailstormScenario["intensityLevel"], string> = {
   EXTREME: "#dc2626",
 };
 
-interface PmMap {
-  enableDraw: (shape: string, options?: Record<string, unknown>) => void;
-  disableDraw: () => void;
-}
-
-interface PolylineLayer extends Layer {
-  getLatLngs: () => Array<{ lat: number; lng: number }>;
-}
-
 /**
  * Draws the active hail corridor as a coloured centre line with a
  * semi-transparent geographic buffer, `widthKm` wide — the area whose sites
- * the scenario counts as affected. With `drawing=true` Geoman's line tool is
- * on; the finished line is reported to `onPath` as `pathCoordinates`.
+ * the scenario counts as affected. The line itself is drawn with the hail
+ * panel's drawing mode (HailEventReplayLayer).
  */
 export function HailstormScenarioLayer({
   scenario,
-  drawing,
-  onPath,
 }: Readonly<{
   scenario: HailstormScenario | null;
-  drawing: boolean;
-  onPath: (path: [number, number][]) => void;
 }>): React.JSX.Element | null {
-  const map = useMap();
-
-  useEffect(() => {
-    const pm = (map as unknown as { pm?: PmMap }).pm;
-    if (!pm) return undefined;
-
-    function handleCreate(e: LeafletEvent): void {
-      const layer = e.target
-        ? (e as unknown as { layer: PolylineLayer }).layer
-        : undefined;
-      if (!layer) return;
-      const path = layer
-        .getLatLngs()
-        .map((p) => [p.lng, p.lat] as [number, number]);
-      layer.remove(); // the drawn line goes; the layer renders from the store
-      if (path.length >= 2) onPath(path);
-    }
-
-    if (drawing) {
-      map.on("pm:create", handleCreate);
-      pm.enableDraw("Line", { finishOn: "dblclick" });
-    }
-
-    return () => {
-      map.off("pm:create", handleCreate);
-      pm.disableDraw();
-    };
-  }, [drawing, map, onPath]);
-
   const path = scenario?.pathCoordinates;
   const widthKm = scenario?.widthKm ?? 0;
   const positions = useMemo(

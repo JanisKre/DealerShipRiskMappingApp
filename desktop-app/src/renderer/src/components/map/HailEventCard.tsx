@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
@@ -34,7 +35,9 @@ import {
   useHailReplayStore,
   type ReplaySpeed,
 } from "@renderer/store/hailReplayStore";
+import { computeScenarioImpact } from "@shared/risk-math";
 import { HAIL_CLASS_COLOR } from "./HailEventReplayLayer";
+import { INTENSITY_COLOR } from "./HailstormScenarioLayer";
 import { replayClockLabel, replayDateLabel } from "@renderer/lib/hailTime";
 
 /** Reached locations listed; the rest are counted. */
@@ -42,7 +45,10 @@ const LISTED_HITS = 12;
 const CARD_CLASS =
   "flex max-h-full min-h-0 w-full flex-col rounded-lg border bg-card text-sm shadow-lg";
 
-/** A figure: so far (large) and in total (small) while the storm plays. */
+/**
+ * A figure: so far (large) and in total (small) while the storm plays; a
+ * static corridor has only the value.
+ */
 function Figure({
   label,
   now,
@@ -51,7 +57,7 @@ function Figure({
 }: Readonly<{
   label: string;
   now: string;
-  total: string;
+  total?: string;
   tone?: "loss";
 }>): React.JSX.Element {
   const { t } = useTranslation();
@@ -65,10 +71,180 @@ function Figure({
       >
         {now}
       </div>
-      <div className="truncate text-[11px] tabular-nums text-muted-foreground">
-        {t("hailReplay.ofTotal", { total })}
-      </div>
+      {total !== undefined && (
+        <div className="truncate text-[11px] tabular-nums text-muted-foreground">
+          {t("hailReplay.ofTotal", { total })}
+        </div>
+      )}
     </div>
+  );
+}
+
+/** Money as a short figure: 0,6 Mio. € instead of a cut-off 600.000 €. */
+function moneyLabel(v: number, t: TFunction): string {
+  if (v >= 100_000 && v < 1_000_000)
+    return t("hailReplay.millions", {
+      value: (v / 1e6).toLocaleString(uiLocale(), {
+        maximumFractionDigits: 2,
+      }),
+    });
+  return eurCompact(v);
+}
+
+/** "Details" toggle at the bottom right of a hail card. */
+function DetailsToggle({
+  open,
+  onToggle,
+}: Readonly<{ open: boolean; onToggle: () => void }>): React.JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-7 gap-1 px-2 text-xs"
+      aria-expanded={open}
+      onClick={onToggle}
+    >
+      {t("hailReplay.details")}
+      {open ? (
+        <ChevronUp className="size-3.5" />
+      ) : (
+        <ChevronDown className="size-3.5" />
+      )}
+    </Button>
+  );
+}
+
+/**
+ * The drawn hail corridor and what it does to the portfolio: the same card
+ * as a played storm, without the player. A static screening of everything
+ * inside the corridor at one intensity (computeScenarioImpact).
+ */
+function CorridorCard(): React.JSX.Element | null {
+  const { t } = useTranslation();
+  const scenario = useAppStore((st) => st.scenario);
+  const setScenario = useAppStore((st) => st.setScenario);
+  const dealerships = useAppStore((st) => st.dealerships);
+  const parameters = useAppStore((st) => st.parameters);
+  const select = useAppStore((st) => st.select);
+  const [open, setOpen] = useState(false);
+  const impact = useMemo(
+    () =>
+      scenario
+        ? computeScenarioImpact(scenario, dealerships, parameters)
+        : null,
+    [scenario, dealerships, parameters],
+  );
+  if (!scenario || !impact) return null;
+
+  const byId = new Map(dealerships.map((d) => [d.id, d]));
+  const affected = impact.affectedDealershipIds;
+  const multiplier = scenario.exposureMultiplier ?? 1;
+  return (
+    <div className={CARD_CLASS} data-testid="hail-corridor">
+      <div className="flex items-start gap-2 px-3 pt-2.5">
+        <span
+          className="mt-1.5 size-2.5 shrink-0 rounded-full"
+          style={{ background: INTENSITY_COLOR[scenario.intensityLevel] }}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-semibold">{scenario.name}</div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {t("hailReplay.corridorSubtitle", {
+              intensity: t(`risk.${scenario.intensityLevel}`),
+              width: num(scenario.widthKm),
+              years: scenario.returnPeriodYears ?? 100,
+            })}
+          </div>
+        </div>
+        <HintButton
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          aria-label={t("hailReplay.corridorRemove")}
+          onClick={() => setScenario(null)}
+        >
+          <X className="size-4" />
+        </HintButton>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 px-3 pt-2.5">
+        <Figure
+          label={t("hailReplay.figureReached")}
+          now={num(affected.length)}
+        />
+        <Figure
+          label={t("hailReplay.figureExposure")}
+          now={moneyLabel(impact.totalExposureEur, t)}
+        />
+        <Figure
+          label={t("hailReplay.stressLoss")}
+          now={moneyLabel(impact.estimatedLossEur, t)}
+          tone="loss"
+        />
+      </div>
+
+      <div className="flex justify-end px-1.5 pb-1">
+        <DetailsToggle open={open} onToggle={() => setOpen(!open)} />
+      </div>
+
+      {open && (
+        <div className="min-h-0 space-y-2.5 overflow-y-auto border-t px-3 py-2.5">
+          {affected.length > 0 && (
+            <ul
+              aria-label={t("hailReplay.corridorHitsList")}
+              className="space-y-0.5"
+            >
+              {affected.slice(0, LISTED_HITS).map((id) => (
+                <li key={id}>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs hover:bg-accent"
+                    onClick={() => select(id)}
+                  >
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{
+                        background: INTENSITY_COLOR[scenario.intensityLevel],
+                      }}
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {byId.get(id)?.name ?? id}
+                    </span>
+                  </button>
+                </li>
+              ))}
+              {affected.length > LISTED_HITS && (
+                <li className="px-1 text-[11px] text-muted-foreground">
+                  {t("hailReplay.moreHits", {
+                    count: affected.length - LISTED_HITS,
+                  })}
+                </li>
+              )}
+            </ul>
+          )}
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            {t("hailReplay.corridorNote", {
+              model: impact.modelVersion,
+              multiplier: num(multiplier),
+            })}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The hail cards on the map: the played storm (or what a map click will
+ * do) and the drawn corridor.
+ */
+export function HailEventCard(): React.JSX.Element {
+  return (
+    <>
+      <EventCard />
+      <CorridorCard />
+    </>
   );
 }
 
@@ -78,7 +254,7 @@ function Figure({
  * reached locations, the reach and the shift behind "details". While the
  * map waits for a click (start point, track), the card says what to do.
  */
-export function HailEventCard(): React.JSX.Element | null {
+function EventCard(): React.JSX.Element | null {
   const { t } = useTranslation();
   const s = useHailReplayStore();
   const actions = useHailSimActions();
@@ -109,16 +285,7 @@ export function HailEventCard(): React.JSX.Element | null {
     );
   }
 
-  /** Money as a short figure: 0,6 Mio. € instead of a cut-off 600.000 €. */
-  function money(v: number): string {
-    if (v >= 100_000 && v < 1_000_000)
-      return t("hailReplay.millions", {
-        value: (v / 1e6).toLocaleString(uiLocale(), {
-          maximumFractionDigits: 2,
-        }),
-      });
-    return eurCompact(v);
-  }
+  const money = (v: number): string => moneyLabel(v, t);
 
   const detail = s.detail;
   const start = detail?.summary.start ?? 0;
@@ -172,7 +339,11 @@ export function HailEventCard(): React.JSX.Element | null {
       >
         <p className="text-sm">
           {s.mapMode === "draw"
-            ? t("hailReplay.drawHint")
+            ? t(
+                s.draw.kind === "corridor"
+                  ? "hailReplay.drawCorridorHint"
+                  : "hailReplay.drawHint",
+              )
             : t("hailReplay.pickStartHint")}
         </p>
         <div className="flex justify-end gap-1.5">
@@ -183,7 +354,7 @@ export function HailEventCard(): React.JSX.Element | null {
             <Button
               size="sm"
               disabled={s.drawPoints.length < 2}
-              onClick={() => actions.simulateAlong(s.drawPoints)}
+              onClick={() => actions.finishDrawing(s.drawPoints)}
             >
               {t("hailReplay.drawDone", { count: s.drawPoints.length })}
             </Button>
@@ -195,7 +366,7 @@ export function HailEventCard(): React.JSX.Element | null {
 
   if (s.historicLoading || s.detailLoading) {
     return (
-      <div className={`${CARD_CLASS} flex items-center gap-2 px-3 py-2.5`}>
+      <div className={`${CARD_CLASS} flex-row items-center gap-2 px-3 py-2.5`}>
         <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
         <span className="text-sm">
           {s.historicLoading
@@ -334,28 +505,18 @@ export function HailEventCard(): React.JSX.Element | null {
         />
       </div>
 
-      <div className="flex justify-end px-1.5 pb-1">
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 gap-1 px-2 text-xs"
-          aria-expanded={s.detailsOpen}
-          onClick={() => s.setDetailsOpen(!s.detailsOpen)}
-        >
-          {t("hailReplay.details")}
-          {s.detailsOpen ? (
-            <ChevronUp className="size-3.5" />
-          ) : (
-            <ChevronDown className="size-3.5" />
-          )}
-        </Button>
-      </div>
-
       {impact.hits.length === 0 && nearest && (
-        <p className="px-3 pb-2.5 text-xs text-muted-foreground">
+        <p className="px-3 pt-2 text-xs text-muted-foreground">
           {t("hailReplay.nearestMiss", { name: nearest.name, km: nearest.km })}
         </p>
       )}
+
+      <div className="flex justify-end px-1.5 pb-1">
+        <DetailsToggle
+          open={s.detailsOpen}
+          onToggle={() => s.setDetailsOpen(!s.detailsOpen)}
+        />
+      </div>
 
       {s.detailsOpen && (
         <div className="min-h-0 space-y-2.5 overflow-y-auto border-t px-3 py-2.5">

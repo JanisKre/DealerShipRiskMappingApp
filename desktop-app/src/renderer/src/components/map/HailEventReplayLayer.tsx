@@ -62,7 +62,7 @@ export function HailEventReplayLayer(): null {
   const dealerships = useAppStore((s) => s.dealerships);
 
   const mapMode = useHailReplayStore((s) => s.mapMode);
-  const { simulateAt, simulateAlong } = useHailSimActions();
+  const { simulateAt, finishDrawing } = useHailSimActions();
 
   const renderer = useMemo(() => L.canvas({ padding: 0.3 }), []);
 
@@ -80,8 +80,8 @@ export function HailEventReplayLayer(): null {
     };
   }, [map, mapMode, simulateAt]);
 
-  // "Draw a track": clicks add points, a double click (or the panel's
-  // "done" button) turns the line into a storm. Own handling instead of
+  // "Draw": clicks add points, a double click (or the card's "done"
+  // button) turns the line into a storm or a corridor. Own handling instead of
   // Geoman: its hint marker under the cursor swallowed the double click.
   const drawPoints = useHailReplayStore((s) => s.drawPoints);
   useEffect(() => {
@@ -99,17 +99,33 @@ export function HailEventReplayLayer(): null {
     };
     const onDblClick = (): void => {
       const points = useHailReplayStore.getState().drawPoints;
-      if (points.length >= 2) simulateAlong(points);
+      // Finished after this event: ending the mode re-enables double-click
+      // zoom, which would otherwise still zoom on this very double click.
+      if (points.length >= 2) setTimeout(() => finishDrawing(points), 0);
     };
     map.on("click", onClick);
     map.on("dblclick", onDblClick);
     return () => {
       map.off("click", onClick);
       map.off("dblclick", onDblClick);
-      map.doubleClickZoom.enable();
       container.style.cursor = "";
+      // After the double click that ended the line has been handled.
+      setTimeout(() => {
+        if (useHailReplayStore.getState().mapMode !== "draw")
+          map.doubleClickZoom.enable();
+      }, 0);
     };
-  }, [map, mapMode, simulateAlong]);
+  }, [map, mapMode, finishDrawing]);
+
+  // Escape leaves picking or drawing, like the cards' "cancel".
+  useEffect(() => {
+    if (!mapMode) return undefined;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") useHailReplayStore.getState().setMapMode(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mapMode]);
 
   // The track being drawn.
   useEffect(() => {
