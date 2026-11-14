@@ -1089,7 +1089,7 @@
       "imageryZoom": "Zoomstufe",
       "imageryZoomRange": "{{zoom}} (Quelle für z{{min}}–{{max}})",
       "imageryRelease": "Esri-Release",
-      "imageryHint": "Gilt nur für die Kartenmitte und diese Zoomstufe. Bei „Automatisch“ wird pro Ort die neueste Quelle gewählt; eine schärfere Quelle gewinnt, wenn sie höchstens 6 Monate älter ist.",
+      "imageryHint": "Gilt nur für die Kartenmitte und diese Zoomstufe. „Automatisch“ zeigt das Bild, auf dem die Fahrzeugerkennung an diesem Ort zählt: die neueste Quelle mit höchstens 0,25 m Auflösung; eine schärfere Quelle gewinnt, wenn sie höchstens 6 Monate älter ist. Neuere, gröbere Esri-Bilder stehen im Esri-Archiv der Bildstand-Liste.",
       "imageryMoreDetails": "Weitere Bilddetails",
       "imagerySourceLabel": "Bildquelle",
       "imageryDateSource": "Datumsquelle",

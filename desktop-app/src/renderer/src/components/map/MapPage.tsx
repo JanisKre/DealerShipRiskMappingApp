@@ -53,6 +53,7 @@ import {
   IMAGERY_MIN_SELECTION_ZOOM,
   IMAGERY_TOLERANCE_DAYS,
   STATE_DOP_SERVICES,
+  stateImageryDrawableAt,
   stateTileTemplate,
   tileBboxEpsg3857,
   type ImageryCandidate,
@@ -410,10 +411,12 @@ export function MapPage(): React.JSX.Element {
   // A state orthophoto only covers its own state. Zoomed out past a single
   // state the national source (Esri) is used right away, without waiting for
   // the selection of the new view or keeping a stale state choice.
-  const stateImageryAllowed =
-    (mapView?.zoom ?? 0) >= IMAGERY_MIN_SELECTION_ZOOM;
+  // The same holds below the zoom a state service starts to draw at (it
+  // answers with blank tiles there).
+  const viewZoom = mapView?.zoom ?? 0;
   const imagery =
-    resolvedImagery?.chosen.kind === "state-dop" && !stateImageryAllowed
+    resolvedImagery?.chosen.kind === "state-dop" &&
+    !stateImageryDrawableAt(resolvedImagery.chosen.state, viewZoom)
       ? null
       : resolvedImagery;
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
@@ -627,7 +630,8 @@ export function MapPage(): React.JSX.Element {
       : null;
   const countedCandidate =
     countedAvailable &&
-    ((countedAvailable.chosen.kind === "state-dop" && stateImageryAllowed) ||
+    ((countedAvailable.chosen.kind === "state-dop" &&
+      stateImageryDrawableAt(countedAvailable.chosen.state, viewZoom)) ||
       countedAvailable.chosen.kind === "esri-wayback")
       ? countedAvailable.chosen
       : null;
@@ -906,16 +910,24 @@ export function MapPage(): React.JSX.Element {
       <MapContainer
         center={center}
         zoom={10}
+        // Explicit limits: Leaflet otherwise derives them from the layers
+        // present and jumps the zoom when the basemap is swapped while only
+        // an overlay with a narrower range (parcels, from z17) is left.
+        minZoom={0}
+        maxZoom={BASEMAP_MAX_ZOOM}
         zoomControl={false}
         pmIgnore={false}
         className="h-full w-full"
       >
         <TileLayer
-          key={`${basemap}-${tileUrl}-${tileAttribution}`}
+          // Only the basemap kind remounts the layer; a new imagery source
+          // or attribution is handed over inside it without blanking the map.
+          key={basemap}
           attribution={tileAttribution}
           url={tileUrl}
           maxZoom={BASEMAP_MAX_ZOOM}
           maxNativeZoom={tileMaxNativeZoom}
+          ancestorFallback
           opacity={tileOpacity}
           {...BBOX_TEMPLATE_OPTION}
         />

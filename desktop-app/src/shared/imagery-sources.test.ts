@@ -6,6 +6,7 @@ import {
   selectImagery,
   stateAttribution,
   STATE_DOP_SERVICES,
+  stateImageryDrawableAt,
   stateTileTemplate,
   tileBboxEpsg3857,
   type ImageryCandidate,
@@ -184,5 +185,22 @@ describe("describeImagerySelection", () => {
     ).toBe(
       "Vehicles counted on DOP10 Nordrhein-Westfalen (2025-04-07, 0.1 m, z20; selection: sharper-within-tolerance)",
     );
+  });
+});
+
+describe("stateImageryDrawableAt", () => {
+  it("draws state orthophotos from the selection zoom on", () => {
+    expect(stateImageryDrawableAt("NW", 14)).toBe(false);
+    expect(stateImageryDrawableAt("NW", 15)).toBe(true);
+  });
+
+  it("respects a service's own scale limit (Hessen is blank up to z15)", () => {
+    expect(stateImageryDrawableAt("HE", 15)).toBe(false);
+    expect(stateImageryDrawableAt("HE", 16)).toBe(true);
+  });
+
+  it("is false without an open service", () => {
+    expect(stateImageryDrawableAt("ST", 19)).toBe(false);
+    expect(stateImageryDrawableAt(undefined, 19)).toBe(false);
   });
 });

@@ -7,6 +7,7 @@ import {
   isGermanState,
   selectImagery,
   stateAttribution,
+  stateImageryDrawableAt,
   STATE_DOP_SERVICES,
   type GermanState,
   type ImageryCandidate,
@@ -234,11 +235,20 @@ export async function selectImageryForView(
   if (zoom < IMAGERY_MIN_SELECTION_ZOOM)
     return selection(mode, esri, "overview-zoom", [esri]);
 
-  const bkg = await getBkgFlightInfo(lat, lon);
-  const state = bkg ? stateCandidate(bkg, zoom) : null;
+  // The map follows the choice vehicle detection makes here (same candidates,
+  // same sharpness limit), so "Automatic" shows the image a fresh analysis
+  // counts on instead of a newer scene too coarse to count cars on.
+  const detection = await selectImageryForDetection(lat, lon);
+  const counted = detection.candidates.find((c) => c.kind === "state-dop");
+  const state = counted ? { ...counted, zoom } : null;
   const candidates = state ? [esri, state] : [esri];
-  const { chosen, reason } = selectImagery(candidates, esri);
-  return selection(mode, chosen, reason, candidates);
+  if (state && detection.chosen.kind === "state-dop") {
+    // A state service that does not draw at this zoom leaves Esri's mosaic.
+    return stateImageryDrawableAt(state.state, zoom)
+      ? selection(mode, state, detection.reason, candidates)
+      : selection(mode, esri, "overview-zoom", candidates);
+  }
+  return selection(mode, esri, detection.reason, candidates);
 }
 
 /** How the main process fetches tiles for a chosen candidate. */

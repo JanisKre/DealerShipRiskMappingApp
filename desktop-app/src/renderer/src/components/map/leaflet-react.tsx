@@ -24,6 +24,11 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import L from "leaflet";
+import {
+  ancestorTile,
+  TILE_FALLBACK_LEVELS,
+  type TileCoords,
+} from "./tileFallback";
 
 const MapContext = createContext<L.Map | null>(null);
 const LayerContext = createContext<L.Layer | null>(null);
@@ -95,27 +100,135 @@ export function MapContainer({
   );
 }
 
-type TileLayerProps = L.TileLayerOptions & { url: string };
+type TileLayerProps = L.TileLayerOptions & {
+  url: string;
+  /**
+   * Draws the upscaled ancestor of a tile the source does not have, instead
+   * of leaving a hole (archived imagery often ends above the map's max zoom).
+   */
+  ancestorFallback?: boolean;
+};
+
+/** A replaced source is dropped at the latest after this long. */
+const TILE_HANDOVER_MS = 8000;
+
+/** TileLayer that retries a failed tile with its ancestors, cropped. */
+class FallbackTileLayer extends L.TileLayer {
+  private readonly attempts = new WeakMap<
+    HTMLElement,
+    { coords: TileCoords; level: number }
+  >();
+
+  protected override createTile(
+    coords: L.Coords,
+    done: L.DoneCallback,
+  ): HTMLElement {
+    const tile = super.createTile(coords, done);
+    this.attempts.set(tile, {
+      coords: { x: coords.x, y: coords.y, z: coords.z },
+      level: 0,
+    });
+    return tile;
+  }
+
+  /** Leaflet's error handler of a tile image. */
+  protected override _tileOnError(
+    done: L.DoneCallback,
+    tile: HTMLElement,
+    e: Error,
+  ): void {
+    const attempt = this.attempts.get(tile);
+    const next =
+      attempt && attempt.level < TILE_FALLBACK_LEVELS
+        ? ancestorTile(attempt.coords, attempt.level + 1)
+        : null;
+    if (!attempt || !next) {
+      super._tileOnError(done, tile, e);
+      return;
+    }
+    attempt.level += 1;
+    const internals = this as unknown as {
+      _url: string;
+      _getSubdomain: (coords: TileCoords) => string;
+    };
+    tile.style.setProperty("object-view-box", next.viewBox);
+    (tile as HTMLImageElement).src = L.Util.template(internals._url, {
+      r: "",
+      s: internals._getSubdomain(next.coords),
+      ...next.coords,
+      ...this.options,
+    });
+  }
+}
 
 export function TileLayer({
   url,
   opacity,
+  attribution,
+  ancestorFallback = false,
   ...options
 }: Readonly<TileLayerProps>): null {
   const map = useMap();
   const layerRef = useRef<L.TileLayer | null>(null);
-  // Options other than url and opacity are creation-time options; callers key
-  // the component when they change (see MapPage).
+  // Layers of earlier URLs, kept under the current one until it has drawn.
+  const retiredRef = useRef(new Set<L.TileLayer>());
+  // Options other than url, opacity and attribution are creation-time
+  // options; callers key the component when they change (see MapPage).
   const [initialOptions] = useState(() => options);
+  const attributionRef = useRef(attribution);
+  attributionRef.current = attribution;
 
   useEffect(() => {
-    const layer = L.tileLayer(url, initialOptions).addTo(map);
-    layerRef.current = layer;
-    return () => {
-      layer.remove();
-      layerRef.current = null;
+    const retired = retiredRef.current;
+    const layerOptions = {
+      ...initialOptions,
+      attribution: attributionRef.current,
     };
-  }, [map, url, initialOptions]);
+    const layer = (
+      ancestorFallback
+        ? new FallbackTileLayer(url, layerOptions)
+        : L.tileLayer(url, layerOptions)
+    ).addTo(map);
+    layerRef.current = layer;
+    // Swapping the source must not blank the map while the new tiles load
+    // (state WMS services take seconds): the old layer goes once the new one
+    // is complete.
+    const dropRetired = (): void => {
+      for (const old of retired) old.remove();
+      retired.clear();
+    };
+    const timer =
+      retired.size > 0 ? window.setTimeout(dropRetired, TILE_HANDOVER_MS) : 0;
+    if (retired.size > 0) layer.once("load", dropRetired);
+    return () => {
+      window.clearTimeout(timer);
+      layer.off("load", dropRetired);
+      layerRef.current = null;
+      retired.add(layer);
+    };
+  }, [map, url, initialOptions, ancestorFallback]);
+
+  // Unmount (declared after the effect above, so it runs after its cleanup).
+  useEffect(() => {
+    const retired = retiredRef.current;
+    return () => {
+      for (const old of retired) old.remove();
+      retired.clear();
+    };
+  }, []);
+
+  // The attribution changes with the place and zoom (Esri names the scene's
+  // vendor); recreating the layer for it would reload every tile.
+  useEffect(() => {
+    const layer = layerRef.current;
+    if (!layer || layer.options.attribution === attribution) return;
+    const control = map.attributionControl as L.Control.Attribution | undefined;
+    if (layer.options.attribution) {
+      control?.removeAttribution(layer.options.attribution);
+    }
+    layer.options.attribution = attribution;
+    if (attribution) control?.addAttribution(attribution);
+  }, [map, attribution, url]);
 
   useEffect(() => {
     layerRef.current?.setOpacity(opacity ?? 1);

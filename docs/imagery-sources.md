@@ -52,15 +52,33 @@ after a fallback to a lower zoom, is coarser than 0.25 m.
 
 The 183-day tolerance (`IMAGERY_TOLERANCE_DAYS`) prefers a 10–20 cm
 orthophoto from spring over a 30–50 cm satellite scene from summer, but not
-over one from a later year. The map uses the same rule at the current map
-zoom (from z15; below that, Esri's overview mosaic). Detection captures at
-the chosen candidate's zoom, so it never mixes Esri's z19 and z20 scenes.
+over one from a later year. Detection captures at the chosen candidate's
+zoom, so it never mixes Esri's z19 and z20 scenes.
+
+From z15 the map follows the choice detection makes at the map centre
+(`selectImageryForView` calls `selectImageryForDetection`), including the
+0.25 m limit: "Automatic" shows the source a fresh analysis counts on, not a
+newer scene too coarse to count cars on. Otherwise the vehicle dots would sit
+on an image they were not counted from. When that choice is Esri, the map
+draws Esri at the current map zoom, which can be another scene than the z19
+or z20 one detection used. Below z15 the map shows Esri's overview mosaic.
+Newer, coarser Esri scenes remain available in the Wayback list. "Vehicle
+count image" and "Automatic" therefore only differ for an analysis that is
+older than the newest sharp image; re-analysing brings them together.
 
 A state orthophoto covers only its own state, so below z15 the map uses
 Esri's national mosaic, including when a site is selected whose vehicles were
 counted on a state orthophoto: that image is shown again once zoomed in to z15
 or more. The switch happens immediately on zooming, without waiting for the
-next lookup.
+next lookup. A service can start later than z15 (`minZoom`): Hessen's WMS
+answers with blank white tiles up to z15, so it is drawn from z16
+(`stateImageryDrawableAt`).
+
+When the source changes, the previous layer stays underneath until the new
+one has loaded (at most 8 seconds), so the map does not turn blank while a
+slow WMS answers. Where a source has no tile at the map zoom (archived Esri
+versions often end at z18, the map goes to z19), the map draws the upscaled
+tile from up to three levels above instead of a hole.
 
 The map, the legend ("Satellite image (map centre)") and the "Imagery version"
 list always describe the same image. The list shows what is really drawn: a

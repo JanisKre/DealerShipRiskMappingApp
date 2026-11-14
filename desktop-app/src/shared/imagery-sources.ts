@@ -52,6 +52,11 @@ export interface StateDopService {
    * service does not publish yet; such dates must not be attributed to it.
    */
   vintageYear?: number;
+  /**
+   * Lowest map zoom the service draws at. Below it the WMS answers with blank
+   * white tiles (scale limit), so the map must stay on Esri there.
+   */
+  minZoom?: number;
 }
 
 /**
@@ -121,6 +126,8 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       resolutionM: 0.2,
       attribution: "© HVBG Hessen ({year}), dl-de/zero-2-0",
       license: "dl-de/zero-2-0",
+      // Blank up to z15 (verified November 2026).
+      minZoom: 16,
     },
     MV: {
       state: "MV",
@@ -318,6 +325,21 @@ export const IMAGERY_MAX_RESOLUTION_M = 0.5;
 export const DETECTION_MAX_RESOLUTION_M = 0.25;
 /** Below this map zoom the view spans several states; Esri's mosaic is used. */
 export const IMAGERY_MIN_SELECTION_ZOOM = 15;
+
+/**
+ * Whether the map may draw a state's orthophoto at a zoom: never below the
+ * selection zoom (the view spans several states) or the service's own limit.
+ */
+export function stateImageryDrawableAt(
+  state: GermanState | undefined,
+  zoom: number,
+): boolean {
+  const service = state ? STATE_DOP_SERVICES[state] : undefined;
+  return (
+    service != null &&
+    zoom >= Math.max(IMAGERY_MIN_SELECTION_ZOOM, service.minZoom ?? 0)
+  );
+}
 
 export const ImageryCandidateSchema = z.object({
   /** Stable id, e.g. "esri:z19" or "dop:NW". */

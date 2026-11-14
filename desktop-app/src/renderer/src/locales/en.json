@@ -1089,7 +1089,7 @@
       "imageryZoom": "Zoom level",
       "imageryZoomRange": "{{zoom}} (source for z{{min}}–{{max}})",
       "imageryRelease": "Esri release",
-      "imageryHint": "Applies to the map centre at this zoom level only. In “Automatic” mode the newest source is chosen per location; a sharper source wins if it is at most 6 months older.",
+      "imageryHint": "Applies to the map centre at this zoom level only. “Automatic” shows the image vehicle detection counts on at this place: the newest source of 0.25 m or finer; a sharper source wins if it is at most 6 months older. Newer, coarser Esri images are listed in the Esri archive of the imagery version list.",
       "imageryMoreDetails": "More image details",
       "imagerySourceLabel": "Image source",
       "imageryDateSource": "Date source",

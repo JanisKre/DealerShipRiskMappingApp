@@ -225,6 +225,44 @@ describe("selectImageryForView", () => {
     const selection = await selectImageryForView(51.2, 6.8, 17);
     expect(selection.chosen).toMatchObject({ id: "dop:NW", zoom: 17 });
   });
+
+  it("shows the image detection counts on, not a newer coarse scene", async () => {
+    // Esri is two years newer but 0.34 m: too coarse to count cars on, so
+    // detection takes the orthophoto and the map must show the same image.
+    mocks.fetchWithResilience.mockResolvedValue(
+      bkgResponse("NW", "2023-04-07"),
+    );
+    const view = await selectImageryForView(51.2, 6.8, 18);
+    const detection = await selectImageryForDetection(51.2, 6.8);
+    expect(detection.chosen.id).toBe("dop:NW");
+    expect(view.chosen).toMatchObject({ id: "dop:NW", zoom: 18 });
+    expect(view.reason).toBe(detection.reason);
+    expect(view.candidates.map((c) => c.id)).toEqual(["esri:z18", "dop:NW"]);
+  });
+
+  it("follows detection to Esri where Esri is sharp and newer", async () => {
+    mocks.getEsriImageryMetadata.mockResolvedValue(
+      esriMeta(19, "2025-06-18", 0.15),
+    );
+    mocks.fetchWithResilience.mockResolvedValue(
+      bkgResponse("NW", "2023-04-07"),
+    );
+    const view = await selectImageryForView(51.2, 6.8, 19);
+    expect(view.chosen.kind).toBe("esri");
+    expect(view.reason).toBe("newest");
+  });
+
+  it("stays on Esri below the zoom a state service draws at", async () => {
+    // Hessen's WMS answers with blank tiles up to z15.
+    mocks.fetchWithResilience.mockResolvedValue(
+      bkgResponse("HE", "2025-04-07"),
+    );
+    const overview = await selectImageryForView(50.11, 8.68, 15);
+    expect(overview.chosen.kind).toBe("esri");
+    expect(overview.reason).toBe("overview-zoom");
+    const detail = await selectImageryForView(50.11, 8.68, 16);
+    expect(detail.chosen.id).toBe("dop:HE");
+  });
 });
 
 describe("tileSourceForCandidate", () => {

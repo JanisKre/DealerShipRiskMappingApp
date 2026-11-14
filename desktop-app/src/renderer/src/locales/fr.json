@@ -1089,7 +1089,7 @@
       "imageryZoom": "Niveau de zoom",
       "imageryZoomRange": "{{zoom}} (source pour z{{min}}–{{max}})",
       "imageryRelease": "Version Esri",
-      "imageryHint": "Valable uniquement pour le centre de la carte à ce niveau de zoom. En mode « Automatique », la source la plus récente est choisie par site ; une source plus nette l'emporte si elle a au plus 6 mois de plus.",
+      "imageryHint": "Valable uniquement pour le centre de la carte à ce niveau de zoom. « Automatique » affiche l'image sur laquelle la détection de véhicules compte à cet endroit : la source la plus récente d'une résolution de 0,25 m ou plus fine ; une source plus nette l'emporte si elle a au plus 6 mois de plus. Les images Esri plus récentes mais moins nettes figurent dans l'archive Esri de la liste des versions d'image.",
       "imageryMoreDetails": "Plus de détails sur l’image",
       "imagerySourceLabel": "Source d'image",
       "imageryDateSource": "Source de la date",
