@@ -2,6 +2,7 @@
   "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
   "include": [
     "src/renderer/src/**/*",
+    "src/studio/**/*",
     "src/shared/**/*",
     "src/preload/index.d.ts"
   ],
@@ -12,6 +13,7 @@
     "resolveJsonModule": true,
     "paths": {
       "@renderer/*": ["./src/renderer/src/*"],
+      "@studio/*": ["./src/studio/*"],
       "@shared/*": ["./src/shared/*"]
     }
   }

@@ -10,3 +10,5 @@ export
 .venv
 .venv-label
 __pycache__/
+# Built studio UI (cd desktop-app && npm run build:studio)
+studio-dist

@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "env -u ELECTRON_RUN_AS_NODE electron-vite dev",
     "build": "electron-vite build && node scripts/generate-third-party-notices.mjs",
+    "build:studio": "vite build --config vite.studio.config.ts",
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",

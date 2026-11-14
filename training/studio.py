@@ -1,20 +1,23 @@
 """Training studio: the whole detector pipeline in one browser page.
 
-    python studio.py                 # opens http://127.0.0.1:8770
-    python studio.py --port 8771 --no-browser
+    cd ../desktop-app && npm run build:studio    # once, and after UI changes
+    python studio.py                             # opens http://127.0.0.1:8770
 
-The page shows where every step stands (sites, labels, open review questions,
-dataset, training runs, evaluations, installed and released model) and
-starts the pipeline scripts with checked options: autolabel, review (the
-existing review.py page), dataset, training, evaluation, export and install.
+The page (React + the app's shadcn/ui components, built from
+desktop-app/src/studio into studio-dist/) shows where every step stands,
+lets you label tiles with a drawing toolbar, and runs "rounds": label a
+batch, press "Runde abschließen", and the studio builds the dataset,
+fine-tunes from the previous round, measures the model and refreshes the
+suggestions for the tiles still open, while you keep labelling.
+
 Long steps run as a detached job, so training keeps going when you close the
 page or stop the studio; the page picks the job up again on the next start.
 
 Local only: the server binds to 127.0.0.1, refuses other Host and Origin
 headers (DNS rebinding, cross-site requests) and needs a per-start token for
-every action. Commands are built from a fixed list; the browser never sends
-a path or a command line, only a step name and options that are validated
-here. Nothing leaves the machine.
+every write. Commands are built from a fixed list; the browser sends a step
+name and options that are validated here, never a path or a command line.
+Nothing leaves the machine.
 """
 
 from __future__ import annotations
@@ -38,8 +41,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from common import APP_MODELS_DIR, DATA, ROOT
+from review import Store, validate_boxes
 
-PAGE = ROOT / "studio.html"
+DIST = ROOT / "studio-dist"
 RUNS = ROOT / "runs"
 EXPORT = ROOT / "export"
 STUDIO = DATA / "studio"
@@ -47,14 +51,16 @@ JOBS = STUDIO / "jobs"
 EVALS = STUDIO / "evals"
 JOB_FILE = STUDIO / "job.json"
 EXPORTS_FILE = STUDIO / "exports.json"
-SERVICES_FILE = STUDIO / "services.json"
+ROUNDS_FILE = STUDIO / "rounds.json"
+DESKTOP_APP = ROOT.parent / "desktop-app"
 RELEASE_PIN = ROOT.parent / "desktop-app" / "src" / "shared" / "model-release.json"
 AUTOLABEL = DATA / "autolabel"
 AUTOLABEL_AUDIT = DATA / "autolabel-audit"
 RAW = DATA / "raw"
 MODEL_NAME = "dealer_vehicles"
-REVIEW_PORTS = {"label": 8765, "audit": 8766}
-MAX_BODY = 20_000
+MAX_BODY = 2_000_000
+ASSET = re.compile(r"^/assets/[A-Za-z0-9._-]+\.(js|css|svg|woff2?)$")
+CONTENT_TYPES = {"js": "text/javascript", "css": "text/css", "svg": "image/svg+xml", "woff": "font/woff", "woff2": "font/woff2"}
 RUN_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 TAG = re.compile(r"^model-[a-z0-9._-]{1,60}$")
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -296,6 +302,8 @@ def evals_status() -> list[dict]:
         if isinstance(data, dict) and isinstance(data.get("thresholds"), list):
             data["file"] = path.name
             data.setdefault("pipeline", "ultralytics")
+            if not data.get("run") and (m := re.search(r"runs/([^/]+)/weights", str(data.get("weights", "")))):
+                data["run"] = m.group(1)
             out.append(data)
     return out
 
@@ -351,7 +359,7 @@ def status() -> dict:
         "evals": evals_status(),
         "models": models_status(),
         "job": job,
-        "services": services_status(),
+        "rounds": rounds_status(),
         "weights": weight_choices(),
         "baseModels": base_models(),
         "claude": {
@@ -428,30 +436,30 @@ def build_job(step: str, opts: dict) -> dict:
     """Step name + options → the commands to run. The only place commands are built."""
     if not isinstance(opts, dict):
         raise ValueError("options must be an object")
-    stages: list[list[str]] = []
+    stages: list[dict] = []
     run = None
     title = step
     if step == "fetch":
         csv_name = "negatives.csv" if opt_bool(opts, "negatives") else "sites.csv"
         if not (DATA / csv_name).exists():
             raise ValueError(f"data/{csv_name} does not exist")
-        stages = [py("fetch_tiles.py", str(DATA / csv_name))]
+        stages = [stage("Kacheln laden", py("fetch_tiles.py", str(DATA / csv_name)))]
         title = f"Kacheln laden ({csv_name})"
     elif step == "autolabel":
         run = opt_run(opts)
         args = ["--weights", weights_path(run)]
         if opt_bool(opts, "audit"):
             args.append("--audit")
-        stages = [awake(py("autolabel.py", *args))]
+        stages = [stage("Vorschläge berechnen", awake(py("autolabel.py", *args)), lock=True)]
         title = f"Vorlabeln mit {run}" + (" (Audit)" if opt_bool(opts, "audit") else "")
     elif step == "claude-sheets":
-        stages = [py("claude_review.py", "sheets", "--buckets", "candidate")]
+        stages = [stage("Bögen erzeugen", py("claude_review.py", "sheets", "--buckets", "candidate"))]
         title = "Claude-Bögen erzeugen"
     elif step == "claude-apply":
-        stages = [py("claude_review.py", "apply", "--auto")]
+        stages = [stage("Antworten übernehmen", py("claude_review.py", "apply", "--auto"), lock=True)]
         title = "Claude-Antworten übernehmen"
     elif step == "harvest":
-        stages = [py("harvest_app.py", "sites")]
+        stages = [stage("App-Korrekturen lesen", py("harvest_app.py", "sites"))]
         title = "Korrekturen aus der App lesen"
     elif step == "dataset":
         args = []
@@ -459,7 +467,7 @@ def build_job(step: str, opts: dict) -> dict:
             args.append("--pseudo")
         degrade = opt_float(opts, "degrade", 0, 1, 0.5)
         args += ["--degrade", f"{degrade:g}"]
-        stages = [py("make_dataset.py", *args)]
+        stages = [stage("Datensatz bauen", py("make_dataset.py", *args))]
         title = "Datensatz bauen" + (" mit Pseudo-Labels" if opt_bool(opts, "pseudo") else "")
     elif step == "train":
         run = opts.get("name")
@@ -468,7 +476,7 @@ def build_job(step: str, opts: dict) -> dict:
         if opt_bool(opts, "resume"):
             if not (RUNS / run / "weights" / "last.pt").exists():
                 raise ValueError(f"{run} has no last.pt to resume")
-            stages = [awake(py("train.py", "--name", run, "--resume"))]
+            stages = [stage("Training", awake(py("train.py", "--name", run, "--resume")))]
             title = f"Training {run} fortsetzen"
         else:
             if (RUNS / run).exists():
@@ -481,17 +489,17 @@ def build_job(step: str, opts: dict) -> dict:
             fraction = opt_float(opts, "fraction", 0.01, 1, 1)
             if fraction is not None and fraction < 1:
                 args += ["--fraction", f"{fraction:g}"]
-            stages = [awake(py("train.py", *args))]
+            stages = [stage("Training", awake(py("train.py", *args)))]
             title = f"Training {run} ({model}, {epochs} Epochen)"
     elif step == "evaluate":
         run = opt_run(opts)
         out = EVALS / f"ultralytics-{run}-{dt.datetime.now():%Y-%m-%d-%H%M%S}.json"
-        stages = [awake(py("evaluate.py", "--weights", weights_path(run), "--sweep", "--json", str(out)))]
+        stages = [stage("Auswerten", awake(py("evaluate.py", "--weights", weights_path(run), "--sweep", "--json", str(out))))]
         title = f"Auswerten: {run}"
     elif step == "errors":
         run = opt_run(opts)
         conf = opt_float(opts, "conf", 0.05, 0.95, 0.45)
-        stages = [awake(py("analyze_errors.py", "--weights", weights_path(run), "--conf", f"{conf:g}", "--sheets"))]
+        stages = [stage("Fehleranalyse", awake(py("analyze_errors.py", "--weights", weights_path(run), "--conf", f"{conf:g}", "--sheets")))]
         title = f"Fehleranalyse: {run}"
     elif step == "export":
         run = opt_run(opts)
@@ -502,14 +510,88 @@ def build_job(step: str, opts: dict) -> dict:
         install = opt_bool(opts, "install")
         if install:
             args.append("--install")
-        stages = [
-            py("export.py", *args),
-            [sys.executable, "-u", str(ROOT / "studio.py"), "--record-export", run],
-        ]
+        stages = [stage("Exportieren", py("export.py", *args)), stage("Export merken", py("studio.py", "--record-export", run))]
         title = f"Exportieren: {run}" + (" und in der App installieren" if install else "")
+    elif step == "round":
+        return build_round(opts)
     else:
         raise ValueError(f"unknown step {step!r}")
     return {"step": step, "title": title, "run": run, "stages": stages, "options": opts}
+
+
+def stage(name: str, argv: list[str], *, env: dict | None = None, cwd: Path | None = None, lock: bool = False) -> dict:
+    """One command of a job. `lock` blocks label saves meanwhile (the stage rewrites tile files)."""
+    return {"name": name, "argv": argv, "env": env or {}, "cwd": str(cwd or ROOT), "lock": lock}
+
+
+# --- rounds: label a batch, then retrain from the last round ---------------------------
+
+ROUND = re.compile(r"^round-(\d{2,3})$")
+
+
+def rounds() -> list[dict]:
+    return read_json(ROUNDS_FILE, []) or []
+
+
+def rounds_status() -> list[dict]:
+    out = []
+    evals = evals_status()
+    for r in rounds():
+        run = r["run"]
+        app = next((e for e in reversed(evals) if e.get("run") == run and e.get("pipeline") == "app-inferWindow"), None)
+        best = min(app["thresholds"], key=lambda t: t["mae"]) if app else None
+        out.append({**r, "appBest": best})
+    return out
+
+
+def build_round(opts: dict) -> dict:
+    """Dataset → fine-tune from the base run → measure (Ultralytics + app pipeline) →
+    fresh suggestions for the open tiles. Human labels only unless `pseudo` is set:
+    a model that saw its own pseudo-labels would be over-confident on exactly the
+    tiles it suggests boxes for next."""
+    numbers = [int(m.group(1)) for p in RUNS.glob("round-*") if (m := ROUND.match(p.name))] + [int(m.group(1)) for r in rounds() if (m := ROUND.match(r["run"]))]
+    run = f"round-{max(numbers, default=0) + 1:02d}"
+    base = opt_run(opts, "base")
+    epochs = opt_int(opts, "epochs", 3, 120, 15)
+    pseudo = opt_bool(opts, "pseudo")
+    sites = sites_status()
+    stamp = dt.datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    stages = [
+        stage("Datensatz bauen", py("make_dataset.py", *(["--pseudo"] if pseudo else []))),
+        stage("Feintuning", awake(py("train.py", "--name", run, "--model", weights_path(base), "--epochs", str(epochs)))),
+        stage("Messen (Ultralytics)", awake(py("evaluate.py", "--weights", weights_path(run), "--sweep", "--json", str(EVALS / f"ultralytics-{run}-{stamp}.json")))),
+        stage("Exportieren", py("export.py", "--weights", weights_path(run))),
+        stage("Export merken", py("studio.py", "--record-export", run)),
+    ]
+    npm = shutil.which("npm")
+    if npm and (DESKTOP_APP / "node_modules").exists():
+        stages.append(
+            stage(
+                "Messen (App-Pipeline)",
+                [npm, "run", "benchmark:detection"],
+                env={
+                    "DETECTION_SWEEP_MODEL": str(EXPORT / f"{MODEL_NAME}.onnx"),
+                    "DETECTION_SWEEP_TILES": str(DATA / "dataset"),
+                    "DETECTION_SWEEP_JSON": str(EVALS / f"app-{run}-{stamp}.json"),
+                    "DETECTION_SWEEP_RUN": run,
+                },
+                cwd=DESKTOP_APP,
+            )
+        )
+    stages.append(stage("Neue Vorschläge für offene Kacheln", awake(py("autolabel.py", "--weights", weights_path(run))), lock=True))
+    entry = {
+        "run": run,
+        "base": base,
+        "epochs": epochs,
+        "pseudo": pseudo,
+        "started": now(),
+        "finishedSites": sites["finished"],
+        "checkedTiles": sites["checkedTiles"],
+    }
+    all_rounds = rounds()
+    all_rounds.append(entry)
+    write_json(ROUNDS_FILE, all_rounds)
+    return {"step": "round", "title": f"Runde {run.removeprefix('round-')}: {sites['finished']} Standorte, {epochs} Epochen ab {base}", "run": run, "stages": stages, "options": opts}
 
 
 # --- jobs (one at a time, detached so they outlive the studio) ------------------------
@@ -587,8 +669,10 @@ def run_job() -> None:
     """Job driver (own process): runs the stages in order and records the outcome."""
     job = read_json(JOB_FILE)
     log = Path(job["logFile"])
-    env = {**os.environ, "PYTHONUNBUFFERED": "1", "YOLO_AUTOINSTALL": "false"}
     child: subprocess.Popen | None = None
+
+    def finish(state: str, code: int | None) -> None:
+        set_job_fields(job["id"], status=state, returncode=code, ended=now(), locked=False)
 
     def on_term(*_):
         if child and child.poll() is None:
@@ -596,24 +680,27 @@ def run_job() -> None:
         finish("stopped", None)
         sys.exit(0)
 
-    def finish(state: str, code: int | None) -> None:
-        set_job_fields(job["id"], status=state, returncode=code, ended=now())
-
     signal.signal(signal.SIGTERM, on_term)
     set_job_fields(job["id"], pid=os.getpid())
     with log.open("a") as out:
-        for i, argv in enumerate(job["stages"]):
-            set_job_fields(job["id"], stage=i)
-            shown = " ".join("python" if a == sys.executable else a.replace(f"{ROOT}/", "") for a in argv)
-            out.write(f"$ {shown}\n")
+        for i, st in enumerate(job["stages"]):
+            set_job_fields(job["id"], stage=i, locked=bool(st.get("lock")))
+            shown = " ".join("python" if a == sys.executable else a.replace(f"{ROOT}/", "") for a in st["argv"])
+            out.write(f"\n▶ {st['name']}\n$ {shown}\n")
             out.flush()
-            child = subprocess.Popen(argv, cwd=ROOT, stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, env=env)
+            env = {**os.environ, "PYTHONUNBUFFERED": "1", "YOLO_AUTOINSTALL": "false", **st.get("env", {})}
+            child = subprocess.Popen(st["argv"], cwd=st.get("cwd") or ROOT, stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, env=env)
             code = child.wait()
             if code != 0:
                 out.write(f"\n[exit {code}]\n")
                 finish("failed", code)
                 return
     finish("done", 0)
+
+
+def labels_locked() -> bool:
+    job = read_json(JOB_FILE)
+    return bool(isinstance(job, dict) and job.get("status") == "running" and job.get("locked") and pid_alive(job.get("pid")))
 
 
 def record_export(run: str) -> None:
@@ -625,46 +712,22 @@ def record_export(run: str) -> None:
     print(f"export of {run}: {sha256(onnx)}")
 
 
-# --- review pages (review.py, started on demand) ---------------------------------------
+# --- labelling (the studio's own editor; review.py's Store does the file work) ---------
+
+STORES = {"label": Store(audit=False), "audit": Store(audit=True)}
 
 
-def services_status() -> dict:
-    services = read_json(SERVICES_FILE, {}) or {}
-    out = {}
-    for mode, port in REVIEW_PORTS.items():
-        pid = (services.get(mode) or {}).get("pid")
-        out[mode] = {"running": pid_alive(pid), "url": f"http://127.0.0.1:{port}/"}
-    return out
-
-
-def start_review(mode: str) -> dict:
-    if mode not in REVIEW_PORTS:
-        raise ValueError("unknown review mode")
-    folder = AUTOLABEL_AUDIT if mode == "audit" else AUTOLABEL
-    if not any(folder.glob("*.json")):
-        raise ValueError(f"no tiles in {folder.relative_to(ROOT)} — run autolabel first")
-    services = read_json(SERVICES_FILE, {}) or {}
-    if pid_alive((services.get(mode) or {}).get("pid")):
-        return services_status()[mode]
-    args = ["--port", str(REVIEW_PORTS[mode]), "--no-browser"] + (["--audit"] if mode == "audit" else [])
-    JOBS.mkdir(parents=True, exist_ok=True)
-    with (JOBS / f"review-{mode}.log").open("a") as log:
-        proc = subprocess.Popen(
-            py("review.py", *args), cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True
-        )
-    services[mode] = {"pid": proc.pid, "started": now()}
-    write_json(SERVICES_FILE, services)
-    time.sleep(1.2)  # review.py loads torch via autolabel; give it a moment before the page opens it
-    return services_status()[mode]
-
-
-def stop_review(mode: str) -> None:
-    services = read_json(SERVICES_FILE, {}) or {}
-    pid = (services.get(mode) or {}).get("pid")
-    if pid_alive(pid):
-        os.killpg(pid, signal.SIGTERM)
-    services.pop(mode, None)
-    write_json(SERVICES_FILE, services)
+def label_queue(mode: str) -> dict:
+    store = STORES[mode]
+    summary = store.summary()
+    tiles = summary["tiles"]
+    sites: dict[str, dict] = {}
+    for t in tiles:
+        site = sites.setdefault(t["site"], {"site": t["site"], "state": t["site"].split("-", 1)[0], "tiles": [], "done": 0, "questions": 0})
+        site["tiles"].append({"stem": t["stem"], "done": t["done"], "questions": t["questions"]})
+        site["done"] += t["done"]
+        site["questions"] += t["questions"] if not t["done"] else 0
+    return {"mode": mode, "sites": list(sites.values()), "skipped": summary["skipped"], "classes": summary["classes"], "locked": labels_locked()}
 
 
 # --- release pin ----------------------------------------------------------------------
@@ -728,8 +791,8 @@ def make_handler(port: int, token: str):
             self.send_header("X-Frame-Options", "DENY")
             self.send_header(
                 "Content-Security-Policy",
-                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
-                "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
             )
             self.end_headers()
             self.wfile.write(body)
@@ -748,17 +811,38 @@ def make_handler(port: int, token: str):
                 return False
             return True
 
+        def mode(self) -> str:
+            query = self.path.split("?", 1)[1] if "?" in self.path else ""
+            return "audit" if "mode=audit" in query.split("&") else "label"
+
         def do_GET(self) -> None:  # noqa: N802
             if not self.guard():
                 return
             path = self.path.split("?", 1)[0]
             if path == "/":
-                page = PAGE.read_text().replace("__STUDIO_TOKEN__", token)
-                self.send(200, page.encode(), "text/html; charset=utf-8")
+                index = DIST / "index.html"
+                if not index.exists():
+                    self.send(
+                        200,
+                        b"<!doctype html><meta charset=utf-8><title>Training Studio</title><body style='font:15px system-ui;padding:40px'>"
+                        b"<h1>Training Studio</h1><p>Die Oberfl\xc3\xa4che ist noch nicht gebaut:</p>"
+                        b"<pre>cd desktop-app &amp;&amp; npm run build:studio</pre><p>Danach diese Seite neu laden.</p>",
+                        "text/html; charset=utf-8",
+                    )
+                    return
+                self.send(200, index.read_text().replace("__STUDIO_TOKEN__", token).encode(), "text/html; charset=utf-8")
+            elif ASSET.match(path) and (DIST / path.lstrip("/")).is_file():
+                self.send(200, (DIST / path.lstrip("/")).read_bytes(), CONTENT_TYPES[path.rsplit(".", 1)[1]])
             elif path == "/api/status":
                 self.json(status())
             elif path == "/api/job":
-                self.json({"job": job_status(), "services": services_status()})
+                self.json({"job": job_status()})
+            elif path == "/api/label/queue":
+                self.json(label_queue(self.mode()))
+            elif path.startswith("/api/label/tile/") and (stem := STORES[self.mode()].lookup(path.removeprefix("/api/label/tile/"))):
+                self.json(STORES[self.mode()].tile(stem))
+            elif path.startswith("/api/label/img/") and (stem := STORES["label"].lookup(path.removeprefix("/api/label/img/")) or STORES["audit"].lookup(path.removeprefix("/api/label/img/"))):
+                self.send(200, (RAW / f"{stem}.jpg").read_bytes(), "image/jpeg")
             else:
                 self.send(HTTPStatus.NOT_FOUND, b"not found", "text/plain")
 
@@ -783,10 +867,15 @@ def make_handler(port: int, token: str):
                 elif path == "/api/stop":
                     stop_job()
                     self.json({"ok": True})
-                elif path == "/api/review/start":
-                    self.json(start_review(str(body.get("mode"))))
-                elif path == "/api/review/stop":
-                    stop_review(str(body.get("mode")))
+                elif path.startswith("/api/label/tile/"):
+                    store = STORES[self.mode()]
+                    stem = store.lookup(path.removeprefix("/api/label/tile/"))
+                    if stem is None:
+                        raise ValueError("unknown tile")
+                    if labels_locked():
+                        self.json({"error": "Vorschläge werden gerade neu berechnet – in ein, zwei Minuten noch mal speichern."}, HTTPStatus.CONFLICT)
+                        return
+                    store.save(stem, validate_boxes(body.get("boxes")), bool(body.get("done")))
                     self.json({"ok": True})
                 elif path == "/api/release/pin":
                     self.json(pin_release(str(body.get("source"))))

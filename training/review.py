@@ -35,7 +35,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from autolabel import AUTOLABEL, AUTOLABEL_AUDIT, accepted_boxes, open_questions, read_tile
+from tiles import AUTOLABEL, AUTOLABEL_AUDIT, accepted_boxes, open_questions, read_tile
 from common import CLASS_NAMES, RAW, ROOT, TILE_PX, corrected_labels, site_of, tile_checked
 from label import GENERATED
 

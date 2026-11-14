@@ -112,6 +112,7 @@ describe.skipIf(!modelPath)("detection threshold sweep (local data)", () => {
           JSON.stringify(
             {
               pipeline: "app-inferWindow",
+              run: process.env.DETECTION_SWEEP_RUN ?? null,
               model: manifest.name,
               version: manifest.version,
               sha256: manifest.sha256 ?? null,

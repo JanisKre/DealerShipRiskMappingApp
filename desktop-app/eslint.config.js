@@ -6,7 +6,7 @@ module.exports = tseslint.config(
   { ignores: ["out/**", "release/**", "resources/**"] },
   ...tseslint.configs.recommended,
   {
-    files: ["src/renderer/**/*.{ts,tsx}"],
+    files: ["src/renderer/**/*.{ts,tsx}", "src/studio/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },
     rules: {
       // Nur die klassischen Hook-Regeln — v7 bündelt in "recommended" zusätzlich
@@ -20,7 +20,7 @@ module.exports = tseslint.config(
     // Accessibility (WCAG 2.2 AA / EN 301 549): static checks for labels,
     // roles, keyboard access and alt texts. axe-core covers the rendered
     // pages in the end-to-end tests (e2e/accessibility.spec.ts).
-    files: ["src/renderer/**/*.tsx"],
+    files: ["src/renderer/**/*.tsx", "src/studio/**/*.tsx"],
     ...jsxA11y.flatConfigs.recommended,
     rules: {
       ...jsxA11y.flatConfigs.recommended.rules,

@@ -1,0 +1,34 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "../renderer/src/styles/theme.css";
+@source "../renderer/src/components/ui";
+@source "./";
+
+/* Series colours for runs (categorical, dark steps; validated adjacent-pair
+   safe on the card surface). Assigned by run name, never by rank. */
+:root {
+  --run-1: #3987e5;
+  --run-2: #d95926;
+  --run-3: #199e70;
+  --run-4: #c98500;
+  --run-5: #d55181;
+  --run-6: #008300;
+  --run-7: #9085e9;
+  --run-8: #e66767;
+  /* Editor box states */
+  --box-car: #30d158;
+  --box-large: #ff9f0a;
+  --box-open: #ff2d92;
+  --box-no: #ff453a;
+  --box-existing: #aeb4bb;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  background: var(--background);
+  color: var(--foreground);
+}

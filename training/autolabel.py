@@ -42,11 +42,19 @@ from ultralytics.utils.ops import xyxyxyxy2xywhr  # noqa: E402
 
 from common import CLASS_NAMES, DATA, RAW, ROOT, TILE_PX, corrected_labels, reviewed_sites, site_of  # noqa: E402
 
-AUTOLABEL = DATA / "autolabel"
-AUTOLABEL_EVAL = DATA / "autolabel-eval"
-AUTOLABEL_AUDIT = DATA / "autolabel-audit"
+from tiles import (  # noqa: E402,F401 — re-exported for claude_review.py, harvest_app.py, measure_autolabel.py, analyze_errors.py
+    AUTOLABEL,
+    AUTOLABEL_AUDIT,
+    AUTOLABEL_EVAL,
+    FORMAT_VERSION,
+    accepted_boxes,
+    box_key,
+    open_questions,
+    read_tile,
+    val_sites,
+)
+
 DEFAULT_WEIGHTS = ROOT / "runs" / "dealer-obb" / "weights" / "best.pt"
-FORMAT_VERSION = 1
 
 PASSES = 8
 # Lowest score any single pass reports; weaker hits are noise.
@@ -209,12 +217,6 @@ def audit_boxes(image: Path, boxes: list[dict], buckets: Buckets) -> list[dict]:
 # --- per-tile files -----------------------------------------------------------
 
 
-def box_key(corners: list[list[float]]) -> tuple[int, int]:
-    """Coarse center, to carry decisions over when a tile is labelled again."""
-    xs, ys = zip(*corners)
-    return round(sum(xs) / 4 / 4), round(sum(ys) / 4 / 4)
-
-
 def write_tile(out_dir: Path, image: Path, boxes: list[dict], weights: str, buckets: Buckets, reset: bool, audit: bool = False) -> dict:
     path = out_dir / f"{image.stem}.json"
     old = {} if reset or not path.exists() else json.loads(path.read_text())
@@ -254,32 +256,6 @@ def write_tile(out_dir: Path, image: Path, boxes: list[dict], weights: str, buck
     return data
 
 
-def read_tile(path: Path) -> dict:
-    return json.loads(path.read_text())
-
-
-def accepted_boxes(tile: dict) -> list[dict]:
-    """Boxes that end up as labels: answered yes, or sure and not rejected."""
-    out = []
-    for b in tile["boxes"]:
-        decision = b.get("decision")
-        if decision == "no":
-            continue
-        if decision in ("car", "large_vehicle") or (decision is None and b["bucket"] == "sure"):
-            cls = b["cls"] if decision is None else {"car": 0, "large_vehicle": 1}[decision]
-            out.append({**b, "cls": cls})
-    return out
-
-
-def open_questions(tile: dict) -> list[dict]:
-    return [b for b in tile["boxes"] if b["bucket"] in ("check", "candidate") and b.get("decision") is None and b.get("origin") != "manual"]
-
-
-def val_sites() -> set[str]:
-    path = DATA / "dataset" / "val_sites.txt"
-    return set(path.read_text().split()) if path.exists() else set()
-
-
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--weights", default=str(DEFAULT_WEIGHTS))
@@ -313,6 +289,11 @@ def main() -> None:
 
     model = YOLO(args.weights)
     counts = {"sure": 0, "check": 0, "candidate": 0}
+    if not args.reset and not args.eval:
+        # Tiles you finished keep the boxes you confirmed; only open tiles get new suggestions.
+        todo = [p for p in todo if not (out_dir / f"{p.stem}.json").exists() or not read_tile(out_dir / f"{p.stem}.json").get("done")]
+        if not todo:
+            raise SystemExit("all tiles of these sites are finished")
     for n, image in enumerate(todo, 1):
         boxes = predict_tile(model, image, args.device, args.imgsz)
         if args.audit:

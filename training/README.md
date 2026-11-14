@@ -30,21 +30,57 @@ so it does not silently downgrade to a vulnerable `onnx`.
 ## Studio: the whole pipeline in the browser
 
 ```bash
-python studio.py          # opens http://127.0.0.1:8770
+cd ../desktop-app && npm run build:studio   # once, and after studio UI changes
+cd ../training && python studio.py          # opens http://127.0.0.1:8770
 ```
 
-One page with every step below: where each one stands (sites per state,
-open review questions, dataset, runs with their mAP curves, threshold
-sweeps, installed / exported / released model) and a button with checked
-options to start it. The review steps open the existing `review.py` page.
-Long steps (autolabel, training, evaluation) run detached, so they keep
-going when you close the page or stop the studio. "Release-Modell" points
-`desktop-app/src/shared/model-release.json` at the exported or installed
-model and prints the `gh release` commands; publishing stays your step.
+The studio is one page with four tabs:
+
+- **Übersicht** – where every step stands (sites per state, open questions,
+  rounds, installed model) and what to do next.
+- **Labeln** – the labelling editor. Left: the open sites, each with its
+  nine tiles (pink = open questions, green = done). Middle: the tile with
+  the model's boxes and a toolbar:
+  - tools: select/move, **set a vehicle with one click** (sized and turned
+    like its neighbours), **drag a box**, pan;
+  - class: car or large vehicle;
+  - for the selected box: yes, no, turn 15°, delete;
+  - undo/redo, zoom (also the mouse wheel), fit.
+  A question card asks about each uncertain box ("Auto / Groß / Kein
+  Fahrzeug"); drag a box to move it, its corners to resize, the round
+  handle to turn it. "Kachel fertig" saves the tile (unanswered questions
+  count as "no", as in `review.py`) and opens the next one. Leaving a tile
+  keeps your changes as a draft. Shortcuts exist (V/A/B/H, J/L/N, Del,
+  ⌘Z, Enter, Tab) but every action has a button. The "Audit" tab does the
+  same for finished sites.
+- **Training** – rounds, mAP curves, dataset, and a full training from the
+  DOTA weights.
+- **Modelle** – count error per threshold (app pipeline and Ultralytics),
+  a suggested default threshold, export, install (with backup) and the
+  release pin.
+
+**Rounds.** Label a batch (say 100 tiles), then press "Speichern & neu
+trainieren". The studio runs, in the background:
+
+1. `make_dataset.py` (finished sites only; pseudo-labels off by default),
+2. `train.py` fine-tuning from the previous round (15 epochs, about
+   25 minutes on the M4 Air),
+3. `evaluate.py --sweep` and the app-pipeline benchmark on the 11
+   validation sites,
+4. `export.py` (not installed),
+5. `autolabel.py` with the new model for the tiles still open.
+
+You keep labelling meanwhile; only while step 5 rewrites the suggestions
+are saves paused for a minute or two. Nothing is installed automatically:
+compare the round under "Modelle" and install it when it is better. Only
+**complete** sites (all nine tiles done) enter the training set, so finish
+sites rather than single tiles.
 
 The studio binds to 127.0.0.1, refuses other hosts and origins and needs a
-per-start token for every action. Its job logs and evaluation results are in
-`data/studio/` (git-ignored like all of `data/`).
+per-start token for every write. Job logs, rounds and evaluation results are
+in `data/studio/` (git-ignored like all of `data/`). Steps run detached:
+closing the page or stopping the studio does not stop a training run.
+`review.py` still works on its own.
 
 ## Workflow
 

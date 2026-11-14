@@ -22,9 +22,15 @@ the project follows [Semantic Versioning](https://semver.org/).
   wizard pointed at a model file no release contained, so new installs
   counted vehicles from the lot area only
   (`docs/detection-benchmark.md`, "Shipped model").
-- **Training studio** (`training/studio.py`): the detector pipeline in one
-  local browser page, with progress, review links, training curves,
-  threshold sweeps, export, install and the release pin.
+- **Training studio** (`training/studio.py`, UI in `desktop-app/src/studio`
+  with the app's shadcn/ui components): the detector pipeline in one local
+  browser page. Label tiles with a drawing toolbar (click-to-add vehicles
+  oriented like their neighbours, drag boxes, move/resize/rotate handles,
+  undo, zoom) instead of keyboard-only review. "Speichern & neu trainieren"
+  runs a round in the background: dataset, fine-tuning from the previous
+  round, evaluation through the app pipeline and fresh suggestions for the
+  open tiles. Training curves, threshold sweeps, export, install (with
+  backup) and the release pin are on the same page.
 - `npm run benchmark:detection` sweeps a model's base confidence through the
   app's own inference on the training validation tiles.
 - **Optional AI features on top of fixed functions** (`docs/ai-features.md`).
