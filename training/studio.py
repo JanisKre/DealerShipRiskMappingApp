@@ -62,6 +62,19 @@ MAX_BODY = 2_000_000
 ASSET = re.compile(r"^/assets/[A-Za-z0-9._-]+\.(js|css|svg|woff2?)$")
 CONTENT_TYPES = {"js": "text/javascript", "css": "text/css", "svg": "image/svg+xml", "woff": "font/woff", "woff2": "font/woff2"}
 RUN_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
+
+
+def contained(base: Path, *parts: str) -> Path:
+    """Joins request-derived parts onto base and refuses a result outside it.
+
+    Second line of defence behind the name patterns (RUN_NAME, ASSET): even a
+    part that got past them cannot address a file outside its directory.
+    """
+    root = os.path.normpath(base)
+    full = os.path.normpath(os.path.join(root, *parts))
+    if not full.startswith(root + os.sep):
+        raise ValueError("path outside its directory")
+    return Path(full)
 TAG = re.compile(r"^model-[a-z0-9._-]{1,60}$")
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
@@ -474,12 +487,12 @@ def build_job(step: str, opts: dict) -> dict:
         if not isinstance(run, str) or not RUN_NAME.fullmatch(run):
             raise ValueError("run name: lowercase letters, digits and dashes")
         if opt_bool(opts, "resume"):
-            if not (RUNS / run / "weights" / "last.pt").exists():
+            if not contained(RUNS, run, "weights", "last.pt").exists():
                 raise ValueError(f"{run} has no last.pt to resume")
             stages = [stage("Training", awake(py("train.py", "--name", run, "--resume")))]
             title = f"Training {run} fortsetzen"
         else:
-            if (RUNS / run).exists():
+            if contained(RUNS, run).exists():
                 raise ValueError(f"runs/{run} exists — pick a new name or resume it")
             model = opts.get("model")
             if model not in base_models():
@@ -831,8 +844,8 @@ def make_handler(port: int, token: str):
                     )
                     return
                 self.send(200, index.read_text().replace("__STUDIO_TOKEN__", token).encode(), "text/html; charset=utf-8")
-            elif ASSET.match(path) and (DIST / path.lstrip("/")).is_file():
-                self.send(200, (DIST / path.lstrip("/")).read_bytes(), CONTENT_TYPES[path.rsplit(".", 1)[1]])
+            elif ASSET.match(path) and (asset := contained(DIST, path.lstrip("/"))).is_file():
+                self.send(200, asset.read_bytes(), CONTENT_TYPES[path.rsplit(".", 1)[1]])
             elif path == "/api/status":
                 self.json(status())
             elif path == "/api/job":
