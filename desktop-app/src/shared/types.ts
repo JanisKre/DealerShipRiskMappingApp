@@ -528,8 +528,9 @@ export const VehicleTimelineCountSchema = z.object({
 export type VehicleTimelineCount = z.infer<typeof VehicleTimelineCountSchema>;
 
 /**
- * Vehicle counts on several dated images of the same lot. Evidence only:
- * the exposure still uses the single count above (docs/imagery-sources.md).
+ * Vehicle counts on several dated images of the same lot. The exposure and
+ * the point EAL use the single count above; the hail EAL detail derives a
+ * range from these counts (`HailEalDetail.stockRange`).
  */
 export const VehicleTimelineSchema = z.object({
   counts: z.array(VehicleTimelineCountSchema),
@@ -616,6 +617,35 @@ export type HailZoneOverlay = z.infer<typeof HailZoneOverlaySchema>;
  * Inputs of the hail EAL (`EAL = N × λ_z × Σ p_k·S_k`), kept with the result
  * so the figure stays traceable to its vehicle count and hail-zone source.
  */
+/**
+ * The hail EAL over the vehicle stock seen on several archived images of the
+ * lot (`DetectionResult.timeline`). The point EAL keeps the current count;
+ * this range shows how much a typical day differs (docs/risk-model.md,
+ * "Stock range").
+ */
+export const HailStockRangeSchema = z.object({
+  /** Archived images counted. */
+  images: z.number().int().positive(),
+  /** Oldest and newest capture date of the counted images, if known. */
+  from: z.string().nullable(),
+  to: z.string().nullable(),
+  /** Vehicles (N) at the lowest, median and highest count. */
+  vehiclesLow: z.number().nonnegative(),
+  vehiclesMedian: z.number().nonnegative(),
+  vehiclesHigh: z.number().nonnegative(),
+  ealLow: z.number().nonnegative(),
+  ealMedian: z.number().nonnegative(),
+  ealHigh: z.number().nonnegative(),
+  /**
+   * True when the counts were scaled by manual ÷ machine count on the
+   * analysed image, so they match a manually reviewed N.
+   */
+  scaledToManual: z.boolean(),
+  /** Where the current N lies against the archived median. */
+  snapshot: z.enum(["typical", "high", "low"]),
+});
+export type HailStockRange = z.infer<typeof HailStockRangeSchema>;
+
 export const HailEalDetailSchema = z.object({
   /** Vehicles on site (N) before the roof-cover reduction. */
   vehicles: z.number().nonnegative(),
@@ -636,6 +666,8 @@ export const HailEalDetailSchema = z.object({
   frequency: z.number().nonnegative(),
   /** Σ p_k·S_k: expected loss per exposed vehicle and event (EUR). */
   meanSeverityEur: z.number().nonnegative(),
+  /** EAL over the stock on archived images; absent without a timeline. */
+  stockRange: HailStockRangeSchema.optional(),
 });
 export type HailEalDetail = z.infer<typeof HailEalDetailSchema>;
 

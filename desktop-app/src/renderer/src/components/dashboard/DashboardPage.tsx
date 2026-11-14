@@ -8,6 +8,7 @@ import {
   Download,
   GitCompare,
   GripVertical,
+  History,
   LayoutGrid,
   Loader2,
   MessageSquare,
@@ -56,6 +57,7 @@ import { useAppStore } from "@renderer/store/appStore";
 import { useMapStore } from "@renderer/store/mapStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import { useReviewRun } from "./useReviewRun";
+import { useStockCount } from "./useStockCount";
 import { A2uiSurfaceView } from "./a2ui/A2uiSurfaceView";
 import { dropComponent } from "@shared/a2ui-layout";
 import { DashboardTabs } from "./a2ui/DashboardTabs";
@@ -689,6 +691,7 @@ function Actions({
   const { t } = useTranslation();
   const [compareOpen, setCompareOpen] = useState(false);
   const snapshot = useSaveSnapshot();
+  const stockCount = useStockCount();
 
   async function exportReport(format: "csv" | "pdf" | "excel"): Promise<void> {
     try {
@@ -757,6 +760,20 @@ function Actions({
         <Button
           variant="outline"
           size="sm"
+          onClick={stockCount.start}
+          disabled={stockCount.running}
+          title={t("dashboard.stockCount.hint")}
+        >
+          {stockCount.running ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <History />
+          )}
+          {t("dashboard.stockCount.button")}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => void snapshot.save()}
           disabled={snapshot.saving}
         >
@@ -787,6 +804,12 @@ function Actions({
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem onSelect={() => setCompareOpen(true)}>
               <GitCompare /> {t("ui.compare")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={stockCount.running}
+              onSelect={stockCount.start}
+            >
+              <History /> {t("dashboard.stockCount.button")}
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={snapshot.saving}

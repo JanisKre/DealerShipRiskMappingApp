@@ -19,6 +19,8 @@ export const IPC = {
   // Additional OSM info for a location (website, phone, opening hours, ...)
   osmDetails: "osm:details",
   hailHistory: "hail:history",
+  // Radar hail cells (DWD KONRAD3D), local archive; context only
+  radarHail: "hail:radar",
 
   // Vehicle detection
   detectVehicles: "detect:vehicles",

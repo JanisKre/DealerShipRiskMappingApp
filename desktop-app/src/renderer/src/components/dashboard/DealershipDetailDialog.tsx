@@ -106,12 +106,18 @@ import {
   reviewReasons,
   type ReviewReason,
 } from "./reviewQueue";
+import { RadarHailSection } from "./RadarHailSection";
 
 /** A review run: the queue snapshot taken when it started. */
 export interface ReviewRun {
   ids: string[];
   /** Called after the last open location; the page closes the dialog. */
   onFinish: () => void;
+  /**
+   * Pauses the run while the boundary of `id` is corrected on the map; the
+   * map offers to come back, and the run resumes at that location.
+   */
+  onPause?: (id: string) => void;
 }
 
 /** Locale keys for the stored (English) hail risk tier values. */
@@ -463,6 +469,14 @@ function DetailBody({
             run={review}
             onNavigate={onNavigate}
             onSkip={() => step(1)}
+            onCorrectBoundary={
+              review.onPause
+                ? () => {
+                    review.onPause?.(d.id);
+                    showOnMap(true);
+                  }
+                : undefined
+            }
           />
         </div>
       )}
@@ -525,6 +539,7 @@ function DetailBody({
             <HailOverview d={d} />
             <Separator />
             <HailHistorySection d={d} />
+            <RadarHailSection d={d} />
             <Separator />
             <AiSection d={d} />
           </TabsContent>
@@ -657,11 +672,14 @@ function ReviewStrip({
   run,
   onNavigate,
   onSkip,
+  onCorrectBoundary,
 }: Readonly<{
   d: AnalyzedDealership;
   run: ReviewRun;
   onNavigate: (id: string) => void;
   onSkip: () => void;
+  /** Leaves for the map editor; the run waits there. */
+  onCorrectBoundary?: () => void;
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
@@ -754,6 +772,17 @@ function ReviewStrip({
         >
           {t("review.skip")}
         </Button>
+        {confirmsBoundary && !done && onCorrectBoundary && d.boundary && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5 px-2 text-xs"
+            onClick={onCorrectBoundary}
+          >
+            <Pencil className="size-3.5" />
+            {t("review.correctBoundary")}
+          </Button>
+        )}
         <Button
           size="sm"
           className="h-7 gap-1.5 px-2.5 text-xs"
@@ -1067,6 +1096,28 @@ function HailEalSection({
             {t(`dashboard.hailEalDetail.zoneSource.${detail.zoneSource}`)}{" "}
             {t("dashboard.hailEalDetail.severityNote")}
           </p>
+          {detail.stockRange ? (
+            <p className="text-xs tabular-nums">
+              {t("dashboard.hailEalDetail.stockRange", {
+                count: detail.stockRange.images,
+                low: eur(detail.stockRange.ealLow),
+                median: eur(detail.stockRange.ealMedian),
+                high: eur(detail.stockRange.ealHigh),
+                vehiclesLow: num(detail.stockRange.vehiclesLow),
+                vehiclesHigh: num(detail.stockRange.vehiclesHigh),
+              })}{" "}
+              {detail.stockRange.snapshot !== "typical" &&
+                t(
+                  `dashboard.hailEalDetail.stockSnapshot.${detail.stockRange.snapshot}`,
+                )}{" "}
+              {detail.stockRange.scaledToManual &&
+                t("dashboard.hailEalDetail.stockScaled")}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {t("dashboard.hailEalDetail.stockRangeMissing")}
+            </p>
+          )}
         </>
       ) : (
         <p className="text-sm text-muted-foreground">

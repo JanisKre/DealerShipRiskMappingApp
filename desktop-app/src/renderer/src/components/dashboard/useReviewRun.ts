@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useAppStore } from "@renderer/store/appStore";
 import type { ReviewRun } from "./DealershipDetailDialog";
 import { buildReviewQueue } from "./reviewQueue";
+import { usePausedReview } from "./reviewRunStore";
 
 /**
  * Starts and ends a review run for a page that hosts the detail dialog:
@@ -47,6 +48,16 @@ export function useReviewRun({
     openLocation(queue[0]);
   }
 
+  // Back from a boundary correction on the map: continue where it paused.
+  useEffect(() => {
+    const paused = usePausedReview.getState().take();
+    if (!paused) return;
+    setIds(paused.ids);
+    openLocation(paused.id);
+    // Once on mount: the paused run is taken a single time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const review = useMemo<ReviewRun | undefined>(
     () =>
       ids
@@ -56,6 +67,10 @@ export function useReviewRun({
               setIds(null);
               closeDialog();
               toast.success(t("review.finished"));
+            },
+            onPause: (id: string) => {
+              usePausedReview.getState().pause(ids, id);
+              setIds(null);
             },
           }
         : undefined,

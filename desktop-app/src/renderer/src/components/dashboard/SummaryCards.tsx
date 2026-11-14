@@ -65,6 +65,21 @@ export function SummaryCards({
     0,
   );
   const totalEal = dealerships.reduce((a, d) => a + (d.risk?.eal ?? 0), 0);
+  // Locations with a stock count over time contribute their range, the
+  // others their point EAL (docs/risk-model.md, "Stock range").
+  const withRange = dealerships.filter(
+    (d) => d.risk?.ealBreakdown?.hailDetail?.stockRange,
+  );
+  const ealRange = withRange.length
+    ? dealerships.reduce(
+        (a, d) => {
+          const r = d.risk?.ealBreakdown?.hailDetail?.stockRange;
+          const eal = d.risk?.eal ?? 0;
+          return [a[0] + (r?.ealLow ?? eal), a[1] + (r?.ealHigh ?? eal)];
+        },
+        [0, 0],
+      )
+    : null;
 
   const elevated = dealerships.filter(
     (d) => (dealershipHailZone(d)?.zone ?? 0) >= ELEVATED_HAIL_ZONE,
@@ -126,7 +141,15 @@ export function SummaryCards({
     {
       label: t("dashboard.hailEal"),
       value: eur(totalEal),
-      hint: withProvisional(),
+      hint: withProvisional(
+        ealRange
+          ? t("dashboard.kpi.ealStockRange", {
+              low: eur(ealRange[0]),
+              high: eur(ealRange[1]),
+              count: withRange.length,
+            })
+          : undefined,
+      ),
       icon: CloudHail,
       info: { topic: "hailEal" },
     },

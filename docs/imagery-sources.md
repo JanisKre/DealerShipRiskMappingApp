@@ -169,9 +169,11 @@ and `desktop-app/src/shared/vehicle-timeline.ts`, IPC
   date, resolution and Wayback version, plus median, minimum and maximum.
   A one-line summary goes into `evidence.limitations`, so reports and memos
   carry it.
-- **Risk model**: unchanged. Exposure and EAL still use the current count,
-  and the timeline is evidence only. Using the median for the exposure
-  would be a separate risk-model change with its own methodology note.
+- **Risk model**: exposure and the point EAL still use the current count.
+  Since November 2026 the hail EAL detail also carries the EAL at the
+  lowest, median and highest archived count (docs/risk-model.md, "Stock
+  range"); the dashboard can count the 20 locations with the highest EAL
+  in one run ("Stock over time").
 
 Limitations: the images are typically one to several years apart and are
 often taken in different seasons. A range shows stock variability, but

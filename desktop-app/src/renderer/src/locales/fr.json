@@ -895,7 +895,9 @@
       "estimatedSites_one": "dont {{count}} site estimé",
       "estimatedSites_other": "dont {{count}} sites estimés",
       "elevatedZones": "En zone de grêle ≥ {{zone}}",
-      "exposureShare": "{{share}} de l’exposition"
+      "exposureShare": "{{share}} de l’exposition",
+      "ealStockRange_one": "Fourchette {{low}}–{{high}} selon le stock de {{count}} site avec série d’images",
+      "ealStockRange_other": "Fourchette {{low}}–{{high}} selon le stock de {{count}} sites avec série d’images"
     },
     "accumulations": {
       "title": "Plus grands cumuls",
@@ -972,7 +974,15 @@
         "estimated": "Zone de grêle estimée à partir des données météo (pas de zone par code postal)."
       },
       "legacy": "Calculé avec un ancien modèle ({{eal}}). Choisissez « Recalculer » dans le tableau de bord pour obtenir l’EAL grêle.",
-      "severityNote": "λ = événements de grêle par an dans la zone ; le dommage par véhicule est la perte attendue par événement."
+      "severityNote": "λ = événements de grêle par an dans la zone ; le dommage par véhicule est la perte attendue par événement.",
+      "stockSnapshot": {
+        "high": "L’image analysée montre plus de véhicules que d’habitude ; l’EAL ci-dessus est probablement trop élevée.",
+        "low": "L’image analysée montre moins de véhicules que d’habitude ; l’EAL ci-dessus est probablement trop basse."
+      },
+      "stockScaled": "Les comptages archivés sont mis à l’échelle du nombre vérifié manuellement.",
+      "stockRangeMissing": "Fourchette dans le temps : compter le stock sur les images archivées sous « Historique des images ».",
+      "stockRange_one": "Stock sur {{count}} image archivée : {{vehiclesLow}}–{{vehiclesHigh}} véhicules, EAL grêle de {{low}} à {{high}} (médiane {{median}}).",
+      "stockRange_other": "Stock sur {{count}} images archivées : {{vehiclesLow}}–{{vehiclesHigh}} véhicules, EAL grêle de {{low}} à {{high}} (médiane {{median}})."
     },
     "info": {
       "label": "Qu’est-ce que cela signifie ?",
@@ -1029,6 +1039,16 @@
         "vehicles": "Nombre de véhicules estimé à partir de la surface du terrain (sans détection des véhicules) ; l’exposition et l’EAL en découlent.",
         "boundary": "Limite estimée (cercle autour du point d’adresse) ; la surface et le nombre de véhicules dépendent du rayon supposé."
       }
+    },
+    "stockCount": {
+      "button": "Stock dans le temps",
+      "hint": "Compte les véhicules sur des images archivées pour les 20 sites à la plus forte EAL grêle qui n’ont pas encore de série d’images. Soit jusqu’à quatre passes de détection par site.",
+      "needsModel": "Le comptage dans le temps nécessite le modèle de détection des véhicules.",
+      "nothing": "Tous les sites éligibles ont déjà une série d’images.",
+      "progress": "Stock dans le temps : {{done}} sur {{total}} sites comptés",
+      "stop": "Arrêter",
+      "done_one": "Stock compté pour {{count}} site ({{failed}} en échec). L’EAL grêle affiche maintenant la fourchette.",
+      "done_other": "Stock compté pour {{count}} sites ({{failed}} en échec). L’EAL grêle affiche maintenant la fourchette."
     }
   },
   "map": {
@@ -1567,7 +1587,12 @@
     "skip": "Passer",
     "next": "Suivant",
     "confirmBoundaryAndNext": "Confirmer la limite · suivant",
-    "reviewedAndNext": "Vérifié · suivant"
+    "reviewedAndNext": "Vérifié · suivant",
+    "correctBoundary": "Corriger la limite",
+    "pausedTitle": "Revue en pause",
+    "pausedHint": "Modifiez et enregistrez la limite, puis la revue reprend avec ce site.",
+    "resume": "Reprendre la revue",
+    "endRun": "Terminer la revue"
   },
   "hailHistory": {
     "title": "Historique de grêle",
@@ -1743,5 +1768,23 @@
     "selectionCount_other": "{{count}} sur {{total}} sites",
     "emptyShort": "Aucun site dans cette sélection",
     "builtFromChanged": "Créé à partir de « {{first}} » · dernier : « {{last}} »"
+  },
+  "radarHail": {
+    "title": "Cellules de grêle radar (DWD)",
+    "loading": "Chargement des cellules de grêle radar …",
+    "syncing": "Archive en cours de complément",
+    "failed": "L’archive radar de grêle n’a pas pu être lue.",
+    "empty": "L’archive locale est encore vide. Le DWD ne fournit que les dernières 48 heures ; l’application collecte à partir de maintenant.",
+    "none": "Depuis le {{from}}, aucune cellule de grêle n’est passée à moins de {{radius}} km du site.",
+    "class": {
+      "large": "Grosse grêle",
+      "hail": "Grêle",
+      "mixed": "Mélange pluie-grêle"
+    },
+    "overSite": "au-dessus du site",
+    "distance": "à {{km}} km",
+    "archive": "Archive locale du {{from}} au {{to}}.",
+    "offline": "Le DWD n’était pas joignable ; l’archive enregistrée est affichée.",
+    "note": "Source : suivi des cellules KONRAD3D du DWD. Le contour est la cellule orageuse entière ; la grêle ne tombe que dans une partie. Contexte uniquement, hors EAL grêle."
   }
 }

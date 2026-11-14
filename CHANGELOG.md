@@ -9,6 +9,28 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Hail EAL as a range over the stock.** Where the stock was counted on
+  archived images, the hail EAL detail shows the EAL at the lowest, median
+  and highest count, says when the analysed image shows an unusually full or
+  empty day, and the hail EAL tile adds the portfolio range. The point EAL
+  is unchanged. "Stock over time" on the dashboard counts the 20 locations
+  with the highest EAL in one run. The range also goes into the location
+  report and the Excel/CSV export (`docs/risk-model.md`, "Stock range").
+- **Radar hail cells (DWD KONRAD3D).** The detail dialog lists the days on
+  which a hail cell tracked by the DWD radar passed within 1 km of the
+  location, with class, time and reflectivity. DWD keeps only 48 hours, so
+  the app builds a local archive from the first use on. Context only, not
+  part of the EAL (`docs/risk-model.md`, "Radar hail cells").
+- **Boundary cascade v10** (`docs/boundary-model.md`, "Cascade v10"):
+  parcels in all 16 states (Saarland's service had moved); addresses in
+  Schleswig-Holstein, Mecklenburg-Vorpommern and Baden-Württemberg, land use
+  in Mecklenburg-Vorpommern and Baden-Württemberg; a dense car lot (or a plot
+  with the dealership's address) directly across a street joins as a second
+  part and is flagged for review.
+- **Correct a boundary without leaving the review run.** "Correct
+  boundary" in the review strip opens the map editor; when the edit is done,
+  the map offers to resume the review at that location.
+
 - Lot boundaries use three more sources (boundary cascade v9,
   `docs/boundary-model.md`, "Cascade v9"):
   - the **address and land use the cadastre publishes with each parcel**

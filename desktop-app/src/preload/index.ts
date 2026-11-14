@@ -103,6 +103,12 @@ const api = {
       lon,
     } satisfies IpcRequest["hail:history"]),
 
+  radarHail: (lat: number, lon: number): Promise<IpcResponse["hail:radar"]> =>
+    ipcRenderer.invoke(IPC.radarHail, {
+      lat,
+      lon,
+    } satisfies IpcRequest["hail:radar"]),
+
   fetchWeather: (
     lat: number,
     lon: number,

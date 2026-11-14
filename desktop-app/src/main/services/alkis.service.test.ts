@@ -7,10 +7,13 @@ import {
   fetchParcelsNear,
   isTruncated,
   mergeRings,
+  onlyFeatureMembers,
+  ringsFromUtm,
   PARCEL_MAX_PAGES,
   parseExteriorRings,
   toUtm32,
   parseWfsCounts,
+  statesForPoint,
 } from "./alkis.service";
 
 /** Real GML structure of the INSPIRE feature type `cp:CadastralParcel` (Saxony). */
@@ -396,5 +399,32 @@ describe("parcel attributes (simplified ALKIS)", () => {
       address: "Weg 1",
       landUse: { residential: 1 },
     });
+  });
+});
+
+describe("services in UTM and with several layers (v10)", () => {
+  it("keeps only the parcel members of an answer with every layer", () => {
+    const xml = `<wfs:FeatureCollection numberReturned="4" numberMatched="4">
+      <wfs:member><wfs:FeatureCollection numberReturned="2">
+        <wfs:member><Flurstueck gml:id="A"><lagebeztxt>Spritzengang 4</lagebeztxt><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>6019700 573500 6019700 573520 6019720 573520 6019700 573500</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></Flurstueck></wfs:member>
+        <wfs:member><Nutzung gml:id="B"><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>1 2 3 4 5 6 1 2</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></Nutzung></wfs:member>
+      </wfs:FeatureCollection></wfs:member>
+    </wfs:FeatureCollection>`;
+    const only = onlyFeatureMembers(xml, "Flurstueck");
+    expect(only).toContain('numberReturned="1"');
+    const features = parseParcelFeatures(only);
+    expect(features).toHaveLength(1);
+    expect(features[0].address).toBe("Spritzengang 4");
+  });
+
+  it("turns rings read from EPSG:25833 into geographic coordinates", () => {
+    // parseExteriorRings flips "east north" into [north, east].
+    const [[lon, lat]] = ringsFromUtm([[5_948_260.155, 262_656.515]], 33);
+    expect(lat).toBeCloseTo(53.629, 2);
+    expect(lon).toBeCloseTo(11.41, 2);
+  });
+
+  it("looks up Saarland parcels, before Rheinland-Pfalz", () => {
+    expect(statesForPoint(49.234, 6.99)[0]).toBe("Saarland");
   });
 });

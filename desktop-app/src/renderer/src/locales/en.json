@@ -895,7 +895,9 @@
       "estimatedSites_one": "{{count}} site estimated",
       "estimatedSites_other": "{{count}} sites estimated",
       "elevatedZones": "In hail zone ≥ {{zone}}",
-      "exposureShare": "{{share}} of exposure"
+      "exposureShare": "{{share}} of exposure",
+      "ealStockRange_one": "Range {{low}}–{{high}} over the stock of {{count}} location with an image series",
+      "ealStockRange_other": "Range {{low}}–{{high}} over the stock of {{count}} locations with an image series"
     },
     "accumulations": {
       "title": "Largest accumulations",
@@ -972,7 +974,15 @@
         "estimated": "Hail zone estimated from weather data (no postcode zone)."
       },
       "legacy": "Scored with an older model ({{eal}}). Choose “Recalculate” on the dashboard to get the hail EAL.",
-      "severityNote": "λ = hail events per year in the zone; damage per vehicle is the expected loss per event."
+      "severityNote": "λ = hail events per year in the zone; damage per vehicle is the expected loss per event.",
+      "stockSnapshot": {
+        "high": "The analysed image shows more vehicles than usual; the EAL above is likely too high.",
+        "low": "The analysed image shows fewer vehicles than usual; the EAL above is likely too low."
+      },
+      "stockScaled": "The archived counts are scaled to the manually reviewed count.",
+      "stockRangeMissing": "Range over time: count the stock on archived images under \"Imagery history\".",
+      "stockRange_one": "Stock over {{count}} archived image: {{vehiclesLow}}–{{vehiclesHigh}} vehicles, hail EAL {{low}} to {{high}} (median {{median}}).",
+      "stockRange_other": "Stock over {{count}} archived images: {{vehiclesLow}}–{{vehiclesHigh}} vehicles, hail EAL {{low}} to {{high}} (median {{median}})."
     },
     "info": {
       "label": "What does this mean?",
@@ -1029,6 +1039,16 @@
         "vehicles": "Vehicle count estimated from the lot area (no vehicle detection); exposure and EAL follow from it.",
         "boundary": "Estimated boundary (circle around the address point); area and vehicle count depend on the assumed radius."
       }
+    },
+    "stockCount": {
+      "button": "Stock over time",
+      "hint": "Counts the vehicles on archived images for the 20 locations with the highest hail EAL that have no image series yet. That is up to four detector runs per location.",
+      "needsModel": "Counting over time needs the vehicle detection model.",
+      "nothing": "Every eligible location already has an image series.",
+      "progress": "Stock over time: {{done}} of {{total}} locations counted",
+      "stop": "Stop",
+      "done_one": "Stock counted for {{count}} location ({{failed}} failed). The hail EAL now shows the range.",
+      "done_other": "Stock counted for {{count}} locations ({{failed}} failed). The hail EAL now shows the range."
     }
   },
   "map": {
@@ -1567,7 +1587,12 @@
     "skip": "Skip",
     "next": "Next",
     "confirmBoundaryAndNext": "Confirm boundary · next",
-    "reviewedAndNext": "Reviewed · next"
+    "reviewedAndNext": "Reviewed · next",
+    "correctBoundary": "Correct boundary",
+    "pausedTitle": "Review paused",
+    "pausedHint": "Edit and save the boundary, then the review continues with this location.",
+    "resume": "Resume review",
+    "endRun": "End review"
   },
   "hailHistory": {
     "title": "Hail history",
@@ -1743,5 +1768,23 @@
     "selectionCount_other": "{{count}} of {{total}} locations",
     "emptyShort": "No locations in this selection",
     "builtFromChanged": "Built from “{{first}}” · latest: “{{last}}”"
+  },
+  "radarHail": {
+    "title": "Radar hail cells (DWD)",
+    "loading": "Loading radar hail cells …",
+    "syncing": "Archive is being filled",
+    "failed": "The radar hail archive could not be read.",
+    "empty": "The local archive is still empty. DWD provides only the last 48 hours; the app collects from now on.",
+    "none": "Since {{from}} no hail cell has passed closer than {{radius}} km to the location.",
+    "class": {
+      "large": "Large hail",
+      "hail": "Hail",
+      "mixed": "Rain–hail mix"
+    },
+    "overSite": "over the location",
+    "distance": "{{km}} km away",
+    "archive": "Local archive {{from}} to {{to}}.",
+    "offline": "DWD could not be reached; showing the stored archive.",
+    "note": "Source: DWD cell tracking KONRAD3D. The outline is the whole storm cell; hail falls in only part of it. Context only, not part of the hail EAL."
   }
 }

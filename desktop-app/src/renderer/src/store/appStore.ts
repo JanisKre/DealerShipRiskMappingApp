@@ -205,10 +205,22 @@ interface AppState {
     removedPoints: ManualVehiclePoint[],
   ) => Promise<void>;
   /**
-   * Counts vehicles on archived Esri images of the lot and stores the
-   * result on the detection as evidence. The risk is not recalculated.
+   * Counts vehicles on archived Esri images of the lot, stores the result
+   * on the detection and rescores, so the hail EAL detail carries the
+   * stock range. The point EAL keeps the current count.
    */
   countVehicleTimeline: (id: string) => Promise<void>;
+  /**
+   * Counts the stock over time for several locations, one after another
+   * (each is several detector runs). `onProgress` gets done/total after
+   * each; `shouldStop` is checked between locations. Returns how many were
+   * counted and how many failed.
+   */
+  countVehicleTimelines: (
+    ids: string[],
+    onProgress?: (done: number, total: number) => void,
+    shouldStop?: () => boolean,
+  ) => Promise<{ counted: number; failed: number }>;
   select: (id: string | null) => void;
   /**
    * Asks the map to fit these locations into view the next time it renders;
@@ -991,11 +1003,45 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     const latest = get().dealerships.find((d) => d.id === id);
     if (!latest?.detection) return;
-    get().upsertDealership({
-      ...latest,
-      detection: attachVehicleTimeline(latest.detection, timeline),
-    });
+    const detection = attachVehicleTimeline(latest.detection, timeline);
+    // The risk carries the stock range; a failed rescore keeps the counts.
+    let risk = latest.risk;
+    try {
+      risk = await window.api.scoreRisk(
+        latest.lat,
+        latest.lon,
+        latest.assetValue,
+        detection,
+        latest.boundary,
+        get().parameters,
+        latest.natCat,
+        latest.hailZone,
+      );
+    } catch (err) {
+      console.error(`Rescoring after the stock count failed (${id}):`, err);
+    }
+    const after = get().dealerships.find((d) => d.id === id);
+    if (!after?.detection) return;
+    // A re-detection meanwhile replaced the counts this timeline belongs to.
+    if (after.detection !== latest.detection) return;
+    get().upsertDealership({ ...after, detection, risk });
     await get().saveSession();
+  },
+  countVehicleTimelines: async (ids, onProgress, shouldStop) => {
+    let counted = 0;
+    let failed = 0;
+    for (let i = 0; i < ids.length; i++) {
+      if (shouldStop?.()) break;
+      try {
+        await get().countVehicleTimeline(ids[i]);
+        counted++;
+      } catch (err) {
+        console.error(`Stock count failed (${ids[i]}):`, err);
+        failed++;
+      }
+      onProgress?.(i + 1, ids.length);
+    }
+    return { counted, failed };
   },
   select: (id) => set({ selectedId: id }),
   focusDealerships: (ids, radiusKm) =>

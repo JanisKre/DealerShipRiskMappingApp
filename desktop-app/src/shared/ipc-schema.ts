@@ -33,6 +33,7 @@ import {
   ImageryViewRequestSchema,
 } from "./imagery-sources";
 import { ImageryTimelineSchema } from "./imagery-wayback";
+import { RadarHailResultSchema } from "./radar-hail";
 
 // --- App updates ---------------------------------------------------------------
 
@@ -235,6 +236,10 @@ export const ipcRequest = {
     lat: z.number().min(-90).max(90),
     lon: z.number().min(-180).max(180),
   }),
+  "hail:radar": z.object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+  }),
   "detect:vehicles": DetectVehiclesRequestSchema,
   "detect:vehiclesTimeline": DetectVehiclesRequestSchema,
   "weather:fetch": z.object({ lat: z.number(), lon: z.number() }),
@@ -367,6 +372,7 @@ export const ipcResponse = {
   "boundary:detect": BoundaryResultSchema,
   "osm:details": OsmDetailsSchema,
   "hail:history": HailHistorySchema,
+  "hail:radar": RadarHailResultSchema,
   "detect:vehicles": DetectionResultSchema,
   "detect:vehiclesTimeline": VehicleTimelineSchema,
   "weather:fetch": z.record(z.string(), z.number()),

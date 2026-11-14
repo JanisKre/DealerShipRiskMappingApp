@@ -895,7 +895,9 @@
       "estimatedSites_one": "davon {{count}} Standort geschätzt",
       "estimatedSites_other": "davon {{count}} Standorte geschätzt",
       "elevatedZones": "In Hagelzone ≥ {{zone}}",
-      "exposureShare": "{{share}} des Exposures"
+      "exposureShare": "{{share}} des Exposures",
+      "ealStockRange_one": "Spanne {{low}}–{{high}} über den Bestand von {{count}} Standort mit Bildreihe",
+      "ealStockRange_other": "Spanne {{low}}–{{high}} über den Bestand von {{count}} Standorten mit Bildreihe"
     },
     "accumulations": {
       "title": "Größte Kumulationen",
@@ -972,7 +974,15 @@
         "estimated": "Hagelzone aus Wetterdaten geschätzt (keine PLZ-Zone)."
       },
       "legacy": "Mit einem älteren Modell berechnet ({{eal}}). Im Dashboard „Neu berechnen“ wählen, um die Hagel-EAL zu erhalten.",
-      "severityNote": "λ = Hagelereignisse pro Jahr in der Zone, der Schaden je Fahrzeug ist der erwartete Schaden pro Ereignis."
+      "severityNote": "λ = Hagelereignisse pro Jahr in der Zone, der Schaden je Fahrzeug ist der erwartete Schaden pro Ereignis.",
+      "stockSnapshot": {
+        "high": "Das ausgewertete Bild zeigt mehr Fahrzeuge als üblich; die EAL oben liegt eher zu hoch.",
+        "low": "Das ausgewertete Bild zeigt weniger Fahrzeuge als üblich; die EAL oben liegt eher zu niedrig."
+      },
+      "stockScaled": "Die archivierten Zählungen sind auf die manuell geprüfte Zahl skaliert.",
+      "stockRangeMissing": "Spanne über die Zeit: unter „Bildhistorie“ den Bestand auf archivierten Bildern zählen.",
+      "stockRange_one": "Bestand über {{count}} archiviertes Luftbild: {{vehiclesLow}}–{{vehiclesHigh}} Fahrzeuge, Hagel-EAL {{low}} bis {{high}} (Median {{median}}).",
+      "stockRange_other": "Bestand über {{count}} archivierte Luftbilder: {{vehiclesLow}}–{{vehiclesHigh}} Fahrzeuge, Hagel-EAL {{low}} bis {{high}} (Median {{median}})."
     },
     "info": {
       "label": "Was bedeutet das?",
@@ -1029,6 +1039,16 @@
         "vehicles": "Fahrzeugzahl aus der Grundstücksfläche geschätzt (keine Fahrzeugerkennung); Exposure und EAL folgen daraus.",
         "boundary": "Geschätzte Grenze (Kreis um den Adresspunkt); Fläche und Fahrzeugzahl hängen vom angenommenen Radius ab."
       }
+    },
+    "stockCount": {
+      "button": "Bestand über Zeit",
+      "hint": "Zählt die Fahrzeuge auf archivierten Luftbildern für die 20 Standorte mit der höchsten Hagel-EAL, die noch keine Bildreihe haben. Je Standort sind das bis zu vier Erkennungsläufe.",
+      "needsModel": "Für die Zählung über die Zeit wird das Fahrzeugerkennungsmodell benötigt.",
+      "nothing": "Alle infrage kommenden Standorte haben schon eine Bildreihe.",
+      "progress": "Bestand über Zeit: {{done}} von {{total}} Standorten gezählt",
+      "stop": "Anhalten",
+      "done_one": "Bestand für {{count}} Standort gezählt ({{failed}} fehlgeschlagen). Die Hagel-EAL zeigt jetzt die Spanne.",
+      "done_other": "Bestand für {{count}} Standorte gezählt ({{failed}} fehlgeschlagen). Die Hagel-EAL zeigt jetzt die Spanne."
     }
   },
   "map": {
@@ -1567,7 +1587,12 @@
     "skip": "Überspringen",
     "next": "Weiter",
     "confirmBoundaryAndNext": "Grenze bestätigen · weiter",
-    "reviewedAndNext": "Geprüft · weiter"
+    "reviewedAndNext": "Geprüft · weiter",
+    "correctBoundary": "Grenze korrigieren",
+    "pausedTitle": "Prüfung pausiert",
+    "pausedHint": "Grenze bearbeiten und speichern, dann geht es mit diesem Standort in der Prüfung weiter.",
+    "resume": "Prüfung fortsetzen",
+    "endRun": "Prüfung beenden"
   },
   "hailHistory": {
     "title": "Hagelhistorie",
@@ -1743,5 +1768,23 @@
     "selectionCount_other": "{{count}} von {{total}} Standorten",
     "emptyShort": "Keine Standorte in dieser Auswahl",
     "builtFromChanged": "Erstellt aus „{{first}}“ · zuletzt: „{{last}}“"
+  },
+  "radarHail": {
+    "title": "Radar-Hagelzellen (DWD)",
+    "loading": "Radar-Hagelzellen werden geladen …",
+    "syncing": "Archiv wird ergänzt",
+    "failed": "Das Radar-Hagelarchiv konnte nicht gelesen werden.",
+    "empty": "Das lokale Archiv ist noch leer. Der DWD stellt nur die letzten 48 Stunden bereit; die App sammelt ab jetzt mit.",
+    "none": "Seit {{from}} ist keine Hagelzelle näher als {{radius}} km am Standort vorbeigezogen.",
+    "class": {
+      "large": "Großhagel",
+      "hail": "Hagel",
+      "mixed": "Regen-Hagel-Gemisch"
+    },
+    "overSite": "über dem Standort",
+    "distance": "{{km}} km entfernt",
+    "archive": "Lokales Archiv {{from}} bis {{to}}.",
+    "offline": "Der DWD war nicht erreichbar; gezeigt wird das gespeicherte Archiv.",
+    "note": "Quelle: DWD-Zellverfolgung KONRAD3D. Der Umriss ist die ganze Gewitterzelle, Hagel fällt nur in einem Teil davon. Nur Kontext, geht nicht in die Hagel-EAL ein."
   }
 }

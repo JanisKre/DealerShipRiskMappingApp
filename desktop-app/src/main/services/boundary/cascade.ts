@@ -88,7 +88,7 @@ import { addressKeys, sharesAddress } from "./parcel-address";
  * does; housing and open land join only when dense with vehicles
  * (docs/boundary-model.md, "Cascade v9").
  */
-export const CASCADE_VERSION = 9;
+export const CASCADE_VERSION = 10;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -282,6 +282,15 @@ export const CASCADE_LIMITS = {
    * flagged for that alone (docs/boundary-model.md, "Review calibration").
    */
   goodCoverage: 0.7,
+  /**
+   * A parcel across a street from the lot (adjacent to a street parcel the
+   * lot borders, not to the lot) joins as a second part when at least this
+   * many lot vehicles stand on it…
+   */
+  acrossMinVehicles: 10,
+  /** … at this density (a parked-up car lot, not a customer car park)… */
+  acrossMinVehiclesPer1000Sqm: 15,
+  /** … or when it has the dealership's address and `minLotVehicles`. */
 } as const;
 
 export const CASCADE_CONFIDENCE = {
@@ -1066,7 +1075,14 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     CASCADE_LIMITS.greenParcelShare;
   const isForeign = (parcel: ParcelFeature): boolean =>
     isForeignUse(parcel) || isGreen(parcel);
-  const joinedAs = new Map<ParcelFeature, "strip" | "enclosed" | "address">();
+  const joinedAs = new Map<
+    ParcelFeature,
+    "strip" | "enclosed" | "address" | "across"
+  >();
+  // Parcels across the street are chosen on the first lot (within
+  // `maxReachM`) only; later passes reuse that choice, so the lot beyond
+  // 80 m is judged on the same parts as before.
+  let acrossChosen: Set<ParcelFeature> | null = null;
   const siteKeys = new Set([
     ...addressKeys(anchor.address),
     ...addressKeys(input.address),
@@ -1121,31 +1137,92 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     const fits = (parcel: ParcelFeature): boolean =>
       areaSqm + parcel.areaSqm <= input.parameters.boundaryMaxAreaSqm;
     const queue = [seed];
-    while (queue.length > 0) {
-      const current = queue.shift()!;
+    const touching = (a: ParcelFeature, b: ParcelFeature): boolean =>
+      isAdjacent(a, b) || isAdjacent(b, a);
+    // A second part of the lot across the street: a dense car lot, or a plot
+    // with the dealership's address, directly across a street parcel the lot
+    // borders. Only for the lot at the point, once.
+    const acrossTheStreet = (): ParcelFeature[] => {
+      const streets = input.parcels.filter(
+        (parcel) =>
+          !members.includes(parcel) &&
+          isStreetParcel(parcel) &&
+          members.some((member) => touching(parcel, member)),
+      );
+      if (streets.length === 0) return [];
+      const found: ParcelFeature[] = [];
       for (const parcel of input.parcels) {
-        if (members.includes(parcel) || !isAdjacent(parcel, current)) continue;
-        // A neighbouring parcel with the address of the parcel at the point
-        // (or of the dealership) is the same property, cars on it or not.
-        const sameAddress =
-          parcel.areaSqm <= CASCADE_LIMITS.maxParcelSqm &&
-          // Not a large plot that exceeds everything chosen so far: an
-          // estate or a retail park registered under one address.
-          parcel.areaSqm <=
-            Math.max(areaSqm, CASCADE_LIMITS.addressJoinFreeSqm) &&
-          // Not the owner's house or a field behind the yard.
-          !isForeignUse(parcel) &&
-          streetByUse(parcel) !== true &&
-          !isGreen(parcel) &&
+        if (members.includes(parcel) || streets.includes(parcel)) continue;
+        if (parcel.areaSqm > CASCADE_LIMITS.maxParcelSqm) continue;
+        if (
+          streetByUse(parcel) === true ||
+          (streetByUse(parcel) === null && isStreetLike(parcel.ring)) ||
+          isForeign(parcel) ||
+          !fits(parcel)
+        )
+          continue;
+        if (!streets.some((street) => touching(parcel, street))) continue;
+        if (members.some((member) => touching(parcel, member))) continue;
+        const count = vehiclesOn(parcel);
+        const density = (count / unbuiltAreaSqm(parcel, buildings)) * 1000;
+        const dense =
+          count >= CASCADE_LIMITS.acrossMinVehicles &&
+          density >= CASCADE_LIMITS.acrossMinVehiclesPer1000Sqm;
+        const ours =
+          count >= CASCADE_LIMITS.minLotVehicles &&
           sharesAddress(siteKeys, parcel.address);
-        const kind = sameAddress ? "grow" : joins(parcel);
-        if (!kind || !fits(parcel)) continue;
+        if (dense || ours) found.push(parcel);
+      }
+      return found;
+    };
+    const across = (): ParcelFeature[] => {
+      if (acrossChosen)
+        return [...acrossChosen].filter(
+          (parcel) => !members.includes(parcel) && fits(parcel),
+        );
+      acrossChosen = new Set(acrossTheStreet());
+      return [...acrossChosen];
+    };
+    let crossed = seed !== anchor;
+    for (;;) {
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        for (const parcel of input.parcels) {
+          if (members.includes(parcel) || !isAdjacent(parcel, current))
+            continue;
+          // A neighbouring parcel with the address of the parcel at the point
+          // (or of the dealership) is the same property, cars on it or not.
+          const sameAddress =
+            parcel.areaSqm <= CASCADE_LIMITS.maxParcelSqm &&
+            // Not a large plot that exceeds everything chosen so far: an
+            // estate or a retail park registered under one address.
+            parcel.areaSqm <=
+              Math.max(areaSqm, CASCADE_LIMITS.addressJoinFreeSqm) &&
+            // Not the owner's house or a field behind the yard.
+            !isForeignUse(parcel) &&
+            streetByUse(parcel) !== true &&
+            !isGreen(parcel) &&
+            sharesAddress(siteKeys, parcel.address);
+          const kind = sameAddress ? "grow" : joins(parcel);
+          if (!kind || !fits(parcel)) continue;
+          members.push(parcel);
+          areaSqm += parcel.areaSqm;
+          if (kind === "grow") queue.push(parcel);
+          else joinedAs.set(parcel, "strip");
+          if (sameAddress && !joins(parcel)) joinedAs.set(parcel, "address");
+        }
+      }
+      if (crossed) break;
+      crossed = true;
+      for (const parcel of across()) {
+        if (!fits(parcel)) continue;
         members.push(parcel);
         areaSqm += parcel.areaSqm;
-        if (kind === "grow") queue.push(parcel);
-        else joinedAs.set(parcel, "strip");
-        if (sameAddress && !joins(parcel)) joinedAs.set(parcel, "address");
+        joinedAs.set(parcel, "across");
+        // The lot may continue from there by the usual rules.
+        queue.push(parcel);
       }
+      if (queue.length === 0) break;
     }
     // Parcels the lot encloses join whatever stands on them, so the result
     // has no notches or holes where the cadastre cuts out a small plot.
@@ -1199,8 +1276,11 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     const areaSqm = geometryAreaSqm(geometry);
     const covered = lot.filter((v) => geometryContains(geometry, v)).length;
     const coverage = covered / lot.length;
+    const acrossJoined = members.some((m) => joinedAs.get(m) === "across");
+    // A part across the street is the rule's guess, not the cadastre's: the
+    // result keeps the partial confidence, so it is offered for review.
     const confidence =
-      coverage >= CASCADE_LIMITS.goodCoverage
+      coverage >= CASCADE_LIMITS.goodCoverage && !acrossJoined
         ? CASCADE_CONFIDENCE.vehicleParcels
         : CASCADE_CONFIDENCE.vehicleParcelsPartial;
     const joined = members.length - 1;
@@ -1211,8 +1291,10 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     const byAddress = members.filter(
       (m) => joinedAs.get(m) === "address",
     ).length;
+    const across = members.filter((m) => joinedAs.get(m) === "across").length;
     const detail = [
       ...(byAddress > 0 ? [`${byAddress} by address`] : []),
+      ...(across > 0 ? [`${across} across the street`] : []),
       ...(strips > 0 ? [`${strips} parking strip(s)`] : []),
       ...(enclosed > 0 ? [`${enclosed} enclosed`] : []),
     ].join(", ");
@@ -1244,7 +1326,10 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
   // onto; strips and enclosed plots only complete such a lot.
   const grownSqm = firstMembers
     .filter(
-      (parcel) => !joinedAs.has(parcel) || joinedAs.get(parcel) === "address",
+      (parcel) =>
+        !joinedAs.has(parcel) ||
+        joinedAs.get(parcel) === "address" ||
+        joinedAs.get(parcel) === "across",
     )
     .reduce((sum, parcel) => sum + parcel.areaSqm, 0);
   if (grownSqm < CASCADE_LIMITS.minLotSqm) {

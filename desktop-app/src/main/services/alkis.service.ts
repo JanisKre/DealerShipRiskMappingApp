@@ -5,6 +5,8 @@ import { cacheGet, cacheSet, TTL } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
 import { checkRing, type LonLat } from "./boundary-geometry";
 import { createCircuitBreaker } from "./boundary/circuit-breaker";
+import { fromUtm, toUtm } from "./utm";
+import { withBwAttributes } from "./bw-parcel-attributes";
 
 /**
  * ALKIS cadastral parcels (official lot boundaries) via the open
@@ -97,6 +99,20 @@ export interface AlkisEndpoint {
    */
   bboxUtm32?: true;
   /**
+   * The service answers in UTM only (EPSG:25832 or 25833): the search box is
+   * sent and the geometry returned in that zone, then converted to
+   * geographic coordinates. `crs` is ignored.
+   */
+  utmZone?: 32 | 33;
+  /**
+   * Parcels are only served through this stored bbox query (parameters
+   * CRS, x1, y1, x2, y2; requires `utmZone`). Its answer holds every layer,
+   * so only `featureElement` members are read.
+   */
+  storedQuery?: string;
+  /** Element name of a parcel member, where the answer holds other layers. */
+  featureElement?: string;
+  /**
    * Queried when this endpoint fails. The simplified ALKIS services
    * (`ave:Flurstueck`) carry each parcel's address and land use; the INSPIRE
    * service they replaced stays as the fallback, with geometry only.
@@ -112,9 +128,10 @@ export interface AlkisEndpoint {
  * cascade uses (docs/boundary-model.md, "Cascade v9"). Probed live on
  * 13 November 2026: address and land use in NRW, Rheinland-Pfalz, Thüringen,
  * Sachsen, Niedersachsen, Sachsen-Anhalt and Hamburg; address only in Hessen
- * and Brandenburg. Schleswig-Holstein and Mecklenburg-Vorpommern serve the
- * product in projected coordinates only and stay on INSPIRE; Baden-
- * Württemberg, Berlin and Bremen publish neither field with the parcel.
+ * and Brandenburg. Since cascade v10 (14 November 2026): Mecklenburg-
+ * Vorpommern (land use too) and Schleswig-Holstein (address only) in UTM
+ * (`utmZone`), Baden-Württemberg from separate layers
+ * (bw-parcel-attributes.ts). Berlin and Bremen publish neither field.
  */
 const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
   NRW: {
@@ -142,10 +159,22 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
       crs: 4258,
     },
   },
+  // The simplified product in SH rejects plain GetFeature on
+  // ave:Flurstueck; its bbox stored query works, in EPSG:25832 only, and
+  // returns addresses without land use (probed 14 November 2026).
   "Schleswig-Holstein": {
-    url: "https://service.gdi-sh.de/SH_INSPIREDOWNLOAD_AI_CP_ALKIS",
-    typeName: "cp:CadastralParcel",
-    crs: 4258,
+    url: "https://service.gdi-sh.de/WFS_SH_ALKIS_vereinf_OpenGBD",
+    typeName: "ave:Flurstueck",
+    crs: 25832,
+    utmZone: 32,
+    storedQuery:
+      "http://repository.gdi-de.org/query/adv/produkt/alkis-vereinfacht/2.0/ave-by-bbox",
+    featureElement: "Flurstueck",
+    fallback: {
+      url: "https://service.gdi-sh.de/SH_INSPIREDOWNLOAD_AI_CP_ALKIS",
+      typeName: "cp:CadastralParcel",
+      crs: 4258,
+    },
   },
   "Sachsen-Anhalt": {
     url: "https://www.geodatenportal.sachsen-anhalt.de/wss/service/ST_LVermGeo_ALKIS_WFS_OpenData/guest",
@@ -191,9 +220,17 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
     typeName: "cp:CadastralParcel",
     crs: 4258,
   },
+  // Saarland moved its INSPIRE parcel service; under the new name it
+  // answers with parcels (geometry only, numberReturned="0" like Hessen).
+  // Probed 14 November 2026.
+  Saarland: {
+    url: "https://geoportal.saarland.de/gdi-sl/inspirewfs_Flurstuecke_Grundstuecke_ALKIS",
+    typeName: "cp:CadastralParcel",
+    crs: 4258,
+  },
   // Added November 2026 after probing GetCapabilities and a live GetFeature
   // (docs/boundary-model.md, "Cadastre coverage"). Bayern (login required)
-  // and Saarland (empty response) are still missing.
+  // is read from the parcel map instead (bavaria-parcels.service.ts).
   Hamburg: {
     url: "https://geodienste.hamburg.de/WFS_HH_ALKIS_vereinfacht",
     typeName: "ave:Flurstueck",
@@ -209,10 +246,17 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
     typeName: "adv:AX_Flurstueck",
     crs: 4258,
   },
+  // EPSG:25833 only; address and land use (probed 14 November 2026).
   "Mecklenburg-Vorpommern": {
-    url: "https://www.geodaten-mv.de/dienste/inspire_cp_alkis_download",
-    typeName: "cp:CadastralParcel",
-    crs: 4258,
+    url: "https://www.geodaten-mv.de/dienste/alkis_wfs_einfach",
+    typeName: "ave:Flurstueck",
+    crs: 25833,
+    utmZone: 33,
+    fallback: {
+      url: "https://www.geodaten-mv.de/dienste/inspire_cp_alkis_download",
+      typeName: "cp:CadastralParcel",
+      crs: 4258,
+    },
   },
   Thüringen: {
     url: "https://www.geoproxy.geoportal-th.de/geoproxy/services/adv_alkis_wfs",
@@ -318,6 +362,14 @@ const STATE_BBOXES: StateBbox[] = [
     maxLat: 51.65,
     minLon: 9.87,
     maxLon: 12.65,
+  },
+  // Inside the Rheinland-Pfalz box, so before it.
+  {
+    state: "Saarland",
+    minLat: 49.11,
+    maxLat: 49.64,
+    minLon: 6.35,
+    maxLon: 7.41,
   },
   {
     state: "Rheinland-Pfalz",
@@ -608,7 +660,7 @@ export async function fetchParcelsNear(
 
     // Four decimals (~11 m) on purpose: neighbouring locations in the same
     // business park then share one cached cadastre response.
-    const key = `alkis:v4:${state}:${radiusM}:${lat.toFixed(4)},${lon.toFixed(4)}`;
+    const key = `alkis:v5:${state}:${radiusM}:${lat.toFixed(4)},${lon.toFixed(4)}`;
     const hit = cacheGet<ParcelLookup>(key);
     if (hit) {
       answeredAtLeastOnce = true;
@@ -659,7 +711,7 @@ export async function fetchParcelsNear(
       }
     }
 
-    const parcels: ParcelFeature[] = [];
+    let parcels: ParcelFeature[] = [];
     for (const ring of rings) {
       const check = checkRing(ring, {
         minAreaSqm: 25,
@@ -672,6 +724,10 @@ export async function fetchParcelsNear(
         state,
         ...attributes.get(ringKey(ring)),
       });
+    }
+    // BW publishes address and land use as separate layers.
+    if (state === "Baden-Württemberg") {
+      parcels = await withBwAttributes(parcels, lat, lon, radiusM);
     }
     const result: ParcelLookup = {
       parcels,
@@ -794,7 +850,10 @@ export async function fetchParcelRings(
     }
     if (!xml) break;
     const before = rings.length;
-    const features = parseParcelFeatures(xml);
+    const zone = endpoint.utmZone;
+    const features = parseParcelFeatures(xml).map((feature) =>
+      zone ? { ...feature, ring: ringsFromUtm(feature.ring, zone) } : feature,
+    );
     for (const { ring, address, landUse } of features) {
       if (address || landUse) {
         attributes.set(ringKey(ring), {
@@ -837,17 +896,36 @@ async function fetchAlkisXml(
 ): Promise<string | null | "error"> {
   const dLat = radiusM / 111_320;
   const dLon = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180));
-  const crsUrn = `urn:ogc:def:crs:EPSG::${endpoint.crs}`;
+  const crsUrn = endpoint.utmZone
+    ? `urn:ogc:def:crs:EPSG::258${endpoint.utmZone}`
+    : `urn:ogc:def:crs:EPSG::${endpoint.crs}`;
   let bbox = `${lat - dLat},${lon - dLon},${lat + dLat},${lon + dLon},${crsUrn}`;
   if (endpoint.bboxUtm32) {
     const [east, north] = toUtm32(lat, lon);
     bbox = `${east - radiusM},${north - radiusM},${east + radiusM},${north + radiusM},urn:ogc:def:crs:EPSG::25832`;
   }
-  const url =
-    `${endpoint.url}?service=WFS&version=2.0.0&request=GetFeature` +
-    `&typeNames=${encodeURIComponent(endpoint.typeName)}&count=${PARCEL_REQUEST_LIMIT}` +
-    (startIndex > 0 ? `&startIndex=${startIndex}` : "") +
-    `&srsName=${crsUrn}&bbox=${encodeURIComponent(bbox)}`;
+  let url: string;
+  if (endpoint.utmZone && endpoint.storedQuery) {
+    // One answer with every layer; it has no paging.
+    if (startIndex > 0) return null;
+    const [east, north] = toUtm(lat, lon, endpoint.utmZone);
+    url =
+      `${endpoint.url}?service=WFS&version=2.0.0&request=GetFeature` +
+      `&STOREDQUERY_ID=${encodeURIComponent(endpoint.storedQuery)}` +
+      `&CRS=${encodeURIComponent(crsUrn)}` +
+      `&x1=${(east - radiusM).toFixed(1)}&y1=${(north - radiusM).toFixed(1)}` +
+      `&x2=${(east + radiusM).toFixed(1)}&y2=${(north + radiusM).toFixed(1)}`;
+  } else {
+    if (endpoint.utmZone) {
+      const [east, north] = toUtm(lat, lon, endpoint.utmZone);
+      bbox = `${east - radiusM},${north - radiusM},${east + radiusM},${north + radiusM},${crsUrn}`;
+    }
+    url =
+      `${endpoint.url}?service=WFS&version=2.0.0&request=GetFeature` +
+      `&typeNames=${encodeURIComponent(endpoint.typeName)}&count=${PARCEL_REQUEST_LIMIT}` +
+      (startIndex > 0 ? `&startIndex=${startIndex}` : "") +
+      `&srsName=${crsUrn}&bbox=${encodeURIComponent(bbox)}`;
+  }
   try {
     const res = await fetchWithResilience(url, {
       headers: { "User-Agent": USER_AGENT },
@@ -855,10 +933,45 @@ async function fetchAlkisXml(
     if (!res.ok) return "error";
     const text = await res.text();
     if (text.includes("ExceptionReport")) return "error";
-    return text;
+    return endpoint.featureElement
+      ? onlyFeatureMembers(text, endpoint.featureElement)
+      : text;
   } catch {
     return "error";
   }
+}
+
+/**
+ * Keeps only the `element` features of an answer that holds several layers
+ * (nested feature collections), each wrapped as one `wfs:member`, with the
+ * answer's own counts. Other layers (buildings, land use, administrative
+ * units) would otherwise be read as parcels.
+ */
+export function onlyFeatureMembers(xml: string, element: string): string {
+  const pattern = new RegExp(
+    `<(?:[\\w.-]+:)?${element}\\s+gml:id=[\\s\\S]*?</(?:[\\w.-]+:)?${element}>`,
+    "g",
+  );
+  const head = /<wfs:FeatureCollection\b[^>]*>/.exec(xml)?.[0] ?? "";
+  const features = [...xml.matchAll(pattern)].map(
+    (m) => `<wfs:member>${m[0]}</wfs:member>`,
+  );
+  // The outer collection counts every layer; the parcels are what is left.
+  const count = String(features.length);
+  const opening = head
+    ? head
+        .replace(/numberReturned="[^"]*"/, `numberReturned="${count}"`)
+        .replace(/numberMatched="[^"]*"/, `numberMatched="${count}"`)
+    : "<wfs:FeatureCollection>";
+  return `${opening}${features.join("")}</wfs:FeatureCollection>`;
+}
+
+/** Rings read from a UTM answer ([north, east] after the axis flip) to [lon, lat]. */
+export function ringsFromUtm(
+  rings: [number, number][],
+  zone: number,
+): [number, number][] {
+  return rings.map(([north, east]) => fromUtm(east, north, zone));
 }
 
 /**

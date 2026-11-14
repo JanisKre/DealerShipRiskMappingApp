@@ -64,20 +64,9 @@ const ADDRESS_ENDPOINTS: Record<string, AddressEndpoint> = {
   },
 };
 
-/** Saarland has no parcel service, so the shared state boxes leave it out. */
-const SAARLAND_BOX = {
-  minLat: 49.11,
-  maxLat: 49.64,
-  minLon: 6.35,
-  maxLon: 7.41,
-};
-
+/** The parcel lookup's state boxes include Saarland since November 2026. */
 function candidateStates(lat: number, lon: number): string[] {
-  const states = statesForPoint(lat, lon);
-  const b = SAARLAND_BOX;
-  if (lat >= b.minLat && lat <= b.maxLat && lon >= b.minLon && lon <= b.maxLon)
-    states.push("Saarland");
-  return states;
+  return statesForPoint(lat, lon);
 }
 
 /** Search radius around the geocoder's point. */

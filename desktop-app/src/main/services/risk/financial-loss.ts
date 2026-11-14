@@ -12,6 +12,7 @@ import {
   hailVehicleBasis,
 } from "@shared/risk-math";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
+import { stockRangeVehicles } from "@shared/vehicle-timeline";
 import type { RiskParameters } from "@shared/types";
 
 export { RISK_MODEL_VERSION } from "@shared/constants";
@@ -50,6 +51,9 @@ export function computeEalBreakdown(
   );
   const result = computeHailEal({ vehicles, zone }, parameters);
   const hail = round(result.eal);
+  const range = stockRangeVehicles(detection, vehicles, vehicleSource);
+  const ealFor = (n: number): number =>
+    round(computeHailEal({ vehicles: n, zone }, parameters).eal);
   return {
     hail,
     total: hail,
@@ -61,6 +65,16 @@ export function computeEalBreakdown(
       zoneSource,
       frequency: result.frequency,
       meanSeverityEur: round(result.meanSeverityEur),
+      ...(range
+        ? {
+            stockRange: {
+              ...range,
+              ealLow: ealFor(range.vehiclesLow),
+              ealMedian: ealFor(range.vehiclesMedian),
+              ealHigh: ealFor(range.vehiclesHigh),
+            },
+          }
+        : {}),
     },
   };
 }

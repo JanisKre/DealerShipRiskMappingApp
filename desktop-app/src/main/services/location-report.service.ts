@@ -57,6 +57,8 @@ const LABELS = {
       `${v} Fahrzeuge × ${f} Schadenereignisse/Jahr × ${s} Schaden je Fahrzeug = ${e} pro Jahr`,
     placeholder:
       "Die Frequenz- und Schadenparameter sind unkalibrierte Platzhalterwerte.",
+    stockRange: (n: number, lo: string, hi: string, el: string, eh: string) =>
+      `Bestand auf ${n} archivierten Luftbildern: ${lo}–${hi} Fahrzeuge, Hagel-EAL ${el} bis ${eh} pro Jahr`,
     hailHistory: "Hagelhistorie (DWD-Stationen)",
     hailHistoryLine: (d: string, n: string, km: string, a: number, b: number) =>
       `Ø ${d} Hageltage pro Jahr an Station ${n} (${km} km, ${a}-${b})`,
@@ -104,6 +106,8 @@ const LABELS = {
       `${v} vehicles × ${f} damaging events/year × ${s} loss per vehicle = ${e} per year`,
     placeholder:
       "Frequency and loss parameters are uncalibrated placeholder values.",
+    stockRange: (n: number, lo: string, hi: string, el: string, eh: string) =>
+      `Stock on ${n} archived images: ${lo}–${hi} vehicles, hail EAL ${el} to ${eh} per year`,
     hailHistory: "Hail history (DWD stations)",
     hailHistoryLine: (d: string, n: string, km: string, a: number, b: number) =>
       `${d} hail days per year on average at station ${n} (${km} km, ${a}-${b})`,
@@ -151,6 +155,8 @@ const LABELS = {
       `${v} véhicules × ${f} événements/an × ${s} de dommage par véhicule = ${e} par an`,
     placeholder:
       "Les paramètres de fréquence et de dommage sont des valeurs provisoires non calibrées.",
+    stockRange: (n: number, lo: string, hi: string, el: string, eh: string) =>
+      `Stock sur ${n} images archivées : ${lo}–${hi} véhicules, EAL grêle de ${el} à ${eh} par an`,
     hailHistory: "Historique de grêle (stations DWD)",
     hailHistoryLine: (d: string, n: string, km: string, a: number, b: number) =>
       `${d} jours de grêle par an en moyenne à la station ${n} (${km} km, ${a}-${b})`,
@@ -548,6 +554,17 @@ export function buildLocationReportPdf(
         eur(d.risk?.ealBreakdown?.hail),
       ),
     );
+    const stock = detail.stockRange;
+    if (stock)
+      paragraph(
+        L.stockRange(
+          stock.images,
+          num(stock.vehiclesLow),
+          num(stock.vehiclesHigh),
+          eur(stock.ealLow),
+          eur(stock.ealHigh),
+        ),
+      );
     paragraph(L.placeholder, 100);
     y += 4;
   }

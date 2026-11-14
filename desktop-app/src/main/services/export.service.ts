@@ -232,6 +232,8 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
     { header: "Hail Zone", key: "hailZone", width: 10 },
     { header: "Exposure (EUR)", key: "exposure", width: 16 },
     { header: "EAL (EUR)", key: "eal", width: 14 },
+    { header: "EAL Low, Stock Range (EUR)", key: "ealLow", width: 18 },
+    { header: "EAL High, Stock Range (EUR)", key: "ealHigh", width: 18 },
     { header: "Insured", key: "insured", width: 12 },
     { header: "Sales Partner", key: "salesPartner", width: 20 },
     { header: "Subportfolio", key: "subPortfolio", width: 18 },
@@ -255,6 +257,8 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
       hailZone: dealershipHailZone(d)?.zone ?? null,
       exposure: d.risk?.exposureEur ?? null,
       eal: d.risk?.eal ?? null,
+      ealLow: d.risk?.ealBreakdown?.hailDetail?.stockRange?.ealLow ?? null,
+      ealHigh: d.risk?.ealBreakdown?.hailDetail?.stockRange?.ealHigh ?? null,
       insured: d.insured == null ? "" : d.insured ? "yes" : "no",
       salesPartner: d.salesPartner ?? "",
       subPortfolio: d.subPortfolio ?? "",
@@ -290,7 +294,14 @@ async function writeExcel(session: Session, filePath: string): Promise<void> {
     to: { row: session.dealerships.length + 1, column: ws.columnCount },
   };
 
-  const currencyCols = ["exposure", "eal", "productLimit", "deductible"];
+  const currencyCols = [
+    "exposure",
+    "eal",
+    "ealLow",
+    "ealHigh",
+    "productLimit",
+    "deductible",
+  ];
   for (const key of currencyCols) {
     ws.getColumn(key).numFmt = "#,##0 €";
   }
@@ -315,6 +326,8 @@ function toCsv(session: Session): string {
     "vehicleCount",
     "hailZone",
     "eal",
+    "ealLowStockRange",
+    "ealHighStockRange",
     "insured",
     "salesPartner",
     "subPortfolio",
@@ -337,6 +350,8 @@ function toCsv(session: Session): string {
         d.detection ? effectiveVehicleCount(d.detection) : "",
         dealershipHailZone(d)?.zone ?? "",
         d.risk?.eal ?? "",
+        d.risk?.ealBreakdown?.hailDetail?.stockRange?.ealLow ?? "",
+        d.risk?.ealBreakdown?.hailDetail?.stockRange?.ealHigh ?? "",
         d.insured == null ? "" : d.insured ? "yes" : "no",
         csv(d.salesPartner ?? ""),
         csv(d.subPortfolio ?? ""),

@@ -133,6 +133,37 @@ With these values Σ p·S = 2,080 EUR, so a zone-6 site loses about 312 EUR per
 open-air vehicle and year. The values are editable under Parameters → Hail
 EAL; a change rescores every location.
 
+### Stock range (November 2026)
+
+The count N is a snapshot of one aerial image; a dealer's stock turns over
+within weeks. Where the stock was counted on archived images
+(`DetectionResult.timeline`, docs/imagery-sources.md), the hail EAL detail
+also carries `stockRange`: the EAL at the lowest, the median and the
+highest archived count, with the same λ_z and Σ p·S.
+
+- The archived counts are machine counts. When N was reviewed by hand, they
+  are scaled by N ÷ the machine count on the analysed image, so the range
+  is on the scale of N (`scaledToManual`); without a machine count there is
+  no range.
+- At least two archived counts are needed.
+- `snapshot` compares N with the archived median: more than 30 % above is
+  `high`, more than 30 % below `low`. Then the result carries the
+  limitation "Stock snapshot not typical: …", and the detail dialog says the
+  point EAL is likely too high or too low.
+- The point EAL, the exposure and every portfolio sum keep the current N.
+  The hail EAL tile adds the portfolio range: locations with a range
+  contribute their low and high EAL, the others their point EAL.
+- Counting is on request (detail dialog, or "Stock over time" on the
+  dashboard for the 20 locations with the highest EAL and no count yet), as
+  each location takes up to four detector runs.
+
+The implementation is `stockRangeVehicles` in `shared/vehicle-timeline.ts`
+and `computeEalBreakdown` in `risk/financial-loss.ts`; deterministic
+fixtures in `financial-loss.test.ts`. Limitations: the archived images are
+years apart and from different seasons; the range mixes stock variation with
+differences in image quality, boundary fit and site changes, and does not
+cover the stock between the dates.
+
 ### Limitations
 
 - A screening estimate, not an engineering, tariff, underwriting, or insurance
@@ -287,6 +318,40 @@ observing weather phenomena when observation was automated (around 2011),
 so recent years are often missing. **The history never enters the hail EAL**
 and does not change any score; it is context for the underwriter.
 Deterministic fixtures: `hail-history.service.test.ts`.
+
+## Radar hail cells (context only)
+
+The station history ends around 2011 at most stations, and no open,
+licence-compatible hail event catalogue for Germany was found (checked
+14 November 2026): the European Severe Weather Database (ESWD) is licensed
+for non-commercial use only, and the radar hail tracks of KIT (Mohr et al.,
+2026) are published as an article, not as data. Hourly present-weather codes
+of the DWD stations were checked too: three airport stations recorded almost
+no hail days after automation, so they do not fill the gap.
+
+What is open is DWD's radar cell tracking KONRAD3D
+(`opendata.dwd.de/weather/radar/konrad3d/`, 5-minute XML files of the last
+48 hours, Germany-wide). Each cell has an outline and a hydrometeor
+classification. The app keeps a **local archive**: on each sync (detail
+dialog, at most every 10 minutes) it downloads the files it does not have
+yet and stores only cells with hail. The archive therefore starts with the
+first use and grows while the app is used at least every two days.
+
+- Classes: `large` (area classified as large hail), `hail` (area classified
+  as hail), `mixed` (rain–hail mixture with the cell's hail flag).
+- A location has a hail day when a hail cell's outline passed within 1 km of
+  it; the day keeps the worst class, the first and last time step, the
+  closest distance and the highest reflectivity.
+- No location leaves the computer: the files cover Germany, and the
+  comparison runs locally.
+
+Limitations: the outline is the whole storm cell, and hail falls in part of
+it, so a cell over the site does not prove hail on the lot. Rain–hail
+mixtures in the cold season are mostly graupel. Gaps of more than 48 hours
+between uses are missing from the archive. **The radar cells never enter the
+hail EAL** and do not change any score. Data basis: Deutscher Wetterdienst
+(open data; attribution shown in the app). Deterministic fixtures:
+`radar-hail.service.test.ts`.
 
 ## Lot boundary and vehicle detection
 

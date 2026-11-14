@@ -670,11 +670,86 @@ reference outlines beyond the 17 OSM fixtures; the judgement is by eye.
   with a second lot opposite gets the lot at the point and a review flag;
   the vehicle outline remains an alternative.
 - Schleswig-Holstein, Mecklenburg-Vorpommern, Baden-Württemberg, Berlin
-  and Bremen publish neither address nor land use with the parcel; there
-  only the vegetation rules are new. Saarland still has no parcels.
+  and Bremen published neither address nor land use with the parcel; there
+  only the vegetation rules were new. (v10 adds SH, MV, BW and Saarland.)
 - The dealership's address is compared by street and house number only.
   A wrong or missing house number in the portfolio simply switches the
   address rules off for that site.
+
+## Cascade v10 (November 2026, four more states and a lot across the street)
+
+`CASCADE_VERSION` 10. v9 left three gaps: states whose parcels carry no
+address or land use, Saarland without parcels, and dealers with a second
+lot across a street. v10 closes the first two with new sources and adds
+one rule for the third.
+
+### New sources
+
+| State | Source | What it adds |
+| --- | --- | --- |
+| Mecklenburg-Vorpommern | Simplified ALKIS `ave:Flurstueck` (`geodaten-mv.de/dienste/alkis_wfs_einfach`), EPSG:25833 | Address and land use. The search box is sent and the answer read in UTM zone 33 (`utm.ts`). |
+| Schleswig-Holstein | Simplified ALKIS (`service.gdi-sh.de/WFS_SH_ALKIS_vereinf_OpenGBD`), stored query `ave-by-bbox`, EPSG:25832 | Address. Plain GetFeature on `ave:Flurstueck` is rejected; the stored query returns every layer, of which only the `Flurstueck` members are read (`onlyFeatureMembers`). |
+| Baden-Württemberg | ALKIS WFS `nora:` (`owsproxy.lgl-bw.de/owsproxy/wfs/WFS_LGL-BW_ALKIS`): address points `v_al_lagebezeichnung`, land use `v_al_tatsaechliche_nutzung` | Address (the house numbers whose points lie in the parcel) and land use (shares sampled on a 14 × 14 grid over the parcel). Parcels stay on INSPIRE (`bw-parcel-attributes.ts`). |
+| Saarland | INSPIRE `cp:CadastralParcel` (`geoportal.saarland.de/gdi-sl/inspirewfs_Flurstuecke_Grundstuecke_ALKIS`) | Parcels at all. The service moved; the old name answers "no service". Geometry only. |
+
+All four were probed live on 14 November 2026. The INSPIRE services of SH
+and MV stay as fallbacks. Addresses are now published for 12 states and
+land use for 9; Berlin and Bremen remain geometry-only, Bayern has parcels
+from the parcel map.
+
+### What changed
+
+| Change | Where | Failure it addresses |
+| --- | --- | --- |
+| **Lot across the street.** A parcel directly across a street parcel the lot borders (adjacent to the street, not to the lot) joins as a second part when at least 10 lot vehicles stand on it at 15 per 1,000 m² or more, or when it carries the dealership's address and at least 3 lot vehicles. Housing, open land, green parcels and streets never join this way; the lot may grow on from the joined parcel by the usual rules. The choice is made on the lot within 80 m and reused for the lot beyond. A result with such a part keeps the partial confidence, so it is offered for review. | `vehicleParcelStage` (`acrossTheStreet`) | v9 stopped at every road: a dealer with a storage lot opposite got the showroom plot and a review flag (seven of the twenty Bayern sites viewed for v9). |
+
+The trace names the part, for example "parcel at the point + 2 adjacent
+parcel(s) (1 across the street) hold 184 of 201 lot vehicles (92%)".
+
+### Measured
+
+Frozen inputs, v9 against v10 on the same parcels (the across rule alone):
+
+| | v9 | v10 |
+| --- | --- | --- |
+| replay set, 105 sites: results changed | — | 6 |
+| … review flags | 40 | 41 |
+| … mean IoU, 17 fixtures + 1 manual | 0.529 | 0.529 |
+| fresh set, 73 sites: results changed | — | 2 |
+| … review flags | 34 | 34 |
+
+By eye, the eight changed sites: a dense storage lot or car lot across the
+street joined at five (P190, P224, P276, P391, P465); two are unclear (a
+town-centre car park, a row of cars along a village plot); at one the rule
+took in neighbouring yards with a few cars (P426). All eight are flagged
+for review.
+
+New sources, same engine, old against refetched parcels: in SH and MV two
+of seven sites change, both visibly better (Schwerin: the whole forecourt
+of one address instead of half of it; a Schleswig-Holstein site: the car park under
+the same address). In BW five of seventeen change: one better (a house the
+lot enclosed is left out), one worse (an office block with a car park in
+its courtyard joins, because a connecting plot is no longer street-like by
+shape once land use is known), one unclear, two only in their review
+flags. Both Saarland sites move from the vehicle outline to parcels with
+nearly the same area; one gains a neighbouring hall and stays flagged.
+
+**Tried and changed.** Running the across rule again on the lot beyond
+80 m made that extension exceed its 25 % limit at two sites, which then
+fell back to a smaller result than v9's; the across choice is now made once
+on the first lot.
+
+**Limitations of v10.**
+
+- Whether a lot across the street is the dealer's is a guess from vehicle
+  density and address; a public car park or a neighbour's full yard looks
+  the same. Such results are flagged.
+- BW land use is sampled, not intersected: shares are good to a few
+  percent; very thin parcels may get none.
+- BW addresses come from address points; a point placed on a building that
+  spans two parcels names only one of them.
+- The SH stored query returns every layer of the area, about 2.5 MB for a
+  120 m box, mostly administrative boundaries; it is cached for 30 days.
 
 ## Earlier engines (removed)
 
@@ -695,16 +770,18 @@ GetCapabilities and a live GetFeature at a known point before it was added:
 | Thüringen | AdV simplified `ave:Flurstueck`, EPSG:4326 | Filters only on a UTM 32 box (EPSG:25832); the search box is converted (`toUtm32`). Address and land use. |
 | Sachsen, Niedersachsen, Sachsen-Anhalt, Hamburg | AdV simplified `ave:Flurstueck`, EPSG:4258; INSPIRE `cp:CadastralParcel` as fallback | Address and land use. Sachsen answers EPSG:4326 with an HTML page. Hamburg always reports `numberReturned="0"`; a full page counts as capped. |
 | Hessen, Brandenburg | AdV simplified `ave:Flurstueck`, EPSG:4258; INSPIRE as fallback | Address only (no `tntxt`). |
-| Schleswig-Holstein, Baden-Württemberg, Mecklenburg-Vorpommern | INSPIRE `cp:CadastralParcel`, EPSG:4258 | Geometry only. The simplified services of SH and MV answer in projected coordinates only; BW's `nora:v_al_flurstueck` keeps addresses in separate tables. |
+| Mecklenburg-Vorpommern | AdV simplified `ave:Flurstueck`, EPSG:25833 (UTM 33); INSPIRE as fallback | Address and land use. Box and geometry converted (`utm.ts`). |
+| Schleswig-Holstein | AdV simplified, stored query `ave-by-bbox`, EPSG:25832; INSPIRE as fallback | Address only. Only the `Flurstueck` members of the all-layer answer are read. |
+| Baden-Württemberg | INSPIRE `cp:CadastralParcel`, EPSG:4258, plus `nora:` address points and land use | Address and land use attached from the separate layers (`bw-parcel-attributes.ts`). |
+| Saarland | INSPIRE `cp:CadastralParcel`, EPSG:4258 | Geometry only. Reports `numberReturned="0"` like Hessen. |
 | Bremen (city and Bremerhaven) | AdV `adv:AX_Flurstueck` (simple features), EPSG:4258 | Served by LGLN Niedersachsen. Geometry only. |
 | Berlin | `alkis_flurstuecke:flurstuecke`, EPSG:4326 | Geometry only. |
 | Bayern | Parcel map (WMS, raster), read back into polygons | No vector parcels are open. Land use from the fill colour; no addresses. See "Cascade v9". |
 
-Missing, as of November 2026: **Saarland** (the registered WFS returns an
-empty response, and no open parcel map was found). In **Bayern** the
-INSPIRE and AdV vector services answer 401/403 without a login and parcels
-are charged per parcel (see "Cascade v3 → Data sources"); since v9 the
-open parcel map stands in for them.
+All 16 states have parcels since v10 (Saarland's service had moved). In
+**Bayern** the INSPIRE and AdV vector services answer 401/403 without a
+login and parcels are charged per parcel (see "Cascade v3 → Data
+sources"); since v9 the open parcel map stands in for them.
 
 Paging: NRW honours `startIndex`; Niedersachsen answers every page with the
 first (probed 13 November 2026), so capped answers there are completed with
@@ -742,12 +819,13 @@ first.
 - The engine produces a **screening estimate**, not a survey. It must not be
   presented as an engineering, legal or underwriting determination of site
   extent.
-- Cadastral parcels exist for 15 of 16 German states (see "Cadastre
-  coverage"; in Bayern read from a rendered map); in Saarland and Austria
-  the answer is the outline of the detected vehicles, a cached OSM dealer
-  area or the circle.
-- Parcel addresses are published in nine states and land use in seven; in
-  the others the v8 rules apply unchanged, plus the vegetation test.
+- Cadastral parcels exist for all 16 German states (see "Cadastre
+  coverage"; in Bayern read from a rendered map); in Austria the answer is
+  the outline of the detected vehicles, a cached OSM dealer area or the
+  circle.
+- Parcel addresses are available in twelve states and land use in nine
+  (Bayern: land use only); in Berlin and Bremen the v8 rules apply
+  unchanged, plus the vegetation test.
 - Imagery vintage is provider-dependent and often unknown, so a recently
   rebuilt or extended site may be scored against years-old imagery.
 - OSM reference polygons are mapper-dependent: an IoU of 1.0 against them

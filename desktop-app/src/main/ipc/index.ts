@@ -56,6 +56,7 @@ import { exportLocationReport } from "../services/location-report.service";
 import { getHailZoneOverlay } from "../services/hail-zone-overlay/overlay.service";
 import { getOsmDetails } from "../services/osmDetails.service";
 import { getHailHistory } from "../services/hail-history/hail-history.service";
+import { radarHailAt } from "../services/hail-history/radar-hail.service";
 import { placesAutocomplete } from "../services/places.service";
 import {
   parseCsvWithReport,
@@ -174,6 +175,7 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   );
   handle(IPC.fetchWeather, ({ lat, lon }) => fetchWeather(lat, lon));
   handle(IPC.hailHistory, ({ lat, lon }) => getHailHistory(lat, lon));
+  handle(IPC.radarHail, ({ lat, lon }) => radarHailAt(lat, lon));
   handle(
     IPC.scoreRisk,
     ({

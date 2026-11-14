@@ -8,6 +8,7 @@ import "@geoman-io/leaflet-geoman-free";
 import {
   ArrowRight,
   Check,
+  ClipboardCheck,
   Filter,
   Info,
   Loader2,
@@ -38,6 +39,7 @@ import { HintButton } from "@renderer/components/ui/hint-button";
 import { Progress } from "@renderer/components/ui/progress";
 import { cn } from "@renderer/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { usePausedReview } from "@renderer/components/dashboard/reviewRunStore";
 import { unanalyzedInputs, useAppStore } from "@renderer/store/appStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import {
@@ -375,6 +377,8 @@ export function MapPage(): React.JSX.Element {
   const basemap = useMapStore((s) => s.basemap);
   const editing = useMapStore((s) => s.editing);
   const setEditing = useMapStore((s) => s.setEditing);
+  // A dashboard review run paused for a boundary correction here.
+  const pausedReviewId = usePausedReview((s) => s.resumeId);
   const setLayers = useMapStore((s) => s.setLayers);
   const detectionEditing = useMapStore((s) => s.detectionEditing);
   const setDetectionEditing = useMapStore((s) => s.setDetectionEditing);
@@ -1126,6 +1130,38 @@ export function MapPage(): React.JSX.Element {
 
         {errorNotice}
         {resumeNotice}
+
+        {pausedReviewId && !editing && boundaryEditIds.length === 0 && (
+          <div className={NOTICE_CLASS}>
+            <ClipboardCheck className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="font-medium">{t("review.pausedTitle")}</div>
+              <p className="text-xs leading-snug text-muted-foreground">
+                {t("review.pausedHint")}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-1">
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => navigate("/dashboard")}
+              >
+                <ArrowRight className="size-3" />
+                {t("review.resume")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => usePausedReview.getState().clear()}
+              >
+                {t("review.endRun")}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {editing && boundaryEditIds.length === 0 && (
           <div className={NOTICE_CLASS}>

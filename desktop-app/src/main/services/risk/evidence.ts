@@ -97,6 +97,8 @@ export const HAIL_EAL_PLACEHOLDERS =
 export const HAIL_VEHICLES_FROM_ASSET_VALUE =
   "Hail EAL vehicle count derived from the declared asset value";
 
+export const STOCK_SNAPSHOT_PREFIX = "Stock snapshot not typical: ";
+
 export function riskLimitations(
   boundary: BoundaryResult | undefined,
   detection: DetectionResult | undefined,
@@ -112,6 +114,12 @@ export function riskLimitations(
     limitations.push(HAIL_ZONE_ESTIMATED);
   if (hailDetail?.vehicleSource === "assetValue")
     limitations.push(HAIL_VEHICLES_FROM_ASSET_VALUE);
+  const stock = hailDetail?.stockRange;
+  if (stock && stock.snapshot !== "typical") {
+    limitations.push(
+      `${STOCK_SNAPSHOT_PREFIX}${hailDetail.vehicles} vehicles on the analysed image against a median of ${stock.vehiclesMedian} on ${stock.images} archived images: the point EAL may ${stock.snapshot === "high" ? "overstate" : "understate"} typical stock (range ${stock.ealLow}–${stock.ealHigh} EUR)`,
+    );
+  }
   if (
     natCat &&
     natCat.hazards.every(

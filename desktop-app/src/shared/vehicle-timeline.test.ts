@@ -59,7 +59,7 @@ describe("describeVehicleTimeline", () => {
       AT,
     )!;
     expect(describeVehicleTimeline(timeline)).toBe(
-      "Vehicle stock across 3 archived images (2017-01-15 to 2024-06-01): median 31, range 12–40. Evidence only; the exposure uses the current count.",
+      "Vehicle stock across 3 archived images (2017-01-15 to 2024-06-01): median 31, range 12–40. The exposure and the point EAL use the current count; the hail EAL detail shows the range.",
     );
   });
 
@@ -88,7 +88,7 @@ describe("attachVehicleTimeline", () => {
       fallbackUsed: false,
       limitations: [
         "Vehicles counted on X",
-        "Vehicle stock across 2 archived images (old): median 1, range 1–1. Evidence only; the exposure uses the current count.",
+        "Vehicle stock across 2 archived images (old): median 1, range 1–1. The exposure and the point EAL use the current count; the hail EAL detail shows the range.",
       ],
     },
   };
