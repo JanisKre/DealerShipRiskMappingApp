@@ -54,13 +54,20 @@ export default defineConfig({
     // Shown in the sidebar footer; always the package.json version.
     define: { __APP_VERSION__: JSON.stringify(version) },
     build: {
-      // electron-vite leaves the renderer unminified by default; minified it
-      // is roughly a third of the size to read and parse on every start.
-      minify: true,
-      // Geoman's stylesheet embeds SVG data URLs the CSS minifier rejects.
-      cssMinify: false,
+      // electron-vite leaves the renderer unminified by default. Only dead
+      // code and comments are removed here: identifiers and line breaks stay,
+      // so renderer errors in the support log (main.log) keep readable
+      // function names and line numbers.
+      minify: false,
       rollupOptions: {
-        input: { index: resolve(__dirname, 'src/renderer/index.html') }
+        input: { index: resolve(__dirname, 'src/renderer/index.html') },
+        output: {
+          minify: {
+            compress: true,
+            mangle: false,
+            codegen: { removeWhitespace: false }
+          }
+        }
       }
     },
     resolve: {
