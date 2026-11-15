@@ -223,6 +223,47 @@ describe("computeAccumulationClusters", () => {
     expect(multi[0].totalExposureEur).toBe(3_000_000);
   });
 
+  it("finds the same clusters as testing every pair", () => {
+    // Deterministic pseudo-random portfolio across Germany.
+    let seed = 42;
+    const random = (): number => {
+      seed = (seed * 1664525 + 1013904223) % 4294967296;
+      return seed / 4294967296;
+    };
+    const ds = Array.from({ length: 300 }, (_, i) =>
+      make(`d${i}`, {
+        lat: 47.5 + random() * 7,
+        lon: 6 + random() * 9,
+        exposureEur: Math.round(random() * 1_000_000),
+      }),
+    );
+    for (const radiusKm of [0, 5, 25, 80]) {
+      // Reference: single linkage over all pairs.
+      const parent = ds.map((_, i) => i);
+      const find = (i: number): number =>
+        parent[i] === i ? i : (parent[i] = find(parent[i]));
+      for (let i = 0; i < ds.length; i++) {
+        for (let j = i + 1; j < ds.length; j++) {
+          if (
+            haversineKm(ds[i].lat, ds[i].lon, ds[j].lat, ds[j].lon) <= radiusKm
+          )
+            parent[find(i)] = find(j);
+        }
+      }
+      const expected = new Map<number, string[]>();
+      ds.forEach((d, i) => {
+        expected.set(find(i), [...(expected.get(find(i)) ?? []), d.id]);
+      });
+      const expectedGroups = [...expected.values()]
+        .map((ids) => ids.sort().join(","))
+        .sort();
+      const actualGroups = computeAccumulationClusters(ds, radiusKm)
+        .map((c) => c.memberIds.join(","))
+        .sort();
+      expect(actualGroups).toEqual(expectedGroups);
+    }
+  });
+
   it("produces a stable clusterId for the same members", () => {
     const ds = [
       make("a", { lat: 51.0, lon: 10.0 }),

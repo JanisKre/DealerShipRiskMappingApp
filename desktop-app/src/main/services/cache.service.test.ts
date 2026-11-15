@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("../db/database", () => ({ getDb: () => mocks.db }));
 
-import { cached } from "./cache.service";
+import { cached, pruneExpired } from "./cache.service";
 
 describe("persistent cache", () => {
   beforeEach(() => {
@@ -41,5 +41,24 @@ describe("persistent cache", () => {
     await expect(cached("key", 60_000, fetcher)).resolves.toEqual({
       source: "stale-cache",
     });
+  });
+
+  it("prunes expired entries of one key prefix in a bounded batch", () => {
+    mocks.statement.run.mockReturnValue({ changes: 7 });
+    const before = Date.now();
+
+    expect(pruneExpired("tile:", 100)).toBe(7);
+
+    const [from, to, now, limit] = mocks.statement.run.mock.calls[0] as [
+      string,
+      string,
+      number,
+      number,
+    ];
+    expect(from).toBe("tile:");
+    expect("tile:v2:esri:live:19/1/2" < to).toBe(true);
+    expect("tilf" < to).toBe(false);
+    expect(now).toBeGreaterThanOrEqual(before);
+    expect(limit).toBe(100);
   });
 });

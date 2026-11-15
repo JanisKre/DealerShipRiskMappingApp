@@ -30,13 +30,15 @@ export function effectiveVehicleCount(
  *   - Risk level is tracked via risk.overallScore (0..100) instead of RiskLevel
  */
 
+const EARTH_RADIUS_KM = 6371;
+
 export function haversineKm(
   lat1: number,
   lon1: number,
   lat2: number,
   lon2: number,
 ): number {
-  const R = 6371;
+  const R = EARTH_RADIUS_KM;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -465,8 +467,27 @@ export function computeAccumulationClusters(
     if (ra !== rb) parent[ra] = rb;
   };
 
+  // Sweep by latitude instead of testing every pair: two points are never
+  // closer than their north-south distance, so only neighbours within the
+  // radius in latitude need the exact distance. Same pairs, same clusters,
+  // but near-linear for a portfolio spread over a country.
+  const order: number[] = [];
   for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
+    if (
+      Number.isFinite(dealerships[i].lat) &&
+      Number.isFinite(dealerships[i].lon)
+    )
+      order.push(i);
+  }
+  order.sort((a, b) => dealerships[a].lat - dealerships[b].lat);
+  const latWindowDeg = (radiusKm / EARTH_RADIUS_KM) * (180 / Math.PI) + 1e-9;
+  for (let a = 0; a < order.length; a++) {
+    const from = dealerships[order[a]];
+    for (let b = a + 1; b < order.length; b++) {
+      const to = dealerships[order[b]];
+      if (to.lat - from.lat > latWindowDeg) break;
+      const i = Math.min(order[a], order[b]);
+      const j = Math.max(order[a], order[b]);
       const dist = haversineKm(
         dealerships[i].lat,
         dealerships[i].lon,

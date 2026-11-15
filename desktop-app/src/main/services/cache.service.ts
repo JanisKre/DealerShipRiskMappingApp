@@ -24,6 +24,22 @@ export function cacheSet<T>(key: string, value: T, ttlMs: number): void {
     .run(key, JSON.stringify(value), Date.now() + ttlMs);
 }
 
+/**
+ * Deletes up to `limit` expired entries whose key starts with `prefix` and
+ * returns how many were removed. Only for keys read through `cacheGet`,
+ * which never serves an expired entry: `cached()` keeps stale values as an
+ * offline fallback, so those must not be pruned.
+ */
+export function pruneExpired(prefix: string, limit = 500): number {
+  return getDb()
+    .prepare(
+      `DELETE FROM api_cache WHERE key IN (
+         SELECT key FROM api_cache
+          WHERE key >= ? AND key < ? AND expires_at < ? LIMIT ?)`,
+    )
+    .run(prefix, `${prefix}\uffff`, Date.now(), limit).changes;
+}
+
 /** Cache-first helper: returns the cached value or calls fetcher() and caches it. */
 export async function cached<T>(
   key: string,

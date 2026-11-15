@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { memo, useEffect, useMemo } from "react";
 import { Polygon, useMap } from "./leaflet-react";
 import type { Layer, LeafletEventHandlerFnMap } from "leaflet";
 import area from "@turf/area";
@@ -81,37 +81,67 @@ export function BoundaryLayer({
     <>
       {dealerships.map((d) =>
         d.boundary ? (
-          <Polygon
+          <BoundaryPolygon
             key={d.id}
-            positions={toLatLngGeometry(d.boundary.polygon) as never}
-            pathOptions={{
-              color: sourceColor(d.boundary.source),
-              dashArray: sourceDashArray(d.boundary.source),
-              weight: 2,
-              fillOpacity: 0.15,
-              // Geoman runs in opt-in mode (MapPage): only boundaries edit.
-              pmIgnore: false,
-            }}
-            eventHandlers={
-              {
-                "pm:edit": (e: BoundaryEditEvent) => {
-                  const layer = e.layer ?? e.target;
-                  if (!layer) return;
-                  const updated = readGeometry(layer as EditableLayer);
-                  if (updated)
-                    void updateBoundaryAndRescore(
-                      d.id,
-                      rebuildBoundary(d.boundary!, updated),
-                    );
-                },
-              } as LeafletEventHandlerFnMap
-            }
+            id={d.id}
+            boundary={d.boundary}
+            onEdit={updateBoundaryAndRescore}
           />
         ) : null,
       )}
     </>
   );
 }
+
+/**
+ * One outline. Memoised on the boundary object, so the map redraws only the
+ * polygon that changed: without it, every selection or progress update
+ * re-projected and restyled each outline of the portfolio.
+ */
+const BoundaryPolygon = memo(function BoundaryPolygon({
+  id,
+  boundary,
+  onEdit,
+}: Readonly<{
+  id: string;
+  boundary: BoundaryResult;
+  onEdit: (id: string, boundary: BoundaryResult) => Promise<void>;
+}>): React.JSX.Element {
+  const positions = useMemo(
+    () => toLatLngGeometry(boundary.polygon) as never,
+    [boundary.polygon],
+  );
+  const pathOptions = useMemo(
+    () => ({
+      color: sourceColor(boundary.source),
+      dashArray: sourceDashArray(boundary.source),
+      weight: 2,
+      fillOpacity: 0.15,
+      // Geoman runs in opt-in mode (MapPage): only boundaries edit.
+      pmIgnore: false,
+    }),
+    [boundary.source],
+  );
+  const eventHandlers = useMemo(
+    () =>
+      ({
+        "pm:edit": (e: BoundaryEditEvent) => {
+          const layer = e.layer ?? e.target;
+          if (!layer) return;
+          const updated = readGeometry(layer as EditableLayer);
+          if (updated) void onEdit(id, rebuildBoundary(boundary, updated));
+        },
+      }) as LeafletEventHandlerFnMap,
+    [id, boundary, onEdit],
+  );
+  return (
+    <Polygon
+      positions={positions}
+      pathOptions={pathOptions}
+      eventHandlers={eventHandlers}
+    />
+  );
+});
 
 interface PmMap {
   enableGlobalEditMode: () => void;

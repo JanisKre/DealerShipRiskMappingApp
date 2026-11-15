@@ -13,6 +13,7 @@ import { registerIpcHandlers } from "./ipc";
 import { startRadarHailBackgroundSync } from "./services/hail-history/radar-hail.service";
 import { checkDealerDirectoryUpdate } from "./services/dealer-directory.service";
 import { warmUpDetector } from "./services/detection.service";
+import { pruneExpiredTiles } from "./services/tiles.service";
 import { configureCustomOverpass } from "./services/boundary/overpass-client";
 import { getSettings } from "./services/settings.service";
 import { closeDb, getDb } from "./db/database";
@@ -222,6 +223,8 @@ app.whenReady().then(() => {
   // Once the app has settled: does Overture have a newer dealer release?
   // Throttled to once a day and skipped until a directory was downloaded.
   setTimeout(() => void checkDealerDirectoryUpdate(), STARTUP_CHECK_DELAY_MS);
+  // Housekeeping: expired imagery tiles only take up room in the database.
+  setTimeout(() => pruneExpiredTiles(), STARTUP_CHECK_DELAY_MS * 2);
   // Load the vehicle model while the user is still looking at the map, so
   // the first analysis does not wait for the inference processes to start.
   setTimeout(() => warmUpDetector(), DETECTOR_WARM_UP_DELAY_MS);

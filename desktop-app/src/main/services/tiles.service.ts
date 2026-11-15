@@ -8,7 +8,7 @@ import {
   type ImageryCandidate,
   type ImagerySelection,
 } from "@shared/imagery-sources";
-import { cacheGet, cacheSet } from "./cache.service";
+import { cacheGet, cacheSet, pruneExpired } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
 import {
   ESRI_TILE_SOURCE,
@@ -45,6 +45,24 @@ const TILE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days — orthophotos rarely cha
  * `blankTile=false`.
  */
 const TILE_CACHE_VERSION = 2;
+
+const TILE_PRUNE_PAUSE_MS = 250;
+
+/**
+ * Removes expired imagery tiles in small batches. Tiles are by far the
+ * largest cache entries and an expired one is never read again, yet it used
+ * to stay in the database until the same tile was requested once more.
+ */
+export function pruneExpiredTiles(): void {
+  let removed: number;
+  try {
+    removed = pruneExpired("tile:");
+  } catch (error) {
+    console.warn("Pruning expired imagery tiles failed:", error);
+    return;
+  }
+  if (removed > 0) setTimeout(pruneExpiredTiles, TILE_PRUNE_PAUSE_MS).unref();
+}
 
 /** Loads a single tile as a raw RGB buffer (persistent cache as base64). */
 async function loadTileRgb(

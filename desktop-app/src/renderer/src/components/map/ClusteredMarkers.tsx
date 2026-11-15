@@ -133,10 +133,40 @@ function popupHtml(
     </div>`;
 }
 
+interface MarkerEntry {
+  marker: L.Marker;
+  dealership: AnalyzedDealership;
+  pending: boolean;
+  selected: boolean;
+}
+
+/** Hover tooltip: hail zone and vehicle count. */
+function tooltipHtml(
+  d: AnalyzedDealership,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  const zone = zoneOf(d);
+  return (
+    [
+      `<strong>${escapeHtml(d.name)}</strong>`,
+      zone != null ? t("dashboard.hailZoneLabel", { zone }) : t("ui.analyzing"),
+      zone != null ? zoneScaleHtml(zone) : null,
+      d.detection ? `${t("common.vehicles")}: ${vehicleLabel(d, t)}` : null,
+      d.boundary?.reviewRequired ? t("ui.boundaryReviewNeeded") : null,
+    ]
+      .filter(Boolean)
+      // One block per line: the zone bar is a block itself, and a <br>
+      // after it left an empty line.
+      .map((line) => `<div>${line}</div>`)
+      .join("")
+  );
+}
+
 /**
  * Imperative marker-cluster component. Uses `L.MarkerClusterGroup` directly
  * because the declarative bindings in ./leaflet-react cover plain layers only.
- * Rebuilds the cluster on every change to `dealerships`/`selectedId`.
+ * Keeps the cluster in step with `dealerships`/`selectedId` by replacing
+ * only the markers that changed.
  */
 export function ClusteredMarkers({
   dealerships,
@@ -152,6 +182,21 @@ export function ClusteredMarkers({
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
   /** The selected marker, kept out of the cluster so it is never hidden. */
   const selectedRef = useRef<L.LayerGroup | null>(null);
+  /** Markers on the map by location id, with the state they were built from. */
+  const entriesRef = useRef(new Map<string, MarkerEntry>());
+  // Read at event time, so a new callback identity does not rebuild markers.
+  const callbacks = useRef({
+    onSelect,
+    onOpenDetails,
+    onConfirmBoundary,
+    onContextMenu,
+  });
+  callbacks.current = {
+    onSelect,
+    onOpenDetails,
+    onConfirmBoundary,
+    onContextMenu,
+  };
 
   useEffect(() => {
     // Create the cluster group once and add it to the map.
@@ -183,29 +228,51 @@ export function ClusteredMarkers({
       selectedLayer.remove();
       clusterRef.current = null;
       selectedRef.current = null;
+      entriesRef.current = new Map();
     };
   }, [map, t]);
 
-  // Sync markers when data or selection changes.
+  // Sync markers when data or selection changes. Only markers whose location,
+  // pending state or selection changed are replaced: rebuilding all of them
+  // on every click and every analysis tick re-clustered the whole portfolio.
   useEffect(() => {
     const group = clusterRef.current;
     const selectedLayer = selectedRef.current;
     if (!group || !selectedLayer) return;
-    group.clearLayers();
-    selectedLayer.clearLayers();
+    const entries = entriesRef.current;
+
+    const stale: L.Marker[] = [];
+    const drop = (id: string, entry: MarkerEntry): void => {
+      if (entry.selected) selectedLayer.removeLayer(entry.marker);
+      else stale.push(entry.marker);
+      entries.delete(id);
+    };
 
     // Collected and added in one `addLayers` call: per-marker `addLayer` on a
-    // live cluster group re-clusters each time, which is far too slow for a
-    // few hundred locations rebuilt on every analysis tick.
-    const markers: L.Marker[] = [];
+    // live cluster group re-clusters each time.
+    const added: L.Marker[] = [];
     const pendingIds = new Set(analyzingIds);
+    const seen = new Set<string>();
     for (const d of dealerships) {
+      seen.add(d.id);
       const pending = !d.risk || pendingIds.has(d.id);
       const isSelected = d.id === selectedId;
+      const current = entries.get(d.id);
+      if (
+        current &&
+        current.dealership === d &&
+        current.pending === pending &&
+        current.selected === isSelected
+      ) {
+        continue;
+      }
+      if (current) drop(d.id, current);
+
+      const zone = zoneOf(d);
       const marker = L.marker([d.lat, d.lon], {
-        icon: riskMarkerIcon(zoneOf(d), isSelected, businessType(d)),
+        icon: riskMarkerIcon(zone, isSelected, businessType(d)),
         opacity: pending ? 0.6 : 1,
-        alt: `${d.name}${zoneOf(d) != null ? ` – ${t("dashboard.hailZoneLabel", { zone: zoneOf(d) })}` : ""}`,
+        alt: `${d.name}${zone != null ? ` – ${t("dashboard.hailZoneLabel", { zone })}` : ""}`,
         keyboard: true,
         title: d.name,
         riseOnHover: true,
@@ -214,21 +281,6 @@ export function ClusteredMarkers({
 
       marker._dealershipId = d.id;
 
-      // Hover tooltip: hail zone and vehicle count.
-      const tooltipText = [
-        `<strong>${escapeHtml(d.name)}</strong>`,
-        zoneOf(d) != null
-          ? t("dashboard.hailZoneLabel", { zone: zoneOf(d) })
-          : t("ui.analyzing"),
-        zoneOf(d) != null ? zoneScaleHtml(zoneOf(d)!) : null,
-        d.detection ? `${t("common.vehicles")}: ${vehicleLabel(d, t)}` : null,
-        d.boundary?.reviewRequired ? t("ui.boundaryReviewNeeded") : null,
-      ]
-        .filter(Boolean)
-        // One block per line: the zone bar is a block itself, and a <br>
-        // after it left an empty line.
-        .map((line) => `<div>${line}</div>`)
-        .join("");
       // Near the top edge the tooltip opens below the pin instead of being
       // clipped by the map. Registered before bindTooltip so it runs before
       // the tooltip opens.
@@ -239,25 +291,29 @@ export function ClusteredMarkers({
         tooltip.options.direction = below ? "bottom" : "top";
         tooltip.options.offset = below ? [0, 6] : [0, -34];
       });
-      marker.bindTooltip(tooltipText, {
+      // Tooltip and popup HTML are built when they open, not for every pin.
+      marker.bindTooltip(() => tooltipHtml(d, t), {
         direction: "top",
         offset: [0, -34],
         opacity: 0.95,
       });
 
       // Rich popup.
-      marker.bindPopup(popupHtml(d, t), {
+      marker.bindPopup(() => popupHtml(d, t), {
         maxWidth: 240,
         className: "drm-popup-wrapper",
       });
 
-      marker.on("click", () => onSelect(d.id));
+      marker.on("click", () => callbacks.current.onSelect(d.id));
       marker.on("contextmenu", (e) => {
         const orig = e.originalEvent;
         orig.preventDefault();
         // The hover tooltip would cover the menu.
         marker.closeTooltip();
-        onContextMenu(d, { x: orig.clientX, y: orig.clientY });
+        callbacks.current.onContextMenu(d, {
+          x: orig.clientX,
+          y: orig.clientY,
+        });
       });
 
       // "View details" button in the popup via event delegation.
@@ -269,7 +325,7 @@ export function ClusteredMarkers({
         if (detailsBtn) {
           detailsBtn.onclick = () => {
             const id = detailsBtn.dataset.id;
-            if (id) onOpenDetails(id);
+            if (id) callbacks.current.onOpenDetails(id);
           };
         }
         const confirmBtn = root?.querySelector(
@@ -280,7 +336,7 @@ export function ClusteredMarkers({
             const id = confirmBtn.dataset.id;
             if (!id) return;
             marker.closePopup();
-            onConfirmBoundary(id);
+            callbacks.current.onConfirmBoundary(id);
           };
         }
       });
@@ -288,10 +344,19 @@ export function ClusteredMarkers({
       // The selected site sits outside the cluster: hidden inside a cluster
       // badge, a selection from the list or the chat showed nothing.
       if (isSelected) selectedLayer.addLayer(marker);
-      else markers.push(marker);
+      else added.push(marker);
+      entries.set(d.id, {
+        marker,
+        dealership: d,
+        pending,
+        selected: isSelected,
+      });
     }
-    group.addLayers(markers);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    for (const [id, entry] of entries) {
+      if (!seen.has(id)) drop(id, entry);
+    }
+    if (stale.length > 0) group.removeLayers(stale);
+    if (added.length > 0) group.addLayers(added);
   }, [dealerships, selectedId, analyzingIds, t, map]);
 
   return null;

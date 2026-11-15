@@ -1,13 +1,33 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import i18n from "@renderer/i18n";
 import { AppShell } from "@renderer/components/layout/AppShell";
-import { DashboardPage } from "@renderer/components/dashboard/DashboardPage";
-import { SettingsPage } from "@renderer/components/settings/SettingsPage";
 import { WorkspacePage } from "@renderer/components/workspace/WorkspacePage";
-import { ParametersPage } from "@renderer/components/parameters/ParametersPage";
 import { UpdateNotifier } from "@renderer/components/settings/UpdateNotifier";
 import { Toaster } from "@renderer/components/ui/sonner";
+
+// The workspace (map) is the start page and stays in the main chunk; the
+// other pages load on first visit, which keeps the startup script small.
+const DashboardPage = lazy(() =>
+  import("@renderer/components/dashboard/DashboardPage").then((m) => ({
+    default: m.DashboardPage,
+  })),
+);
+const ParametersPage = lazy(() =>
+  import("@renderer/components/parameters/ParametersPage").then((m) => ({
+    default: m.ParametersPage,
+  })),
+);
+const SettingsPage = lazy(() =>
+  import("@renderer/components/settings/SettingsPage").then((m) => ({
+    default: m.SettingsPage,
+  })),
+);
+
+/** A page chunk is a local file: it is there within a frame or two. */
+function page(element: React.JSX.Element): React.JSX.Element {
+  return <Suspense fallback={null}>{element}</Suspense>;
+}
 
 export function App(): React.JSX.Element {
   // Apply the language from persisted settings at startup.
@@ -32,9 +52,9 @@ export function App(): React.JSX.Element {
           {/* Catch legacy navigate("/map") calls → back to the workspace */}
           <Route path="map" element={<Navigate to="/" replace />} />
           <Route path="chat" element={<Navigate to="/" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="parameters" element={<ParametersPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route path="dashboard" element={page(<DashboardPage />)} />
+          <Route path="parameters" element={page(<ParametersPage />)} />
+          <Route path="settings" element={page(<SettingsPage />)} />
         </Route>
       </Routes>
       <UpdateNotifier />

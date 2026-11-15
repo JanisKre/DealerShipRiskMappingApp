@@ -259,26 +259,83 @@ function useLayer<T extends L.Layer>(
   return layer;
 }
 
+/**
+ * Call sites pass a fresh handler object on every render. The listeners are
+ * therefore bound once per set of event names and read the current handlers
+ * through a ref, instead of being removed and re-added on every render.
+ */
 function useEventHandlers(
   layer: L.Layer | null,
   handlers: L.LeafletEventHandlerFnMap | undefined,
 ): void {
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
+  const eventNames = handlers ? Object.keys(handlers).sort().join(" ") : "";
+
   useEffect(() => {
-    if (!layer || !handlers) return;
-    layer.on(handlers);
+    if (!layer || !eventNames) return;
+    const bound: Record<string, L.LeafletEventHandlerFn> = {};
+    for (const name of eventNames.split(" ")) {
+      bound[name] = (event) => {
+        const current = handlersRef.current as
+          Record<string, L.LeafletEventHandlerFn | undefined> | undefined;
+        current?.[name]?.(event);
+      };
+    }
+    layer.on(bound);
     return () => {
-      layer.off(handlers);
+      layer.off(bound);
     };
-  }, [layer, handlers]);
+  }, [layer, eventNames]);
 }
 
+function shallowEqual(a: object, b: object): boolean {
+  if (a === b) return true;
+  const keysA = Object.keys(a);
+  if (keysA.length !== Object.keys(b).length) return false;
+  const recordA = a as Record<string, unknown>;
+  const recordB = b as Record<string, unknown>;
+  return keysA.every(
+    (key) => key in recordB && Object.is(recordA[key], recordB[key]),
+  );
+}
+
+/**
+ * Applies style changes only. `pathOptions` is usually an object literal, so
+ * without the comparison every render of the parent restyled (and redrew)
+ * every path on the map.
+ */
 function usePathStyle(
   layer: L.Path | null,
   pathOptions: L.PathOptions | undefined,
 ): void {
+  const applied = useRef<{ layer: L.Path; options: L.PathOptions } | null>(
+    null,
+  );
   useEffect(() => {
-    if (layer && pathOptions) layer.setStyle(pathOptions);
+    if (!layer || !pathOptions) return;
+    const last = applied.current;
+    if (last?.layer === layer && shallowEqual(last.options, pathOptions)) {
+      return;
+    }
+    layer.setStyle(pathOptions);
+    applied.current = { layer, options: pathOptions };
   }, [layer, pathOptions]);
+}
+
+/** Moves a point layer only when its position really changed. */
+function usePosition(
+  layer: {
+    getLatLng(): L.LatLng;
+    setLatLng(latlng: L.LatLngExpression): unknown;
+  } | null,
+  position: L.LatLngExpression,
+): void {
+  useEffect(() => {
+    if (!layer) return;
+    if (layer.getLatLng().equals(L.latLng(position), 0)) return;
+    layer.setLatLng(position);
+  }, [layer, position]);
 }
 
 function LayerChildren({
@@ -315,9 +372,7 @@ export function Circle({
     () => L.circle(center, { ...pathOptions, radius, interactive }),
     interactive,
   );
-  useEffect(() => {
-    layer?.setLatLng(center);
-  }, [layer, center]);
+  usePosition(layer, center);
   useEffect(() => {
     layer?.setRadius(radius);
   }, [layer, radius]);
@@ -340,9 +395,7 @@ export function CircleMarker({
     () => L.circleMarker(center, { ...pathOptions, radius, interactive }),
     interactive,
   );
-  useEffect(() => {
-    layer?.setLatLng(center);
-  }, [layer, center]);
+  usePosition(layer, center);
   useEffect(() => {
     layer?.setRadius(radius);
   }, [layer, radius]);
@@ -413,9 +466,7 @@ export function Marker({
     () => L.marker(position, { interactive, ...(icon ? { icon } : {}) }),
     interactive,
   );
-  useEffect(() => {
-    layer?.setLatLng(position);
-  }, [layer, position]);
+  usePosition(layer, position);
   useEffect(() => {
     if (layer && icon) layer.setIcon(icon);
   }, [layer, icon]);
