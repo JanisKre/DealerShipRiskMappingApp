@@ -30,7 +30,12 @@ import {
   anchorBuildingOf,
   anchorParcelOf,
 } from "./cascade-anchors";
-import { isStreetParcel, greenShare } from "./cascade-parcels";
+import {
+  isRoadParcel,
+  isStreetParcel,
+  greenShare,
+  lotParcelRing,
+} from "./cascade-parcels";
 import {
   addressAnchor,
   parcelResult,
@@ -92,6 +97,13 @@ export function parcelStage(input: CascadeInput): StageOutcome {
         input.parcels.length === 0
           ? "no cadastral parcels here"
           : "no cadastral parcel contains the point",
+      alternatives: [],
+    };
+  }
+  if (isRoadParcel(anchor, input.parcels)) {
+    return {
+      result: null,
+      reason: "parcel at the point is a road, not a plot",
       alternatives: [],
     };
   }
@@ -209,7 +221,7 @@ function nearestLot(
     const lot = vehicleLot(
       input.vehicles,
       v,
-      anchorParcelOf(at)?.ring,
+      lotParcelRing(at),
       anchorBuildingOf(at),
     );
     tried.push(...(lot.length > 0 ? lot : [v]));

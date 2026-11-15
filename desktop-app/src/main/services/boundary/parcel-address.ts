@@ -37,7 +37,15 @@ function houseNumbers(token: string): string[] {
   return [...numbers];
 }
 
-/** The street-and-number keys in an address text; empty without a number. */
+/**
+ * The street-and-number keys in an address text; empty without a number.
+ *
+ * A dealership's address often starts with its name ("F&T Fahrzeug-Technik,
+ * Dresdner Str. 263, 01705 Freital"), so the text is read part by part
+ * between commas: a part without a number is a name or a town and is
+ * skipped, a part that starts with a number continues the street before it,
+ * and a postcode ends the street.
+ */
 export function addressKeys(address: string | undefined): string[] {
   if (!address) return [];
   const keys = new Set<string>();
@@ -45,16 +53,23 @@ export function addressKeys(address: string | undefined): string[] {
   for (const part of address.split(";")) {
     // "Wandsbeker Chaussee 195;197": a part that starts with a number
     // continues the street before it.
-    const match = part.trim().match(/^(\D*?)\s*(\d.*)$/);
-    if (!match) continue;
-    const named = normaliseStreet(match[1]);
-    if (named.length >= 3) street = named;
-    if (street.length < 3) continue;
-    for (const token of match[2].split(/[,/]/)) {
-      const numbers = houseNumbers(token.trim());
-      // A postcode and town ("51645 Gummersbach") end the house numbers.
-      if (numbers.length === 0) break;
-      for (const number of numbers) keys.add(`${street}|${number}`);
+    for (const segment of part.split(",")) {
+      const match = segment.trim().match(/^(\D*?)\s*(\d.*)$/);
+      if (!match) continue;
+      const named = normaliseStreet(match[1]);
+      if (named.length >= 3) street = named;
+      if (street.length < 3) continue;
+      let ended = false;
+      for (const token of match[2].split("/")) {
+        const numbers = houseNumbers(token.trim());
+        // A postcode and town ("51645 Gummersbach") end the house numbers.
+        if (numbers.length === 0) {
+          ended = named.length < 3;
+          break;
+        }
+        for (const number of numbers) keys.add(`${street}|${number}`);
+      }
+      if (ended) break;
     }
   }
   return [...keys];

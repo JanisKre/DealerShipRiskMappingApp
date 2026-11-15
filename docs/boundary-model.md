@@ -151,14 +151,16 @@ cause: a dealership is not one parcel.
 prior, so sites reported ~0.8 confidence at ~0.3 IoU. A calibration MAE of 0.40
 means the number cannot be used to triage review.
 
-## Workflow at a glance (current, cascade v12)
+## Workflow at a glance (current, cascade v13)
 
 One analysis decides the lot in six steps. The sections below record how each
 rule came about; this is what runs today.
 
 1. **Point.** The geocoded or given position. Where the cadastre publishes
    addresses and the point lies on a street or a foreign plot, it moves to
-   the parcel with the dealership's address (v9).
+   the parcel with the dealership's address (v9). A road parcel is never
+   the parcel at the point: without an address parcel the lot starts from
+   the plot beside the road that holds the vehicles (v13).
 2. **Image and vehicles.** One aerial image of 125 m around the point; the
    vehicle model runs on it; roofs are masked.
 3. **Cadastre.** Parcels around the point (all 16 states; Bayern from the
@@ -920,6 +922,103 @@ outlines beyond the 17 OSM fixtures. The frozen inputs of the earlier checks
   quarter of the lot, the result is flagged `vehiclesOutside`.
 - Sections are read from the rendered map like the parcels: good to about
   half a metre.
+
+## Cascade v13 (November 2026, a road is not a lot)
+
+`CASCADE_VERSION` 13. A user reported a site in Freital (Sachsen) whose
+boundary was the main road: a strip 14 m wide and 1.5 km long, 25,464 m²,
+with the trace "parcel at the point + 7 adjacent parcel(s) (2 across the
+street, 1 enclosed) hold 89 of 97 lot vehicles".
+
+### What happened
+
+Two faults, one behind the other.
+
+1. **The address was not read.** The site was added from the search, which
+   stores the address as "F&T Fahrzeug-Technik, Dresdner Str. 263, 01705
+   Freital". `addressKeys` took everything before the first digit as the
+   street name, so the key was `ftfahrzeugtechnikdresdnerstr|263` and
+   matched no parcel. The cadastre has a parcel "Dresdner Straße 263" 3 m
+   from the point; the v9 rule that moves a point from a street to the
+   address parcel never fired.
+2. **A road could be the parcel at the point.** The geocoded point lay on
+   the carriageway. Dresdner Straße is one parcel of 22,012 m², registered
+   as 100 % traffic. Roads never *join* a lot, but nothing stopped a road
+   from being the parcel the lot *starts* from. Every car parked along the
+   road stood "on the parcel at the point", so the lot was the whole street
+   within reach, and the plots on both sides joined from it. Stage 4 offered
+   the road parcel as "ALKIS parcel" as well.
+
+### What changed
+
+| Change | Where | Effect |
+| --- | --- | --- |
+| **Addresses are read part by part.** The text is split at commas: a part without a number (a name, a town) is skipped, a part that starts with a number continues the street before it, a postcode ends it. | `addressKeys` (`parcel-address.ts`) | "Name, Street 12, 12345 Town" yields `street|12`. Parcel addresses ("Kölner Straße 260, 262, 264") read as before. |
+| **A road is never the parcel at the point.** A road is a parcel the cadastre lists as at least half traffic area without a house number; where no land use is published, a parcel that is narrow, longer than 150 m and not a field strip. | `isRoadParcel` | Used by the address move, stage 1, the vehicle lot of stage 2 and stage 4. |
+| **Stage 1 starts beside the road.** For a point on a road the lot is formed without the road as its ground, and the start parcel is the plot within 40 m of the point that holds most of that lot (at least three vehicles). No such plot: stage 1 declines. | `plotBesideRoad`, `roadAnchorReachM` | The trace reads "the point lies on a road parcel; the plot beside it (16 lot vehicles) + …". |
+| **Stage 4 declines a road.** | `parcelStage` | A road parcel is not offered as the site, chosen or as an alternative. |
+
+### Measured
+
+All on frozen inputs, v12 against v13, 15 November 2026.
+
+**The reported site** (parcels fetched live, the vehicles of the stored
+analysis, no building footprints or vegetation raster):
+
+| | v12 | v13 |
+| --- | --- | --- |
+| Start parcel | the road, 22,012 m² | "Dresdner Straße 263", 661 m², 3 m from the point |
+| Result | 25,464 m², road plus 7 plots, confidence 0.6 | 3,480 m², 7 plots, no road, confidence 0.75 |
+| Lot vehicles | 97, of which 43 on the road | 82, of which 76 inside |
+| Same site without its address | — | 2,821 m², started from the plot beside the road with 16 lot vehicles |
+
+Judged by eye on the DOP20 image: the v13 outline is the building at the
+address and the two car parks behind it; the yard across the road that v12
+had joined is out.
+
+**17 public fixtures** (captured live with imagery `auto`, then replayed):
+no result changes, 9 flagged for review before and after, mean IoU 0.509
+before and after. The fixtures carry no address and none of their points
+lies on a road, so this shows only that nothing else moved.
+
+**Two other sites of the same portfolio** (addresses without a house
+number, points on plots): identical.
+
+**79 dealers from the open dealer directory** (ids chosen by prefix, 90
+drawn, 79 in states with a vector cadastre; parcels only, no vehicle
+detection, addresses in the search's format):
+
+| | v12 | v13 |
+| --- | --- | --- |
+| Addresses that yield a street-and-number key | 1 | 78 |
+| Point on a road parcel | 1 | 1 |
+| Road parcel returned as the site (stage 4) | 1 | 0 |
+| Point moved to the address parcel | 0 | 3 |
+| Results that change | — | 3 |
+
+The three changed sites are the three moves: one from the road (4,535 m² of
+"Uhlandstraße" → the 3,314 m² address plot), two from a plot with another
+house number and no vehicles to the dealer's own (4,373 → 3,904 m², 22,970
+→ 7,140 m²). They were not judged by eye.
+
+**Not an independent result.** The rule was written for one reported site.
+The directory run has no vehicles, so it does not show how often stage 1
+changes now that addresses are read; the v9 measurement of the address
+rules (105 and 73 sites) is the nearest evidence, and its frozen inputs no
+longer exist. The live benchmark with addresses was not run.
+
+### Limitations of v13
+
+- The plot beside the road is chosen by vehicles, within 40 m. A dealership
+  set back further from a road point, or with its cars hidden, falls to the
+  vehicle outline (stage 2) or the circle.
+- Where the search stores an address without a house number ("Autohaus …,
+  01219 Dresden, Sachsen, Deutschland") there is still no key; the point
+  stays where the geocoder put it.
+- With addresses now read for sites from the search, the v9 address rules
+  (point moves to the address parcel, same-address parcels join) apply to
+  them for the first time. A result calculated before v13 can therefore
+  differ after a new analysis even when the point is not on a road.
 
 ## Earlier engines (removed)
 

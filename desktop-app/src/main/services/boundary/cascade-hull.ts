@@ -27,12 +27,8 @@ import {
   type StageOutcome,
 } from "./cascade-config";
 import { now, distanceM, validRing } from "./cascade-geometry";
-import {
-  vehicleLot,
-  anchorBuildingOf,
-  anchorParcelOf,
-} from "./cascade-anchors";
-import { streetParcels } from "./cascade-parcels";
+import { vehicleLot, anchorBuildingOf } from "./cascade-anchors";
+import { lotParcelRing, streetParcels } from "./cascade-parcels";
 
 // --- Stage 2: outline of the vehicle lot ----------------------------------
 
@@ -90,7 +86,7 @@ export function vehicleHullStage(input: CascadeInput): StageOutcome {
   const lot = vehicleLot(
     input.vehicles,
     input.anchor,
-    anchorParcelOf(input)?.ring,
+    lotParcelRing(input),
     anchorBuildingOf(input),
   );
   if (lot.length === 0) {

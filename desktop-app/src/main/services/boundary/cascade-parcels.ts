@@ -6,7 +6,8 @@ import {
 } from "../boundary-geometry";
 import type { ParcelFeature } from "../alkis.service";
 import { addressKeys } from "./parcel-address";
-import { CASCADE_LIMITS } from "./cascade-config";
+import { CASCADE_LIMITS, type CascadeInput } from "./cascade-config";
+import { anchorParcelOf } from "./cascade-anchors";
 import {
   contains,
   boundingLengthM,
@@ -141,6 +142,39 @@ export function isStreetParcel(
   parcel: Pick<ParcelFeature, "ring" | "landUse" | "address">,
 ): boolean {
   return streetByUse(parcel) ?? isStreetLike(parcel.ring);
+}
+
+/**
+ * A road, path or rail parcel as the parcel at the point: by the cadastre's
+ * land use where it is published, else long and narrow and not a field
+ * strip. A geocoded point often lies on the carriageway, and such a parcel
+ * is never the dealership: in the November audit Dresdner Straße in Freital
+ * (22,000 m² of road, one parcel) was returned as a lot because the point
+ * lay on it.
+ */
+export function isRoadParcel(
+  parcel: ParcelFeature,
+  parcels: ParcelFeature[],
+): boolean {
+  const byUse = streetByUse(parcel);
+  if (byUse !== null) return byUse;
+  return (
+    isStreetLike(parcel.ring) &&
+    !isShortStrip(parcel.ring) &&
+    !isFieldStrip(parcel, parcels)
+  );
+}
+
+/**
+ * The parcel at the point as the ground the vehicle lot may stand on: none
+ * when it is a road, so that cars along a kilometre of street are not all
+ * "on the parcel at the point".
+ */
+export function lotParcelRing(input: CascadeInput): LonLat[] | undefined {
+  const parcel = anchorParcelOf(input);
+  return parcel && !isRoadParcel(parcel, input.parcels)
+    ? parcel.ring
+    : undefined;
 }
 
 /** Housing or open land by the cadastre's land use; false when unknown. */

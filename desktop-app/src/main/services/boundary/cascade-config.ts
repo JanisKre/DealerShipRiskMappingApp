@@ -40,8 +40,12 @@ import type { OsmEvidence } from "./osm-overpass";
  * (the vegetation trimming of v9 is gone); in Bayern the open land the
  * parcel map draws inside a parcel is a unit of its own
  * (docs/boundary-model.md, "Cascade v12").
+ * 13: a road parcel is never the parcel at the point: the lot starts from
+ * the plot beside it that holds the vehicles, and stage 4 declines; an
+ * address that starts with the dealership's name is read
+ * (docs/boundary-model.md, "Cascade v13").
  */
-export const CASCADE_VERSION = 12;
+export const CASCADE_VERSION = 13;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -169,6 +173,11 @@ export const CASCADE_LIMITS = {
    * another address or none.
    */
   addressAnchorReachM: 150,
+  /**
+   * A point on a road parcel starts from a plot within this distance: the
+   * geocoder puts a house on the carriageway in front of it.
+   */
+  roadAnchorReachM: 40,
   /** Vertex distance at which two parcels count as neighbours. */
   adjacentParcelM: 3,
   /**

@@ -44,6 +44,16 @@ without any of the protocols switched on.
 
 ### Fixed
 
+- **A road is no longer returned as the lot (cascade v13).** A site whose
+  position lay on the carriageway got the road parcel as its boundary, in
+  one reported case 1.5 km of main road. A road parcel is now never the
+  starting parcel: the boundary starts from the plot beside the road that
+  holds the vehicles, and a road is not offered as an alternative either.
+  Addresses that start with the dealership's name ("Name, Street 12, 12345
+  Town", the format the search stores) are now read, so the position moves
+  to the parcel with that address and parcels with the same address join.
+  Analyse a site again to get the new boundary. See
+  `docs/boundary-model.md`, "Cascade v13".
 - **Lot boundary follows the cadastre again (cascade v12).** A boundary
   built from parcels no longer gets a ragged bite where grass or trees were
   cut off on a 1 m raster, and its other edges are no longer redrawn from

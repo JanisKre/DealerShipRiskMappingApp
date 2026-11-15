@@ -40,6 +40,7 @@ import {
   isShortStrip,
   streetByUse,
   isStreetParcel,
+  isRoadParcel,
   isForeignUse,
   greenShare,
   borderShare,
@@ -96,7 +97,7 @@ export function addressAnchor(
   const keys = new Set(addressKeys(input.address));
   if (keys.size === 0) return null;
   const atPoint = anchorParcelOf(input);
-  if (atPoint && streetByUse(atPoint) !== true) {
+  if (atPoint && !isRoadParcel(atPoint, input.parcels)) {
     // A parcel without a house number is left alone: the showroom often
     // stands on one, and the numbered plot is the owner's house behind it.
     // So is a parcel with another number that holds vehicles: a yard is
@@ -118,7 +119,7 @@ export function addressAnchor(
     .filter(
       (parcel) =>
         parcel.areaSqm <= CASCADE_LIMITS.maxParcelSqm &&
-        streetByUse(parcel) !== true &&
+        !isRoadParcel(parcel, input.parcels) &&
         sharesAddress(keys, parcel.address),
     )
     .map((parcel) => ({
@@ -190,6 +191,42 @@ export function parcelResult(
 // --- Stage 1: parcels holding the vehicle lot -----------------------------
 
 /**
+ * For a point on a road parcel: the plot within `roadAnchorReachM` that holds
+ * most of the vehicle lot at the point, and that lot. The road itself does
+ * not count as the parcel at the point, so cars parked along it are part of
+ * the lot only where they link to it. Null when no plot beside the point
+ * holds `minLotVehicles` of the lot.
+ */
+function plotBesideRoad(
+  input: CascadeInput,
+  road: ParcelFeature,
+): { parcel: ParcelFeature; lot: LonLat[]; count: number } | null {
+  const lot = vehicleLot(
+    input.vehicles ?? [],
+    input.anchor,
+    undefined,
+    anchorBuildingOf(input),
+  );
+  const best = input.parcels
+    .filter(
+      (parcel) =>
+        parcel !== road &&
+        parcel.areaSqm <= CASCADE_LIMITS.maxParcelSqm &&
+        !isStreetParcel(parcel) &&
+        distanceToRingM(input.anchor, parcel.ring) <=
+          CASCADE_LIMITS.roadAnchorReachM,
+    )
+    .map((parcel) => ({
+      parcel,
+      count: lot.filter((v) => contains(parcel.ring, v)).length,
+      distanceM: distanceToRingM(input.anchor, parcel.ring),
+    }))
+    .filter((c) => c.count >= CASCADE_LIMITS.minLotVehicles)
+    .sort((a, b) => b.count - a.count || a.distanceM - b.distanceM)[0];
+  return best ? { parcel: best.parcel, lot, count: best.count } : null;
+}
+
+/**
  * The parcel at the point, grown over shared edges onto every adjacent parcel
  * on which at least `parcelMinVehicles` lot vehicles stand. Street-like
  * parcels never join, so a lot never jumps a road. Growth stops at
@@ -199,8 +236,8 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
   if (!input.vehicles) {
     return { result: null, reason: "no vehicle detection", alternatives: [] };
   }
-  const anchor = anchorParcelOf(input);
-  if (!anchor) {
+  const atPoint = anchorParcelOf(input);
+  if (!atPoint) {
     return {
       result: null,
       reason:
@@ -210,10 +247,25 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
       alternatives: [],
     };
   }
+  // A road is never the lot: the lot is the plot beside it that holds the
+  // vehicles at the point.
+  const onRoad = isRoadParcel(atPoint, input.parcels);
+  const beside = onRoad ? plotBesideRoad(input, atPoint) : null;
+  if (onRoad && !beside) {
+    return {
+      result: null,
+      reason: `the point lies on a road parcel and no plot within ${CASCADE_LIMITS.roadAnchorReachM} m holds a vehicle lot`,
+      alternatives: [],
+    };
+  }
+  const anchor = beside?.parcel ?? atPoint;
+  const start = beside
+    ? `the point lies on a road parcel; the plot beside it (${beside.count} lot vehicles)`
+    : "parcel at the point";
   if (anchor.areaSqm > CASCADE_LIMITS.maxParcelSqm) {
     return {
       result: null,
-      reason: `parcel at the point is ${Math.round(anchor.areaSqm)} m², too large for one lot`,
+      reason: `${start} is ${Math.round(anchor.areaSqm)} m², too large for one lot`,
       alternatives: [],
     };
   }
@@ -226,12 +278,14 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     };
   }
   const buildings = input.buildings ?? [];
-  const firstLot = vehicleLot(
-    input.vehicles,
-    input.anchor,
-    anchor.ring,
-    anchorBuildingOf(input),
-  );
+  const firstLot = beside
+    ? beside.lot
+    : vehicleLot(
+        input.vehicles,
+        input.anchor,
+        anchor.ring,
+        anchorBuildingOf(input),
+      );
   if (firstLot.length === 0) {
     return {
       result: null,
@@ -482,7 +536,7 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         joined > 0 ? `ALKIS parcel + ${joined} with vehicles` : "ALKIS parcel",
         "operationalLot",
       ),
-      reason: `parcel at the point${joined > 0 ? ` + ${joined} adjacent parcel(s)${detail ? ` (${detail})` : ""}` : ""} hold ${covered} of ${lot.length} lot vehicles (${Math.round(coverage * 100)}%)`,
+      reason: `${start}${joined > 0 ? ` + ${joined} adjacent parcel(s)${detail ? ` (${detail})` : ""}` : ""} hold ${covered} of ${lot.length} lot vehicles (${Math.round(coverage * 100)}%)`,
     };
   };
 
@@ -507,7 +561,7 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     // parking strip beside it does not make it one either.
     return {
       result: null,
-      reason: `parcel at the point is ${Math.round(anchor.areaSqm)} m² and no parcel with vehicles joined, too small for a lot`,
+      reason: `${start} is ${Math.round(anchor.areaSqm)} m² and no parcel with vehicles joined, too small for a lot`,
       alternatives: [],
     };
   }

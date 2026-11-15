@@ -55,6 +55,20 @@ describe("addressKeys", () => {
     ]);
   });
 
+  it("skips a name in front of the street and a town after it", () => {
+    expect(
+      addressKeys("F&T Fahrzeug-Technik, Dresdner Str. 263, 01705 Freital"),
+    ).toEqual(["dresdnerstr|263"]);
+    expect(
+      addressKeys("Autohaus 24 GmbH, Hauptstraße 5 / 7, 51645 Gummersbach"),
+    ).toEqual(["hauptstr|5", "hauptstr|7"]);
+    expect(
+      addressKeys(
+        "Autohaus Dresden Reick, 01219 Dresden, Sachsen, Deutschland",
+      ),
+    ).toEqual([]);
+  });
+
   it("ignores a district in brackets", () => {
     expect(addressKeys("Zeitzer Straße (Bornitz) 18")).toEqual([
       "zeitzerstr|18",
