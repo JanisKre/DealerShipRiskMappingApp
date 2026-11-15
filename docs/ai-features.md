@@ -81,6 +81,17 @@ MCP (server, client and an MCP App), A2A and AG-UI are described in
   corridor on the map before relying on its impact figures, which remain
   screening estimates.
 
+## Testing against a real model
+
+`e2e/ai-live.spec.ts` runs the memo, the dealership reply, the
+counter-argument, the image checks and the record book in the built app
+against a real model. It is skipped unless `DRM_E2E_LLM_BASE_URL` (an
+OpenAI-compatible endpoint on this computer, e.g. Ollama) and
+`DRM_E2E_LLM_MODEL` are set; `DRM_E2E_LLM_VISION=1` adds the image checks.
+`e2e/agent-gateway.spec.ts` always runs and speaks MCP, A2A and AG-UI to the
+running app over HTTP; with `DRM_E2E_CLAUDE_HOST=1` it also connects the
+`claude` CLI as an MCP host.
+
 ## Implementation
 
 - Agents: `src/main/services/llm-agents.service.ts` (tests:

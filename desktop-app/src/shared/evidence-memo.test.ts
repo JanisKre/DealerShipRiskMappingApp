@@ -84,6 +84,20 @@ describe("verifyMemo", () => {
     expect(memo.sentences[2].facts).toEqual(["f2"]);
   });
 
+  // Found with a real model: it explains the zone by naming the scale.
+  it("lets a sentence name the hail zone scale", () => {
+    const memo = verifyMemo(
+      {
+        sentences: [
+          { text: "Hagelzone 4 auf einer Skala von 1 bis 6.", facts: [] },
+        ],
+      },
+      facts,
+    );
+    expect(memo.removed).toEqual([]);
+    expect(memo.sentences).toHaveLength(1);
+  });
+
   it("removes sentences with figures the app did not compute", () => {
     const memo = verifyMemo(
       {

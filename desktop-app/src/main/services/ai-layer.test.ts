@@ -28,7 +28,13 @@ import {
   mcpChatLookup,
   readRpcResponse,
 } from "./mcp-client.service";
-import { outlinePath } from "./site-check.service";
+import sharp from "sharp";
+import {
+  SITE_CHECK_IMAGE_MAX_PX,
+  encodeAerialImage,
+  outlinePath,
+} from "./site-check.service";
+import type { AerialCapture } from "./tiles.service";
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -266,6 +272,64 @@ describe("site check image", () => {
       100,
     );
     expect(path).toBe("M0.0,50.0L100.0,50.0L100.0,100.0L0.0,50.0Z");
+  });
+});
+
+describe("site check image encoding", () => {
+  // Found with a real capture: sharp resizes before it composites, so an
+  // outline drawn at capture size no longer fitted a downscaled image.
+  it("draws the outline on a capture larger than the output size", async () => {
+    const width = 2304;
+    const height = 1792;
+    const capture = {
+      rgba: new Uint8Array(width * height * 4).fill(120),
+      width,
+      height,
+      bbox: [11, 48, 11.02, 48.02],
+      validTileCount: 1,
+      tileCount: 1,
+    } as unknown as AerialCapture;
+    const image = await encodeAerialImage(capture, {
+      source: "manual",
+      polygon: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [11.005, 48.015],
+            [11.015, 48.015],
+            [11.015, 48.005],
+            [11.005, 48.015],
+          ],
+        ],
+      },
+      areaSqm: 1,
+      confidence: 1,
+    });
+    expect(image?.mediaType).toBe("image/jpeg");
+    const meta = await sharp(Buffer.from(image!.base64, "base64")).metadata();
+    expect(meta.width).toBe(SITE_CHECK_IMAGE_MAX_PX);
+    expect(meta.height).toBe(Math.round((height * 1568) / width));
+    // The outline is pink: somewhere the red channel clearly beats green.
+    const { data, info } = await sharp(Buffer.from(image!.base64, "base64"))
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let pink = 0;
+    for (let i = 0; i < data.length; i += info.channels)
+      if (data[i] > 200 && data[i + 1] < 120) pink += 1;
+    expect(pink).toBeGreaterThan(100);
+  });
+
+  it("returns nothing without imagery", async () => {
+    expect(
+      await encodeAerialImage({
+        rgba: null,
+        width: 0,
+        height: 0,
+        bbox: [0, 0, 1, 1],
+        validTileCount: 0,
+        tileCount: 1,
+      } as unknown as AerialCapture),
+    ).toBeNull();
   });
 });
 

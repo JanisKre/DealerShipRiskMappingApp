@@ -63,22 +63,23 @@ export async function encodeAerialImage(
   boundary?: BoundaryResult,
 ): Promise<LlmImage | null> {
   if (!capture.rgba || capture.validTileCount === 0) return null;
+  // sharp resizes before it composites, whatever the call order: the outline
+  // is therefore drawn at the output size, with the capture as its viewBox.
+  const scale = Math.min(
+    1,
+    SITE_CHECK_IMAGE_MAX_PX / Math.max(capture.width, capture.height),
+  );
+  const width = Math.max(1, Math.round(capture.width * scale));
+  const height = Math.max(1, Math.round(capture.height * scale));
   let image = sharp(Buffer.from(capture.rgba), {
     raw: { width: capture.width, height: capture.height, channels: 4 },
-  });
+  }).resize(width, height, { fit: "fill" });
   if (boundary) {
     const stroke = Math.max(3, Math.round(capture.width / 300));
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${capture.width}" height="${capture.height}"><path d="${outlinePath(boundary.polygon, capture.bbox, capture.width, capture.height)}" fill="none" stroke="#ff2d95" stroke-width="${stroke}"/></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${capture.width} ${capture.height}"><path d="${outlinePath(boundary.polygon, capture.bbox, capture.width, capture.height)}" fill="none" stroke="#ff2d95" stroke-width="${stroke}"/></svg>`;
     image = image.composite([{ input: Buffer.from(svg) }]);
   }
-  const jpeg = await image
-    .removeAlpha()
-    .resize(SITE_CHECK_IMAGE_MAX_PX, SITE_CHECK_IMAGE_MAX_PX, {
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .jpeg({ quality: 82 })
-    .toBuffer();
+  const jpeg = await image.removeAlpha().jpeg({ quality: 82 }).toBuffer();
   return { mediaType: "image/jpeg", base64: jpeg.toString("base64") };
 }
 

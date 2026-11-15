@@ -49,7 +49,7 @@ const FACT_LABEL: Record<MemoFactKey, string> = {
   vehicles: "Vehicles on the lot (N)",
   vehicleSource: "Source of the vehicle count",
   imageDate: "Capture date of the aerial image the vehicles were counted on",
-  hailZone: "Hail zone (1 lowest to 6 highest)",
+  hailZone: "Hail zone (higher means more hail; the scale ends at six)",
   hailZoneSource: "Source of the hail zone",
   eventsPerYear: "Damaging hail events per year in this zone",
   lossPerVehicleEur: "Expected loss per vehicle and event (EUR)",
@@ -135,6 +135,9 @@ export function memoFactsText(
   ].join("\n");
 }
 
+/** "Hail zone 4 on a scale from 1 to 6": the scale itself may be written. */
+const HAIL_ZONE_SCALE = [1, 6] as const;
+
 export const MEMO_MAX_SENTENCES = 10;
 export const MEMO_SENTENCE_MAX_CHARS = 400;
 
@@ -181,7 +184,8 @@ export function verifyMemo(
   facts: MemoFact[],
 ): EvidenceMemo {
   const known = new Set(facts.map((f) => f.id));
-  const allowed = facts.flatMap(factNumbers);
+  // The ends of the hail zone scale are not a claim about this location.
+  const allowed = [...facts.flatMap(factNumbers), ...HAIL_ZONE_SCALE];
   const memo: EvidenceMemo = { sentences: [], removed: [] };
   for (const sentence of answer.sentences) {
     const text = sentence.text.trim().slice(0, MEMO_SENTENCE_MAX_CHARS);
