@@ -151,6 +151,36 @@ cause: a dealership is not one parcel.
 prior, so sites reported ~0.8 confidence at ~0.3 IoU. A calibration MAE of 0.40
 means the number cannot be used to triage review.
 
+## Workflow at a glance (current, cascade v12)
+
+One analysis decides the lot in six steps. The sections below record how each
+rule came about; this is what runs today.
+
+1. **Point.** The geocoded or given position. Where the cadastre publishes
+   addresses and the point lies on a street or a foreign plot, it moves to
+   the parcel with the dealership's address (v9).
+2. **Image and vehicles.** One aerial image of 125 m around the point; the
+   vehicle model runs on it; roofs are masked.
+3. **Cadastre.** Parcels around the point (all 16 states; Bayern from the
+   parcel map, with open land inside a parcel as a unit of its own, v12),
+   building footprints, and a vegetation raster from the same image.
+4. **Vehicle lot.** The vehicles that stand together at the point (gaps of at
+   most 12 m, within 40 m of the point or on its parcel).
+5. **Parcels of the lot (stage 1).** The parcel at the point, plus adjacent
+   parcels chosen by one of these reasons, each named in the trace: vehicles
+   of the lot stand on it, it carries the same address, it is enclosed by the
+   chosen parcels, it is a full parking strip, or it is a dense car lot
+   directly across a street. Streets, housing, open land and vegetation join
+   only when dense with vehicles.
+6. **Outline.** The union of the chosen parcels, holes filled. **The outline
+   consists of cadastral lines only**: nothing is cut off or added by what
+   the image shows (v12).
+
+When step 5 has no usable parcel, the fallbacks apply in order: the outline
+of the vehicle lot (stage 2), a cached OSM dealer area (stage 3), the parcel
+at the point (stage 4), a circle or marker (stage 5). Every result carries
+its stage, a trace of reasons, a fixed confidence per stage and review flags.
+
 ## Source cascade (current engine)
 
 The app runs the **source cascade** (`src/main/services/boundary/cascade.ts`).
@@ -562,7 +592,7 @@ field with the parcel.
 | **Same address.** A neighbouring parcel that shares a street and house number with the parcel at the point, or with the dealership's address, joins without cars on it: up to 5,000 m², beyond that only while it is no larger than the parcels chosen so far, and not when it is housing, open land or mostly vegetation. | `vehicleParcelStage`, `sharesAddress` | 17 of 74 replayed sites with addresses had parcels of the dealer's own address left out: rear yards, the second half of a forecourt, workshop plots with few cars outside. |
 | **Point moved to the address.** When the point lies on no parcel, on a street, or on a parcel with another house number and fewer than three vehicles, and a parcel within 150 m carries the dealership's address, the stages start from that parcel. A point on a parcel without a house number, or with vehicles on it, stays. | `addressAnchor`, `runCascade` | A geocoded point on the road or on the neighbour's plot gave the circle or the neighbour's parcel. |
 | **Housing and open land.** A parcel that is mostly housing or open land by the cadastre, or mostly vegetation on the image, joins only by the dense rule (5 cars and 8 per 1,000 m²), and as an enclosed plot only up to 200 m². A parcel that is mostly vegetation does not join by its address either. | `isForeignUse`, `greenShare` | v8 took in a neighbour's house or a meadow the lot enclosed, and a meadow with a row of cars at its edge joined when it held ten of them. |
-| **Vegetation trimmed.** Vegetation of at least 600 m² at the edge of the parcel union, more than 10 m wide and with no detected vehicle within 8 m, is cut off. Islands inside the lot, rows of trees, the lawn along a forecourt and building footprints stay. | `trimVegetation` | The parcel at the point is often larger than the lot: a wood, a meadow or an embankment on the same plot. |
+| **Vegetation trimmed (removed in v12).** Vegetation of at least 600 m² at the edge of the parcel union, more than 10 m wide and with no detected vehicle within 8 m, was cut off. Islands inside the lot, rows of trees, the lawn along a forecourt and building footprints stayed. | `trimVegetation` (removed) | The parcel at the point is often larger than the lot: a wood, a meadow or an embankment on the same plot. See "Cascade v12" for why the cut was removed. |
 | **Parcels in Bayern.** Stage 1 runs on the parcels read from the parcel map; their traffic areas are streets. The land-use raster of v6 is only used when the map fails. | `bavariaParcelsNear`, `boundary.service.ts` | Bayern had only the vehicle outline (stage 2). |
 
 The trace names what joined and what was removed, for example "parcel at
@@ -800,6 +830,94 @@ not occurred on a real site yet. It is covered by fixtures only
   review flag the user corrects the point or confirms the result.
 - The thresholds were chosen on one reported case and checked for false
   positives on 195 sites, not tuned on a set of off-site points.
+
+## Cascade v12 (November 2026, cadastral lines only)
+
+`CASCADE_VERSION` 12. A user reported a Bayern lot whose outline had a
+ragged bite taken out of it and matched the parcel lines nowhere along that
+edge. The trace read "parcel at the point + 1 adjacent parcel(s) …; 1,017 m²
+of vegetation without vehicles trimmed off".
+
+### What happened
+
+The neighbouring parcel (2,814 m²) is a car park on its eastern quarter and
+a meadow on the rest. Eighteen lot vehicles stand on it, so it joined whole.
+The vegetation trimming of v9 then removed the part of the meadow that lay
+more than 8 m from any vehicle, on a 1 m raster, and vectorised the *whole*
+result from that raster. Two things followed:
+
+- the cut ran through the grass at a fixed distance from the cars, along no
+  line visible on the map or the image;
+- every other edge of the lot was redrawn from 1 m cells (22 points for
+  12,392 m²), so the outline no longer lay on the cadastre.
+
+The cadastre itself draws the line the trimming was guessing: the parcel map
+shows the meadow and the car park of that parcel as two land-use areas.
+
+### What changed
+
+| Change | Where | Effect |
+| --- | --- | --- |
+| **No raster trimming.** The stage 1 outline is the union of the chosen parcels with holes filled, nothing else. | `vehicleParcelStage` (`trimVegetation`, its three limits and its tests removed) | A parcel result always lies on cadastral lines. The vegetation raster still decides *whether* a parcel joins (`greenShare`), never its shape. |
+| **Open-land sections in Bayern.** Where the parcel map draws a land-use boundary inside a parcel, each patch of open land of at least 100 m² becomes a unit of its own, provided at least 100 m² of other use remains. Smaller lawns stay with their parcel. | `bavaria-parcels.service.ts` (`splitOpenSections`, `MIN_SECTION_SQM`) | A lot takes the yard of a plot without its meadow, along the cadastre's own line. |
+| **Land-use lines read as ground.** The mid-grey line between two land uses (178, 178, 178) was classified as building; it now takes the use beside it. | `classifyMapPixel` (`useLine`) | Building share and land-use shares of Bayern parcels are no longer skewed by these lines. |
+| **Farmland is open land in Bayern.** The pale yellow of farmland (255, 247, 219) was "other"; it is now "open". | `classifyMapPixel` | A field joins only when dense with vehicles, and a point in a field with no building or vehicles near it is off the site (v11) although bare soil is not vegetation on the image. |
+
+### Measured
+
+Frozen inputs captured live on 15 November 2026 (imagery `auto`): the
+reported site, the 17 public fixtures and 36 dealers drawn at random from
+the open dealer directory (three per leading postcode digit, six for 8 and
+9, so Bayern is over-represented). v11 ran on the parcels its reader
+produced, v12 on the new ones.
+
+| | v11 | v12 |
+| --- | --- | --- |
+| Sites | 54 | 54 |
+| Results that change | — | 4 |
+| Results with a raster-trimmed outline | 3 | 0 |
+| Results flagged for review | 17 | 17 |
+| Mean IoU, 17 public fixtures | 0.510 | 0.510 |
+| Winning stage | 51 parcels, 3 outlines | unchanged |
+
+The four changed sites, judged by eye on the aerial image:
+
+- The reported site (Bayern): 12,392 m² with 22 points and the bite →
+  11,137 m² with 24 points on parcel and land-use lines. The car park on
+  the neighbouring parcel stays in, its meadow and a strip of lawn beside a
+  hall are out. 212 of 220 lot vehicles are inside; the eight outside stand
+  on the meadow side of the line.
+- A second Bayern site: a wooded wedge beside the yard no longer joins
+  (11,201 → 10,440 m²); its trees are an open-land section now.
+- Two sites outside Bayern had the same ragged cut in v11 (742 m² of lawn,
+  926 m² of trees, one with a spike in the outline). They are whole parcels
+  again: 7,449 → 8,174 m² and 33,699 → 34,543 m², the latter with 47 points
+  on the cadastre instead of 23 from the raster.
+
+The other 50 results are identical, including the other nine Bayern sites,
+where the new sections exist but lie outside the lot.
+
+**Not an independent result.** The rule was written for one reported site;
+the other sites show what else it changes, judged by eye, with no reference
+outlines beyond the 17 OSM fixtures. The frozen inputs of the earlier checks
+(195 sites) were no longer available, so v12 was not replayed on them.
+
+### Limitations of v12
+
+- Outside Bayern a meadow, wood or garden on a chosen parcel is now part of
+  the result again, as before v9: the simplified ALKIS services publish land
+  use per parcel as shares, not as areas. The area is then too large; the
+  vehicle count is not affected, since no vehicles stand there. Sub-parcel
+  land use (`ave:NutzungFlurstueck`) would give the same cut as in Bayern and
+  is not read yet.
+- A section is cut only where the cadastre registers open land. A lawn the
+  cadastre counts as trade land stays in; a paved yard it still lists as
+  farmland is a unit of its own and joins only when dense with vehicles.
+- Vehicles parked on the open-land side of a land-use line are outside the
+  result and are not counted for the site. With ten or more of them, and a
+  quarter of the lot, the result is flagged `vehiclesOutside`.
+- Sections are read from the rendered map like the parcels: good to about
+  half a metre.
 
 ## Earlier engines (removed)
 

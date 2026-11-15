@@ -43,8 +43,8 @@ export interface BoundaryRunOptions {
   buildingsDeadline?: number;
   /**
    * Vegetation on the context image the vehicles were detected on
-   * (boundary/vegetation.ts). Without it parcels join as registered and
-   * nothing is trimmed.
+   * (boundary/vegetation.ts). It decides whether a parcel without the
+   * dealership's vehicles may join; without it parcels join as registered.
    */
   vegetation?: VegetationMask | null;
 }

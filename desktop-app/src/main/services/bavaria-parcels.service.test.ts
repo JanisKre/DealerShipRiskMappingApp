@@ -83,11 +83,15 @@ describe("classifyMapPixel", () => {
   it("tells lines, buildings and ground apart", () => {
     expect(classifyMapPixel(0, 0, 0)).toBe("line");
     expect(classifyMapPixel(229, 229, 229)).toBe("building");
-    expect(classifyMapPixel(178, 178, 178)).toBe("building");
+    // The line between two land uses inside a parcel.
+    expect(classifyMapPixel(178, 178, 178)).toBe("useLine");
     expect(classifyMapPixel(255, 255, 255)).toBe("traffic");
     expect(classifyMapPixel(244, 244, 244)).toBe("commercial");
     expect(classifyMapPixel(252, 224, 224)).toBe("residential");
     expect(classifyMapPixel(219, 229, 193)).toBe("open");
+    expect(classifyMapPixel(242, 244, 203)).toBe("open");
+    // Farmland is open land too.
+    expect(classifyMapPixel(255, 247, 219)).toBe("open");
   });
 });
 
@@ -126,6 +130,64 @@ describe("parcelsFromParcelMap", () => {
     expect(Math.min(...lats)).toBeCloseTo(BOX.south, 5);
     // The road covers the northern 20 m.
     expect(Math.max(...lats)).toBeCloseTo(BOX.north - 20 / 111_320, 4);
+  });
+
+  it("cuts the open land off a parcel along the land-use line", () => {
+    // The trade plot (50 × 80 m) with a meadow on its southern 30 m, behind
+    // a grey land-use line: the yard and the meadow are two units.
+    const rgba = mapPixels();
+    const paint = (
+      x0: number,
+      y0: number,
+      x1: number,
+      y1: number,
+      [r, g, b]: number[],
+    ): void => {
+      for (let y = y0; y <= y1; y += 1) {
+        for (let x = x0; x <= x1; x += 1) {
+          const i = (y * SIZE + x) * 4;
+          rgba[i] = r;
+          rgba[i + 1] = g;
+          rgba[i + 2] = b;
+        }
+      }
+    };
+    paint(1, 280, 199, 280, [178, 178, 178]);
+    paint(1, 281, 199, SIZE - 2, [242, 244, 203]);
+    const split = parcelsFromParcelMap(rgba, SIZE, SIZE, BOX);
+    expect(split).toHaveLength(4);
+    const meadow = split.find((parcel) => (parcel.landUse?.open ?? 0) > 0.9);
+    const yard = split.find(
+      (parcel) => (parcel.landUse?.commercial ?? 0) > 0.9,
+    );
+    // 50 × 30 m of meadow, 50 × 50 m of yard with its building.
+    expect(meadow?.areaSqm).toBeGreaterThan(1400);
+    expect(meadow?.areaSqm).toBeLessThan(1600);
+    expect(yard?.areaSqm).toBeGreaterThan(2400);
+    expect(yard?.areaSqm).toBeLessThan(2600);
+    // The cut is the straight land-use line: both outlines stay rectangles.
+    expect(meadow?.ring).toHaveLength(5);
+    expect(yard?.ring).toHaveLength(5);
+  });
+
+  it("keeps a lawn smaller than a section with its parcel", () => {
+    const rgba = mapPixels();
+    // 8 × 8 m of green inside the trade plot.
+    for (let y = 300; y < 332; y += 1) {
+      for (let x = 20; x < 52; x += 1) {
+        const i = (y * SIZE + x) * 4;
+        rgba[i] = 242;
+        rgba[i + 1] = 244;
+        rgba[i + 2] = 203;
+      }
+    }
+    const kept = parcelsFromParcelMap(rgba, SIZE, SIZE, BOX);
+    expect(kept).toHaveLength(3);
+    const [trade] = kept.filter(
+      (parcel) => (parcel.landUse?.commercial ?? 0) > 0.5,
+    );
+    expect(trade.areaSqm).toBeGreaterThan(3900);
+    expect(trade.landUse?.open).toBeGreaterThan(0);
   });
 
   it("returns nothing for a blank map", () => {

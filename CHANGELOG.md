@@ -44,6 +44,16 @@ without any of the protocols switched on.
 
 ### Fixed
 
+- **Lot boundary follows the cadastre again (cascade v12).** A boundary
+  built from parcels no longer gets a ragged bite where grass or trees were
+  cut off on a 1 m raster, and its other edges are no longer redrawn from
+  that raster; the outline is the chosen parcels, on their cadastral lines.
+  In Bayern, open land that the parcel map draws inside a parcel (a meadow
+  beside a car park) is a unit of its own and stays out of the lot along
+  the cadastre's line; farmland there counts as open land. Outside Bayern a
+  meadow on a chosen parcel is part of the result again. Existing
+  boundaries change when a location is analysed again. See
+  `docs/boundary-model.md`, "Cascade v12".
 - **No "0 €" hail EAL without a vehicle count.** Locations without a
   detected or reviewed vehicle count show "keine Fahrzeugzahl" instead of
   "0 €", get no rank, sort after counted locations (by exposure), and no

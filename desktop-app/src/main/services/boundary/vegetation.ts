@@ -7,8 +7,9 @@ import type { LonLat } from "../boundary-geometry";
  * not what is on it: a meadow behind the workshop is "Industrie- und
  * Gewerbefläche" under the dealership's address. The image the vehicles are
  * detected on shows the difference, so the cascade asks it before a parcel
- * joins without cars and trims planted fringes off the result
- * (docs/boundary-model.md, "Cascade v9").
+ * joins without cars and before it takes a point for a site
+ * (docs/boundary-model.md, "Cascade v9" and "Cascade v11"). It never changes
+ * the shape of a parcel (v12).
  *
  * The test is a colour rule on RGB orthophotos (green clearly above red and
  * blue, with a second rule for shade). It sees grass and trees in leaf; it

@@ -20,8 +20,12 @@ import { area2D, maskToRings, simplifyRing } from "./boundary/vectorize";
  * 2. regions filled in a building grey are buildings and merge into the
  *    neighbouring ground region they share the longest line with (a
  *    building is drawn inside its parcel);
- * 3. each merged region is traced as one parcel, with its land use taken
- *    from the fill colour of its ground.
+ * 3. where the map draws a land-use boundary inside a parcel, the open land
+ *    behind it (meadow, field, wood) of at least `MIN_SECTION_SQM` is cut
+ *    off as a unit of its own, so a lot can take the yard of a plot without
+ *    its meadow, along a line the cadastre draws;
+ * 4. each unit is traced as one parcel, with its land use taken from the
+ *    fill colour of its ground.
  *
  * The result is an approximation of the cadastre, good to about half a
  * metre: a building that spans its parcel from side to side splits it, a
@@ -45,11 +49,17 @@ const PIXEL_M = 0.25;
 export const BAVARIA_PARCEL_RADIUS_M = 200;
 const TIMEOUT_MS = 25_000;
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const CACHE_VERSION = 1;
+/** 2: farmland counts as open land; open-land sections are parcels of their own. */
+const CACHE_VERSION = 2;
 const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
 
 /** Smallest region kept as a parcel, as in `fetchParcelsNear`. */
 const MIN_PARCEL_SQM = 25;
+/**
+ * Smallest open-land section cut off a parcel, and smallest rest it may
+ * leave. A lawn or a hedge inside a yard stays with the yard.
+ */
+const MIN_SECTION_SQM = 100;
 /** Share of building-grey pixels above which a region is a building. */
 const BUILDING_SHARE = 0.6;
 /** Distance in pixels across which two regions share a line. */
@@ -64,13 +74,16 @@ export interface MapBox {
   north: number;
 }
 
-type PixelClass = "line" | "building" | ParcelUse;
+type PixelClass = "line" | "useLine" | "building" | ParcelUse;
 
 /**
  * What a pixel of the coloured parcel map shows. Verified against the
  * land-use map of the same service on 13 November 2026: white is traffic
  * area (395,747 of 395,919 pixels), light grey industry and trade, pink
  * housing, green vegetation; buildings are a darker grey than any ground.
+ * Checked on 15 November 2026: farmland is pale yellow (255, 247, 219), and
+ * the boundary between two land uses inside a parcel is a mid-grey line
+ * (178, 178, 178), one pixel wide.
  */
 export function classifyMapPixel(r: number, g: number, b: number): PixelClass {
   const max = Math.max(r, g, b);
@@ -79,11 +92,14 @@ export function classifyMapPixel(r: number, g: number, b: number): PixelClass {
   if (max - min <= 6) {
     if (min >= 250) return "traffic";
     if (min >= 238) return "commercial";
-    return "building";
+    if (min >= 215) return "building";
+    return "useLine";
   }
   if (r > g + 12 && r > b + 12) return "residential";
   if (g >= r && g > b) return "open";
   if (b > r && b > g) return "open";
+  // Farmland: pale yellow, red a little above green, blue well below.
+  if (r >= 245 && g >= 235 && b <= g - 20) return "open";
   return "other";
 }
 
@@ -118,6 +134,7 @@ export function parcelsFromParcelMap(
 ): ParcelFeature[] {
   const size = width * height;
   const cls = new Uint8Array(size); // 0 line, 1 building, 2.. = USES index + 2
+  const USE_LINE = 255;
   let lines = 0;
   for (let i = 0; i < size; i += 1) {
     const kind = classifyMapPixel(
@@ -126,10 +143,30 @@ export function parcelsFromParcelMap(
       rgba[i * 4 + 2],
     );
     if (kind === "line") lines += 1;
+    else if (kind === "useLine") cls[i] = USE_LINE;
     else cls[i] = kind === "building" ? 1 : USES.indexOf(kind) + 2;
   }
   // A blank map (outside Bayern, or the service drew nothing) has no lines.
   if (lines === 0) return [];
+  // A land-use line is ground: it takes the use beside it. Grey with no
+  // ground beside it is a building of another shade.
+  for (let i = 0; i < size; i += 1) {
+    if (cls[i] !== USE_LINE) continue;
+    const x = i % width;
+    let ground = 1;
+    for (const j of [
+      x > 0 ? i - 1 : -1,
+      x < width - 1 ? i + 1 : -1,
+      i - width,
+      i + width,
+    ]) {
+      if (j >= 0 && j < size && cls[j] >= 2 && cls[j] !== USE_LINE) {
+        ground = cls[j];
+        break;
+      }
+    }
+    cls[i] = ground;
+  }
 
   // 1. Regions: 4-connected areas between the lines.
   const label = new Int32Array(size);
@@ -183,6 +220,7 @@ export function parcelsFromParcelMap(
     }
     regions.push(region);
   }
+  splitOpenSections(cls, label, regions, width, height);
 
   // 2. Lines shared between regions, counted per pair.
   const contact = new Map<number, Map<number, number>>();
@@ -327,6 +365,139 @@ export function parcelsFromParcelMap(
     });
   }
   return parcels;
+}
+
+/**
+ * Cuts the open land off parcels that hold both open land and another use,
+ * in place: every connected patch of open land of at least
+ * `MIN_SECTION_SQM` becomes a region of its own, and so does every part of
+ * the rest that the cut separates. Parcels that are open land throughout, or
+ * whose rest would be smaller than `MIN_SECTION_SQM`, stay whole.
+ */
+/** First of the temporary labels used while a region is taken apart. */
+const TEMP_LABEL = -2_000_000_000;
+
+function splitOpenSections(
+  cls: Uint8Array,
+  label: Int32Array,
+  regions: Region[],
+  width: number,
+  height: number,
+): void {
+  const open = USES.indexOf("open") + 2;
+  const minSection = MIN_SECTION_SQM / (PIXEL_M * PIXEL_M);
+  const stack: number[] = [];
+  /** Moves the pixels connected to `start` that satisfy `take` to region `to`. */
+  const relabel = (
+    start: number,
+    from: number,
+    to: number,
+    take: (index: number) => boolean,
+  ): number => {
+    let count = 0;
+    label[start] = to;
+    stack.push(start);
+    while (stack.length > 0) {
+      const index = stack.pop()!;
+      count += 1;
+      const x = index % width;
+      for (const next of [
+        x > 0 ? index - 1 : -1,
+        x < width - 1 ? index + 1 : -1,
+        index - width,
+        index + width,
+      ]) {
+        if (next < 0 || next >= label.length) continue;
+        if (label[next] !== from || !take(next)) continue;
+        label[next] = to;
+        stack.push(next);
+      }
+    }
+    return count;
+  };
+  const candidates = regions.length;
+  const touched = new Set<number>();
+  for (let id = 1; id <= candidates; id += 1) {
+    // Bounds as labelled; the statistics are rebuilt at the end.
+    const region = { ...regions[id - 1] };
+    const openPixels = region.use[open - 2];
+    if (openPixels < minSection || region.pixels - openPixels < minSection) {
+      continue;
+    }
+    // Patches of open land: large ones leave the region, small ones return.
+    const parked = -id;
+    const small: number[] = [];
+    let carved = false;
+    for (let y = region.minY; y <= region.maxY; y += 1) {
+      for (let x = region.minX; x <= region.maxX; x += 1) {
+        const start = y * width + x;
+        if (label[start] !== id || cls[start] !== open) continue;
+        const patch = regions.length + 1;
+        const count = relabel(start, id, patch, (i) => cls[i] === open);
+        if (count >= minSection) {
+          regions.push(emptyRegion(width, height));
+          touched.add(patch);
+          carved = true;
+        } else {
+          relabel(start, patch, parked, () => true);
+          small.push(start);
+        }
+      }
+    }
+    for (const start of small) relabel(start, parked, id, () => true);
+    if (!carved) continue;
+    // What is left may be in several pieces; the largest keeps the id.
+    const pieces: Array<{ start: number; count: number }> = [];
+    for (let y = region.minY; y <= region.maxY; y += 1) {
+      for (let x = region.minX; x <= region.maxX; x += 1) {
+        const start = y * width + x;
+        if (label[start] !== id) continue;
+        const temp = TEMP_LABEL + pieces.length;
+        pieces.push({ start, count: relabel(start, id, temp, () => true) });
+      }
+    }
+    const largest = pieces.reduce(
+      (best, piece, k) => (piece.count > pieces[best].count ? k : best),
+      0,
+    );
+    pieces.forEach((piece, k) => {
+      let to = id;
+      if (k !== largest) {
+        regions.push(emptyRegion(width, height));
+        to = regions.length;
+      }
+      relabel(piece.start, TEMP_LABEL + k, to, () => true);
+      touched.add(to);
+    });
+  }
+  if (touched.size === 0) return;
+  for (const id of touched) regions[id - 1] = emptyRegion(width, height);
+  for (let index = 0; index < label.length; index += 1) {
+    const id = label[index];
+    if (!touched.has(id)) continue;
+    const region = regions[id - 1];
+    const x = index % width;
+    const y = (index - x) / width;
+    region.pixels += 1;
+    if (cls[index] === 1) region.building += 1;
+    else region.use[cls[index] - 2] += 1;
+    if (x < region.minX) region.minX = x;
+    if (x > region.maxX) region.maxX = x;
+    if (y < region.minY) region.minY = y;
+    if (y > region.maxY) region.maxY = y;
+  }
+}
+
+function emptyRegion(width: number, height: number): Region {
+  return {
+    pixels: 0,
+    building: 0,
+    use: USES.map(() => 0),
+    minX: width,
+    minY: height,
+    maxX: 0,
+    maxY: 0,
+  };
 }
 
 /** Bounding box of `radiusM` around the point, in degrees. */

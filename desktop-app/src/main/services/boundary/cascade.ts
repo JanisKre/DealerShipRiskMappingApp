@@ -92,8 +92,12 @@ import { addressKeys, sharesAddress } from "./parcel-address";
  * near it, is off the site (`pointOffSite`): its parcel is not returned,
  * the nearest vehicle lot within reach is, else a small marker
  * (docs/boundary-model.md, "Cascade v11").
+ * 12: a parcel result is whole cadastral units, never reshaped on a raster
+ * (the vegetation trimming of v9 is gone); in Bayern the open land the
+ * parcel map draws inside a parcel is a unit of its own
+ * (docs/boundary-model.md, "Cascade v12").
  */
-export const CASCADE_VERSION = 11;
+export const CASCADE_VERSION = 12;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -209,17 +213,6 @@ export const CASCADE_LIMITS = {
    * is treated like open land: it joins only by the dense rule.
    */
   greenParcelShare: 0.5,
-  /**
-   * Vegetation is trimmed off a parcel union where it forms a patch of at
-   * least `trimMinSqm` at the edge of the result that survives an opening
-   * of `trimOpenM` (so tree rows, islands and the lawn in front of the
-   * display rows stay) and has no detected vehicle within
-   * `trimVehicleClearM`. With 400 m² and 4 m the lawn along a
-   * forecourt was cut off and the outline followed the car rows.
-   */
-  trimMinSqm: 600,
-  trimOpenM: 5,
-  trimVehicleClearM: 8,
   /**
    * A parcel with the address of the parcel at the point joins without
    * vehicles up to this size, and beyond it only while it is no larger than
@@ -342,8 +335,7 @@ export interface CascadeInput {
   /**
    * Vegetation on the aerial image (grass, trees in leaf); null outside the
    * image. A parcel that is mostly vegetation joins only when dense with
-   * vehicles, and planted fringes without vehicles are trimmed off the
-   * parcel union (boundary/vegetation.ts).
+   * vehicles (boundary/vegetation.ts). It never reshapes a parcel.
    */
   vegetationAt?: (point: LonLat) => boolean | null;
   parameters: RiskParameters;
@@ -1279,10 +1271,9 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     const union = unionRings(members.map((parcel) => parcel.ring));
     if (!union) return null;
     // Gaps between parcels the lot surrounds (slivers, a plot left out for
-    // its size) are part of the site.
-    const whole = withoutHoles(union);
-    const trimmed = trimVegetation(whole, input, lot);
-    const geometry = trimmed?.geometry ?? whole;
+    // its size) are part of the site. The outline is cadastral lines only:
+    // nothing is cut off a parcel by what the image shows on it.
+    const geometry = withoutHoles(union);
     const areaSqm = geometryAreaSqm(geometry);
     const covered = lot.filter((v) => geometryContains(geometry, v)).length;
     const coverage = covered / lot.length;
@@ -1319,11 +1310,7 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         joined > 0 ? `ALKIS parcel + ${joined} with vehicles` : "ALKIS parcel",
         "operationalLot",
       ),
-      reason:
-        `parcel at the point${joined > 0 ? ` + ${joined} adjacent parcel(s)${detail ? ` (${detail})` : ""}` : ""} hold ${covered} of ${lot.length} lot vehicles (${Math.round(coverage * 100)}%)` +
-        (trimmed
-          ? `; ${Math.round(trimmed.removedSqm)} m² of vegetation without vehicles trimmed off`
-          : ""),
+      reason: `parcel at the point${joined > 0 ? ` + ${joined} adjacent parcel(s)${detail ? ` (${detail})` : ""}` : ""} hold ${covered} of ${lot.length} lot vehicles (${Math.round(coverage * 100)}%)`,
     };
   };
 
@@ -1477,132 +1464,6 @@ function anchorOffLot(
       : [],
     note,
   };
-}
-
-/**
- * The parcel union without the planted areas at its edge: vegetation on the
- * aerial image that forms a patch of at least `trimMinSqm`, survives an
- * opening of `trimOpenM` (rows of trees and planted islands do not), touches
- * the outside of the union and has no detected vehicle within
- * `trimVehicleClearM`. Parcels follow legal lines; the wood or meadow that
- * belongs to the plot is not where the stock stands. Null when nothing is
- * trimmed or the image is unknown.
- */
-/** Closing radius (cells) applied to the vegetation before the opening. */
-const TRIM_CLOSE_CELLS = 2;
-
-export function trimVegetation(
-  geometry: BoundaryGeometry,
-  input: CascadeInput,
-  lot: LonLat[],
-): { geometry: BoundaryGeometry; removedSqm: number } | null {
-  const { vegetationAt } = input;
-  if (!vegetationAt) return null;
-  const rings = outerRings(geometry) as LonLat[][];
-  let reachM = 0;
-  for (const ring of rings) {
-    for (const point of ring) {
-      reachM = Math.max(reachM, metres(input.anchor, point));
-    }
-  }
-  if (reachM > 400) return null;
-  const spec = createGridSpec(input.anchor, 1, 2 * (reachM + 6));
-  const inside = new Uint8Array(cellCount(spec));
-  for (const ring of rings) {
-    const cells = new Uint8Array(inside.length);
-    rasterizeMaskPolygon(spec, ring, cells);
-    for (let i = 0; i < cells.length; i += 1) if (cells[i]) inside[i] = 1;
-  }
-  // A dark roof can pass the colour test; a building is never trimmed.
-  const roof = new Uint8Array(inside.length);
-  for (const ring of input.buildings ?? []) {
-    rasterizeMaskPolygon(spec, ring, roof);
-  }
-  const green = new Uint8Array(inside.length);
-  let insideCount = 0;
-  let greenCount = 0;
-  for (let i = 0; i < inside.length; i += 1) {
-    if (!inside[i]) continue;
-    insideCount += 1;
-    if (roof[i]) continue;
-    const col = i % spec.cols;
-    const row = Math.floor(i / spec.cols);
-    if (vegetationAt(cellToLonLat(spec, col, row)) === true) {
-      green[i] = 1;
-      greenCount += 1;
-    }
-  }
-  if (greenCount < CASCADE_LIMITS.trimMinSqm) return null;
-  const open = CASCADE_LIMITS.trimOpenM;
-  // Close the gaps shadows leave in a meadow first, then open.
-  const closed = erode(
-    spec,
-    dilate(spec, green, TRIM_CLOSE_CELLS),
-    TRIM_CLOSE_CELLS,
-  );
-  const opened = dilate(spec, erode(spec, closed, open), open);
-  const stamp = new Float32Array(inside.length);
-  for (const vehicle of input.vehicles ?? []) {
-    rasterizeDisk(spec, vehicle, CASCADE_LIMITS.trimVehicleClearM, stamp, 1);
-  }
-  const removable = new Uint8Array(inside.length);
-  for (let i = 0; i < inside.length; i += 1) {
-    if (opened[i] && inside[i] && !roof[i] && stamp[i] === 0) {
-      removable[i] = 1;
-    }
-  }
-  let removed = 0;
-  const kept = Uint8Array.from(inside);
-  for (const patch of components(spec, removable)) {
-    let size = 0;
-    let atEdge = false;
-    for (let i = 0; i < patch.length; i += 1) {
-      if (!patch[i]) continue;
-      size += 1;
-      if (atEdge) continue;
-      const col = i % spec.cols;
-      const row = Math.floor(i / spec.cols);
-      atEdge =
-        col === 0 ||
-        row === 0 ||
-        col === spec.cols - 1 ||
-        row === spec.rows - 1 ||
-        !inside[i - 1] ||
-        !inside[i + 1] ||
-        !inside[i - spec.cols] ||
-        !inside[i + spec.cols];
-    }
-    if (!atEdge || size < CASCADE_LIMITS.trimMinSqm) continue;
-    for (let i = 0; i < patch.length; i += 1) if (patch[i]) kept[i] = 0;
-    removed += size;
-  }
-  if (removed === 0) return null;
-  // What a removed patch cut off stays only where the point or lot
-  // vehicles are.
-  const anchorRef = lonLatToCell(spec, input.anchor);
-  const anchorCell = anchorRef
-    ? cellIndex(spec, anchorRef.col, anchorRef.row)
-    : -1;
-  const lotCells = lot.flatMap((vehicle) => {
-    const cell = lonLatToCell(spec, vehicle);
-    return cell ? [cellIndex(spec, cell.col, cell.row)] : [];
-  });
-  const parts = components(spec, kept).filter(
-    (part) =>
-      (anchorCell >= 0 && part[anchorCell] === 1) ||
-      lotCells.filter((index) => part[index]).length >=
-        CASCADE_LIMITS.minLotVehicles,
-  );
-  if (parts.length === 0) return null;
-  for (const part of parts) fillHoles(spec, part);
-  const outline = masksToGeometry(spec, parts, {
-    simplifyToleranceM: 1.5,
-    regularizeAngleToleranceDeg: 0,
-  });
-  if (!outline) return null;
-  const areaSqm = geometryAreaSqm(outline.geometry);
-  if (areaSqm < CASCADE_LIMITS.minLotSqm) return null;
-  return { geometry: outline.geometry, removedSqm: insideCount - areaSqm };
 }
 
 // --- Stage 2: outline of the vehicle lot ----------------------------------

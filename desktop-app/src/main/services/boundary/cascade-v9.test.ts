@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
-import { geometryAreaSqm } from "@shared/boundary-geometry-utils";
 import { ringAreaSqm, unprojectPoint, type LonLat } from "../boundary-geometry";
 import type { ParcelFeature, ParcelLandUse } from "../alkis.service";
 import {
@@ -10,7 +9,6 @@ import {
   isStreetParcel,
   runCascade,
   streetByUse,
-  trimVegetation,
   vehicleParcelStage,
   type CascadeInput,
 } from "./cascade";
@@ -386,50 +384,39 @@ describe("vegetation on the image (v9)", () => {
     expect(greenShare(rect(0, -20, 40, 20), () => null)).toBeNull();
   });
 
-  it("trims a wood at the edge of the parcel at the point", () => {
-    // 60 m of yard with cars, then 60 m of wood on the same parcel.
+  it("never reshapes a parcel by what the image shows on it (v12)", () => {
+    // 60 m of yard with cars, then 60 m of wood on the same parcel. Until
+    // v11 the wood was cut off on a 1 m raster, which replaced the cadastral
+    // outline with a jagged one.
     const plot = parcel(rect(-30, -30, 90, 30), { landUse: commercial });
-    const lot = cars(-25, -25, 25, 25);
     const data = input({
       parcels: [plot],
-      vehicles: lot,
+      vehicles: cars(-25, -25, 25, 25),
       vegetationAt: greenEastOf(30),
     });
-    const trimmed = trimVegetation(
-      { type: "Polygon", coordinates: [plot.ring] },
-      data,
-      lot,
-    );
-    expect(trimmed).not.toBeNull();
-    const area = geometryAreaSqm(trimmed!.geometry);
-    expect(area).toBeGreaterThan(3400);
-    expect(area).toBeLessThan(3900);
     const outcome = vehicleParcelStage(data);
-    expect(outcome.result?.areaSqm).toBeLessThan(3900);
-    expect(outcome.reason).toContain("vegetation without vehicles trimmed off");
+    expect(outcome.result?.polygon).toEqual({
+      type: "Polygon",
+      coordinates: [plot.ring],
+    });
+    expect(outcome.reason).not.toContain("trimmed");
   });
 
-  it("keeps planted areas where vehicles stand and small green islands", () => {
-    const plot = parcel(rect(-30, -30, 90, 30), { landUse: commercial });
-    const everywhere = cars(-25, -25, 85, 25);
-    expect(
-      trimVegetation(
-        { type: "Polygon", coordinates: [plot.ring] },
-        input({ vehicles: everywhere, vegetationAt: greenEastOf(30) }),
-        everywhere,
-      ),
-    ).toBeNull();
-    // A 10 × 10 m island in the middle of the yard.
-    const [west, south] = at(-5, -5);
-    const [east, north] = at(5, 5);
-    const island = ([lon, lat]: LonLat): boolean =>
-      lon > west && lon < east && lat > south && lat < north;
-    expect(
-      trimVegetation(
-        { type: "Polygon", coordinates: [plot.ring] },
-        input({ vehicles: [], vegetationAt: island }),
-        [],
-      ),
-    ).toBeNull();
+  it("leaves out open land the cadastre maps as a unit of its own (v12)", () => {
+    // The same site where the cadastre draws the land-use line: yard and
+    // wood are two units, and only the yard is the lot.
+    const yard = parcel(rect(-30, -30, 30, 30), { landUse: commercial });
+    const wood = parcel(rect(30, -30, 90, 30), { landUse: { open: 1 } });
+    const outcome = vehicleParcelStage(
+      input({
+        parcels: [yard, wood],
+        vehicles: cars(-25, -25, 25, 25),
+        vegetationAt: greenEastOf(30),
+      }),
+    );
+    expect(outcome.result?.polygon).toEqual({
+      type: "Polygon",
+      coordinates: [yard.ring],
+    });
   });
 });
