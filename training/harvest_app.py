@@ -31,10 +31,10 @@ import sqlite3
 from pathlib import Path
 
 from autolabel import AUTOLABEL, read_tile
-from common import DATA, TILE_PX, lonlat_to_3857
+from common import APP_DB, DATA, TILE_PX, lonlat_to_3857
 from fetch_tiles import SERVICES, site_grid
 
-DEFAULT_DB = Path.home() / "Library" / "Application Support" / "Dealership Risk Mapping" / "dealership-risk.db"
+DEFAULT_DB = APP_DB  # next to the app's models folder (TRAINING_APP_MODELS_DIR moves both)
 SITES_CSV = DATA / "app_sites.csv"
 FEEDBACK = DATA / "app_feedback.json"
 MIN_RADIUS_M = 80

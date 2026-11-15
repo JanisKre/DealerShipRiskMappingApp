@@ -120,28 +120,47 @@ def write_xanylabeling(stem: str, tile: dict, audit: bool) -> None:
     path.write_text(json.dumps(data, indent=2))
 
 
+class TileError(ValueError):
+    """A save the server refuses; `code` is stable so a UI can explain it in its own words."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
 def validate_boxes(boxes: object) -> list[dict]:
     """The page sends the whole box list back; accept only well-formed boxes."""
     if not isinstance(boxes, list) or len(boxes) > 2000:
-        raise ValueError("boxes must be a list")
+        raise TileError("boxes_invalid", "boxes must be a list")
     out = []
     for b in boxes:
         if not isinstance(b, dict):
-            raise ValueError("box must be an object")
+            raise TileError("boxes_invalid", "box must be an object")
         corners = b.get("corners")
         if (
             not isinstance(corners, list)
             or len(corners) != 4
             or not all(isinstance(p, list) and len(p) == 2 and all(isinstance(v, (int, float)) and -TILE_PX <= v <= 2 * TILE_PX for v in p) for p in corners)
         ):
-            raise ValueError("corners must be 4 points inside the tile")
+            raise TileError("box_outside_tile", "corners must be 4 points inside the tile")
         if b.get("cls") not in CLASS_NAMES or b.get("decision") not in DECISIONS:
-            raise ValueError("bad class or decision")
+            raise TileError("boxes_invalid", "bad class or decision")
         if b.get("origin") not in ("model", "manual", "label"):
-            raise ValueError("bad origin")
+            raise TileError("boxes_invalid", "bad origin")
         if b["origin"] == "label" and not (isinstance(b.get("labelIndex"), int) and b["labelIndex"] >= 0):
-            raise ValueError("label box without labelIndex")
+            raise TileError("boxes_invalid", "label box without labelIndex")
         out.append(b)
+    return out
+
+
+def finalize(boxes: list[dict]) -> list[dict]:
+    """Finishing a tile: unanswered model suggestions count as "no". An unanswered audit
+    question about one of your labels keeps the label (decision stays None, so
+    write_xanylabeling leaves it alone): a question you skipped is not a rejection."""
+    out = []
+    for b in boxes:
+        unanswered = b.get("decision") is None and b.get("origin") == "model" and b.get("bucket") in ("check", "candidate")
+        out.append({**b, "decision": "no"} if unanswered else b)
     return out
 
 
@@ -179,11 +198,18 @@ class Store:
             ]
         return tile
 
-    def save(self, stem: str, boxes: list[dict], done: bool) -> None:
+    def save(self, stem: str, boxes: list[dict], done: bool) -> dict:
+        """Stores the page's boxes. `done` finishes the tile; a draft (done=False) of a tile
+        that is already finished keeps it finished and rewrites its labels, so editing a
+        finished tile never silently reopens it (and a late draft cannot undo a finish).
+        Returns the tile's state as stored: {"done", "questions"}."""
         path = self.dir / f"{stem}.json"
         tile = read_tile(path)
         if tile.get("done") and self.audit:
-            raise ValueError("audit tile already merged")
+            raise TileError("audit_merged", "audit tile already merged")
+        done = done or bool(tile.get("done"))
+        if done:
+            boxes = finalize(boxes)
         for i, b in enumerate(boxes):
             b["id"] = i
             b.setdefault("bucket", "manual" if b["origin"] == "manual" else "check")
@@ -195,6 +221,7 @@ class Store:
         path.write_text(json.dumps(tile, indent=1))
         if done:
             write_xanylabeling(stem, tile, self.audit)
+        return {"done": done, "questions": len(open_questions(tile)) if not done else 0}
 
 
 # --- HTTP ------------------------------------------------------------------------

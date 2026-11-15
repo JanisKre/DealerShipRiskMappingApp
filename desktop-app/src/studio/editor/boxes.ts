@@ -97,12 +97,34 @@ export function openIndices(boxes: TileBox[]): number[] {
 }
 
 /**
- * Finishing a tile: questions you did not answer count as "no", the same as
- * review.py (only answered or sure boxes become labels). Made explicit here so
- * the file says what happened.
+ * Finishing a tile: model suggestions you did not answer count as "no", the
+ * same as review.py (only answered or sure boxes become labels). Made explicit
+ * here so the file says what happened.
+ *
+ * Audit questions about one of your existing labels ("Ist dieses Label
+ * richtig?") are different: skipping one is not a rejection, so the label
+ * stays (decision left open; review.write_xanylabeling keeps it).
+ * studio.py applies the same rule (review.finalize).
  */
 export function finalize(boxes: TileBox[]): TileBox[] {
   return boxes.map((b) =>
-    boxState(b) === "open" ? { ...b, decision: "no" } : b,
+    boxState(b) === "open" && b.origin !== "label"
+      ? { ...b, decision: "no" }
+      : b,
   );
+}
+
+/** What finishing will do with the questions still open. */
+export function unanswered(boxes: TileBox[]): {
+  suggestions: number;
+  labels: number;
+} {
+  let suggestions = 0;
+  let labels = 0;
+  for (const b of boxes) {
+    if (boxState(b) !== "open") continue;
+    if (b.origin === "label") labels++;
+    else suggestions++;
+  }
+  return { suggestions, labels };
 }

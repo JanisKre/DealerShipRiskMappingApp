@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "@renderer/i18n"; // the shared dialog/sheet components use i18next for their close labels
+import "./i18n"; // first: the studio's texts (and the shared dialogs' close label)
 import { App } from "./App";
 import "./studio.css";
 

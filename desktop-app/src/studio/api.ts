@@ -49,23 +49,42 @@ export interface Round {
   epochs: number;
   pseudo: boolean;
   started: string;
+  ended?: string;
   finishedSites: number;
   checkedTiles: number;
+  /** Outcome of the round's job; "done" for rounds recorded before outcomes were kept. */
+  state: "running" | "done" | "failed" | "stopped" | "lost" | "unknown";
+  /** Stage the round stopped in (failed, stopped or lost). */
+  failedStage?: string | null;
+  failedStageKey?: string | null;
   appBest: Threshold | null;
 }
 
 export interface Job {
   id: string;
   step: string;
+  /** German title (log, older jobs); the page shows `titleKey` translated. */
   title: string;
+  titleKey?: string;
+  titleParams?: Record<string, unknown>;
   run: string | null;
   status: "running" | "done" | "failed" | "stopped" | "lost";
   started: string;
   ended?: string;
   stage: number;
-  stages: { name: string }[];
+  /** `key` is stable (studio.py STAGES); `name` is the German text. */
+  stages: { key?: string; name: string }[];
   locked?: boolean;
   log: string[];
+  /** A lost job whose commands still run without their driver (Abbrechen stops them). */
+  orphans?: boolean;
+  /** Why a failed or lost job ended: the stage and a one-line reason. */
+  error?: {
+    code: string;
+    stage: string | null;
+    stageKey?: string | null;
+    message: string;
+  };
 }
 
 export interface ReviewSummary {
@@ -104,18 +123,35 @@ export interface Status {
     installed: ModelFiles | null;
     export: ModelFiles | null;
     backups: string[];
+    /** Error code why installing into the app is refused (sandbox), or null. */
+    installBlocked: string | null;
     release: {
       tag: string | null;
       onnxSha256: string | null;
       manifestSha256: string | null;
       file: string;
       repository: string | null;
+      /** Error code why pinning a release is refused (sandbox), or null. */
+      blocked: string | null;
     };
   };
   job: Job | null;
   weights: string[];
   baseModels: string[];
   claude: { sheets: number; answers: number };
+  appDb: boolean;
+  /** Error code why reading the app's corrections is refused, or null. */
+  harvestBlocked: string | null;
+  /** Set when TRAINING_DATA_DIR points the studio at a sandbox folder. */
+  sandbox: { data: string; appModels: string | null } | null;
+  /** Fewest finished sites a round accepts (make_dataset.py's minimum). */
+  minRoundSites: number;
+  /** Sites whose tiles are all finished (what a round trains on). */
+  finishedSites: number;
+  /** An uploaded dealer list (data/dealers.csv) exists. */
+  dealersCsv: boolean;
+  /** Start weights the studio can download (yolo11s-obb.pt). */
+  defaultBase: string;
 }
 
 export type LabelMode = "label" | "audit";
@@ -135,26 +171,64 @@ export interface Queue {
   locked: boolean;
 }
 
+/** What a tile save returns: the tile's state as the server stored it. */
+export interface SaveResult {
+  ok: true;
+  done: boolean;
+  questions: number;
+}
+
+/**
+ * A refused or failed request. `code` is stable (studio.py MESSAGES, plus
+ * "offline" when the studio cannot be reached and "http" for anything else),
+ * so the page can react to it and show it in its own words.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly status: number,
+    readonly params: Record<string, unknown> = {},
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 const TOKEN =
   document.querySelector<HTMLMetaElement>('meta[name="studio-token"]')
     ?.content ?? "";
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
-  return (await res.json()) as T;
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(path, init);
+  } catch {
+    throw new ApiError("Studio unreachable", "offline", 0);
+  }
+  const data = (await res.json().catch(() => null)) as {
+    error?: string;
+    code?: string;
+    params?: Record<string, unknown>;
+  } | null;
+  if (!res.ok)
+    throw new ApiError(
+      data?.error ?? `HTTP ${res.status}`,
+      data?.code ?? "http",
+      res.status,
+      data?.params ?? {},
+    );
+  return data as T;
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(path, {
+const get = <T>(path: string): Promise<T> => request<T>(path);
+
+const post = <T>(path: string, body: unknown): Promise<T> =>
+  request<T>(path, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Studio-Token": TOKEN },
     body: JSON.stringify(body),
   });
-  const data = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-  return data as T;
-}
 
 export const api = {
   status: () => get<Status>("/api/status"),
@@ -166,29 +240,30 @@ export const api = {
   tile: (mode: LabelMode, stem: string) =>
     get<TileData>(`/api/label/tile/${encodeURIComponent(stem)}?mode=${mode}`),
   saveTile: (mode: LabelMode, stem: string, boxes: TileBox[], done: boolean) =>
-    post<{ ok: true }>(
+    post<SaveResult>(
       `/api/label/tile/${encodeURIComponent(stem)}?mode=${mode}`,
       { boxes, done },
     ),
+  uploadDealers: (csv: string) =>
+    post<{ rows: number }>("/api/sites/upload", { csv }),
   imageUrl: (stem: string) => `/api/label/img/${encodeURIComponent(stem)}`,
   pinRelease: (source: "export" | "installed") =>
     post<{ tag: string; commands: string[] }>("/api/release/pin", { source }),
 };
 
 const RUN_COLORS = 8;
-/** Colour per run, fixed by name order so it never changes with a filter. */
-export function runColor(name: string, all: string[]): string {
-  const i = Math.max(0, [...all].sort().indexOf(name));
-  return `var(--run-${(i % RUN_COLORS) + 1})`;
+/**
+ * Colour of a run, fixed so that adding a run never recolours a round:
+ * round-NN take the palette in order (round-01 the first colour), other runs
+ * take it from the end, in name order among themselves.
+ */
+export function runColor(name: string, all: string[] = []): string {
+  const round = /^round-(\d+)$/.exec(name);
+  let i: number;
+  if (round) i = Number(round[1]) - 1;
+  else {
+    const others = all.filter((n) => !/^round-\d+$/.test(n)).sort();
+    i = RUN_COLORS - 1 - Math.max(0, others.indexOf(name));
+  }
+  return `var(--run-${(((i % RUN_COLORS) + RUN_COLORS) % RUN_COLORS) + 1})`;
 }
-
-export const fmt = (n: number | null | undefined, digits = 0): string =>
-  n == null
-    ? "–"
-    : n.toLocaleString("de-DE", {
-        minimumFractionDigits: digits,
-        maximumFractionDigits: digits,
-      });
-
-export const pct = (n: number | null | undefined, digits = 1): string =>
-  n == null ? "–" : `${n > 0 ? "+" : ""}${fmt(n * 100, digits)} %`;

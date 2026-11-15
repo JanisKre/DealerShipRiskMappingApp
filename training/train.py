@@ -21,9 +21,9 @@ os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 
 from ultralytics import YOLO  # noqa: E402
 
-from common import ROOT  # noqa: E402
+from common import DATASET_YAML, RUNS  # noqa: E402
 
-RUN_DIR = ROOT / "runs"
+RUN_DIR = RUNS
 RUN_NAME = "dealer-obb"  # the run export.py and evaluate.py read by default
 
 
@@ -44,7 +44,7 @@ def main() -> None:
         return
 
     YOLO(args.model).train(
-        data=str(ROOT / "dataset.yaml"),
+        data=str(DATASET_YAML),
         imgsz=args.imgsz,
         batch=args.batch,
         epochs=args.epochs,

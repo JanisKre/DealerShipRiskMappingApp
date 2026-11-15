@@ -21,7 +21,7 @@ from pathlib import Path
 import onnxruntime as ort
 from ultralytics import YOLO
 
-from common import APP_MODELS_DIR, DATA, ROOT, TARGET_GSD_M
+from common import APP_MODELS_DIR, DATA, EXPORT, RUNS, TARGET_GSD_M
 
 NAME = "dealer_vehicles"
 # Model class name → the app's vehicle class
@@ -66,7 +66,7 @@ def output_format(onnx_path: Path, task: str, nc: int) -> str:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--weights", default=str(ROOT / "runs" / "dealer-obb" / "weights" / "best.pt"))
+    ap.add_argument("--weights", default=str(RUNS / "dealer-obb" / "weights" / "best.pt"))
     ap.add_argument("--version", default=dt.date.today().isoformat())
     ap.add_argument("--training-data", nargs="*", default=None, help="provenance for the manifest (default: read from data/dataset)")
     ap.add_argument(
@@ -88,8 +88,8 @@ def main() -> None:
     imgsz = int(model.overrides.get("imgsz", 640))
 
     exported = Path(model.export(format="onnx", opset=17, imgsz=imgsz, simplify=True, dynamic=False))
-    out_dir = ROOT / "export"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = EXPORT
+    out_dir.mkdir(parents=True, exist_ok=True)
     onnx_path = out_dir / f"{NAME}.onnx"
     shutil.copy2(exported, onnx_path)
 

@@ -1,5 +1,6 @@
 import { Copy, Rocket } from "lucide-react";
 import { useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
@@ -18,14 +19,18 @@ import {
   TableHeader,
   TableRow,
 } from "@renderer/components/ui/table";
-import { api, fmt, pct, runColor, type Status } from "@studio/api";
+import { api, runColor, type Status } from "@studio/api";
+import { askConfirm } from "@studio/components/ConfirmDialog";
 import { RunLines } from "@studio/components/LineChartCard";
 import {
   appEvaluation,
+  atSweepEdge,
+  showError,
   startStep,
   suggestedThreshold,
   ultralyticsEvaluation,
 } from "@studio/lib";
+import { fmt, pct, share } from "@studio/numbers";
 import { Swatch } from "./TrainingView";
 
 /**
@@ -39,8 +44,9 @@ export function ModelsView({
   status: Status;
   reload: () => void;
 }): React.JSX.Element {
-  const names = status.runs.map((r) => r.name);
+  const { t } = useTranslation();
   const busy = status.job?.status === "running";
+  const names = status.runs.map((r) => r.name);
   const installed = status.models.installed;
   const release = status.models.release;
   const shipped = Boolean(installed && installed.sha256 === release.onnxSha256);
@@ -49,12 +55,29 @@ export function ModelsView({
     commands: string[];
   } | null>(null);
 
+  const installBlocked = status.models.installBlocked
+    ? t("models.installBlocked")
+    : null;
+  // Why "ausliefern" is not possible now; shown next to the button (a disabled button shows no tooltip).
+  const shipBlocked = release.blocked
+    ? t("models.shipSandbox")
+    : busy
+      ? t("common.busy")
+      : !installed
+        ? t("models.shipNothing")
+        : !installed.manifestMatches
+          ? t("models.shipMismatch")
+          : null;
+  const valSites = status.dataset.valSites;
+
   const rows = status.weights.map((run) => {
     const app = appEvaluation(status, run);
+    const suggested = app ? suggestedThreshold(app) : null;
     return {
       run,
       app,
-      suggested: app ? suggestedThreshold(app) : null,
+      suggested,
+      edge: Boolean(app && suggested && atSweepEdge(app, suggested)),
       map50: ultralyticsEvaluation(status, run)?.map50 ?? null,
       installed: installed?.weights === run,
     };
@@ -66,40 +89,53 @@ export function ModelsView({
       "export",
       { weights: run, defaultConf: conf, install: true },
       reload,
-      `${run} mit Standard-Schwelle ${fmt(conf, 2)} in der App installieren? Das bisherige Modell wird gesichert; danach die App neu starten.`,
+      {
+        title: t("models.installTitle", { run }),
+        text: t("models.installText", { run, conf: fmt(conf, 2) }),
+        confirm: t("models.install"),
+      },
     );
 
   const ship = async (): Promise<void> => {
-    if (
-      !confirm(
-        "Das installierte Modell mit der nächsten App-Version ausliefern? Das ändert desktop-app/src/shared/model-release.json.",
-      )
-    )
-      return;
+    const ok = await askConfirm({
+      title: t("models.shipTitle"),
+      text: t("models.shipText"),
+      confirm: t("models.shipConfirm"),
+    });
+    if (!ok) return;
     try {
       setPinOut(await api.pinRelease("installed"));
+      toast.success(t("models.pinned"));
       reload();
     } catch (e) {
-      toast.error((e as Error).message);
+      showError(e);
     }
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 p-6">
+    <div className="mx-auto max-w-6xl space-y-5 p-6">
+      <header className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight">
+          {t("app.nav.models")}
+        </h1>
+        <p className="text-muted-foreground text-sm">{t("models.subtitle")}</p>
+      </header>
       <Card>
         <CardHeader>
-          <CardTitle>Zählfehler je Konfidenzschwelle</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            {t("models.chartTitle")}
+          </CardTitle>
           <CardDescription>
-            Mittlere Abweichung der Fahrzeugzahl je Standort (MAE) mit der
-            Erkennung der App, 11 Validierungsstandorte. Unterschiede unter etwa
-            einem Fahrzeug sind Rauschen.
+            {valSites
+              ? t("models.chartText", { count: valSites })
+              : t("models.chartTextAny")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <RunLines
-            xLabel="Schwelle"
+            xLabel={t("models.threshold")}
             xFormat={(x) => fmt(x, 2)}
-            yFormat={(y) => fmt(y, 1)}
+            valueFormat={(y) => fmt(y, 2)}
             series={measured.map((r) => ({
               key: r.run.replace(/[^a-z0-9]/gi, "_"),
               label: r.run,
@@ -114,23 +150,34 @@ export function ModelsView({
 
       <Card>
         <CardHeader>
-          <CardTitle>Modelle</CardTitle>
-          <CardDescription>
-            „Installieren“ exportiert das Modell mit der vorgeschlagenen
-            Schwelle (kleinster Bias im flachen Optimum) und sichert das
-            bisherige.
-          </CardDescription>
+          <CardTitle role="heading" aria-level={2}>
+            {t("models.tableTitle")}
+          </CardTitle>
+          <CardDescription>{t("models.tableText")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Lauf</TableHead>
-                <TableHead className="text-right">Schwelle</TableHead>
-                <TableHead className="text-right">MAE</TableHead>
-                <TableHead className="text-right">Bias</TableHead>
-                <TableHead className="text-right">≤ 10 %</TableHead>
-                <TableHead className="text-right">mAP50</TableHead>
+                <TableHead>{t("models.colRun")}</TableHead>
+                <TableHead className="text-right">
+                  {t("models.colThreshold")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("models.colMae")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("models.colBias")}
+                </TableHead>
+                <TableHead
+                  className="text-right"
+                  title={t("models.colWithin10Hint")}
+                >
+                  {t("models.colWithin10")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("models.colMap50")}
+                </TableHead>
                 <TableHead className="w-36" />
               </TableRow>
             </TableHeader>
@@ -142,12 +189,21 @@ export function ModelsView({
                     {r.run}
                     {r.installed && (
                       <Badge variant="secondary" className="ml-2">
-                        installiert
+                        {t("models.installed")}
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell
+                    className="text-right tabular-nums"
+                    title={r.edge ? t("models.edgeTitle") : undefined}
+                  >
                     {r.suggested ? fmt(r.suggested.conf, 2) : "–"}
+                    {r.edge && (
+                      <span className="text-warning-foreground">
+                        {" "}
+                        {t("models.edge")}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {r.suggested ? fmt(r.suggested.mae, 1) : "–"}
@@ -156,7 +212,7 @@ export function ModelsView({
                     {r.suggested ? pct(r.suggested.bias) : "–"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {r.suggested ? `${fmt(r.suggested.within10 * 100)} %` : "–"}
+                    {r.suggested ? share(r.suggested.within10) : "–"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {r.map50 != null ? fmt(r.map50, 3) : "–"}
@@ -171,16 +227,16 @@ export function ModelsView({
                           void startStep("measure", { weights: r.run }, reload)
                         }
                       >
-                        Messen
+                        {t("models.measure")}
                       </Button>
                     ) : r.installed ? null : (
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={busy}
+                        disabled={busy || Boolean(installBlocked)}
                         onClick={() => install(r.run, r.suggested!.conf)}
                       >
-                        Installieren
+                        {t("models.install")}
                       </Button>
                     )}
                   </TableCell>
@@ -189,42 +245,64 @@ export function ModelsView({
             </TableBody>
           </Table>
           <p className="text-muted-foreground mt-3 text-xs">
-            Alle Werte gelten bei der vorgeschlagenen Schwelle, die beim
-            Installieren ins Manifest geht. Trainingsrunden werden automatisch
-            gemessen.
+            {t("models.footer")}
           </p>
+          {installBlocked && (
+            <p className="text-muted-foreground mt-1 text-xs">
+              {installBlocked}
+            </p>
+          )}
+          {rows.some((r) => r.edge) && (
+            <p className="text-muted-foreground mt-1 text-xs">
+              {t("models.edgeNote")}
+            </p>
+          )}
+          {!rows.length && (
+            <p className="text-muted-foreground mt-1 text-xs">
+              {t("models.noModels")}
+            </p>
+          )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Rocket className="size-4" /> Mit der App ausliefern
+        <CardHeader className="flex-row flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <CardTitle
+              role="heading"
+              aria-level={2}
+              className="flex items-center gap-2"
+            >
+              <Rocket className="size-4" /> {t("models.shipCard")}
             </CardTitle>
-            <CardDescription>
-              Installiert:{" "}
-              <b className="text-foreground">{installed?.version ?? "–"}</b> ·
-              Ausgeliefert:{" "}
+            <CardDescription className="mt-1.5 break-words">
+              {t("models.installedLabel")}{" "}
+              <b className="text-foreground">{installed?.version ?? "–"}</b> ·{" "}
+              {t("models.shippedLabel")}{" "}
               <b className="text-foreground font-mono">{release.tag ?? "–"}</b>
             </CardDescription>
           </div>
           {shipped ? (
-            <Badge variant="secondary">identisch</Badge>
+            <Badge variant="secondary">{t("models.identical")}</Badge>
           ) : (
-            <Button
-              disabled={!installed?.manifestMatches}
-              onClick={() => void ship()}
-            >
-              Installiertes Modell ausliefern
+            <Button disabled={Boolean(shipBlocked)} onClick={() => void ship()}>
+              {t("models.ship")}
             </Button>
           )}
         </CardHeader>
+        {shipBlocked && !shipped && (
+          <CardContent className="text-muted-foreground -mt-2 text-xs">
+            {shipBlocked}
+          </CardContent>
+        )}
         {pinOut && (
           <CardContent className="space-y-2">
             <p className="text-sm">
-              Ausgeliefert wird jetzt <b className="font-mono">{pinOut.tag}</b>.
-              Noch den Modell-Release anlegen und die Änderung committen:
+              <Trans
+                i18nKey="models.pinnedText"
+                values={{ tag: pinOut.tag }}
+                components={{ b: <b className="font-mono" /> }}
+              />
             </p>
             {pinOut.commands.map((c) => (
               <div
@@ -238,11 +316,12 @@ export function ModelsView({
                   size="icon"
                   variant="ghost"
                   className="size-7"
-                  aria-label="Kopieren"
+                  aria-label={t("models.copy")}
+                  title={t("models.copy")}
                   onClick={() =>
                     void navigator.clipboard
                       .writeText(c)
-                      .then(() => toast("Kopiert."))
+                      .then(() => toast(t("models.copied")))
                   }
                 >
                   <Copy />

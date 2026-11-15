@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
@@ -5,6 +6,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@renderer/components/ui/chart";
+import { fmt, niceTicks } from "@studio/numbers";
 
 export interface Series {
   key: string;
@@ -16,33 +18,46 @@ export interface Series {
 /**
  * One measure over one x-axis, a line per run. Colour follows the run (fixed
  * by name), a legend is always shown, the tooltip lists every run at the
- * hovered x.
+ * hovered x with `valueFormat` (more digits than the axis). The y-axis gets
+ * even 1-2-5 ticks with as many decimals as they need; runs with one or two
+ * points are drawn as dots, so they never vanish.
  */
 export function RunLines({
   series,
   xLabel,
-  xFormat = (x) => String(x),
-  yFormat = (y) => y.toFixed(2),
-  yDomain,
+  xFormat = (x) => fmt(x),
+  valueFormat,
   className,
 }: {
   series: Series[];
   xLabel: string;
   xFormat?: (x: number) => string;
-  yFormat?: (y: number) => string;
-  yDomain?: [number | "auto", number | "auto"];
+  valueFormat: (y: number) => string;
   className?: string;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   if (!series.some((s) => s.points.length)) {
     return (
       <p className="text-muted-foreground py-8 text-center text-sm">
-        Noch keine Messwerte.
+        {t("chart.empty")}
       </p>
     );
   }
+  const ys = series.flatMap((s) => s.points.map((p) => p[1]));
+  const y = niceTicks(Math.min(...ys), Math.max(...ys));
   const xs = [
     ...new Set(series.flatMap((s) => s.points.map((p) => p[0]))),
   ].sort((a, b) => a - b);
+  // Many x values (epochs): even ticks from the first value on, not every value.
+  const xTicks =
+    xs.length > 12
+      ? [
+          xs[0],
+          ...niceTicks(xs[0], xs[xs.length - 1], 6).ticks.filter(
+            (x) => x > xs[0] && x <= xs[xs.length - 1],
+          ),
+        ]
+      : xs;
   const data = xs.map((x) => {
     const row: Record<string, number> = { x };
     for (const s of series) {
@@ -66,8 +81,9 @@ export function RunLines({
             dataKey="x"
             type="number"
             domain={["dataMin", "dataMax"]}
-            ticks={xs.length > 12 ? undefined : xs}
+            ticks={xTicks}
             tickFormatter={xFormat}
+            padding={{ left: 14, right: 8 }}
             tickLine={false}
             axisLine={false}
             stroke="var(--muted-foreground)"
@@ -80,12 +96,14 @@ export function RunLines({
             }}
           />
           <YAxis
-            width={44}
-            tickFormatter={yFormat}
+            width={48}
+            ticks={y.ticks}
+            domain={[y.ticks[0], y.ticks[y.ticks.length - 1]]}
+            tickFormatter={(v: number) => fmt(v, y.digits)}
             tickLine={false}
             axisLine={false}
             stroke="var(--muted-foreground)"
-            domain={yDomain ?? ["auto", "auto"]}
+            allowDataOverflow
           />
           <ChartTooltip
             content={({ active, payload, label }) => (
@@ -94,7 +112,7 @@ export function RunLines({
                 label={`${xLabel} ${xFormat(Number(label))}`}
                 payload={payload?.map((p) => ({
                   name: config[String(p.dataKey)]?.label as string,
-                  value: yFormat(Number(p.value)),
+                  value: valueFormat(Number(p.value)),
                   color: String(p.color),
                 }))}
               />
@@ -107,7 +125,11 @@ export function RunLines({
               name={s.label}
               stroke={s.color}
               strokeWidth={2}
-              dot={false}
+              dot={
+                s.points.length <= 2
+                  ? { r: 3.5, strokeWidth: 0, fill: s.color }
+                  : false
+              }
               activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
               connectNulls
               isAnimationActive={false}

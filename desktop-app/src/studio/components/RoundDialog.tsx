@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@renderer/components/ui/button";
 import {
@@ -20,18 +21,12 @@ import {
 } from "@renderer/components/ui/select";
 import { Switch } from "@renderer/components/ui/switch";
 import { api, type Status } from "@studio/api";
+import { roundBlocked, showError } from "@studio/lib";
+import { duration, parseWhole, ROUND_EPOCHS } from "@studio/numbers";
 
 /** Measured on the M4 Air: ~1.5 min per epoch for ~70 sites, plus ~8 min for measuring and new suggestions. */
 const MIN_PER_EPOCH = 1.5;
 const FIXED_MIN = 8;
-
-const STEPS = [
-  "Datensatz aus allen kompletten Standorten bauen",
-  "Feintunen ab dem Basismodell",
-  "Messen auf den 11 Validierungsstandorten (Ultralytics und App-Pipeline)",
-  "Neue Vorschläge für die offenen Kacheln berechnen",
-];
-
 export function RoundDialog({
   open,
   onOpenChange,
@@ -43,13 +38,25 @@ export function RoundDialog({
   status: Status;
   onStarted: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const defaultBase = status.rounds.length
     ? status.rounds[status.rounds.length - 1].run
     : status.weights.includes("dealer-obb")
       ? "dealer-obb"
       : status.weights[0];
   const [base, setBase] = useState(defaultBase);
-  const [epochs, setEpochs] = useState(15);
+  const [epochsText, setEpochsText] = useState("15");
+  const epochs = parseWhole(epochsText, ROUND_EPOCHS.min, ROUND_EPOCHS.max);
+  const blocked = roundBlocked(status);
+  const valSites = status.dataset.valSites;
+  const steps = [
+    t("round.stepDataset"),
+    t("round.stepFinetune"),
+    valSites
+      ? t("round.stepMeasure", { count: valSites })
+      : t("round.stepMeasureAny"),
+    t("round.stepSuggest"),
+  ];
   const [pseudo, setPseudo] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -60,14 +67,15 @@ export function RoundDialog({
   }, [open, defaultBase, status.weights]);
 
   const start = async (): Promise<void> => {
+    if (epochs == null || blocked) return;
     setBusy(true);
     try {
       await api.run("round", { base, epochs, pseudo });
-      toast.success("Runde gestartet. Du kannst weiter labeln.");
+      toast.success(t("round.started"));
       onOpenChange(false);
       onStarted();
     } catch (e) {
-      toast.error((e as Error).message);
+      showError(e);
     } finally {
       setBusy(false);
     }
@@ -77,21 +85,29 @@ export function RoundDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Speichern &amp; neu trainieren</DialogTitle>
+          <DialogTitle>{t("round.title")}</DialogTitle>
           <DialogDescription>
-            Deine Kacheln sind schon gespeichert. Die Runde läuft im
-            Hintergrund, etwa {Math.round(epochs * MIN_PER_EPOCH + FIXED_MIN)}{" "}
-            Minuten. Lass den Mac am Ladegerät.
+            {t("round.description", { count: status.finishedSites })}
+            {epochs != null && (
+              <>
+                {" "}
+                <span className="text-foreground">
+                  {t("round.duration", {
+                    duration: duration(epochs * MIN_PER_EPOCH + FIXED_MIN),
+                  })}
+                </span>
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
         <ol className="text-muted-foreground list-decimal space-y-1 pl-5 text-sm">
-          {STEPS.map((s) => (
+          {steps.map((s) => (
             <li key={s}>{s}</li>
           ))}
         </ol>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="round-base">Basismodell</Label>
+            <Label htmlFor="round-base">{t("round.base")}</Label>
             <Select value={base} onValueChange={setBase}>
               <SelectTrigger id="round-base" className="w-full">
                 <SelectValue />
@@ -106,15 +122,31 @@ export function RoundDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="round-epochs">Epochen</Label>
+            <Label htmlFor="round-epochs">{t("round.epochs")}</Label>
             <Input
               id="round-epochs"
               type="number"
-              min={3}
-              max={120}
-              value={epochs}
-              onChange={(e) => setEpochs(Number(e.target.value))}
+              inputMode="numeric"
+              min={ROUND_EPOCHS.min}
+              max={ROUND_EPOCHS.max}
+              value={epochsText}
+              aria-invalid={epochs == null}
+              aria-describedby="round-epochs-hint"
+              onChange={(e) => setEpochsText(e.target.value)}
             />
+            <p
+              id="round-epochs-hint"
+              className={
+                epochs == null
+                  ? "text-destructive text-xs"
+                  : "text-muted-foreground text-xs"
+              }
+            >
+              {t("round.epochsHint", {
+                min: ROUND_EPOCHS.min,
+                max: ROUND_EPOCHS.max,
+              })}
+            </p>
           </div>
         </div>
         <div className="flex items-start gap-3">
@@ -127,27 +159,29 @@ export function RoundDialog({
             htmlFor="round-pseudo"
             className="block text-sm leading-snug font-normal"
           >
-            Pseudo-Labels offener Standorte mittrainieren
-            <span className="text-muted-foreground block text-xs">
-              Aus lassen, solange du labelst: Ein Modell, das seine eigenen
-              Vorschläge gelernt hat, ist bei genau diesen Kacheln zu
-              selbstsicher.
+            {t("round.pseudo")}
+            <span className="text-muted-foreground mt-0.5 block text-xs">
+              {t("round.pseudoHint")}
             </span>
           </Label>
         </div>
         <p className="text-muted-foreground text-xs">
-          Installiert wird nichts. Ob das neue Modell besser ist, siehst du
-          danach unter „Modelle“.
+          {t("round.nothingInstalled")}
         </p>
+        {blocked && (
+          <p role="alert" className="text-destructive text-sm">
+            {blocked}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Abbrechen
+            {t("common.cancel")}
           </Button>
           <Button
-            disabled={busy || !base || epochs < 3}
+            disabled={busy || !base || epochs == null || Boolean(blocked)}
             onClick={() => void start()}
           >
-            Runde starten
+            {t("round.start")}
           </Button>
         </DialogFooter>
       </DialogContent>

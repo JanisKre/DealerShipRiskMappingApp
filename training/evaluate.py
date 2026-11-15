@@ -25,14 +25,14 @@ os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 
 from ultralytics import YOLO  # noqa: E402
 
-from common import DATA, ROOT, is_negative_site, native_gsd, read_obb_labels, site_of  # noqa: E402
+from common import DATA, DATASET_YAML, RUNS, SANDBOX, is_negative_site, native_gsd, read_obb_labels, site_of  # noqa: E402
 
 DOTA_VEHICLES = {9, 10}
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--weights", default=str(ROOT / "runs" / "dealer-obb" / "weights" / "best.pt"))
+    ap.add_argument("--weights", default=str(RUNS / "dealer-obb" / "weights" / "best.pt"))
     ap.add_argument("--dota", action="store_true", help="weights use DOTA classes (baseline)")
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--sweep", action="store_true", help="count metrics for several thresholds instead of per-site rows")
@@ -44,7 +44,9 @@ def main() -> None:
     model = YOLO(args.weights)
     report: dict = {"weights": args.weights, "date": dt.datetime.now().isoformat(timespec="seconds"), "map50": None, "map50_95": None}
     if not args.dota:
-        metrics = model.val(data=str(ROOT / "dataset.yaml"), imgsz=args.imgsz, device=args.device, verbose=False)
+        # In a sandbox the validation plots stay in its runs/ too (default: Ultralytics' runs/obb).
+        where = {"project": str(RUNS), "name": "val", "exist_ok": True} if SANDBOX else {}
+        metrics = model.val(data=str(DATASET_YAML), imgsz=args.imgsz, device=args.device, verbose=False, **where)
         print(f"mAP50 {metrics.box.map50:.3f}   mAP50-95 {metrics.box.map:.3f}")
         report["map50"], report["map50_95"] = round(float(metrics.box.map50), 4), round(float(metrics.box.map), 4)
 

@@ -16,6 +16,7 @@ Conventions used by every script:
 from __future__ import annotations
 
 import json
+import os
 import math
 import subprocess
 from collections import defaultdict
@@ -28,10 +29,40 @@ TARGET_GSD_M = 0.10
 CLASS_NAMES = {0: "car", 1: "large_vehicle"}
 
 ROOT = Path(__file__).resolve().parent
-DATA = ROOT / "data"
+# TRAINING_DATA_DIR points every script at another data folder (a sandbox copy
+# for trying the studio without touching the real labels).
+DATA = Path(os.environ["TRAINING_DATA_DIR"]).resolve() if os.environ.get("TRAINING_DATA_DIR") else ROOT / "data"
 
 # The app's userData/models on macOS: export.py --install and studio.py put models here.
-APP_MODELS_DIR = Path.home() / "Library" / "Application Support" / "Dealership Risk Mapping" / "models"
+# TRAINING_APP_MODELS_DIR overrides it, so a sandbox never replaces the app's model.
+APP_MODELS_DIR = (
+    Path(os.environ["TRAINING_APP_MODELS_DIR"]).resolve()
+    if os.environ.get("TRAINING_APP_MODELS_DIR")
+    else Path.home() / "Library" / "Application Support" / "Dealership Risk Mapping" / "models"
+)
+APP_MODELS_OVERRIDDEN = bool(os.environ.get("TRAINING_APP_MODELS_DIR"))
+# The app's database (read by harvest_app.py); it lives next to the models folder.
+APP_DB = APP_MODELS_DIR.parent / "dealership-risk.db"
+
+# Sandbox: with TRAINING_DATA_DIR set, everything a script writes stays in that
+# folder: runs/, export/ and dataset.yaml go inside it instead of training/.
+# Without the variable the layout is unchanged (training/runs, training/export,
+# training/dataset.yaml).
+SANDBOX = bool(os.environ.get("TRAINING_DATA_DIR"))
+WORK = DATA if SANDBOX else ROOT
+RUNS = WORK / "runs"
+EXPORT = WORK / "export"
+DATASET_YAML = WORK / "dataset.yaml"
+
+
+def base_weight_dirs() -> list[Path]:
+    """Where DOTA start weights (yolo*-obb.pt) are looked up: the work folder first,
+    then training/ (read only, so a sandbox can reuse weights downloaded there)."""
+    return [WORK] if WORK == ROOT else [WORK, ROOT]
+
+
+def find_base_weights(name: str) -> Path | None:
+    return next((d / name for d in base_weight_dirs() if (d / name).is_file()), None)
 
 
 def label_path(image: Path) -> Path:

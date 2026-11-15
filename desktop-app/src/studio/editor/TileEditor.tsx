@@ -5,6 +5,7 @@ import {
   CircleHelp,
   Eye,
   EyeOff,
+  Keyboard,
   LoaderCircle,
   Maximize,
   MousePointer2,
@@ -17,9 +18,15 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@renderer/components/ui/popover";
 import { Separator } from "@renderer/components/ui/separator";
 import {
   ToggleGroup,
@@ -31,7 +38,10 @@ import {
   TooltipTrigger,
 } from "@renderer/components/ui/tooltip";
 import { cn } from "@renderer/lib/utils";
-import { api, type LabelMode } from "@studio/api";
+import { api, type LabelMode, type SaveResult } from "@studio/api";
+import i18n from "@studio/i18n";
+import { errorText, showError } from "@studio/lib";
+import { share } from "@studio/numbers";
 import {
   boxState,
   counts,
@@ -39,6 +49,7 @@ import {
   finalize,
   manualBox,
   openIndices,
+  unanswered,
   type Decision,
   type TileBox,
   type TileData,
@@ -57,6 +68,7 @@ import {
   round2,
   type Pt,
 } from "./geometry";
+import { SaveQueue, failureOf, type SaveFailure } from "./saveQueue";
 
 type Tool = "select" | "add" | "draw" | "pan";
 
@@ -73,12 +85,41 @@ interface View {
   py: number;
 }
 
+/** Why saving is paused: it resumes by itself (locked, offline) or after a reload. */
+type Pause = Exclude<SaveFailure, "rejected"> | null;
+
 const COLORS = {
   car: "var(--box-car)",
   open: "var(--box-open)",
   no: "var(--box-no)",
   existing: "var(--box-existing)",
 };
+
+/** One queue for the whole page: saves of a tile never overtake each other. */
+export const saveQueue = new SaveQueue((r) =>
+  api.saveTile(r.mode, r.stem, r.boxes, r.done),
+);
+saveQueue.onDropped((r, e) =>
+  toast.error(i18n.t("editor.dropped", { stem: r.stem, reason: errorText(e) })),
+);
+
+let editorUnsaved = false;
+window.addEventListener("beforeunload", (e) => {
+  if (editorUnsaved || saveQueue.pending() > 0) e.preventDefault();
+});
+
+/** Elements where typing goes into the element itself: no shortcut at all. */
+const TEXT_ENTRY =
+  "input, textarea, select, [contenteditable=''], [contenteditable='true'], [role=dialog], [role=alertdialog], [role=menu], [role=listbox]";
+
+const clamp = (v: number, lo: number, hi: number): number =>
+  Math.min(hi, Math.max(lo, v));
+
+/**
+ * Room kept free below the tile at "fit" for the selection card, so the card
+ * never covers the tile: one row on a wide canvas, two on a narrow one.
+ */
+const cardSpace = (width: number): number => (width >= 760 ? 64 : 104);
 
 export interface TileEditorProps {
   mode: LabelMode;
@@ -88,35 +129,70 @@ export interface TileEditorProps {
   hasPrev: boolean;
   hasNext: boolean;
   onNavigate: (dir: -1 | 1) => void;
-  onSaved: (stem: string, done: boolean) => void;
+  onSaved: (stem: string, result: SaveResult) => void;
 }
 
 export function TileEditor({
   mode,
   stem,
   position,
-  locked,
+  locked: jobLocked,
   hasPrev,
   hasNext,
   onNavigate,
   onSaved,
 }: TileEditorProps): React.JSX.Element {
+  const { t } = useTranslation();
   const [tile, setTile] = useState<TileData | null>(null);
-  const [boxes, setBoxes] = useState<TileBox[]>([]);
+  const [boxes, setBoxesState] = useState<TileBox[]>([]);
   const [past, setPast] = useState<TileBox[][]>([]);
   const [future, setFuture] = useState<TileBox[][]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [tool, setTool] = useState<Tool>("select");
   const [view, setView] = useState<View>({ z: 1, px: 0, py: 0 });
   const [drag, setDrag] = useState<Drag | null>(null);
-  const [dirty, setDirty] = useState(false);
+  // Edits are counted; a save stores one count. Refs, so a save, the unmount
+  // cleanup and the keyboard always see the latest values, not a stale render.
+  const [rev, setRev] = useState(0);
+  const [savedRev, setSavedRev] = useState(0);
+  const revRef = useRef(0);
+  const savedRevRef = useRef(0);
+  const rejectedRevRef = useRef(-1);
+  const inFlight = useRef(false);
+  const boxesRef = useRef<TileBox[]>([]);
   const [saving, setSaving] = useState(false);
+  const [pause, setPause] = useState<Pause>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showRejected, setShowRejected] = useState(false);
   const [spaceDown, setSpaceDown] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const stateRef = useRef({ boxes, dirty, stem, mode });
-  stateRef.current = { boxes, dirty, stem, mode };
+
+  // A finished audit tile is merged into your labels: look, but do not edit.
+  const readOnly = mode === "audit" && Boolean(tile?.done);
+  const locked = jobLocked || pause === "locked";
+  const dirty = rev !== savedRev;
+
+  const setBoxes = (next: TileBox[]): void => {
+    boxesRef.current = next;
+    setBoxesState(next);
+  };
+  const bump = (): void => {
+    revRef.current += 1;
+    setRev(revRef.current);
+  };
+  const markSaved = (r: number): void => {
+    savedRevRef.current = Math.max(savedRevRef.current, r);
+    setSavedRev(savedRevRef.current);
+  };
+
+  useEffect(() => {
+    editorUnsaved = dirty && rev !== rejectedRevRef.current;
+    return () => {
+      editorUnsaved = false;
+    };
+  }, [dirty, rev]);
 
   // --- loading and saving --------------------------------------------------------
 
@@ -124,11 +200,12 @@ export function TileEditor({
     const el = wrapRef.current;
     if (!el) return;
     const { width, height } = el.getBoundingClientRect();
-    const z = (Math.min(width, height) / TILE_PX) * 0.96;
+    const free = Math.max(120, height - cardSpace(width));
+    const z = (Math.min(width, free) / TILE_PX) * 0.96;
     setView({
       z,
       px: (width - TILE_PX * z) / 2,
-      py: (height - TILE_PX * z) / 2,
+      py: (free - TILE_PX * z) / 2,
     });
   }, []);
 
@@ -139,100 +216,201 @@ export function TileEditor({
       .tile(mode, stem)
       .then((data) => {
         if (cancelled) return;
+        // Edits you left here while saving was paused come back with the tile.
+        const draft = saveQueue.takeDraft(mode, stem);
+        const start = draft?.boxes ?? data.boxes;
         setTile(data);
-        setBoxes(data.boxes);
+        boxesRef.current = start;
+        setBoxesState(start);
         setPast([]);
         setFuture([]);
-        setDirty(false);
-        const open = openIndices(data.boxes);
+        revRef.current = draft ? 1 : 0;
+        savedRevRef.current = 0;
+        setRev(revRef.current);
+        setSavedRev(0);
+        const open = openIndices(start);
         setSelected(open.length ? open[0] : null);
         fit();
       })
-      .catch((e: Error) => toast.error(`Kachel laden: ${e.message}`));
+      .catch((e: unknown) => {
+        if (!cancelled) showError(e);
+      });
     return () => {
       cancelled = true;
     };
   }, [mode, stem, fit]);
 
-  // Leaving a tile with changes keeps them as a draft.
+  // Leaving a tile with unsaved edits hands them to the queue as a draft; it
+  // keeps trying while labels are locked or the studio is unreachable.
   useEffect(() => {
     return () => {
-      const s = stateRef.current;
-      if (s.dirty) {
-        void api
-          .saveTile(s.mode, s.stem, s.boxes, false)
-          .then(() => onSaved(s.stem, false))
-          .catch((e: Error) =>
-            toast.error(`Entwurf nicht gespeichert: ${e.message}`),
-          );
-      }
+      const r = revRef.current;
+      if (r !== savedRevRef.current && r !== rejectedRevRef.current)
+        saveQueue.keepDraft({
+          mode,
+          stem,
+          boxes: boxesRef.current,
+          done: false,
+        });
     };
-  }, [stem, mode, onSaved]);
+  }, [mode, stem]);
 
-  const save = useCallback(
-    async (done: boolean): Promise<boolean> => {
-      setSaving(true);
-      try {
-        const out = done ? finalize(boxes) : boxes;
-        await api.saveTile(mode, stem, out, done);
-        setDirty(false);
-        if (done) setBoxes(out);
-        onSaved(stem, done);
-        return true;
-      } catch (e) {
-        toast.error((e as Error).message);
-        return false;
-      } finally {
-        setSaving(false);
+  const handleFailure = useCallback(
+    (e: unknown, r: number): void => {
+      const failure = failureOf(e);
+      if (failure === "rejected") {
+        // The same content would be refused again: stop until the next edit.
+        rejectedRevRef.current = r;
+        setSaveError(errorText(e));
+        toast.error(errorText(e), { id: `save-${stem}` });
+        if ((e as { code?: string }).code === "audit_merged")
+          setTile((t) => (t ? { ...t, done: true } : t));
+        return;
       }
+      setPause(failure);
+      if (failure === "reload") showError(e);
     },
-    [boxes, mode, stem, onSaved],
+    [stem],
   );
 
-  const finish = useCallback(async (): Promise<void> => {
-    const open = counts(boxes).open;
-    if (await save(true)) {
-      toast.success(
-        open
-          ? `Kachel fertig – ${open} unbeantwortete Vorschläge als „kein Fahrzeug“ gespeichert.`
-          : "Kachel fertig.",
-      );
-      if (hasNext) onNavigate(1);
+  const saveDraft = useCallback(async (): Promise<void> => {
+    const r = revRef.current;
+    if (inFlight.current || r === savedRevRef.current) return;
+    inFlight.current = true;
+    setSaving(true);
+    try {
+      const result = await saveQueue.save({
+        mode,
+        stem,
+        boxes: boxesRef.current,
+        done: false,
+      });
+      markSaved(r);
+      setSaveError(null);
+      setPause(null);
+      setTile((t) => (t ? { ...t, done: result.done } : t));
+      onSaved(stem, result);
+    } catch (e) {
+      handleFailure(e, r);
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
     }
-  }, [boxes, save, hasNext, onNavigate]);
+  }, [mode, stem, onSaved, handleFailure]);
+
+  const finish = useCallback(async (): Promise<void> => {
+    if (readOnly || locked || pause || inFlight.current || !tile) return;
+    const current = boxesRef.current;
+    const left = unanswered(current);
+    const out = finalize(current);
+    const r = revRef.current;
+    inFlight.current = true;
+    setSaving(true);
+    try {
+      const result = await saveQueue.save({
+        mode,
+        stem,
+        boxes: out,
+        done: true,
+      });
+      boxesRef.current = out;
+      setBoxesState(out);
+      markSaved(r);
+      setSaveError(null);
+      setTile((t) => (t ? { ...t, done: result.done } : t));
+      onSaved(stem, result);
+      const parts = [t("editor.finished")];
+      if (left.suggestions)
+        parts.push(
+          t("editor.finishedSuggestions", { count: left.suggestions }),
+        );
+      if (left.labels)
+        parts.push(t("editor.finishedLabels", { count: left.labels }));
+      toast.success(parts.join(" "));
+      if (hasNext) onNavigate(1);
+      else
+        toast(t("editor.lastTile"), {
+          description: t("editor.lastTileHint"),
+        });
+    } catch (e) {
+      handleFailure(e, r);
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
+    }
+  }, [
+    readOnly,
+    locked,
+    pause,
+    tile,
+    mode,
+    stem,
+    onSaved,
+    hasNext,
+    onNavigate,
+    handleFailure,
+    t,
+  ]);
 
   // Drafts save themselves a moment after the last change (no save button).
+  // A refused save is not retried until you change something again.
   useEffect(() => {
-    if (!dirty || saving || locked || drag) return;
-    const t = setTimeout(() => void save(false), 1200);
+    if (
+      !dirty ||
+      saving ||
+      locked ||
+      pause ||
+      drag ||
+      readOnly ||
+      rev === rejectedRevRef.current
+    )
+      return;
+    const t = setTimeout(() => void saveDraft(), 1200);
     return () => clearTimeout(t);
-  }, [dirty, saving, locked, drag, boxes, save]);
+  }, [dirty, saving, locked, pause, drag, readOnly, rev, saveDraft]);
+
+  // Paused because of a lock or a lost connection: look every few seconds and
+  // resume by itself (the autosave above then stores the edits).
+  useEffect(() => {
+    if (pause !== "locked" && pause !== "offline") return;
+    const t = setInterval(() => {
+      api
+        .job()
+        .then(({ job }) => {
+          if (!(job?.status === "running" && job.locked)) setPause(null);
+          else setPause("locked");
+        })
+        .catch(() => setPause("offline"));
+    }, 3000);
+    return () => clearInterval(t);
+  }, [pause]);
 
   // --- editing ---------------------------------------------------------------------
 
   const commit = useCallback(
-    (next: TileBox[], base: TileBox[] = boxes): void => {
+    (next: TileBox[], base: TileBox[] = boxesRef.current): void => {
+      if (readOnly) return;
       setPast((p) => [...p.slice(-99), base]);
       setFuture([]);
       setBoxes(next);
-      setDirty(true);
+      bump();
     },
-    [boxes],
+    [readOnly],
   );
 
   const undo = (): void => {
-    if (!past.length) return;
+    if (!past.length || readOnly) return;
     setFuture((f) => [boxes, ...f]);
     setBoxes(past[past.length - 1]);
     setPast((p) => p.slice(0, -1));
-    setDirty(true);
+    bump();
   };
   const redo = (): void => {
-    if (!future.length) return;
+    if (!future.length || readOnly) return;
     setPast((p) => [...p, boxes]);
     setBoxes(future[0]);
     setFuture((f) => f.slice(1));
-    setDirty(true);
+    bump();
   };
 
   const visible = useMemo(
@@ -248,7 +426,8 @@ export function TileEditor({
     if (!el) return;
     const { width, height } = el.getBoundingClientRect();
     const [cx, cy] = centre(list[index].corners);
-    const fitZ = (Math.min(width, height) / TILE_PX) * 0.96;
+    const free = Math.max(120, height - cardSpace(width));
+    const fitZ = (Math.min(width, free) / TILE_PX) * 0.96;
     setView((v) => {
       // The whole tile is on screen: moving it around would only disorient.
       if (v.z <= fitZ * 1.05) return v;
@@ -259,16 +438,16 @@ export function TileEditor({
         sx > margin &&
         sx < width - margin &&
         sy > margin &&
-        sy < height - margin
+        sy < free - margin
       )
         return v;
-      return { ...v, px: width / 2 - cx * v.z, py: height / 2 - cy * v.z };
+      return { ...v, px: width / 2 - cx * v.z, py: free / 2 - cy * v.z };
     });
   }, []);
 
   const answer = useCallback(
     (decision: Decision): void => {
-      if (selected == null) return;
+      if (selected == null || readOnly) return;
       const next = boxes.map((b, i) =>
         i === selected ? decide(b, decision) : b,
       );
@@ -278,7 +457,7 @@ export function TileEditor({
       setSelected(after);
       if (after != null) centreOn(after, next);
     },
-    [boxes, selected, commit, centreOn],
+    [boxes, selected, commit, centreOn, readOnly],
   );
 
   const acceptAllOpen = (): void => {
@@ -286,7 +465,7 @@ export function TileEditor({
   };
 
   const removeSelected = (): void => {
-    if (selected == null) return;
+    if (selected == null || readOnly) return;
     const b = boxes[selected];
     // Your own boxes are deleted; model boxes are rejected, so the decision is kept.
     const next =
@@ -298,7 +477,8 @@ export function TileEditor({
   };
 
   const rotateSelected = (radians: number): void => {
-    if (selected == null) return;
+    // Only accepted boxes turn (the card offers it only for them, too).
+    if (selected == null || boxState(boxes[selected]) !== "accepted") return;
     commit(
       boxes.map((b, i) =>
         i === selected
@@ -320,6 +500,17 @@ export function TileEditor({
     const after = open.find((i) => selected == null || i > selected) ?? open[0];
     setSelected(after);
     centreOn(after, boxes);
+  };
+
+  /** "Später": the next open question; the last one is just left open (deselected). */
+  const later = (): void => {
+    if (openIndices(boxes).length > 1) nextQuestion();
+    else setSelected(null);
+  };
+
+  /** After a mouse click on a card button, keys go back to the tile (Enter, Tab). */
+  const backToTile = (e: React.MouseEvent): void => {
+    if (e.detail > 0) svgRef.current?.focus({ preventScroll: true });
   };
 
   // --- pointer handling ------------------------------------------------------------
@@ -346,12 +537,13 @@ export function TileEditor({
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>): void => {
     svgRef.current?.setPointerCapture(e.pointerId);
+    svgRef.current?.focus({ preventScroll: true });
     const p = toTile(e);
     if (tool === "pan" || spaceDown || e.button === 1) {
       setDrag({ kind: "pan", start: [e.clientX, e.clientY], view });
       return;
     }
-    const handle = handleAt(p);
+    const handle = readOnly ? null : handleAt(p);
     if (handle && selected != null) {
       setDrag(
         "rotate" in handle
@@ -369,16 +561,16 @@ export function TileEditor({
     const hits = visible.map(({ b }) => b);
     const hit = hitTest(hits, p);
     const index = hit == null ? null : visible[hit].i;
-    if (tool === "draw" && inside) {
+    if (tool === "draw" && inside && !readOnly) {
       setDrag({ kind: "draw", start: p, current: p });
       return;
     }
     if (index != null) {
       setSelected(index);
-      setDrag({ kind: "move", index, start: p, base: boxes });
+      if (!readOnly) setDrag({ kind: "move", index, start: p, base: boxes });
       return;
     }
-    if (tool === "add" && inside) {
+    if (tool === "add" && inside && !readOnly) {
       const neighbours = boxes
         .filter((b) => boxState(b) === "accepted")
         .map((b) => ({ corners: b.corners }));
@@ -412,14 +604,19 @@ export function TileEditor({
       // A click is not a move: ignore jitter below ~2 screen pixels.
       if (Math.hypot(p[0] - drag.start[0], p[1] - drag.start[1]) * view.z < 2)
         return;
+      // The box centre stays on the tile (the server refuses boxes off the tile).
+      const [cx, cy] = centre(base.corners);
       corners = moveBy(
         base.corners,
-        p[0] - drag.start[0],
-        p[1] - drag.start[1],
+        clamp(p[0] - drag.start[0], -cx, TILE_PX - cx),
+        clamp(p[1] - drag.start[1], -cy, TILE_PX - cy),
       );
     }
     if (drag.kind === "resize")
-      corners = resizeCorner(base.corners, drag.corner, p);
+      corners = resizeCorner(base.corners, drag.corner, [
+        clamp(p[0], 0, TILE_PX),
+        clamp(p[1], 0, TILE_PX),
+      ]);
     if (drag.kind === "rotate") corners = rotateTowards(base.corners, p);
     setBoxes(
       drag.base.map((b, i) => (i === drag.index ? { ...b, corners } : b)),
@@ -482,25 +679,47 @@ export function TileEditor({
     return () => ro.disconnect();
   }, [fit]);
 
-  // Optional shortcuts; every action also has a button.
+  // Optional shortcuts; every action also has a button. Keys a focused control
+  // uses itself (Enter, Space, Tab on a button, anything in a text field, a
+  // dialog or a menu) are left to it: shortcuts act only on the tile or when
+  // nothing in particular has focus.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      const target = e.target as HTMLElement;
-      if (target.closest("input, textarea, select, [role=dialog]")) return;
-      const meta = e.metaKey || e.ctrlKey;
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest(TEXT_ENTRY)) return;
+      const onTile = target === svgRef.current;
+      const free =
+        onTile ||
+        target == null ||
+        target === document.body ||
+        target === document.documentElement;
       if (e.code === "Space") {
-        setSpaceDown(e.type === "keydown");
-        if (e.type === "keydown") e.preventDefault();
+        if (e.type === "keyup") setSpaceDown(false);
+        else if (free) {
+          setSpaceDown(true);
+          e.preventDefault();
+        }
         return;
       }
       if (e.type !== "keydown") return;
-      if (meta && e.key.toLowerCase() === "z") {
+      if ((e.key === "Enter" || e.key === "Tab") && !free) return;
+      // Tab steps through the questions only while the tile has focus; it
+      // stays the way to move focus everywhere else (and Shift+Tab always).
+      if (
+        e.key === "Tab" &&
+        (!onTile || e.shiftKey || !openIndices(boxes).length)
+      )
+        return;
+      const meta = e.metaKey || e.ctrlKey;
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      if (meta && (key === "z" || key === "y")) {
         e.preventDefault();
-        if (e.shiftKey) redo();
+        if (key === "y" || e.shiftKey) redo();
         else undo();
         return;
       }
-      if (meta) return;
+      if (meta || e.altKey) return;
+      const busy = saving || locked || Boolean(pause) || readOnly;
       const keys: Record<string, () => void> = {
         v: () => setTool("select"),
         a: () => setTool("add"),
@@ -510,10 +729,14 @@ export function TileEditor({
         r: () => rotateSelected(Math.PI / 2),
         Delete: removeSelected,
         Backspace: removeSelected,
-        Enter: () => void finish(),
+        // Finishing is irreversible: not while saving, locked or paused, not on key repeat.
+        Enter: () => {
+          if (!busy && !e.repeat) void finish();
+        },
         Tab: nextQuestion,
+        "?": () => setHelpOpen((o) => !o),
       };
-      const fn = keys[e.key];
+      const fn = keys[key];
       if (fn) {
         e.preventDefault();
         fn();
@@ -537,6 +760,37 @@ export function TileEditor({
     sel && selState === "open" ? open.indexOf(selected!) + 1 : 0;
   const hs = 5 / view.z;
 
+  // One line on what saving does right now; also shown below 1024 px when it matters.
+  const saveState: { text: string; title?: string; problem: boolean } = readOnly
+    ? { text: t("editor.saveReadOnly"), problem: false }
+    : pause === "reload"
+      ? { text: t("editor.saveReload"), problem: true }
+      : pause === "offline"
+        ? { text: t("editor.saveOffline"), problem: true }
+        : locked && dirty
+          ? { text: t("editor.savePaused"), problem: true }
+          : saveError && rev === rejectedRevRef.current
+            ? { text: t("editor.saveFailed"), title: saveError, problem: true }
+            : saving || dirty
+              ? { text: t("editor.saving"), problem: false }
+              : { text: t("editor.saved"), problem: false };
+  const notice = readOnly
+    ? t("editor.noticeReadOnly")
+    : pause === "reload"
+      ? t("editor.noticeReload")
+      : pause === "offline"
+        ? t("editor.noticeOffline")
+        : locked
+          ? t("editor.noticeLocked")
+          : saveError && rev === rejectedRevRef.current
+            ? t("editor.noticeFailed", { reason: saveError })
+            : null;
+  const finishBlocked = readOnly
+    ? t("editor.finishMerged")
+    : locked || pause
+      ? t("editor.finishPaused")
+      : null;
+
   const colorOf = (b: TileBox): string => {
     const s = boxState(b);
     if (s === "rejected") return COLORS.no;
@@ -556,56 +810,83 @@ export function TileEditor({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* toolbar: tools for new boxes, undo, view */}
-      <div className="bg-card flex items-center gap-2 border-b px-3 py-2">
+      <div className="bg-card flex min-w-0 items-center gap-1.5 border-b px-3 py-2">
         <ToggleGroup
           type="single"
           variant="outline"
           size="sm"
           value={tool === "pan" ? "select" : tool}
           onValueChange={(v) => v && setTool(v as Tool)}
-          aria-label="Werkzeug"
+          aria-label={t("editor.toolLabel")}
         >
           <ToolItem
             value="select"
-            label="Auswählen, verschieben, drehen"
+            label={t("editor.toolSelect")}
+            hint={t("editor.toolSelectHint")}
             keyHint="V"
           >
-            <MousePointer2 /> Auswählen
+            <MousePointer2 />
           </ToolItem>
           <ToolItem
             value="add"
-            label="Ein Klick setzt ein Fahrzeug, ausgerichtet wie die Nachbarn"
+            label={t("editor.toolAdd")}
+            hint={t("editor.toolAddHint")}
             keyHint="A"
           >
-            <SquarePlus /> Fahrzeug setzen
+            <SquarePlus />
           </ToolItem>
-          <ToolItem value="draw" label="Box mit der Maus aufziehen" keyHint="B">
-            <SquareDashed /> Box ziehen
+          <ToolItem
+            value="draw"
+            label={t("editor.toolDraw")}
+            hint={t("editor.toolDrawHint")}
+            keyHint="B"
+          >
+            <SquareDashed />
           </ToolItem>
         </ToggleGroup>
         <Separator orientation="vertical" className="mx-1 h-6" />
         <IconButton
-          label="Rückgängig"
-          keyHint="⌘Z"
-          disabled={!past.length}
+          label={t("editor.undo")}
+          keyHint={t("editor.keyUndo")}
+          disabled={!past.length || readOnly}
           onClick={undo}
         >
           <Undo2 />
         </IconButton>
         <IconButton
-          label="Wiederholen"
-          keyHint="⇧⌘Z"
-          disabled={!future.length}
+          label={t("editor.redo")}
+          keyHint={t("editor.keyRedo")}
+          disabled={!future.length || readOnly}
           onClick={redo}
         >
           <Redo2 />
         </IconButton>
-        <div className="flex-1" />
+        <div className="min-w-0 flex-1" />
+        <Popover open={helpOpen} onOpenChange={setHelpOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-8"
+                  aria-label={t("editor.shortcutsHint")}
+                >
+                  <Keyboard />
+                </Button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{t("editor.shortcutsHint")}</TooltipContent>
+          </Tooltip>
+          <PopoverContent align="end" className="w-80 p-3">
+            <ShortcutList />
+          </PopoverContent>
+        </Popover>
         <IconButton
-          label={
-            showRejected ? "Abgelehnte ausblenden" : "Abgelehnte einblenden"
-          }
-          onClick={() => setShowRejected((s) => !s)}
+          label={t(
+            showRejected ? "editor.hideRejected" : "editor.showRejected",
+          )}
+          onClick={() => setShowRejected((x) => !x)}
         >
           {showRejected ? <Eye /> : <EyeOff />}
         </IconButton>
@@ -615,14 +896,14 @@ export function TileEditor({
               size="sm"
               variant="ghost"
               className="tabular-nums"
+              aria-label={t("editor.fit")}
               onClick={fit}
             >
-              <Maximize /> {Math.round(view.z * 100)} %
+              <Maximize /> {share(view.z)}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>
-            Ganze Kachel zeigen. Zoomen mit dem Mausrad, verschieben durch
-            Ziehen auf freier Fläche.
+          <TooltipContent className="max-w-64">
+            {t("editor.fit")}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -632,16 +913,22 @@ export function TileEditor({
         ref={wrapRef}
         className="relative min-h-0 flex-1 overflow-hidden bg-black"
       >
-        {locked && (
-          <div className="bg-warning/15 text-warning-foreground absolute inset-x-0 top-0 z-10 flex items-center gap-2 px-3 py-1.5 text-xs">
-            <LoaderCircle className="size-3.5 animate-spin" /> Neue Vorschläge
-            werden berechnet. Speichern geht in ein, zwei Minuten wieder.
+        {notice && (
+          <div
+            role="status"
+            className="bg-warning/15 text-warning-foreground absolute inset-x-0 top-0 z-10 flex items-center gap-2 px-3 py-1.5 text-xs"
+          >
+            {locked && !readOnly && (
+              <LoaderCircle className="size-3.5 animate-spin" />
+            )}
+            {notice}
           </div>
         )}
         <svg
           ref={svgRef}
           role="application"
-          aria-label={`Kachel ${stem}`}
+          tabIndex={0}
+          aria-label={t("editor.tileAria", { stem })}
           className="absolute inset-0 size-full touch-none select-none"
           style={{ cursor }}
           onPointerDown={onPointerDown}
@@ -763,79 +1050,146 @@ export function TileEditor({
           </g>
         </svg>
 
-        {/* selection card: what you can do with the selected box */}
+        {/* selection card: what you can do with the selected box. It sits in
+            the room "fit" keeps free below the tile, so it never covers it. */}
         {sel && (
-          <div className="bg-card/95 absolute bottom-3 left-1/2 z-10 w-max max-w-[calc(100%-24px)] -translate-x-1/2 rounded-lg border px-3 py-2.5 shadow-lg backdrop-blur">
-            {selState === "open" || sel.origin === "label" ? (
-              <>
+          <div className="bg-card/95 absolute bottom-2 left-1/2 z-10 w-max max-w-[calc(100%-16px)] -translate-x-1/2 rounded-lg border px-3 py-2 shadow-lg backdrop-blur">
+            {readOnly ? (
+              <span className="text-muted-foreground text-sm">
+                {selState === "rejected"
+                  ? t("editor.rejected")
+                  : selState === "open"
+                    ? t("editor.leftOpen")
+                    : t("editor.vehicle")}
+              </span>
+            ) : selState === "open" || sel.origin === "label" ? (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <div className="flex items-center gap-2">
-                  <CircleHelp className="size-4 text-[var(--box-open)]" />
+                  <CircleHelp className="size-4 shrink-0 text-[var(--box-open)]" />
                   <span className="text-sm font-medium">
                     {sel.origin === "label"
-                      ? "Ist dieses Label richtig?"
+                      ? t("editor.askLabel")
                       : mode === "audit"
-                        ? "Fehlt hier ein Fahrzeug-Label?"
-                        : "Ist das ein Fahrzeug?"}
+                        ? t("editor.askAudit")
+                        : t("editor.askSuggestion")}
                   </span>
+                  {sel.origin === "label" && selState !== "open" && (
+                    <Badge variant="outline">
+                      {selState === "rejected"
+                        ? t("editor.answerNo")
+                        : t("editor.answerYes")}
+                    </Badge>
+                  )}
                   {questionNo > 0 && (
-                    <span className="text-muted-foreground text-xs">
-                      {questionNo} / {open.length}
+                    <span className="text-muted-foreground text-xs tabular-nums">
+                      {t("editor.questionOf", {
+                        n: questionNo,
+                        total: open.length,
+                      })}
                     </span>
                   )}
                   {typeof sel.claude === "string" && sel.claude && (
-                    <Badge variant="outline">Claude: {sel.claude}</Badge>
+                    <Badge variant="outline">
+                      {t("editor.claude", { answer: sel.claude })}
+                    </Badge>
                   )}
                 </div>
-                <div className="mt-2 flex items-center gap-1.5">
-                  <Button size="sm" onClick={() => answer("car")}>
-                    <Check /> Ja
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => answer("no")}
-                  >
-                    <X /> Nein
-                  </Button>
-                  {open.length > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <HintButton label={t("editor.yes")} keyHint="J">
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        answer("car");
+                        backToTile(e);
+                      }}
+                    >
+                      <Check /> {t("editor.yes")}
+                    </Button>
+                  </HintButton>
+                  <HintButton label={t("editor.no")} keyHint="N">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={(e) => {
+                        answer("no");
+                        backToTile(e);
+                      }}
+                    >
+                      <X /> {t("editor.no")}
+                    </Button>
+                  </HintButton>
+                  {selState === "open" && (
                     <>
                       <Separator orientation="vertical" className="mx-1 h-5" />
-                      <Button size="sm" variant="ghost" onClick={nextQuestion}>
-                        Später
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={acceptAllOpen}>
-                        Alle {open.length} = Fahrzeug
-                      </Button>
+                      <HintButton
+                        label={
+                          open.length > 1
+                            ? t("editor.laterHint")
+                            : t("editor.laterLastHint")
+                        }
+                        keyHint={open.length > 1 ? "Tab" : undefined}
+                      >
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            later();
+                            backToTile(e);
+                          }}
+                        >
+                          {t("editor.later")}
+                        </Button>
+                      </HintButton>
+                      {open.length > 1 && (
+                        <HintButton label={t("editor.allYesHint")}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              acceptAllOpen();
+                              backToTile(e);
+                            }}
+                          >
+                            {t("editor.allYes", { count: open.length })}
+                          </Button>
+                        </HintButton>
+                      )}
                     </>
                   )}
                 </div>
-              </>
+              </div>
             ) : selState === "rejected" ? (
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-sm">Abgelehnt</span>
+                <span className="text-muted-foreground text-sm">
+                  {t("editor.rejected")}
+                </span>
                 <Button
                   size="sm"
                   variant="secondary"
                   onClick={() => setClassOfSelected()}
                 >
-                  <Check /> Doch ein Fahrzeug
+                  <Check /> {t("editor.restore")}
                 </Button>
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground px-1 text-sm">
-                  Fahrzeug
+                  {t("editor.vehicle")}
                 </span>
                 <IconButton
-                  label="90° drehen"
+                  label={t("editor.rotate")}
                   keyHint="R"
                   onClick={() => rotateSelected(Math.PI / 2)}
                 >
                   <RotateCw />
                 </IconButton>
                 <IconButton
-                  label={sel.origin === "manual" ? "Löschen" : "Ablehnen"}
-                  keyHint="Entf"
+                  label={
+                    sel.origin === "manual"
+                      ? t("editor.delete")
+                      : t("editor.reject")
+                  }
+                  keyHint={t("editor.keyDelete")}
                   onClick={removeSelected}
                 >
                   <Trash2 />
@@ -852,43 +1206,87 @@ export function TileEditor({
       </div>
 
       {/* footer */}
-      <div className="bg-card flex items-center gap-3 border-t px-3 py-2 text-sm">
+      <div className="bg-card flex min-w-0 items-center gap-3 border-t px-3 py-2 text-sm">
         <Button
           size="sm"
           variant="ghost"
           disabled={!hasPrev}
           onClick={() => onNavigate(-1)}
         >
-          <ChevronLeft /> Zurück
+          <ChevronLeft />{" "}
+          <span className="hidden lg:inline">{t("editor.back")}</span>
         </Button>
         <div className="min-w-0">
-          <div className="truncate font-mono text-xs">{stem}</div>
-          <div className="text-muted-foreground text-xs">
-            {position}
-            {tile?.done ? " · fertig" : ""}
+          <div className="truncate font-mono text-xs" title={stem}>
+            {stem}
+          </div>
+          <div className="text-muted-foreground truncate text-xs">
+            {tile?.done ? t("editor.positionDone", { position }) : position}
           </div>
         </div>
         <div className="hidden items-center gap-3 text-xs tabular-nums xl:flex">
-          <Legend color={COLORS.car} label={`${c.accepted} Fahrzeuge`} />
-          <Legend color={COLORS.open} label={`${c.open} offen`} dashed />
-          <Legend color={COLORS.no} label={`${c.rejected} abgelehnt`} dashed />
+          <Legend
+            color={COLORS.car}
+            label={t("editor.legendVehicles", { count: c.accepted })}
+          />
+          <Legend
+            color={COLORS.open}
+            label={t("editor.legendOpen", { count: c.open })}
+            dashed
+          />
+          <Legend
+            color={COLORS.no}
+            label={t("editor.legendRejected", { count: c.rejected })}
+            dashed
+          />
         </div>
         <div className="flex-1" />
-        {c.open > 0 && !(sel && selState === "open") && (
-          <Button size="sm" variant="outline" onClick={nextQuestion}>
-            <CircleHelp /> {c.open} offen
-          </Button>
+        {c.open > 0 && !readOnly && !(sel && selState === "open") && (
+          <HintButton label={t("editor.nextQuestion")} keyHint="Tab">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                nextQuestion();
+                backToTile(e);
+              }}
+            >
+              <CircleHelp />
+              <span className="xl:hidden">
+                {t("editor.openCount", { count: c.open })}
+              </span>
+              <span className="hidden xl:inline">
+                {t("editor.nextQuestion")}
+              </span>
+            </Button>
+          </HintButton>
         )}
-        <span className="text-muted-foreground hidden text-xs whitespace-nowrap lg:inline">
-          {saving || dirty ? "Speichert…" : "Gespeichert"}
-        </span>
-        <Button
-          size="sm"
-          disabled={saving || locked || !tile}
-          onClick={() => void finish()}
+        <span
+          role="status"
+          title={saveState.title}
+          className={cn(
+            "truncate text-xs whitespace-nowrap",
+            saveState.problem
+              ? "text-warning-foreground"
+              : "text-muted-foreground hidden lg:inline",
+          )}
         >
-          <Check /> Kachel fertig {hasNext && <ChevronRight />}
-        </Button>
+          {saveState.text}
+        </span>
+        <HintButton
+          label={finishBlocked ?? t("editor.finish")}
+          keyHint={finishBlocked ? undefined : "Enter"}
+        >
+          <span className="shrink-0">
+            <Button
+              size="sm"
+              disabled={saving || Boolean(finishBlocked) || !tile}
+              onClick={() => void finish()}
+            >
+              <Check /> {t("editor.finish")} {hasNext && <ChevronRight />}
+            </Button>
+          </span>
+        </HintButton>
       </div>
     </div>
   );
@@ -897,11 +1295,13 @@ export function TileEditor({
 function ToolItem({
   value,
   label,
+  hint,
   keyHint,
   children,
 }: {
   value: string;
   label: string;
+  hint: string;
   keyHint?: string;
   children: React.ReactNode;
 }): React.JSX.Element {
@@ -914,15 +1314,83 @@ function ToolItem({
           className="gap-1.5 px-2.5"
         >
           {children}
+          <span className="hidden xl:inline">{label}</span>
         </ToggleGroupItem>
       </TooltipTrigger>
       <TooltipContent>
-        {label}
-        {keyHint && (
-          <span className="text-muted-foreground ml-2">{keyHint}</span>
-        )}
+        {hint}
+        {keyHint && <Kbd>{keyHint}</Kbd>}
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+/** A tooltip with the action and its key for a control that has its own label. */
+function HintButton({
+  label,
+  keyHint,
+  children,
+}: {
+  label: string;
+  keyHint?: string;
+  children: React.ReactElement;
+}): React.JSX.Element {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>
+        {label}
+        {keyHint && <Kbd>{keyHint}</Kbd>}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** A key name in a tooltip or the shortcut list. */
+function Kbd({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <kbd className="bg-muted text-muted-foreground ml-2 rounded border px-1 font-mono text-[10px]">
+      {children}
+    </kbd>
+  );
+}
+
+/** Every shortcut of the editor, opened from the toolbar or with "?". */
+function ShortcutList(): React.JSX.Element {
+  const { t } = useTranslation();
+  const rows: [string, string][] = [
+    ["J", t("editor.keys.yes")],
+    ["N", t("editor.keys.no")],
+    ["Tab", t("editor.keys.tab")],
+    ["Enter", t("editor.keys.enter")],
+    ["V / A / B", t("editor.keys.tools")],
+    ["R", t("editor.keys.rotate")],
+    [t("editor.keyDelete"), t("editor.keys.delete")],
+    [t("editor.keyUndo"), t("editor.keys.undo")],
+    [t("editor.keyRedo"), t("editor.keys.redo")],
+    [t("editor.keySpace"), t("editor.keys.pan")],
+    ["⊙", t("editor.keys.wheel")],
+    ["?", t("editor.keys.help")],
+  ];
+  return (
+    <div className="space-y-2 text-sm">
+      <div className="font-medium">{t("editor.shortcuts")}</div>
+      <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-xs">
+        {rows.map(([key, text]) => (
+          <div key={text} className="contents">
+            <dt className="text-right whitespace-nowrap">
+              <kbd className="bg-muted rounded border px-1 font-mono text-[10px]">
+                {key}
+              </kbd>
+            </dt>
+            <dd className="text-muted-foreground">{text}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="text-muted-foreground text-[11px] leading-snug">
+        {t("editor.shortcutsNote")}
+      </p>
+    </div>
   );
 }
 
@@ -957,9 +1425,7 @@ function IconButton({
       </TooltipTrigger>
       <TooltipContent>
         {label}
-        {keyHint && (
-          <span className="text-muted-foreground ml-2">{keyHint}</span>
-        )}
+        {keyHint && <Kbd>{keyHint}</Kbd>}
       </TooltipContent>
     </Tooltip>
   );

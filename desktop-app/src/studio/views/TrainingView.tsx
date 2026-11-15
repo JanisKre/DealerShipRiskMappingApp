@@ -1,6 +1,6 @@
 import { BrainCircuit, ChevronRight, RotateCw } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import {
@@ -28,18 +28,35 @@ import {
   TableHeader,
   TableRow,
 } from "@renderer/components/ui/table";
-import { api, fmt, pct, runColor, type Run, type Status } from "@studio/api";
+import { runColor, type Round, type Run, type Status } from "@studio/api";
 import { RunLines } from "@studio/components/LineChartCard";
+import { stageName, startStep } from "@studio/lib";
+import { dateTime, fmt, parseWhole, pct, TRAIN_EPOCHS } from "@studio/numbers";
 
 const RUN_STATE: Record<
   Run["state"],
-  { label: string; variant: "default" | "secondary" | "warning" | "outline" }
+  "default" | "secondary" | "warning" | "outline"
 > = {
-  running: { label: "läuft", variant: "default" },
-  finished: { label: "fertig", variant: "secondary" },
-  interrupted: { label: "abgebrochen", variant: "warning" },
-  empty: { label: "leer", variant: "outline" },
+  running: "default",
+  finished: "secondary",
+  interrupted: "warning",
+  empty: "outline",
 };
+
+/** What happened to a round's job; the run's own state only once it finished. */
+const ROUND_STATE: Record<
+  Exclude<Round["state"], "done">,
+  "default" | "secondary" | "warning" | "outline" | "destructive"
+> = {
+  running: "default",
+  failed: "destructive",
+  stopped: "warning",
+  lost: "warning",
+  unknown: "outline",
+};
+
+/** Same rule as studio.py RUN_NAME. */
+const RUN_NAME = /^[a-z0-9][a-z0-9-]{0,40}$/;
 
 export function TrainingView({
   status,
@@ -48,65 +65,80 @@ export function TrainingView({
   status: Status;
   reload: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const busy = status.job?.status === "running";
   const names = status.runs.map((r) => r.name);
   const ds = status.dataset;
 
-  const run = async (
+  const run = (
     step: string,
     options: Record<string, unknown> = {},
-  ): Promise<void> => {
-    try {
-      await api.run(step, options);
-      toast.success("Gestartet.");
-      reload();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  };
+  ): Promise<void> => startStep(step, options, reload);
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-6">
+      <header className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight">
+          {t("app.nav.training")}
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          {t("training.subtitle")}
+        </p>
+      </header>
       <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <BrainCircuit className="size-4" /> Trainingsrunden
-            </CardTitle>
-            <CardDescription>
-              Jede Runde: Datensatz → Feintuning ab der letzten Runde → Messung
-              → neue Vorschläge. Nichts wird automatisch installiert.
-            </CardDescription>
-          </div>
+        <CardHeader>
+          <CardTitle
+            role="heading"
+            aria-level={2}
+            className="flex items-center gap-2"
+          >
+            <BrainCircuit className="size-4" /> {t("training.roundsTitle")}
+          </CardTitle>
+          <CardDescription>{t("training.roundsText")}</CardDescription>
         </CardHeader>
         <CardContent>
           {status.rounds.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Runde</TableHead>
-                  <TableHead>Gestartet</TableHead>
-                  <TableHead>Basis</TableHead>
-                  <TableHead className="text-right">Standorte</TableHead>
-                  <TableHead className="text-right">Epochen</TableHead>
-                  <TableHead className="text-right">mAP50</TableHead>
-                  <TableHead className="text-right">MAE (App)</TableHead>
-                  <TableHead className="text-right">Bias</TableHead>
-                  <TableHead>Stand</TableHead>
+                  <TableHead>{t("training.colRound")}</TableHead>
+                  <TableHead>{t("training.colStarted")}</TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    {t("training.colBase")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("training.colSites")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("training.colEpochs")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("training.colMap50")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("training.colMae")}
+                  </TableHead>
+                  <TableHead className="hidden text-right lg:table-cell">
+                    {t("training.colBias")}
+                  </TableHead>
+                  <TableHead>{t("training.colState")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {[...status.rounds].reverse().map((r) => {
                   const runInfo = status.runs.find((x) => x.name === r.run);
+                  const failedAt =
+                    r.state !== "running" &&
+                    stageName(r.failedStageKey, r.failedStage);
                   return (
                     <TableRow key={r.run}>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium whitespace-nowrap">
                         <Swatch color={runColor(r.run, names)} /> {r.run}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {r.started.replace("T", " ").slice(0, 16)}
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        {dateTime(r.started, "short")}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className="hidden font-mono text-xs whitespace-nowrap lg:table-cell">
                         {r.base}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
@@ -114,7 +146,10 @@ export function TrainingView({
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {runInfo
-                          ? `${runInfo.lastEpoch} / ${r.epochs}`
+                          ? t("training.epochsOf", {
+                              done: runInfo.lastEpoch,
+                              total: r.epochs,
+                            })
                           : r.epochs}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
@@ -122,19 +157,36 @@ export function TrainingView({
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {r.appBest
-                          ? `${fmt(r.appBest.mae, 1)} @ ${fmt(r.appBest.conf, 2)}`
+                          ? t("training.maeAt", {
+                              mae: fmt(r.appBest.mae, 1),
+                              conf: fmt(r.appBest.conf, 2),
+                            })
                           : "–"}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="hidden text-right tabular-nums lg:table-cell">
                         {r.appBest ? pct(r.appBest.bias) : "–"}
                       </TableCell>
                       <TableCell>
-                        {runInfo ? (
-                          <Badge variant={RUN_STATE[runInfo.state].variant}>
-                            {RUN_STATE[runInfo.state].label}
+                        {r.state !== "done" ? (
+                          <Badge
+                            variant={ROUND_STATE[r.state]}
+                            className="h-auto text-left whitespace-normal"
+                          >
+                            {failedAt
+                              ? t("training.roundStateAt", {
+                                  state: t(`training.roundState.${r.state}`),
+                                  stage: failedAt,
+                                })
+                              : t(`training.roundState.${r.state}`)}
+                          </Badge>
+                        ) : runInfo ? (
+                          <Badge variant={RUN_STATE[runInfo.state]}>
+                            {t(`training.runState.${runInfo.state}`)}
                           </Badge>
                         ) : (
-                          <Badge variant="outline">wartet</Badge>
+                          <Badge variant="outline">
+                            {t("training.noModel")}
+                          </Badge>
                         )}
                       </TableCell>
                     </TableRow>
@@ -143,9 +195,8 @@ export function TrainingView({
               </TableBody>
             </Table>
           ) : (
-            <p className="text-muted-foreground text-sm">
-              Noch keine Runde. Runden startest du beim Labeln mit „Speichern
-              &amp; neu trainieren“.
+            <p className="text-muted-foreground py-4 text-center text-sm">
+              {t("training.roundsEmpty")}
             </p>
           )}
         </CardContent>
@@ -154,16 +205,15 @@ export function TrainingView({
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card>
           <CardHeader>
-            <CardTitle>mAP50 je Epoche</CardTitle>
-            <CardDescription>
-              Erkennungsgüte auf den Validierungsstandorten während des
-              Trainings.
-            </CardDescription>
+            <CardTitle role="heading" aria-level={2}>
+              {t("training.chartTitle")}
+            </CardTitle>
+            <CardDescription>{t("training.chartText")}</CardDescription>
           </CardHeader>
           <CardContent>
             <RunLines
-              xLabel="Epoche"
-              yFormat={(y) => fmt(y, 2)}
+              xLabel={t("training.epoch")}
+              valueFormat={(y) => fmt(y, 3)}
               series={status.runs
                 .filter((r) => r.curve.length)
                 .map((r) => ({
@@ -177,28 +227,34 @@ export function TrainingView({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Datensatz</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              {t("training.datasetTitle")}
+            </CardTitle>
             <CardDescription>
-              Gebaut {ds.built?.replace("T", " ") ?? "noch nie"}
+              {ds.built
+                ? t("training.built", { date: dateTime(ds.built) })
+                : t("training.neverBuilt")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-1.5 text-sm">
             <Row
-              label="Standorte Train / Val"
+              label={t("training.trainVal")}
               value={`${fmt(ds.trainSites)} / ${fmt(ds.valSites)}`}
             />
-            <Row label="Train-Kacheln" value={fmt(ds.trainTiles)} />
-            <Row label="davon Pseudo-Standorte" value={fmt(ds.pseudoSites)} />
-            <Row label="weichgezeichnete Kopien" value={fmt(ds.degraded)} />
+            <Row label={t("training.trainTiles")} value={fmt(ds.trainTiles)} />
+            <Row
+              label={t("training.pseudoSites")}
+              value={fmt(ds.pseudoSites)}
+            />
+            <Row label={t("training.degraded")} value={fmt(ds.degraded)} />
             <p className="text-muted-foreground pt-2 text-xs">
-              Die Validierungsstandorte bleiben fest, damit alle Runden
-              vergleichbar sind.
+              {t("training.valFixed")}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <ManualTraining status={status} busy={busy} run={run} />
+      <ManualTraining status={status} busy={busy} run={run} reload={reload} />
     </div>
   );
 }
@@ -207,43 +263,64 @@ function ManualTraining({
   status,
   busy,
   run,
+  reload,
 }: {
   status: Status;
   busy: boolean;
   run: (step: string, o?: Record<string, unknown>) => Promise<void>;
+  reload: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const [name, setName] = useState(
     `dealer-obb-${new Date().toISOString().slice(5, 10).replace("-", "")}`,
   );
   const [model, setModel] = useState(status.baseModels[0] ?? "");
-  const [epochs, setEpochs] = useState(60);
+  const [epochsText, setEpochsText] = useState("60");
+  const epochs = parseWhole(epochsText, TRAIN_EPOCHS.min, TRAIN_EPOCHS.max);
+  const nameOk = RUN_NAME.test(name);
+  const noBase = !status.baseModels.length;
+  const fewSites = status.finishedSites < status.minRoundSites;
+  const noDataset = !status.dataset.built;
+  // Start weights downloaded meanwhile: select them.
+  useEffect(() => {
+    if (!model && status.baseModels[0]) setModel(status.baseModels[0]);
+  }, [model, status.baseModels]);
   const [pseudo, setPseudo] = useState(false);
   const resumable = status.runs.filter(
     (r) => r.state === "interrupted" && r.hasLast,
   );
   return (
     <details className="group bg-card rounded-xl border">
-      <summary className="flex cursor-pointer list-none items-center gap-2 p-5 text-sm font-medium [&::-webkit-details-marker]:hidden">
-        <ChevronRight className="size-4 transition-transform group-open:rotate-90" />
-        Erweitert: Training von Grund auf
-        <span className="text-muted-foreground font-normal">
-          – volles Training ab den DOTA-Gewichten (1–2 Stunden) oder einen
-          abgebrochenen Lauf fortsetzen
+      <summary className="flex cursor-pointer list-none items-start gap-2 p-5 [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="mt-0.5 size-4 shrink-0 transition-transform group-open:rotate-90" />
+        <span className="min-w-0">
+          <span
+            className="block text-sm font-medium"
+            role="heading"
+            aria-level={2}
+          >
+            {t("training.manualSummary")}
+          </span>
+          <span className="text-muted-foreground block text-xs">
+            {t("training.manualHint")}
+          </span>
         </span>
       </summary>
       <div className="flex flex-wrap items-end gap-3 px-5 pb-5">
         <div className="space-y-1.5">
-          <Label htmlFor="mt-name">Name</Label>
+          <Label htmlFor="mt-name">{t("training.name")}</Label>
           <Input
             id="mt-name"
             className="w-44"
             value={name}
+            aria-invalid={!nameOk}
+            title={t("training.nameHint")}
             onChange={(e) => setName(e.target.value)}
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="mt-model">Start</Label>
-          <Select value={model} onValueChange={setModel}>
+          <Label htmlFor="mt-model">{t("training.start")}</Label>
+          <Select value={model} onValueChange={setModel} disabled={noBase}>
             <SelectTrigger id="mt-model" className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -257,36 +334,97 @@ function ManualTraining({
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="mt-epochs">Epochen</Label>
+          <Label htmlFor="mt-epochs">{t("training.epochs")}</Label>
           <Input
             id="mt-epochs"
             type="number"
+            inputMode="numeric"
+            min={TRAIN_EPOCHS.min}
+            max={TRAIN_EPOCHS.max}
             className="w-24"
-            value={epochs}
-            onChange={(e) => setEpochs(Number(e.target.value))}
+            value={epochsText}
+            aria-invalid={epochs == null}
+            title={t("training.epochsRange", TRAIN_EPOCHS)}
+            onChange={(e) => setEpochsText(e.target.value)}
           />
         </div>
         <div className="flex items-center gap-2 pb-2">
           <Switch id="mt-pseudo" checked={pseudo} onCheckedChange={setPseudo} />
           <Label htmlFor="mt-pseudo" className="font-normal">
-            Pseudo-Labels
+            {t("training.pseudo")}
           </Label>
         </div>
         <Button
           variant="outline"
-          disabled={busy}
-          onClick={async () => {
-            await run("dataset", { pseudo });
-          }}
+          disabled={busy || fewSites}
+          title={
+            fewSites
+              ? t("training.needSites", {
+                  min: status.minRoundSites,
+                  finished: status.finishedSites,
+                })
+              : undefined
+          }
+          onClick={() => void run("dataset", { pseudo })}
         >
-          Nur Datensatz bauen
+          {t("training.datasetOnly")}
         </Button>
         <Button
-          disabled={busy || !model}
+          disabled={busy || !model || epochs == null || noDataset || !nameOk}
+          title={noDataset ? t("training.needDataset") : undefined}
           onClick={() => void run("train", { name, model, epochs })}
         >
-          Training starten
+          {t("training.train")}
         </Button>
+        {!nameOk && (
+          <p className="text-destructive w-full text-xs">
+            {t("training.nameHint")}
+          </p>
+        )}
+        {noBase && (
+          <div className="text-muted-foreground flex w-full flex-wrap items-center gap-2 text-xs">
+            {t("training.noBase")}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                void startStep(
+                  "base-weights",
+                  { model: status.defaultBase },
+                  reload,
+                  {
+                    title: t("training.baseConfirmTitle"),
+                    text: t("training.baseConfirmText", {
+                      model: status.defaultBase,
+                    }),
+                    confirm: t("training.baseConfirm"),
+                  },
+                )
+              }
+            >
+              {t("training.loadBase", { model: status.defaultBase })}
+            </Button>
+          </div>
+        )}
+        {!noBase && epochs == null && (
+          <p className="text-destructive w-full text-xs">
+            {t("training.epochsInvalid", TRAIN_EPOCHS)}
+          </p>
+        )}
+        {fewSites && (
+          <p className="text-muted-foreground w-full text-xs">
+            {t("training.fewSites", {
+              min: status.minRoundSites,
+              finished: status.finishedSites,
+            })}
+          </p>
+        )}
+        {noDataset && !fewSites && (
+          <p className="text-muted-foreground w-full text-xs">
+            {t("training.noDataset")}
+          </p>
+        )}
         {resumable.map((r) => (
           <Button
             key={r.name}
@@ -294,7 +432,7 @@ function ManualTraining({
             disabled={busy}
             onClick={() => void run("train", { name: r.name, resume: true })}
           >
-            <RotateCw /> {r.name} fortsetzen
+            <RotateCw /> {t("training.resume", { run: r.name })}
           </Button>
         ))}
       </div>

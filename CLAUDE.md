@@ -40,6 +40,14 @@ Native dependencies (`better-sqlite3`, `onnxruntime-node`, and `sharp`) must be
 rebuilt after dependency or Electron changes. Update the lockfile together
 with `package.json` and run `npm audit` for dependency changes.
 
+## Training studio
+
+When asked to start the training studio ("starte das Trainingsstudio",
+"start the training studio") or to fine-tune the vehicle detector, follow
+`.claude/skills/training-studio/SKILL.md`. In short: `training/start_studio.sh`
+sets up the Python venv, Node packages and the studio UI build, then serves
+the studio on `http://127.0.0.1:8770`.
+
 ## Pull requests and releases
 
 - Keep changes focused and update tests and documentation together.

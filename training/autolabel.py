@@ -4,6 +4,7 @@
     python autolabel.py --sites BY-osm296363718  # only these sites
     python autolabel.py --eval                   # validation sites, for measure_autolabel.py
     python autolabel.py --audit                  # finished sites: boxes without a label of yours
+    python autolabel.py --weights yolo11s-obb.pt --dota   # first suggestions, before any training
 
 Each tile is predicted in its 8 orientations (4 rotations x mirrored) and the
 boxes are mapped back and merged. A vehicle found in 8 of 8 passes with a high
@@ -40,7 +41,7 @@ from ultralytics import YOLO  # noqa: E402
 from ultralytics.utils.metrics import batch_probiou  # noqa: E402
 from ultralytics.utils.ops import xyxyxyxy2xywhr  # noqa: E402
 
-from common import CLASS_NAMES, DATA, RAW, ROOT, TILE_PX, corrected_labels, reviewed_sites, site_of  # noqa: E402
+from common import CLASS_NAMES, DATA, RAW, RUNS, TILE_PX, corrected_labels, reviewed_sites, site_of  # noqa: E402
 
 from tiles import (  # noqa: E402,F401 — re-exported for claude_review.py, harvest_app.py, measure_autolabel.py, analyze_errors.py
     AUTOLABEL,
@@ -54,7 +55,10 @@ from tiles import (  # noqa: E402,F401 — re-exported for claude_review.py, har
     val_sites,
 )
 
-DEFAULT_WEIGHTS = ROOT / "runs" / "dealer-obb" / "weights" / "best.pt"
+DEFAULT_WEIGHTS = RUNS / "dealer-obb" / "weights" / "best.pt"
+
+# DOTA-v1 class ids in Ultralytics' *-obb.pt start weights (same map as prelabel.py)
+DOTA_TO_OURS = {10: 0, 9: 1}  # small vehicle → car, large vehicle → large_vehicle
 
 PASSES = 8
 # Lowest score any single pass reports; weaker hits are noise.
@@ -158,7 +162,7 @@ def merge_passes(per_pass: list[tuple[np.ndarray, np.ndarray, np.ndarray]]) -> l
     return out
 
 
-def predict_tile(model: YOLO, image: Path, device: str, imgsz: int) -> list[dict]:
+def predict_tile(model: YOLO, image: Path, device: str, imgsz: int, dota: bool = False) -> list[dict]:
     img = cv2.imread(str(image))  # BGR, as Ultralytics expects for arrays
     if img is None or img.shape[0] != img.shape[1]:
         raise SystemExit(f"{image.name}: not a square tile")
@@ -170,7 +174,12 @@ def predict_tile(model: YOLO, image: Path, device: str, imgsz: int) -> list[dict
             per_pass.append((np.zeros((0, 4, 2)), np.zeros(0), np.zeros(0)))
             continue
         corners = untransform_points(res.obb.xyxyxyxy.cpu().numpy(), k, flip, size)
-        per_pass.append((corners, res.obb.conf.cpu().numpy(), res.obb.cls.cpu().numpy().astype(int)))
+        scores, classes = res.obb.conf.cpu().numpy(), res.obb.cls.cpu().numpy().astype(int)
+        if dota:  # start weights know 15 DOTA classes; keep the two vehicle classes only
+            keep = np.isin(classes, list(DOTA_TO_OURS))
+            corners, scores = corners[keep], scores[keep]
+            classes = np.array([DOTA_TO_OURS[c] for c in classes[keep]], dtype=int)
+        per_pass.append((corners, scores, classes))
     return merge_passes(per_pass)
 
 
@@ -263,10 +272,12 @@ def main() -> None:
     ap.add_argument("--eval", action="store_true", help="label the validation sites into data/autolabel-eval/")
     ap.add_argument("--audit", action="store_true", help="look for vehicles missing in finished sites → data/autolabel-audit/")
     ap.add_argument("--reset", action="store_true", help="forget earlier decisions for the labelled tiles")
-    ap.add_argument("--imgsz", type=int, default=TILE_PX)
+    ap.add_argument("--dota", action="store_true", help="weights are DOTA start weights (yolo11s-obb.pt): keep vehicles only, default --imgsz 448")
+    ap.add_argument("--imgsz", type=int, help=f"default {TILE_PX}, 448 with --dota (cars at the scale DOTA learned)")
     ap.add_argument("--device", default="mps")
     args = ap.parse_args()
 
+    imgsz = args.imgsz or (448 if args.dota else TILE_PX)
     if not Path(args.weights).exists():
         raise SystemExit(f"weights not found: {args.weights} — train a model first (train.py)")
     images = sorted(RAW.glob("*.jpg"))
@@ -295,7 +306,7 @@ def main() -> None:
         if not todo:
             raise SystemExit("all tiles of these sites are finished")
     for n, image in enumerate(todo, 1):
-        boxes = predict_tile(model, image, args.device, args.imgsz)
+        boxes = predict_tile(model, image, args.device, imgsz, args.dota)
         if args.audit:
             boxes = audit_boxes(image, boxes, BUCKETS)
         tile = write_tile(out_dir, image, boxes, args.weights, BUCKETS, args.reset, audit=args.audit)

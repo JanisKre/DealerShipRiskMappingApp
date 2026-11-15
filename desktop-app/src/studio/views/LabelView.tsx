@@ -1,15 +1,23 @@
 import { BrainCircuit, CircleCheck, LoaderCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { Trans, useTranslation } from "react-i18next";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Progress } from "@renderer/components/ui/progress";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@renderer/components/ui/tabs";
 import { cn } from "@renderer/lib/utils";
-import { api, fmt, type LabelMode, type Queue, type Status } from "@studio/api";
+import {
+  api,
+  type LabelMode,
+  type Queue,
+  type SaveResult,
+  type Status,
+} from "@studio/api";
 import { RoundDialog } from "@studio/components/RoundDialog";
-import { TileEditor } from "@studio/editor/TileEditor";
+import { SetupAction } from "@studio/components/SetupAction";
+import { saveQueue, TileEditor } from "@studio/editor/TileEditor";
+import { roundBlocked, setupStep, showError, stageName } from "@studio/lib";
 
 export function LabelView({
   status,
@@ -18,6 +26,7 @@ export function LabelView({
   status: Status;
   reload: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<LabelMode>("label");
   const [queue, setQueue] = useState<Queue | null>(null);
   const [stem, setStem] = useState<string | null>(null);
@@ -29,11 +38,11 @@ export function LabelView({
         const q = await api.queue(m);
         setQueue(q);
         if (pickFirst) {
-          const first = q.sites.flatMap((s) => s.tiles).find((t) => !t.done);
+          const first = q.sites.flatMap((s) => s.tiles).find((x) => !x.done);
           setStem(first?.stem ?? q.sites[0]?.tiles[0]?.stem ?? null);
         }
       } catch (e) {
-        toast.error((e as Error).message);
+        showError(e);
       }
     },
     [],
@@ -50,42 +59,52 @@ export function LabelView({
   }, [locked, mode, loadQueue]);
 
   const order = useMemo(
-    () => queue?.sites.flatMap((s) => s.tiles.map((t) => t.stem)) ?? [],
+    () => queue?.sites.flatMap((s) => s.tiles.map((x) => x.stem)) ?? [],
     [queue],
   );
   const index = stem ? order.indexOf(stem) : -1;
 
+  // The sidebar shows what the server stored, not what the page assumes.
   const onSaved = useCallback(
-    (saved: string, done: boolean) => {
+    (saved: string, result: SaveResult) => {
       setQueue(
         (q) =>
           q && {
             ...q,
             sites: q.sites.map((s) => {
-              const tiles = s.tiles.map((t) =>
-                t.stem === saved
+              const tiles = s.tiles.map((x) =>
+                x.stem === saved
                   ? {
-                      ...t,
-                      done: t.done || done,
-                      questions: done ? 0 : t.questions,
+                      ...x,
+                      done: result.done,
+                      questions: result.questions,
                     }
-                  : t,
+                  : x,
               );
               return {
                 ...s,
                 tiles,
-                done: tiles.filter((t) => t.done).length,
+                done: tiles.filter((x) => x.done).length,
                 questions: tiles.reduce(
-                  (a, t) => a + (t.done ? 0 : t.questions),
+                  (a, x) => a + (x.done ? 0 : x.questions),
                   0,
                 ),
               };
             }),
           },
       );
-      if (done) reload();
+      if (result.done) reload();
     },
     [reload],
+  );
+
+  // Drafts of tiles you already left are stored in the background; show them too.
+  useEffect(
+    () =>
+      saveQueue.onSaved((r, result) => {
+        if (r.mode === mode && r.stem !== stem) onSaved(r.stem, result);
+      }),
+    [mode, stem, onSaved],
   );
 
   const navigate = useCallback(
@@ -95,7 +114,7 @@ export function LabelView({
       if (dir === 1 && queue) {
         const tiles = queue.sites.flatMap((s) => s.tiles);
         const next =
-          tiles.slice(index + 1).find((t) => !t.done) ?? tiles[index + 1];
+          tiles.slice(index + 1).find((x) => !x.done) ?? tiles[index + 1];
         if (next) setStem(next.stem);
         return;
       }
@@ -106,7 +125,8 @@ export function LabelView({
   );
 
   // Progress since the last round: only complete sites enter the training set.
-  const last = status.rounds[status.rounds.length - 1];
+  // Counted since the last round that finished; a failed round trained nothing.
+  const last = [...status.rounds].reverse().find((r) => r.state === "done");
   const newTiles = status.sites.checkedTiles - (last?.checkedTiles ?? 0);
   const newSites = status.sites.finished - (last?.finishedSites ?? 0);
   const roundRunning =
@@ -114,24 +134,44 @@ export function LabelView({
   const total = order.length;
   const doneCount = queue?.sites.reduce((a, s) => a + s.done, 0) ?? 0;
   const openQuestions = queue?.sites.reduce((a, s) => a + s.questions, 0) ?? 0;
+  const blocked = roundBlocked(status);
+  const setup = setupStep(status);
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)]">
-      <aside className="bg-sidebar flex min-h-0 flex-col border-r">
+    <div className="grid h-full min-h-0 grid-cols-[248px_minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)]">
+      <h1 className="sr-only">{t("app.nav.label")}</h1>
+      <aside
+        className="bg-sidebar flex min-h-0 flex-col border-r"
+        aria-label={t("label.sites")}
+      >
         <div className="space-y-3 border-b p-3">
-          <Tabs value={mode} onValueChange={(v) => setMode(v as LabelMode)}>
+          <Tabs
+            value={mode}
+            onValueChange={(v) => {
+              // The old tile belongs to the other list: pick anew (no load with the wrong mode).
+              setStem(null);
+              setQueue(null);
+              setMode(v as LabelMode);
+            }}
+          >
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="label">Offene Standorte</TabsTrigger>
-              <TabsTrigger value="audit">Audit</TabsTrigger>
+              <TabsTrigger
+                value="label"
+                className="min-w-0 px-1.5 text-xs lg:text-sm"
+                title={t("label.tabOpen")}
+              >
+                <span className="truncate">{t("label.tabOpen")}</span>
+              </TabsTrigger>
+              <TabsTrigger value="audit" className="px-1.5 text-xs lg:text-sm">
+                {t("label.tabAudit")}
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           <div>
-            <div className="flex justify-between text-xs">
-              <span>
-                {fmt(doneCount)} / {fmt(total)} Kacheln
-              </span>
+            <div className="flex flex-wrap justify-between gap-x-2 text-xs">
+              <span>{t("label.progress", { done: doneCount, total })}</span>
               <span className="text-muted-foreground">
-                {fmt(openQuestions)} offene Fragen
+                {t("label.openQuestions", { count: openQuestions })}
               </span>
             </div>
             <Progress
@@ -141,43 +181,53 @@ export function LabelView({
           </div>
           <div className="bg-card rounded-lg border p-3">
             <div className="flex items-center gap-2 text-sm font-medium">
-              <BrainCircuit className="size-4" /> Trainingsrunde
+              <BrainCircuit className="size-4" /> {t("label.roundCard")}
             </div>
             {roundRunning ? (
               <p className="text-muted-foreground mt-1.5 flex items-center gap-1.5 text-xs">
-                <LoaderCircle className="size-3.5 animate-spin" />
-                {status.job!.stages[status.job!.stage]?.name ?? "läuft"} (
-                {status.job!.stage + 1}/{status.job!.stages.length}). Du kannst
-                weiter labeln.
+                <LoaderCircle className="size-3.5 shrink-0 animate-spin" />
+                {t("label.roundRunning", {
+                  stage:
+                    stageName(
+                      status.job!.stages[status.job!.stage]?.key,
+                      status.job!.stages[status.job!.stage]?.name,
+                    ) || t("jobs.state.running"),
+                  n: status.job!.stage + 1,
+                  total: status.job!.stages.length,
+                })}
               </p>
             ) : (
               <p className="text-muted-foreground mt-1.5 text-xs">
-                Seit{" "}
-                {last
-                  ? `Runde ${last.run.replace("round-", "")}`
-                  : "dem letzten Training"}
-                :{" "}
-                <b className="text-foreground">{fmt(Math.max(0, newTiles))}</b>{" "}
-                Kacheln,{" "}
-                <b className="text-foreground">{fmt(Math.max(0, newSites))}</b>{" "}
-                Standorte komplett. Ins Training gehen nur komplette Standorte.
+                <Trans
+                  i18nKey={last ? "label.sinceRound" : "label.sinceStart"}
+                  values={{
+                    n: last?.run.replace("round-", ""),
+                    tiles: Math.max(0, newTiles),
+                    sites: Math.max(0, newSites),
+                  }}
+                  components={{ b: <b className="text-foreground" /> }}
+                />
               </p>
             )}
             <Button
               size="sm"
-              className="mt-2 w-full"
-              disabled={roundRunning || status.job?.status === "running"}
+              className="mt-2 h-auto min-h-8 w-full py-1.5 whitespace-normal"
+              disabled={Boolean(blocked)}
+              title={blocked ?? undefined}
               onClick={() => setRoundOpen(true)}
             >
-              Speichern &amp; neu trainieren
+              {t("label.roundButton")}
             </Button>
+            {blocked && !roundRunning && (
+              <p className="text-muted-foreground mt-1.5 text-xs">{blocked}</p>
+            )}
           </div>
         </div>
         <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-1 p-2">
             {queue?.sites.map((s) => {
               const complete = s.done === s.tiles.length;
-              const active = s.tiles.some((t) => t.stem === stem);
+              const active = s.tiles.some((x) => x.stem === stem);
               return (
                 <div
                   key={s.site}
@@ -195,29 +245,46 @@ export function LabelView({
                     </span>
                     <span className="flex-1" />
                     {complete ? (
-                      <CircleCheck className="size-3.5 text-[var(--box-car)]" />
+                      <CircleCheck
+                        className="size-3.5 shrink-0 text-[var(--box-car)]"
+                        aria-label={t("label.siteDone")}
+                      />
                     ) : (
-                      <span className="text-muted-foreground tabular-nums">
+                      <span
+                        className="text-muted-foreground tabular-nums"
+                        title={t("label.siteQuestions", { count: s.questions })}
+                      >
                         {s.questions} ?
                       </span>
                     )}
                   </div>
                   <div className="mt-1.5 grid grid-cols-9 gap-1">
-                    {s.tiles.map((t, k) => (
+                    {s.tiles.map((tile, k) => (
                       <button
-                        key={t.stem}
+                        key={tile.stem}
                         type="button"
-                        title={`${t.stem}${t.done ? " · fertig" : ` · ${t.questions} Fragen`}`}
-                        aria-label={`Kachel ${k + 1} von ${s.site}${t.done ? ", fertig" : ""}`}
-                        onClick={() => setStem(t.stem)}
+                        title={
+                          tile.done
+                            ? t("label.tileTitleDone", { stem: tile.stem })
+                            : t("label.tileTitle", {
+                                stem: tile.stem,
+                                count: tile.questions,
+                              })
+                        }
+                        aria-label={t(
+                          tile.done ? "label.tileAriaDone" : "label.tileAria",
+                          { n: k + 1, site: s.site },
+                        )}
+                        aria-current={tile.stem === stem ? "true" : undefined}
+                        onClick={() => setStem(tile.stem)}
                         className={cn(
-                          "h-4 rounded-[3px] border transition-colors",
-                          t.done
+                          "focus-visible:ring-ring h-4 rounded-[3px] border transition-colors outline-none focus-visible:ring-2",
+                          tile.done
                             ? "border-transparent bg-[var(--box-car)]/70"
-                            : t.questions
+                            : tile.questions
                               ? "border-[var(--box-open)]/60 bg-[var(--box-open)]/15"
                               : "bg-muted border-transparent",
-                          t.stem === stem &&
+                          tile.stem === stem &&
                             "ring-foreground ring-2 ring-offset-1 ring-offset-transparent",
                         )}
                       />
@@ -227,9 +294,15 @@ export function LabelView({
               );
             })}
             {queue && !queue.sites.length && (
-              <p className="text-muted-foreground p-3 text-sm">
-                Keine Kacheln. Zuerst unter „Übersicht“ Vorschläge berechnen.
-              </p>
+              <div className="text-muted-foreground space-y-2 p-3 text-sm">
+                {mode === "audit" ? (
+                  <p>{t("label.emptyAudit")}</p>
+                ) : setup ? (
+                  <p>{t("label.emptySetup", { step: setup.title })}</p>
+                ) : (
+                  <p>{t("label.emptyNone")}</p>
+                )}
+              </div>
             )}
           </div>
         </ScrollArea>
@@ -240,7 +313,7 @@ export function LabelView({
             key={`${mode}:${stem}`}
             mode={mode}
             stem={stem}
-            position={`Kachel ${index + 1} von ${total}`}
+            position={t("label.position", { n: index + 1, total })}
             locked={locked}
             hasPrev={index > 0}
             hasNext={index >= 0 && index < total - 1}
@@ -248,11 +321,23 @@ export function LabelView({
             onSaved={onSaved}
           />
         ) : (
-          <div className="text-muted-foreground grid h-full place-items-center text-sm">
-            {queue ? (
-              "Keine Kachel ausgewählt."
-            ) : (
+          <div className="text-muted-foreground grid h-full place-items-center p-6 text-sm">
+            {!queue ? (
               <LoaderCircle className="size-5 animate-spin" />
+            ) : setup && mode === "label" ? (
+              // A fresh setup: the next step, as on the overview.
+              <div className="bg-card max-w-md space-y-3 rounded-xl border p-5">
+                <div className="text-xs font-medium tracking-wide uppercase">
+                  {t("overview.kickerSetup")}
+                </div>
+                <h2 className="text-foreground text-lg font-semibold">
+                  {setup.title}
+                </h2>
+                <p>{setup.text}</p>
+                <SetupAction step={setup} status={status} onStarted={reload} />
+              </div>
+            ) : (
+              t("label.noTile")
             )}
           </div>
         )}

@@ -10,6 +10,67 @@ locally on a MacBook Air M4 with 16 GB.
 Nothing produced here is committed: `data/`, `runs/`, `export/`, and all
 weights are git-ignored. Imagery and labels can reveal dealership locations.
 
+## Quick start
+
+```bash
+training/start_studio.sh            # sets up what is missing, then opens the studio
+training/start_studio.sh --check    # only lists what is missing
+```
+
+The script creates `.venv` (Python 3.11 or 3.12), installs
+`requirements.txt`, runs `npm ci` and `npm run build:studio` in
+`desktop-app/` when needed, and starts `studio.py`; extra options such as
+`--port 8771` are passed through. With Claude Code, saying "start the
+training studio" does the same (see `.claude/skills/training-studio`).
+
+`TRAINING_DATA_DIR` and `TRAINING_APP_MODELS_DIR` point all scripts at
+another data folder and model folder, for example a copy to try the studio
+on without touching the real labels or the app's installed model.
+
+**Sandbox mode.** With `TRAINING_DATA_DIR` set, everything the scripts write
+stays in that folder: `runs/`, `export/` and `dataset.yaml` are created
+inside it (`common.WORK`) instead of in `training/`. Start weights
+(`yolo*-obb.pt`) are looked up there first, then in `training/` (read only).
+The studio shows a "Sandbox" badge and refuses what would reach outside:
+"Installiertes Modell ausliefern" (it edits the tracked
+`desktop-app/src/shared/model-release.json`), "Korrekturen aus der App
+übernehmen" unless `TRAINING_APP_MODELS_DIR` is also set (the app database
+is then read from next to that folder), and "Installieren" without
+`TRAINING_APP_MODELS_DIR`. Without the variables nothing changes:
+`training/data`, `training/runs`, `training/export`, `training/dataset.yaml`.
+
+### Your own data
+
+A fresh clone has no imagery or labels. The studio's Übersicht walks you
+through the first steps ("Einrichten"), one button each; the same steps
+work on the command line:
+
+1. Download a dealer list, for example
+   `car_dealerships_germany_100.csv` from
+   [JanisKre/dealership_dataset](https://github.com/JanisKre/dealership_dataset)
+   (OSM, ODbL 1.0).
+2. **Standortliste anlegen**: upload the CSV in the studio (stored as
+   `data/dealers.csv`; it needs the columns `ID`, `OSM ID`, `Latitude`,
+   `Longitude`, `Federal State`, `Dealership Name`, `City`), or run
+   `.venv/bin/python select_sites.py car_dealerships_germany_100.csv --count 80`.
+   Either writes `data/sites.csv`.
+3. **Kacheln laden**: the studio's button, or
+   `.venv/bin/python fetch_tiles.py data/sites.csv`, loads the tiles from
+   the open state orthophoto services.
+4. **Startgewichte laden**: downloads `yolo11s-obb.pt` (DOTA, about 20 MB)
+   from Ultralytics' GitHub release into `training/` (in a sandbox: into
+   the data folder). This is the only studio step that goes online.
+5. **Erste Vorschläge berechnen**: `autolabel.py --weights yolo11s-obb.pt
+   --dota` fills the Labeln queue (`data/autolabel/`) with the start
+   weights' vehicle boxes (DOTA classes 9/10 only, tiles shrunk to 448 px).
+   This is the same queue later rounds refresh with your own model, so
+   there is one labelling path. (`prelabel.py` still writes YOLO files to
+   `data/labels/` for X-AnyLabeling; the studio does not read those.)
+6. Label in the studio, finish whole sites, build the dataset and start the
+   first full training from the DOTA weights in the Training tab (it needs
+   at least 5 finished sites; 40+ are better). Later rounds use
+   "Speichern & neu trainieren".
+
 ## Setup
 
 ```bash
@@ -34,7 +95,14 @@ cd ../desktop-app && npm run build:studio   # once, and after studio UI changes
 cd ../training && python studio.py          # opens http://127.0.0.1:8770
 ```
 
-The studio is one page with four tabs:
+The studio is one page with four tabs. Its interface is in German, English
+or French: the language switch is in the navbar (Deutsch / English /
+Français), the choice is remembered in the browser, and without one the
+studio follows the browser's language (German otherwise). Numbers and dates
+follow the chosen language. The texts live in
+`desktop-app/src/studio/locales/{de,en,fr}.json`; a test checks that the
+three files have the same keys and that every code, stage and job title
+`studio.py` sends has a translation.
 
 - **Übersicht** – where every step stands (sites per state, open questions,
   rounds, installed model) and what to do next.
@@ -51,8 +119,23 @@ The studio is one page with four tabs:
   `review.py`) and opens the next one. There is **one class**: every box
   is a vehicle (see below). The "Audit" tab does the same for finished
   sites. Seldom-used steps (new suggestions, audit questions, error
-  analysis, tiles, app corrections, Claude sheets) are in the "Werkzeuge"
-  menu.
+  analysis, site list, tiles, app corrections, Claude sheets) are in the
+  "Werkzeuge" menu; a step that cannot run says why underneath.
+
+  Saving rules: a finished tile stays finished when you edit it again (the
+  change goes into its labels at once). In the Audit tab, an unanswered
+  "Ist dieses Label richtig?" keeps the label; only unanswered model
+  suggestions count as "no". A finished audit tile is merged and read only.
+  A save the server refuses is shown once and not retried; while new
+  suggestions are being computed (or the studio is unreachable) saving
+  pauses with a notice and resumes by itself, also for tiles you left
+  meanwhile. Shortcuts (J, N, R, V, A, B, Entf/⌫, ⌘Z/Strg+Z, ⇧⌘Z/Strg+Y)
+  act on the tile; Enter (Kachel fertig), Space (pan) and Tab (next
+  question, only while the tile has focus) never override a focused
+  button, field or dialog. The keyboard button in the toolbar (or "?")
+  lists them all, and the buttons' tooltips name their key. "Später"
+  leaves a question open (on the last one it just deselects it; "Kachel
+  fertig" then counts it as "no").
 - **Training** – rounds, mAP curves, dataset, and a full training from the
   DOTA weights.
 - **Modelle** – count error per threshold (app pipeline and Ultralytics),
@@ -71,7 +154,11 @@ trainieren". The studio runs, in the background:
 5. `autolabel.py` with the new model for the tiles still open.
 
 You keep labelling meanwhile; only while step 5 rewrites the suggestions
-are saves paused for a minute or two. Nothing is installed automatically:
+are saves paused for a minute or two (they resume by themselves). A round
+needs at least 5 finished sites and is refused before it starts otherwise.
+Its outcome is kept in `data/studio/rounds.json`: a failed, cancelled or
+interrupted round shows as such, with its stage, and does not reset the
+"since the last round" counter. Nothing is installed automatically:
 compare the round under "Modelle" and install it when it is better. Only
 **complete** sites (all nine tiles done) enter the training set, so finish
 sites rather than single tiles.
@@ -79,8 +166,20 @@ sites rather than single tiles.
 The studio binds to 127.0.0.1, refuses other hosts and origins and needs a
 per-start token for every write. Job logs, rounds and evaluation results are
 in `data/studio/` (git-ignored like all of `data/`). Steps run detached:
-closing the page or stopping the studio does not stop a training run.
-`review.py` still works on its own.
+closing the page or stopping the studio does not stop a training run. If
+the job driver itself dies, the job shows as "unterbrochen"; "Abbrechen"
+then stops whatever of it still runs. A failed step shows its stage and the
+last message it printed; the full log is one click further.
+
+Refusals from `studio.py` are JSON `{"error", "code", "params"}`. The codes
+are stable and listed in `studio.py` (`MESSAGES`), so the page can explain
+them in its own words. Jobs carry stable keys the same way: every stage has
+a `key` (`STAGES`) and every job a `titleKey` with `titleParams`
+(`TITLES`); the German `name` and `title` stay for the log and the command
+line. Confirmations (install, ship, cancel a step, download start weights)
+use the studio's own dialog, not the browser's. Checks: `.venv/bin/python -m unittest discover -s
+tests` (sandboxed, no torch, no network) and `npm test` in `desktop-app/`
+(`src/studio/**/*.test.ts`). `review.py` still works on its own.
 
 ## Workflow
 

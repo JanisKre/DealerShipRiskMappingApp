@@ -53,6 +53,7 @@ from PIL import Image, ImageDraw, ImageStat
 from common import (
     CLASS_NAMES,
     DATA,
+    DATASET_YAML,
     RAW,
     TARGET_GSD_M,
     TILE_PX,
@@ -162,7 +163,7 @@ def main() -> None:
     reviewed = reviewed_sites()
     sites = sorted(reviewed)
     if len(sites) < 5:
-        raise SystemExit(f"only {len(sites)} sites fully ticked — finish at least 5 (better 40+) in label.py first")
+        raise SystemExit(f"only {len(sites)} sites fully ticked — finish at least 5 (better 40+) first ('Kachel fertig' on every tile of a site in the studio, or label.py)")
 
     own = sorted(p for p in RAW.glob("*.jpg") if site_of(p) in reviewed)
     public_dir = DATA / "public" / "images"
@@ -192,7 +193,7 @@ def main() -> None:
 
     if args.classes == "vehicle":
         merge_classes(DATASET / "labels")
-    yaml = DATA.parent / "dataset.yaml"
+    yaml = DATASET_YAML
     names = "\n".join(f"  {i}: {n}" for i, n in TRAIN_CLASSES[args.classes].items())
     yaml.write_text(f"path: {DATASET}\ntrain: images/train\nval: images/val\nnames:\n{names}\n")
     (DATASET / "val_sites.txt").write_text("\n".join(sorted(val_sites)) + "\n")
