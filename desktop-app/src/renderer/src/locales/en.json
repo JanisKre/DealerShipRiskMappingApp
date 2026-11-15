@@ -2285,10 +2285,26 @@
     "connect": "Connect",
     "tokenHint": "Every request needs the header “Authorization: Bearer <token>”. Whoever has the token can read the portfolio.",
     "copyToken": "Copy token",
-    "copyClaudeCommand": "Copy the Claude Code command",
     "copied": "Copied to the clipboard.",
     "rotateToken": "New token",
     "tokenRotated": "New token created. The old one no longer works.",
-    "privacy": "Passed on: names, postcode and town, hail zone, vehicle counts, EAL, exposure and source details. Never passed on: notes, street addresses, coordinates and lot boundaries. A connected tool may send this data to its own AI model."
+    "privacy": "Passed on: names, postcode and town, hail zone, vehicle counts, EAL, exposure and source details. Never passed on: notes, street addresses, coordinates and lot boundaries. A connected tool may send this data to its own AI model.",
+    "claudePrompt": "Connect the desktop app “Dealership Risk Mapping” as an MCP server. Run this command in the terminal:\n\n{{command}}\n\nThen check with “claude mcp list” that “dealership-risk” is connected. Call the tool portfolio_summary and summarise my portfolio in three sentences. The app must be open while you do this. All amounts are screening estimates, not an underwriting decision.",
+    "claude": {
+      "title": "Connect to Claude",
+      "description": "Three ways, depending on what you work with. The copied text contains the token; on screen it is hidden. Pass it only to programs you want to show your portfolio to.",
+      "prompt": {
+        "title": "Prompt for Claude Code",
+        "hint": "Paste into Claude Code. Claude sets up the connection itself and shows a first summary."
+      },
+      "command": {
+        "title": "Command for the terminal",
+        "hint": "Run once in the terminal; Claude Code then knows the app in this folder."
+      },
+      "desktop": {
+        "title": "Entry for Claude Desktop",
+        "hint": "Paste in Claude Desktop under Settings → Developer → Edit Config and restart Claude. Needs Node.js; the “mcp-remote” bridge is downloaded on first start."
+      }
+    }
   }
 }

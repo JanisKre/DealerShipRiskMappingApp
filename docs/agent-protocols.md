@@ -67,8 +67,14 @@ Connect Claude Code (the settings card copies this command with the token):
 claude mcp add --transport http dealership-risk http://127.0.0.1:47821/mcp --header "Authorization: Bearer <token>"
 ```
 
-Hosts that only start local programs (stdio) need a bridge such as
-`mcp-remote` pointed at the same URL and header.
+The settings card ("Connect to Claude") offers three texts to copy, each
+with the token filled in (hidden on screen): a prompt to paste into Claude
+Code, which then runs the command itself and shows a first summary; the
+command above; and an entry for Claude Desktop's configuration file. Claude
+Desktop only starts local programs (stdio), so that entry runs the
+`mcp-remote` bridge through `npx` (needs Node.js) pointed at the same URL,
+with the header passed in an environment variable. The Claude Desktop entry
+has not been tested against Claude Desktop.
 
 ### MCP App
 

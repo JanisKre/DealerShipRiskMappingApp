@@ -2285,10 +2285,26 @@
     "connect": "Verbinden",
     "tokenHint": "Jede Anfrage braucht den Header „Authorization: Bearer <Token>“. Wer das Token hat, kann das Portfolio lesen.",
     "copyToken": "Token kopieren",
-    "copyClaudeCommand": "Befehl für Claude Code kopieren",
     "copied": "In die Zwischenablage kopiert.",
     "rotateToken": "Neues Token",
     "tokenRotated": "Neues Token erzeugt. Das alte gilt nicht mehr.",
-    "privacy": "Weitergegeben werden Namen, Postleitzahl und Ort, Hagelzone, Fahrzeugzahlen, EAL, Exposure und Quellenangaben. Nie weitergegeben werden Notizen, Straßenadressen, Koordinaten und Grundstücksgrenzen. Ein verbundenes Werkzeug kann diese Daten an sein eigenes KI-Modell senden."
+    "privacy": "Weitergegeben werden Namen, Postleitzahl und Ort, Hagelzone, Fahrzeugzahlen, EAL, Exposure und Quellenangaben. Nie weitergegeben werden Notizen, Straßenadressen, Koordinaten und Grundstücksgrenzen. Ein verbundenes Werkzeug kann diese Daten an sein eigenes KI-Modell senden.",
+    "claudePrompt": "Binde die Desktop-App „Dealership Risk Mapping“ als MCP-Server ein. Führe dazu diesen Befehl im Terminal aus:\n\n{{command}}\n\nPrüfe danach mit „claude mcp list“, dass „dealership-risk“ verbunden ist. Rufe dann das Werkzeug portfolio_summary auf und fasse mein Portfolio in drei Sätzen zusammen. Die App muss dabei geöffnet sein. Alle Beträge sind Screening-Schätzungen, keine Zeichnungsentscheidung.",
+    "claude": {
+      "title": "In Claude einbinden",
+      "description": "Drei Wege, je nachdem womit du arbeitest. Der kopierte Text enthält das Token; angezeigt wird es verdeckt. Gib ihn nur an Programme weiter, denen du dein Portfolio zeigen willst.",
+      "prompt": {
+        "title": "Prompt für Claude Code",
+        "hint": "In Claude Code einfügen. Claude richtet die Verbindung selbst ein und zeigt eine erste Zusammenfassung."
+      },
+      "command": {
+        "title": "Befehl für das Terminal",
+        "hint": "Einmal im Terminal ausführen; danach kennt Claude Code die App in diesem Ordner."
+      },
+      "desktop": {
+        "title": "Eintrag für Claude Desktop",
+        "hint": "In Claude Desktop unter Einstellungen → Entwickler → Konfiguration bearbeiten einfügen und Claude neu starten. Braucht Node.js; die Brücke „mcp-remote“ wird beim ersten Start geladen."
+      }
+    }
   }
 }

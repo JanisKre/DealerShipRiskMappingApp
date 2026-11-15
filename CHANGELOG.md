@@ -18,6 +18,10 @@ without any of the protocols switched on.
   summary, an A2A 1.0 agent card and endpoint, and an AG-UI stream of the
   portfolio chat. Notes, street addresses, coordinates and lot boundaries
   are never passed on. See `docs/agent-protocols.md`.
+- **Connect to Claude by copy and paste.** With the MCP server switched on,
+  the settings offer a prompt for Claude Code, the terminal command and an
+  entry for Claude Desktop, each with the token filled in and hidden on
+  screen.
 - **External MCP servers.** Connect your own data sources; the chat may use
   tools a server marks read-only, and labels their results as external.
 - **AI record book.** Every request to an AI provider is recorded locally

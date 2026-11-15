@@ -2285,10 +2285,26 @@
     "connect": "Connexion",
     "tokenHint": "Chaque requête nécessite l'en-tête « Authorization: Bearer <jeton> ». Quiconque détient le jeton peut lire le portefeuille.",
     "copyToken": "Copier le jeton",
-    "copyClaudeCommand": "Copier la commande Claude Code",
     "copied": "Copié dans le presse-papiers.",
     "rotateToken": "Nouveau jeton",
     "tokenRotated": "Nouveau jeton créé. L'ancien n'est plus valable.",
-    "privacy": "Sont transmis : noms, code postal et ville, zone de grêle, nombres de véhicules, EAL, exposition et sources. Ne sont jamais transmis : notes, adresses, coordonnées et limites de terrain. Un outil connecté peut envoyer ces données à son propre modèle d'IA."
+    "privacy": "Sont transmis : noms, code postal et ville, zone de grêle, nombres de véhicules, EAL, exposition et sources. Ne sont jamais transmis : notes, adresses, coordonnées et limites de terrain. Un outil connecté peut envoyer ces données à son propre modèle d'IA.",
+    "claudePrompt": "Connecte l'application de bureau « Dealership Risk Mapping » comme serveur MCP. Exécute cette commande dans le terminal :\n\n{{command}}\n\nVérifie ensuite avec « claude mcp list » que « dealership-risk » est connecté. Appelle l'outil portfolio_summary et résume mon portefeuille en trois phrases. L'application doit rester ouverte. Tous les montants sont des estimations de screening, pas une décision de souscription.",
+    "claude": {
+      "title": "Connecter à Claude",
+      "description": "Trois façons, selon votre outil. Le texte copié contient le jeton ; il est masqué à l'écran. Ne le transmettez qu'aux programmes auxquels vous voulez montrer votre portefeuille.",
+      "prompt": {
+        "title": "Prompt pour Claude Code",
+        "hint": "À coller dans Claude Code. Claude établit lui-même la connexion et affiche un premier résumé."
+      },
+      "command": {
+        "title": "Commande pour le terminal",
+        "hint": "À exécuter une fois dans le terminal ; Claude Code connaît ensuite l'application dans ce dossier."
+      },
+      "desktop": {
+        "title": "Entrée pour Claude Desktop",
+        "hint": "À coller dans Claude Desktop sous Paramètres → Développeur → Modifier la configuration, puis redémarrer Claude. Nécessite Node.js ; le pont « mcp-remote » est téléchargé au premier démarrage."
+      }
+    }
   }
 }

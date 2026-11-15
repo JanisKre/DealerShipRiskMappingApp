@@ -5,7 +5,10 @@ import { toast } from "sonner";
 import type { Settings } from "@shared/types";
 import {
   DEFAULT_GATEWAY_SETTINGS,
+  claudeCodeCommand,
+  claudeDesktopConfig,
   gatewayBaseUrl,
+  maskToken,
   type AgentGatewaySettings,
   type AgentGatewayStatus,
 } from "@shared/agent-gateway";
@@ -138,7 +141,16 @@ export function AgentGatewayCard({
 
   const base = gatewayBaseUrl(status?.port ?? gateway.port);
   const token = status?.token ?? "";
-  const claudeCommand = `claude mcp add --transport http dealership-risk ${base}/mcp --header "Authorization: Bearer ${token}"`;
+  const activePort = status?.port ?? gateway.port;
+  const claudeCommand = claudeCodeCommand(activePort, token);
+  const snippets = [
+    {
+      key: "prompt",
+      text: t("agentGateway.claudePrompt", { command: claudeCommand }),
+    },
+    { key: "command", text: claudeCommand },
+    { key: "desktop", text: claudeDesktopConfig(activePort, token) },
+  ] as const;
 
   return (
     <Card>
@@ -227,17 +239,6 @@ export function AgentGatewayCard({
               >
                 <Copy /> {t("agentGateway.copyToken")}
               </Button>
-              {gateway.mcp && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    void copy(claudeCommand, t("agentGateway.copied"))
-                  }
-                >
-                  <Copy /> {t("agentGateway.copyClaudeCommand")}
-                </Button>
-              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -254,6 +255,46 @@ export function AgentGatewayCard({
                 <RefreshCw /> {t("agentGateway.rotateToken")}
               </Button>
             </div>
+          </div>
+        )}
+        {gateway.enabled && gateway.mcp && status?.running && token && (
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium">
+                {t("agentGateway.claude.title")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t("agentGateway.claude.description")}
+              </p>
+            </div>
+            {snippets.map((snippet) => (
+              <div key={snippet.key} className="space-y-1.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {t(`agentGateway.claude.${snippet.key}.title`)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t(`agentGateway.claude.${snippet.key}.hint`)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() =>
+                      void copy(snippet.text, t("agentGateway.copied"))
+                    }
+                  >
+                    <Copy /> {t("aiInsight.copy")}
+                  </Button>
+                </div>
+                {/* Shown with the token hidden; the copy carries it. */}
+                <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-md border bg-muted/40 p-2 font-mono text-xs [overflow-wrap:anywhere]">
+                  {maskToken(snippet.text, token)}
+                </pre>
+              </div>
+            ))}
           </div>
         )}
         <p className="text-xs text-muted-foreground">

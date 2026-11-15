@@ -3,6 +3,9 @@ import type { AnalyzedDealership, Session } from "@shared/types";
 import {
   DEFAULT_GATEWAY_SETTINGS,
   checkGatewayRequest,
+  claudeCodeCommand,
+  claudeDesktopConfig,
+  maskToken,
 } from "@shared/agent-gateway";
 import { A2aAgent, buildAgentCard, matchSkill } from "./a2a";
 import { agUiRun, chatMessagesFromAgUi, RunAgentInputSchema } from "./ag-ui";
@@ -562,5 +565,35 @@ describe("gateway HTTP server", () => {
       body: "x".repeat(1_100_000),
     }).catch(() => null);
     expect(big == null || big.status === 413).toBe(true);
+  });
+});
+
+describe("texts for connecting Claude", () => {
+  it("builds the Claude Code command for the configured port and token", () => {
+    expect(claudeCodeCommand(47821, "tok")).toBe(
+      'claude mcp add --transport http dealership-risk http://127.0.0.1:47821/mcp --header "Authorization: Bearer tok"',
+    );
+  });
+
+  it("builds a Claude Desktop entry that bridges to the local server", () => {
+    const config = JSON.parse(claudeDesktopConfig(5000, "tok")) as {
+      mcpServers: Record<
+        string,
+        { command: string; args: string[]; env: Record<string, string> }
+      >;
+    };
+    const entry = config.mcpServers["dealership-risk"];
+    expect(entry.command).toBe("npx");
+    expect(entry.args).toContain("http://127.0.0.1:5000/mcp");
+    // The token is only in the environment, not in an argument.
+    expect(entry.args.join(" ")).not.toContain("tok");
+    expect(entry.env.AUTH_HEADER).toBe("Bearer tok");
+  });
+
+  it("hides the token on screen", () => {
+    const shown = maskToken(claudeCodeCommand(47821, "s3cret"), "s3cret");
+    expect(shown).not.toContain("s3cret");
+    expect(shown).toContain("Bearer ••••••••");
+    expect(maskToken("abc", "")).toBe("abc");
   });
 });

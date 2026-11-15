@@ -213,6 +213,27 @@ test("AG-UI: without an AI provider the run ends with RUN_ERROR", async () => {
   expect(events.at(-1)?.type).toBe("RUN_ERROR");
 });
 
+test("the settings offer a prompt, a command and a Claude Desktop entry to copy", async () => {
+  await page.getByRole("link", { name: "Einstellungen" }).click();
+  await page.getByRole("tab", { name: "KI" }).click();
+  await expect(page.getByText("In Claude einbinden")).toBeVisible();
+  const shown = await page.locator("pre").allInnerTexts();
+  expect(shown).toHaveLength(3);
+  expect(shown[0]).toContain("Binde die Desktop-App");
+  expect(shown[1]).toContain(
+    `claude mcp add --transport http dealership-risk ${BASE}/mcp`,
+  );
+  expect(shown[2]).toContain('"mcp-remote"');
+  // The token is hidden on screen in all three.
+  expect(shown.join("\n")).not.toContain(token);
+  expect(shown[1]).toContain("Bearer ••••••••");
+  const dir = process.env.DRM_E2E_SCREENSHOTS;
+  if (dir) {
+    await page.getByText("In Claude einbinden").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${dir}/gateway-connect-claude.png` });
+  }
+});
+
 test("switching the gateway off closes the port", async () => {
   test.skip(
     process.env.DRM_E2E_CLAUDE_HOST === "1",

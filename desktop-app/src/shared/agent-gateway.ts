@@ -97,3 +97,46 @@ export function checkGatewayRequest(input: {
   }
   return null;
 }
+
+// --- Connecting Claude -------------------------------------------------------
+
+/** Name under which the app is registered as an MCP server in a host. */
+export const MCP_HOST_SERVER_NAME = "dealership-risk";
+
+/** Shell command that registers the gateway's MCP server in Claude Code. */
+export function claudeCodeCommand(port: number, token: string): string {
+  return `claude mcp add --transport http ${MCP_HOST_SERVER_NAME} ${gatewayBaseUrl(port)}/mcp --header "Authorization: Bearer ${token}"`;
+}
+
+/**
+ * Entry for Claude Desktop's `claude_desktop_config.json`. Claude Desktop
+ * starts local programs only, so the `mcp-remote` bridge (run through npx,
+ * needs Node.js) forwards to the gateway. The header travels in an
+ * environment variable because some hosts split arguments at spaces.
+ */
+export function claudeDesktopConfig(port: number, token: string): string {
+  return JSON.stringify(
+    {
+      mcpServers: {
+        [MCP_HOST_SERVER_NAME]: {
+          command: "npx",
+          args: [
+            "-y",
+            "mcp-remote",
+            `${gatewayBaseUrl(port)}/mcp`,
+            "--header",
+            "Authorization:${AUTH_HEADER}",
+          ],
+          env: { AUTH_HEADER: `Bearer ${token}` },
+        },
+      },
+    },
+    null,
+    2,
+  );
+}
+
+/** The text with the token replaced by dots, for showing it on screen. */
+export function maskToken(text: string, token: string): string {
+  return token ? text.split(token).join("•".repeat(8)) : text;
+}
