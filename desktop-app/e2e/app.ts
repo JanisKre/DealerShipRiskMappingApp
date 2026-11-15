@@ -4,6 +4,7 @@ import { join } from "node:path";
 import {
   _electron as electron,
   type ElectronApplication,
+  type Locator,
   type Page,
 } from "@playwright/test";
 
@@ -62,4 +63,31 @@ export async function dismissModelWizard(page: Page): Promise<void> {
       await wizard.getByRole("button", { name: "Schließen" }).click();
     },
   );
+}
+
+/**
+ * Drags `source` onto `target` with the mouse, in small steps. Playwright's
+ * `dragTo` jumps to the target in one move; in Electron the browser then
+ * sometimes never starts the drag (no `dragstart`), about once in twelve
+ * runs. A short first move picks the element up, the rest carries it over.
+ */
+export async function dragOnto(
+  page: Page,
+  source: Locator,
+  target: Locator,
+): Promise<void> {
+  await source.scrollIntoViewIfNeeded();
+  const from = await source.boundingBox();
+  if (!from) throw new Error("drag source is not visible");
+  const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 6, start.y + 6, { steps: 3 });
+  // Measured after the pick-up: the page may have scrolled or re-laid out.
+  const to = await target.boundingBox();
+  if (!to) throw new Error("drag target is not visible");
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, {
+    steps: 8,
+  });
+  await page.mouse.up();
 }

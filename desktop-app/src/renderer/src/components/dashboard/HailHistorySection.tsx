@@ -495,31 +495,40 @@ function Figure({
   hint?: string;
   onClick?: () => void;
 }>): React.JSX.Element {
-  const body = (
-    <>
+  // A <dl> may only hold <dt>/<dd> groups (in a <div>), so a clickable
+  // figure keeps the group and puts the button inside the value; its
+  // `after` layer stretches the click and focus area over the whole card.
+  return (
+    <div
+      className={
+        onClick
+          ? "relative rounded-lg border px-2.5 py-2 transition-colors hover:bg-accent"
+          : "rounded-lg border px-2.5 py-2"
+      }
+    >
       <dt className="text-[11px] leading-tight text-muted-foreground">
         {label}
       </dt>
       <dd className="mt-0.5 break-words text-base font-semibold leading-snug tabular-nums">
-        {value}
+        {onClick ? (
+          <button
+            type="button"
+            onClick={onClick}
+            aria-label={[label, value, hint].filter(Boolean).join(", ")}
+            className="text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
+          >
+            {value}
+          </button>
+        ) : (
+          value
+        )}
       </dd>
       {hint && (
         <dd className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
           {hint}
         </dd>
       )}
-    </>
-  );
-  return onClick ? (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-lg border px-2.5 py-2 text-left transition-colors hover:bg-accent"
-    >
-      {body}
-    </button>
-  ) : (
-    <div className="rounded-lg border px-2.5 py-2">{body}</div>
+    </div>
   );
 }
 

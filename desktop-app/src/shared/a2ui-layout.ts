@@ -131,6 +131,24 @@ function relocate(
 }
 
 /**
+ * Moves a part one place earlier (-1) or later (1) among its siblings: the
+ * keyboard and single-click way to reorder (the move buttons). Unlike a
+ * drop it never joins or leaves a row. Returns the surface unchanged at the
+ * end of the row or column, null for an unknown part.
+ */
+export function shiftComponent(
+  surface: A2uiSurface,
+  id: string,
+  step: -1 | 1,
+): A2uiSurface | null {
+  const parent = parentOf(surface.components, id);
+  if (!parent) return null;
+  const index = parent.children.indexOf(id) + step;
+  if (index < 0 || index >= parent.children.length) return surface;
+  return relocate(surface, id, parent.id, index, false);
+}
+
+/**
  * Drops `dragged` on the part `hovered` (a card, or a row between its
  * cards). Returns the new surface, `surface` itself when nothing moves, or
  * null when the drop is refused:

@@ -27,16 +27,73 @@ import {
   DropdownMenuTrigger,
 } from "@renderer/components/ui/dropdown-menu";
 import { Input } from "@renderer/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@renderer/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@renderer/components/ui/tabs";
 import { useDashboardStore } from "@renderer/store/dashboardStore";
 
 const STANDARD = "__standard__";
 
 /**
+ * Tab context around the dashboard page: the tab row sits in the page
+ * header, the panel further down, so the root spans both without a box of
+ * its own (`contents`).
+ */
+export function DashboardTabsRoot({
+  children,
+}: Readonly<{ children: React.ReactNode }>): React.JSX.Element {
+  const active = useDashboardStore((s) => s.active);
+  const open = useDashboardStore((s) => s.open);
+  return (
+    <Tabs
+      value={active?.id ?? STANDARD}
+      onValueChange={(value) => {
+        void open(value === STANDARD ? null : value).catch((err: unknown) =>
+          toast.error(err instanceof Error ? err.message : String(err)),
+        );
+      }}
+      className="contents"
+    >
+      {children}
+    </Tabs>
+  );
+}
+
+/**
+ * The panel of the open dashboard. Every tab controls an element that
+ * exists (`aria-controls`), and screen readers announce the content as the
+ * panel of the selected tab.
+ */
+export function DashboardTabPanel({
+  className,
+  children,
+}: Readonly<{
+  className?: string;
+  children: React.ReactNode;
+}>): React.JSX.Element {
+  const active = useDashboardStore((s) => s.active);
+  return (
+    <TabsContent
+      value={active?.id ?? STANDARD}
+      // The tiles carry the focusable controls; the panel itself is not a
+      // tab stop.
+      tabIndex={-1}
+      className={className}
+    >
+      {children}
+    </TabsContent>
+  );
+}
+
+/**
  * One row of tabs for every dashboard: the standard overview first, then
  * the AI dashboards, then "new dashboard", which opens the assistant with a
  * sentence to complete. Rename, change and delete sit in the "…" menu of the
- * open AI dashboard, so switching stays a single click.
+ * open AI dashboard, so switching stays a single click. Rendered inside
+ * `DashboardTabsRoot`.
  */
 export function DashboardTabs({
   onNew,
@@ -53,18 +110,11 @@ export function DashboardTabs({
   const { t } = useTranslation();
   const list = useDashboardStore((s) => s.list);
   const active = useDashboardStore((s) => s.active);
-  const open = useDashboardStore((s) => s.open);
   const rename = useDashboardStore((s) => s.rename);
   const remove = useDashboardStore((s) => s.remove);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
   const [deleting, setDeleting] = useState(false);
-
-  function select(value: string): void {
-    void open(value === STANDARD ? null : value).catch((err: unknown) =>
-      toast.error(err instanceof Error ? err.message : String(err)),
-    );
-  }
 
   async function commitRename(): Promise<void> {
     if (!active || !draft.trim()) return;
@@ -78,11 +128,7 @@ export function DashboardTabs({
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-1">
-      <Tabs
-        value={active?.id ?? STANDARD}
-        onValueChange={select}
-        className="min-w-0 max-w-full shrink-0"
-      >
+      <div className="min-w-0 max-w-full shrink-0">
         {/* Scrolls sideways when there are many dashboards. */}
         <div className="max-w-full overflow-x-auto">
           <TabsList aria-label={t("a2ui.tabs.label")}>
@@ -98,7 +144,7 @@ export function DashboardTabs({
             ))}
           </TabsList>
         </div>
-      </Tabs>
+      </div>
 
       {active && (
         <DropdownMenu>

@@ -106,7 +106,7 @@ function Section({
           {title}
         </span>
         {badge && !open && (
-          <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+          <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-foreground">
             {badge}
           </span>
         )}
@@ -441,7 +441,7 @@ export function LayerPanel({
         <Layers className="size-4" />
         {t("map.layerPanel.title")}
         {activeLayerCount > 0 && (
-          <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+          <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-foreground">
             {t("map.layerPanel.activeCount", { count: activeLayerCount })}
           </span>
         )}

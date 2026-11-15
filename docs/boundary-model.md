@@ -183,7 +183,9 @@ its stage, a trace of reasons, a fixed confidence per stage and review flags.
 
 ## Source cascade (current engine)
 
-The app runs the **source cascade** (`src/main/services/boundary/cascade.ts`).
+The app runs the **source cascade** (`src/main/services/boundary/cascade.ts`;
+its stages and helpers are in the `cascade-*.ts` files next to it, which
+`cascade.ts` re-exports, so the file references below still resolve).
 This section describes version 2; version 3 keeps its structure and changes
 the rules listed under "Cascade v3" below. Version 2 (`CASCADE_VERSION` 2) lets the **detected vehicles decide how far the
 site reaches and the cadastre decide its shape**.

@@ -14,6 +14,13 @@ It is not a conformance report (ACR/VPAT); one needs a manual audit first.
 - Visible focus rings (`focus-visible`) on all interactive elements.
 - `<html lang>` follows the interface language (de/en/fr), so screen readers
   pick the right pronunciation.
+- Dashboard tiles and the parts of an AI dashboard can be moved one place
+  earlier or later with buttons (keyboard or a single click), next to drag
+  and drop (WCAG 2.1.1, 2.5.7).
+- **Windows contrast themes** (forced colours): the open tab, the chosen
+  toggle and the current page in the sidebar use the system highlight
+  colour; map markers and legend swatches keep their colours, because the
+  colour is the information there.
 - **Reduce motion** (OS setting) ends CSS animations and transitions at once
   and turns off Leaflet's zoom, fade and marker animations (WCAG 2.3.3).
 - Live regions: analysis progress and update status are `role="status"`; the
@@ -32,25 +39,43 @@ It is not a conformance report (ACR/VPAT); one needs a manual audit first.
 - **End-to-end:** `desktop-app/e2e/accessibility.spec.ts` runs axe-core
   against every page and settings tab in the light and the dark theme, tagged
   WCAG 2.0/2.1/2.2 A and AA, and fails on any serious or critical violation.
-  It runs in CI and before every release.
+  `desktop-app/e2e/populated.spec.ts` does the same on the pages with an
+  analysed portfolio (map with markers, dashboard with tiles, charts and
+  table, every tab of the detail dialog) and walks the main flows with the
+  keyboard: opening and paging the detail dialog, its tabs, moving a tile.
+  Both run in CI and before every release.
+- **One exception in the axe run:** overlapping map markers can leave less
+  than 24 px of free target area. WCAG 2.5.8 exempts a target whose function
+  another control on the page offers; every location is also in the list
+  next to the map (`desktop-app/e2e/axe.ts`).
 
 Automated tools find roughly a third to a half of all WCAG issues. They do
 not judge keyboard flows, reading order or whether names make sense.
+
+## Reviewed in November 2026
+
+- **Pages with data** went through axe for the first time. Found and fixed:
+  the dashboard tabs pointed at a panel that did not exist
+  (`aria-controls`), the "critical" badge had 2.9:1 in the dark theme, the
+  "n active" badge of the layer panel 4.1:1, Leaflet's attribution link
+  differed from its text by colour only, and the key figures of the hail
+  history put a button directly into a description list.
+- **200 % zoom** (1280 × 800 window, so 640 × 400 CSS px): no page and not
+  the detail dialog scrolls sideways or places a control outside the
+  window; the sidebar folds into its button. The 10–11 px badges are then
+  20–22 px. Checked by measuring the layout, not by reading every text.
+- **Forced colours** were checked in Chromium's emulation, not on Windows
+  itself.
 
 ## Known gaps
 
 - **Map:** markers are reachable with the keyboard, but drawing or correcting
   a lot boundary needs a pointer. The locations list next to the map offers
   the same selection and details without the map.
-- **Dashboard tiles** and the parts of AI dashboards are reordered by drag
-  and drop only; the tile menu can show and hide tiles but not move them, and
-  an AI dashboard can also be rearranged by asking the chat.
-- **Small text:** several badges and hints use 10–11 px text. Contrast is
-  sufficient, but readability at 200 % zoom has not been reviewed.
 - **Screen readers:** no structured test with NVDA, JAWS or VoiceOver yet.
-- The empty-state pages are tested; pages with an imported portfolio
-  (tables, detail dialog, charts with data) are covered by lint only.
+- **Windows contrast themes** have not been tried on a Windows machine with
+  the real themes.
 
-A manual audit against EN 301 549 (keyboard-only walk-through, screen reader,
-200 % zoom, Windows high-contrast mode) is the next step before an
+A manual audit against EN 301 549 (screen reader, keyboard-only walk-through
+of every flow, contrast themes on Windows) is the next step before an
 Accessibility Conformance Report can be published.

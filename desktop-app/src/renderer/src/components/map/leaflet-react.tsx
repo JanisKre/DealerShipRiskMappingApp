@@ -59,6 +59,19 @@ type MapContainerProps = L.MapOptions & {
   children?: ReactNode;
 };
 
+/**
+ * Removes the map. Leaflet ends a zoom animation from a 250 ms timer that
+ * `remove()` does not clear; leaving the page mid-zoom (e.g. right after
+ * the view was fitted to the portfolio) then ran it against the removed
+ * panes and threw "reading '_leaflet_pos'". Ending the animation first
+ * turns that timer into a no-op.
+ */
+function removeMap(map: L.Map): void {
+  map.stop();
+  (map as unknown as { _animatingZoom: boolean })._animatingZoom = false;
+  map.remove();
+}
+
 export function MapContainer({
   className,
   style,
@@ -88,7 +101,7 @@ export function MapContainer({
     });
     setMap(instance);
     return () => {
-      instance.remove();
+      removeMap(instance);
       setMap(null);
     };
   }, [initialOptions]);

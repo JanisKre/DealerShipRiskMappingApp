@@ -169,6 +169,13 @@ describe("parseDashboardCommand", () => {
         "summary",
       ),
     ).toEqual(["clusters", "summary", "zones"]);
+    // The move buttons drop a tile on its neighbour: one place either way.
+    expect(
+      moveDashboardTile(["summary", "zones", "clusters"], "zones", "clusters"),
+    ).toEqual(["summary", "clusters", "zones"]);
+    expect(
+      moveDashboardTile(["summary", "zones", "clusters"], "zones", "summary"),
+    ).toEqual(["zones", "summary", "clusters"]);
     expect(moveDashboardTile(["summary", "zones"], "zones", "zones")).toEqual([
       "summary",
       "zones",

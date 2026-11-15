@@ -75,7 +75,9 @@
     "vehicles": "Véhicules",
     "score": "Score",
     "actions": "Actions",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "pageErrorTitle": "Cette page n’a pas pu être affichée",
+    "pageErrorDescription": "Vos données ne sont pas touchées et les autres pages restent accessibles. Réessayez ou changez de page."
   },
   "parameters": {
     "title": "Paramètres du modèle",
@@ -636,6 +638,8 @@
     "visibleTiles": "Tuiles visibles",
     "resetTiles": "Réinitialiser la disposition",
     "removeTile": "Supprimer la tuile",
+    "moveTileEarlier": "Déplacer la tuile vers l’avant",
+    "moveTileLater": "Déplacer la tuile vers l’arrière",
     "noTilesTitle": "Aucune tuile sélectionnée",
     "noTilesDescription": "Ajoutez des tuiles via « Personnaliser le tableau de bord ».",
     "openAssistant": "Assistant IA",
@@ -1846,6 +1850,8 @@
     "tableMore_other": "{{shown}} sur {{count}} sites, triés par {{measure}}.",
     "arrangeFailed": "La nouvelle disposition n’a pas pu être enregistrée.",
     "moveRefused": "Impossible de déposer ici : une rangée contient au plus quatre éléments et aucune autre rangée.",
+    "movePartEarlier": "Déplacer l’élément vers l’avant",
+    "movePartLater": "Déplacer l’élément vers l’arrière",
     "renameFigure": "Le nom ne doit pas contenir de montants ni de pourcentages.",
     "builtFrom": "Créé à partir de : « {{prompt}} »",
     "provenance": "L'IA a seulement choisi la mise en page et la sélection ; l'application calcule toutes les valeurs à partir du portefeuille (estimation de screening, EAL grêle avec valeurs provisoires). Le filtre du portefeuille ci-dessus s'applique aussi.",

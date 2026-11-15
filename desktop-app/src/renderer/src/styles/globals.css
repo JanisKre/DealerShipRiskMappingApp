@@ -306,3 +306,30 @@ details > summary:not(.list-none)::before {
 details[open] > summary:not(.list-none)::before {
   transform: rotate(45deg);
 }
+
+/* Leaflet's attribution link differs from its surrounding text by colour
+   only (2.55:1, WCAG 1.4.1 asks for 3:1 or a second cue): underline it. */
+.leaflet-container .leaflet-control-attribution a {
+  text-decoration: underline;
+}
+
+/* Windows contrast themes (forced colours) drop background colours. */
+@media (forced-colors: active) {
+  /* Selected states that are shown by background only: the open tab, the
+     chosen toggle and the current page in the sidebar. */
+  [role="tab"][data-state="active"],
+  [role="radio"][data-state="on"],
+  [data-state="on"][aria-pressed="true"],
+  [data-sidebar="menu-button"][data-active="true"] {
+    forced-color-adjust: none;
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  /* Colour is the information here (hail zone, risk tier): keep it. */
+  .leaflet-marker-icon,
+  .leaflet-marker-icon *,
+  [data-color-key] {
+    forced-color-adjust: none;
+  }
+}

@@ -14,6 +14,8 @@ import {
   ClipboardCheck,
   Download,
   GitCompare,
+  ArrowDown,
+  ArrowUp,
   GripVertical,
   History,
   LayoutGrid,
@@ -67,8 +69,13 @@ import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import { useReviewRun } from "./useReviewRun";
 import { useStockCount } from "./useStockCount";
 import { A2uiSurfaceView } from "./a2ui/A2uiSurfaceView";
-import { dropComponent } from "@shared/a2ui-layout";
-import { DashboardTabs } from "./a2ui/DashboardTabs";
+import type { A2uiSurface } from "@shared/a2ui";
+import { dropComponent, shiftComponent } from "@shared/a2ui-layout";
+import {
+  DashboardTabPanel,
+  DashboardTabs,
+  DashboardTabsRoot,
+} from "./a2ui/DashboardTabs";
 import {
   rememberedDashboardId,
   useDashboardStore,
@@ -246,6 +253,26 @@ export function DashboardPage(): React.JSX.Element {
     setDraggedTile(null);
   }
 
+  /** Stores a rearranged AI dashboard; null means the move is not allowed. */
+  function arrangeSurface(next: A2uiSurface | null): void {
+    if (!next) {
+      toast.info(t("a2ui.moveRefused"));
+      return;
+    }
+    if (next === aiDashboard?.surface) return;
+    void arrange(next).catch(() => toast.error(t("a2ui.arrangeFailed")));
+  }
+
+  /**
+   * Moves a tile one place among the visible tiles: the keyboard and
+   * single-click way to reorder, next to drag and drop (WCAG 2.1.1, 2.5.7).
+   */
+  function shiftTile(id: DashboardTileId, step: -1 | 1): void {
+    const neighbour = visibleTiles[visibleTiles.indexOf(id) + step];
+    if (!neighbour) return;
+    setTileOrder((current) => moveDashboardTile(current, id, neighbour));
+  }
+
   function handleDashboardCommand(prompt: string): string | null {
     const command = parseDashboardCommand(prompt);
     if (!command) return null;
@@ -309,192 +336,200 @@ export function DashboardPage(): React.JSX.Element {
 
   return (
     <div className="relative flex h-full min-h-0">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="shrink-0 border-b px-4 py-3 sm:px-6 lg:px-8">
-          {/* The portfolio name is in the app header's switcher; this row
+      <DashboardTabsRoot>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="shrink-0 border-b px-4 py-3 sm:px-6 lg:px-8">
+            {/* The portfolio name is in the app header's switcher; this row
               only adds the analysis state and the page actions. */}
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-            <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">
-                {filtered.length !== dealerships.length
-                  ? t("ui.locationsFiltered", {
-                      filtered: filtered.length,
-                      total: dealerships.length,
-                    })
-                  : analyzedCount < dealerships.length
-                    ? t("ui.locationsPartlyAnalyzed", {
-                        analyzed: analyzedCount,
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">
+                  {filtered.length !== dealerships.length
+                    ? t("ui.locationsFiltered", {
+                        filtered: filtered.length,
                         total: dealerships.length,
-                        pending: dealerships.length - analyzedCount,
                       })
-                    : t("ui.locationsAnalyzed", { count: dealerships.length })}
-              </p>
-            </div>
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => reviewRun.start()}
-                disabled={reviewRun.openCount === 0}
-              >
-                <ClipboardCheck />
-                {reviewRun.openCount == null
-                  ? t("review.start")
-                  : t("review.startCount", { count: reviewRun.openCount })}
-              </Button>
-              {llmReady && (reviewRun.openCount ?? 0) > 1 && (
+                    : analyzedCount < dealerships.length
+                      ? t("ui.locationsPartlyAnalyzed", {
+                          analyzed: analyzedCount,
+                          total: dealerships.length,
+                          pending: dealerships.length - analyzedCount,
+                        })
+                      : t("ui.locationsAnalyzed", {
+                          count: dealerships.length,
+                        })}
+                </p>
+              </div>
+              <div className="ml-auto flex shrink-0 items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => void reviewRun.startWithAiOrder()}
-                  disabled={reviewRun.planning}
-                  title={t("review.aiOrderHint")}
+                  onClick={() => reviewRun.start()}
+                  disabled={reviewRun.openCount === 0}
                 >
-                  {reviewRun.planning ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    <Sparkles />
-                  )}
-                  {t("review.aiOrder")}
+                  <ClipboardCheck />
+                  {reviewRun.openCount == null
+                    ? t("review.start")
+                    : t("review.startCount", { count: reviewRun.openCount })}
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setAssistantOpen((open) => !open)}
-                aria-pressed={assistantOpen}
-              >
-                <MessageSquare /> {t("dashboard.openAssistant")}
-              </Button>
-              {/* With the assistant open the page is narrower: fold. */}
-              <Actions compact={assistantOpen} />
-            </div>
-          </div>
-          <div className="mt-3">
-            <DashboardTabs
-              onNew={() => openAssistantWith(t("a2ui.newDraft"))}
-              onChange={() => openAssistantWith(t("a2ui.changeDraft"))}
-              trailing={
-                aiDashboard ? undefined : (
-                  <TileMenu
-                    tileOrder={tileOrder}
-                    tileLabels={tileLabels}
-                    onToggle={toggleTile}
-                    onReset={resetTiles}
-                  />
-                )
-              }
-            />
-          </div>
-        </header>
-
-        {/* Not a <main>: the app shell already provides the page's main
-            landmark, and landmarks must not nest. */}
-        <div
-          ref={scrollRef}
-          className="@container min-h-0 flex-1 overflow-y-auto"
-        >
-          <div className="space-y-5 p-4 sm:p-6 lg:p-8">
-            <ModelVersionBanner dealerships={dealerships} />
-            <PortfolioFilterBar dealerships={dealerships} />
-            {building && (
-              <p
-                role="status"
-                className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm"
-              >
-                <Loader2 className="size-4 animate-spin text-primary" />
-                {aiDashboard ? t("a2ui.updating") : t("a2ui.building")}
-              </p>
-            )}
-            {aiDashboard ? (
-              <section
-                aria-label={aiDashboard.name}
-                className={
-                  building
-                    ? "space-y-4 opacity-60 transition-opacity"
-                    : "space-y-4 transition-opacity"
-                }
-              >
-                <p className="line-clamp-2 text-xs text-muted-foreground">
-                  <Sparkles className="mr-1 inline size-3.5 text-primary" />
-                  {requestLine(t, aiDashboard.prompt)}
-                </p>
-                <A2uiSurfaceView
-                  surface={aiDashboard.surface}
-                  dealerships={filtered}
-                  onOpenLocation={(id) => {
-                    setDetailId(id);
-                    select(id);
-                  }}
-                  onMove={
-                    building
-                      ? undefined
-                      : (dragged, target) => {
-                          const next = dropComponent(
-                            aiDashboard.surface,
-                            dragged,
-                            target,
-                          );
-                          if (!next) {
-                            toast.info(t("a2ui.moveRefused"));
-                            return;
-                          }
-                          if (next === aiDashboard.surface) return;
-                          void arrange(next).catch(() =>
-                            toast.error(t("a2ui.arrangeFailed")),
-                          );
-                        }
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t("a2ui.provenance")}
-                </p>
-              </section>
-            ) : visibleTiles.length === 0 ? (
-              <EmptyState
-                icon={LayoutGrid}
-                title={t("dashboard.noTilesTitle")}
-                description={t("dashboard.noTilesDescription")}
-                action={
-                  <Button onClick={resetTiles}>
-                    {t("dashboard.resetTiles")}
+                {llmReady && (reviewRun.openCount ?? 0) > 1 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void reviewRun.startWithAiOrder()}
+                    disabled={reviewRun.planning}
+                    title={t("review.aiOrderHint")}
+                  >
+                    {reviewRun.planning ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <Sparkles />
+                    )}
+                    {t("review.aiOrder")}
                   </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAssistantOpen((open) => !open)}
+                  aria-pressed={assistantOpen}
+                >
+                  <MessageSquare /> {t("dashboard.openAssistant")}
+                </Button>
+                {/* With the assistant open the page is narrower: fold. */}
+                <Actions compact={assistantOpen} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <DashboardTabs
+                onNew={() => openAssistantWith(t("a2ui.newDraft"))}
+                onChange={() => openAssistantWith(t("a2ui.changeDraft"))}
+                trailing={
+                  aiDashboard ? undefined : (
+                    <TileMenu
+                      tileOrder={tileOrder}
+                      tileLabels={tileLabels}
+                      onToggle={toggleTile}
+                      onReset={resetTiles}
+                    />
+                  )
                 }
               />
-            ) : (
-              // Tiles in a row share its height, so a short tile next to a
-              // tall one leaves no gap below it.
-              <div className="grid grid-cols-1 gap-x-4 gap-y-6 @3xl:grid-cols-2 @5xl:grid-cols-3">
-                {visibleTiles.map((id) => (
-                  <DashboardTile
-                    key={id}
-                    id={id}
-                    span={spans.get(id) ?? ""}
-                    label={tileLabels.get(id) ?? id}
-                    dragged={draggedTile === id}
-                    onDragStart={() => setDraggedTile(id)}
-                    onDragEnd={() => setDraggedTile(null)}
-                    onDrop={() => moveTile(id)}
-                    onRemove={() => toggleTile(id, false)}
-                    t={t}
-                  >
-                    {renderTile(id, {
-                      filtered,
-                      dealerships,
-                      onSelect: (d: AnalyzedDealership) => setDetailId(d.id),
-                      onShowOnMap: showOnMap,
-                      onShowAccumulation: showAccumulationOnMap,
-                      onShowLocations: showLocationsOnMap,
-                      onTableOrder,
-                      highlightIds: nlQueryMatchedIds,
-                    })}
-                  </DashboardTile>
-                ))}
-              </div>
-            )}
+            </div>
+          </header>
+
+          {/* Not a <main>: the app shell already provides the page's main
+            landmark, and landmarks must not nest. */}
+          <div
+            ref={scrollRef}
+            className="@container min-h-0 flex-1 overflow-y-auto"
+          >
+            <DashboardTabPanel className="mt-0 space-y-5 p-4 sm:p-6 lg:p-8">
+              <ModelVersionBanner dealerships={dealerships} />
+              <PortfolioFilterBar dealerships={dealerships} />
+              {building && (
+                <p
+                  role="status"
+                  className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm"
+                >
+                  <Loader2 className="size-4 animate-spin text-primary" />
+                  {aiDashboard ? t("a2ui.updating") : t("a2ui.building")}
+                </p>
+              )}
+              {aiDashboard ? (
+                <section
+                  aria-label={aiDashboard.name}
+                  className={
+                    building
+                      ? "space-y-4 opacity-60 transition-opacity"
+                      : "space-y-4 transition-opacity"
+                  }
+                >
+                  <p className="line-clamp-2 text-xs text-muted-foreground">
+                    <Sparkles className="mr-1 inline size-3.5 text-primary" />
+                    {requestLine(t, aiDashboard.prompt)}
+                  </p>
+                  <A2uiSurfaceView
+                    surface={aiDashboard.surface}
+                    dealerships={filtered}
+                    onOpenLocation={(id) => {
+                      setDetailId(id);
+                      select(id);
+                    }}
+                    onMove={
+                      building
+                        ? undefined
+                        : (dragged, target) =>
+                            arrangeSurface(
+                              dropComponent(
+                                aiDashboard.surface,
+                                dragged,
+                                target,
+                              ),
+                            )
+                    }
+                    onShift={
+                      building
+                        ? undefined
+                        : (id, step) =>
+                            arrangeSurface(
+                              shiftComponent(aiDashboard.surface, id, step),
+                            )
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {t("a2ui.provenance")}
+                  </p>
+                </section>
+              ) : visibleTiles.length === 0 ? (
+                <EmptyState
+                  icon={LayoutGrid}
+                  title={t("dashboard.noTilesTitle")}
+                  description={t("dashboard.noTilesDescription")}
+                  action={
+                    <Button onClick={resetTiles}>
+                      {t("dashboard.resetTiles")}
+                    </Button>
+                  }
+                />
+              ) : (
+                // Tiles in a row share its height, so a short tile next to a
+                // tall one leaves no gap below it.
+                <div className="grid grid-cols-1 gap-x-4 gap-y-6 @3xl:grid-cols-2 @5xl:grid-cols-3">
+                  {visibleTiles.map((id, index) => (
+                    <DashboardTile
+                      key={id}
+                      id={id}
+                      span={spans.get(id) ?? ""}
+                      label={tileLabels.get(id) ?? id}
+                      dragged={draggedTile === id}
+                      onDragStart={() => setDraggedTile(id)}
+                      onDragEnd={() => setDraggedTile(null)}
+                      onDrop={() => moveTile(id)}
+                      onShift={(step) => shiftTile(id, step)}
+                      first={index === 0}
+                      last={index === visibleTiles.length - 1}
+                      onRemove={() => toggleTile(id, false)}
+                      t={t}
+                    >
+                      {renderTile(id, {
+                        filtered,
+                        dealerships,
+                        onSelect: (d: AnalyzedDealership) => setDetailId(d.id),
+                        onShowOnMap: showOnMap,
+                        onShowAccumulation: showAccumulationOnMap,
+                        onShowLocations: showLocationsOnMap,
+                        onTableOrder,
+                        highlightIds: nlQueryMatchedIds,
+                      })}
+                    </DashboardTile>
+                  ))}
+                </div>
+              )}
+            </DashboardTabPanel>
           </div>
         </div>
-      </div>
+      </DashboardTabsRoot>
 
       {/* Beside the tiles only from 1280 px; narrower windows overlay it, so
           the table keeps its key columns. */}
@@ -613,6 +648,9 @@ function DashboardTile({
   onDragStart,
   onDragEnd,
   onDrop,
+  onShift,
+  first,
+  last,
   onRemove,
   t,
   children,
@@ -624,6 +662,10 @@ function DashboardTile({
   onDragStart: () => void;
   onDragEnd: () => void;
   onDrop: () => void;
+  /** Moves the tile one place earlier (-1) or later (1). */
+  onShift: (step: -1 | 1) => void;
+  first: boolean;
+  last: boolean;
   onRemove: () => void;
   t: (key: string) => string;
   children: React.ReactNode;
@@ -649,6 +691,28 @@ function DashboardTile({
         >
           <GripVertical className="size-4" />
         </span>
+        <HintButton
+          type="button"
+          variant="outline"
+          size="icon"
+          className="pointer-events-auto size-6 bg-background"
+          onClick={() => onShift(-1)}
+          disabled={first}
+          aria-label={`${t("dashboard.moveTileEarlier")}: ${label}`}
+        >
+          <ArrowUp className="size-3.5" />
+        </HintButton>
+        <HintButton
+          type="button"
+          variant="outline"
+          size="icon"
+          className="pointer-events-auto size-6 bg-background"
+          onClick={() => onShift(1)}
+          disabled={last}
+          aria-label={`${t("dashboard.moveTileLater")}: ${label}`}
+        >
+          <ArrowDown className="size-3.5" />
+        </HintButton>
         <HintButton
           type="button"
           variant="outline"

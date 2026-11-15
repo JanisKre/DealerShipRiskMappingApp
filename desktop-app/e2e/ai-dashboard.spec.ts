@@ -2,7 +2,12 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { expect, test, type Page } from "@playwright/test";
 import type { DrmApi } from "../src/preload";
-import { dismissModelWizard, launchApp, type LaunchedApp } from "./app";
+import {
+  dismissModelWizard,
+  dragOnto,
+  launchApp,
+  type LaunchedApp,
+} from "./app";
 
 /**
  * AI dashboards end to end, without a real AI provider: a local mock answers
@@ -321,9 +326,9 @@ test("tiles of the overview move by drag and drop", async () => {
     );
   const before = await labels();
   expect(before.length).toBeGreaterThan(2);
-  await tiles.nth(1).dragTo(tiles.nth(0));
+  await dragOnto(page, tiles.nth(1), tiles.nth(0));
   await expect.poll(labels).toEqual([before[1], before[0], ...before.slice(2)]);
-  await tiles.nth(1).dragTo(tiles.nth(0));
+  await dragOnto(page, tiles.nth(1), tiles.nth(0));
   await expect.poll(labels).toEqual(before);
 });
 
@@ -342,9 +347,9 @@ test("parts of an AI dashboard move by drag and drop and stay moved", async () =
   await expect.poll(order).toEqual(["kpis", "eal", "top", "table"]);
 
   // Dropped on the key figure, the table takes the place of its whole row.
-  await part("table").dragTo(part("eal"));
+  await dragOnto(page, part("table"), part("eal"));
   await expect.poll(order).toEqual(["table", "kpis", "eal", "top"]);
-  await part("top").dragTo(part("table"));
+  await dragOnto(page, part("top"), part("table"));
   await expect.poll(order).toEqual(["top", "table", "kpis", "eal"]);
 
   // The order is saved with the dashboard.
@@ -405,17 +410,47 @@ test("a key figure dragged out of a four-up row can be dragged back", async () =
   await expect.poll(row).toEqual(["k1", "k2", "k3", "k4"]);
 
   // Out of the row: the card stands in a row of its own below.
-  await part("k2").dragTo(part("top"));
+  await dragOnto(page, part("k2"), part("top"));
   await expect.poll(row).toEqual(["k1", "k3", "k4"]);
   await expect(part("k2")).toBeVisible();
 
   // And back in, in front of the card it is dropped on.
-  await part("k2").dragTo(part("k3"));
+  await dragOnto(page, part("k2"), part("k3"));
   await expect.poll(row).toEqual(["k1", "k2", "k3", "k4"]);
 
   await page.reload();
   await page.getByRole("link", { name: "Dashboard" }).click();
   await page.getByRole("tab", { name: "Vier Kennzahlen" }).click();
+  await expect.poll(row).toEqual(["k1", "k2", "k3", "k4"]);
+});
+
+test("parts of an AI dashboard move with the keyboard", async () => {
+  await page.getByRole("link", { name: "Dashboard" }).click();
+  await page.getByRole("tab", { name: "Vier Kennzahlen" }).click();
+  const view = page.getByRole("region", { name: "Vier Kennzahlen" });
+  const part = (id: string): ReturnType<Page["locator"]> =>
+    view.locator(`[data-a2ui-part="${id}"]`);
+  const row = (): Promise<string[]> =>
+    part("kpis")
+      .locator("[data-a2ui-part]")
+      .evaluateAll((els) =>
+        els.map((el) => el.getAttribute("data-a2ui-part") ?? ""),
+      );
+  await expect.poll(row).toEqual(["k1", "k2", "k3", "k4"]);
+
+  // No pointer: focus the button of the first key figure and press Enter.
+  await expect(
+    part("k1").getByRole("button", { name: "Element nach vorne verschieben" }),
+  ).toBeDisabled();
+  await part("k1")
+    .getByRole("button", { name: "Element nach hinten verschieben" })
+    .focus();
+  await page.keyboard.press("Enter");
+  await expect.poll(row).toEqual(["k2", "k1", "k3", "k4"]);
+  await part("k1")
+    .getByRole("button", { name: "Element nach vorne verschieben" })
+    .focus();
+  await page.keyboard.press("Enter");
   await expect.poll(row).toEqual(["k1", "k2", "k3", "k4"]);
 });
 

@@ -1,11 +1,4 @@
-import {
-  Component,
-  useCallback,
-  useEffect,
-  useState,
-  type ErrorInfo,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ChevronRight,
@@ -20,6 +13,7 @@ import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import { meanHailSeverityEur } from "@shared/risk-math";
 import { eur, pct } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
+import { PageErrorBoundary } from "@renderer/components/common/PageErrorBoundary";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Card } from "@renderer/components/ui/card";
@@ -743,56 +737,17 @@ function NativeDetails({
   );
 }
 
-type ParametersErrorBoundaryProps = {
-  children: ReactNode;
-  title: string;
-  description: string;
-  retry: string;
-};
-type ParametersErrorBoundaryState = { failed: boolean };
-
-class ParametersErrorBoundary extends Component<
-  ParametersErrorBoundaryProps,
-  ParametersErrorBoundaryState
-> {
-  state: ParametersErrorBoundaryState = { failed: false };
-  static getDerivedStateFromError(): ParametersErrorBoundaryState {
-    return { failed: true };
-  }
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error("Parameters page failed to render", error, errorInfo);
-  }
-  render(): ReactNode {
-    if (this.state.failed)
-      return (
-        <div className="mx-auto max-w-2xl p-8">
-          <Card className="space-y-4 p-6">
-            <div>
-              <h2 className="text-lg font-semibold">{this.props.title}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {this.props.description}
-              </p>
-            </div>
-            <Button onClick={() => this.setState({ failed: false })}>
-              {this.props.retry}
-            </Button>
-          </Card>
-        </div>
-      );
-    return this.props.children;
-  }
-}
-
 export function ParametersPage(): React.JSX.Element {
   const { t } = useTranslation();
   return (
-    <ParametersErrorBoundary
+    <PageErrorBoundary
+      area="Parameters page"
       title={t("parameters.loadErrorTitle")}
       description={t("parameters.loadErrorDescription")}
       retry={t("parameters.retry")}
     >
       <ParametersContent />
-    </ParametersErrorBoundary>
+    </PageErrorBoundary>
   );
 }
 

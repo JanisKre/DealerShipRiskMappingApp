@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { GripVertical } from "lucide-react";
+import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
 import type {
   A2uiComponent,
   A2uiDimension,
@@ -50,6 +50,7 @@ import {
   TableHeader,
   TableRow,
 } from "@renderer/components/ui/table";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import { eur, num, pct } from "@renderer/lib/format";
 import { hailZoneColor } from "@renderer/lib/riskColor";
 import { HailZoneBadge } from "../HailZoneBadge";
@@ -78,6 +79,7 @@ const MoveContext = createContext<{
   dragged: string | null;
   setDragged: (id: string | null) => void;
   onMove?: (dragged: string, target: string) => void;
+  onShift?: (id: string, step: -1 | 1) => void;
 }>({ dragged: null, setDragged: () => undefined });
 
 function normalizeTitle(text: string): string {
@@ -89,12 +91,15 @@ export function A2uiSurfaceView({
   dealerships,
   onOpenLocation,
   onMove,
+  onShift,
 }: Readonly<{
   surface: A2uiSurface;
   dealerships: AnalyzedDealership[];
   onOpenLocation: (id: string) => void;
   /** Moves a part onto the place of another; enables drag and drop. */
   onMove?: (dragged: string, target: string) => void;
+  /** Moves a part one place earlier or later (the move buttons). */
+  onShift?: (id: string, step: -1 | 1) => void;
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const [dragged, setDragged] = useState<string | null>(null);
@@ -122,7 +127,7 @@ export function A2uiSurfaceView({
   const selected = shared ? applyFilter(located, shared.filter).length : 0;
   return (
     <ViewContext.Provider value={{ sharedSelection: shared != null }}>
-      <MoveContext.Provider value={{ dragged, setDragged, onMove }}>
+      <MoveContext.Provider value={{ dragged, setDragged, onMove, onShift }}>
         <div className="@container space-y-4">
           {shared && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
@@ -179,6 +184,7 @@ function Node({
 }>): React.JSX.Element | null {
   const c = byId.get(id);
   if (!c) return null;
+  const siblings = "children" in c ? c.children : [];
   const child = (childId: string): React.JSX.Element => {
     const part = byId.get(childId);
     const kind = part?.component;
@@ -192,6 +198,8 @@ function Node({
         id={childId}
         section={kind === "Column" || kind === "Row"}
         handle={!single}
+        first={siblings.indexOf(childId) === 0}
+        last={siblings.indexOf(childId) === siblings.length - 1}
       >
         <Node
           id={childId}
@@ -269,15 +277,21 @@ function Movable({
   id,
   section,
   handle,
+  first,
+  last,
   children,
 }: Readonly<{
   id: string;
   section: boolean;
   /** Whether to show the drag handle; the part can be dropped on anyway. */
   handle: boolean;
+  /** Whether the part is the first or last of its row or column. */
+  first: boolean;
+  last: boolean;
   children: React.ReactNode;
 }>): React.JSX.Element {
-  const { dragged, setDragged, onMove } = useContext(MoveContext);
+  const { t } = useTranslation();
+  const { dragged, setDragged, onMove, onShift } = useContext(MoveContext);
   if (!onMove) return <>{children}</>;
   return (
     <div
@@ -310,7 +324,8 @@ function Movable({
     >
       {handle && (
         <div
-          className={`pointer-events-none absolute -top-5 z-20 flex items-center gap-1 opacity-0 transition-opacity ${section ? "left-3 group-hover/section:opacity-100" : "right-3 group-hover/item:opacity-100"}`}
+          // Shown on hover and while one of its buttons has keyboard focus.
+          className={`pointer-events-none absolute -top-5 z-20 flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 ${section ? "left-3 group-hover/section:opacity-100" : "right-3 group-hover/item:opacity-100"}`}
         >
           <span
             aria-hidden
@@ -318,6 +333,34 @@ function Movable({
           >
             <GripVertical className="size-4" />
           </span>
+          {/* Keyboard and single-click way to reorder, next to dragging
+              (WCAG 2.1.1, 2.5.7). */}
+          {onShift && (
+            <>
+              <HintButton
+                type="button"
+                variant="outline"
+                size="icon"
+                className={`size-6 bg-background focus-visible:pointer-events-auto ${section ? "group-hover/section:pointer-events-auto" : "group-hover/item:pointer-events-auto"}`}
+                onClick={() => onShift(id, -1)}
+                disabled={first}
+                aria-label={t("a2ui.movePartEarlier")}
+              >
+                <ArrowUp className="size-3.5" />
+              </HintButton>
+              <HintButton
+                type="button"
+                variant="outline"
+                size="icon"
+                className={`size-6 bg-background focus-visible:pointer-events-auto ${section ? "group-hover/section:pointer-events-auto" : "group-hover/item:pointer-events-auto"}`}
+                onClick={() => onShift(id, 1)}
+                disabled={last}
+                aria-label={t("a2ui.movePartLater")}
+              >
+                <ArrowDown className="size-3.5" />
+              </HintButton>
+            </>
+          )}
         </div>
       )}
       {children}

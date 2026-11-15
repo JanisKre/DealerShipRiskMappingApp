@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultDashboardSurface, type A2uiSurface } from "./a2ui";
-import { dropComponent } from "./a2ui-layout";
+import { dropComponent, shiftComponent } from "./a2ui-layout";
 
 // root: kpis (k1–k4), charts (zones, top), table
 const surface = defaultDashboardSurface({
@@ -126,5 +126,38 @@ describe("dropComponent", () => {
     const before = JSON.stringify(surface);
     dropComponent(surface, "k2", "table");
     expect(JSON.stringify(surface)).toBe(before);
+  });
+});
+
+describe("shiftComponent (move buttons)", () => {
+  it("moves a card one place within its row", () => {
+    const later = shiftComponent(surface, "k2", 1)!;
+    expect(children(later, "kpis")).toEqual(["k1", "k3", "k2", "k4"]);
+    const earlier = shiftComponent(surface, "k2", -1)!;
+    expect(children(earlier, "kpis")).toEqual(["k2", "k1", "k3", "k4"]);
+  });
+
+  it("moves a section of the page without joining a row", () => {
+    // Dropping the table on the chart row would put it into that row; the
+    // buttons only change the order.
+    const earlier = shiftComponent(surface, "table", -1)!;
+    expect(children(earlier, "root")).toEqual(["kpis", "table", "charts"]);
+    expect(children(earlier, "charts")).toEqual(children(surface, "charts"));
+    const later = shiftComponent(surface, "kpis", 1)!;
+    expect(children(later, "root")).toEqual(["charts", "kpis", "table"]);
+  });
+
+  it("leaves the surface alone at either end and rejects unknown parts", () => {
+    expect(shiftComponent(surface, "k1", -1)).toBe(surface);
+    expect(shiftComponent(surface, "k4", 1)).toBe(surface);
+    expect(shiftComponent(surface, "nope", 1)).toBeNull();
+    expect(shiftComponent(surface, "root", 1)).toBeNull();
+  });
+
+  it("keeps every component", () => {
+    const moved = shiftComponent(surface, "charts", 1)!;
+    expect(moved.components.map((c) => c.id).sort()).toEqual(
+      surface.components.map((c) => c.id).sort(),
+    );
   });
 });

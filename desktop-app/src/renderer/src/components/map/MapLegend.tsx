@@ -396,6 +396,8 @@ function LegendRow({
       )}
     >
       <span
+        // Keeps its colour in Windows contrast themes (globals.css).
+        data-color-key
         className={cn(
           "shrink-0",
           dot ? "size-2 rounded-full" : "size-3 rounded-sm",

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useAppStore } from "@renderer/store/appStore";
-import type { ReviewRun } from "./DealershipDetailDialog";
+import type { ReviewRun } from "./detail/ReviewStrip";
 import {
   REVIEW_PLAN_MAX_ITEMS,
   mergeReviewOrder,

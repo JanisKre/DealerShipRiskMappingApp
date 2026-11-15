@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
-import type { AxeResults, RunOptions } from "axe-core";
 import { expect, test, type Page } from "@playwright/test";
 import { dismissModelWizard, launchApp, type LaunchedApp } from "./app";
+import { seriousViolations as axeViolations } from "./axe";
 
 /**
  * Automated accessibility check (axe-core) of every page against WCAG 2.2
@@ -9,13 +8,6 @@ import { dismissModelWizard, launchApp, type LaunchedApp } from "./app";
  * contrast, landmarks, ARIA use); keyboard flows and screen-reader wording
  * still need a manual review, see docs/accessibility.md.
  */
-
-const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-
-// axe-core is injected through the DevTools protocol (page.evaluate), which
-// the app's Content Security Policy does not block; @axe-core/playwright
-// needs a second page that Electron cannot open.
-const AXE_SOURCE = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 
 let launched: LaunchedApp;
 let page: Page;
@@ -31,58 +23,8 @@ test.afterAll(async () => {
   await launched?.close();
 });
 
-/** Lets pending style changes (theme class, 0.01 ms transitions) settle. */
-async function settled(): Promise<void> {
-  await page.evaluate(
-    () =>
-      new Promise<void>((done) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => done())),
-      ),
-  );
-}
-
-async function seriousViolations(context: string): Promise<string[]> {
-  await settled();
-  if (!(await page.evaluate(() => "axe" in window))) {
-    await page.evaluate(AXE_SOURCE);
-  }
-  const options: RunOptions = {
-    runOnly: { type: "tag", values: WCAG_TAGS },
-  };
-  const result = await page.evaluate(
-    (opts) =>
-      (
-        window as unknown as {
-          axe: {
-            run: (context: unknown, options: unknown) => Promise<AxeResults>;
-          };
-        }
-      ).axe.run(
-        // Map tiles come from third-party servers; their markup is Leaflet's.
-        { exclude: [[".leaflet-tile-pane"]] },
-        opts,
-      ),
-    options,
-  );
-  return result.violations
-    .filter((v) => v.impact === "serious" || v.impact === "critical")
-    .map(
-      (v) =>
-        `${context}: ${v.id} (${v.impact}) – ${v.help}\n    ${v.nodes
-          .slice(0, 5)
-          .map(
-            (n) =>
-              `${n.target.join(" ")}\n      ${n.html.slice(0, 160)}\n      ${(
-                n.failureSummary ?? ""
-              )
-                .split("\n")
-                .slice(1, 2)
-                .join("")
-                .trim()}`,
-          )
-          .join("\n    ")}`,
-    );
-}
+const seriousViolations = (context: string): Promise<string[]> =>
+  axeViolations(page, context);
 
 for (const theme of ["light", "dark"] as const) {
   test(`pages have no serious WCAG 2.2 AA violations (${theme})`, async () => {

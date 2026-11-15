@@ -75,7 +75,9 @@
     "vehicles": "Vehicles",
     "score": "Score",
     "actions": "Actions",
-    "retry": "Retry"
+    "retry": "Retry",
+    "pageErrorTitle": "This page could not be displayed",
+    "pageErrorDescription": "Your data is not affected, and the other pages remain available. Try again or switch to another page."
   },
   "parameters": {
     "title": "Model parameters",
@@ -636,6 +638,8 @@
     "visibleTiles": "Visible tiles",
     "resetTiles": "Reset layout",
     "removeTile": "Remove tile",
+    "moveTileEarlier": "Move tile earlier",
+    "moveTileLater": "Move tile later",
     "noTilesTitle": "No dashboard tiles selected",
     "noTilesDescription": "Add tiles from Customize dashboard to build your view.",
     "openAssistant": "AI assistant",
@@ -1846,6 +1850,8 @@
     "tableMore_other": "{{shown}} of {{count}} locations, sorted by {{measure}}.",
     "arrangeFailed": "The new arrangement could not be saved.",
     "moveRefused": "This cannot be dropped here: a row holds at most four items and no other row.",
+    "movePartEarlier": "Move part earlier",
+    "movePartLater": "Move part later",
     "renameFigure": "The name must not contain amounts or percentages.",
     "builtFrom": "Built from: “{{prompt}}”",
     "provenance": "The AI only chose the layout and selection; the app computes every value from the portfolio (screening estimate, hail EAL with placeholder values). The portfolio filter above applies here too.",

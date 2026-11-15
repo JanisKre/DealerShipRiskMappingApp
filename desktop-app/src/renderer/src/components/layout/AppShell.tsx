@@ -6,6 +6,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { List, MessageSquare, Radar, Search, WifiOff } from "lucide-react";
 import { useAppStore } from "@renderer/store/appStore";
 import { WIDE_WINDOW_PX, useMapStore } from "@renderer/store/mapStore";
+import { PageErrorBoundary } from "@renderer/components/common/PageErrorBoundary";
 import { CommandPalette } from "@renderer/components/command/CommandPalette";
 import {
   ALL_NAV_ITEMS,
@@ -354,7 +355,17 @@ export function AppShell(): React.JSX.Element {
           </div>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <Outlet />
+          {/* A render error stays inside the page: navigation and header
+              remain usable, and changing the page clears the error. */}
+          <PageErrorBoundary
+            area={`Page ${pathname}`}
+            resetKey={pathname}
+            title={t("common.pageErrorTitle")}
+            description={t("common.pageErrorDescription")}
+            retry={t("common.retry")}
+          >
+            <Outlet />
+          </PageErrorBoundary>
         </div>
       </SidebarInset>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />

@@ -119,6 +119,17 @@ without any of the protocols switched on.
   piling toasts; λ above one event per year gets a stress-test note; the p
   hint says the shares are normalised. Maximum indemnity and deductible use
   the German number format.
+- **A page that fails to draw no longer blanks the window.** Each page and
+  the location detail dialog show a message with "Try again"; the
+  navigation and the other pages stay usable.
+- **Error when leaving the map mid-zoom.** Switching the page right after
+  the map had fitted its view raised an internal Leaflet error.
+- **Accessibility on pages with data:** dashboard tabs now control a real
+  tab panel, the "critical" badge and the layer count meet 4.5:1 in the dark
+  theme, the map attribution link is underlined, and Windows contrast themes
+  show the open tab, the current page and the marker colours.
+- **Tiles can be moved without dragging.** Dashboard tiles and the parts of
+  an AI dashboard have "move earlier" and "move later" buttons.
 
 ### Changed
 
@@ -128,6 +139,11 @@ without any of the protocols switched on.
   and counts reached locations, exposure and stress-test loss as it moves,
   with the list, reach and closest miss under "Details". The storm is moved
   by dragging its handle on the map instead of with sliders.
+- Internal: the location detail dialog, the map page, the renderer store and
+  the boundary cascade are split into smaller files without changing
+  behaviour; end-to-end tests now cover the pages with an analysed
+  portfolio. Measured with 500 and 5,000 locations: start to a loaded
+  portfolio in under one second.
 
 ## [0.5.0] – 2026-11-14
 
