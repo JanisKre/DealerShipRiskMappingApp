@@ -10,6 +10,7 @@ import {
 } from "@shared/dealer-questionnaire";
 import { AiExplanation } from "@renderer/components/ai/AiExplanation";
 import { Button } from "@renderer/components/ui/button";
+import { QuestionnaireAnswersSection } from "./AiInsightSections";
 
 /** Plain text of the questionnaire: a greeting line and numbered questions. */
 export function questionnaireText(
@@ -71,6 +72,7 @@ export function QuestionnaireSection({
         facts={`Dealership: ${d.name}\n\n${text}`}
         label={t("questionnaire.reword")}
       />
+      <QuestionnaireAnswersSection d={d} questions={questions} />
     </div>
   );
 }

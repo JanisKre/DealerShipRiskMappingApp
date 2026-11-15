@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LLM_CONTEXT_MAX_CHARS } from "@shared/ipc-schema";
+import { CHAT_TOOL_RESULTS_MAX_CHARS } from "@shared/chat-tools";
 import type { ChatMessage } from "@shared/types";
 import { condenseHistory } from "@renderer/lib/chatAssist";
 import {
@@ -83,6 +84,21 @@ export function useChat(): UseChat {
     }
   }
 
+  /**
+   * Optional lookups on external MCP servers. The main process returns
+   * nothing unless a server is connected and switched on.
+   */
+  async function lookUpExternal(question: string): Promise<string | undefined> {
+    try {
+      const { results } = await window.api.mcpChatLookup(
+        question.slice(0, 2_000),
+      );
+      return results || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   /** Streams an answer to the conversation as it stands in the store. */
   async function stream(): Promise<void> {
     const request = ++requestRef.current;
@@ -95,6 +111,14 @@ export function useChat(): UseChat {
       setLookingUp(true);
       try {
         toolResults = await lookUp(question);
+        // Read-only tools of MCP servers the user connected (none: no call).
+        const external = await lookUpExternal(question);
+        if (external) {
+          toolResults = [toolResults, external]
+            .filter(Boolean)
+            .join("\n\n")
+            .slice(0, CHAT_TOOL_RESULTS_MAX_CHARS);
+        }
       } finally {
         setLookingUp(false);
       }

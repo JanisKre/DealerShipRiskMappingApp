@@ -8,7 +8,7 @@ import { join } from "path";
  * Tabellen werden über versionierte, transaktionale Migrationen erstellt.
  */
 let db: Database.Database | null = null;
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 export function getDb(): Database.Database {
   if (db) return db;
@@ -167,6 +167,27 @@ const MIGRATIONS: Record<number, Migration> = {
   `);
     migrateRadarHailCache(database);
   },
+  // AI record book: one row per request sent to an AI provider (local only).
+  4: (database) =>
+    database.exec(`
+    CREATE TABLE IF NOT EXISTS ai_log (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      at             TEXT    NOT NULL,   -- ISO timestamp
+      feature        TEXT    NOT NULL,   -- IPC channel or gateway route
+      provider       TEXT    NOT NULL,
+      model          TEXT    NOT NULL,
+      endpoint_host  TEXT    NOT NULL,
+      local          INTEGER NOT NULL,   -- 1: endpoint on this computer
+      status         TEXT    NOT NULL,   -- ok | error | aborted
+      duration_ms    INTEGER NOT NULL,
+      request_chars  INTEGER NOT NULL,
+      response_chars INTEGER NOT NULL,
+      image_count    INTEGER NOT NULL,
+      error          TEXT,
+      request        TEXT    NOT NULL,   -- clipped (shared/ai-log.ts)
+      response       TEXT    NOT NULL
+    );
+  `),
 };
 
 interface LegacyHailCell {

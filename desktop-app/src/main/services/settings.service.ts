@@ -1,4 +1,6 @@
 import { safeStorage } from "electron";
+import { randomBytes } from "node:crypto";
+import { validateMcpServerUrl } from "@shared/mcp-client";
 import type { LlmProvider, NatCatApiProvider, Settings } from "@shared/types";
 import { SettingsSchema } from "@shared/types";
 import { validateTileTemplate } from "@shared/tile-template";
@@ -59,6 +61,23 @@ export function setSettings(partial: Partial<Settings>): Settings {
       partial = { ...partial, overpassUrl: check.url };
     }
   }
+  // MCP servers are contacted by the main process: HTTPS, or HTTP on this
+  // computer only; ids must be unique.
+  if (partial.mcpServers !== undefined) {
+    const ids = new Set<string>();
+    partial = {
+      ...partial,
+      mcpServers: partial.mcpServers.map((server) => {
+        const check = validateMcpServerUrl(server.url);
+        if (!check.ok) {
+          throw new Error(`Invalid MCP server URL (${check.problem})`);
+        }
+        if (ids.has(server.id)) throw new Error("Duplicate MCP server id");
+        ids.add(server.id);
+        return { ...server, url: check.url };
+      }),
+    };
+  }
   const merged = { ...getSettings(), ...partial };
   const validated = SettingsSchema.parse(merged);
   getDb()
@@ -77,6 +96,9 @@ function withKeyPresence(settings: Settings): Settings {
   if (settings.llm) {
     settings.llm.hasApiKey = hasLlmApiKey(settings.llm.provider);
   }
+  for (const server of settings.mcpServers ?? []) {
+    server.hasToken = hasSecret(mcpServerTokenKey(server.id));
+  }
   if (settings.natCat) {
     settings.natCat.catnetHasApiKey = hasNatCatApiKey("swissre-catnet");
     for (const [provider, connector] of Object.entries(
@@ -86,6 +108,72 @@ function withKeyPresence(settings: Settings): Settings {
     }
   }
   return settings;
+}
+
+// --- Secrets via safeStorage ---------------------------------------------
+
+function setSecret(key: string, value: string): void {
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error("safeStorage (OS keychain) not available");
+  }
+  const enc = safeStorage.encryptString(value).toString("base64");
+  getDb()
+    .prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)")
+    .run(key, enc);
+}
+
+function getSecret(key: string): string | null {
+  const row = getDb()
+    .prepare("SELECT value FROM settings WHERE key = ?")
+    .get(key) as { value: string } | undefined;
+  if (!row) return null;
+  try {
+    return safeStorage.decryptString(Buffer.from(row.value, "base64"));
+  } catch {
+    return null;
+  }
+}
+
+function hasSecret(key: string): boolean {
+  return (
+    getDb()
+      .prepare("SELECT 1 AS present FROM settings WHERE key = ?")
+      .get(key) != null
+  );
+}
+
+function deleteSecret(key: string): void {
+  getDb().prepare("DELETE FROM settings WHERE key = ?").run(key);
+}
+
+const GATEWAY_TOKEN_KEY = "gateway.token";
+
+/** Bearer token of the agent gateway; null until it was enabled once. */
+export function getGatewayToken(): string | null {
+  return getSecret(GATEWAY_TOKEN_KEY);
+}
+
+/** Creates the gateway token on first use; `rotate` replaces it. */
+export function ensureGatewayToken(rotate = false): string {
+  const existing = rotate ? null : getGatewayToken();
+  if (existing) return existing;
+  const token = randomBytes(32).toString("base64url");
+  setSecret(GATEWAY_TOKEN_KEY, token);
+  return token;
+}
+
+function mcpServerTokenKey(id: string): string {
+  return `mcp.token.${id}`;
+}
+
+/** Stores the bearer token of an external MCP server; empty removes it. */
+export function setMcpServerToken(id: string, token: string): void {
+  if (token.trim()) setSecret(mcpServerTokenKey(id), token.trim());
+  else deleteSecret(mcpServerTokenKey(id));
+}
+
+export function getMcpServerToken(id: string): string | null {
+  return getSecret(mcpServerTokenKey(id));
 }
 
 // --- API-Keys via safeStorage --------------------------------------------

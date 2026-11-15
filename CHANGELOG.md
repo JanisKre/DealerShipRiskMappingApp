@@ -7,6 +7,37 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+All of the following is optional; the app works unchanged without AI and
+without any of the protocols switched on.
+
+- **Access for other AI tools (off by default).** A local gateway on
+  127.0.0.1 with a bearer token lets other programs read the portfolio:
+  an MCP server with four read-only tools, an MCP App view for the portfolio
+  summary, an A2A 1.0 agent card and endpoint, and an AG-UI stream of the
+  portfolio chat. Notes, street addresses, coordinates and lot boundaries
+  are never passed on. See `docs/agent-protocols.md`.
+- **External MCP servers.** Connect your own data sources; the chat may use
+  tools a server marks read-only, and labels their results as external.
+- **AI record book.** Every request to an AI provider is recorded locally
+  with its text, answer, model and destination; export as JSON, clear or
+  switch off under Settings → AI.
+- **Weakest assumptions.** The detail dialog ranks, by fixed rules, where a
+  location's result is most likely wrong and in which direction; with AI the
+  points can be worded as a counter-argument.
+- **Memo with checked figures.** An AI note in which every number is checked
+  against the app's computed values; sentences with any other number are
+  removed.
+- **Aerial image check.** A vision model looks for hail nets, canopies and
+  parking structures, optionally on archived images ("since when"), and
+  gives a second opinion on the lot boundary. Observations only: vehicle
+  count, boundary and EAL are not changed.
+- **Dealership reply.** Paste a reply to the dealer questions; the AI
+  assigns passages to the questions and only quoted answers are shown.
+- **Event watch.** For a real hail event, copy the list of reached locations
+  or let the AI draft a message to the dealerships.
+
 ### Fixed
 
 - **No "0 €" hail EAL without a vehicle count.** Locations without a

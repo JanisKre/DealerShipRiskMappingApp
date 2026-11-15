@@ -611,6 +611,81 @@ const api = {
     ipcRenderer.invoke(IPC.dataResetAll, {
       confirm: "delete-all-data",
     } satisfies IpcRequest["data:resetAll"]),
+
+  // --- AI record book ------------------------------------------------------
+  listAiLog: (offset = 0): Promise<IpcResponse["aiLog:list"]> =>
+    ipcRenderer.invoke(IPC.aiLogList, {
+      offset,
+    } satisfies IpcRequest["aiLog:list"]),
+  getAiLogEntry: (id: number): Promise<IpcResponse["aiLog:get"]> =>
+    ipcRenderer.invoke(IPC.aiLogGet, { id } satisfies IpcRequest["aiLog:get"]),
+  clearAiLog: (): Promise<IpcResponse["aiLog:clear"]> =>
+    ipcRenderer.invoke(IPC.aiLogClear, {
+      confirm: "clear-ai-log",
+    } satisfies IpcRequest["aiLog:clear"]),
+  /** Saves the record book as JSON where the user picks. */
+  exportAiLog: (): Promise<IpcResponse["aiLog:export"]> =>
+    ipcRenderer.invoke(IPC.aiLogExport),
+
+  // --- Agent gateway (MCP, A2A, AG-UI) -------------------------------------
+  gatewayStatus: (): Promise<IpcResponse["gateway:status"]> =>
+    ipcRenderer.invoke(IPC.gatewayStatus),
+  rotateGatewayToken: (): Promise<IpcResponse["gateway:rotateToken"]> =>
+    ipcRenderer.invoke(IPC.gatewayRotateToken),
+
+  // --- External MCP servers ------------------------------------------------
+  /** Connects to a saved server and lists its tools. */
+  mcpServerTools: (serverId: string): Promise<IpcResponse["mcp:serverTools"]> =>
+    ipcRenderer.invoke(IPC.mcpServerTools, {
+      serverId,
+    } satisfies IpcRequest["mcp:serverTools"]),
+  setMcpServerToken: (
+    serverId: string,
+    token: string,
+  ): Promise<IpcResponse["mcp:setServerToken"]> =>
+    ipcRenderer.invoke(IPC.mcpSetServerToken, {
+      serverId,
+      token,
+    } satisfies IpcRequest["mcp:setServerToken"]),
+  /** Optional lookups on connected servers before a chat answer. */
+  mcpChatLookup: (question: string): Promise<IpcResponse["mcp:chatLookup"]> =>
+    ipcRenderer.invoke(IPC.mcpChatLookup, {
+      question,
+    } satisfies IpcRequest["mcp:chatLookup"]),
+
+  // --- Optional AI layer, second batch -------------------------------------
+  /** Vision model looks at the aerial image for hail protection. */
+  checkSite: (
+    request: IpcRequest["llm:siteCheck"],
+  ): Promise<IpcResponse["llm:siteCheck"]> =>
+    ipcRenderer.invoke(
+      IPC.llmSiteCheck,
+      request satisfies IpcRequest["llm:siteCheck"],
+    ),
+  /** Vision model's second opinion on the lot boundary. */
+  boundaryOpinion: (
+    request: IpcRequest["llm:boundaryOpinion"],
+  ): Promise<IpcResponse["llm:boundaryOpinion"]> =>
+    ipcRenderer.invoke(
+      IPC.llmBoundaryOpinion,
+      request satisfies IpcRequest["llm:boundaryOpinion"],
+    ),
+  /** Note whose figures were checked against the app's facts. */
+  writeEvidenceMemo: (
+    request: IpcRequest["llm:evidenceMemo"],
+  ): Promise<IpcResponse["llm:evidenceMemo"]> =>
+    ipcRenderer.invoke(
+      IPC.llmEvidenceMemo,
+      request satisfies IpcRequest["llm:evidenceMemo"],
+    ),
+  /** Assigns passages of a dealership's reply to the questions asked. */
+  extractQuestionnaireAnswers: (
+    request: IpcRequest["llm:questionnaireAnswers"],
+  ): Promise<IpcResponse["llm:questionnaireAnswers"]> =>
+    ipcRenderer.invoke(
+      IPC.llmQuestionnaireAnswers,
+      request satisfies IpcRequest["llm:questionnaireAnswers"],
+    ),
 };
 
 export type DrmApi = typeof api;

@@ -1947,6 +1947,14 @@
       "highZone": "high hail zone",
       "boundary": "lot boundary to check",
       "oldImage": "aerial image several years old"
+    },
+    "answers": {
+      "description": "Paste the dealership's reply: the AI assigns its passages to the questions. The pasted text is sent to the AI provider for this.",
+      "placeholder": "Paste the dealership's reply here …",
+      "extract": "Assign answers",
+      "none": "No statement on the questions could be found and backed by a quote in the reply.",
+      "disclaimer": "Summarised by the AI. Only answers whose quote appears word for word in the pasted reply are shown. Please check each summary against its quote.",
+      "noteHeading": "Dealership's answers (assigned by the AI):"
     }
   },
   "hailReplay": {
@@ -2084,5 +2092,203 @@
     "importNotGeojson": "Expected a GeoJSON FeatureCollection or Feature.",
     "importNoPolygons": "The file has no polygon footprints in WGS84 (lon/lat).",
     "importTooManyPolygons": "The file has too many polygons."
+  },
+  "aiInsight": {
+    "copy": "Copy",
+    "copied": "Copied to the clipboard.",
+    "addToNotes": "Add to notes",
+    "addedToNotes": "Added to the notes.",
+    "notesFull": "The notes are too long to take this text."
+  },
+  "challenge": {
+    "title": "Weakest assumptions",
+    "description": "Where this location's result is most likely wrong, found by fixed rules. The figures themselves do not change.",
+    "argue": "Write the counter-argument",
+    "severity": {
+      "3": "decisive",
+      "2": "notable",
+      "1": "general"
+    },
+    "effect": {
+      "unavailable": "No usable EAL.",
+      "higher": "The true EAL may be higher.",
+      "lower": "The true EAL may be lower.",
+      "either": "The EAL may be off in either direction."
+    },
+    "kind": {
+      "notAnalyzed": "The location has not been analysed yet.",
+      "noVehicleCount": "No vehicles were counted on the lot; without a count there is no hail EAL.",
+      "estimatedVehicles": "The vehicle figure is estimated from the lot area, not counted.",
+      "syntheticBoundary": "The lot boundary is a fallback circle around the point with an assumed radius.",
+      "boundaryReview": "The lot boundary is flagged for review (confidence {{confidence}} %) and not confirmed.",
+      "staleImagery": "Vehicles were counted on an aerial image from {{year}}, about {{age}} years old.",
+      "stockSnapshot": "On {{images}} archived images the stock ranged from {{low}} to {{high}} vehicles (median {{median}}); the count used is not a typical day.",
+      "singleImage": "The count comes from a single aerial image, one day's stock.",
+      "lowDetectionConfidence": "The detector's confidence in the vehicle count is only {{confidence}} %.",
+      "zoneEstimated": "Hail zone {{zone}} is estimated from weather data, not taken from the postcode table or a provider.",
+      "fallbackData": "Fallback data was used for: {{sources}}.",
+      "placeholderParameters": "Hail frequency and loss per vehicle are uncalibrated placeholder values.",
+      "noProtectionConsidered": "Every counted vehicle is treated as parked in the open; hail nets, canopies and halls are not considered."
+    }
+  },
+  "evidenceMemo": {
+    "write": "Write a memo with checked figures",
+    "basedOn": "Based on:",
+    "removed_one": "{{count}} sentence removed because it stated a number the app did not compute.",
+    "removed_other": "{{count}} sentences removed because they stated numbers the app did not compute.",
+    "nothingLeft": "No sentence passed the figure check. The computed values are shown above in the dialog.",
+    "disclaimer": "AI text. Every number in it was checked against the values the app computed; the wording and conclusions are the AI's and can be wrong. Screening estimate, not an underwriting decision.",
+    "noteHeading": "AI memo (figures checked):",
+    "fact": {
+      "vehicles": "Vehicles",
+      "vehicleSource": "Vehicle count source",
+      "imageDate": "Image date",
+      "hailZone": "Hail zone",
+      "hailZoneSource": "Hail zone source",
+      "eventsPerYear": "Hail events per year",
+      "lossPerVehicleEur": "Loss per vehicle and event (€)",
+      "hailEalEur": "Hail EAL (€)",
+      "exposureEur": "Exposure (€)",
+      "stockLow": "Lowest stock",
+      "stockMedian": "Median stock",
+      "stockHigh": "Highest stock",
+      "boundarySource": "Boundary source",
+      "boundaryConfidencePct": "Boundary confidence (%)",
+      "lotAreaSqm": "Lot area (m²)",
+      "deductibleEur": "Deductible (€)",
+      "productLimitEur": "Product limit (€)",
+      "analyzedOn": "Analysed on",
+      "modelVersion": "Model version"
+    }
+  },
+  "siteCheck": {
+    "title": "Aerial image check (AI)",
+    "description": "A vision model looks at the aerial image: is hail protection visible, does the boundary fit? The aerial image of the location is sent to the AI provider for this. The result is an observation and changes neither the vehicle count nor the boundary nor the EAL.",
+    "run": "Check for hail protection",
+    "runHistory": "Also check older images",
+    "boundaryOpinion": "Second opinion on the boundary",
+    "image": "{{label}}, captured {{date}}",
+    "dateUnknown": "date unknown",
+    "unusable": "The image does not allow a judgement (clouds, snow, shadow or blur).",
+    "openAir": "In the open",
+    "feature": {
+      "hailNet": "Hail net",
+      "canopy": "Canopy",
+      "parkingStructure": "Parking structure"
+    },
+    "seen": {
+      "yes": "visible",
+      "no": "not visible",
+      "unclear": "unclear"
+    },
+    "share": {
+      "most": "most",
+      "aboutHalf": "about half",
+      "few": "few",
+      "unclear": "unclear"
+    },
+    "sinceBetween": "{{feature}}: visible on every image since {{since}}, not yet on the image of {{absent}}.",
+    "sinceAtLeast": "{{feature}}: visible on the checked images since at least {{since}}.",
+    "olderImages_one": "{{count}} older image",
+    "olderImages_other": "{{count}} older images",
+    "disclaimer": "Observation by the vision model {{model}}, not verified. Vision models miss hail nets and confuse roofs; ask the dealership when in doubt.",
+    "noteHeading": "Aerial image check (AI {{model}}, image {{date}}):",
+    "verdict": {
+      "plausible": "Boundary plausible",
+      "tooLarge": "Boundary probably too large",
+      "tooSmall": "Boundary probably too small",
+      "wrongPlace": "Boundary probably in the wrong place",
+      "unclear": "No judgement possible"
+    },
+    "boundaryDisclaimer": "Second opinion by the vision model {{model}}. The boundary was not changed; it can be corrected on the map."
+  },
+  "eventNotice": {
+    "description": "Affected locations for follow-up. Radar shows where hail was likely, not whether damage occurred.",
+    "copyList": "Copy the location list",
+    "copied": "Location list copied to the clipboard.",
+    "draft": "Draft a message to the dealerships",
+    "listHeading_one": "Hail event {{event}}: {{count}} location within reach of a radar cell",
+    "listHeading_other": "Hail event {{event}}: {{count}} locations within reach of a radar cell",
+    "title": "Follow-up"
+  },
+  "aiLog": {
+    "title": "AI record book",
+    "description": "Every request the app sends to an AI provider: when, for what, to which model, with which text and which answer. The record stays on this computer.",
+    "enable": "Keep the record",
+    "enableHint": "The last 500 requests are stored. Images are counted, not stored.",
+    "empty": "No AI request recorded yet.",
+    "col": {
+      "time": "Time",
+      "feature": "Feature",
+      "model": "Model",
+      "destination": "Destination",
+      "status": "Status"
+    },
+    "local": "this computer",
+    "status": {
+      "ok": "ok",
+      "error": "error",
+      "aborted": "cancelled"
+    },
+    "more": "The newest {{shown}} of {{total}} entries. The export contains all of them.",
+    "refresh": "Refresh",
+    "export": "Export as JSON",
+    "exported": "Record book exported.",
+    "clear": "Clear the record",
+    "clearTitle": "Clear the AI record book?",
+    "clearDescription": "All stored requests and answers are deleted. This cannot be undone.",
+    "detailMeta": "{{time}} · {{provider}} · {{model}} · {{host}} · {{seconds}} s · images: {{images}}",
+    "request": "Request",
+    "response": "Answer"
+  },
+  "mcpServers": {
+    "title": "External MCP servers",
+    "description": "Connect your own data sources over the Model Context Protocol, such as a claims database. The chat may only use tools the server marks as read-only.",
+    "empty": "No server connected.",
+    "enabled": "Use {{name}} in the chat",
+    "test": "Test connection",
+    "testFailed": "Connection failed: {{error}}",
+    "remove": "Remove {{name}}",
+    "tokenPlaceholder": "Access token (optional)",
+    "tokenStored": "Token stored",
+    "tokenSave": "Save token",
+    "tokenRemove": "Delete token",
+    "tools": "{{server}}: {{total}} tools, {{usable}} of them read-only and usable in the chat.",
+    "namePlaceholder": "Name",
+    "urlLabel": "MCP server address",
+    "add": "Add",
+    "urlProblem": {
+      "invalid": "This is not a valid address.",
+      "scheme": "The address must start with https://.",
+      "credentials": "Credentials do not belong in the address; use the token field.",
+      "insecure": "Unencrypted http:// is only allowed for servers on this computer."
+    },
+    "privacy": "For a chat question the AI picks fitting tools; their arguments go to the server. The app does not check what the server returns and marks it in the chat as an external source."
+  },
+  "agentGateway": {
+    "title": "Access for other AI tools",
+    "description": "Other programs on this computer, such as Claude or your own agent, can read the portfolio. Read-only, from this computer only and only with the token.",
+    "enable": "Enable access",
+    "enableHint": "Starts a local service on 127.0.0.1. Switched off, nothing is reachable.",
+    "mcp": "MCP server",
+    "mcpHint": "Tools for assistants such as Claude: portfolios, locations, evidence. With a portfolio view right in the chat (MCP App).",
+    "a2a": "A2A agent",
+    "a2aHint": "Agent card and requests from other agents (Agent2Agent 1.0). Answers by fixed rules, without AI.",
+    "agUi": "AG-UI",
+    "agUiHint": "The portfolio chat as an event stream for your own front ends. Needs an AI provider.",
+    "port": "Port",
+    "portHint": "1024 to 65535. Change it if the port is in use.",
+    "portInvalid": "The port must be a whole number between 1024 and 65535.",
+    "running": "running on port {{port}}",
+    "stopped": "not running",
+    "startFailed": "The service could not start: {{error}}",
+    "connect": "Connect",
+    "tokenHint": "Every request needs the header “Authorization: Bearer <token>”. Whoever has the token can read the portfolio.",
+    "copyToken": "Copy token",
+    "copyClaudeCommand": "Copy the Claude Code command",
+    "copied": "Copied to the clipboard.",
+    "rotateToken": "New token",
+    "tokenRotated": "New token created. The old one no longer works.",
+    "privacy": "Passed on: names, postcode and town, hail zone, vehicle counts, EAL, exposure and source details. Never passed on: notes, street addresses, coordinates and lot boundaries. A connected tool may send this data to its own AI model."
   }
 }

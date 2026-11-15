@@ -17,6 +17,12 @@ import { pruneExpiredTiles } from "./services/tiles.service";
 import { configureCustomOverpass } from "./services/boundary/overpass-client";
 import { getSettings } from "./services/settings.service";
 import { closeDb, getDb } from "./db/database";
+import { insertAiLogEntry } from "./db/ai-log.repo";
+import { configureAiLog } from "./services/ai-log.service";
+import {
+  stopAgentGateway,
+  syncAgentGateway,
+} from "./services/agent-gateway/gateway.service";
 import { IPC } from "@shared/ipc-channels";
 import { applyPendingDataReset } from "./services/data-reset.service";
 import {
@@ -201,6 +207,14 @@ app.whenReady().then(() => {
   });
 
   getDb(); // DB + Tabellen initialisieren
+  // AI record book: every provider request is written to the local database.
+  configureAiLog(insertAiLogEntry, () => {
+    try {
+      return getSettings().aiLogEnabled !== false;
+    } catch {
+      return false;
+    }
+  });
   try {
     configureCustomOverpass(getSettings().overpassUrl);
   } catch (error) {
@@ -230,6 +244,8 @@ app.whenReady().then(() => {
   setTimeout(() => warmUpDetector(), DETECTOR_WARM_UP_DELAY_MS);
   // DWD keeps radar hail cells for 48 h only: keep the archive filling.
   startRadarHailBackgroundSync();
+  // Local agent gateway (MCP, A2A, AG-UI): only if the user enabled it.
+  void syncAgentGateway();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
@@ -241,5 +257,6 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  void stopAgentGateway();
   closeDb();
 });

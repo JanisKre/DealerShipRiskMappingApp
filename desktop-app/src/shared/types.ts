@@ -1,3 +1,5 @@
+import { AgentGatewaySettingsSchema } from "./agent-gateway";
+import { MCP_CLIENT_MAX_SERVERS, McpServerConfigSchema } from "./mcp-client";
 import { z } from "zod";
 import { A2uiSurfaceSchema } from "./a2ui";
 import {
@@ -1002,6 +1004,18 @@ export const SettingsSchema = z.object({
    * on; administrators who roll out versions themselves switch it off.
    */
   autoUpdateCheck: z.boolean().optional(),
+  /**
+   * Keep the AI record book (every request sent to an AI provider, stored
+   * locally). Unset means on.
+   */
+  aiLogEnabled: z.boolean().optional(),
+  /** Local agent gateway (MCP, A2A, AG-UI); off unless enabled here. */
+  agentGateway: AgentGatewaySettingsSchema.optional(),
+  /** External MCP servers whose read-only tools the chat may use. */
+  mcpServers: z
+    .array(McpServerConfigSchema)
+    .max(MCP_CLIENT_MAX_SERVERS)
+    .optional(),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 

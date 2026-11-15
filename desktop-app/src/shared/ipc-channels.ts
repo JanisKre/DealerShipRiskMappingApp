@@ -151,6 +151,27 @@ export const IPC = {
   diagnosticsExport: "diagnostics:export",
   // Deletes all local data on the next start and restarts the app
   dataResetAll: "data:resetAll",
+
+  // AI record book: every request sent to an AI provider (local only)
+  aiLogList: "aiLog:list",
+  aiLogGet: "aiLog:get",
+  aiLogClear: "aiLog:clear",
+  aiLogExport: "aiLog:export",
+
+  // Local agent gateway (MCP server + MCP App, A2A, AG-UI); off by default
+  gatewayStatus: "gateway:status",
+  gatewayRotateToken: "gateway:rotateToken",
+
+  // External MCP servers the user connected (read-only tools)
+  mcpServerTools: "mcp:serverTools", // connects and lists the tools
+  mcpSetServerToken: "mcp:setServerToken", // -> safeStorage
+  mcpChatLookup: "mcp:chatLookup", // optional external lookups before a chat answer
+
+  // Optional AI layer, second batch (docs/ai-features.md)
+  llmSiteCheck: "llm:siteCheck", // vision: hail protection on the aerial image
+  llmBoundaryOpinion: "llm:boundaryOpinion", // vision: second opinion on the lot outline
+  llmEvidenceMemo: "llm:evidenceMemo", // note whose figures are checked against the facts
+  llmQuestionnaireAnswers: "llm:questionnaireAnswers", // dealership reply -> answers with quotes
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];

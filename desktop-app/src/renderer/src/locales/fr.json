@@ -1947,6 +1947,14 @@
       "highZone": "zone de grêle élevée",
       "boundary": "limite de parcelle à vérifier",
       "oldImage": "image aérienne de plusieurs années"
+    },
+    "answers": {
+      "description": "Collez la réponse du concessionnaire : l'IA attribue les passages aux questions. Le texte collé est envoyé au fournisseur d'IA.",
+      "placeholder": "Collez ici la réponse du concessionnaire …",
+      "extract": "Attribuer les réponses",
+      "none": "Aucune affirmation étayée par une citation n'a été trouvée dans la réponse.",
+      "disclaimer": "Résumé par l'IA. Seules les réponses dont la citation figure mot pour mot dans le texte collé sont affichées. Vérifiez chaque résumé à l'aide de sa citation.",
+      "noteHeading": "Réponses du concessionnaire (attribuées par l'IA) :"
     }
   },
   "hailReplay": {
@@ -2084,5 +2092,203 @@
     "importNotGeojson": "Une FeatureCollection ou un Feature GeoJSON est attendu.",
     "importNoPolygons": "Le fichier ne contient aucune empreinte polygonale en WGS84 (lon/lat).",
     "importTooManyPolygons": "Le fichier contient trop de polygones."
+  },
+  "aiInsight": {
+    "copy": "Copier",
+    "copied": "Copié dans le presse-papiers.",
+    "addToNotes": "Ajouter aux notes",
+    "addedToNotes": "Ajouté aux notes.",
+    "notesFull": "Les notes sont trop longues pour accueillir ce texte."
+  },
+  "challenge": {
+    "title": "Hypothèses les plus fragiles",
+    "description": "Là où le résultat de ce site risque le plus d'être faux, selon des règles fixes. Les valeurs elles-mêmes ne changent pas.",
+    "argue": "Rédiger le contre-argument",
+    "severity": {
+      "3": "décisif",
+      "2": "notable",
+      "1": "général"
+    },
+    "effect": {
+      "unavailable": "Pas d'EAL exploitable.",
+      "higher": "L'EAL réel peut être plus élevé.",
+      "lower": "L'EAL réel peut être plus bas.",
+      "either": "L'EAL peut s'écarter dans les deux sens."
+    },
+    "kind": {
+      "notAnalyzed": "Le site n'a pas encore été analysé.",
+      "noVehicleCount": "Aucun véhicule n'a été compté sur le terrain ; sans comptage, pas d'EAL grêle.",
+      "estimatedVehicles": "Le nombre de véhicules est estimé d'après la surface, pas compté.",
+      "syntheticBoundary": "La limite du terrain est un cercle de repli autour du point, avec un rayon supposé.",
+      "boundaryReview": "La limite du terrain est à vérifier (confiance {{confidence}} %) et n'est pas confirmée.",
+      "staleImagery": "Le comptage repose sur une image aérienne de {{year}}, vieille d'environ {{age}} ans.",
+      "stockSnapshot": "Sur {{images}} images archivées, le stock variait de {{low}} à {{high}} véhicules (médiane {{median}}) ; le comptage utilisé n'est pas un jour typique.",
+      "singleImage": "Le comptage provient d'une seule image aérienne, soit le stock d'un jour.",
+      "lowDetectionConfidence": "La détection n'est sûre du nombre de véhicules qu'à {{confidence}} %.",
+      "zoneEstimated": "La zone de grêle {{zone}} est estimée d'après des données météo, pas issue de la table des codes postaux ni d'un fournisseur.",
+      "fallbackData": "Des données de repli ont été utilisées pour : {{sources}}.",
+      "placeholderParameters": "La fréquence de grêle et le sinistre par véhicule sont des valeurs provisoires non calibrées.",
+      "noProtectionConsidered": "Chaque véhicule compté est considéré comme stationné à l'air libre ; filets paragrêle, auvents et halls ne sont pas pris en compte."
+    }
+  },
+  "evidenceMemo": {
+    "write": "Rédiger une note aux chiffres vérifiés",
+    "basedOn": "Fondé sur :",
+    "removed_one": "{{count}} phrase retirée car elle citait un chiffre que l'application n'a pas calculé.",
+    "removed_other": "{{count}} phrases retirées car elles citaient des chiffres que l'application n'a pas calculés.",
+    "nothingLeft": "Aucune phrase n'a passé le contrôle des chiffres. Les valeurs calculées figurent plus haut dans la fenêtre.",
+    "disclaimer": "Texte IA. Chaque chiffre a été vérifié par rapport aux valeurs calculées par l'application ; la formulation et les conclusions viennent de l'IA et peuvent être fausses. Estimation de screening, pas une décision de souscription.",
+    "noteHeading": "Note IA (chiffres vérifiés) :",
+    "fact": {
+      "vehicles": "Véhicules",
+      "vehicleSource": "Source du nombre de véhicules",
+      "imageDate": "Date de l'image",
+      "hailZone": "Zone de grêle",
+      "hailZoneSource": "Source de la zone de grêle",
+      "eventsPerYear": "Épisodes de grêle par an",
+      "lossPerVehicleEur": "Sinistre par véhicule et épisode (€)",
+      "hailEalEur": "EAL grêle (€)",
+      "exposureEur": "Exposition (€)",
+      "stockLow": "Stock le plus bas",
+      "stockMedian": "Stock médian",
+      "stockHigh": "Stock le plus haut",
+      "boundarySource": "Source de la limite",
+      "boundaryConfidencePct": "Confiance de la limite (%)",
+      "lotAreaSqm": "Surface du terrain (m²)",
+      "deductibleEur": "Franchise (€)",
+      "productLimitEur": "Limite produit (€)",
+      "analyzedOn": "Analysé le",
+      "modelVersion": "Version du modèle"
+    }
+  },
+  "siteCheck": {
+    "title": "Contrôle de l'image aérienne (IA)",
+    "description": "Un modèle de vision examine l'image aérienne : une protection contre la grêle est-elle visible, la limite convient-elle ? L'image aérienne du site est envoyée au fournisseur d'IA. Le résultat est une observation et ne modifie ni le nombre de véhicules, ni la limite, ni l'EAL.",
+    "run": "Vérifier la protection grêle",
+    "runHistory": "Vérifier aussi les images plus anciennes",
+    "boundaryOpinion": "Second avis sur la limite",
+    "image": "{{label}}, prise de vue {{date}}",
+    "dateUnknown": "date inconnue",
+    "unusable": "L'image ne permet pas de juger (nuages, neige, ombre ou flou).",
+    "openAir": "À l'air libre",
+    "feature": {
+      "hailNet": "Filet paragrêle",
+      "canopy": "Auvent",
+      "parkingStructure": "Parking à étages"
+    },
+    "seen": {
+      "yes": "visible",
+      "no": "non visible",
+      "unclear": "incertain"
+    },
+    "share": {
+      "most": "la plupart",
+      "aboutHalf": "environ la moitié",
+      "few": "peu",
+      "unclear": "incertain"
+    },
+    "sinceBetween": "{{feature}} : visible sur toutes les images depuis {{since}}, pas encore sur l'image du {{absent}}.",
+    "sinceAtLeast": "{{feature}} : visible sur les images vérifiées depuis au moins {{since}}.",
+    "olderImages_one": "{{count}} image plus ancienne",
+    "olderImages_other": "{{count}} images plus anciennes",
+    "disclaimer": "Observation du modèle de vision {{model}}, non vérifiée. Les modèles de vision manquent des filets et confondent des toits ; en cas de doute, interroger le concessionnaire.",
+    "noteHeading": "Contrôle de l'image aérienne (IA {{model}}, image {{date}}) :",
+    "verdict": {
+      "plausible": "Limite plausible",
+      "tooLarge": "Limite probablement trop grande",
+      "tooSmall": "Limite probablement trop petite",
+      "wrongPlace": "Limite probablement au mauvais endroit",
+      "unclear": "Jugement impossible"
+    },
+    "boundaryDisclaimer": "Second avis du modèle de vision {{model}}. La limite n'a pas été modifiée ; elle se corrige sur la carte."
+  },
+  "eventNotice": {
+    "description": "Sites touchés, pour le suivi. Le radar montre où la grêle était probable, pas si un dommage s'est produit.",
+    "copyList": "Copier la liste des sites",
+    "copied": "Liste des sites copiée dans le presse-papiers.",
+    "draft": "Rédiger un message aux concessionnaires",
+    "listHeading_one": "Épisode de grêle {{event}} : {{count}} site à portée d'une cellule radar",
+    "listHeading_other": "Épisode de grêle {{event}} : {{count}} sites à portée d'une cellule radar",
+    "title": "Suivi"
+  },
+  "aiLog": {
+    "title": "Journal de l'IA",
+    "description": "Chaque requête envoyée par l'application à un fournisseur d'IA : quand, pour quoi, à quel modèle, avec quel texte et quelle réponse. Le journal reste sur cet ordinateur.",
+    "enable": "Tenir le journal",
+    "enableHint": "Les 500 dernières requêtes sont conservées. Les images sont comptées, pas enregistrées.",
+    "empty": "Aucune requête IA enregistrée pour l'instant.",
+    "col": {
+      "time": "Heure",
+      "feature": "Fonction",
+      "model": "Modèle",
+      "destination": "Destination",
+      "status": "Statut"
+    },
+    "local": "cet ordinateur",
+    "status": {
+      "ok": "ok",
+      "error": "erreur",
+      "aborted": "annulé"
+    },
+    "more": "Les {{shown}} entrées les plus récentes sur {{total}}. L'export les contient toutes.",
+    "refresh": "Actualiser",
+    "export": "Exporter en JSON",
+    "exported": "Journal exporté.",
+    "clear": "Vider le journal",
+    "clearTitle": "Vider le journal de l'IA ?",
+    "clearDescription": "Toutes les requêtes et réponses enregistrées sont supprimées. Cette action est irréversible.",
+    "detailMeta": "{{time}} · {{provider}} · {{model}} · {{host}} · {{seconds}} s · images : {{images}}",
+    "request": "Requête",
+    "response": "Réponse"
+  },
+  "mcpServers": {
+    "title": "Serveurs MCP externes",
+    "description": "Reliez vos propres sources de données via le Model Context Protocol, par exemple une base de sinistres. Le chat n'utilise que les outils que le serveur déclare en lecture seule.",
+    "empty": "Aucun serveur connecté.",
+    "enabled": "Utiliser {{name}} dans le chat",
+    "test": "Tester la connexion",
+    "testFailed": "Échec de la connexion : {{error}}",
+    "remove": "Supprimer {{name}}",
+    "tokenPlaceholder": "Jeton d'accès (facultatif)",
+    "tokenStored": "Jeton enregistré",
+    "tokenSave": "Enregistrer le jeton",
+    "tokenRemove": "Supprimer le jeton",
+    "tools": "{{server}} : {{total}} outils, dont {{usable}} en lecture seule et utilisables dans le chat.",
+    "namePlaceholder": "Nom",
+    "urlLabel": "Adresse du serveur MCP",
+    "add": "Ajouter",
+    "urlProblem": {
+      "invalid": "Cette adresse n'est pas valide.",
+      "scheme": "L'adresse doit commencer par https://.",
+      "credentials": "Les identifiants n'ont pas leur place dans l'adresse ; utilisez le champ du jeton.",
+      "insecure": "Le http:// non chiffré n'est autorisé que pour les serveurs sur cet ordinateur."
+    },
+    "privacy": "Pour une question du chat, l'IA choisit les outils adaptés ; leurs arguments sont envoyés au serveur. L'application ne vérifie pas ce que le serveur renvoie et le signale dans le chat comme source externe."
+  },
+  "agentGateway": {
+    "title": "Accès pour d'autres outils d'IA",
+    "description": "D'autres programmes sur cet ordinateur, comme Claude ou votre propre agent, peuvent lire le portefeuille. Lecture seule, depuis cet ordinateur uniquement et avec le jeton.",
+    "enable": "Activer l'accès",
+    "enableHint": "Démarre un service local sur 127.0.0.1. Désactivé, rien n'est accessible.",
+    "mcp": "Serveur MCP",
+    "mcpHint": "Outils pour des assistants comme Claude : portefeuilles, sites, justificatifs. Avec une vue du portefeuille directement dans le chat (MCP App).",
+    "a2a": "Agent A2A",
+    "a2aHint": "Carte d'agent et requêtes d'autres agents (Agent2Agent 1.0). Répond selon des règles fixes, sans IA.",
+    "agUi": "AG-UI",
+    "agUiHint": "Le chat du portefeuille sous forme de flux d'événements pour vos propres interfaces. Nécessite un fournisseur d'IA.",
+    "port": "Port",
+    "portHint": "De 1024 à 65535. À modifier si le port est occupé.",
+    "portInvalid": "Le port doit être un nombre entier entre 1024 et 65535.",
+    "running": "actif sur le port {{port}}",
+    "stopped": "arrêté",
+    "startFailed": "Le service n'a pas pu démarrer : {{error}}",
+    "connect": "Connexion",
+    "tokenHint": "Chaque requête nécessite l'en-tête « Authorization: Bearer <jeton> ». Quiconque détient le jeton peut lire le portefeuille.",
+    "copyToken": "Copier le jeton",
+    "copyClaudeCommand": "Copier la commande Claude Code",
+    "copied": "Copié dans le presse-papiers.",
+    "rotateToken": "Nouveau jeton",
+    "tokenRotated": "Nouveau jeton créé. L'ancien n'est plus valable.",
+    "privacy": "Sont transmis : noms, code postal et ville, zone de grêle, nombres de véhicules, EAL, exposition et sources. Ne sont jamais transmis : notes, adresses, coordonnées et limites de terrain. Un outil connecté peut envoyer ces données à son propre modèle d'IA."
   }
 }

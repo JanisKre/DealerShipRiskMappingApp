@@ -36,6 +36,11 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@renderer/components/ui/toggle-group";
+import {
+  AgentGatewayCard,
+  AiLogCard,
+  McpServersCard,
+} from "./AiIntegrationsCards";
 import { AppSupportCard } from "./AppSupportCard";
 import { DealerDirectoryCard } from "./DealerDirectoryCard";
 import { DetectionModelCard } from "./DetectionModelCard";
@@ -268,13 +273,16 @@ export function SettingsPage(): React.JSX.Element {
           <AppSupportCard settings={settings} onUpdateSettings={update} />
         </TabsContent>
 
-        <TabsContent value="ai" className="mt-6">
+        <TabsContent value="ai" className="mt-6 space-y-6">
           <LlmSettingsCard
             ref={aiCardRef}
             settings={settings}
             onSettingsChange={setSettings}
             highlight={focusAi}
           />
+          <AiLogCard settings={settings} onUpdate={update} />
+          <McpServersCard settings={settings} onUpdate={update} />
+          <AgentGatewayCard settings={settings} onUpdate={update} />
         </TabsContent>
 
         <TabsContent value="data" className="mt-6 space-y-6">

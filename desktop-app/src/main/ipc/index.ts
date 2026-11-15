@@ -19,11 +19,26 @@ import { analyzeDealership } from "../services/analyze.service";
 import {
   explainStream,
   draftScenario,
+  extractQuestionnaireAnswers,
   planChatTools,
   proposeReviewOrder,
   suggestColumnMapping,
+  writeEvidenceMemo,
 } from "../services/llm-agents.service";
 import { closeDb } from "../db/database";
+import { clearAiLog, getAiLogEntry, listAiLog } from "../db/ai-log.repo";
+import { withAiFeature } from "../services/ai-log.service";
+import { exportAiLog } from "../services/ai-log-export.service";
+import {
+  agentGatewayStatus,
+  rotateAgentGatewayToken,
+  syncAgentGateway,
+} from "../services/agent-gateway/gateway.service";
+import {
+  listMcpServerTools,
+  mcpChatLookup,
+} from "../services/mcp-client.service";
+import { boundaryOpinion, checkSite } from "../services/site-check.service";
 import { scheduleDataReset } from "../services/data-reset.service";
 import { exportDiagnostics } from "../services/diagnostics.service";
 import {
@@ -103,6 +118,7 @@ import {
   getSettings,
   deleteNatCatApiKey,
   setLlmApiKey,
+  setMcpServerToken,
   setNatCatApiKey,
   setSettings,
 } from "../services/settings.service";
@@ -157,7 +173,10 @@ function handle<K extends keyof typeof ipcRequest>(
   ipcMain.handle(channel, async (event, rawInput) => {
     if (!isTrustedSender(event)) throw new Error("Rejected IPC sender");
     const parsed = ipcRequest[channel].parse(rawInput);
-    return fn(parsed as z.infer<(typeof ipcRequest)[K]>);
+    // AI requests made while handling this call are filed under the channel.
+    return withAiFeature(channel, () =>
+      fn(parsed as z.infer<(typeof ipcRequest)[K]>),
+    );
   });
 }
 
@@ -316,6 +335,7 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.setSettings, ({ settings }) => {
     const saved = setSettings(settings);
     configureCustomOverpass(saved.overpassUrl);
+    if (settings.agentGateway !== undefined) void syncAgentGateway();
     return saved;
   });
   handle(IPC.setLlmApiKey, ({ provider, apiKey }) => {
@@ -387,6 +407,39 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     }, 200);
     return { ok: true };
   });
+
+  handle(IPC.aiLogList, ({ offset }) => listAiLog(offset));
+  handle(IPC.aiLogGet, ({ id }) => getAiLogEntry(id));
+  handle(IPC.aiLogClear, () => {
+    clearAiLog();
+    return { ok: true };
+  });
+  handle(IPC.aiLogExport, async () => ({
+    path: rememberExport(await exportAiLog(mainWindowProvider())),
+  }));
+
+  handle(IPC.gatewayStatus, () => agentGatewayStatus());
+  handle(IPC.gatewayRotateToken, () => rotateAgentGatewayToken());
+
+  handle(IPC.mcpServerTools, ({ serverId }) => listMcpServerTools(serverId));
+  handle(IPC.mcpSetServerToken, ({ serverId, token }) => {
+    setMcpServerToken(serverId, token);
+    return { ok: true };
+  });
+  handle(IPC.mcpChatLookup, ({ question }) => mcpChatLookup(question));
+
+  handle(IPC.llmSiteCheck, ({ lat, lon, boundary, history }) =>
+    checkSite(lat, lon, boundary, history),
+  );
+  handle(IPC.llmBoundaryOpinion, ({ lat, lon, boundary }) =>
+    boundaryOpinion(lat, lon, boundary),
+  );
+  handle(IPC.llmEvidenceMemo, ({ dealership, parameters }) =>
+    writeEvidenceMemo(dealership, parameters),
+  );
+  handle(IPC.llmQuestionnaireAnswers, async ({ questions, reply }) => ({
+    answers: await extractQuestionnaireAnswers(questions, reply),
+  }));
 
   registerLlmStreaming();
   registerModelDownload();
@@ -508,7 +561,9 @@ function registerLlmStreaming(): void {
       if (!event.sender.isDestroyed()) event.sender.send(channel, chunk);
     };
 
-    void runStream(parsed, controller.signal, send)
+    void withAiFeature(`${IPC.llmStream}:${parsed.kind}`, () =>
+      runStream(parsed, controller.signal, send),
+    )
       .catch((err: unknown) => {
         send({
           type: "error",

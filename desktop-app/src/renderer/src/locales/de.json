@@ -1947,6 +1947,14 @@
       "highZone": "hohe Hagelzone",
       "boundary": "Grundstücksgrenze zu prüfen",
       "oldImage": "Luftbild mehrere Jahre alt"
+    },
+    "answers": {
+      "description": "Antwort des Händlers einfügen: Die KI ordnet die Textstellen den Fragen zu. Der eingefügte Text wird dafür an den KI-Anbieter gesendet.",
+      "placeholder": "Antwort des Händlers hier einfügen …",
+      "extract": "Antworten zuordnen",
+      "none": "In der Antwort wurde keine belegbare Aussage zu den Fragen gefunden.",
+      "disclaimer": "Zusammenfassung durch die KI. Angezeigt werden nur Antworten, deren Zitat wörtlich in der eingefügten Antwort steht. Die Zusammenfassung selbst bitte am Zitat prüfen.",
+      "noteHeading": "Antworten des Händlers (von der KI zugeordnet):"
     }
   },
   "hailReplay": {
@@ -2084,5 +2092,203 @@
     "importNotGeojson": "Erwartet wird eine GeoJSON-FeatureCollection oder ein Feature.",
     "importNoPolygons": "Die Datei enthält keine Polygon-Fußabdrücke in WGS84 (Länge/Breite).",
     "importTooManyPolygons": "Die Datei enthält zu viele Polygone."
+  },
+  "aiInsight": {
+    "copy": "Kopieren",
+    "copied": "In die Zwischenablage kopiert.",
+    "addToNotes": "In Notizen übernehmen",
+    "addedToNotes": "In die Notizen übernommen.",
+    "notesFull": "Die Notizen sind zu lang, um den Text aufzunehmen."
+  },
+  "challenge": {
+    "title": "Schwächste Annahmen",
+    "description": "Wo das Ergebnis dieses Standorts am ehesten falsch liegt, nach festen Regeln ermittelt. Die Werte selbst ändern sich dadurch nicht.",
+    "argue": "Gegenargument formulieren",
+    "severity": {
+      "3": "tragend",
+      "2": "deutlich",
+      "1": "allgemein"
+    },
+    "effect": {
+      "unavailable": "Kein belastbarer EAL.",
+      "higher": "Der tatsächliche EAL kann höher liegen.",
+      "lower": "Der tatsächliche EAL kann niedriger liegen.",
+      "either": "Der EAL kann in beide Richtungen abweichen."
+    },
+    "kind": {
+      "notAnalyzed": "Der Standort ist noch nicht analysiert.",
+      "noVehicleCount": "Auf dem Gelände wurden keine Fahrzeuge gezählt; ohne Zählung gibt es keinen Hagel-EAL.",
+      "estimatedVehicles": "Die Fahrzeugzahl ist aus der Fläche geschätzt, nicht gezählt.",
+      "syntheticBoundary": "Die Grundstücksgrenze ist ein Ersatzkreis um den Punkt mit angenommenem Radius.",
+      "boundaryReview": "Die Grundstücksgrenze ist zur Prüfung markiert (Konfidenz {{confidence}} %) und nicht bestätigt.",
+      "staleImagery": "Gezählt wurde auf einem Luftbild von {{year}}, rund {{age}} Jahre alt.",
+      "stockSnapshot": "Auf {{images}} archivierten Bildern lag der Bestand zwischen {{low}} und {{high}} Fahrzeugen (Median {{median}}); die verwendete Zählung ist kein typischer Tag.",
+      "singleImage": "Die Zählung stammt von einem einzigen Luftbild, also dem Bestand eines Tages.",
+      "lowDetectionConfidence": "Die Erkennung ist sich bei der Fahrzeugzahl nur zu {{confidence}} % sicher.",
+      "zoneEstimated": "Hagelzone {{zone}} ist aus Wetterdaten geschätzt, nicht aus der Postleitzahlentabelle oder von einem Anbieter.",
+      "fallbackData": "Für diese Quellen wurden Ersatzdaten verwendet: {{sources}}.",
+      "placeholderParameters": "Hagelhäufigkeit und Schaden je Fahrzeug sind unkalibrierte Platzhalterwerte.",
+      "noProtectionConsidered": "Jedes gezählte Fahrzeug gilt als im Freien stehend; Hagelnetze, Überdachungen und Hallen sind nicht berücksichtigt."
+    }
+  },
+  "evidenceMemo": {
+    "write": "Memo mit Zahlenprüfung schreiben",
+    "basedOn": "Beleg:",
+    "removed_one": "{{count}} Satz entfernt, weil er eine Zahl nannte, die die App nicht berechnet hat.",
+    "removed_other": "{{count}} Sätze entfernt, weil sie Zahlen nannten, die die App nicht berechnet hat.",
+    "nothingLeft": "Kein Satz hat die Zahlenprüfung bestanden. Die berechneten Werte stehen oben im Dialog.",
+    "disclaimer": "KI-Text. Jede Zahl darin wurde gegen die berechneten Werte der App geprüft; die Formulierungen und Schlüsse stammen von der KI und können falsch sein. Screening-Schätzung, keine Zeichnungsentscheidung.",
+    "noteHeading": "KI-Memo (Zahlen geprüft):",
+    "fact": {
+      "vehicles": "Fahrzeuge",
+      "vehicleSource": "Quelle der Fahrzeugzahl",
+      "imageDate": "Bilddatum",
+      "hailZone": "Hagelzone",
+      "hailZoneSource": "Quelle der Hagelzone",
+      "eventsPerYear": "Hagelereignisse pro Jahr",
+      "lossPerVehicleEur": "Schaden je Fahrzeug und Ereignis (€)",
+      "hailEalEur": "Hagel-EAL (€)",
+      "exposureEur": "Exposure (€)",
+      "stockLow": "Niedrigster Bestand",
+      "stockMedian": "Median-Bestand",
+      "stockHigh": "Höchster Bestand",
+      "boundarySource": "Quelle der Grenze",
+      "boundaryConfidencePct": "Konfidenz der Grenze (%)",
+      "lotAreaSqm": "Grundstücksfläche (m²)",
+      "deductibleEur": "Selbstbehalt (€)",
+      "productLimitEur": "Produktlimit (€)",
+      "analyzedOn": "Analysiert am",
+      "modelVersion": "Modellversion"
+    }
+  },
+  "siteCheck": {
+    "title": "Luftbild-Check (KI)",
+    "description": "Ein Bildmodell sieht sich das Luftbild an: Ist Hagelschutz zu erkennen, passt die Grenze? Dafür wird das Luftbild des Standorts an den KI-Anbieter gesendet. Das Ergebnis ist eine Beobachtung und ändert weder Fahrzeugzahl noch Grenze noch EAL.",
+    "run": "Auf Hagelschutz prüfen",
+    "runHistory": "Auch ältere Bilder prüfen",
+    "boundaryOpinion": "Zweitmeinung zur Grenze",
+    "image": "{{label}}, Aufnahme {{date}}",
+    "dateUnknown": "Datum unbekannt",
+    "unusable": "Das Bild lässt keine Beurteilung zu (Wolken, Schnee, Schatten oder Unschärfe).",
+    "openAir": "Im Freien",
+    "feature": {
+      "hailNet": "Hagelnetz",
+      "canopy": "Überdachung",
+      "parkingStructure": "Parkhaus"
+    },
+    "seen": {
+      "yes": "erkennbar",
+      "no": "nicht erkennbar",
+      "unclear": "unklar"
+    },
+    "share": {
+      "most": "die meisten",
+      "aboutHalf": "etwa die Hälfte",
+      "few": "wenige",
+      "unclear": "unklar"
+    },
+    "sinceBetween": "{{feature}}: auf den Bildern seit {{since}} durchgehend erkennbar, auf dem Bild vom {{absent}} noch nicht.",
+    "sinceAtLeast": "{{feature}}: auf den geprüften Bildern mindestens seit {{since}} erkennbar.",
+    "olderImages_one": "{{count}} älteres Bild",
+    "olderImages_other": "{{count}} ältere Bilder",
+    "disclaimer": "Beobachtung des Bildmodells {{model}}, nicht geprüft. Bildmodelle übersehen Hagelnetze und verwechseln Dächer; im Zweifel beim Händler nachfragen.",
+    "noteHeading": "Luftbild-Check (KI {{model}}, Bild {{date}}):",
+    "verdict": {
+      "plausible": "Grenze plausibel",
+      "tooLarge": "Grenze vermutlich zu groß",
+      "tooSmall": "Grenze vermutlich zu klein",
+      "wrongPlace": "Grenze vermutlich am falschen Ort",
+      "unclear": "Keine Beurteilung möglich"
+    },
+    "boundaryDisclaimer": "Zweitmeinung des Bildmodells {{model}}. Die Grenze wurde nicht geändert; korrigieren lässt sie sich auf der Karte."
+  },
+  "eventNotice": {
+    "description": "Betroffene Standorte für die Nachverfolgung. Radar zeigt, wo Hagel wahrscheinlich war, nicht ob ein Schaden entstand.",
+    "copyList": "Standortliste kopieren",
+    "copied": "Standortliste in die Zwischenablage kopiert.",
+    "draft": "Nachricht an die Händler entwerfen",
+    "listHeading_one": "Hagelereignis {{event}}: {{count}} Standort in Reichweite einer Radarzelle",
+    "listHeading_other": "Hagelereignis {{event}}: {{count}} Standorte in Reichweite einer Radarzelle",
+    "title": "Nachverfolgung"
+  },
+  "aiLog": {
+    "title": "KI-Protokollbuch",
+    "description": "Jede Anfrage, die die App an einen KI-Anbieter sendet: wann, wofür, an welches Modell, mit welchem Text und welcher Antwort. Das Protokoll bleibt auf diesem Computer.",
+    "enable": "Protokoll führen",
+    "enableHint": "Die letzten 500 Anfragen werden gespeichert. Bilder werden gezählt, nicht gespeichert.",
+    "empty": "Noch keine KI-Anfrage protokolliert.",
+    "col": {
+      "time": "Zeit",
+      "feature": "Funktion",
+      "model": "Modell",
+      "destination": "Ziel",
+      "status": "Status"
+    },
+    "local": "dieser Computer",
+    "status": {
+      "ok": "ok",
+      "error": "Fehler",
+      "aborted": "abgebrochen"
+    },
+    "more": "Die neuesten {{shown}} von {{total}} Einträgen. Der Export enthält alle.",
+    "refresh": "Aktualisieren",
+    "export": "Als JSON exportieren",
+    "exported": "Protokollbuch exportiert.",
+    "clear": "Protokoll leeren",
+    "clearTitle": "KI-Protokollbuch leeren?",
+    "clearDescription": "Alle gespeicherten Anfragen und Antworten werden gelöscht. Das lässt sich nicht rückgängig machen.",
+    "detailMeta": "{{time}} · {{provider}} · {{model}} · {{host}} · {{seconds}} s · Bilder: {{images}}",
+    "request": "Anfrage",
+    "response": "Antwort"
+  },
+  "mcpServers": {
+    "title": "Externe MCP-Server",
+    "description": "Eigene Datenquellen über das Model Context Protocol anbinden, etwa eine Schadendatenbank. Der Chat darf nur Werkzeuge nutzen, die der Server als nur lesend kennzeichnet.",
+    "empty": "Kein Server verbunden.",
+    "enabled": "{{name}} im Chat verwenden",
+    "test": "Verbindung testen",
+    "testFailed": "Verbindung fehlgeschlagen: {{error}}",
+    "remove": "{{name}} entfernen",
+    "tokenPlaceholder": "Zugriffstoken (optional)",
+    "tokenStored": "Token gespeichert",
+    "tokenSave": "Token speichern",
+    "tokenRemove": "Token löschen",
+    "tools": "{{server}}: {{total}} Werkzeuge, davon {{usable}} nur lesend und im Chat nutzbar.",
+    "namePlaceholder": "Name",
+    "urlLabel": "Adresse des MCP-Servers",
+    "add": "Hinzufügen",
+    "urlProblem": {
+      "invalid": "Das ist keine gültige Adresse.",
+      "scheme": "Die Adresse muss mit https:// beginnen.",
+      "credentials": "Zugangsdaten gehören nicht in die Adresse; nutze das Token-Feld.",
+      "insecure": "Unverschlüsseltes http:// ist nur für Server auf diesem Computer erlaubt."
+    },
+    "privacy": "Bei einer Chat-Frage wählt die KI passende Werkzeuge aus; deren Argumente gehen an den Server. Was der Server zurückgibt, prüft die App nicht und kennzeichnet es im Chat als externe Quelle."
+  },
+  "agentGateway": {
+    "title": "Zugriff für andere KI-Werkzeuge",
+    "description": "Andere Programme auf diesem Computer, etwa Claude oder ein eigener Agent, können das Portfolio lesen. Nur lesend, nur von diesem Computer aus und nur mit Token.",
+    "enable": "Zugriff einschalten",
+    "enableHint": "Startet einen lokalen Dienst auf 127.0.0.1. Ausgeschaltet ist nichts erreichbar.",
+    "mcp": "MCP-Server",
+    "mcpHint": "Werkzeuge für Assistenten wie Claude: Portfolios, Standorte, Belege. Mit Portfolio-Ansicht direkt im Chat (MCP App).",
+    "a2a": "A2A-Agent",
+    "a2aHint": "Agent Card und Anfragen anderer Agenten (Agent2Agent 1.0). Antwortet nach festen Regeln, ohne KI.",
+    "agUi": "AG-UI",
+    "agUiHint": "Der Portfolio-Chat als Ereignisstrom für eigene Oberflächen. Braucht einen KI-Anbieter.",
+    "port": "Port",
+    "portHint": "1024 bis 65535. Ändern, wenn der Port belegt ist.",
+    "portInvalid": "Der Port muss eine ganze Zahl zwischen 1024 und 65535 sein.",
+    "running": "läuft auf Port {{port}}",
+    "stopped": "läuft nicht",
+    "startFailed": "Der Dienst konnte nicht starten: {{error}}",
+    "connect": "Verbinden",
+    "tokenHint": "Jede Anfrage braucht den Header „Authorization: Bearer <Token>“. Wer das Token hat, kann das Portfolio lesen.",
+    "copyToken": "Token kopieren",
+    "copyClaudeCommand": "Befehl für Claude Code kopieren",
+    "copied": "In die Zwischenablage kopiert.",
+    "rotateToken": "Neues Token",
+    "tokenRotated": "Neues Token erzeugt. Das alte gilt nicht mehr.",
+    "privacy": "Weitergegeben werden Namen, Postleitzahl und Ort, Hagelzone, Fahrzeugzahlen, EAL, Exposure und Quellenangaben. Nie weitergegeben werden Notizen, Straßenadressen, Koordinaten und Grundstücksgrenzen. Ein verbundenes Werkzeug kann diese Daten an sein eigenes KI-Modell senden."
   }
 }

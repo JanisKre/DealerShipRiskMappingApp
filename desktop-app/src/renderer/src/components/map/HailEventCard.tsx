@@ -38,6 +38,7 @@ import {
 import { computeScenarioImpact } from "@shared/risk-math";
 import { estimatedExposure } from "@shared/estimates";
 import type { AnalyzedDealership } from "@shared/types";
+import { EventNotice } from "./EventNotice";
 import { HAIL_CLASS_COLOR } from "./HailEventReplayLayer";
 import { INTENSITY_COLOR } from "./HailstormScenarioLayer";
 import { replayClockLabel, replayDateLabel } from "@renderer/lib/hailTime";
@@ -292,6 +293,11 @@ function EventCard(): React.JSX.Element | null {
   const select = useAppStore((st) => st.select);
   const byId = useMemo(
     () => new Map(dealerships.map((d) => [d.id, d])),
+    [dealerships],
+  );
+
+  const nameById = useMemo(
+    () => new Map(dealerships.map((d) => [d.id, d.name])),
     [dealerships],
   );
 
@@ -599,6 +605,17 @@ function EventCard(): React.JSX.Element | null {
                   })
                 : t("hailReplay.dragHint")}
             </span>
+            {/* A message to dealerships only makes sense for a real event. */}
+            {(summary.source === "radar" ||
+              summary.source === "radklim" ||
+              summary.source === "import") && (
+              <EventNotice
+                eventName={title ?? ""}
+                hits={impact.hits}
+                radiusKm={impact.radiusKm}
+                names={nameById}
+              />
+            )}
             {shifted && (
               <Button
                 size="sm"

@@ -16,6 +16,16 @@ import {
   MAPPING_MAX_COLUMNS,
 } from "./import-fields";
 import { A2uiSurfaceSchema } from "./a2ui";
+import { AiLogDetailSchema, AiLogPageSchema } from "./ai-log";
+import { AgentGatewayStatusSchema } from "./agent-gateway";
+import { McpServerToolsSchema } from "./mcp-client";
+import { BoundaryOpinionSchema, SiteCheckResultSchema } from "./site-check";
+import { EvidenceMemoSchema } from "./evidence-memo";
+import {
+  QuestionnaireAnswerSchema,
+  REPLY_MAX_CHARS,
+} from "./questionnaire-answers";
+import { QUESTION_IDS } from "./dealer-questionnaire";
 import {
   AnalyzedDealershipSchema,
   BoundaryResultSchema,
@@ -58,6 +68,9 @@ import {
   HailEventSummarySchema,
   MAX_FOOTPRINT_BYTES,
 } from "./hail-events";
+
+/** Id of a connected MCP server (see McpServerConfigSchema). */
+const McpServerIdSchema = z.string().regex(/^[a-z0-9-]{1,40}$/);
 
 /** Ids of radar events, imports, saved scenarios and historic days. */
 const HailEventIdSchema = z
@@ -447,6 +460,48 @@ export const ipcRequest = {
   "diagnostics:export": z.void(),
   // An explicit literal, so no malformed or replayed call can wipe the data.
   "data:resetAll": z.object({ confirm: z.literal("delete-all-data") }),
+  "aiLog:list": z.object({ offset: z.number().int().min(0).max(100_000) }),
+  "aiLog:get": z.object({ id: z.number().int().nonnegative() }),
+  // An explicit literal, like the data reset: the record book is evidence.
+  "aiLog:clear": z.object({ confirm: z.literal("clear-ai-log") }),
+  "aiLog:export": z.void(),
+  "gateway:status": z.void(),
+  "gateway:rotateToken": z.void(),
+  "mcp:serverTools": z.object({ serverId: McpServerIdSchema }),
+  "mcp:setServerToken": z.object({
+    serverId: McpServerIdSchema,
+    /** Empty removes the stored token. */
+    token: z.string().max(4_000),
+  }),
+  "mcp:chatLookup": z.object({ question: z.string().trim().min(1).max(2_000) }),
+  "llm:siteCheck": z.object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+    boundary: BoundaryResultSchema.optional(),
+    /** Also look at archived images ("since when"). */
+    history: z.boolean(),
+  }),
+  "llm:boundaryOpinion": z.object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+    boundary: BoundaryResultSchema,
+  }),
+  "llm:evidenceMemo": z.object({
+    dealership: AnalyzedDealershipSchema,
+    parameters: RiskParametersSchema.optional(),
+  }),
+  "llm:questionnaireAnswers": z.object({
+    questions: z
+      .array(
+        z.object({
+          id: z.enum(QUESTION_IDS),
+          text: z.string().min(1).max(600),
+        }),
+      )
+      .min(1)
+      .max(QUESTION_IDS.length),
+    reply: z.string().trim().min(20).max(REPLY_MAX_CHARS),
+  }),
 } as const;
 
 export const ipcResponse = {
@@ -561,6 +616,26 @@ export const ipcResponse = {
   "update:install": z.object({ ok: z.boolean() }),
   "diagnostics:export": z.object({ path: z.string().nullable() }),
   "data:resetAll": z.object({ ok: z.boolean() }),
+  "aiLog:list": AiLogPageSchema,
+  "aiLog:get": AiLogDetailSchema.nullable(),
+  "aiLog:clear": z.object({ ok: z.boolean() }),
+  "aiLog:export": z.object({ path: z.string().nullable() }),
+  "gateway:status": AgentGatewayStatusSchema,
+  "gateway:rotateToken": AgentGatewayStatusSchema,
+  "mcp:serverTools": McpServerToolsSchema,
+  "mcp:setServerToken": z.object({ ok: z.boolean() }),
+  "mcp:chatLookup": z.object({
+    results: z.string(),
+    used: z.array(
+      z.object({ server: z.string(), tool: z.string(), ok: z.boolean() }),
+    ),
+  }),
+  "llm:siteCheck": SiteCheckResultSchema,
+  "llm:boundaryOpinion": BoundaryOpinionSchema,
+  "llm:evidenceMemo": EvidenceMemoSchema,
+  "llm:questionnaireAnswers": z.object({
+    answers: z.array(QuestionnaireAnswerSchema),
+  }),
   // Helper type for peril details (not bound to a channel)
   perilScore: PerilScoreSchema,
 } as const;
@@ -603,7 +678,13 @@ export const llmStreamRequest = {
    */
   explain: z.object({
     kind: z.literal("explain"),
-    topic: z.enum(["comparison", "changes", "questionnaire"]),
+    topic: z.enum([
+      "comparison",
+      "changes",
+      "questionnaire",
+      "challenge",
+      "eventNotice",
+    ]),
     facts: z.string().min(1).max(LLM_EXPLAIN_MAX_CHARS),
   }),
 } as const;

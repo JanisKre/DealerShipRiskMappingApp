@@ -26,6 +26,7 @@ import {
 import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { getLlmApiKey, getSettings } from "./settings.service";
 import { fetchWithResilience, HttpRequestError } from "./http.service";
+import { recordAiCall } from "./ai-log.service";
 
 /**
  * Provider-agnostic LLM client with streaming. API keys come from safeStorage.
@@ -162,25 +163,84 @@ function resolveProvider({ requireModel = true } = {}): ResolvedProvider {
 export async function chatComplete(
   messages: ChatMessage[],
   maxTokens = 2048,
+  /** Images for the last user message (vision models only). */
+  images: readonly LlmImage[] = [],
 ): Promise<string> {
   const p = resolveProvider();
+  const startedAt = Date.now();
+  const logged = {
+    provider: p.provider,
+    model: p.model,
+    baseUrl: p.baseUrl,
+    messages,
+    imageCount: images.length,
+    startedAt,
+  };
+  try {
+    const response = await completeWith(p, messages, maxTokens, images);
+    recordAiCall({ ...logged, response });
+    return response;
+  } catch (error) {
+    recordAiCall({ ...logged, error });
+    throw error;
+  }
+}
+
+/** An image sent along with a prompt; never stored in the record book. */
+export interface LlmImage {
+  mediaType: "image/jpeg" | "image/png";
+  base64: string;
+}
+
+function completeWith(
+  p: ResolvedProvider,
+  messages: ChatMessage[],
+  maxTokens: number,
+  images: readonly LlmImage[],
+): Promise<string> {
   switch (p.provider) {
     case "openai":
     case "custom":
     case "local":
-      return openAiComplete(p, messages, maxTokens);
+      return openAiComplete(p, messages, maxTokens, images);
     case "claude":
-      return claudeComplete(p, messages, maxTokens);
+      return claudeComplete(p, messages, maxTokens, images);
     default:
       throw new Error(`Unknown provider: ${p.provider}`);
   }
+}
+
+/** Index of the message the images belong to: the last user message. */
+function imageMessageIndex(messages: ChatMessage[]): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") return i;
+  }
+  return -1;
 }
 
 async function openAiComplete(
   p: ResolvedProvider,
   messages: ChatMessage[],
   maxTokens: number,
+  images: readonly LlmImage[] = [],
 ): Promise<string> {
+  const imageAt = images.length > 0 ? imageMessageIndex(messages) : -1;
+  const body = messages.map((m, i) =>
+    i === imageAt
+      ? {
+          role: m.role,
+          content: [
+            { type: "text", text: m.content },
+            ...images.map((image) => ({
+              type: "image_url",
+              image_url: {
+                url: `data:${image.mediaType};base64,${image.base64}`,
+              },
+            })),
+          ],
+        }
+      : m,
+  );
   const res = await fetchWithResilience(
     `${p.baseUrl}/chat/completions`,
     {
@@ -189,7 +249,11 @@ async function openAiComplete(
         "Content-Type": "application/json",
         ...(p.apiKey ? { Authorization: `Bearer ${p.apiKey}` } : {}),
       },
-      body: JSON.stringify({ model: p.model, messages, max_tokens: maxTokens }),
+      body: JSON.stringify({
+        model: p.model,
+        messages: body,
+        max_tokens: maxTokens,
+      }),
     },
     { timeoutMs: p.timeoutMs },
   );
@@ -204,9 +268,30 @@ async function claudeComplete(
   p: ResolvedProvider,
   messages: ChatMessage[],
   maxTokens: number,
+  images: readonly LlmImage[] = [],
 ): Promise<string> {
   const system = messages.find((m) => m.role === "system")?.content;
-  const rest = messages.filter((m) => m.role !== "system");
+  const imageAt = images.length > 0 ? imageMessageIndex(messages) : -1;
+  const rest = messages.flatMap((m, i): unknown[] => {
+    if (m.role === "system") return [];
+    if (i !== imageAt) return [m];
+    return [
+      {
+        role: m.role,
+        content: [
+          ...images.map((image) => ({
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: image.mediaType,
+              data: image.base64,
+            },
+          })),
+          { type: "text", text: m.content },
+        ],
+      },
+    ];
+  });
   const res = await fetchWithResilience(`${p.baseUrl}/v1/messages`, {
     method: "POST",
     headers: {
@@ -240,10 +325,35 @@ export async function* chatCompleteStream(
   maxTokens?: number,
 ): AsyncGenerator<string, void, unknown> {
   const p = resolveProvider();
-  if (p.provider === "claude") {
-    yield* claudeStream(p, messages, signal, maxTokens);
-  } else {
-    yield* openAiStream(p, messages, signal, maxTokens);
+  const startedAt = Date.now();
+  let response = "";
+  let error: unknown;
+  let finished = false;
+  try {
+    const stream =
+      p.provider === "claude"
+        ? claudeStream(p, messages, signal, maxTokens)
+        : openAiStream(p, messages, signal, maxTokens);
+    for await (const token of stream) {
+      response += token;
+      yield token;
+    }
+    finished = true;
+  } catch (err) {
+    error = err;
+    throw err;
+  } finally {
+    // Not finished and no error: the consumer stopped reading (cancel).
+    recordAiCall({
+      provider: p.provider,
+      model: p.model,
+      baseUrl: p.baseUrl,
+      messages,
+      startedAt,
+      response,
+      error,
+      aborted: Boolean(signal?.aborted) || (!finished && error == null),
+    });
   }
 }
 

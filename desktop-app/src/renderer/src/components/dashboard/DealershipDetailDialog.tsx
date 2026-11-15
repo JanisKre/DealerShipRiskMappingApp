@@ -118,6 +118,11 @@ import {
 } from "./reviewQueue";
 import { RadarHailSection } from "./RadarHailSection";
 import { QuestionnaireSection } from "./QuestionnaireSection";
+import {
+  ChallengeSection,
+  EvidenceMemoSection,
+  SiteCheckSection,
+} from "./AiInsightSections";
 
 /** A review run: the queue snapshot taken when it started. */
 export interface ReviewRun {
@@ -563,6 +568,7 @@ function DetailBody({
             <RadarHailSection d={d} />
             <Separator />
             <AiSection d={d} />
+            <EvidenceMemoSection d={d} />
           </TabsContent>
 
           <TabsContent value="site" className="space-y-4 pt-2">
@@ -570,6 +576,7 @@ function DetailBody({
             <Separator />
             <VehiclePanel d={d} />
             <DetectionImageryNote detection={d.detection} />
+            <SiteCheckSection d={d} />
             <details className="rounded-md border text-sm">
               <summary className="px-3 py-2 font-medium text-muted-foreground">
                 {t("dashboard.detailDialog.imageryHistoryToggle")}
@@ -601,6 +608,8 @@ function DetailBody({
 
           <TabsContent value="sources" className="space-y-4 pt-2">
             <ModelConfidenceSummary d={d} />
+            <Separator />
+            <ChallengeSection d={d} />
             <NatCatSection d={d} />
             <Separator />
             <HistorySection d={d} />
