@@ -42,6 +42,7 @@ function site(id: string, name: string, eal: number, zone: number): unknown {
   };
 }
 
+const KEYCHAIN_MISSING = "safeStorage (OS keychain) not available";
 let launched: LaunchedApp;
 let page: Page;
 let token = "";
@@ -110,8 +111,16 @@ test.beforeAll(async () => {
       const s = await api((a) => a.gatewayStatus());
       return s.running || (s.error ?? false);
     })
-    .toBe(true);
+    .not.toBe(false);
   const status = await api((a) => a.gatewayStatus());
+  // Without an OS keychain (GitHub's Linux runners) the app refuses to store
+  // the token, so the gateway cannot start there; gateway.test.ts covers it.
+  test.skip(
+    status.error === KEYCHAIN_MISSING,
+    "no OS keychain: the gateway token cannot be stored",
+  );
+  expect(status.error).toBeUndefined();
+  expect(status.running).toBe(true);
   expect(status.port).toBe(PORT);
   token = status.token ?? "";
   expect(token.length).toBeGreaterThan(20);

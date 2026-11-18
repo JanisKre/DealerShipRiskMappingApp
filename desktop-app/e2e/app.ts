@@ -28,11 +28,6 @@ export async function launchApp(
   // GitHub's Linux runners lack the setuid chrome-sandbox helper (see the
   // smoke test); packaged builds keep the sandbox.
   if (process.platform === "linux" && process.env.CI) args.push("--no-sandbox");
-  // They have no keyring either, so safeStorage refuses to store secrets such
-  // as the agent-gateway token. Chromium's basic store stands in for the test
-  // profile only; the app keeps refusing without a keychain.
-  if (process.platform === "linux" && process.env.CI)
-    args.push("--password-store=basic");
   // ELECTRON_RUN_AS_NODE would start Node instead of the app; the renderer
   // URL would point the build at a dev server.
   const env = Object.fromEntries(
