@@ -278,15 +278,17 @@ describe("interrupted batch analysis", () => {
     expect(useAppStore.getState().dealerships).toHaveLength(2);
   });
 
-  it("drops a cancelled batch but keeps failed inputs pending", async () => {
+  it("keeps failed and not-started inputs pending after a stop", async () => {
     api.analyzeDealership.mockImplementationOnce(async () => {
       useAppStore.getState().cancelAnalysis();
       throw new Error("offline");
     });
     await useAppStore.getState().analyzeAll([firstInput, secondInput]);
     expect(api.analyzeDealership).toHaveBeenCalledTimes(1);
+    // The second row never started; it must not vanish with the stop.
     expect(useAppStore.getState().pendingAnalysis.map((p) => p.id)).toEqual([
       "one",
+      "two",
     ]);
   });
 
@@ -1689,6 +1691,23 @@ describe("saving only what changed", () => {
     expect(api.saveSession).toHaveBeenCalledWith(
       expect.objectContaining({ id: "loaded", name: "Umbenannt" }),
     );
+  });
+
+  it("records a failed save and clears it on the next success", async () => {
+    useAppStore.setState({
+      sessionId: null,
+      saveError: null,
+      dealerships: [{ ...firstInput } as AnalyzedDealership],
+    });
+    api.saveSession.mockRejectedValueOnce(new Error("disk full"));
+    await expect(useAppStore.getState().saveSession()).rejects.toThrow(
+      "disk full",
+    );
+    expect(useAppStore.getState().saveError).toBe("disk full");
+
+    api.saveSession.mockResolvedValue(undefined);
+    await useAppStore.getState().saveSession();
+    expect(useAppStore.getState().saveError).toBeNull();
   });
 
   it("always saves a portfolio that was never saved", async () => {

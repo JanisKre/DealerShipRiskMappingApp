@@ -10,7 +10,7 @@ import {
   resetToBlankPortfolio,
   rescoreWithConcurrency,
 } from "./runtime";
-import { boundaryEditsOf } from "./helpers";
+import { boundaryEditsOf, errorMessage } from "./helpers";
 
 /** Opening, switching, renaming, merging and saving portfolios. */
 export function sessionActions(
@@ -191,11 +191,18 @@ export function sessionActions(
     saveSession: async () => {
       const snapshot = snapshotOf(get());
       const session = get().currentSession();
-      await window.api.saveSession(session);
+      try {
+        await window.api.saveSession(session);
+      } catch (err) {
+        // Shown in the header: a failed autosave must not look like a save.
+        set({ saveError: errorMessage(err) });
+        throw err;
+      }
       set({
         sessionId: session.id,
         sessionName: session.name,
         lastSavedAt: session.updatedAt,
+        saveError: null,
       });
       setSavedSnapshot({ ...snapshot, sessionId: session.id });
     },

@@ -6,6 +6,7 @@ import {
   unanalyzedInputs,
   DEFAULT_PORTFOLIO_NAME,
   withoutKey,
+  errorMessage,
   withChange,
   analyzedChange,
 } from "./helpers";
@@ -33,7 +34,10 @@ export function analysisActions(
       const d = get().dealerships.find((x) => x.id === id);
       if (!d) return;
       const generation = portfolioGeneration();
-      set((s) => ({ analyzingIds: [...s.analyzingIds, id] }));
+      set((s) => ({
+        analyzingIds: [...s.analyzingIds, id],
+        analysisErrors: withoutKey(s.analysisErrors, id),
+      }));
       try {
         const result = await window.api.analyzeDealership(d, get().parameters);
         if (d.detection && result.detection) {
@@ -83,10 +87,20 @@ export function analysisActions(
               result.hailZone ?? d.hailZone,
             );
           } catch (err) {
+            // Never store vehicles and risk of the freshly detected boundary
+            // next to the preserved one: keep the previous, consistent pair.
             console.error(
               `Re-detecting vehicles for the preserved manual boundary failed (${id}):`,
               err,
             );
+            result.detection = d.detection;
+            result.risk = d.risk;
+            set((s) => ({
+              analysisErrors: {
+                ...s.analysisErrors,
+                [id]: errorMessage(err),
+              },
+            }));
           }
         }
         // Notes and website edited while the re-analysis ran must not be
@@ -109,6 +123,11 @@ export function analysisActions(
         });
       } catch (err) {
         console.error(`Re-analysis failed for ${d.name}:`, err);
+        if (generation === portfolioGeneration()) {
+          set((s) => ({
+            analysisErrors: { ...s.analysisErrors, [id]: errorMessage(err) },
+          }));
+        }
       } finally {
         set((s) => ({ analyzingIds: s.analyzingIds.filter((x) => x !== id) }));
       }

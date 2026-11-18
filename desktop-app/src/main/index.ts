@@ -10,6 +10,7 @@ import {
 import { join } from "path";
 import { pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc";
+import { saveBeforeClose } from "./close-flush";
 import { startRadarHailBackgroundSync } from "./services/hail-history/radar-hail.service";
 import { checkDealerDirectoryUpdate } from "./services/dealer-directory.service";
 import { warmUpDetector } from "./services/detection.service";
@@ -45,6 +46,13 @@ if (process.platform === "darwin" && !app.isPackaged) {
 const e2eUserData = process.env["DRM_E2E_USER_DATA"];
 if (!app.isPackaged && e2eUserData) {
   app.setPath("userData", e2eUserData);
+}
+
+// One instance per profile: two windows on the same database overwrote each
+// other's portfolio. A second start brings the running window to the front.
+// Checked before anything touches the profile (the data reset below).
+if (!app.requestSingleInstanceLock()) {
+  process.exit(0);
 }
 
 // "Delete all data" from the previous session runs before any file is open.
@@ -105,6 +113,9 @@ function isRendererUrl(
   }
 }
 
+/** Set once a quit started, so a window held for saving resumes it. */
+let quitting = false;
+
 // Resolved once and reused for both the BrowserWindow icon (title bar on
 // Windows/Linux) and the macOS Dock icon set below — on macOS, Electron's
 // `BrowserWindow` `icon` option only affects the window itself, never the
@@ -140,6 +151,11 @@ function createWindow(): BrowserWindow {
   });
 
   mainWindow.on("ready-to-show", () => mainWindow.show());
+  // Save pending changes before the window goes; a quit that was held for
+  // this is resumed afterwards (macOS keeps the app open otherwise).
+  saveBeforeClose(mainWindow, () => {
+    if (quitting) setImmediate(() => app.quit());
+  });
 
   // Renderer warnings and errors are part of the support log as well.
   mainWindow.webContents.on("console-message", (details) => {
@@ -206,7 +222,20 @@ app.whenReady().then(() => {
     }
   });
 
-  getDb(); // DB + Tabellen initialisieren
+  try {
+    getDb(); // DB + Tabellen initialisieren
+  } catch (error) {
+    // Without a database there is no window to show an error in: say what
+    // happened instead of quitting silently (newer schema after a
+    // downgrade, failed migration backup, full disk, locked file).
+    console.error("Opening the local database failed:", error);
+    dialog.showErrorBox(
+      "Local database could not be opened",
+      `Dealership Risk Mapping cannot start because its database could not be opened.\n\n${error instanceof Error ? error.message : String(error)}\n\nData folder: ${userDataDir}\nLog: ${join(userDataDir, "logs", "main.log")}`,
+    );
+    app.exit(1);
+    return;
+  }
   // AI record book: every provider request is written to the local database.
   configureAiLog(insertAiLogEntry, () => {
     try {
@@ -228,6 +257,11 @@ app.whenReady().then(() => {
   }
   mainWindow = createWindow();
   registerIpcHandlers(() => mainWindow);
+  app.on("second-instance", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  });
   // GitHub release check (packaged builds, unless switched off).
   startUpdateChecks((status) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -257,6 +291,11 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  quitting = true;
+});
+
+// After every window has closed (and saved its portfolio), not before.
+app.on("will-quit", () => {
   void stopAgentGateway();
   closeDb();
 });

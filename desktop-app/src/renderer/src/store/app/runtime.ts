@@ -115,6 +115,7 @@ export function applyLoadedSession(
     progress: null,
     analyzingIds: [],
     lastSavedAt: null,
+    saveError: null,
     scenario: null,
     nlQueryMatchedIds: null,
     filters: EMPTY_FILTERS,
@@ -144,6 +145,7 @@ export function resetToBlankPortfolio(
     mapFocusIds: null,
     mapFocusRadiusKm: null,
     lastSavedAt: null,
+    saveError: null,
     lastImportReport: null,
     scenario: null,
     nlQueryMatchedIds: null,
@@ -263,18 +265,13 @@ export async function runAnalysisQueue(
   await checkpoint.flush();
   // The portfolio that was opened meanwhile has its own analysis state.
   if (!stillOpen()) return;
-  set((s) => {
-    // A cancelled batch is not offered for resuming; failed inputs stay
-    // pending so they can be retried after a restart as well.
-    const failed = new Set(Object.keys(s.analysisErrors));
-    return {
-      analyzing: false,
-      analyzingIds: [],
-      analysisCancelRequested: false,
-      pendingAnalysis: s.analysisCancelRequested
-        ? s.pendingAnalysis.filter((p) => failed.has(p.id))
-        : s.pendingAnalysis,
-    };
+  // Inputs not analysed yet stay pending, also after "Stop": rows without
+  // coordinates are on neither the map nor the list otherwise and would
+  // vanish. The resume notice offers to continue or discard them.
+  set({
+    analyzing: false,
+    analyzingIds: [],
+    analysisCancelRequested: false,
   });
 }
 

@@ -8,6 +8,7 @@
   },
   "shell": {
     "autosaved": "Enregistrement automatique",
+    "saveFailed": "Échec de l’enregistrement",
     "portfolioSwitcher": {
       "trigger": "Changer, renommer ou supprimer un portefeuille",
       "newPortfolio": "Nouveau portefeuille",

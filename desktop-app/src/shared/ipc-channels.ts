@@ -144,6 +144,12 @@ export const IPC = {
   updateInstall: "update:install", // Windows only: restart into the installer
   updateChanged: "update:changed",
 
+  // Closing the window: main asks the renderer to save pending changes
+  // (`app:flushRequest`, main -> renderer) and closes once it answers over
+  // `app:flushDone` (invoke) or after a short timeout.
+  appFlushRequest: "app:flushRequest",
+  appFlushDone: "app:flushDone",
+
   // Support: diagnostics report (versions, settings, recent log; no portfolios)
   diagnosticsExport: "diagnostics:export",
   // Deletes all local data on the next start and restarts the app

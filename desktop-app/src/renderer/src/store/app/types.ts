@@ -68,6 +68,8 @@ export interface AppState {
   mapFocusRadiusKm: number | null;
   /** Timestamp of the last successful save (manual or autosave). */
   lastSavedAt: string | null;
+  /** Message of the last failed save; null once a save succeeds again. */
+  saveError: string | null;
   /** Quality report from the most recent CSV/XLSX import. */
   lastImportReport: ImportReport | null;
 

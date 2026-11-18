@@ -8,6 +8,7 @@
   },
   "shell": {
     "autosaved": "Autosaved",
+    "saveFailed": "Saving failed",
     "portfolioSwitcher": {
       "trigger": "Switch, rename, or delete a portfolio",
       "newPortfolio": "New portfolio",

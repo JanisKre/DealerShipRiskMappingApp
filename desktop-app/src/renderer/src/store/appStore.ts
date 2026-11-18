@@ -46,6 +46,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   mapFocusIds: null,
   mapFocusRadiusKm: null,
   lastSavedAt: null,
+  saveError: null,
   lastImportReport: null,
   scenario: null,
   comparison: null,

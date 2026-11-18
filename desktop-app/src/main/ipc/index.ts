@@ -148,6 +148,7 @@ import {
   loadDashboard,
   saveDashboard,
 } from "../db/dashboards.repo";
+import { rendererFlushed } from "../close-flush";
 
 /**
  * Registers all IPC handlers. Each handler validates its input at the
@@ -385,6 +386,10 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
 
   handle(IPC.updateStatus, () => getUpdateStatus());
   handle(IPC.updateCheck, () => checkForUpdates());
+  handle(IPC.appFlushDone, () => {
+    rendererFlushed();
+    return { ok: true };
+  });
   handle(IPC.updateDownload, () => downloadUpdate());
   handle(IPC.updateInstall, () => ({ ok: installUpdate() }));
 

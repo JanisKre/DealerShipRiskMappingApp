@@ -595,6 +595,20 @@ const api = {
     };
   },
 
+  /**
+   * Calls `onRequest` when the window is about to close; the renderer saves
+   * pending changes and then calls `flushDone`. Returns the unsubscribe.
+   */
+  onFlushRequest: (onRequest: () => void): (() => void) => {
+    const listener = (): void => onRequest();
+    ipcRenderer.on(IPC.appFlushRequest, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.appFlushRequest, listener);
+    };
+  },
+  flushDone: (): Promise<IpcResponse["app:flushDone"]> =>
+    ipcRenderer.invoke(IPC.appFlushDone),
+
   /** Saves a diagnostics report (no portfolios) where the user picks. */
   exportDiagnostics: (): Promise<IpcResponse["diagnostics:export"]> =>
     ipcRenderer.invoke(IPC.diagnosticsExport),

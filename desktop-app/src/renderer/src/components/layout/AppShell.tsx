@@ -3,7 +3,14 @@ import { pickActiveSession } from "@renderer/lib/portfolioSessions";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { List, MessageSquare, Radar, Search, WifiOff } from "lucide-react";
+import {
+  List,
+  MessageSquare,
+  Radar,
+  Search,
+  TriangleAlert,
+  WifiOff,
+} from "lucide-react";
 import { useAppStore } from "@renderer/store/appStore";
 import { WIDE_WINDOW_PX, useMapStore } from "@renderer/store/mapStore";
 import { PageErrorBoundary } from "@renderer/components/common/PageErrorBoundary";
@@ -75,6 +82,22 @@ function AutosaveController(): null {
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [dealerships, parameters, analyzing, sessionId, saveSession]);
+
+  // Closing the window: save what the debounce has not saved yet.
+  useEffect(
+    () =>
+      window.api.onFlushRequest(() => {
+        const { dealerships: rows, sessionId: id } = useAppStore.getState();
+        const save =
+          rows.length === 0 && id == null
+            ? Promise.resolve()
+            : useAppStore.getState().saveSessionIfChanged();
+        void save
+          .catch((err: unknown) => console.error("Save on close failed:", err))
+          .finally(() => void window.api.flushDone().catch(() => undefined));
+      }),
+    [],
+  );
 
   return null;
 }
@@ -163,6 +186,7 @@ export function AppShell(): React.JSX.Element {
   const online = useOnline();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const lastSavedAt = useAppStore((s) => s.lastSavedAt);
+  const saveError = useAppStore((s) => s.saveError);
   const locationsPanelOpen = useMapStore((s) => s.locationsPanelOpen);
   const chatPanelOpen = useMapStore((s) => s.chatPanelOpen);
   const toggleLocationsPanel = useMapStore((s) => s.toggleLocationsPanel);
@@ -298,17 +322,28 @@ export function AppShell(): React.JSX.Element {
                 {t("shell.offline")}
               </span>
             )}
-            {lastSavedAt && (
+            {saveError ? (
               <span
-                className="hidden shrink-0 text-xs text-muted-foreground md:block"
-                title={new Date(lastSavedAt).toLocaleString(i18n.language)}
+                role="alert"
+                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-destructive/40 px-2 py-0.5 text-xs text-destructive"
+                title={saveError}
               >
-                {t("shell.autosaved")} ·{" "}
-                {new Date(lastSavedAt).toLocaleTimeString(i18n.language, {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                <TriangleAlert className="size-3.5" />
+                {t("shell.saveFailed")}
               </span>
+            ) : (
+              lastSavedAt && (
+                <span
+                  className="hidden shrink-0 text-xs text-muted-foreground md:block"
+                  title={new Date(lastSavedAt).toLocaleString(i18n.language)}
+                >
+                  {t("shell.autosaved")} ·{" "}
+                  {new Date(lastSavedAt).toLocaleTimeString(i18n.language, {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              )
             )}
             <HintButton
               type="button"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BoundaryResult } from "@shared/types";
+import type { BoundaryResult, RiskEvidence } from "@shared/types";
 import {
   HAIL_EAL_PLACEHOLDERS,
   HAIL_VEHICLES_FROM_ASSET_VALUE,
@@ -105,7 +105,7 @@ describe("hail EAL provenance", () => {
 });
 
 describe("overallConfidence", () => {
-  const item = (source: string, confidence: number) => ({
+  const item = (source: string, confidence: number): RiskEvidence => ({
     source,
     retrievedAt: "2026-11-19T00:00:00Z",
     method: "m",
