@@ -55,7 +55,10 @@ export function RoundDialog({
     valSites
       ? t("round.stepMeasure", { count: valSites })
       : t("round.stepMeasureAny"),
-    t("round.stepSuggest"),
+    // studio.py skips the suggestion step once every tile is finished
+    ...(status.sites.checkedTiles < status.sites.tiles
+      ? [t("round.stepSuggest")]
+      : []),
   ];
   const [pseudo, setPseudo] = useState(false);
   const [busy, setBusy] = useState(false);

@@ -126,6 +126,25 @@ class Rounds(unittest.TestCase):
         self.assertFalse(studio.ROUNDS_FILE.exists())
         self.assertFalse(studio.JOB_FILE.exists())
 
+    def test_suggestion_stage_only_while_tiles_are_open(self):
+        # round-01 was marked failed: every site was finished and autolabel.py found nothing to label.
+        (common.RUNS / "base" / "weights").mkdir(parents=True, exist_ok=True)
+        (common.RUNS / "base" / "weights" / "best.pt").write_bytes(b"")
+        stems = [f"BE-osm{i}__0_0" for i in range(studio.MIN_ROUND_SITES)]
+        try:
+            for stem in stems:
+                raw_label(stem, 1)
+            keys = [s["key"] for s in studio.build_round({"base": "base", "epochs": 3})["stages"]]
+            self.assertNotIn("suggest_open", keys)
+            (common.RAW / "BE-open__0_0.jpg").write_bytes(b"")
+            (common.RAW / "BE-open__0_0.json").write_text(json.dumps({"checked": False, "shapes": []}))
+            keys = [s["key"] for s in studio.build_round({"base": "base", "epochs": 3})["stages"]]
+            self.assertEqual(keys[-1], "suggest_open")
+        finally:
+            for stem in [*stems, "BE-open__0_0"]:
+                (common.RAW / f"{stem}.jpg").unlink(missing_ok=True)
+                (common.RAW / f"{stem}.json").unlink(missing_ok=True)
+
     def test_outcome_is_recorded_in_the_round(self):
         studio.write_json(studio.ROUNDS_FILE, [{"run": "round-01", "jobId": "j1", "state": "running"}])
         studio.record_round_outcome({"id": "j1", "step": "round", "status": "failed", "stage": 1, "stages": [{"key": "dataset", "name": "Datensatz bauen"}, {"key": "finetune", "name": "Feintuning"}]})

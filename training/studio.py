@@ -885,7 +885,7 @@ def measure_stages(run: str, stamp: str) -> list[dict]:
 
 def build_round(opts: dict) -> dict:
     """Dataset → fine-tune from the base run → measure (Ultralytics + app pipeline) →
-    fresh suggestions for the open tiles. Human labels only unless `pseudo` is set:
+    fresh suggestions for the open tiles (skipped once every site is finished). Human labels only unless `pseudo` is set:
     a model that saw its own pseudo-labels would be over-confident on exactly the
     tiles it suggests boxes for next.
 
@@ -893,7 +893,8 @@ def build_round(opts: dict) -> dict:
     base = opt_run(opts, "base")
     epochs = opt_int(opts, "epochs", 3, 120, 15)
     pseudo = opt_bool(opts, "pseudo")
-    finished = len(finished_sites())  # the same rule as make_dataset.py (all tiles ticked)
+    done = finished_sites()  # the same rule as make_dataset.py and autolabel.py (all tiles ticked)
+    finished = len(done)
     if finished < MIN_ROUND_SITES:
         raise ApiError("too_few_sites", min=MIN_ROUND_SITES, finished=finished)
     numbers = [int(m.group(1)) for p in RUNS.glob("round-*") if (m := ROUND.match(p.name))] + [int(m.group(1)) for r in rounds() if (m := ROUND.match(r["run"]))]
@@ -905,7 +906,8 @@ def build_round(opts: dict) -> dict:
         stage("finetune", awake(py("train.py", "--name", run, "--model", weights_path(base), "--epochs", str(epochs)))),
         *measure_stages(run, stamp),
     ]
-    stages.append(stage("suggest_open", awake(py("autolabel.py", "--weights", weights_path(run))), lock=True))
+    if {site_of(p.stem) for p in RAW.glob("*.jpg")} - done:  # everything labelled: autolabel.py would refuse
+        stages.append(stage("suggest_open", awake(py("autolabel.py", "--weights", weights_path(run))), lock=True))
     entry = {
         "run": run,
         "base": base,

@@ -25,6 +25,9 @@ Stable validation split: sites stay where they were in the previous dataset
 on sites it trained on. Newly finished sites go to validation until it has at
 least MIN_VAL_SITES sites and the --val-share, the rest to train. --resplit
 draws a fresh random split (scores are then not comparable with older models).
+--grow-val keeps the previous validation sites and moves train sites over until
+the --val-share is reached, spread over the federal states. Train from the start
+weights afterwards: models trained before have seen the moved sites.
 
 Pseudo-labels (`--pseudo`): tiles of unfinished sites labelled by autolabel.py
 go into train only: `sure` boxes plus the questions you or Claude answered.
@@ -39,6 +42,7 @@ tile files; `--classes car-large` rebuilds the old two-class dataset.
 
     python make_dataset.py --val-share 0.2 --seed 7 --degrade 0.5
     python make_dataset.py --pseudo
+    python make_dataset.py --val-share 0.25 --grow-val   # larger validation set, then train.py from yolo11s-obb.pt
 """
 
 from __future__ import annotations
@@ -58,6 +62,7 @@ from common import (
     TARGET_GSD_M,
     TILE_PX,
     corrected_labels,
+    is_negative_site,
     label_path,
     native_gsd,
     reviewed_sites,
@@ -110,16 +115,35 @@ def previous_split() -> tuple[set[str], set[str]]:
     return val, train
 
 
-def split_sites(sites: list[str], val_share: float, seed: int, resplit: bool) -> set[str]:
-    """Validation sites: the previous ones kept, new sites added until the target size."""
+def split_sites(sites: list[str], val_share: float, seed: int, resplit: bool, grow: bool = False) -> set[str]:
+    """Validation sites: the previous ones kept, new sites added until the target size.
+
+    `grow` also moves previous train sites into validation when new sites alone do not
+    reach the target, one state at a time (states with the fewest validation sites
+    first, then the imagery resolution least covered, ties drawn with `seed`), so
+    every federal state and resolution ends up in validation."""
     target = min(len(sites) // 2, max(MIN_VAL_SITES, round(len(sites) * val_share)))
     prev_val, prev_train = (set(), set()) if resplit else previous_split()
     val = {s for s in sites if s in prev_val}
     new = sorted(s for s in sites if s not in prev_val and s not in prev_train)
-    random.Random(seed).shuffle(new)
+    rng = random.Random(seed)
+    rng.shuffle(new)
     while len(val) < target and new:
         val.add(new.pop())
+    if grow:
+        pool = sorted(s for s in sites if s in prev_train and not is_negative_site(s))
+        rng.shuffle(pool)
+        while len(val) < target and pool:
+            in_val = {st: sum(site_state(v) == st for v in val) for st in {site_state(s) for s in pool}}
+            gsd_share = {g: sum(native_gsd(v) == g for v in val) / sum(native_gsd(s) == g for s in sites) for g in {native_gsd(s) for s in pool}}
+            pick = min(pool, key=lambda s: (in_val[site_state(s)], gsd_share[native_gsd(s)]))  # first such site in shuffled order
+            pool.remove(pick)
+            val.add(pick)
     return val
+
+
+def site_state(site: str) -> str:
+    return site.split("-", 1)[0]
 
 
 def add_pseudo(val_sites: set[str], reviewed: set[str]) -> tuple[int, int]:
@@ -156,6 +180,7 @@ def main() -> None:
     ap.add_argument("--no-public", action="store_true")
     ap.add_argument("--degrade", type=float, default=0.5, help="share of sharp train tiles that get a degraded copy (0 = off)")
     ap.add_argument("--resplit", action="store_true", help="new random train/val split instead of keeping the previous one")
+    ap.add_argument("--grow-val", action="store_true", help="move train sites into val until --val-share is reached (models trained before have seen them)")
     ap.add_argument("--pseudo", action="store_true", help="add autolabel.py tiles of unfinished sites to train")
     ap.add_argument("--classes", choices=sorted(TRAIN_CLASSES), default="vehicle", help="vehicle (one class, default) or car-large (two classes)")
     args = ap.parse_args()
@@ -169,7 +194,12 @@ def main() -> None:
     public_dir = DATA / "public" / "images"
     public = [] if args.no_public else sorted(p for p in public_dir.glob("*.jpg") if label_path(p).exists())
 
-    val_sites = split_sites(sites, args.val_share, args.seed, args.resplit)
+    prev_train = set() if args.resplit else previous_split()[1]
+    val_sites = split_sites(sites, args.val_share, args.seed, args.resplit, args.grow_val)
+    moved = sorted(val_sites & prev_train)
+    if moved:
+        print(f"moved {len(moved)} train sites to val: {' '.join(moved)}")
+        print("models trained before this split have seen them: compare older models on the other val sites only")
     n_val = len(val_sites)
 
     shutil.rmtree(DATASET, ignore_errors=True)

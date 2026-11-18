@@ -430,7 +430,12 @@ are painted over with the tile's mean colour, so the model learns neither
 - The validation split is stable: `make_dataset.py` keeps the previous val
   and train sites and adds new finished sites to val until there are at
   least 15. `--resplit` draws a fresh split (scores then stop being
-  comparable).
+  comparable). `--grow-val --val-share 0.25` keeps the previous val sites
+  and moves train sites over, one federal state and imagery resolution at a
+  time, until a quarter of the sites are in val. Train from the start
+  weights afterwards (`train.py --model yolo11s-obb.pt`): models trained
+  before have seen the moved sites, so compare them on the old val sites
+  only.
 - Keep a pseudo-label model only if it beats the current one on the
   validation sites: train it with `python train.py --name dealer-obb-pseudo`
   and compare `python evaluate.py --sweep` for both weights before
