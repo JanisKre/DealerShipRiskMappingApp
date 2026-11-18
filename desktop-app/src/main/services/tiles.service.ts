@@ -8,7 +8,12 @@ import {
   type ImageryCandidate,
   type ImagerySelection,
 } from "@shared/imagery-sources";
-import { cacheGet, cacheSet, pruneExpired } from "./cache.service";
+import {
+  cacheGet,
+  cacheSet,
+  pruneExpired,
+  trimCacheToSize,
+} from "./cache.service";
 import { fetchWithResilience } from "./http.service";
 import {
   ESRI_TILE_SOURCE,
@@ -40,6 +45,20 @@ function tile2lat(y: number, zoom: number): number {
 
 const TILE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days — orthophotos rarely change
 /**
+ * Esri's live mosaic changes without notice, and its capture date is
+ * re-read after `TTL.imageryMetadata` (7 days). Its tiles expire with it,
+ * so a stored image never sits next to a newer date. State orthophotos and
+ * archived Wayback versions are fixed and keep 30 days.
+ */
+const LIVE_ESRI_TILE_TTL = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Upper bound of the tile cache in the database (base64 text). Beyond it
+ * the entries closest to expiry go first. Without a bound the cache grew
+ * with every site analysed until it expired, 30 days later.
+ */
+export const TILE_CACHE_MAX_BYTES = 1_500 * 1024 * 1024;
+/**
  * Bumped when cached tile bytes become invalid. v2: Esri placeholder tiles
  * ("Map data not yet available") were cached as imagery before
  * `blankTile=false`.
@@ -61,7 +80,17 @@ export function pruneExpiredTiles(): void {
     console.warn("Pruning expired imagery tiles failed:", error);
     return;
   }
-  if (removed > 0) setTimeout(pruneExpiredTiles, TILE_PRUNE_PAUSE_MS).unref();
+  if (removed > 0) {
+    setTimeout(pruneExpiredTiles, TILE_PRUNE_PAUSE_MS).unref();
+    return;
+  }
+  // Expired ones are gone: keep the rest under the size bound.
+  try {
+    const trimmed = trimCacheToSize("tile:", TILE_CACHE_MAX_BYTES);
+    if (trimmed > 0) setTimeout(pruneExpiredTiles, TILE_PRUNE_PAUSE_MS).unref();
+  } catch (error) {
+    console.warn("Trimming the imagery tile cache failed:", error);
+  }
 }
 
 /** Loads a single tile as a raw RGB buffer (persistent cache as base64). */
@@ -86,7 +115,11 @@ async function loadTileRgb(
       const res = await fetchWithResilience(source.url(z, y, x, time), {});
       if (res.ok) {
         bytes = Buffer.from(await res.arrayBuffer());
-        cacheSet(cacheKey, bytes.toString("base64"), TILE_TTL);
+        cacheSet(
+          cacheKey,
+          bytes.toString("base64"),
+          source.cacheId === "esri" ? LIVE_ESRI_TILE_TTL : TILE_TTL,
+        );
       }
     } catch {
       bytes = null;

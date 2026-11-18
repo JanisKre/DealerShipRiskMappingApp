@@ -1,35 +1,6 @@
-// German legal forms, longest first so "GmbH & Co. KG" is removed as a whole.
-const LEGAL_FORM =
-  /(^|\s)(gmbh\s*&\s*co\.?\s*kg|gmbh|mbh|ag|kg|ohg|gbr|e\.\s?k\.|ug(\s*\(haftungsbeschränkt\))?)(?=\s|,|$)/giu;
+import { foldText, normalisePlaceQuery } from "@shared/name-normalize";
 
-/**
- * Removes legal forms from a business-name query. OSM rarely records them,
- * and every extra token Photon cannot match pushes the real hit down.
- */
-export function normalisePlaceQuery(query: string): string {
-  const stripped = query
-    .replace(LEGAL_FORM, " ")
-    .replace(/\s*[,&+]\s*$/u, "")
-    .replace(/\s{2,}/gu, " ")
-    .trim();
-  return stripped || query.trim();
-}
-
-/**
- * Folds text for matching: lower case, ß → ss, ä/ö/ü → ae/oe/ue, every other
- * diacritic dropped. "Müller" and "Mueller" fold to the same key, as do
- * "Škoda" and "Skoda".
- */
-export function foldText(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/ß/gu, "ss")
-    .replace(/ä/gu, "ae")
-    .replace(/ö/gu, "oe")
-    .replace(/ü/gu, "ue")
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-}
+export { foldText, normalisePlaceQuery };
 
 /** Folded word tokens of `text`, legal forms removed. */
 export function foldedTokens(text: string): string[] {
@@ -251,7 +222,12 @@ export function similarBusinessNames(a: string, b: string): boolean {
   if (left.size === 0 || right.size === 0) return false;
   let shared = 0;
   for (const token of left) if (right.has(token)) shared++;
-  return shared > 0 && shared >= Math.min(left.size, right.size) / 2;
+  if (shared === 0 || shared < Math.min(left.size, right.size) / 2)
+    return false;
+  // One shared word is enough only when one of the names has nothing else:
+  // "Autohaus Müller" and "Müller Reifenservice" share a family name, not a
+  // business.
+  return shared >= 2 || Math.min(left.size, right.size) === 1;
 }
 
 export function distanceKm(

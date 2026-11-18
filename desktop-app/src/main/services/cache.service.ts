@@ -40,6 +40,34 @@ export function pruneExpired(prefix: string, limit = 500): number {
     .run(prefix, `${prefix}\uffff`, Date.now(), limit).changes;
 }
 
+/**
+ * Deletes up to `limit` entries under `prefix`, those closest to expiry
+ * first, while the entries under it hold more than `maxBytes`. Returns how
+ * many were removed; call again until it returns 0.
+ */
+export function trimCacheToSize(
+  prefix: string,
+  maxBytes: number,
+  limit = 500,
+): number {
+  const db = getDb();
+  const range = [prefix, `${prefix}\uffff`] as const;
+  const { bytes } = db
+    .prepare(
+      `SELECT COALESCE(SUM(length(value)), 0) AS bytes FROM api_cache
+        WHERE key >= ? AND key < ?`,
+    )
+    .get(...range) as { bytes: number };
+  if (bytes <= maxBytes) return 0;
+  return db
+    .prepare(
+      `DELETE FROM api_cache WHERE key IN (
+         SELECT key FROM api_cache WHERE key >= ? AND key < ?
+          ORDER BY expires_at ASC LIMIT ?)`,
+    )
+    .run(...range, limit).changes;
+}
+
 /** Cache-first helper: returns the cached value or calls fetcher() and caches it. */
 export async function cached<T>(
   key: string,

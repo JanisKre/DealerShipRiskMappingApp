@@ -459,6 +459,8 @@ describe("similarBusinessNames", () => {
     ["Autohaus Max Mustermann", "Max Mustermann Automobile", true],
     ["Auto Müller", "Auto Schmidt", false],
     ["Autohaus", "Autohaus", true],
+    // One shared family name is not one business.
+    ["Mueller Reifen", "Mueller Karosserie", false],
   ])("%s ≈ %s → %s", (a, b, expected) => {
     expect(similarBusinessNames(a, b)).toBe(expected);
   });

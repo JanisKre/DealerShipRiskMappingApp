@@ -1,4 +1,5 @@
 import type { DealershipInput } from "./types";
+import { addressKey, businessNameKey } from "./name-normalize";
 
 /**
  * Duplicate detection for imported locations (pure function, used in the
@@ -30,18 +31,15 @@ export function dedupeDealerships(rows: DealershipInput[]): DedupeResult {
 }
 
 function isDuplicate(a: DealershipInput, b: DealershipInput): boolean {
-  if (normalize(a.name) !== normalize(b.name)) return false;
-  if (a.address && b.address && normalize(a.address) === normalize(b.address))
+  // "Autohaus Müller GmbH" and "Autohaus Mueller" are one business.
+  if (businessNameKey(a.name) !== businessNameKey(b.name)) return false;
+  if (a.address && b.address && addressKey(a.address) === addressKey(b.address))
     return true;
   if (a.lat != null && a.lon != null && b.lat != null && b.lon != null) {
     return haversineMeters(a.lat, a.lon, b.lat, b.lon) < NEAR_METERS;
   }
   // Same name, but no comparable coordinates/addresses => treat as a duplicate.
   return !a.address && !b.address && a.lat == null && b.lat == null;
-}
-
-function normalize(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, " ").replace(/[.,]/g, "");
 }
 
 /** Haversine distance in meters (dependency-free, sufficient for a proximity check). */

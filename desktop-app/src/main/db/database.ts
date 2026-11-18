@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { app } from "electron";
-import { copyFileSync, existsSync } from "node:fs";
+import { copyFileSync, existsSync, readdirSync, unlinkSync } from "node:fs";
+import { basename, dirname } from "node:path";
 import { join } from "path";
 
 /**
@@ -282,6 +283,34 @@ export function migrateRadarHailCache(database: Database.Database): void {
     .run();
 }
 
+/** Pre-migration backups kept; older ones only took up disk space. */
+export const MIGRATION_BACKUPS_KEPT = 3;
+
+/** Deletes all but the newest `MIGRATION_BACKUPS_KEPT` migration backups. */
+export function pruneOldBackups(dbPath: string): string[] {
+  const dir = dirname(dbPath);
+  const prefix = `${basename(dbPath)}.backup-`;
+  const backups = readdirSync(dir)
+    .filter((name) => name.startsWith(prefix))
+    // ISO timestamps sort chronologically as text.
+    .sort();
+  const old = backups.slice(
+    0,
+    Math.max(0, backups.length - MIGRATION_BACKUPS_KEPT),
+  );
+  const removed: string[] = [];
+  for (const name of old) {
+    try {
+      unlinkSync(join(dir, name));
+      removed.push(name);
+    } catch (error) {
+      // A locked or vanished file is retried at the next migration.
+      console.warn("Could not delete an old database backup:", name, error);
+    }
+  }
+  return removed;
+}
+
 function createDatabaseBackup(
   database: Database.Database,
   dbPath: string,
@@ -293,6 +322,7 @@ function createDatabaseBackup(
       .toISOString()
       .replace(/[:.]/g, "-")}`;
     copyFileSync(dbPath, backupPath);
+    pruneOldBackups(dbPath);
   } catch (error) {
     // A backup failure must never silently turn into a destructive migration.
     throw new Error(
