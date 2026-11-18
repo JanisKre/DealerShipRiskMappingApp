@@ -346,9 +346,10 @@ the app and the report).
 Method: the three nearest stations within 30 km with at least ten years of
 records; a year counts when it has at least 180 valid daily values; the
 result is the mean number of hail days per observed year, the observed
-period, hail days per year and every hail date (shown by year and by
-calendar month; years without enough observations are marked as gaps, not
-as years without hail). Station list,
+period, hail days per year and every hail date. The detail dialog shows one
+line: of the stations found, the one whose record ends latest (the nearest
+among those), with its distance, observed period and mean hail days per
+year; the report shows the nearest station. Station list,
 directory listings and per-station summaries are cached (1–7 days), so the
 history also shows offline once loaded.
 

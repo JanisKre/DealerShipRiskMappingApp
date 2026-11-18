@@ -81,9 +81,6 @@ export const IPC = {
   exportLocationReport: "report:location", // one-page PDF per location
   exportReadonlyView: "report:readonlyView", // standalone HTML bundle
 
-  // LLM — invoke-based (non-streaming, structured)
-  llmMemo: "llm:memo", // structured underwriting memo (StructuredMemo)
-
   llmTestConnection: "llm:testConnection", // minimal request with the saved config
   llmListModels: "llm:listModels", // live model list of the configured provider
   llmDetectLocal: "llm:detectLocal", // which local runtimes answer on default ports

@@ -50,7 +50,6 @@ import {
   RiskAssessmentSchema,
   SessionSchema,
   SettingsSchema,
-  StructuredMemoSchema,
 } from "./types";
 import type { BoundaryResult, RiskParameters } from "./types";
 import { HF_REPO_ID_PATTERN, OLLAMA_HF_MODEL_PATTERN } from "./llm-config";
@@ -401,7 +400,6 @@ export const ipcRequest = {
     /** Localized titles of the open review points. */
     reviewNotes: z.array(z.string().min(1).max(300)).max(12),
   }),
-  "llm:memo": z.object({ dealership: AnalyzedDealershipSchema }),
   "llm:testConnection": z.void(),
   "llm:listModels": z.void(),
   "llm:detectLocal": z.void(),
@@ -578,7 +576,6 @@ export const ipcResponse = {
   "report:export": z.object({ path: z.string().nullable() }),
   "report:readonlyView": z.object({ path: z.string().nullable() }),
   "report:location": z.object({ path: z.string().nullable() }),
-  "llm:memo": StructuredMemoSchema,
   "llm:testConnection": LlmConnectionTestSchema,
   "llm:listModels": z.object({
     models: z.array(z.object({ id: z.string(), label: z.string().optional() })),

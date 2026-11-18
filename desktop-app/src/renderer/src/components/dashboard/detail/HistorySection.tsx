@@ -3,6 +3,7 @@ import { type TFunction } from "i18next";
 import type { AnalyzedDealership, DealershipChange } from "@shared/types";
 import { num } from "@renderer/lib/format";
 import { candidateLabel } from "./boundaryText";
+import { Disclosure } from "./shared";
 
 /** One line of the change history, in the user's language. */
 function changeText(t: TFunction, change: DealershipChange): string {
@@ -71,10 +72,14 @@ export function HistorySection({
   const { t, i18n } = useTranslation();
   const entries = [...(d.history ?? [])].reverse();
   return (
-    <div className="space-y-2 text-sm">
-      <h4 className="font-semibold">
-        {t("dashboard.detailDialog.history.title")}
-      </h4>
+    <Disclosure
+      title={t("dashboard.detailDialog.history.title")}
+      summary={
+        entries.length > 0
+          ? t("dashboard.detailDialog.history.count", { count: entries.length })
+          : undefined
+      }
+    >
       {entries.length === 0 ? (
         <p className="text-xs text-muted-foreground">
           {t("dashboard.detailDialog.history.empty")}
@@ -97,6 +102,6 @@ export function HistorySection({
           ))}
         </ol>
       )}
-    </div>
+    </Disclosure>
   );
 }

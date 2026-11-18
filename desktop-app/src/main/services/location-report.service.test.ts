@@ -203,6 +203,26 @@ describe("location report", () => {
     ).toHaveLength(1);
   });
 
+  it("keeps how the boundary was chosen", () => {
+    const reason =
+      "stage 1: parcel at the point + 2 adjacent parcel(s) hold 40 of 50 lot vehicles";
+    const lines = evidenceLines({
+      ...site,
+      boundary: {
+        ...site.boundary!,
+        quality: {
+          geometryValid: true,
+          pointRelation: "inside",
+          sourceAgreement: 1,
+          areaPlausibility: 1,
+          boundaryFit: 1,
+          reasons: [reason],
+        },
+      },
+    });
+    expect(lines).toContain(reason);
+  });
+
   it("builds a one-page PDF without the local notes", async () => {
     const jpeg = await sharp({
       create: { width: 40, height: 30, channels: 3, background: "#777" },

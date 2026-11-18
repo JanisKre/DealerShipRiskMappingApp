@@ -118,7 +118,7 @@ polygons; `npm run benchmark:boundary:replay` replays frozen inputs offline.
 - Dashboard: KPIs, charts (recharts), sortable/filterable table, detail
   dialog, portfolio comparison
 - AI analysis (Ollama/LM Studio/llama.cpp, OpenAI, Claude, custom endpoint):
-  structured underwriting memo, portfolio chat, natural-language query and
+  memo with checked figures, portfolio chat, natural-language query and
   AI dashboards (A2UI) — with streaming
 - Hail history: observed hail days at nearby DWD stations (context only)
 - Export: PDF, Excel, CSV, read-only view; portfolio file export/import (.drm)

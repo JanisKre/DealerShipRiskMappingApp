@@ -94,11 +94,24 @@ export function vehicleHint(
   t: TFunction,
   source: HailVehicleSource,
   detection: AnalyzedDealership["detection"],
+  locale?: string,
 ): string | undefined {
   if (!detection) return undefined;
   if (source === "manual") return t("dashboard.detailDialog.kpiVehiclesManual");
-  if (source === "detected")
-    return t("dashboard.detailDialog.kpiVehiclesDetected");
+  if (source === "detected") {
+    // "Counted, on which image": the two things asked first about the count.
+    const capturedAt = detection.imagery?.chosen.capturedAt;
+    const date = capturedAt ? new Date(capturedAt) : null;
+    return date && !Number.isNaN(date.getTime())
+      ? t("dashboard.detailDialog.kpiVehiclesDetectedOn", {
+          date: date.toLocaleDateString(locale, {
+            month: "2-digit",
+            year: "numeric",
+            timeZone: "UTC",
+          }),
+        })
+      : t("dashboard.detailDialog.kpiVehiclesDetected");
+  }
   if (isAreaEstimatedDetection(detection))
     return t("dashboard.detailDialog.kpiVehiclesAreaEstimate");
   if (source === "estimated" || source === "assetValue")

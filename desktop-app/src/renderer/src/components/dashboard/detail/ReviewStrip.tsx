@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Check, Loader2, Pencil, RefreshCw, Sparkles } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { Button } from "@renderer/components/ui/button";
+import { Progress } from "@renderer/components/ui/progress";
 import { useAppStore } from "@renderer/store/appStore";
 import {
   isReviewCurrent,
@@ -27,6 +28,13 @@ export interface ReviewRun {
   onPause?: (id: string) => void;
 }
 
+/** What is open at a location, with the sentence that explains it. */
+export interface ReviewNotice {
+  key: string;
+  title: string;
+  detail?: string;
+}
+
 /** Inputs, text areas and editable fields keep their own keys. */
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -48,6 +56,7 @@ export function ReviewStrip({
   onNavigate,
   onSkip,
   onCorrectBoundary,
+  notices,
 }: Readonly<{
   d: AnalyzedDealership;
   run: ReviewRun;
@@ -55,6 +64,11 @@ export function ReviewStrip({
   onSkip: () => void;
   /** Leaves for the map editor; the run waits there. */
   onCorrectBoundary?: () => void;
+  /**
+   * The dialog's notices for the open points (keyed by review reason). Shown
+   * here with their explanation, so the dialog need not repeat them below.
+   */
+  notices?: ReviewNotice[];
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const dealerships = useAppStore((s) => s.dealerships);
@@ -121,48 +135,74 @@ export function ReviewStrip({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const noticeFor = (reason: ReviewReason): ReviewNotice | undefined =>
+    notices?.find((n) => n.key === reason);
+
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
-      <div className="min-w-0 flex-1">
-        <div className="font-medium">
-          {t("review.position", {
-            position: run.ids.indexOf(d.id) + 1,
-            total: run.ids.length,
-          })}
-          <span className="font-normal text-muted-foreground">
-            {" · "}
-            {t("review.remaining", { count: remaining })}
+    <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm">
+      {/* Where the run stands; skipping is the quiet way out. */}
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="shrink-0">
+            {t("review.progress", {
+              position: run.ids.indexOf(d.id) + 1,
+              total: run.ids.length,
+              done: run.ids.length - remaining,
+            })}
           </span>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {done
-            ? t("review.alreadyReviewed")
-            : reasons
-                .map((r: ReviewReason) => t(`review.reason.${r}`))
-                .join(" · ")}
-        </div>
-        {!done && actions.length > 0 && (
-          <div className="text-xs">
-            {t("review.recommendation")}{" "}
-            {actions.map((a) => t(`review.action.${a}`)).join(" · ")}
-          </div>
-        )}
-        {!done && aiNote && (
-          <div className="flex items-start gap-1 text-xs text-muted-foreground">
-            <Sparkles className="mt-0.5 size-3 shrink-0" />
-            <span>{aiNote}</span>
-          </div>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
+          <Progress
+            value={((run.ids.length - remaining) / run.ids.length) * 100}
+            className="h-1 max-w-32"
+            aria-hidden
+          />
+        </span>
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 px-2 text-xs"
+          className="-my-1 h-6 px-2 text-xs"
           onClick={onSkip}
         >
           {t("review.skip")}
         </Button>
+      </div>
+
+      {/* What to look at, one block per open point. */}
+      {done ? (
+        <p className="font-medium">{t("review.alreadyReviewed")}</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {reasons.map((reason) => {
+            const notice = noticeFor(reason);
+            return (
+              <li key={reason}>
+                <p className="font-medium">
+                  {notice?.title ?? t(`review.reason.${reason}`)}
+                </p>
+                {notice?.detail && (
+                  <p className="text-xs text-muted-foreground">
+                    {notice.detail}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {!done && actions.length > 0 && (
+        <p className="text-xs">
+          <span className="font-medium">{t("review.recommendation")}</span>{" "}
+          {actions.map((a) => t(`review.action.${a}`)).join(" · ")}
+        </p>
+      )}
+      {!done && aiNote && (
+        <div className="flex items-start gap-1 text-xs text-muted-foreground">
+          <Sparkles className="mt-0.5 size-3 shrink-0" />
+          <span>{aiNote}</span>
+        </div>
+      )}
+
+      {/* The actions on their own row, the one that moves on last. */}
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
         {actions.includes("reanalyze") && !done && (
           <Button
             size="sm"

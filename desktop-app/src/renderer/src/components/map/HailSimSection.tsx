@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Building2,
+  ChevronRight,
   Crosshair,
   FileUp,
   History,
@@ -167,75 +168,90 @@ function SimulateMode(): React.JSX.Element {
   const actions = useHailSimActions();
   const targets = usePortfolioTargets();
   const picking = s.mapMode === "pickStart";
+  const [optionsOpen, setOptionsOpen] = useState(false);
   return (
     <>
-      <div className="grid grid-cols-2 gap-1.5">
-        <Field id="sim-strength" label={t("hailReplay.strength")}>
-          <OptionSelect
-            id="sim-strength"
-            value={s.sim.strength}
-            options={Object.keys(SIM_STRENGTHS) as SimStrength[]}
-            label={(v) => t(`hailReplay.strengths.${v}`)}
-            onChange={(strength) => s.setSim({ strength })}
-          />
-        </Field>
-        <Field id="sim-heading" label={t("hailReplay.heading")}>
-          <OptionSelect
-            id="sim-heading"
-            value={s.sim.heading}
-            options={Object.keys(SIM_HEADINGS) as SimHeading[]}
-            label={(v) => t(`hailReplay.headings.${v}`)}
-            onChange={(heading) => s.setSim({ heading })}
-          />
-        </Field>
-      </div>
-      <Field
-        id="sim-storms"
-        label={t("hailReplay.storms", { count: s.sim.storms })}
+      <Button
+        size="sm"
+        className={PANEL_ACTION_CLASS}
+        disabled={targets.length === 0}
+        onClick={() => actions.simulateOutbreak("portfolio")}
       >
-        <Slider
-          id="sim-storms"
-          min={1}
-          max={12}
-          step={1}
-          value={s.sim.storms}
-          onValueChange={(storms) => s.setSim({ storms })}
-        />
-      </Field>
-      <div className="space-y-1.5">
-        <Button
-          size="sm"
-          variant="outline"
-          className={PANEL_ACTION_CLASS}
-          disabled={targets.length === 0}
-          onClick={() => actions.simulateOutbreak("portfolio")}
-        >
-          <Building2 className="size-3" />
-          {t("hailReplay.simPortfolio")}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className={PANEL_ACTION_CLASS}
-          onClick={() => actions.simulateOutbreak("germany")}
-        >
-          <Shuffle className="size-3" />
-          {t("hailReplay.simGermany")}
-        </Button>
-        <Button
-          size="sm"
-          variant={picking ? "default" : "outline"}
-          className={PANEL_ACTION_CLASS}
-          aria-pressed={picking}
-          onClick={() => s.setMapMode(picking ? null : "pickStart")}
-        >
-          <Crosshair className="size-3" />
-          {picking ? t("hailReplay.drawCancel") : t("hailReplay.pickStart")}
-        </Button>
-      </div>
+        <Building2 className="size-3" />
+        {t("hailReplay.simPortfolio")}
+      </Button>
       {targets.length === 0 && (
         <p className={PANEL_HINT_CLASS}>{t("hailReplay.noPortfolio")}</p>
       )}
+      {/* Strength, direction and the other starting points are for the
+          second storm, not the first: closed until asked for, open while a
+          start point is being picked. */}
+      <details
+        className="group"
+        open={optionsOpen || picking}
+        onToggle={(event) => setOptionsOpen(event.currentTarget.open)}
+      >
+        <summary className="flex cursor-pointer list-none items-center gap-1 rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+          <ChevronRight className="size-3 shrink-0 transition-transform duration-150 group-open:rotate-90" />
+          {t("hailReplay.simOptions")}
+        </summary>
+        <div className="space-y-2.5 pt-2">
+          <div className="grid grid-cols-2 gap-1.5">
+            <Field id="sim-strength" label={t("hailReplay.strength")}>
+              <OptionSelect
+                id="sim-strength"
+                value={s.sim.strength}
+                options={Object.keys(SIM_STRENGTHS) as SimStrength[]}
+                label={(v) => t(`hailReplay.strengths.${v}`)}
+                onChange={(strength) => s.setSim({ strength })}
+              />
+            </Field>
+            <Field id="sim-heading" label={t("hailReplay.heading")}>
+              <OptionSelect
+                id="sim-heading"
+                value={s.sim.heading}
+                options={Object.keys(SIM_HEADINGS) as SimHeading[]}
+                label={(v) => t(`hailReplay.headings.${v}`)}
+                onChange={(heading) => s.setSim({ heading })}
+              />
+            </Field>
+          </div>
+          <Field
+            id="sim-storms"
+            label={t("hailReplay.storms", { count: s.sim.storms })}
+          >
+            <Slider
+              id="sim-storms"
+              min={1}
+              max={12}
+              step={1}
+              value={s.sim.storms}
+              onValueChange={(storms) => s.setSim({ storms })}
+            />
+          </Field>
+          <div className="space-y-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className={PANEL_ACTION_CLASS}
+              onClick={() => actions.simulateOutbreak("germany")}
+            >
+              <Shuffle className="size-3" />
+              {t("hailReplay.simGermany")}
+            </Button>
+            <Button
+              size="sm"
+              variant={picking ? "default" : "outline"}
+              className={PANEL_ACTION_CLASS}
+              aria-pressed={picking}
+              onClick={() => s.setMapMode(picking ? null : "pickStart")}
+            >
+              <Crosshair className="size-3" />
+              {picking ? t("hailReplay.drawCancel") : t("hailReplay.pickStart")}
+            </Button>
+          </div>
+        </div>
+      </details>
     </>
   );
 }
@@ -352,6 +368,11 @@ function DrawMode(): React.JSX.Element {
             s.setMapMode(null);
           }}
         />
+        <p className={PANEL_HINT_CLASS}>
+          {corridor
+            ? t("hailReplay.corridorIntro")
+            : t("hailReplay.trackIntro")}
+        </p>
       </div>
 
       {corridor ? (
@@ -394,11 +415,6 @@ function DrawMode(): React.JSX.Element {
           <PenLine className="size-3" />
           {drawing ? t("hailReplay.drawCancel") : startLabel}
         </Button>
-        <p className={PANEL_HINT_CLASS}>
-          {corridor
-            ? t("hailReplay.corridorIntro")
-            : t("hailReplay.trackIntro")}
-        </p>
       </div>
 
       {corridor && llmReady && !drawing && <ScenarioFromSentence />}
@@ -605,6 +621,9 @@ export function HailSimSection(): React.JSX.Element {
   const setTab = useHailReplayStore((st) => st.setTab);
   return (
     <div className="w-full space-y-2.5" data-testid="hail-section">
+      <p className="text-[11px] leading-snug text-muted-foreground">
+        {t("hailReplay.intro")}
+      </p>
       <Segmented
         aria-label={t("hailReplay.title")}
         value={tab}
@@ -612,6 +631,7 @@ export function HailSimSection(): React.JSX.Element {
         label={(m) => t(`hailReplay.tabs.${m}`)}
         onChange={setTab}
       />
+      <p className="text-xs leading-snug">{t(`hailReplay.modeHint.${tab}`)}</p>
       {tab === "simulate" && <SimulateMode />}
       {tab === "draw" && <DrawMode />}
       {tab === "history" && <HistoryMode />}

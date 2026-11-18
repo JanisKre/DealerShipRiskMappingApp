@@ -20,12 +20,8 @@ import {
 } from "@renderer/components/ui/dialog";
 import { useAppStore } from "@renderer/store/appStore";
 import { num, pct } from "@renderer/lib/format";
-import { Metric } from "./shared";
-import {
-  boundaryRoleLabel,
-  candidateLabel,
-  boundaryReviewText,
-} from "./boundaryText";
+import { Disclosure, Metric } from "./shared";
+import { candidateLabel, boundaryReviewText } from "./boundaryText";
 
 /**
  * Drops every extra `MultiPolygon` part except the largest, producing a
@@ -80,9 +76,15 @@ function sameGeometry(a: BoundaryCandidate, b: BoundaryResult): boolean {
 export function BoundaryPanel({
   d,
   onEditOnMap,
+  inReview = false,
 }: {
   d: AnalyzedDealership;
   onEditOnMap: () => void;
+  /**
+   * The review strip above already says why the boundary is open and
+   * confirms it; the panel then leaves both out instead of repeating them.
+   */
+  inReview?: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation();
   const parameters = useAppStore((s) => s.parameters);
@@ -186,7 +188,7 @@ export function BoundaryPanel({
           </Badge>
         ) : null}
       </div>
-      {boundary.reviewRequired && (
+      {boundary.reviewRequired && !inReview && (
         <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
           <TriangleAlert
             aria-hidden
@@ -202,7 +204,7 @@ export function BoundaryPanel({
         })}
       </p>
       <div className="flex flex-wrap gap-2">
-        {!confirmed && (
+        {!confirmed && !inReview && (
           <Button
             size="sm"
             disabled={busy}
@@ -248,16 +250,16 @@ export function BoundaryPanel({
       </div>
 
       {others.length > 0 && (
-        <details
-          className="rounded-md border text-sm"
-          open={boundary.reviewRequired}
+        // Open when the boundary still has to be checked: the other
+        // proposals are then part of the decision.
+        <Disclosure
+          key={`${d.id}-${boundary.reviewRequired ? "review" : "ok"}`}
+          defaultOpen={boundary.reviewRequired === true}
+          title={t("dashboard.detailDialog.boundaryAlternativesCount", {
+            count: Math.min(others.length, 4),
+          })}
         >
-          <summary className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-            {t("dashboard.detailDialog.boundaryAlternativesCount", {
-              count: Math.min(others.length, 4),
-            })}
-          </summary>
-          <div className="space-y-1 border-t p-2">
+          <div className="space-y-1">
             {others.slice(0, 4).map((candidate, index) => (
               <div
                 key={`${candidate.provider ?? candidate.source}-${index}`}
@@ -281,7 +283,7 @@ export function BoundaryPanel({
               </div>
             ))}
           </div>
-        </details>
+        </Disclosure>
       )}
 
       <Dialog
@@ -336,44 +338,6 @@ export function BoundaryPanel({
           </div>
         </DialogContent>
       </Dialog>
-
-      <details className="rounded-md border bg-muted/20 text-xs">
-        <summary className="px-2 py-1.5 font-medium text-muted-foreground">
-          {t("dashboard.detailDialog.showDetails")}
-        </summary>
-        <div className="space-y-1.5 border-t px-2 py-2 text-muted-foreground">
-          {boundary.role && (
-            <div>
-              {t("dashboard.detailDialog.boundaryRoleLabel", {
-                role: boundaryRoleLabel(t, boundary.role),
-              })}
-            </div>
-          )}
-          {boundary.quality && (
-            <div>
-              {t("dashboard.detailDialog.boundaryAgreementLabel", {
-                agreement: pct(boundary.quality.sourceAgreement, 0),
-              })}
-            </div>
-          )}
-          {boundary.quality?.usedEngine && (
-            <div>
-              {t("dashboard.detailDialog.boundaryEngineLabel", {
-                engine: t(
-                  `dashboard.detailDialog.boundaryEngine.${boundary.quality.usedEngine}`,
-                ),
-              })}
-            </div>
-          )}
-          {(boundary.quality?.reasons.length ?? 0) > 0 && (
-            <ul className="list-disc space-y-0.5 border-t pl-4 pt-1.5">
-              {boundary.quality!.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </details>
     </div>
   );
 }

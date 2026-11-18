@@ -77,7 +77,8 @@ import {
   type DetailTab,
 } from "./detail/attention";
 import { HistorySection } from "./detail/HistorySection";
-import { addressLine } from "./detail/shared";
+import { addressLine, Disclosure } from "./detail/shared";
+import { isReviewCurrent, reviewReasons } from "./reviewQueue";
 import { HailOverview } from "./detail/HailSections";
 import { BoundaryPanel } from "./detail/BoundaryPanel";
 import { VehiclePanel } from "./detail/VehiclePanel";
@@ -93,7 +94,6 @@ import {
   OsmDetailsSection,
 } from "./detail/SiteLinks";
 import { PortfolioMetaSection, NotesSection } from "./detail/ContractSections";
-import { AiSection } from "./detail/AiSection";
 
 /**
  * Detail dialog for a location, built for progressive disclosure:
@@ -102,10 +102,17 @@ import { AiSection } from "./detail/AiSection";
  *     "check boundary" badge only when needed), the address with the main
  *     actions, three key figures (hail EAL, vehicles, exposure) and the
  *     notices that ask for an action, one line each.
- *  2. Tabs named after tasks: risk (EAL derivation, memo), site & vehicles
- *     (boundary, vehicle count, imagery), contract & notes, sources.
- *  3. Disclosures inside the tabs for expert detail (image history, boundary
- *     internals, model limitations).
+ *  2. Tabs named after tasks: risk (EAL derivation and its weakest
+ *     assumptions, hail context), site & vehicles (boundary, vehicle count,
+ *     imagery), contract & notes (notes, AI draft, contract data, questions
+ *     for the dealership), sources & history.
+ *  3. Inside a tab only what the task needs is spelled out. Everything else
+ *     is one collapsible row (`Disclosure`) that names the section and its
+ *     current value: hail history, radar, AI texts, image history, sources,
+ *     limitations, weakest assumptions, change history.
+ *
+ * In a review run the strip at the top says what is open at this location
+ * and why, and the dialog opens on the tab where it is checked.
  *
  * `onNavigate` adds previous/next arrows to step through the portfolio.
  */
@@ -222,6 +229,20 @@ function DetailBody({
   const stepRef = useRef(step);
   stepRef.current = step;
 
+  // A review run opens each location where its open point is checked: the
+  // boundary and the aerial image are on the site tab.
+  const reasons = reviewReasons(t, d, dealerships, parameters);
+  const reviewOpen = inReview && !isReviewCurrent(d);
+  const reviewTab: DetailTab =
+    reasons.includes("boundary") || reasons.includes("imagery")
+      ? "site"
+      : "overview";
+  const reviewTabRef = useRef(reviewTab);
+  reviewTabRef.current = reviewTab;
+  useEffect(() => {
+    if (inReview) setTab(reviewTabRef.current);
+  }, [d.id, inReview]);
+
   // ←/→ step through the locations (or the review queue). Ignored while
   // typing, so notes and inputs keep their arrow keys.
   useEffect(() => {
@@ -287,6 +308,12 @@ function DetailBody({
   const ealBasis = hasEalBasis(d);
   const rank = portfolioRank(d, dealerships);
   const boundary = d.boundary;
+  // The review strip explains the open points itself; the list below keeps
+  // the notices it does not cover.
+  const stripNotices = reviewOpen
+    ? attention.filter((item) => (reasons as string[]).includes(item.key))
+    : [];
+  const notices = attention.filter((item) => !stripNotices.includes(item));
   return (
     <>
       <DialogHeader className="shrink-0 space-y-1 border-b px-6 pt-6 pb-3">
@@ -436,6 +463,7 @@ function DetailBody({
             run={review}
             onNavigate={onNavigate}
             onSkip={() => step(1)}
+            notices={stripNotices}
             onCorrectBoundary={
               review.onPause
                 ? () => {
@@ -460,12 +488,16 @@ function DetailBody({
                 eur(d.risk?.eal)
               )
             }
+            // Never a bare amount: the figure is an estimate wherever the
+            // dialog is read, not only on the risk tab.
             hint={
-              rank != null
-                ? t("dashboard.detailDialog.kpiRank", rank)
-                : d.risk && !ealBasis
-                  ? t("dashboard.detailDialog.kpiNoRank")
-                  : undefined
+              d.risk && !ealBasis
+                ? t("dashboard.detailDialog.kpiNoRank")
+                : rank != null
+                  ? `${t("dashboard.detailDialog.kpiEstimate")} · ${t("dashboard.detailDialog.kpiRank", rank)}`
+                  : d.risk
+                    ? t("dashboard.detailDialog.kpiEstimate")
+                    : undefined
             }
           />
           <KeyFigure
@@ -477,18 +509,26 @@ function DetailBody({
                 ? `≈${num(vehicles)}`
                 : num(vehicles ?? undefined)
             }
-            hint={vehicleHint(t, vehicleSource, d.detection)}
+            hint={vehicleHint(t, vehicleSource, d.detection, i18n.language)}
           />
           <KeyFigure
-            label={t("dashboard.detailDialog.exposureLabel")}
+            label={t("dashboard.detailDialog.kpiExposure")}
             value={eur(d.risk?.exposureEur)}
-            hint={`${num(boundary?.areaSqm)} m²`}
+            hint={
+              d.risk?.exposureEur != null && vehicles != null && vehicles > 0
+                ? t("dashboard.detailDialog.kpiExposurePerVehicle", {
+                    value: eur(
+                      Math.round(d.risk.exposureEur / vehicles / 100) * 100,
+                    ),
+                  })
+                : undefined
+            }
           />
         </div>
 
-        {attention.length > 0 && (
+        {notices.length > 0 && (
           <div className="space-y-1">
-            {attention.map((item) => (
+            {notices.map((item) => (
               <AttentionRow key={item.key} item={item} />
             ))}
           </div>
@@ -512,32 +552,41 @@ function DetailBody({
 
           <TabsContent value="overview" className="space-y-4 pt-2">
             <HailOverview d={d} />
-            <Separator />
-            <HailHistorySection d={d} />
-            <RadarHailSection d={d} />
-            <Separator />
-            <AiSection d={d} />
-            <EvidenceMemoSection d={d} />
+            {/* How far the result can be trusted belongs next to it. */}
+            <ChallengeSection d={d} />
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {t("dashboard.detailDialog.contextGroup")}
+              </p>
+              <HailHistorySection d={d} />
+              <RadarHailSection d={d} />
+            </div>
           </TabsContent>
 
           <TabsContent value="site" className="space-y-4 pt-2">
-            <BoundaryPanel d={d} onEditOnMap={() => showOnMap(true)} />
+            <BoundaryPanel
+              d={d}
+              onEditOnMap={() => showOnMap(true)}
+              inReview={reviewOpen}
+            />
             <Separator />
             <VehiclePanel d={d} />
             <DetectionImageryNote detection={d.detection} />
-            <SiteCheckSection d={d} />
-            <details className="rounded-md border text-sm">
-              <summary className="px-3 py-2 font-medium text-muted-foreground">
-                {t("dashboard.detailDialog.imageryHistoryToggle")}
-              </summary>
-              <div className="border-t p-3">
+            <div className="space-y-2">
+              <Disclosure
+                title={t("dashboard.detailDialog.imageryHistoryToggle")}
+              >
                 <ImageryHistorySection d={d} onClose={onClose} />
-              </div>
-            </details>
+              </Disclosure>
+              <SiteCheckSection d={d} />
+            </div>
           </TabsContent>
 
           <TabsContent value="contract" className="space-y-4 pt-2">
             <NotesSection d={d} />
+            {/* An AI draft ends up in the notes, so it is offered here;
+                the row only exists with an AI provider. */}
+            <EvidenceMemoSection d={d} />
             <PortfolioMetaSection d={d} />
             <WebsiteRow
               d={d}
@@ -545,23 +594,16 @@ function DetailBody({
               detecting={osmLoading}
             />
             <OsmDetailsSection details={osmDetails} loading={false} />
-            <details className="rounded-md border text-sm">
-              <summary className="px-3 py-2 font-medium text-muted-foreground">
-                {t("questionnaire.title")}
-              </summary>
-              <div className="border-t p-3">
-                <QuestionnaireSection d={d} />
-              </div>
-            </details>
+            <Disclosure title={t("questionnaire.title")}>
+              <QuestionnaireSection d={d} />
+            </Disclosure>
           </TabsContent>
 
           <TabsContent value="sources" className="space-y-4 pt-2">
-            <ModelConfidenceSummary d={d} />
-            <Separator />
-            <ChallengeSection d={d} />
-            <NatCatSection d={d} />
-            <Separator />
+            {/* What was done here comes first: it is asked for most. */}
             <HistorySection d={d} />
+            <ModelConfidenceSummary d={d} />
+            <NatCatSection d={d} />
           </TabsContent>
         </Tabs>
       </div>

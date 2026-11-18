@@ -7,7 +7,7 @@ import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
 import { Label } from "@renderer/components/ui/label";
 import { useAppStore } from "@renderer/store/appStore";
-import { eur, num, pct } from "@renderer/lib/format";
+import { eur, num } from "@renderer/lib/format";
 import { isAreaEstimatedDetection } from "@shared/risk-math";
 import { Metric } from "./shared";
 
@@ -28,7 +28,7 @@ export function VehiclePanel({
         {!adjusting && (
           <Button
             size="sm"
-            variant="ghost"
+            variant="outline"
             className="h-7 text-xs"
             onClick={() => setAdjusting(true)}
           >
@@ -39,24 +39,14 @@ export function VehiclePanel({
           </Button>
         )}
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <Metric
-          label={
-            isAreaEstimatedDetection(d.detection)
-              ? t("dashboard.detailDialog.estimatedVehicleCount")
-              : t("dashboard.detailDialog.machineVehicleCount")
-          }
-          value={num(d.detection?.vehicleCount)}
-        />
-        <Metric
-          label={t("dashboard.capacity")}
-          value={num(d.risk?.capacityEstimate)}
-        />
-        <Metric
-          label={t("dashboard.utilisation")}
-          value={pct(d.risk?.utilisation, 0)}
-        />
-      </div>
+      <Metric
+        label={
+          isAreaEstimatedDetection(d.detection)
+            ? t("dashboard.detailDialog.estimatedVehicleCount")
+            : t("dashboard.detailDialog.machineVehicleCount")
+        }
+        value={num(d.detection?.vehicleCount)}
+      />
       {manual != null && !adjusting && (
         <p className="text-xs text-muted-foreground">
           {t("dashboard.detailDialog.manualVehicleCountSaved", {

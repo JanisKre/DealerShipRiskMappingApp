@@ -98,7 +98,6 @@ import {
   classifyChatIntent,
   generateDashboardSurface,
   detectLocalRuntimes,
-  generateMemo,
   listLlmModels,
   nlQueryFilter,
   nlQuerySummaryStream,
@@ -322,7 +321,6 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     path: rememberExport(await exportReadonlyView(session, locale)),
   }));
 
-  handle(IPC.llmMemo, ({ dealership }) => generateMemo(dealership));
   handle(IPC.llmTestConnection, () => testLlmConnection());
   handle(IPC.llmListModels, () => listLlmModels());
   handle(IPC.llmDetectLocal, () => detectLocalRuntimes());

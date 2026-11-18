@@ -630,8 +630,6 @@
       "estimatedHailZone": "Zone de grêle {{zone}} seulement estimée – vérifiez l’adresse et le code postal.",
       "accumulationEstimated": "Cumul de {{count}} sites avec ≈{{exposure}} d’exposition · {{share}} % estimés."
     },
-    "utilisation": "Utilisation",
-    "capacity": "Capacité",
     "area": "Surface",
     "boundarySource": "Source de délimitation",
     "manageTiles": "Personnaliser le tableau de bord",
@@ -676,14 +674,6 @@
         "total": "Total"
       },
       "boundaryTitle": "Limite de parcelle",
-      "boundaryRoleLabel": "Rôle : {{role}}",
-      "boundaryAgreementLabel": "Accord des sources : {{agreement}}",
-      "boundaryEngineLabel": "Moteur : {{engine}}",
-      "boundaryEngine": {
-        "legacy": "classement des candidats",
-        "fused": "fusion multi-sources",
-        "cascade": "cascade de sources"
-      },
       "boundaryReviewLabel": "Vérification requise",
       "boundaryExcludePartAction": "Exclure la partie supplémentaire",
       "boundarySource": {
@@ -702,7 +692,6 @@
         "operationalLot": "Terrain opérationnel confirmé",
         "synthetic": "Surface estimée (cercle)"
       },
-      "showDetails": "Afficher les détails",
       "evidenceFallbackSuffix": " · méthode de repli",
       "riskText": {
         "screeningModel": "Le modèle de risque {{version}} est un modèle de présélection",
@@ -765,9 +754,6 @@
       "natCatRefreshing": "Interrogation des sources…",
       "natCatHazard": "{{peril}} : zone {{zone}} ({{unit}})",
       "natCatAttribute": "{{name}} : {{value}}",
-      "errorPrefix": "Erreur : {{error}}",
-      "recommendedDeductibleLabel": "Franchise recommandée",
-      "premiumLoadingLabel": "Majoration de prime",
       "deductibleLabel": "Franchise (EUR)",
       "imageryHistory": {
         "title": "Historique des images (Esri Wayback)",
@@ -794,7 +780,7 @@
       "nextLocation": "Site suivant",
       "showOnMap": "Voir sur la carte",
       "moreActions": "Autres actions",
-      "kpiHailEal": "EAL grêle / an",
+      "kpiHailEal": "Sinistre grêle / an (EAL)",
       "kpiRank": "rang {{rank}} sur {{total}}",
       "kpiVehiclesManual": "ajusté manuellement",
       "kpiVehiclesEstimated": "seulement estimé",
@@ -813,14 +799,14 @@
       "tabOverview": "Risque",
       "tabSite": "Site & véhicules",
       "tabContract": "Contrat & notes",
-      "tabSources": "Sources",
+      "tabSources": "Sources & historique",
       "imageryHistoryToggle": "Historique d’images et autres versions",
       "boundaryNone": "Ce site n’a pas encore de limite.",
       "confidenceValue": "confiance {{value}}",
       "boundaryConfirm": "Confirmer la limite",
       "boundaryEditOnMap": "Modifier sur la carte",
       "boundaryAdopt": "Utiliser",
-      "vehiclesAdjust": "Ajuster",
+      "vehiclesAdjust": "Corriger le nombre",
       "vehiclesChangeManual": "Modifier",
       "vehiclesUseDetected": "Utiliser le nombre détecté",
       "limitationsToggle_one": "{{count}} limite",
@@ -856,7 +842,9 @@
         "vehiclesReviewed": "Véhicules vérifiés sur la carte : {{from}} → {{to}}",
         "markedExisting": "Marqué comme portefeuille",
         "markedNew": "Marqué comme affaire nouvelle",
-        "reviewed": "Marqué comme vérifié"
+        "reviewed": "Marqué comme vérifié",
+        "count_one": "{{count}} entrée",
+        "count_other": "{{count}} entrées"
       },
       "riskTier": {
         "veryLow": "Très faible",
@@ -894,7 +882,13 @@
       "kpiVehiclesAreaEstimate": "estimation basée sur la surface",
       "vehicleCountSave": "Enregistrer le nombre de véhicules",
       "exposureChanged": "Exposition {{from}} → {{to}}",
-      "exposureChangedDetail": "L’exposition et l’EAL grêle suivent désormais le nombre saisi ({{count}})."
+      "exposureChangedDetail": "L’exposition et l’EAL grêle suivent désormais le nombre saisi ({{count}}).",
+      "contextGroup": "Pour le contexte – n’entre pas dans l’EAL grêle",
+      "aiMemoGroup": "Mémo IA",
+      "kpiEstimate": "estimation",
+      "kpiVehiclesDetectedOn": "comptés · image {{date}}",
+      "kpiExposure": "Valeur des véhicules",
+      "kpiExposurePerVehicle": "Ø {{value}} par véhicule"
     },
     "hailEal": "EAL grêle",
     "hailZone": "Zone de grêle",
@@ -977,7 +971,7 @@
       "failed_other": "{{count}} sites n’ont pas pu être recalculés."
     },
     "hailEalDetail": {
-      "title": "EAL grêle",
+      "title": "Mode de calcul",
       "vehicles": "Véhicules sur le terrain (N)",
       "frequency": "Fréquence (λ)",
       "severity": "Dommage par véhicule (Σ p·S)",
@@ -1002,8 +996,11 @@
       },
       "stockScaled": "Les comptages archivés sont mis à l’échelle du nombre vérifié manuellement.",
       "stockRangeMissing": "Fourchette dans le temps : compter le stock sur les images archivées sous « Historique des images ».",
-      "stockRange_one": "Stock sur {{count}} image archivée : {{vehiclesLow}}–{{vehiclesHigh}} véhicules, EAL grêle de {{low}} à {{high}} (médiane {{median}}).",
-      "stockRange_other": "Stock sur {{count}} images archivées : {{vehiclesLow}}–{{vehiclesHigh}} véhicules, EAL grêle de {{low}} à {{high}} (médiane {{median}})."
+      "stockRange_one": "Le calcul utilise le comptage actuel. Sur {{count}} image archivée, il y avait {{vehiclesLow}}–{{vehiclesHigh}} véhicules ; l’EAL grêle serait alors de {{low}} à {{high}} (médiane {{median}}).",
+      "stockRange_other": "Le calcul utilise le comptage actuel. Sur {{count}} images archivées, il y avait {{vehiclesLow}}–{{vehiclesHigh}} véhicules ; l’EAL grêle serait alors de {{low}} à {{high}} (médiane {{median}}).",
+      "screeningShort": "Estimation de screening avec des valeurs provisoires – pas une décision de tarification ou de souscription.",
+      "inputsToggle": "D’où viennent les valeurs",
+      "placeholdersShort": "La fréquence et le sinistre par véhicule sont des valeurs provisoires ; le calibrage par la souscription est en attente."
     },
     "info": {
       "label": "Qu’est-ce que cela signifie ?",
@@ -1229,7 +1226,6 @@
       "editingActiveBadge": "actif",
       "editBoundariesButton": "Modifier les limites",
       "stopEditingButton": "Arrêter la modification",
-      "detectionEditingTitle": "Vérification des véhicules",
       "detectionEditingActiveBadge": "actif",
       "editDetectionsButton": "Vérifier les véhicules",
       "saveDetectionEditsButton": "Enregistrer la vérification",
@@ -1256,7 +1252,10 @@
       "imageryVersionShown": "Affichée :",
       "boundariesLayerOffHint": "Affichez la couche « Limites de terrain » pour modifier les limites.",
       "detectionNeedsSelectionHint": "Sélectionnez un site sur la carte ou dans la liste.",
-      "detectionLayerOffHint": "Affichez la couche « Véhicules » pour vérifier les véhicules."
+      "detectionLayerOffHint": "Affichez la couche « Véhicules » pour vérifier les véhicules.",
+      "editSectionTitle": "Modifier",
+      "nearbyInsuredLayerHint": "Sites assurés autour du site sélectionné",
+      "accumulationClustersLayerHint": "Sites assez proches pour être touchés par un même orage"
     },
     "page": {
       "attributionOsm": "contributeurs d'OpenStreetMap",
@@ -1320,7 +1319,6 @@
     }
   },
   "ai": {
-    "memo": "Note de souscription",
     "chat": "Chat du portefeuille",
     "naturalLanguageQuery": "Requête en langage naturel",
     "queryInputPlaceholder": "Posez une question en langage naturel…",
@@ -1672,9 +1670,6 @@
     "startCount_other": "Vérifier ({{count}})",
     "empty": "Aucun point à vérifier.",
     "finished": "Tous les points ont été vérifiés.",
-    "position": "Vérification {{position}} sur {{total}}",
-    "remaining_one": "encore {{count}} ouvert",
-    "remaining_other": "encore {{count}} ouverts",
     "alreadyReviewed": "Déjà marqué comme vérifié.",
     "reason": {
       "boundary": "Vérifier la limite du terrain",
@@ -1699,15 +1694,14 @@
     "reanalyze": "Réanalyser",
     "aiOrder": "Ordre IA",
     "aiOrderHint": "L’IA classe les points à vérifier de sorte que les sites où une vérification est le plus susceptible de modifier l’EAL grêle viennent en premier. Les points et les actions restent les mêmes.",
-    "aiOrderFailed": "Ordre IA indisponible ({{error}}). La vérification démarre dans l’ordre fixe."
+    "aiOrderFailed": "Ordre IA indisponible ({{error}}). La vérification démarre dans l’ordre fixe.",
+    "progress": "Site {{position}} sur {{total}} · {{done}} terminés"
   },
   "hailHistory": {
     "title": "Historique de grêle",
-    "loading": "Chargement des observations du service météorologique allemand …",
     "failed": "L'historique de grêle n'a pas pu être chargé.",
     "retry": "Réessayer",
     "none": "Aucune station DWD avec un long historique de grêle dans un rayon de {{radius}} km.",
-    "stationPicker": "Choisir la station météo",
     "about": {
       "title": "D'où viennent les chiffres",
       "what": "Observations des stations les plus proches du service météorologique allemand dans un rayon de {{radius}} km, avec au moins dix ans d'enregistrements.",
@@ -1716,66 +1710,8 @@
       "eal": "Contexte uniquement – les valeurs n'entrent pas dans l'EAL grêle.",
       "source": "Source : Deutscher Wetterdienst (Climate Data Center, phénomènes météo quotidiens)."
     },
-    "figure": {
-      "perYear": "Jours de grêle par an",
-      "perYearHint": "Moyenne {{from}}–{{to}}",
-      "yearsWithHail": "Années avec grêle",
-      "yearsWithHailHint_one": "{{count}} sur {{total}} ans",
-      "yearsWithHailHint_other": "{{count}} sur {{total}} ans",
-      "peak": "Maximum",
-      "peakHint": "en {{year}} · afficher",
-      "last": "Dernier jour de grêle",
-      "season": "surtout {{months}}",
-      "seasonSpread": "réparti sur l'année"
-    },
-    "days_one": "{{count}} jour de grêle",
-    "days_other": "{{count}} jours de grêle",
-    "viewLabel": "Affichage",
-    "view": {
-      "years": "Par année",
-      "months": "Par mois"
-    },
-    "rangeLabel": "Période",
-    "range": {
-      "all": "{{from}}–{{to}}",
-      "recent": "{{count}} dernières années"
-    },
-    "clickHint": "Cliquer sur une barre pour voir les jours",
-    "axisDays": "Jours de grêle",
-    "axisDaysTotal": "Jours de grêle au total",
-    "notObserved": "Observation insuffisante",
-    "meanLabel": "Moy. {{days}}",
-    "monthShare": "{{share}} de tous les jours de grêle",
-    "legend": {
-      "days": "Jours de grêle dans l'année",
-      "gap": "pas d'observation",
-      "mean": "Moyenne"
-    },
-    "detail": {
-      "monthTitle": "{{month}}",
-      "noHail": "pas de grêle observée",
-      "monthSummary_one": "{{count}} jour de grêle sur {{years}}",
-      "monthSummary_other": "{{count}} jours de grêle sur {{years}}",
-      "yearCount_one": "{{count}} an",
-      "yearCount_other": "{{count}} ans",
-      "more": "+ {{count}} autres",
-      "close": "Fermer les détails"
-    },
-    "notes": {
-      "ended_one": "L'observation s'arrête en {{year}} (il y a {{count}} an) – la grêle plus récente n'est pas incluse.",
-      "ended_other": "L'observation s'arrête en {{year}} (il y a {{count}} ans) – la grêle plus récente n'est pas incluse.",
-      "far": "La station est à {{distance}} km – la grêle sur le site peut être très différente.",
-      "short_one": "Seulement {{count}} année d'observation – la moyenne est incertaine.",
-      "short_other": "Seulement {{count}} années d'observation – la moyenne est incertaine.",
-      "gaps_one": "{{count}} année de la période sans observation suffisante (gris).",
-      "gaps_other": "{{count}} années de la période sans observation suffisante (gris).",
-      "context": "Contexte pour l'évaluation uniquement – non utilisé dans l'EAL grêle.",
-      "newer": "La station {{name}} a des données jusqu'en {{year}}.",
-      "switch": "Afficher la station"
-    },
-    "zeroDays": "Pas de grêle observée",
-    "stationMeta": "{{distance}} km · {{from}}–{{to}} · jours de grêle/an : {{days}}",
-    "stationPickerHint": "{{count}} stations à proximité – choisir une station pour voir ses données"
+    "summary": "{{station}} ({{distance}} km) · {{from}}–{{to}} · Ø {{days}} jours de grêle/an",
+    "summaryLoading": "chargement …"
   },
   "importPreview": {
     "title": "Aperçu",
@@ -1898,7 +1834,11 @@
     "distance": "à {{km}} km",
     "archive": "Archive locale du {{from}} au {{to}}.",
     "offline": "Le DWD n’était pas joignable ; l’archive enregistrée est affichée.",
-    "note": "Source : suivi des cellules KONRAD3D du DWD. Le contour est la cellule orageuse entière ; la grêle ne tombe que dans une partie. Contexte uniquement, hors EAL grêle."
+    "note": "Source : suivi des cellules KONRAD3D du DWD. Le contour est la cellule orageuse entière ; la grêle ne tombe que dans une partie. Contexte uniquement, hors EAL grêle.",
+    "summaryNone": "aucun passage",
+    "summaryDays_one": "{{count}} jour de grêle",
+    "summaryDays_other": "{{count}} jours de grêle",
+    "summaryNoneSince": "aucun passage depuis le {{from}}"
   },
   "changeReport": {
     "title": "Changements depuis l’analyse",
@@ -2097,14 +2037,23 @@
     "importInvalidJson": "Le fichier n’est pas un JSON valide.",
     "importNotGeojson": "Une FeatureCollection ou un Feature GeoJSON est attendu.",
     "importNoPolygons": "Le fichier ne contient aucune empreinte polygonale en WGS84 (lon/lat).",
-    "importTooManyPolygons": "Le fichier contient trop de polygones."
+    "importTooManyPolygons": "Le fichier contient trop de polygones.",
+    "intro": "Faites passer un orage de grêle sur la carte et voyez quels sites il touche et ce que cela coûte.",
+    "modeHint": {
+      "simulate": "Générer des orages aléatoires – le moyen le plus rapide d’obtenir un résultat.",
+      "draw": "Tracer vous-même le trajet de l’orage sur la carte.",
+      "history": "Rejouer une vraie journée d’orage depuis 2001.",
+      "library": "Ouvrir les scénarios enregistrés, les journées radar et les fichiers importés."
+    },
+    "simOptions": "Intensité, direction, autre point de départ"
   },
   "aiInsight": {
     "copy": "Copier",
     "copied": "Copié dans le presse-papiers.",
     "addToNotes": "Ajouter aux notes",
     "addedToNotes": "Ajouté aux notes.",
-    "notesFull": "Les notes sont trop longues pour accueillir ce texte."
+    "notesFull": "Les notes sont trop longues pour accueillir ce texte.",
+    "optional": "facultatif"
   },
   "challenge": {
     "title": "Hypothèses les plus fragiles",
@@ -2135,7 +2084,9 @@
       "fallbackData": "Des données de repli ont été utilisées pour : {{sources}}.",
       "placeholderParameters": "La fréquence de grêle et le sinistre par véhicule sont des valeurs provisoires non calibrées.",
       "noProtectionConsidered": "Chaque véhicule compté est considéré comme stationné à l'air libre ; filets paragrêle, auvents et halls ne sont pas pris en compte."
-    }
+    },
+    "count_one": "{{count}} point",
+    "count_other": "{{count}} points"
   },
   "evidenceMemo": {
     "write": "Rédiger une note aux chiffres vérifiés",
@@ -2165,7 +2116,8 @@
       "productLimitEur": "Limite produit (€)",
       "analyzedOn": "Analysé le",
       "modelVersion": "Version du modèle"
-    }
+    },
+    "hint": "Un court texte sur le site. Chaque chiffre est vérifié par rapport aux valeurs de l’application."
   },
   "siteCheck": {
     "title": "Contrôle de l'image aérienne (IA)",

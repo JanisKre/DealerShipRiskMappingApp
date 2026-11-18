@@ -6,6 +6,7 @@ import type {
 } from "@shared/types";
 import { eur, num } from "@renderer/lib/format";
 import { displayedHailVehicleSource } from "@shared/risk-math";
+import { Disclosure } from "./shared";
 
 /** Locale keys for the stored (English) hail risk tier values. */
 const RISK_TIER_KEYS: Record<HailRiskTier, string> = {
@@ -16,7 +17,11 @@ const RISK_TIER_KEYS: Record<HailRiskTier, string> = {
   "Very High": "veryHigh",
 };
 
-/** Hail zone and how the EAL in the header was derived. */
+/**
+ * How the EAL in the header was derived: the formula and the one sentence
+ * that qualifies it. Where each input comes from, the placeholder note in
+ * full and the range over time sit one click away.
+ */
 export function HailOverview({
   d,
 }: {
@@ -24,42 +29,15 @@ export function HailOverview({
 }): React.JSX.Element {
   const { t } = useTranslation();
   const eb = d.risk?.ealBreakdown;
+  const detail = eb?.hailDetail;
+  if (!eb) return <></>;
   return (
-    <div className="space-y-3 text-sm">
-      {eb && <HailEalSection eb={eb} detection={d.detection} />}
-      {/* The zone itself is the badge in the header; only the tariff class
-          adds information here. */}
-      {d.hailRiskTier && (
-        <p className="text-xs text-muted-foreground">
-          {t("dashboard.detailDialog.hailZoneKasko", {
-            tier: t(
-              `dashboard.detailDialog.riskTier.${RISK_TIER_KEYS[d.hailRiskTier]}`,
-            ),
-          })}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Shows how the hail EAL was derived: N × λ_z × S̄, with each input's source. */
-function HailEalSection({
-  eb,
-  detection,
-}: Readonly<{
-  eb: EalBreakdown;
-  detection: AnalyzedDealership["detection"];
-}>): React.JSX.Element {
-  const { t } = useTranslation();
-  const detail = eb.hailDetail;
-  return (
-    <div className="space-y-2">
+    <div className="space-y-2 text-sm">
       <h4 className="text-sm font-semibold">
         {t("dashboard.hailEalDetail.title")}
       </h4>
       {detail ? (
         <>
-          {/* One line instead of three cards that repeated the sentence. */}
           <p className="rounded-md bg-muted/40 px-3 py-2 font-medium tabular-nums">
             {t("dashboard.hailEalDetail.formula", {
               vehicles: num(detail.vehicles),
@@ -68,18 +46,14 @@ function HailEalSection({
               eal: eur(eb.hail),
             })}
           </p>
+          {/* λ, p and S are placeholders until calibrated (UX-06): the
+              qualification stays in view, the long form is below. */}
           <p className="text-xs text-muted-foreground">
-            {t(
-              `dashboard.hailEalDetail.vehicleSource.${displayedHailVehicleSource(detail.vehicleSource, detection)}`,
-            )}{" "}
-            {t(`dashboard.hailEalDetail.zoneSource.${detail.zoneSource}`)}{" "}
-            {t("dashboard.hailEalDetail.severityNote")}
+            {t("dashboard.hailEalDetail.screeningShort")}
           </p>
-          {/* λ, p and S are placeholders until calibrated (UX-06). */}
-          <p className="text-xs text-muted-foreground">
-            {t("parameters.hailEal.placeholders")}
-          </p>
-          {detail.stockRange ? (
+          {/* A range counted over archived images is a result, not a
+              footnote: it stays in view once it exists. */}
+          {detail.stockRange && (
             <p className="text-xs tabular-nums">
               {t("dashboard.hailEalDetail.stockRange", {
                 count: detail.stockRange.images,
@@ -96,11 +70,10 @@ function HailEalSection({
               {detail.stockRange.scaledToManual &&
                 t("dashboard.hailEalDetail.stockScaled")}
             </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {t("dashboard.hailEalDetail.stockRangeMissing")}
-            </p>
           )}
+          <Disclosure title={t("dashboard.hailEalDetail.inputsToggle")}>
+            <HailEalInputs d={d} eb={eb} />
+          </Disclosure>
         </>
       ) : (
         <p className="text-sm text-muted-foreground">
@@ -108,5 +81,43 @@ function HailEalSection({
         </p>
       )}
     </div>
+  );
+}
+
+/** Source of each input of N × λ_z × S̄, the caveats and the range over time. */
+function HailEalInputs({
+  d,
+  eb,
+}: Readonly<{
+  d: AnalyzedDealership;
+  eb: EalBreakdown;
+}>): React.JSX.Element | null {
+  const { t } = useTranslation();
+  const detail = eb.hailDetail;
+  if (!detail) return null;
+  return (
+    <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+      <li>
+        {t(
+          `dashboard.hailEalDetail.vehicleSource.${displayedHailVehicleSource(detail.vehicleSource, d.detection)}`,
+        )}
+      </li>
+      <li>
+        {t(`dashboard.hailEalDetail.zoneSource.${detail.zoneSource}`)}
+        {/* The zone itself is the badge in the header; only the tariff
+            class adds information here. */}
+        {d.hailRiskTier &&
+          ` ${t("dashboard.detailDialog.hailZoneKasko", {
+            tier: t(
+              `dashboard.detailDialog.riskTier.${RISK_TIER_KEYS[d.hailRiskTier]}`,
+            ),
+          })}.`}
+      </li>
+      <li>{t("dashboard.hailEalDetail.severityNote")}</li>
+      <li>{t("dashboard.hailEalDetail.placeholdersShort")}</li>
+      {!detail.stockRange && (
+        <li>{t("dashboard.hailEalDetail.stockRangeMissing")}</li>
+      )}
+    </ul>
   );
 }

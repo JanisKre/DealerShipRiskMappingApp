@@ -9,7 +9,7 @@ import { Button } from "@renderer/components/ui/button";
 import { useAppStore } from "@renderer/store/appStore";
 import { pct } from "@renderer/lib/format";
 import { estimateHailZoneFromScore } from "@shared/risk-math";
-import { formatIsoDate } from "./shared";
+import { Disclosure, formatIsoDate } from "./shared";
 import { boundaryRoleLabel } from "./boundaryText";
 
 /**
@@ -28,7 +28,7 @@ export function ModelConfidenceSummary({
   const evidence = d.risk.evidence ?? [];
 
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-2 text-sm">
       <div className="flex items-center justify-between gap-3">
         <h4 className="font-semibold">{t("ui.modelConfidence")}</h4>
         <span className="text-muted-foreground">
@@ -37,51 +37,41 @@ export function ModelConfidenceSummary({
         </span>
       </div>
       {evidence.length > 0 && (
-        <details className="rounded-md border text-xs">
-          <summary className="px-2 py-1.5 font-medium text-muted-foreground">
-            {t("dashboard.detailDialog.sourcesUsedCount", {
-              count: evidence.length,
-            })}
-          </summary>
-          <ul className="space-y-1 border-t px-2 py-2">
+        <Disclosure
+          title={t("dashboard.detailDialog.sourcesUsedCount", {
+            count: evidence.length,
+          })}
+        >
+          <ul className="space-y-1 text-xs">
             {evidence.map((item) => (
-              <li
-                key={`${item.source}-${item.method}`}
-                className="flex justify-between gap-3"
-              >
-                <span className="min-w-0">
-                  <span className="font-medium">
-                    {localizedRiskText(t, item.source)}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {" "}
-                    · {localizedRiskText(t, item.method)}
-                    {item.fallbackUsed
-                      ? t("dashboard.detailDialog.evidenceFallbackSuffix")
-                      : ""}
-                  </span>
+              <li key={`${item.source}-${item.method}`}>
+                <span className="font-medium">
+                  {localizedRiskText(t, item.source)}
                 </span>
-                <span className="shrink-0 tabular-nums text-muted-foreground">
-                  {pct(item.confidence, 0)}
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {localizedRiskText(t, item.method)}
+                  {item.fallbackUsed
+                    ? t("dashboard.detailDialog.evidenceFallbackSuffix")
+                    : ""}
                 </span>
               </li>
             ))}
           </ul>
-        </details>
+        </Disclosure>
       )}
       {limitations.length > 0 && (
-        <details className="rounded-md border text-xs">
-          <summary className="px-2 py-1.5 font-medium text-muted-foreground">
-            {t("dashboard.detailDialog.limitationsToggle", {
-              count: limitations.length,
-            })}
-          </summary>
-          <ul className="list-disc space-y-1 border-t py-2 pl-6 pr-2 text-muted-foreground">
+        <Disclosure
+          title={t("dashboard.detailDialog.limitationsToggle", {
+            count: limitations.length,
+          })}
+        >
+          <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
             {limitations.map((limitation) => (
               <li key={limitation}>{localizedRiskText(t, limitation)}</li>
             ))}
           </ul>
-        </details>
+        </Disclosure>
       )}
     </div>
   );
@@ -148,6 +138,14 @@ function localizedRiskText(t: TFunction, text: string): string {
     return t("dashboard.detailDialog.riskText.vehicleDetectorMethod", {
       resolution: detector[1].replace(".", ","),
     });
+  // "Stock snapshot not typical: 97 vehicles … may understate typical stock".
+  const stock = text.match(
+    /^Stock snapshot not typical: .* may (overstate|understate) typical stock/,
+  );
+  if (stock)
+    return t(
+      `dashboard.hailEalDetail.stockSnapshot.${stock[1] === "overstate" ? "high" : "low"}`,
+    );
   const screening = text.match(/^Risk model (.+) is a screening model$/);
   if (screening)
     return t("dashboard.detailDialog.riskText.screeningModel", {
@@ -206,13 +204,13 @@ export function NatCatSection({
     </Button>
   );
 
-  // Without an external source there is nothing to show but that fact.
+  // Without an external source there is nothing to show but that fact,
+  // and nothing to query again.
   if (!assessment)
     return (
-      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>{t("dashboard.detailDialog.natCatNone")}</span>
-        {refreshButton}
-      </div>
+      <p className="text-xs text-muted-foreground">
+        {t("dashboard.detailDialog.natCatNone")}
+      </p>
     );
 
   return (

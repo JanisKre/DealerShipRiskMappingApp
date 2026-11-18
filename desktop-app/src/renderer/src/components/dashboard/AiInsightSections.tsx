@@ -32,6 +32,7 @@ import { Button } from "@renderer/components/ui/button";
 import { Textarea } from "@renderer/components/ui/textarea";
 import { useLlmReady } from "@renderer/lib/useLlmReady";
 import { useAppStore } from "@renderer/store/appStore";
+import { Disclosure } from "./detail/shared";
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -79,39 +80,41 @@ export function ChallengeSection({
     [d, parameters],
   );
   return (
-    <div className="space-y-2 text-sm">
-      <div>
-        <p className="font-medium">{t("challenge.title")}</p>
+    <Disclosure
+      title={t("challenge.title")}
+      summary={t("challenge.count", { count: challenges.length })}
+    >
+      <div className="space-y-2 text-sm">
         <p className="text-xs text-muted-foreground">
           {t("challenge.description")}
         </p>
-      </div>
-      <ul className="space-y-1.5">
-        {challenges.map((c) => (
-          <li key={c.kind} className="flex items-start gap-2">
-            <Badge
-              variant={c.severity === 3 ? "destructive" : "secondary"}
-              className="mt-0.5 shrink-0"
-            >
-              {t(`challenge.severity.${c.severity}`)}
-            </Badge>
-            <span>
-              {t(`challenge.kind.${c.kind}`, c.values ?? {})}
-              <span className="block text-xs text-muted-foreground">
-                {t(`challenge.effect.${c.effect}`)}
+        <ul className="space-y-1.5">
+          {challenges.map((c) => (
+            <li key={c.kind} className="flex items-start gap-2">
+              <Badge
+                variant={c.severity === 3 ? "destructive" : "secondary"}
+                className="mt-0.5 shrink-0"
+              >
+                {t(`challenge.severity.${c.severity}`)}
+              </Badge>
+              <span>
+                {t(`challenge.kind.${c.kind}`, c.values ?? {})}
+                <span className="block text-xs text-muted-foreground">
+                  {t(`challenge.effect.${c.effect}`)}
+                </span>
               </span>
-            </span>
-          </li>
-        ))}
-      </ul>
-      <AiExplanation
-        topic="challenge"
-        facts={
-          challenges.length > 0 ? challengeFacts(d.name, challenges) : null
-        }
-        label={t("challenge.argue")}
-      />
-    </div>
+            </li>
+          ))}
+        </ul>
+        <AiExplanation
+          topic="challenge"
+          facts={
+            challenges.length > 0 ? challengeFacts(d.name, challenges) : null
+          }
+          label={t("challenge.argue")}
+        />
+      </div>
+    </Disclosure>
   );
 }
 
@@ -168,66 +171,74 @@ export function EvidenceMemoSection({
   const text = memo?.sentences.map((s) => s.text).join(" ") ?? "";
 
   return (
-    <div className="space-y-2 text-sm">
-      <Button size="sm" variant="outline" disabled={busy} onClick={write}>
-        {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
-        {t("evidenceMemo.write")}
-      </Button>
-      {error && <LlmErrorMessage error={error} />}
-      {memo && (
-        <div className="space-y-2 rounded-md border bg-muted/40 p-3">
-          {memo.sentences.length === 0 ? (
-            <p>{t("evidenceMemo.nothingLeft")}</p>
-          ) : (
-            <ul className="space-y-2">
-              {memo.sentences.map((sentence, i) => (
-                <li key={i}>
-                  {sentence.text}
-                  {sentence.facts.length > 0 && (
-                    <span className="block text-xs text-muted-foreground">
-                      {t("evidenceMemo.basedOn")}{" "}
-                      {sentence.facts
-                        .map((id) => byId.get(id))
-                        .filter((f): f is MemoFact => f != null)
-                        .map((f) => factLabel(t, f, i18n.language))
-                        .join(" · ")}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {memo.removed.length > 0 && (
+    <Disclosure
+      title={t("dashboard.detailDialog.aiMemoGroup")}
+      summary={t("aiInsight.optional")}
+    >
+      <div className="space-y-2 text-sm">
+        <Button size="sm" variant="outline" disabled={busy} onClick={write}>
+          {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+          {t("evidenceMemo.write")}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          {t("evidenceMemo.hint")}
+        </p>
+        {error && <LlmErrorMessage error={error} />}
+        {memo && (
+          <div className="space-y-2 rounded-md border bg-muted/40 p-3">
+            {memo.sentences.length === 0 ? (
+              <p>{t("evidenceMemo.nothingLeft")}</p>
+            ) : (
+              <ul className="space-y-2">
+                {memo.sentences.map((sentence, i) => (
+                  <li key={i}>
+                    {sentence.text}
+                    {sentence.facts.length > 0 && (
+                      <span className="block text-xs text-muted-foreground">
+                        {t("evidenceMemo.basedOn")}{" "}
+                        {sentence.facts
+                          .map((id) => byId.get(id))
+                          .filter((f): f is MemoFact => f != null)
+                          .map((f) => factLabel(t, f, i18n.language))
+                          .join(" · ")}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {memo.removed.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {t("evidenceMemo.removed", { count: memo.removed.length })}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
-              {t("evidenceMemo.removed", { count: memo.removed.length })}
+              {t("evidenceMemo.disclaimer")}
             </p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            {t("evidenceMemo.disclaimer")}
-          </p>
-          {text && (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => void copyText(text, t("aiInsight.copied"))}
-              >
-                <Copy /> {t("aiInsight.copy")}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  appendNote(`${t("evidenceMemo.noteHeading")}\n${text}`)
-                }
-              >
-                <NotebookPen /> {t("aiInsight.addToNotes")}
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+            {text && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void copyText(text, t("aiInsight.copied"))}
+                >
+                  <Copy /> {t("aiInsight.copy")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    appendNote(`${t("evidenceMemo.noteHeading")}\n${text}`)
+                  }
+                >
+                  <NotebookPen /> {t("aiInsight.addToNotes")}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </Disclosure>
   );
 }
 
@@ -349,113 +360,112 @@ export function SiteCheckSection({
   }
 
   return (
-    <div className="space-y-3 text-sm">
-      <div>
-        <p className="font-medium">{t("siteCheck.title")}</p>
+    <Disclosure title={t("siteCheck.title")} summary={t("aiInsight.optional")}>
+      <div className="space-y-3 text-sm">
         <p className="text-xs text-muted-foreground">
           {t("siteCheck.description")}
         </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={busy !== null}
-          onClick={() => void run(false)}
-        >
-          {busy === "check" ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <ScanSearch />
-          )}
-          {t("siteCheck.run")}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={busy !== null}
-          onClick={() => void run(true)}
-        >
-          {busy === "history" && <Loader2 className="animate-spin" />}
-          {t("siteCheck.runHistory")}
-        </Button>
-        {d.boundary && (
+        <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
             variant="outline"
             disabled={busy !== null}
-            onClick={() => void askBoundary()}
+            onClick={() => void run(false)}
           >
-            {busy === "boundary" && <Loader2 className="animate-spin" />}
-            {t("siteCheck.boundaryOpinion")}
+            {busy === "check" ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <ScanSearch />
+            )}
+            {t("siteCheck.run")}
           </Button>
-        )}
-      </div>
-      {error && <LlmErrorMessage error={error} />}
-
-      {result && (
-        <div className="space-y-3 rounded-md border bg-muted/40 p-3">
-          <CheckRow check={result.current} />
-          {since.map((s) => (
-            <p key={s.feature}>
-              {s.absentOn
-                ? t("siteCheck.sinceBetween", {
-                    feature: t(`siteCheck.feature.${s.feature}`),
-                    since: s.seenSince ?? t("siteCheck.dateUnknown"),
-                    absent: s.absentOn,
-                  })
-                : t("siteCheck.sinceAtLeast", {
-                    feature: t(`siteCheck.feature.${s.feature}`),
-                    since: s.seenSince ?? t("siteCheck.dateUnknown"),
-                  })}
-            </p>
-          ))}
-          {result.history.length > 0 && (
-            <details>
-              <summary className="text-xs text-muted-foreground">
-                {t("siteCheck.olderImages", { count: result.history.length })}
-              </summary>
-              <div className="mt-2 space-y-2">
-                {result.history.map((check) => (
-                  <CheckRow
-                    key={`${check.imageLabel}-${check.imageCapturedAt}`}
-                    check={check}
-                  />
-                ))}
-              </div>
-            </details>
-          )}
-          <p className="text-xs text-muted-foreground">
-            {t("siteCheck.disclaimer", { model: result.current.model })}
-          </p>
           <Button
             size="sm"
-            variant="ghost"
-            onClick={() => appendNote(noteText(result))}
+            variant="outline"
+            disabled={busy !== null}
+            onClick={() => void run(true)}
           >
-            <NotebookPen /> {t("aiInsight.addToNotes")}
+            {busy === "history" && <Loader2 className="animate-spin" />}
+            {t("siteCheck.runHistory")}
           </Button>
-        </div>
-      )}
-
-      {opinion && (
-        <div className="space-y-1 rounded-md border bg-muted/40 p-3">
-          <p>
-            <Badge
-              variant={
-                opinion.verdict === "plausible" ? "outline" : "secondary"
-              }
+          {d.boundary && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={() => void askBoundary()}
             >
-              {t(`siteCheck.verdict.${opinion.verdict}`)}
-            </Badge>
-          </p>
-          {opinion.note && <p>{opinion.note}</p>}
-          <p className="text-xs text-muted-foreground">
-            {t("siteCheck.boundaryDisclaimer", { model: opinion.model })}
-          </p>
+              {busy === "boundary" && <Loader2 className="animate-spin" />}
+              {t("siteCheck.boundaryOpinion")}
+            </Button>
+          )}
         </div>
-      )}
-    </div>
+        {error && <LlmErrorMessage error={error} />}
+
+        {result && (
+          <div className="space-y-3 rounded-md border bg-muted/40 p-3">
+            <CheckRow check={result.current} />
+            {since.map((s) => (
+              <p key={s.feature}>
+                {s.absentOn
+                  ? t("siteCheck.sinceBetween", {
+                      feature: t(`siteCheck.feature.${s.feature}`),
+                      since: s.seenSince ?? t("siteCheck.dateUnknown"),
+                      absent: s.absentOn,
+                    })
+                  : t("siteCheck.sinceAtLeast", {
+                      feature: t(`siteCheck.feature.${s.feature}`),
+                      since: s.seenSince ?? t("siteCheck.dateUnknown"),
+                    })}
+              </p>
+            ))}
+            {result.history.length > 0 && (
+              <details>
+                <summary className="text-xs text-muted-foreground">
+                  {t("siteCheck.olderImages", { count: result.history.length })}
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {result.history.map((check) => (
+                    <CheckRow
+                      key={`${check.imageLabel}-${check.imageCapturedAt}`}
+                      check={check}
+                    />
+                  ))}
+                </div>
+              </details>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {t("siteCheck.disclaimer", { model: result.current.model })}
+            </p>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => appendNote(noteText(result))}
+            >
+              <NotebookPen /> {t("aiInsight.addToNotes")}
+            </Button>
+          </div>
+        )}
+
+        {opinion && (
+          <div className="space-y-1 rounded-md border bg-muted/40 p-3">
+            <p>
+              <Badge
+                variant={
+                  opinion.verdict === "plausible" ? "outline" : "secondary"
+                }
+              >
+                {t(`siteCheck.verdict.${opinion.verdict}`)}
+              </Badge>
+            </p>
+            {opinion.note && <p>{opinion.note}</p>}
+            <p className="text-xs text-muted-foreground">
+              {t("siteCheck.boundaryDisclaimer", { model: opinion.model })}
+            </p>
+          </div>
+        )}
+      </div>
+    </Disclosure>
   );
 }
 

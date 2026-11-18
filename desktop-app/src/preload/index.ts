@@ -371,13 +371,6 @@ const api = {
       locale,
     } satisfies IpcRequest["report:readonlyView"]),
 
-  llmMemo: (
-    dealership: IpcRequest["llm:memo"]["dealership"],
-  ): Promise<IpcResponse["llm:memo"]> =>
-    ipcRenderer.invoke(IPC.llmMemo, {
-      dealership,
-    } satisfies IpcRequest["llm:memo"]),
-
   /**
    * Starts an LLM stream. The main process sends chunks over a dedicated
    * response channel `llm:stream:<id>`. Returns a `stop()` function that

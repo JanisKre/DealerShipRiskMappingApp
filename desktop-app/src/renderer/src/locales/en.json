@@ -630,8 +630,6 @@
       "estimatedHailZone": "Hail zone {{zone}} is only estimated – check the address/postcode.",
       "accumulationEstimated": "Accumulation of {{count}} sites with ≈{{exposure}} exposure · {{share}}% estimated."
     },
-    "utilisation": "Utilisation",
-    "capacity": "Capacity",
     "area": "Area",
     "boundarySource": "Boundary Source",
     "manageTiles": "Customize dashboard",
@@ -676,14 +674,6 @@
         "total": "Total"
       },
       "boundaryTitle": "Parcel Boundary",
-      "boundaryRoleLabel": "Role: {{role}}",
-      "boundaryAgreementLabel": "Source agreement: {{agreement}}",
-      "boundaryEngineLabel": "Engine: {{engine}}",
-      "boundaryEngine": {
-        "legacy": "candidate ranking",
-        "fused": "multi-source fusion",
-        "cascade": "source cascade"
-      },
       "boundaryReviewLabel": "Review required",
       "boundaryExcludePartAction": "Exclude extra part",
       "boundarySource": {
@@ -702,7 +692,6 @@
         "operationalLot": "Confirmed operational lot",
         "synthetic": "Estimated area (circle)"
       },
-      "showDetails": "Show details",
       "evidenceFallbackSuffix": " · fallback method",
       "riskText": {
         "screeningModel": "Risk model {{version}} is a screening model",
@@ -765,9 +754,6 @@
       "natCatRefreshing": "Querying sources…",
       "natCatHazard": "{{peril}}: zone {{zone}} ({{unit}})",
       "natCatAttribute": "{{name}}: {{value}}",
-      "errorPrefix": "Error: {{error}}",
-      "recommendedDeductibleLabel": "Rec. Deductible",
-      "premiumLoadingLabel": "Premium Loading",
       "deductibleLabel": "Deductible (EUR)",
       "imageryHistory": {
         "title": "Imagery history (Esri Wayback)",
@@ -794,7 +780,7 @@
       "nextLocation": "Next location",
       "showOnMap": "Show on map",
       "moreActions": "More actions",
-      "kpiHailEal": "Hail EAL / year",
+      "kpiHailEal": "Hail loss / year (EAL)",
       "kpiRank": "rank {{rank}} of {{total}}",
       "kpiVehiclesManual": "adjusted manually",
       "kpiVehiclesEstimated": "estimated only",
@@ -813,14 +799,14 @@
       "tabOverview": "Risk",
       "tabSite": "Site & vehicles",
       "tabContract": "Contract & notes",
-      "tabSources": "Sources",
+      "tabSources": "Sources & history",
       "imageryHistoryToggle": "Image history and other versions",
       "boundaryNone": "This location has no boundary yet.",
       "confidenceValue": "{{value}} confidence",
       "boundaryConfirm": "Confirm boundary",
       "boundaryEditOnMap": "Edit on map",
       "boundaryAdopt": "Use this",
-      "vehiclesAdjust": "Adjust",
+      "vehiclesAdjust": "Correct count",
       "vehiclesChangeManual": "Change",
       "vehiclesUseDetected": "Use detected count",
       "limitationsToggle_one": "{{count}} limitation",
@@ -856,7 +842,9 @@
         "vehiclesReviewed": "Vehicles reviewed on the map: {{from}} → {{to}}",
         "markedExisting": "Marked as existing business",
         "markedNew": "Marked as new business",
-        "reviewed": "Marked as reviewed"
+        "reviewed": "Marked as reviewed",
+        "count_one": "{{count}} entry",
+        "count_other": "{{count}} entries"
       },
       "riskTier": {
         "veryLow": "Very low",
@@ -894,7 +882,13 @@
       "kpiVehiclesAreaEstimate": "area-based estimate",
       "vehicleCountSave": "Save vehicle count",
       "exposureChanged": "Exposure {{from}} → {{to}}",
-      "exposureChangedDetail": "Exposure and hail EAL now follow the entered vehicle count ({{count}})."
+      "exposureChangedDetail": "Exposure and hail EAL now follow the entered vehicle count ({{count}}).",
+      "contextGroup": "For context – not part of the hail EAL",
+      "aiMemoGroup": "AI memo",
+      "kpiEstimate": "estimate",
+      "kpiVehiclesDetectedOn": "counted · image {{date}}",
+      "kpiExposure": "Vehicle value (exposure)",
+      "kpiExposurePerVehicle": "avg. {{value}} per vehicle"
     },
     "hailEal": "Hail EAL",
     "hailZone": "Hail zone",
@@ -977,7 +971,7 @@
       "failed_other": "{{count}} locations could not be recalculated."
     },
     "hailEalDetail": {
-      "title": "Hail EAL",
+      "title": "How it is calculated",
       "vehicles": "Vehicles on the lot (N)",
       "frequency": "Frequency (λ)",
       "severity": "Loss per vehicle (Σ p·S)",
@@ -1002,8 +996,11 @@
       },
       "stockScaled": "The archived counts are scaled to the manually reviewed count.",
       "stockRangeMissing": "Range over time: count the stock on archived images under \"Imagery history\".",
-      "stockRange_one": "Stock over {{count}} archived image: {{vehiclesLow}}–{{vehiclesHigh}} vehicles, hail EAL {{low}} to {{high}} (median {{median}}).",
-      "stockRange_other": "Stock over {{count}} archived images: {{vehiclesLow}}–{{vehiclesHigh}} vehicles, hail EAL {{low}} to {{high}} (median {{median}})."
+      "stockRange_one": "The calculation uses the current count. On {{count}} archived image there were {{vehiclesLow}}–{{vehiclesHigh}} vehicles; with that the hail EAL would be {{low}} to {{high}} (median {{median}}).",
+      "stockRange_other": "The calculation uses the current count. On {{count}} archived images there were {{vehiclesLow}}–{{vehiclesHigh}} vehicles; with that the hail EAL would be {{low}} to {{high}} (median {{median}}).",
+      "screeningShort": "Screening estimate with placeholder values – not a pricing or underwriting decision.",
+      "inputsToggle": "Where the values come from",
+      "placeholdersShort": "Frequency and loss per vehicle are placeholder values; calibration by underwriting is pending."
     },
     "info": {
       "label": "What does this mean?",
@@ -1229,7 +1226,6 @@
       "editingActiveBadge": "active",
       "editBoundariesButton": "Edit boundaries",
       "stopEditingButton": "Stop editing",
-      "detectionEditingTitle": "Vehicle review",
       "detectionEditingActiveBadge": "active",
       "editDetectionsButton": "Review vehicles",
       "saveDetectionEditsButton": "Save review",
@@ -1256,7 +1252,10 @@
       "imageryVersionShown": "Shown:",
       "boundariesLayerOffHint": "Turn on the “Lot boundaries” layer to edit boundaries.",
       "detectionNeedsSelectionHint": "Select a location on the map or in the list.",
-      "detectionLayerOffHint": "Turn on the “Vehicles” layer to review vehicles."
+      "detectionLayerOffHint": "Turn on the “Vehicles” layer to review vehicles.",
+      "editSectionTitle": "Edit",
+      "nearbyInsuredLayerHint": "Insured locations around the selected location",
+      "accumulationClustersLayerHint": "Locations close enough for one storm to hit them all"
     },
     "page": {
       "attributionOsm": "OpenStreetMap contributors",
@@ -1320,7 +1319,6 @@
     }
   },
   "ai": {
-    "memo": "Underwriting Memo",
     "chat": "Portfolio Chat",
     "naturalLanguageQuery": "Natural-language query",
     "queryInputPlaceholder": "Ask a question in natural language…",
@@ -1672,9 +1670,6 @@
     "startCount_other": "Review ({{count}})",
     "empty": "No open review points.",
     "finished": "All review points done.",
-    "position": "Review {{position}} of {{total}}",
-    "remaining_one": "{{count}} still open",
-    "remaining_other": "{{count}} still open",
     "alreadyReviewed": "Already marked as reviewed.",
     "reason": {
       "boundary": "Check lot boundary",
@@ -1699,15 +1694,14 @@
     "reanalyze": "Re-analyse",
     "aiOrder": "AI order",
     "aiOrderHint": "The AI orders the open review points so that the locations where a check is most likely to change the hail EAL come first. The review points and actions stay the same.",
-    "aiOrderFailed": "AI order not available ({{error}}). The review starts in the fixed order."
+    "aiOrderFailed": "AI order not available ({{error}}). The review starts in the fixed order.",
+    "progress": "Location {{position}} of {{total}} · {{done}} done"
   },
   "hailHistory": {
     "title": "Hail history",
-    "loading": "Loading observations of the German Weather Service …",
     "failed": "The hail history could not be loaded.",
     "retry": "Try again",
     "none": "No DWD station with a long hail record within {{radius}} km.",
-    "stationPicker": "Choose weather station",
     "about": {
       "title": "Where the figures come from",
       "what": "Observations of the nearest German Weather Service stations within {{radius}} km that have at least ten years of records.",
@@ -1716,66 +1710,8 @@
       "eal": "Context only – the figures do not enter the hail EAL.",
       "source": "Data basis: Deutscher Wetterdienst (Climate Data Center, daily weather phenomena)."
     },
-    "figure": {
-      "perYear": "Hail days per year",
-      "perYearHint": "Mean {{from}}–{{to}}",
-      "yearsWithHail": "Years with hail",
-      "yearsWithHailHint_one": "{{count}} of {{total}} years",
-      "yearsWithHailHint_other": "{{count}} of {{total}} years",
-      "peak": "Highest",
-      "peakHint": "in {{year}} · show",
-      "last": "Latest hail day",
-      "season": "mostly {{months}}",
-      "seasonSpread": "spread over the year"
-    },
-    "days_one": "{{count}} hail day",
-    "days_other": "{{count}} hail days",
-    "viewLabel": "View",
-    "view": {
-      "years": "By year",
-      "months": "By month"
-    },
-    "rangeLabel": "Period",
-    "range": {
-      "all": "{{from}}–{{to}}",
-      "recent": "Last {{count}} years"
-    },
-    "clickHint": "Click a bar for the individual days",
-    "axisDays": "Hail days",
-    "axisDaysTotal": "Hail days in total",
-    "notObserved": "Not observed sufficiently",
-    "meanLabel": "Mean {{days}}",
-    "monthShare": "{{share}} of all hail days",
-    "legend": {
-      "days": "Hail days in the year",
-      "gap": "no observation",
-      "mean": "Mean"
-    },
-    "detail": {
-      "monthTitle": "{{month}}",
-      "noHail": "no hail observed",
-      "monthSummary_one": "{{count}} hail day in {{years}}",
-      "monthSummary_other": "{{count}} hail days in {{years}}",
-      "yearCount_one": "{{count}} year",
-      "yearCount_other": "{{count}} years",
-      "more": "+ {{count}} more",
-      "close": "Close details"
-    },
-    "notes": {
-      "ended_one": "Observation ends in {{year}} ({{count}} year ago) – more recent hail is not included.",
-      "ended_other": "Observation ends in {{year}} ({{count}} years ago) – more recent hail is not included.",
-      "far": "The station is {{distance}} km away – hail at the site can differ considerably.",
-      "short_one": "Only {{count}} observed year – the mean is uncertain.",
-      "short_other": "Only {{count}} observed years – the mean is uncertain.",
-      "gaps_one": "{{count}} year in the period without sufficient observation (grey).",
-      "gaps_other": "{{count}} years in the period without sufficient observation (grey).",
-      "context": "Context for the assessment only – not used in the hail EAL.",
-      "newer": "Station {{name}} has data up to {{year}}.",
-      "switch": "Show station"
-    },
-    "zeroDays": "No hail observed",
-    "stationMeta": "{{distance}} km · {{from}}–{{to}} · hail days/year: {{days}}",
-    "stationPickerHint": "{{count}} stations nearby – choose one to see its data"
+    "summary": "{{station}} ({{distance}} km) · {{from}}–{{to}} · avg. {{days}} hail days/year",
+    "summaryLoading": "loading …"
   },
   "importPreview": {
     "title": "Preview",
@@ -1898,7 +1834,11 @@
     "distance": "{{km}} km away",
     "archive": "Local archive {{from}} to {{to}}.",
     "offline": "DWD could not be reached; showing the stored archive.",
-    "note": "Source: DWD cell tracking KONRAD3D. The outline is the whole storm cell; hail falls in only part of it. Context only, not part of the hail EAL."
+    "note": "Source: DWD cell tracking KONRAD3D. The outline is the whole storm cell; hail falls in only part of it. Context only, not part of the hail EAL.",
+    "summaryNone": "no hit",
+    "summaryDays_one": "{{count}} hail day",
+    "summaryDays_other": "{{count}} hail days",
+    "summaryNoneSince": "no hit since {{from}}"
   },
   "changeReport": {
     "title": "Changes since analysis",
@@ -2097,14 +2037,23 @@
     "importInvalidJson": "The file is not valid JSON.",
     "importNotGeojson": "Expected a GeoJSON FeatureCollection or Feature.",
     "importNoPolygons": "The file has no polygon footprints in WGS84 (lon/lat).",
-    "importTooManyPolygons": "The file has too many polygons."
+    "importTooManyPolygons": "The file has too many polygons.",
+    "intro": "Send a hailstorm across the map and see which locations it hits and what that costs.",
+    "modeHint": {
+      "simulate": "Generate random storms – the quickest way to a result.",
+      "draw": "Draw the storm’s path on the map yourself.",
+      "history": "Replay a real storm day since 2001.",
+      "library": "Open saved scenarios, radar days and imported files."
+    },
+    "simOptions": "Strength, direction, other start point"
   },
   "aiInsight": {
     "copy": "Copy",
     "copied": "Copied to the clipboard.",
     "addToNotes": "Add to notes",
     "addedToNotes": "Added to the notes.",
-    "notesFull": "The notes are too long to take this text."
+    "notesFull": "The notes are too long to take this text.",
+    "optional": "optional"
   },
   "challenge": {
     "title": "Weakest assumptions",
@@ -2135,7 +2084,9 @@
       "fallbackData": "Fallback data was used for: {{sources}}.",
       "placeholderParameters": "Hail frequency and loss per vehicle are uncalibrated placeholder values.",
       "noProtectionConsidered": "Every counted vehicle is treated as parked in the open; hail nets, canopies and halls are not considered."
-    }
+    },
+    "count_one": "{{count}} point",
+    "count_other": "{{count}} points"
   },
   "evidenceMemo": {
     "write": "Write a memo with checked figures",
@@ -2165,7 +2116,8 @@
       "productLimitEur": "Product limit (€)",
       "analyzedOn": "Analysed on",
       "modelVersion": "Model version"
-    }
+    },
+    "hint": "A short text on the location. Every figure is checked against the app’s values."
   },
   "siteCheck": {
     "title": "Aerial image check (AI)",

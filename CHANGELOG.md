@@ -143,6 +143,25 @@ without any of the protocols switched on.
 
 ### Changed
 
+- **Simpler location detail dialog.** Each tab spells out only what its task
+  needs; everything else is one collapsible row that names the section and
+  its current value. The key figures say what they are ("Hagelschaden / Jahr
+  (EAL)" marked as an estimate, vehicles with "counted · image 05/2022",
+  vehicle value with the average per vehicle). The weakest assumptions sit
+  next to the EAL derivation, the change history comes first under "Quellen &
+  Verlauf", and the hail history is one line that starts on the station whose
+  record ends latest. Sources, limitations and the model version stay one
+  click away. The arrangement follows a walkthrough with four tester roles
+  (AI personas working from screenshots, not user research).
+- **Review run.** The strip says what is open and why, shows "location 2 of
+  3 · 0 done" with a progress bar, and opens the tab where the point is
+  checked. The reason and "confirm boundary" appear once, in the strip.
+- **Layer panel.** "Hail scenarios" starts with one sentence on what it is
+  for and one line per mode; "random" offers a single button, with strength,
+  direction and other start points on demand. Editing the boundary and
+  reviewing vehicles share one section; two overlays explain themselves.
+- **Location report.** The data basis now includes the boundary engine's
+  account of how the lot was chosen.
 - **Hail simulation in the layer panel.** The simulation is now a section of
   the layer panel (random, draw, historic, archive) instead of a separate
   button and panel. An event card next to the zoom control plays the storm
@@ -154,6 +173,16 @@ without any of the protocols switched on.
   behaviour; end-to-end tests now cover the pages with an analysed
   portfolio. Measured with 500 and 5,000 locations: start to a loaded
   portfolio in under one second.
+
+### Removed
+
+- From the location detail dialog: capacity and utilisation, the confidence
+  percentage per source, the station list and charts of the hail history,
+  the boundary engine's technical account (now in the report), and "query
+  sources again" when no external hail source is set up (re-analysing the
+  location queries a newly added source).
+- The AI "underwriting memo" that proposed a deductible and a premium
+  loading, with its IPC channel. The memo with checked figures remains.
 
 ## [0.5.0] – 2026-11-14
 

@@ -153,7 +153,11 @@ test("the detail dialog opens, pages and closes with the keyboard", async () => 
   // Every tab renders its panel; arrow keys move between tabs.
   const tabs = dialog.getByRole("tab");
   await tabs.first().focus();
-  for (const name of ["Gelände & Fahrzeuge", "Vertrag & Notizen", "Quellen"]) {
+  for (const name of [
+    "Gelände & Fahrzeuge",
+    "Vertrag & Notizen",
+    "Quellen & Verlauf",
+  ]) {
     await page.keyboard.press("ArrowRight");
     await expect(dialog.getByRole("tab", { name })).toHaveAttribute(
       "data-state",

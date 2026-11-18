@@ -646,7 +646,12 @@ function boundarySourceText(
   return source === "manual" ? labels.manual : source;
 }
 
-/** Source, method and limitations of every evidence record, deduplicated. */
+/**
+ * Source, method and limitations of every evidence record, deduplicated,
+ * with the boundary engine's own account of how it chose the lot. The
+ * detail dialog no longer shows that account, so the report is where it is
+ * kept.
+ */
 export function evidenceLines(d: AnalyzedDealership): string[] {
   const records: RiskEvidence[] = [
     ...(d.risk?.evidence ?? []),
@@ -657,11 +662,12 @@ export function evidenceLines(d: AnalyzedDealership): string[] {
   for (const e of records) {
     lines.add(`${e.source}: ${e.method}${e.fallbackUsed ? " (fallback)" : ""}`);
   }
+  for (const reason of d.boundary?.quality?.reasons ?? []) lines.add(reason);
   for (const limitation of [
     ...records.flatMap((e) => e.limitations),
     ...(d.risk?.limitations ?? []),
   ]) {
     lines.add(limitation);
   }
-  return [...lines].slice(0, 12);
+  return [...lines].slice(0, 16);
 }

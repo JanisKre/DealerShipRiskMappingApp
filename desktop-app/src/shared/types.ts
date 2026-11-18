@@ -1129,15 +1129,6 @@ export type ImportResult = z.infer<typeof ImportResultSchema>;
 
 // --- LLM agents: structured results -----------------------------------------
 
-// Structured underwriting memo
-export const StructuredMemoSchema = z.object({
-  recommendedDeductibleEur: z.number(),
-  suggestedPremiumLoadingPct: z.number(),
-  sublimitNotes: z.array(z.string()),
-  reasoning: z.string(),
-});
-export type StructuredMemo = z.infer<typeof StructuredMemoSchema>;
-
 // NL query: filter expression (recursive), produced by the LLM, applied deterministically
 export type NlQueryFilter =
   | {

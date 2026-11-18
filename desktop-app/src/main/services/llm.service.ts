@@ -1,12 +1,10 @@
 import type {
-  AnalyzedDealership,
   ChatMessage,
   LlmProvider,
   NlQueryDealership,
   NlQueryFilter,
-  StructuredMemo,
 } from "@shared/types";
-import { NlQueryFilterSchema, StructuredMemoSchema } from "@shared/types";
+import { NlQueryFilterSchema } from "@shared/types";
 import {
   A2UI_CATALOG_PROMPT,
   A2UI_VERSION,
@@ -23,7 +21,6 @@ import {
   isLoopbackUrl,
   type LocalRuntime,
 } from "@shared/llm-config";
-import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { getLlmApiKey, getSettings } from "./settings.service";
 import { fetchWithResilience, HttpRequestError } from "./http.service";
 import { recordAiCall } from "./ai-log.service";
@@ -36,7 +33,6 @@ import { recordAiCall } from "./ai-log.service";
  *   - `chatCompleteStream` → async-iterable token stream (for UI streaming)
  *
  * Agent functions (prompts ported from `server/routes/agents.ts`):
- *   generateMemo                       → structured JSON (invoke)
  *   portfolioChat                      → token stream
  *   nlQuery                            → 2-phase: filter JSON → applyFilter → stream
  */
@@ -657,58 +653,6 @@ export function parseLLMJson<T>(
   const start = text.search(/[{[]/);
   if (start > 0) text = text.slice(start);
   return schema.parse(JSON.parse(text));
-}
-
-// --- Agent: underwriting memo (structured) ----------------------------------
-
-export async function generateMemo(
-  dealership: AnalyzedDealership,
-): Promise<StructuredMemo> {
-  const content = await chatComplete([
-    {
-      role: "system",
-      content: `You are an experienced motor vehicle insurance underwriter for the German market.
-Produce a structured underwriting memo for the given dealership.
-Respond EXCLUSIVELY with JSON (no markdown, no code blocks):
-{
-  "recommendedDeductibleEur": <number, recommended deductible in EUR>,
-  "suggestedPremiumLoadingPct": <number 0-100, premium loading in %>,
-  "sublimitNotes": ["<note 1>", "<note 2>"],
-  "reasoning": "<2-3 sentence rationale in ${responseLanguageName()}>"
-}
-Consider: hail EAL, utilisation, hail zone, lot size. The app assesses hail only.`,
-    },
-    {
-      role: "user",
-      content: `Dealership data: ${JSON.stringify(compactForMemo(dealership))}\nEstimated EAL: ${
-        dealership.risk?.eal == null
-          ? "not calculated"
-          : `${dealership.risk.eal.toFixed(0)} EUR`
-      }`,
-    },
-  ]);
-  return parseLLMJson(content, StructuredMemoSchema);
-}
-
-function compactForMemo(d: AnalyzedDealership): Record<string, unknown> {
-  return {
-    name: d.name,
-    lat: d.lat,
-    lon: d.lon,
-    machineVehicleCount: d.detection?.vehicleCount,
-    manualVehicleCount: d.detection?.manualVehicleCount,
-    vehicleCount: d.detection ? effectiveVehicleCount(d.detection) : undefined,
-    classCounts: d.detection?.classCounts,
-    hailZone: dealershipHailZone(d)?.zone,
-    eal: d.risk?.eal,
-    ealBreakdown: d.risk?.ealBreakdown,
-    exposureEur: d.risk?.exposureEur,
-    utilisation: d.risk?.utilisation,
-    capacityEstimate: d.risk?.capacityEstimate,
-    lotAreaSqm: d.boundary?.areaSqm,
-    boundarySource: d.boundary?.source,
-    boundaryConfidence: d.boundary?.confidence,
-  };
 }
 
 // --- Agent: AI dashboard spec (structured) ----------------------------------

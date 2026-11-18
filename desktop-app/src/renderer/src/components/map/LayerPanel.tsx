@@ -118,10 +118,13 @@ function Section({
 
 function LayerToggle({
   label,
+  hint,
   checked,
   onChange,
 }: Readonly<{
   label: string;
+  /** What the layer shows, for names that do not say it themselves. */
+  hint?: string;
   checked: boolean;
   onChange: () => void;
 }>): React.JSX.Element {
@@ -133,7 +136,14 @@ function LayerToggle({
         onCheckedChange={onChange}
         className="mt-px shrink-0"
       />
-      <span className="min-w-0">{label}</span>
+      <span className="min-w-0">
+        {label}
+        {hint && (
+          <span className="block text-[11px] leading-snug text-muted-foreground">
+            {hint}
+          </span>
+        )}
+      </span>
     </label>
   );
 }
@@ -529,11 +539,13 @@ export function LayerPanel({
                 />
                 <LayerToggle
                   label={t("map.layerPanel.nearbyInsuredLayerLabel")}
+                  hint={t("map.layerPanel.nearbyInsuredLayerHint")}
                   checked={layers.nearbyInsured}
                   onChange={() => toggleLayer("nearbyInsured")}
                 />
                 <LayerToggle
                   label={t("map.layerPanel.accumulationClustersLayerLabel")}
+                  hint={t("map.layerPanel.accumulationClustersLayerHint")}
                   checked={layers.accumulationClusters}
                   onChange={() => toggleLayer("accumulationClusters")}
                 />
@@ -545,89 +557,89 @@ export function LayerPanel({
               </div>
             </Section>
 
-            {/* Edit boundaries — collapsed */}
+            {/* Correcting the analysis: the lot boundary and the counted
+                vehicles. Both are explicit modes, so ordinary map clicks
+                stay safe. */}
             <Section
               icon={<Pencil className="size-3" />}
-              title={t("map.boundaries")}
+              title={t("map.layerPanel.editSectionTitle")}
               badge={
-                editing ? t("map.layerPanel.editingActiveBadge") : undefined
+                editing
+                  ? t("map.layerPanel.editingActiveBadge")
+                  : detectionEditing
+                    ? t("map.layerPanel.detectionEditingActiveBadge")
+                    : undefined
               }
-              forceOpen={editing}
+              forceOpen={editing || detectionEditing}
             >
-              <Button
-                variant={editing ? "default" : "outline"}
-                size="sm"
-                className={PANEL_ACTION_CLASS}
-                onClick={() => {
-                  if (!editing && detectionEditing) onCancelDetectionEdits();
-                  setEditing(!editing);
-                  if (!editing) setDetectionEditing(false);
-                }}
-                disabled={!layers.boundaries}
-              >
-                <Pencil className="size-3" />
-                {editing
-                  ? t("map.layerPanel.stopEditingButton")
-                  : t("map.layerPanel.editBoundariesButton")}
-              </Button>
-              {!layers.boundaries && (
-                <p className={PANEL_HINT_CLASS}>
-                  {t("map.layerPanel.boundariesLayerOffHint")}
-                </p>
-              )}
-            </Section>
-
-            {/* Manual vehicle review — explicit mode so ordinary map clicks stay safe. */}
-            <Section
-              icon={<MousePointerClick className="size-3" />}
-              title={t("map.layerPanel.detectionEditingTitle")}
-              badge={
-                detectionEditing
-                  ? t("map.layerPanel.detectionEditingActiveBadge")
-                  : undefined
-              }
-              forceOpen={detectionEditing}
-            >
-              <Button
-                variant={detectionEditing ? "default" : "outline"}
-                size="sm"
-                className={PANEL_ACTION_CLASS}
-                disabled={!layers.detections || !selectedId}
-                onClick={() => {
-                  if (detectionEditing) {
-                    onSaveDetectionEdits();
-                  } else {
-                    onStartDetectionEditing();
-                  }
-                }}
-              >
-                <MousePointerClick className="size-3" />
-                {detectionEditing
-                  ? t("map.layerPanel.saveDetectionEditsButton")
-                  : t("map.layerPanel.editDetectionsButton")}
-              </Button>
-              {!detectionEditing && (!layers.detections || !selectedId) && (
-                <p className={PANEL_HINT_CLASS}>
-                  {!layers.detections
-                    ? t("map.layerPanel.detectionLayerOffHint")
-                    : t("map.layerPanel.detectionNeedsSelectionHint")}
-                </p>
-              )}
-              {detectionEditing && (
-                <>
+              <div className="space-y-2">
+                <div>
                   <Button
-                    variant="ghost"
+                    variant={editing ? "default" : "outline"}
                     size="sm"
-                    className="mt-1.5 w-full text-xs"
-                    onClick={onCancelDetectionEdits}
+                    className={PANEL_ACTION_CLASS}
+                    onClick={() => {
+                      if (!editing && detectionEditing)
+                        onCancelDetectionEdits();
+                      setEditing(!editing);
+                      if (!editing) setDetectionEditing(false);
+                    }}
+                    disabled={!layers.boundaries}
                   >
-                    {t("map.layerPanel.cancelDetectionEditsButton")}
+                    <Pencil className="size-3" />
+                    {editing
+                      ? t("map.layerPanel.stopEditingButton")
+                      : t("map.layerPanel.editBoundariesButton")}
                   </Button>
-                  <p className={PANEL_HINT_CLASS}>
-                    {t("map.layerPanel.detectionEditingHint")}
-                  </p>
-                </>
-              )}
+                  {!layers.boundaries && (
+                    <p className={PANEL_HINT_CLASS}>
+                      {t("map.layerPanel.boundariesLayerOffHint")}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Button
+                    variant={detectionEditing ? "default" : "outline"}
+                    size="sm"
+                    className={PANEL_ACTION_CLASS}
+                    disabled={!layers.detections || !selectedId}
+                    onClick={() => {
+                      if (detectionEditing) {
+                        onSaveDetectionEdits();
+                      } else {
+                        onStartDetectionEditing();
+                      }
+                    }}
+                  >
+                    <MousePointerClick className="size-3" />
+                    {detectionEditing
+                      ? t("map.layerPanel.saveDetectionEditsButton")
+                      : t("map.layerPanel.editDetectionsButton")}
+                  </Button>
+                  {!detectionEditing && (!layers.detections || !selectedId) && (
+                    <p className={PANEL_HINT_CLASS}>
+                      {!layers.detections
+                        ? t("map.layerPanel.detectionLayerOffHint")
+                        : t("map.layerPanel.detectionNeedsSelectionHint")}
+                    </p>
+                  )}
+                  {detectionEditing && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1.5 w-full text-xs"
+                        onClick={onCancelDetectionEdits}
+                      >
+                        {t("map.layerPanel.cancelDetectionEditsButton")}
+                      </Button>
+                      <p className={PANEL_HINT_CLASS}>
+                        {t("map.layerPanel.detectionEditingHint")}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
             </Section>
 
             {/* Hail scenarios: generated, drawn (track or corridor),

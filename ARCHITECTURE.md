@@ -54,7 +54,7 @@ typed and Zod-validated over IPC.
 │  │   ├─ risk.service       (hail score + hail EAL)         │
 │  │   ├─ weather.service    (Open-Meteo CAPE + cache)       │
 │  │   ├─ hail-history/      (DWD hail days, context only)   │
-│  │   ├─ llm.service        (memos, chat, NL query, A2UI)   │
+│  │   ├─ llm.service        (chat, NL query, A2UI)          │
 │  │   └─ export.service     (CSV/PDF/Excel/.drm)            │
 │  ├─ db/         (Drizzle + better-sqlite3 repos)           │
 │  └─ workers/    (ONNX inference, Overture dealer download) │

@@ -630,8 +630,6 @@
       "estimatedHailZone": "Hagelzone {{zone}} nur geschätzt – Adresse/PLZ prüfen.",
       "accumulationEstimated": "Kumulation mit {{count}} Standorten und ≈{{exposure}} Exposure · {{share}} % geschätzt."
     },
-    "utilisation": "Auslastung",
-    "capacity": "Kapazität",
     "area": "Fläche",
     "boundarySource": "Grenzquelle",
     "manageTiles": "Dashboard anpassen",
@@ -676,14 +674,6 @@
         "total": "Summe"
       },
       "boundaryTitle": "Grundstücksgrenze",
-      "boundaryRoleLabel": "Rolle: {{role}}",
-      "boundaryAgreementLabel": "Quellenübereinstimmung: {{agreement}}",
-      "boundaryEngineLabel": "Engine: {{engine}}",
-      "boundaryEngine": {
-        "legacy": "Kandidatenauswahl",
-        "fused": "Multi-Quellen-Fusion",
-        "cascade": "Quellen-Kaskade"
-      },
       "boundaryReviewLabel": "Prüfung erforderlich",
       "boundaryExcludePartAction": "Zusatzteil ausschließen",
       "boundarySource": {
@@ -702,7 +692,6 @@
         "operationalLot": "Bestätigtes Betriebsgelände",
         "synthetic": "Geschätzte Fläche (Kreis)"
       },
-      "showDetails": "Details anzeigen",
       "evidenceFallbackSuffix": " · Ersatzverfahren",
       "riskText": {
         "screeningModel": "Risikomodell {{version}} ist ein Screening-Modell",
@@ -765,9 +754,6 @@
       "natCatRefreshing": "Quellen werden abgefragt…",
       "natCatHazard": "{{peril}}: Zone {{zone}} ({{unit}})",
       "natCatAttribute": "{{name}}: {{value}}",
-      "errorPrefix": "Fehler: {{error}}",
-      "recommendedDeductibleLabel": "Empf. Selbstbehalt",
-      "premiumLoadingLabel": "Prämienzuschlag",
       "deductibleLabel": "Selbstbehalt (EUR)",
       "imageryHistory": {
         "title": "Bildhistorie (Esri Wayback)",
@@ -794,7 +780,7 @@
       "nextLocation": "Nächster Standort",
       "showOnMap": "Auf Karte zeigen",
       "moreActions": "Weitere Aktionen",
-      "kpiHailEal": "Hagel-EAL / Jahr",
+      "kpiHailEal": "Hagelschaden / Jahr (EAL)",
       "kpiRank": "Rang {{rank}} von {{total}}",
       "kpiVehiclesManual": "manuell angepasst",
       "kpiVehiclesEstimated": "nur geschätzt",
@@ -813,14 +799,14 @@
       "tabOverview": "Risiko",
       "tabSite": "Gelände & Fahrzeuge",
       "tabContract": "Vertrag & Notizen",
-      "tabSources": "Quellen",
+      "tabSources": "Quellen & Verlauf",
       "imageryHistoryToggle": "Bildhistorie und weitere Bildstände",
       "boundaryNone": "Für diesen Standort gibt es noch keine Grenze.",
       "confidenceValue": "{{value}} Konfidenz",
       "boundaryConfirm": "Grenze bestätigen",
       "boundaryEditOnMap": "Auf Karte bearbeiten",
       "boundaryAdopt": "Übernehmen",
-      "vehiclesAdjust": "Anpassen",
+      "vehiclesAdjust": "Zahl korrigieren",
       "vehiclesChangeManual": "Ändern",
       "vehiclesUseDetected": "Erkannte Zahl nutzen",
       "limitationsToggle_one": "{{count}} Einschränkung",
@@ -856,7 +842,9 @@
         "vehiclesReviewed": "Fahrzeuge auf der Karte geprüft: {{from}} → {{to}}",
         "markedExisting": "Als Bestandsgeschäft markiert",
         "markedNew": "Als Neugeschäft markiert",
-        "reviewed": "Als geprüft markiert"
+        "reviewed": "Als geprüft markiert",
+        "count_one": "{{count}} Eintrag",
+        "count_other": "{{count}} Einträge"
       },
       "riskTier": {
         "veryLow": "Sehr gering",
@@ -894,7 +882,13 @@
       "kpiVehiclesAreaEstimate": "flächenbasierte Schätzung",
       "vehicleCountSave": "Fahrzeugzahl speichern",
       "exposureChanged": "Exposure {{from}} → {{to}}",
-      "exposureChangedDetail": "Exposure und Hagel-EAL folgen jetzt der eingetragenen Fahrzeugzahl ({{count}})."
+      "exposureChangedDetail": "Exposure und Hagel-EAL folgen jetzt der eingetragenen Fahrzeugzahl ({{count}}).",
+      "contextGroup": "Zur Einordnung – fließt nicht in die Hagel-EAL ein",
+      "aiMemoGroup": "KI-Memo",
+      "kpiEstimate": "Schätzung",
+      "kpiVehiclesDetectedOn": "gezählt · Luftbild {{date}}",
+      "kpiExposure": "Fahrzeugwert (Exposure)",
+      "kpiExposurePerVehicle": "Ø {{value}} je Fahrzeug"
     },
     "hailEal": "Hagel-EAL",
     "hailZone": "Hagelzone",
@@ -977,7 +971,7 @@
       "failed_other": "{{count}} Standorte konnten nicht neu berechnet werden."
     },
     "hailEalDetail": {
-      "title": "Hagel-EAL",
+      "title": "So wird gerechnet",
       "vehicles": "Fahrzeuge auf dem Gelände (N)",
       "frequency": "Frequenz (λ)",
       "severity": "Schaden je Fahrzeug (Σ p·S)",
@@ -1002,8 +996,11 @@
       },
       "stockScaled": "Die archivierten Zählungen sind auf die manuell geprüfte Zahl skaliert.",
       "stockRangeMissing": "Spanne über die Zeit: unter „Bildhistorie“ den Bestand auf archivierten Bildern zählen.",
-      "stockRange_one": "Bestand über {{count}} archiviertes Luftbild: {{vehiclesLow}}–{{vehiclesHigh}} Fahrzeuge, Hagel-EAL {{low}} bis {{high}} (Median {{median}}).",
-      "stockRange_other": "Bestand über {{count}} archivierte Luftbilder: {{vehiclesLow}}–{{vehiclesHigh}} Fahrzeuge, Hagel-EAL {{low}} bis {{high}} (Median {{median}})."
+      "stockRange_one": "Gerechnet wird mit der aktuellen Zählung. Auf {{count}} archivierten Luftbild standen {{vehiclesLow}}–{{vehiclesHigh}} Fahrzeuge; damit läge die Hagel-EAL bei {{low}} bis {{high}} (Median {{median}}).",
+      "stockRange_other": "Gerechnet wird mit der aktuellen Zählung. Auf {{count}} archivierten Luftbildern standen {{vehiclesLow}}–{{vehiclesHigh}} Fahrzeuge; damit läge die Hagel-EAL bei {{low}} bis {{high}} (Median {{median}}).",
+      "screeningShort": "Screening-Schätzung mit Platzhalterwerten – keine Tarif- oder Zeichnungsentscheidung.",
+      "inputsToggle": "Woher die Werte kommen",
+      "placeholdersShort": "Häufigkeit und Schaden je Fahrzeug sind Platzhalterwerte; die Kalibrierung durch das Underwriting steht aus."
     },
     "info": {
       "label": "Was bedeutet das?",
@@ -1229,7 +1226,6 @@
       "editingActiveBadge": "aktiv",
       "editBoundariesButton": "Grenzen bearbeiten",
       "stopEditingButton": "Bearbeiten beenden",
-      "detectionEditingTitle": "Fahrzeugprüfung",
       "detectionEditingActiveBadge": "aktiv",
       "editDetectionsButton": "Fahrzeuge prüfen",
       "saveDetectionEditsButton": "Prüfung speichern",
@@ -1256,7 +1252,10 @@
       "imageryVersionShown": "Angezeigt:",
       "boundariesLayerOffHint": "Blende die Ebene „Grundstücksgrenzen“ ein, um Grenzen zu bearbeiten.",
       "detectionNeedsSelectionHint": "Wähle einen Standort auf der Karte oder in der Liste.",
-      "detectionLayerOffHint": "Blende die Ebene „Fahrzeuge“ ein, um Fahrzeuge zu prüfen."
+      "detectionLayerOffHint": "Blende die Ebene „Fahrzeuge“ ein, um Fahrzeuge zu prüfen.",
+      "editSectionTitle": "Bearbeiten",
+      "nearbyInsuredLayerHint": "Versicherte Standorte im Umkreis des gewählten Standorts",
+      "accumulationClustersLayerHint": "Nah beieinander liegende Standorte, die dasselbe Unwetter treffen kann"
     },
     "page": {
       "attributionOsm": "OpenStreetMap-Mitwirkende",
@@ -1320,7 +1319,6 @@
     }
   },
   "ai": {
-    "memo": "Underwriting-Memo",
     "chat": "Portfolio-Chat",
     "naturalLanguageQuery": "Natürliche Abfrage",
     "queryInputPlaceholder": "Frage in natürlicher Sprache stellen…",
@@ -1672,9 +1670,6 @@
     "startCount_other": "Prüfen ({{count}})",
     "empty": "Keine offenen Prüfpunkte.",
     "finished": "Alle Prüfpunkte erledigt.",
-    "position": "Prüfung {{position}} von {{total}}",
-    "remaining_one": "noch {{count}} offen",
-    "remaining_other": "noch {{count}} offen",
     "alreadyReviewed": "Bereits als geprüft markiert.",
     "reason": {
       "boundary": "Grundstücksgrenze prüfen",
@@ -1699,15 +1694,14 @@
     "reanalyze": "Neu analysieren",
     "aiOrder": "KI-Reihenfolge",
     "aiOrderHint": "Die KI ordnet die offenen Prüfpunkte so, dass die Standorte zuerst kommen, bei denen eine Prüfung die Hagel-EAL am ehesten verändert. Die Prüfpunkte und Aktionen bleiben dieselben.",
-    "aiOrderFailed": "KI-Reihenfolge nicht verfügbar ({{error}}). Die Prüfung startet in der festen Reihenfolge."
+    "aiOrderFailed": "KI-Reihenfolge nicht verfügbar ({{error}}). Die Prüfung startet in der festen Reihenfolge.",
+    "progress": "Standort {{position}} von {{total}} · {{done}} erledigt"
   },
   "hailHistory": {
     "title": "Hagelhistorie",
-    "loading": "Lade Beobachtungen des Deutschen Wetterdienstes …",
     "failed": "Hagelhistorie konnte nicht geladen werden.",
     "retry": "Erneut versuchen",
     "none": "Keine DWD-Station mit langer Hagelbeobachtung im Umkreis von {{radius}} km.",
-    "stationPicker": "Wetterstation wählen",
     "about": {
       "title": "Woher die Zahlen kommen",
       "what": "Beobachtungen der nächstgelegenen Wetterstationen des Deutschen Wetterdienstes im Umkreis von {{radius}} km mit mindestens zehn Jahren Aufzeichnung.",
@@ -1716,66 +1710,8 @@
       "eal": "Nur Kontext – die Werte fließen nicht in die Hagel-EAL ein.",
       "source": "Datenbasis: Deutscher Wetterdienst (Climate Data Center, tägliche Wetterphänomene)."
     },
-    "figure": {
-      "perYear": "Hageltage pro Jahr",
-      "perYearHint": "Mittel {{from}}–{{to}}",
-      "yearsWithHail": "Jahre mit Hagel",
-      "yearsWithHailHint_one": "{{count}} von {{total}} Jahren",
-      "yearsWithHailHint_other": "{{count}} von {{total}} Jahren",
-      "peak": "Höchstwert",
-      "peakHint": "im Jahr {{year}} · anzeigen",
-      "last": "Letzter Hageltag",
-      "season": "meist {{months}}",
-      "seasonSpread": "über das Jahr verteilt"
-    },
-    "days_one": "{{count}} Hageltag",
-    "days_other": "{{count}} Hageltage",
-    "viewLabel": "Darstellung",
-    "view": {
-      "years": "Nach Jahr",
-      "months": "Nach Monat"
-    },
-    "rangeLabel": "Zeitraum",
-    "range": {
-      "all": "{{from}}–{{to}}",
-      "recent": "Letzte {{count}} Jahre"
-    },
-    "clickHint": "Balken anklicken für die einzelnen Tage",
-    "axisDays": "Hageltage",
-    "axisDaysTotal": "Hageltage gesamt",
-    "notObserved": "Nicht ausreichend beobachtet",
-    "meanLabel": "Ø {{days}}",
-    "monthShare": "{{share}} aller Hageltage",
-    "legend": {
-      "days": "Hageltage im Jahr",
-      "gap": "keine Beobachtung",
-      "mean": "Mittelwert"
-    },
-    "detail": {
-      "monthTitle": "{{month}}",
-      "noHail": "kein Hagel beobachtet",
-      "monthSummary_one": "{{count}} Hageltag in {{years}}",
-      "monthSummary_other": "{{count}} Hageltage in {{years}}",
-      "yearCount_one": "{{count}} Jahr",
-      "yearCount_other": "{{count}} Jahren",
-      "more": "+ {{count}} weitere",
-      "close": "Details schließen"
-    },
-    "notes": {
-      "ended_one": "Die Beobachtung endet {{year}} (vor {{count}} Jahr) – neuere Hagelereignisse sind nicht enthalten.",
-      "ended_other": "Die Beobachtung endet {{year}} (vor {{count}} Jahren) – neuere Hagelereignisse sind nicht enthalten.",
-      "far": "Die Station liegt {{distance}} km entfernt – am Standort kann es deutlich anders hageln.",
-      "short_one": "Nur {{count}} Beobachtungsjahr – der Mittelwert ist unsicher.",
-      "short_other": "Nur {{count}} Beobachtungsjahre – der Mittelwert ist unsicher.",
-      "gaps_one": "{{count}} Jahr im Zeitraum ohne ausreichende Beobachtung (grau).",
-      "gaps_other": "{{count}} Jahre im Zeitraum ohne ausreichende Beobachtung (grau).",
-      "context": "Nur Kontext für die Einschätzung – fließt nicht in die Hagel-EAL ein.",
-      "newer": "Neuere Daten bis {{year}} hat die Station {{name}}.",
-      "switch": "Station anzeigen"
-    },
-    "zeroDays": "Kein Hagel beobachtet",
-    "stationMeta": "{{distance}} km · {{from}}–{{to}} · Hageltage/Jahr: Ø {{days}}",
-    "stationPickerHint": "{{count}} Stationen in der Nähe – Station wählen, um ihre Daten zu sehen"
+    "summary": "{{station}} ({{distance}} km) · {{from}}–{{to}} · Ø {{days}} Hageltage/Jahr",
+    "summaryLoading": "lädt …"
   },
   "importPreview": {
     "title": "Vorschau",
@@ -1898,7 +1834,11 @@
     "distance": "{{km}} km entfernt",
     "archive": "Lokales Archiv {{from}} bis {{to}}.",
     "offline": "Der DWD war nicht erreichbar; gezeigt wird das gespeicherte Archiv.",
-    "note": "Quelle: DWD-Zellverfolgung KONRAD3D. Der Umriss ist die ganze Gewitterzelle, Hagel fällt nur in einem Teil davon. Nur Kontext, geht nicht in die Hagel-EAL ein."
+    "note": "Quelle: DWD-Zellverfolgung KONRAD3D. Der Umriss ist die ganze Gewitterzelle, Hagel fällt nur in einem Teil davon. Nur Kontext, geht nicht in die Hagel-EAL ein.",
+    "summaryNone": "kein Treffer",
+    "summaryDays_one": "{{count}} Hageltag",
+    "summaryDays_other": "{{count}} Hageltage",
+    "summaryNoneSince": "kein Treffer seit {{from}}"
   },
   "changeReport": {
     "title": "Änderungen seit der Analyse",
@@ -2097,14 +2037,23 @@
     "importInvalidJson": "Die Datei ist kein gültiges JSON.",
     "importNotGeojson": "Erwartet wird eine GeoJSON-FeatureCollection oder ein Feature.",
     "importNoPolygons": "Die Datei enthält keine Polygon-Fußabdrücke in WGS84 (Länge/Breite).",
-    "importTooManyPolygons": "Die Datei enthält zu viele Polygone."
+    "importTooManyPolygons": "Die Datei enthält zu viele Polygone.",
+    "intro": "Lass ein Hagelunwetter über die Karte ziehen und sieh, welche Standorte es trifft und was das kostet.",
+    "modeHint": {
+      "simulate": "Zufällige Gewitter erzeugen – der schnellste Weg zu einem Ergebnis.",
+      "draw": "Den Weg des Unwetters selbst in die Karte zeichnen.",
+      "history": "Einen echten Unwettertag seit 2001 nachspielen.",
+      "library": "Gespeicherte Szenarien, Radartage und importierte Dateien öffnen."
+    },
+    "simOptions": "Stärke, Richtung, anderer Startpunkt"
   },
   "aiInsight": {
     "copy": "Kopieren",
     "copied": "In die Zwischenablage kopiert.",
     "addToNotes": "In Notizen übernehmen",
     "addedToNotes": "In die Notizen übernommen.",
-    "notesFull": "Die Notizen sind zu lang, um den Text aufzunehmen."
+    "notesFull": "Die Notizen sind zu lang, um den Text aufzunehmen.",
+    "optional": "optional"
   },
   "challenge": {
     "title": "Schwächste Annahmen",
@@ -2135,7 +2084,9 @@
       "fallbackData": "Für diese Quellen wurden Ersatzdaten verwendet: {{sources}}.",
       "placeholderParameters": "Hagelhäufigkeit und Schaden je Fahrzeug sind unkalibrierte Platzhalterwerte.",
       "noProtectionConsidered": "Jedes gezählte Fahrzeug gilt als im Freien stehend; Hagelnetze, Überdachungen und Hallen sind nicht berücksichtigt."
-    }
+    },
+    "count_one": "{{count}} Punkt",
+    "count_other": "{{count}} Punkte"
   },
   "evidenceMemo": {
     "write": "Memo mit Zahlenprüfung schreiben",
@@ -2165,7 +2116,8 @@
       "productLimitEur": "Produktlimit (€)",
       "analyzedOn": "Analysiert am",
       "modelVersion": "Modellversion"
-    }
+    },
+    "hint": "Kurzer Text zum Standort. Jede Zahl wird gegen die Werte der App geprüft."
   },
   "siteCheck": {
     "title": "Luftbild-Check (KI)",
