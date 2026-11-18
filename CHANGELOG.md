@@ -903,7 +903,7 @@ without any of the protocols switched on.
 
 - Locations added from search no longer look identical to an existing branch
   of the same dealer group: when the name is already in the portfolio at a
-  different site (Overture lists e.g. four "Autohaus Dresden GmbH" branches)
+  different site (Overture lists e.g. four branches of one dealer under the same name)
   or is only a brand ("Opel"), the street — or the town — is appended. The
   same site picked again keeps its name, so the duplicate check still skips it.
 - Location search finds more businesses: legal forms ("GmbH & Co. KG") are

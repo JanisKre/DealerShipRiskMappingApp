@@ -21,7 +21,7 @@ const PROTECTED = /(```[\s\S]*?```|`[^`\n]*`|\[[^\]\n]*\]\([^)\s]*\))/g;
 /**
  * Turns every mention of a portfolio location in an answer into a Markdown
  * link `[Name](drm-location:<id>)`, so the chat can open it. Longest names
- * win ("Autohaus Dresden Reick" before "Autohaus Dresden"); names shorter
+ * win ("Autohaus Dresden Muster" before "Autohaus Dresden"); names shorter
  * than four characters are ignored to avoid linking ordinary words.
  */
 export function linkifyLocations(
@@ -165,8 +165,8 @@ export function parseDashboardIntent(
 }
 
 /**
- * Recognises short commands such as "öffne Autohaus Sinemus", "zeige
- * Autohaus Michael auf der Karte", "zeige Kumulationen auf der Karte" or
+ * Recognises short commands such as "öffne Autohaus Quendel", "zeige
+ * Autohaus Muster auf der Karte", "zeige Kumulationen auf der Karte" or
  * "exportiere den PDF-Bericht". Only imperative sentences starting with the
  * verb count, so questions ("Wo gibt es Kumulationen?") still go to the AI.
  */

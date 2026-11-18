@@ -28,8 +28,11 @@ describe("businessIdentity", () => {
       "LPG-Tankstelle",
     );
     expect(
-      businessIdentity({ landuse: "industrial", name: "Fabmatics GmbH" }),
-    ).toBe("Fabmatics GmbH");
+      businessIdentity({
+        landuse: "industrial",
+        name: "Muster Maschinenbau GmbH",
+      }),
+    ).toBe("Muster Maschinenbau GmbH");
     expect(businessIdentity({ building: "yes", operator: "Drewag" })).toBe(
       "Drewag",
     );
@@ -37,14 +40,14 @@ describe("businessIdentity", () => {
 });
 
 describe("isForeignBusiness", () => {
-  const site = "Autohaus Dresden GmbH";
+  const site = "Autohaus Muster Dresden GmbH";
 
   it("flags another tenant at the same address", () => {
     expect(
       isForeignBusiness(
         {
           amenity: "car_wash",
-          name: "Astrein - Die Auto & Industriereinigung GmbH",
+          name: "Musterglanz - Auto & Industriereinigung GmbH",
         },
         site,
       ),
@@ -54,7 +57,7 @@ describe("isForeignBusiness", () => {
   it("does not flag the dealership itself", () => {
     expect(
       isForeignBusiness(
-        { shop: "car", name: "Autohaus Dresden GmbH", brand: "Opel" },
+        { shop: "car", name: "Autohaus Muster Dresden GmbH", brand: "Opel" },
         site,
       ),
     ).toBe(false);
@@ -63,7 +66,7 @@ describe("isForeignBusiness", () => {
   it("declares nothing foreign when the site name has no distinctive token", () => {
     expect(
       isForeignBusiness(
-        { shop: "bakery", name: "Bäckerei Krause" },
+        { shop: "bakery", name: "Bäckerei Beispiel" },
         "Autohaus GmbH",
       ),
     ).toBe(false);
@@ -89,17 +92,17 @@ describe("evaluateComponentMembership", () => {
     const result = evaluateComponentMembership({
       onAdjacentParcel: true,
       overlappingAreaTags: [{ kind: "dealerArea", tags: { shop: "car" } }],
-      foreignBusinesses: ["Fabmatics GmbH"],
+      foreignBusinesses: ["Muster Maschinenbau GmbH"],
     });
     expect(result.accepted).toBe(false);
-    expect(result.reasons[0]).toMatch(/Fabmatics GmbH/);
+    expect(result.reasons[0]).toMatch(/Muster Maschinenbau GmbH/);
   });
 
   it("still accepts a component that carries the site's own name", () => {
     const result = evaluateComponentMembership({
-      name: "Autohaus Brinkmann",
+      name: "Autohaus Musterfeld",
       overlappingAreaTags: [
-        { kind: "dealerArea", tags: { name: "Autohaus Brinkmann" } },
+        { kind: "dealerArea", tags: { name: "Autohaus Musterfeld" } },
       ],
     });
     expect(result.accepted).toBe(true);
@@ -110,14 +113,14 @@ describe("matchesSiteStrictly", () => {
   it("does not let a place name in the dealer's name claim other features", () => {
     expect(
       matchesSiteStrictly(
-        { building: "retail", name: "Löbtau Passage" },
-        "Autocenter Löbtau",
+        { building: "retail", name: "Musterau Passage" },
+        "Autocenter Musterau",
       ),
     ).toBe(false);
     expect(
       matchesSiteStrictly(
         { landuse: "commercial", name: "Gewerbehof Dresden" },
-        "Opel - Autohaus Dresden GmbH",
+        "Opel - Autohaus Muster Dresden GmbH",
       ),
     ).toBe(false);
   });
@@ -125,8 +128,8 @@ describe("matchesSiteStrictly", () => {
   it("matches when every distinctive token is present, brand included", () => {
     expect(
       matchesSiteStrictly(
-        { name: "Autohaus Dresden GmbH", brand: "Opel" },
-        "Opel - Autohaus Dresden GmbH",
+        { name: "Autohaus Muster Dresden GmbH", brand: "Opel" },
+        "Opel - Autohaus Muster Dresden GmbH",
       ),
     ).toBe(true);
   });
@@ -135,7 +138,7 @@ describe("matchesSiteStrictly", () => {
     const tags = { "addr:postcode": "01109", "addr:housenumber": "40" };
     expect(matchesSiteStrictly(tags, undefined, "01109 Dresden")).toBe(false);
     expect(
-      matchesSiteStrictly(tags, undefined, "Zur Wetterwarte 40, 01109 Dresden"),
+      matchesSiteStrictly(tags, undefined, "Musterweg 40, 01109 Dresden"),
     ).toBe(true);
   });
 });

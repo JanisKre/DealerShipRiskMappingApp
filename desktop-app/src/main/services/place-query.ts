@@ -244,7 +244,7 @@ function identityTokens(name: string): Set<string> {
   return new Set(specific.length > 0 ? specific : all);
 }
 
-/** "Opel - Autohaus Dresden GmbH" ≈ "Autohaus Dresden"; "Auto Müller" ≉ "Auto Schmidt". */
+/** "Opel - Autohaus Muster GmbH" ≈ "Autohaus Muster"; "Auto Müller" ≉ "Auto Schmidt". */
 export function similarBusinessNames(a: string, b: string): boolean {
   const left = identityTokens(a);
   const right = identityTokens(b);

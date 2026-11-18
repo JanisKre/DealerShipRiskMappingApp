@@ -56,8 +56,8 @@ beforeEach(() => {
 
 describe("directoryMatchQuery", () => {
   it("turns every word into a prefix match and drops legal forms", () => {
-    expect(directoryMatchQuery(foldedTokens("Autohaus Herz GmbH"))).toBe(
-      '"herz"*',
+    expect(directoryMatchQuery(foldedTokens("Autohaus Muster GmbH"))).toBe(
+      '"muster"*',
     );
     expect(directoryMatchQuery(foldedTokens("Autohaus"))).toBe('"autohaus"*');
   });

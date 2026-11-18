@@ -165,33 +165,35 @@ describe("placesAutocomplete", () => {
 describe("OSM + Overture merge", () => {
   it("adds Overture-only dealers and lists a shared one once (OSM wins)", async () => {
     photonResponses({
-      dealers: [feature(7, "Opel - Autohaus Dresden GmbH", 51.0601, 13.7701)],
+      dealers: [
+        feature(7, "Opel - Autohaus Muster Dresden GmbH", 51.0601, 13.7701),
+      ],
       general: [],
     });
     directory.search.mockReturnValue([
       // Same business, 60 m away in Overture.
       {
         id: "o1",
-        name: "Autohaus Dresden",
-        label: "Autohaus Dresden, Dresden",
+        name: "Autohaus Muster Dresden",
+        label: "Autohaus Muster Dresden, Dresden",
         lat: 51.0605,
         lon: 13.7706,
       },
       // Only in Overture.
       {
         id: "o2",
-        name: "Autohaus Kleinschmidt",
-        label: "Autohaus Kleinschmidt, Pirna",
+        name: "Autohaus Beispielhof",
+        label: "Autohaus Beispielhof, Pirna",
         lat: 50.96,
         lon: 13.94,
       },
     ] as never);
 
-    const hits = await search("Autohaus Dresden");
+    const hits = await search("Autohaus Muster Dresden");
 
     expect(hits.map((h) => [h.label, h.source])).toEqual([
-      ["Opel - Autohaus Dresden GmbH, Musterstadt", "osm"],
-      ["Autohaus Kleinschmidt, Pirna", "overture"],
+      ["Opel - Autohaus Muster Dresden GmbH, Musterstadt", "osm"],
+      ["Autohaus Beispielhof, Pirna", "overture"],
     ]);
   });
 
@@ -242,20 +244,20 @@ describe("ranking", () => {
   it("puts an exact Overture dealer above a loose OSM match", async () => {
     photonResponses({
       dealers: [],
-      general: [feature(10, "Herzogstraße", 48.1, 11.5)],
+      general: [feature(10, "Mustermannstraße", 48.1, 11.5)],
     });
     directory.search.mockReturnValue([
       {
         id: "o10",
-        name: "Autohaus Bernd Herzog",
-        label: "Autohaus Bernd Herzog, Ringweg 1, 01067 Dresden",
+        name: "Autohaus Max Mustermann",
+        label: "Autohaus Max Mustermann, Ringweg 1, 01067 Dresden",
         street: "Ringweg 1",
         lat: 51.05,
         lon: 13.74,
       },
     ] as never);
 
-    const hits = await search("Bernd Herzog");
+    const hits = await search("Max Mustermann");
 
     expect(hits[0].source).toBe("overture");
   });
@@ -453,8 +455,8 @@ describe("Photon cache", () => {
 
 describe("similarBusinessNames", () => {
   it.each([
-    ["Opel - Autohaus Dresden GmbH", "Autohaus Dresden", true],
-    ["Autohaus Bernd Herzog", "Bernd Herzog Automobile", true],
+    ["Opel - Autohaus Muster Dresden GmbH", "Autohaus Muster Dresden", true],
+    ["Autohaus Max Mustermann", "Max Mustermann Automobile", true],
     ["Auto Müller", "Auto Schmidt", false],
     ["Autohaus", "Autohaus", true],
   ])("%s ≈ %s → %s", (a, b, expected) => {

@@ -148,9 +148,8 @@ export function isStreetParcel(
  * A road, path or rail parcel as the parcel at the point: by the cadastre's
  * land use where it is published, else long and narrow and not a field
  * strip. A geocoded point often lies on the carriageway, and such a parcel
- * is never the dealership: in the November audit Dresdner Straße in Freital
- * (22,000 m² of road, one parcel) was returned as a lot because the point
- * lay on it.
+ * is never the dealership: in the November audit a main road (22,000 m²,
+ * one parcel) was returned as a lot because the point lay on it.
  */
 export function isRoadParcel(
   parcel: ParcelFeature,

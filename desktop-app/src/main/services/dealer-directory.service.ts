@@ -141,8 +141,8 @@ export function tokenVariants(token: string): string[] {
 
 /**
  * FTS5 prefix query: every identifying word must match the start of a token
- * in name, brand, street, postcode or city ("autohaus herz" finds "Autohaus
- * Herzog"). Generic words ("Autohaus") are only required when nothing else is
+ * in name, brand, street, postcode or city ("autohaus muster" finds "Autohaus
+ * Mustermann"). Generic words ("Autohaus") are only required when nothing else is
  * typed, so "Autohaus Müller" also finds "Müller Automobile".
  */
 export function directoryMatchQuery(tokens: readonly string[]): string | null {

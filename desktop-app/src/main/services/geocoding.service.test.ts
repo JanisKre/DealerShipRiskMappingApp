@@ -10,7 +10,7 @@ vi.mock("./http.service", () => ({ fetchWithResilience: vi.fn() }));
 import { pickGeocodeHit, type GeocodeCandidate } from "./geocoding.service";
 
 const ADDRESS = "Industriestraße 12, 01159 Dresden";
-const NAME = "Autohaus Brinkmann GmbH";
+const NAME = "Autohaus Musterfeld GmbH";
 
 function hit(patch: Partial<GeocodeCandidate>): GeocodeCandidate {
   return { label: "hit", lat: 51.05, lon: 13.7, ...patch };
@@ -29,9 +29,9 @@ describe("pickGeocodeHit", () => {
       postcode: "01159",
     });
     const dealer = hit({
-      label: "Autohaus Brinkmann",
+      label: "Autohaus Musterfeld",
       lat: 51.0505,
-      name: "Autohaus Brinkmann",
+      name: "Autohaus Musterfeld",
       category: "shop",
       type: "car",
       postcode: "01159",
@@ -48,10 +48,10 @@ describe("pickGeocodeHit", () => {
   it("never picks a same-named branch in another postcode", () => {
     const address = hit({ label: "Industriestraße 12", postcode: "01159" });
     const branch = hit({
-      label: "Autohaus Brinkmann Leipzig",
+      label: "Autohaus Musterfeld Leipzig",
       lat: 51.34,
       lon: 12.37,
-      name: "Autohaus Brinkmann",
+      name: "Autohaus Musterfeld",
       category: "shop",
       type: "car",
       postcode: "04109",

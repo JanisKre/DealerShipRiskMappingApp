@@ -925,7 +925,7 @@ outlines beyond the 17 OSM fixtures. The frozen inputs of the earlier checks
 
 ## Cascade v13 (November 2026, a road is not a lot)
 
-`CASCADE_VERSION` 13. A user reported a site in Freital (Sachsen) whose
+`CASCADE_VERSION` 13. A user reported a site in Saxony whose
 boundary was the main road: a strip 14 m wide and 1.5 km long, 25,464 m²,
 with the trace "parcel at the point + 7 adjacent parcel(s) (2 across the
 street, 1 enclosed) hold 89 of 97 lot vehicles".
@@ -935,14 +935,14 @@ street, 1 enclosed) hold 89 of 97 lot vehicles".
 Two faults, one behind the other.
 
 1. **The address was not read.** The site was added from the search, which
-   stores the address as "F&T Fahrzeug-Technik, Dresdner Str. 263, 01705
-   Freital". `addressKeys` took everything before the first digit as the
-   street name, so the key was `ftfahrzeugtechnikdresdnerstr|263` and
-   matched no parcel. The cadastre has a parcel "Dresdner Straße 263" 3 m
+   stores the address as "Name, Street 263, 01234
+   Town". `addressKeys` took everything before the first digit as the
+   street name, so the key was `namestreet|263` and
+   matched no parcel. The cadastre has a parcel "Street 263" 3 m
    from the point; the v9 rule that moves a point from a street to the
    address parcel never fired.
 2. **A road could be the parcel at the point.** The geocoded point lay on
-   the carriageway. Dresdner Straße is one parcel of 22,012 m², registered
+   the carriageway. The main road is one parcel of 22,012 m², registered
    as 100 % traffic. Roads never *join* a lot, but nothing stopped a road
    from being the parcel the lot *starts* from. Every car parked along the
    road stood "on the parcel at the point", so the lot was the whole street
@@ -967,7 +967,7 @@ analysis, no building footprints or vegetation raster):
 
 | | v12 | v13 |
 | --- | --- | --- |
-| Start parcel | the road, 22,012 m² | "Dresdner Straße 263", 661 m², 3 m from the point |
+| Start parcel | the road, 22,012 m² | "Street 263", 661 m², 3 m from the point |
 | Result | 25,464 m², road plus 7 plots, confidence 0.6 | 3,480 m², 7 plots, no road, confidence 0.75 |
 | Lot vehicles | 97, of which 43 on the road | 82, of which 76 inside |
 | Same site without its address | — | 2,821 m², started from the plot beside the road with 16 lot vehicles |

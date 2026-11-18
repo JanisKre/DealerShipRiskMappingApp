@@ -70,8 +70,9 @@ export function matchesSite(
 /**
  * Stricter identity test for admitting a *separate* component, which has no
  * physical connection to vouch for it. Every distinctive token of the site's
- * name must appear — "Opel - Autohaus Dresden" must not claim everything
- * named "…Dresden…", nor "Autocenter Löbtau" every building in Löbtau, since
+ * name must appear — "Opel - Autohaus Muster Dresden" must not claim
+ * everything named "…Dresden…", nor "Autocenter Musterau" every building in
+ * Musterau, since
  * place names are routinely part of dealership names. An address match needs
  * the house number; a postcode alone covers a whole district.
  */

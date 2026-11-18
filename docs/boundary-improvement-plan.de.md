@@ -275,20 +275,20 @@ Die folgenden Empfehlungen machen den Plan ausführbar. Abweichungen lassen sich
 
 ## 10. Nachweise und Einstiegspunkte
 
-Die Codebefunde beziehen sich auf `169a48f` und die folgenden Dateien unter `/Users/janis/GitHub/DealerShipRiskMappingApp`:
+Die Codebefunde beziehen sich auf `169a48f` und die folgenden Dateien im Repository:
 
-- [Engine und Kandidatenauswahl](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/main/services/boundary.service.ts)
-- [Fusionskern](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/main/services/boundary/fusion.ts)
-- [Parzellenmontage](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/main/services/boundary/parcel-assembly.ts)
-- [Evidenzbeschaffung](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/main/services/boundary/evidence-sources.ts)
-- [Katasteradapter](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/main/services/alkis.service.ts)
-- [Analyseablauf](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/main/services/analyze.service.ts)
-- [Bildbeschaffung](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/main/services/tiles.service.ts)
-- [Oberflächenheuristik](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/main/services/surface-boundary.service.ts)
-- [Datenmodell](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/shared/types.ts)
-- [Karte und Editor](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/renderer/src/components/map/BoundaryLayer.tsx)
-- [Benchmark-Runner](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/main/services/boundary/boundary-benchmark.run.test.ts)
-- [Benchmark-Metriken](/Users/janis/GitHub/DealerShipRiskMappingApp/desktop-app/src/main/services/boundary-benchmark.ts)
-- [Vorhandene Modelldokumentation](/Users/janis/GitHub/DealerShipRiskMappingApp/docs/boundary-model.md)
+- [Engine und Kandidatenauswahl](../desktop-app/src/main/services/boundary.service.ts)
+- [Fusionskern](../desktop-app/src/main/services/boundary/fusion.ts)
+- [Parzellenmontage](../desktop-app/src/main/services/boundary/parcel-assembly.ts)
+- [Evidenzbeschaffung](../desktop-app/src/main/services/boundary/evidence-sources.ts)
+- [Katasteradapter](../desktop-app/src/main/services/alkis.service.ts)
+- [Analyseablauf](../desktop-app/src/main/services/analyze.service.ts)
+- [Bildbeschaffung](../desktop-app/src/main/services/tiles.service.ts)
+- [Oberflächenheuristik](../desktop-app/src/main/services/surface-boundary.service.ts)
+- [Datenmodell](../desktop-app/src/shared/types.ts)
+- [Karte und Editor](../desktop-app/src/renderer/src/components/map/BoundaryLayer.tsx)
+- [Benchmark-Runner](../desktop-app/src/main/services/boundary/boundary-benchmark.run.test.ts)
+- [Benchmark-Metriken](../desktop-app/src/main/services/boundary-benchmark.ts)
+- [Vorhandene Modelldokumentation](boundary-model.md)
 
 Externe Referenzen wurden am 14. September 2026 für die Planung eingesehen. Sie belegen verfügbare Schnittstellen und Werkzeuge, nicht die Qualität einer noch nicht implementierten Autohauserkennung.

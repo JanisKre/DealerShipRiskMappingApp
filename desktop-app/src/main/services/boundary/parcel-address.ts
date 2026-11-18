@@ -40,8 +40,8 @@ function houseNumbers(token: string): string[] {
 /**
  * The street-and-number keys in an address text; empty without a number.
  *
- * A dealership's address often starts with its name ("F&T Fahrzeug-Technik,
- * Dresdner Str. 263, 01705 Freital"), so the text is read part by part
+ * A dealership's address often starts with its name ("M&S Muster-Technik,
+ * Musterstr. 263, 01234 Musterstadt"), so the text is read part by part
  * between commas: a part without a number is a name or a town and is
  * skipped, a part that starts with a number continues the street before it,
  * and a postcode ends the street.
@@ -62,7 +62,7 @@ export function addressKeys(address: string | undefined): string[] {
       let ended = false;
       for (const token of match[2].split("/")) {
         const numbers = houseNumbers(token.trim());
-        // A postcode and town ("51645 Gummersbach") end the house numbers.
+        // A postcode and town ("12345 Musterstadt") end the house numbers.
         if (numbers.length === 0) {
           ended = named.length < 3;
           break;

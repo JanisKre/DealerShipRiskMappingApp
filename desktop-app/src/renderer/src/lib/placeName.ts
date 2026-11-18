@@ -2,11 +2,11 @@
  * Name for a location added from a search suggestion.
  *
  * The label's first segment is the business name. Dealer groups often name
- * every branch the same ("Autohaus Dresden GmbH" at four addresses), and some
+ * every branch the same ("Autohaus Muster Dresden GmbH" at four addresses), and some
  * Overture places carry only the brand ("Opel"). Taken verbatim, two different
  * sites then look identical in the list, on the map and in reports. In those
  * cases the street (or, failing that, the town) is appended:
- * "Autohaus Dresden GmbH (Kötzschenbroder Str. 141)".
+ * "Autohaus Muster Dresden GmbH (Beispielstraße 141)".
  *
  * A same-named location at the same spot is the same site picked again: the
  * name stays as it is so the duplicate check (`dedupeDealerships`) skips it.

@@ -12,12 +12,13 @@ import {
 
 /**
  * Cascade v13 (docs/boundary-model.md, "Cascade v13"): a road parcel is
- * never the parcel at the point. Modelled on Dresdner Straße 263 in Freital:
+ * never the parcel at the point. Modelled on a reported site with made-up
+ * names and coordinates:
  * the geocoded point lay on the carriageway, a single road parcel of
  * 22,000 m², and that parcel was returned as the lot.
  */
 
-const ANCHOR: LonLat = [13.6456, 50.9941];
+const ANCHOR: LonLat = [13.5, 51.0];
 
 function at(east: number, north: number): LonLat {
   return unprojectPoint([east, north], ANCHOR);
@@ -80,12 +81,12 @@ function input(overrides: Partial<CascadeInput>): CascadeInput {
 // The point lies on a road 14 m wide and 700 m long.
 const road = parcel(rect(-7, -350, 7, 350), {
   landUse: { traffic: 1 },
-  address: "Dresdner Straße",
+  address: "Musterstraße",
 });
 const yard = parcel(rect(7, -20, 47, 20), { landUse: { commercial: 1 } });
 const house = parcel(rect(7, 20, 27, 45), {
   landUse: { residential: 1 },
-  address: "Dresdner Straße 263",
+  address: "Musterstraße 263",
 });
 const opposite = parcel(rect(-47, -20, -7, 20), {
   landUse: { residential: 1 },
@@ -146,7 +147,7 @@ describe("a point on a road parcel (v13)", () => {
   it("moves to the address parcel when the address starts with the dealer's name", () => {
     const outcome = runCascade(
       input({
-        address: "F&T Fahrzeug-Technik, Dresdner Str. 263, 01705 Freital",
+        address: "M&S Muster-Technik, Musterstr. 263, 01234 Musterstadt",
         parcels: [road, yard, house, opposite],
         vehicles: [...yardCars, ...kerbCars],
       }),

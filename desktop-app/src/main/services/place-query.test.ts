@@ -47,7 +47,7 @@ describe("parsePlaceQuery", () => {
 
 describe("tokenMatch", () => {
   it("accepts prefixes, brand aliases and typos, not other words", () => {
-    expect(tokenMatch("herz", "herzog")).toBe(1);
+    expect(tokenMatch("muster", "mustermann")).toBe(1);
     expect(tokenMatch("vw", "volkswagen")).toBe(1);
     expect(tokenMatch("mueler", "mueller")).toBeGreaterThan(0.6);
     expect(tokenMatch("mueller", "schmidt")).toBe(0);
@@ -59,9 +59,14 @@ describe("tokenMatch", () => {
 describe("textMatchScore", () => {
   it("ignores generic words when the query names more", () => {
     expect(
-      textMatchScore(["autohaus", "herzog"], "Herzog Automobile, Dresden"),
+      textMatchScore(
+        ["autohaus", "mustermann"],
+        "Mustermann Automobile, Dresden",
+      ),
     ).toBe(1);
-    expect(textMatchScore(["autohaus", "herzog"], "Autohaus Schmidt")).toBe(0);
+    expect(textMatchScore(["autohaus", "mustermann"], "Autohaus Schmidt")).toBe(
+      0,
+    );
   });
 
   it("uses generic words when they are all there is", () => {

@@ -15,44 +15,44 @@ import en from "../locales/en.json";
 import fr from "../locales/fr.json";
 
 const LOCATIONS = [
-  { id: "a", name: "Autohaus Dresden Reick" },
+  { id: "a", name: "Autohaus Dresden Muster" },
   { id: "b", name: "Autohaus Dresden" },
-  { id: "c", name: "Autohaus Sinemus" },
+  { id: "c", name: "Autohaus Quendel" },
 ];
 
 describe("linkifyLocations", () => {
   it("links each mentioned location, longest name first", () => {
     expect(
       linkifyLocations(
-        "Autohaus Dresden Reick und Autohaus Dresden liegen nah.",
+        "Autohaus Dresden Muster und Autohaus Dresden liegen nah.",
         LOCATIONS,
       ),
     ).toBe(
-      "[Autohaus Dresden Reick](drm-location:a) und [Autohaus Dresden](drm-location:b) liegen nah.",
+      "[Autohaus Dresden Muster](drm-location:a) und [Autohaus Dresden](drm-location:b) liegen nah.",
     );
   });
 
   it("keeps code and existing links untouched", () => {
     const text =
-      "`Autohaus Sinemus` und [Autohaus Sinemus](https://x.de) aber Autohaus Sinemus";
+      "`Autohaus Quendel` und [Autohaus Quendel](https://x.de) aber Autohaus Quendel";
     expect(linkifyLocations(text, LOCATIONS)).toBe(
-      "`Autohaus Sinemus` und [Autohaus Sinemus](https://x.de) aber [Autohaus Sinemus](drm-location:c)",
+      "`Autohaus Quendel` und [Autohaus Quendel](https://x.de) aber [Autohaus Quendel](drm-location:c)",
     );
   });
 
   it("does not link inside longer words", () => {
     expect(
-      linkifyLocations("Autohaus Sinemusweg", [
-        { id: "c", name: "Autohaus Sinemus" },
+      linkifyLocations("Autohaus Quendelweg", [
+        { id: "c", name: "Autohaus Quendel" },
       ]),
-    ).toBe("Autohaus Sinemusweg");
+    ).toBe("Autohaus Quendelweg");
   });
 });
 
 describe("stripLocationLinks", () => {
   it("restores the plain answer text for copying", () => {
     const text =
-      "Autohaus Dresden Reick und `Autohaus Sinemus` [Doku](https://x.de)";
+      "Autohaus Dresden Muster und `Autohaus Quendel` [Doku](https://x.de)";
     const linked = linkifyLocations(text, LOCATIONS);
     expect(linked).not.toBe(text);
     expect(stripLocationLinks(linked)).toBe(text);
@@ -61,16 +61,16 @@ describe("stripLocationLinks", () => {
 
 describe("parseChatAction", () => {
   it("opens a location by name", () => {
-    expect(parseChatAction("Öffne Autohaus Sinemus", LOCATIONS)).toEqual({
+    expect(parseChatAction("Öffne Autohaus Quendel", LOCATIONS)).toEqual({
       type: "open",
       id: "c",
-      name: "Autohaus Sinemus",
+      name: "Autohaus Quendel",
     });
   });
 
   it("shows a location on the map", () => {
     expect(
-      parseChatAction("zeige Autohaus Dresden Reick auf der Karte", LOCATIONS),
+      parseChatAction("zeige Autohaus Dresden Muster auf der Karte", LOCATIONS),
     ).toMatchObject({ type: "showOnMap", id: "a" });
   });
 
@@ -100,7 +100,7 @@ describe("parseChatAction", () => {
       const prompts = locale.chat.commandPrompts;
       expect(
         parseChatAction(
-          prompts.open.replace("{{name}}", "Autohaus Sinemus"),
+          prompts.open.replace("{{name}}", "Autohaus Quendel"),
           LOCATIONS,
         ),
       ).toMatchObject({ type: "open", id: "c" });

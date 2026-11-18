@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { nameForPlace } from "./placeName";
 
-const DRESDEN_WETTERWARTE = {
-  name: "Autohaus Dresden GmbH",
-  lat: 51.1323678,
-  lon: 13.782488,
+const DRESDEN_BRANCH = {
+  name: "Autohaus Muster Dresden GmbH",
+  lat: 51.132,
+  lon: 13.782,
 };
 
 describe("nameForPlace", () => {
@@ -12,13 +12,13 @@ describe("nameForPlace", () => {
     expect(
       nameForPlace(
         {
-          label: "Autohaus Hescher Dresden, Spitzhausstraße 86, 01139 Dresden",
+          label: "Autohaus Beispiel Dresden, Musterstraße 86, 01139 Dresden",
           lat: 51.09,
           lon: 13.69,
         },
-        [DRESDEN_WETTERWARTE],
+        [DRESDEN_BRANCH],
       ),
-    ).toBe("Autohaus Hescher Dresden");
+    ).toBe("Autohaus Beispiel Dresden");
   });
 
   it("adds the street when another branch already has the same name", () => {
@@ -26,52 +26,53 @@ describe("nameForPlace", () => {
       nameForPlace(
         {
           label:
-            "Autohaus Dresden GmbH, Kötzschenbroder Str. 141, 01139 Dresden",
-          lat: 51.0878,
-          lon: 13.6788,
+            "Autohaus Muster Dresden GmbH, Beispielstraße 141, 01139 Dresden",
+          lat: 51.088,
+          lon: 13.679,
         },
-        [{ ...DRESDEN_WETTERWARTE, name: "autohaus  dresden gmbh" }],
+        [{ ...DRESDEN_BRANCH, name: "autohaus  muster dresden gmbh" }],
       ),
-    ).toBe("Autohaus Dresden GmbH (Kötzschenbroder Str. 141)");
+    ).toBe("Autohaus Muster Dresden GmbH (Beispielstraße 141)");
   });
 
   it("keeps the name for the same site picked again, so it is deduplicated", () => {
     expect(
       nameForPlace(
         {
-          label: "Autohaus Dresden GmbH, Zur Wetterwarte 40, 01109 Dresden",
-          lat: 51.1325,
-          lon: 13.7826,
+          label: "Autohaus Muster Dresden GmbH, Musterweg 40, 01109 Dresden",
+          lat: 51.1321,
+          lon: 13.7822,
         },
-        [DRESDEN_WETTERWARTE],
+        [DRESDEN_BRANCH],
       ),
-    ).toBe("Autohaus Dresden GmbH");
+    ).toBe("Autohaus Muster Dresden GmbH");
   });
 
   it("falls back to the town for OSM labels without a street", () => {
     expect(
       nameForPlace(
         {
-          label: "Autohaus Dresden GmbH, 01067 Dresden, Sachsen, Deutschland",
+          label:
+            "Autohaus Muster Dresden GmbH, 01067 Dresden, Sachsen, Deutschland",
           lat: 51.06,
           lon: 13.72,
         },
-        [DRESDEN_WETTERWARTE],
+        [DRESDEN_BRANCH],
       ),
-    ).toBe("Autohaus Dresden GmbH (Dresden)");
+    ).toBe("Autohaus Muster Dresden GmbH (Dresden)");
   });
 
   it("qualifies brand-only names even without a collision", () => {
     expect(
       nameForPlace(
         {
-          label: "Opel, Possendorfer Straße 38, 01217 Dresden",
+          label: "Opel, Lindenallee 38, 01217 Dresden",
           lat: 51,
           lon: 13,
         },
         [],
       ),
-    ).toBe("Opel (Possendorfer Straße 38)");
+    ).toBe("Opel (Lindenallee 38)");
   });
 
   it("keeps the name when there is nothing to qualify it with", () => {
