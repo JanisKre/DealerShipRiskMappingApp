@@ -275,7 +275,13 @@ export function OsmDetailsSection({
   }
 
   const hasInfo =
-    details?.phone || details?.email || details?.openingHours || details?.brand;
+    details?.phone ||
+    details?.email ||
+    details?.openingHours ||
+    details?.brand ||
+    details?.operator ||
+    details?.secondHand ||
+    details?.vehicleServices?.length;
   if (!hasInfo || !details) return null;
 
   return (
@@ -312,6 +318,32 @@ export function OsmDetailsSection({
           <div className="flex items-center gap-1.5">
             <Tag className="size-3.5 shrink-0 text-muted-foreground" />
             {details.brand}
+          </div>
+        )}
+        {details.operator && details.operator !== details.brand && (
+          <div className="flex items-center gap-1.5">
+            <Tag className="size-3.5 shrink-0 text-muted-foreground" />
+            {t("dashboard.detailDialog.osmOperator", {
+              operator: details.operator,
+            })}
+          </div>
+        )}
+        {(details.secondHand === "only" || details.secondHand === "yes") && (
+          <div className="flex items-center gap-1.5">
+            <Tag className="size-3.5 shrink-0 text-muted-foreground" />
+            {t(
+              details.secondHand === "only"
+                ? "dashboard.detailDialog.osmUsedOnly"
+                : "dashboard.detailDialog.osmUsedToo",
+            )}
+          </div>
+        )}
+        {details.vehicleServices && details.vehicleServices.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <Tag className="size-3.5 shrink-0 text-muted-foreground" />
+            {t("dashboard.detailDialog.osmServices", {
+              services: details.vehicleServices.join(", "),
+            })}
           </div>
         )}
       </div>

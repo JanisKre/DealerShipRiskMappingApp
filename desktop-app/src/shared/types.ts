@@ -460,6 +460,12 @@ export const OsmDetailsSchema = z.object({
   email: z.string().optional(),
   openingHours: z.string().optional(),
   brand: z.string().optional(),
+  /** OSM `operator`: often the dealer group behind a branch. */
+  operator: z.string().max(300).optional(),
+  /** OSM `second_hand`: "only" (used cars only), "yes" or "no". */
+  secondHand: z.string().max(20).optional(),
+  /** OSM `service:vehicle:*=yes` keys, e.g. "repairs", "tyres". */
+  vehicleServices: z.array(z.string().max(60)).max(20).optional(),
   address: z
     .object({
       road: z.string().optional(),

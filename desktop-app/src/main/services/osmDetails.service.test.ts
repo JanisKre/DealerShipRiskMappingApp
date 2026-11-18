@@ -24,6 +24,7 @@ import {
   OSM_DETAILS_BUDGET_MS,
   getOsmDetails,
   pickDealershipPoi,
+  vehicleServicesOf,
   websiteFromEvidence,
 } from "./osmDetails.service";
 
@@ -201,5 +202,19 @@ describe("getOsmDetails time budget", () => {
     expect(mocks.fetchOverpass).toHaveBeenCalledWith(expect.any(String), {
       budgetMs: OSM_DETAILS_BUDGET_MS,
     });
+  });
+});
+
+describe("vehicleServicesOf", () => {
+  it("lists the service:vehicle kinds tagged yes", () => {
+    expect(
+      vehicleServicesOf({
+        "service:vehicle:repairs": "yes",
+        "service:vehicle:tyres": "yes",
+        "service:vehicle:painting": "no",
+        shop: "car",
+      }),
+    ).toEqual({ vehicleServices: ["repairs", "tyres"] });
+    expect(vehicleServicesOf({ shop: "car" })).toEqual({});
   });
 });

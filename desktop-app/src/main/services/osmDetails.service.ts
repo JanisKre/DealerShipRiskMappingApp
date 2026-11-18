@@ -119,6 +119,9 @@ export async function getOsmDetails(
       email: tags.email ?? tags["contact:email"],
       openingHours: tags.opening_hours,
       brand: tags.brand,
+      operator: tags.operator,
+      secondHand: tags.second_hand,
+      ...vehicleServicesOf(tags),
       address: {
         road: tags["addr:street"],
         houseNumber: tags["addr:housenumber"],
@@ -252,4 +255,18 @@ function significantTokens(value?: string): string[] {
 function streetTokens(address?: string): string[] {
   const street = address?.split(",")[0] ?? "";
   return tokens(street).filter((token) => !/^\d/.test(token));
+}
+
+/** `service:vehicle:<kind>=yes` tags of an OSM object, as a list of kinds. */
+export function vehicleServicesOf(tags: Record<string, string>): {
+  vehicleServices?: string[];
+} {
+  const kinds = Object.entries(tags)
+    .filter(
+      ([key, value]) => key.startsWith("service:vehicle:") && value === "yes",
+    )
+    .map(([key]) => key.slice("service:vehicle:".length))
+    .filter(Boolean)
+    .slice(0, 20);
+  return kinds.length > 0 ? { vehicleServices: kinds } : {};
 }
