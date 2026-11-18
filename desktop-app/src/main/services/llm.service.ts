@@ -64,6 +64,48 @@ interface ResolvedProvider {
  */
 const LOCAL_TIMEOUT_MS = 180_000;
 
+/**
+ * Time until the response headers of a cloud request. A non-streamed answer
+ * sends its headers only once it is complete, so the general 15 s HTTP
+ * timeout cut off memos, JSON agents and image checks of larger models.
+ */
+const CLOUD_TIMEOUT_MS = 120_000;
+
+/** Error text when the answer stopped at the token limit before any text. */
+export const LLM_TRUNCATED = "AI answer stopped at the token limit";
+
+/**
+ * OpenAI's own API takes `max_completion_tokens`; its reasoning models
+ * reject `max_tokens`. OpenAI-compatible servers (custom, local) still take
+ * `max_tokens`.
+ */
+function openAiTokenLimit(
+  p: ResolvedProvider,
+  maxTokens: number,
+): Record<string, number> {
+  const official =
+    p.provider === "openai" && new URL(p.baseUrl).hostname === "api.openai.com";
+  return official
+    ? { max_completion_tokens: maxTokens }
+    : { max_tokens: maxTokens };
+}
+
+/**
+ * An answer that ended at the token limit: empty is an error (nothing to
+ * show or parse), cut-off text is passed on with a warning; JSON callers
+ * reject it and ask once more.
+ */
+function checkCompletion(
+  text: string,
+  truncated: boolean,
+  maxTokens: number,
+): string {
+  if (!truncated) return text;
+  if (text.trim() === "") throw new Error(`${LLM_TRUNCATED} (${maxTokens})`);
+  console.warn(`AI answer cut off at the token limit (${maxTokens})`);
+  return text;
+}
+
 function normalizeBaseUrl(rawUrl: string, label: string): string {
   let url: URL;
   try {
@@ -248,16 +290,24 @@ async function openAiComplete(
       body: JSON.stringify({
         model: p.model,
         messages: body,
-        max_tokens: maxTokens,
+        ...openAiTokenLimit(p, maxTokens),
       }),
     },
-    { timeoutMs: p.timeoutMs },
+    { timeoutMs: p.timeoutMs ?? CLOUD_TIMEOUT_MS },
   );
   if (!res.ok) throw new Error(`LLM ${res.status}: ${await res.text()}`);
   const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
+    choices?: Array<{
+      message?: { content?: string };
+      finish_reason?: string;
+    }>;
   };
-  return data.choices?.[0]?.message?.content ?? "";
+  const choice = data.choices?.[0];
+  return checkCompletion(
+    choice?.message?.content ?? "",
+    choice?.finish_reason === "length",
+    maxTokens,
+  );
 }
 
 async function claudeComplete(
@@ -288,23 +338,35 @@ async function claudeComplete(
       },
     ];
   });
-  const res = await fetchWithResilience(`${p.baseUrl}/v1/messages`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(p.apiKey ? { "x-api-key": p.apiKey } : {}),
-      "anthropic-version": "2023-06-01",
+  const res = await fetchWithResilience(
+    `${p.baseUrl}/v1/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(p.apiKey ? { "x-api-key": p.apiKey } : {}),
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: p.model,
+        max_tokens: maxTokens,
+        system,
+        messages: rest,
+      }),
     },
-    body: JSON.stringify({
-      model: p.model,
-      max_tokens: maxTokens,
-      system,
-      messages: rest,
-    }),
-  });
+    { timeoutMs: p.timeoutMs ?? CLOUD_TIMEOUT_MS },
+  );
   if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as { content?: Array<{ text?: string }> };
-  return data.content?.map((c) => c.text ?? "").join("") ?? "";
+  const data = (await res.json()) as {
+    content?: Array<{ type?: string; text?: string }>;
+    stop_reason?: string;
+  };
+  const text =
+    data.content
+      ?.filter((c) => c.type == null || c.type === "text")
+      .map((c) => c.text ?? "")
+      .join("") ?? "";
+  return checkCompletion(text, data.stop_reason === "max_tokens", maxTokens);
 }
 
 // --- Streaming --------------------------------------------------------------
@@ -371,11 +433,11 @@ async function* openAiStream(
         model: p.model,
         messages,
         stream: true,
-        ...(maxTokens ? { max_tokens: maxTokens } : {}),
+        ...(maxTokens ? openAiTokenLimit(p, maxTokens) : {}),
       }),
       signal,
     },
-    { timeoutMs: p.timeoutMs },
+    { timeoutMs: p.timeoutMs ?? CLOUD_TIMEOUT_MS },
   );
   if (!res.ok || !res.body)
     throw new Error(`LLM ${res.status}: ${await res.text()}`);
@@ -401,22 +463,26 @@ async function* claudeStream(
 ): AsyncGenerator<string, void, unknown> {
   const system = messages.find((m) => m.role === "system")?.content;
   const rest = messages.filter((m) => m.role !== "system");
-  const res = await fetchWithResilience(`${p.baseUrl}/v1/messages`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(p.apiKey ? { "x-api-key": p.apiKey } : {}),
-      "anthropic-version": "2023-06-01",
+  const res = await fetchWithResilience(
+    `${p.baseUrl}/v1/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(p.apiKey ? { "x-api-key": p.apiKey } : {}),
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: p.model,
+        max_tokens: maxTokens,
+        system,
+        messages: rest,
+        stream: true,
+      }),
+      signal,
     },
-    body: JSON.stringify({
-      model: p.model,
-      max_tokens: maxTokens,
-      system,
-      messages: rest,
-      stream: true,
-    }),
-    signal,
-  });
+    { timeoutMs: p.timeoutMs ?? CLOUD_TIMEOUT_MS },
+  );
   if (!res.ok || !res.body)
     throw new Error(`Claude ${res.status}: ${await res.text()}`);
   for await (const data of sseLines(res.body, signal)) {

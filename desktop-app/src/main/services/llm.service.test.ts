@@ -15,6 +15,8 @@ import { HttpRequestError } from "./http.service";
 import { DRM_DASHBOARD_CATALOG_ID } from "@shared/a2ui";
 import {
   CHAT_MAX_TOKENS,
+  chatComplete,
+  LLM_TRUNCATED,
   classifyLlmError,
   classifyChatIntent,
   detectLocalRuntimes,
@@ -264,9 +266,13 @@ describe("portfolio chat", () => {
     expect(tokens.join("")).toBe("Drei.");
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
       messages: Array<{ role: string; content: string }>;
-      max_tokens: number;
+      max_tokens?: number;
+      max_completion_tokens?: number;
     };
-    expect(body.max_tokens).toBe(CHAT_MAX_TOKENS);
+    // OpenAI's own API: max_completion_tokens (reasoning models reject
+    // max_tokens).
+    expect(body.max_completion_tokens).toBe(CHAT_MAX_TOKENS);
+    expect(body.max_tokens).toBeUndefined();
     expect(body.messages.map((m) => m.role)).toEqual(["system", "user"]);
     expect(body.messages[0].content).not.toContain("pirate");
   });
@@ -341,6 +347,73 @@ describe("portfolio chat", () => {
       ),
     );
     await expect(drain()).rejects.toThrow(/Overloaded/);
+  });
+});
+
+describe("non-streamed completions", () => {
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    mocks.apiKey = "sk-test";
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("sends max_tokens to an OpenAI-compatible custom server", async () => {
+    mocks.settings = {
+      language: "en",
+      llm: {
+        provider: "custom",
+        model: "m",
+        baseUrl: "https://llm.example.test/v1",
+      },
+    };
+    fetchMock.mockResolvedValueOnce(
+      json({
+        choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
+      }),
+    );
+    await expect(
+      chatComplete([{ role: "user", content: "hi" }], 50),
+    ).resolves.toBe("ok");
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      max_tokens?: number;
+    };
+    expect(body.max_tokens).toBe(50);
+  });
+
+  it("reports an answer that stopped at the token limit before any text", async () => {
+    mocks.settings = {
+      language: "en",
+      llm: { provider: "openai", model: "gpt-5-mini" },
+    };
+    fetchMock.mockResolvedValueOnce(
+      json({
+        choices: [{ message: { content: "" }, finish_reason: "length" }],
+      }),
+    );
+    await expect(
+      chatComplete([{ role: "user", content: "hi" }], 16),
+    ).rejects.toThrow(LLM_TRUNCATED);
+  });
+
+  it("reads Claude text blocks and its stop reason", async () => {
+    mocks.settings = {
+      language: "en",
+      llm: { provider: "claude", model: "claude-sonnet-5-5" },
+    };
+    fetchMock.mockResolvedValueOnce(
+      json({
+        content: [
+          { type: "thinking", thinking: "…" },
+          { type: "text", text: "Antwort" },
+        ],
+        stop_reason: "end_turn",
+      }),
+    );
+    await expect(
+      chatComplete([{ role: "user", content: "hi" }], 100),
+    ).resolves.toBe("Antwort");
   });
 });
 

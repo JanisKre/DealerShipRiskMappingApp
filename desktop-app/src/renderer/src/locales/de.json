@@ -431,8 +431,8 @@
       "needBaseUrl": "Base-URL eintragen – danach erscheinen die verfügbaren Modelle hier automatisch.",
       "loading": "Modelle werden geladen …",
       "manualPlaceholderFor": {
-        "openai": "Modell-ID eingeben, z. B. gpt-4.1-mini",
-        "claude": "Modell-ID eingeben, z. B. claude-sonnet-4-5",
+        "openai": "Modell-ID eingeben, z. B. gpt-5-mini",
+        "claude": "Modell-ID eingeben, z. B. claude-sonnet-5-5",
         "local": "Modellname eingeben, z. B. llama3.2",
         "custom": "Modell-ID des Servers eingeben"
       },

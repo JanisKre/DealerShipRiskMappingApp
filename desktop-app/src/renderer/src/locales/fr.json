@@ -431,8 +431,8 @@
       "needBaseUrl": "Saisissez l’URL de base – les modèles disponibles apparaissent ensuite ici automatiquement.",
       "loading": "Chargement des modèles …",
       "manualPlaceholderFor": {
-        "openai": "Saisissez un ID de modèle, p. ex. gpt-4.1-mini",
-        "claude": "Saisissez un ID de modèle, p. ex. claude-sonnet-4-5",
+        "openai": "Saisissez un ID de modèle, p. ex. gpt-5-mini",
+        "claude": "Saisissez un ID de modèle, p. ex. claude-sonnet-5-5",
         "local": "Saisissez un nom de modèle, p. ex. llama3.2",
         "custom": "Saisissez l’ID de modèle du serveur"
       },

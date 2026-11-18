@@ -279,7 +279,10 @@ function envApiKey(provider: LlmProvider): string | null {
   const candidates: Record<Exclude<LlmProvider, "local">, string[]> = {
     openai: ["OPENAI_API_KEY"],
     claude: ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"],
-    custom: ["ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY"],
+    // A custom URL is whatever the user typed: a vendor's key from the
+    // environment must never be sent there unasked. Only the generic
+    // LLM_API_KEY (meant for exactly this) or a key saved in the settings.
+    custom: [],
   };
   const names = ["LLM_API_KEY", ...candidates[provider]];
   for (const name of names) {
