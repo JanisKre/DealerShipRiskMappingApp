@@ -2,10 +2,10 @@ import type { BoundaryResult } from "@shared/types";
 import { polygonAreaSqm } from "../geo-math";
 
 /**
- * Fallback radius (centre to corner of the octagon). Calibrated on the 17
- * public boundary fixtures so that the octagon around the point holds the
- * whole reference lot on at least 90% of them (16 of 17 at 160 m; 100 m held
- * 6 of 17). See docs/boundary-model.md, "Fallback circle".
+ * Fallback radius (centre to corner of the octagon). Chosen on version 1 of
+ * the public boundary fixtures, where the octagon held the whole reference
+ * on 16 of 17 sites. On version 2 (76 lots, no roofs) it holds 66 of 76
+ * (87 %); 100 m holds 34. See docs/boundary-model.md, "Fallback circle".
  */
 export const SYNTHETIC_BOUNDARY_RADIUS_M = 160;
 

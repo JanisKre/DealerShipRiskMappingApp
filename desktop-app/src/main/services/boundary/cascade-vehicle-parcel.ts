@@ -32,6 +32,7 @@ import {
   clusterIndices,
   anchorBuildingOf,
   anchorParcelOf,
+  completeBuildings,
 } from "./cascade-anchors";
 import {
   isFieldStrip,
@@ -174,6 +175,7 @@ export function parcelResult(
         stage === 1
           ? [
               "Parcels follow legal lines; part of a parcel may belong to another use",
+              "A building standing across a parcel line is included whole when most of it is on the chosen parcels",
               "Vehicles hidden by trees or shadow are not seen",
               ...(state === MAP_PARCEL_STATE
                 ? [
@@ -498,8 +500,10 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
     if (!union) return null;
     // Gaps between parcels the lot surrounds (slivers, a plot left out for
     // its size) are part of the site. The outline is cadastral lines only:
-    // nothing is cut off a parcel by what the image shows on it.
-    const geometry = withoutHoles(union);
+    // nothing is cut off a parcel by what the image shows on it. A building
+    // the parcel lines would cut in two is in whole, along its own outline.
+    const whole = completeBuildings(withoutHoles(union), input);
+    const geometry = whole.geometry;
     const areaSqm = geometryAreaSqm(geometry);
     const covered = lot.filter((v) => geometryContains(geometry, v)).length;
     const coverage = covered / lot.length;
@@ -525,6 +529,10 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
       ...(strips > 0 ? [`${strips} parking strip(s)`] : []),
       ...(enclosed > 0 ? [`${enclosed} enclosed`] : []),
     ].join(", ");
+    const completed =
+      whole.added > 0
+        ? `; ${whole.added} building(s) across the parcel line kept whole`
+        : "";
     return {
       areaSqm,
       result: parcelResult(
@@ -536,7 +544,7 @@ export function vehicleParcelStage(input: CascadeInput): StageOutcome {
         joined > 0 ? `ALKIS parcel + ${joined} with vehicles` : "ALKIS parcel",
         "operationalLot",
       ),
-      reason: `${start}${joined > 0 ? ` + ${joined} adjacent parcel(s)${detail ? ` (${detail})` : ""}` : ""} hold ${covered} of ${lot.length} lot vehicles (${Math.round(coverage * 100)}%)`,
+      reason: `${start}${joined > 0 ? ` + ${joined} adjacent parcel(s)${detail ? ` (${detail})` : ""}` : ""} hold ${covered} of ${lot.length} lot vehicles (${Math.round(coverage * 100)}%)${completed}`,
     };
   };
 

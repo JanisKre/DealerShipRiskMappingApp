@@ -44,8 +44,12 @@ import type { OsmEvidence } from "./osm-overpass";
  * the plot beside it that holds the vehicles, and stage 4 declines; an
  * address that starts with the dealership's name is read
  * (docs/boundary-model.md, "Cascade v13").
+ * 14: buildings are not divided: a footprint that lies mostly on the chosen
+ * parcels, and the building at the point, is in the result whole; a vehicle
+ * outline takes a building whole or not at all
+ * (docs/boundary-model.md, "Cascade v14").
  */
-export const CASCADE_VERSION = 13;
+export const CASCADE_VERSION = 14;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -224,6 +228,18 @@ export const CASCADE_LIMITS = {
   hullBuildingShare: 0.5,
   /** Larger buildings (a neighbouring hall) never join the outline. */
   hullBuildingMaxSqm: 20_000,
+  /**
+   * A building is not divided by the result's outline: with at least this
+   * share of its footprint on the chosen parcels (or under the vehicle
+   * outline) it is in the result whole. The parcel line under a showroom is
+   * a legal line, not the edge of the site; in the November check both
+   * Sachsen-Anhalt fixtures had the dealer's own showroom cut in two by it.
+   * The building at the point is whole whatever its share. Limited to
+   * footprints of `wholeBuildingMinSqm` to `hullBuildingMaxSqm`.
+   */
+  wholeBuildingShare: 0.5,
+  /** Sheds and kiosks below this are left as the parcel line cuts them. */
+  wholeBuildingMinSqm: 25,
   /** Vehicles outside the result but this close to it count as unexplained. */
   outsideNearbyM: 15,
   /**

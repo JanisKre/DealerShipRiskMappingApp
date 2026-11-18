@@ -7,6 +7,7 @@ import {
   checkRing,
   distanceToRingM,
   projectPoint,
+  ringAreaSqm,
   type LonLat,
 } from "../boundary-geometry";
 
@@ -123,6 +124,132 @@ export function withoutHoles(geometry: BoundaryGeometry): BoundaryGeometry {
         type: "MultiPolygon",
         coordinates: geometry.coordinates.map((polygon) => [polygon[0]]),
       };
+}
+
+/** Every exterior ring of a geometry, holes dropped. */
+function exteriorRings(geometry: BoundaryGeometry): LonLat[][] {
+  return geometry.type === "Polygon"
+    ? [geometry.coordinates[0] as LonLat[]]
+    : geometry.coordinates.map((polygon) => polygon[0] as LonLat[]);
+}
+
+/** [minLon, minLat, maxLon, maxLat] over the exterior rings of a geometry. */
+function geometryBounds(
+  geometry: BoundaryGeometry,
+): [number, number, number, number] {
+  const boxes = exteriorRings(geometry).map((ring) => ringBounds(ring));
+  return [
+    Math.min(...boxes.map((b) => b[0])),
+    Math.min(...boxes.map((b) => b[1])),
+    Math.max(...boxes.map((b) => b[2])),
+    Math.max(...boxes.map((b) => b[3])),
+  ];
+}
+
+/**
+ * Share of a ring's area that lies inside a geometry, sampled on a lattice
+ * of about `samples` points (never coarser than the ring needs, never finer
+ * than 0.75 m). 0 for a ring too small to sample.
+ */
+export function ringShareInside(
+  ring: LonLat[],
+  geometry: BoundaryGeometry,
+  samples = 400,
+): number {
+  const [west, south, east, north] = ringBounds(ring);
+  const [gw, gs, ge, gn] = geometryBounds(geometry);
+  if (west > ge || east < gw || south > gn || north < gs) return 0;
+  const stepM = Math.max(0.75, Math.sqrt(ringAreaSqm(ring) / samples));
+  const dLat = stepM / 111_320;
+  const dLon =
+    dLat / Math.max(0.1, Math.cos((((south + north) / 2) * Math.PI) / 180));
+  let total = 0;
+  let inside = 0;
+  for (let lat = south + dLat / 2; lat < north; lat += dLat) {
+    for (let lon = west + dLon / 2; lon < east; lon += dLon) {
+      const point: LonLat = [lon, lat];
+      if (!contains(ring, point)) continue;
+      total += 1;
+      if (geometryContains(geometry, point)) inside += 1;
+    }
+  }
+  return total === 0 ? 0 : inside / total;
+}
+
+/**
+ * Buildings are not divided by a parcel line: a footprint that lies on the
+ * given geometry by at least `minShare` of its area, and the footprint
+ * `always` (the building at the point), is added whole. Footprints larger
+ * than `maxBuildingSqm` are left alone, and nothing is added beyond
+ * `maxAreaSqm` in total. The lines added are the footprints' own (cadastral
+ * building outlines where the state publishes them); holes the union leaves
+ * are filled.
+ */
+export function withWholeBuildings(
+  geometry: BoundaryGeometry,
+  buildings: LonLat[][],
+  options: {
+    minShare: number;
+    minBuildingSqm: number;
+    maxBuildingSqm: number;
+    maxAreaSqm: number;
+    always?: LonLat[];
+  },
+): { geometry: BoundaryGeometry; added: number } {
+  const [gw, gs, ge, gn] = geometryBounds(geometry);
+  const completed: LonLat[][] = [];
+  for (const ring of buildings) {
+    const [west, south, east, north] = ringBounds(ring);
+    if (west > ge || east < gw || south > gn || north < gs) continue;
+    const areaSqm = ringAreaSqm(ring);
+    if (areaSqm < options.minBuildingSqm || areaSqm > options.maxBuildingSqm) {
+      continue;
+    }
+    const share = ringShareInside(ring, geometry);
+    // Inside already, but for the width of a line.
+    if (share >= WHOLE_SHARE) continue;
+    if (share >= options.minShare || (ring === options.always && share > 0)) {
+      completed.push(ring);
+    }
+  }
+  if (completed.length === 0) return { geometry, added: 0 };
+  const union = unionRings([...exteriorRings(geometry), ...completed]);
+  if (!union) return { geometry, added: 0 };
+  const whole = withoutHoles(union);
+  const areaSqm = exteriorRings(whole).reduce(
+    (sum, ring) => sum + ringAreaSqm(ring),
+    0,
+  );
+  return areaSqm > options.maxAreaSqm
+    ? { geometry, added: 0 }
+    : { geometry: whole, added: completed.length };
+}
+
+/** A footprint with this share inside is inside; the rest is line width. */
+const WHOLE_SHARE = 0.98;
+
+/**
+ * Buildings a geometry cuts through: footprints of at least `minBuildingSqm`
+ * with between `minShare` and `1 − minShare` of their area inside. Used to
+ * measure results (boundary-replay.ts), not to form them.
+ */
+export function cutBuildings(
+  geometry: BoundaryGeometry,
+  buildings: LonLat[][],
+  minBuildingSqm = 50,
+  minShare = 0.15,
+): Array<{ ring: LonLat[]; areaSqm: number; insideShare: number }> {
+  const cut: Array<{ ring: LonLat[]; areaSqm: number; insideShare: number }> =
+    [];
+  for (const ring of buildings) {
+    const areaSqm = ringAreaSqm(ring);
+    if (areaSqm < minBuildingSqm) continue;
+    const insideShare = ringShareInside(ring, geometry);
+    if (insideShare >= minShare && insideShare <= 1 - minShare) {
+      cut.push({ ring, areaSqm, insideShare });
+    }
+  }
+  return cut;
 }
 
 /** Mean of a ring's vertices; inside for the compact rings of buildings. */

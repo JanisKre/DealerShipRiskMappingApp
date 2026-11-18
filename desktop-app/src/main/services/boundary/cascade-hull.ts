@@ -193,6 +193,8 @@ export function vehicleHullStage(input: CascadeInput): StageOutcome {
  *
  * - adds every building of which at least `hullBuildingShare` lies within
  *   `hullCloseM` of the lot vehicles (the showroom the rows stand around);
+ * - takes every other building it runs through whole or not at all
+ *   (`wholeBuildingShare`);
  * - fills holes (a courtyard or building the outline encloses);
  * - removes street-like parcels, so cars parked along the kerb do not carry
  *   the outline into the road.
@@ -221,9 +223,13 @@ function completeOutline(
       added = true;
     }
   }
+  // Buildings that did not join by the rule below; the outline may still
+  // run through them.
+  const others: Uint8Array[] = [];
   for (const ring of input.buildings ?? []) {
     if (complex.includes(ring)) continue;
-    if (ringAreaSqm(ring) > CASCADE_LIMITS.hullBuildingMaxSqm) continue;
+    const areaSqm = ringAreaSqm(ring);
+    if (areaSqm > CASCADE_LIMITS.hullBuildingMaxSqm) continue;
     const cells = new Uint8Array(mask.length);
     if (rasterizeMaskPolygon(spec, ring, cells) === 0) continue;
     // Share of the footprint, and of its outline, within reach of the lot:
@@ -254,6 +260,7 @@ function completeOutline(
     if (
       Math.max(near / total, edgeNear / edge) < CASCADE_LIMITS.hullBuildingShare
     ) {
+      if (areaSqm >= CASCADE_LIMITS.wholeBuildingMinSqm) others.push(cells);
       continue;
     }
     for (let i = 0; i < cells.length; i += 1) if (cells[i]) mask[i] = 1;
@@ -263,6 +270,21 @@ function completeOutline(
     // A building can sit a few metres off the outline (a footpath, a kerb);
     // a small closing joins it instead of leaving a separate part.
     mask.set(erode(spec, dilate(spec, mask, HULL_JOIN_CELLS), HULL_JOIN_CELLS));
+  }
+  // A building is not divided (v14): where the outline runs through one, it
+  // takes the building whole when it covers most of it, and stops at its
+  // wall otherwise. A building the outline surrounds is filled below.
+  for (const cells of others) {
+    let total = 0;
+    let covered = 0;
+    for (let i = 0; i < cells.length; i += 1) {
+      if (!cells[i]) continue;
+      total += 1;
+      if (mask[i]) covered += 1;
+    }
+    if (covered === 0 || covered === total) continue;
+    const whole = covered / total >= CASCADE_LIMITS.wholeBuildingShare ? 1 : 0;
+    for (let i = 0; i < cells.length; i += 1) if (cells[i]) mask[i] = whole;
   }
   fillHoles(spec, mask);
   if (input.isStreetAt) {

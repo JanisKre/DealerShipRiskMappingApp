@@ -48,7 +48,7 @@ export const DEFAULT_RISK_PARAMETERS: RiskParameters = {
   boundaryReviewTop2Margin: 0.1,
   boundaryReviewSourceAgreement: 0.35,
   boundaryNearPointDistanceM: 35,
-  // Covers the whole lot on 16 of 17 public fixtures; see synthetic.ts.
+  // Covers the whole lot on 66 of 76 public fixtures (87 %); see synthetic.ts.
   syntheticBoundaryRadiusM: 160,
   detectionConfidence: DETECTION_CONFIDENCE,
   boundaryGridResolutionM: 0.5,

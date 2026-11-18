@@ -8,8 +8,30 @@ import {
   type BoundaryBenchmarkResult,
 } from "../boundary-benchmark";
 import { syntheticFallbackBoundary } from "./synthetic";
-import { finalizeCascadeResult, runCascade } from "./cascade";
+import {
+  cutBuildings,
+  finalizeCascadeResult,
+  geometryContains,
+  runCascade,
+} from "./cascade";
 import { vegetationAt, type VegetationMask } from "./vegetation";
+
+/** A vegetation raster as it is stored in a dump: cells as base64. */
+export type StoredVegetationMask = Omit<VegetationMask, "cells"> & {
+  cells: string;
+};
+
+export function storeVegetation(mask: VegetationMask): StoredVegetationMask {
+  return { ...mask, cells: Buffer.from(mask.cells).toString("base64") };
+}
+
+function loadVegetation(
+  mask: VegetationMask | StoredVegetationMask,
+): VegetationMask {
+  return typeof mask.cells === "string"
+    ? { ...mask, cells: new Uint8Array(Buffer.from(mask.cells, "base64")) }
+    : (mask as VegetationMask);
+}
 
 /**
  * One site's frozen boundary inputs: what the cascade saw, without network
@@ -33,7 +55,7 @@ export interface ReplaySample {
   /** The dealership's address, as the analysis passes it (cascade v9). */
   address?: string;
   /** Vegetation raster of the context image (cascade v9). */
-  vegetation?: VegetationMask;
+  vegetation?: VegetationMask | StoredVegetationMask;
 }
 
 export interface ReplayRow {
@@ -45,6 +67,33 @@ export interface ReplayRow {
   polygon: BoundaryGeometry;
   reviewReasons: string[];
   trace: string[];
+  /** Buildings the outline runs through (`cutBuildings`). */
+  cutBuildings: number;
+}
+
+/**
+ * What the overlap scores do not show. Buildings cut by the outline are
+ * counted on every sample but the fallback circle (a placeholder, drawn
+ * through whatever stands there); the vehicle split only where a reference
+ * exists.
+ * What a dealership insures against hail is the vehicles outside, so the
+ * share of the reference's vehicles a result holds, and the share of its
+ * vehicles that stand outside the reference, say more about the risk figure
+ * than the area does.
+ */
+export interface ReplayDiagnostics {
+  samples: number;
+  /** Samples whose result is the fallback circle. */
+  fallbackSamples: number;
+  cutBuildings: number;
+  samplesWithCutBuildings: number;
+  /** Samples with a reference and a vehicle detection. */
+  vehicleSamples: number;
+  referenceVehicles: number;
+  referenceVehiclesInside: number;
+  resultVehicles: number;
+  /** Vehicles inside the result but outside the reference. */
+  foreignVehicles: number;
 }
 
 export interface ReplayOutcome {
@@ -52,6 +101,53 @@ export interface ReplayOutcome {
   /** Over the samples with a reference only. */
   all: BoundaryBenchmarkResult | null;
   holdout: BoundaryBenchmarkResult | null;
+  diagnostics: ReplayDiagnostics;
+}
+
+/** `ReplayDiagnostics` of results against the inputs they were formed from. */
+export function replayDiagnostics(
+  samples: Array<Pick<ReplaySample, "reference" | "vehicles" | "buildings">>,
+  polygons: BoundaryGeometry[],
+  /** True where the result is the fallback circle. */
+  fallback: boolean[] = [],
+): { diagnostics: ReplayDiagnostics; cutPerSample: number[] } {
+  const diagnostics: ReplayDiagnostics = {
+    samples: samples.length,
+    fallbackSamples: fallback.filter(Boolean).length,
+    cutBuildings: 0,
+    samplesWithCutBuildings: 0,
+    vehicleSamples: 0,
+    referenceVehicles: 0,
+    referenceVehiclesInside: 0,
+    resultVehicles: 0,
+    foreignVehicles: 0,
+  };
+  const cutPerSample = samples.map((sample, i) => {
+    const polygon = polygons[i];
+    const cut = fallback[i]
+      ? 0
+      : cutBuildings(polygon, sample.buildings ?? []).length;
+    diagnostics.cutBuildings += cut;
+    if (cut > 0) diagnostics.samplesWithCutBuildings += 1;
+    const { reference, vehicles } = sample;
+    if (reference && vehicles) {
+      const inResult = vehicles.filter((v) => geometryContains(polygon, v));
+      const inReference = vehicles.filter((v) =>
+        geometryContains(reference, v),
+      );
+      diagnostics.vehicleSamples += 1;
+      diagnostics.referenceVehicles += inReference.length;
+      diagnostics.referenceVehiclesInside += inReference.filter((v) =>
+        geometryContains(polygon, v),
+      ).length;
+      diagnostics.resultVehicles += inResult.length;
+      diagnostics.foreignVehicles += inResult.filter(
+        (v) => !geometryContains(reference, v),
+      ).length;
+    }
+    return cut;
+  });
+  return { diagnostics, cutPerSample };
 }
 
 /**
@@ -65,7 +161,9 @@ export function replayBoundarySamples(
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): ReplayOutcome {
   const rows = samples.map((sample): ReplayRow => {
-    const { vegetation } = sample;
+    const vegetation = sample.vegetation
+      ? loadVegetation(sample.vegetation)
+      : undefined;
     const outcome = runCascade({
       anchor: sample.anchor,
       ...(sample.address ? { address: sample.address } : {}),
@@ -113,7 +211,16 @@ export function replayBoundarySamples(
       polygon: result.polygon,
       reviewReasons: boundaryReviewReasons(result, parameters),
       trace: outcome.trace,
+      cutBuildings: 0,
     };
+  });
+  const { diagnostics, cutPerSample } = replayDiagnostics(
+    samples,
+    rows.map((row) => row.polygon),
+    rows.map((row) => row.stage === 5),
+  );
+  rows.forEach((row, i) => {
+    row.cutBuildings = cutPerSample[i];
   });
   const scored = (
     keep: (sample: ReplaySample) => boolean,
@@ -138,5 +245,6 @@ export function replayBoundarySamples(
     rows,
     all: scored(() => true),
     holdout: scored((sample) => sample.holdout === true),
+    diagnostics,
   };
 }

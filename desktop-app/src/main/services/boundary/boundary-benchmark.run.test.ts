@@ -174,7 +174,15 @@ import {
 import { aerialImageForContext } from "../tiles.service";
 import { maskRoofDetections } from "../detection/roof-mask.service";
 import { CASCADE_VERSION } from "./cascade";
-import type { ReplaySample } from "./boundary-replay";
+import {
+  replayDiagnostics,
+  storeVegetation,
+  type ReplaySample,
+} from "./boundary-replay";
+import { vegetationMask } from "./vegetation";
+import { fetchParcelsNear } from "../alkis.service";
+import { bavariaParcelsNear } from "../bavaria-parcels.service";
+import { fetchOfficialBuildings } from "../alkis-buildings.service";
 import type { LonLat } from "../boundary-geometry";
 
 interface PublicFixture {
@@ -229,6 +237,8 @@ function table(label: string, result: BoundaryBenchmarkResult): void {
   console.log(`  mean coverage      ${result.meanCoverage.toFixed(3)}`);
   console.log(`  coverage>=90%      ${result.coverage90Rate.toFixed(3)}`);
   console.log(`  outline within 2 m ${result.within2mBoundaryRate.toFixed(3)}`);
+  console.log(`  mean missing share ${(1 - result.meanCoverage).toFixed(3)}`);
+  console.log(`  mean excess share  ${result.meanExcessShare.toFixed(3)}`);
   console.log(`  mean area bias     ${result.meanAreaBias.toFixed(3)}`);
   console.log(
     `  calibration MAE    ${result.calibration.meanAbsoluteError.toFixed(3)}`,
@@ -247,7 +257,10 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
       const variant = `cascade-v${CASCADE_VERSION}/${process.env.BOUNDARY_BENCHMARK_IMAGERY ?? "auto"}`;
       console.log(`engine: ${variant}\n`);
 
-      const dump: unknown[] = [];
+      const dump: ReplaySample[] = [];
+      const inputs: Array<
+        Pick<ReplaySample, "reference" | "vehicles" | "buildings">
+      > = [];
       const rows: Array<{
         fixture: PublicFixture;
         sample: BoundaryBenchmarkSample;
@@ -272,30 +285,45 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
                 : [[box.lon, box.lat] as LonLat],
             )
           : null;
+        // As in the analysis: grass and trees on the image the vehicles
+        // were detected on.
+        const vegetation = vegetationMask(image);
+        // The footprints the boundary sees (cached by the roof mask), for
+        // the diagnostics and the dump.
+        const buildings = await fetchOfficialBuildings(fixture.lat, fixture.lon)
+          .then((official) => official.buildings.map((b) => b.ring))
+          .catch((): LonLat[][] => []);
         if (process.env.BOUNDARY_BENCHMARK_DUMP) {
-          // Frozen inputs for `boundary-replay.run.test.ts`.
-          const { fetchParcelsNear } = await import("../alkis.service");
-          const { fetchOfficialBuildings } =
-            await import("../alkis-buildings.service");
-          const parcels = await fetchParcelsNear(
-            fixture.lat,
-            fixture.lon,
-          ).catch(() => null);
-          const official = await fetchOfficialBuildings(
-            fixture.lat,
-            fixture.lon,
+          // Frozen inputs for `boundary-replay.run.test.ts`: the parcels as
+          // `detectBoundary` gets them (in Bayern from the parcel map).
+          const lookup = await fetchParcelsNear(fixture.lat, fixture.lon).catch(
+            () => null,
           );
+          let parcels = lookup?.parcels ?? [];
+          if (parcels.length === 0) {
+            parcels =
+              (await bavariaParcelsNear(fixture.lat, fixture.lon).catch(
+                () => null,
+              )) ?? [];
+          }
           const sample: ReplaySample = {
             id: fixture.id,
             holdout: fixture.holdout,
             anchor: [fixture.lon, fixture.lat],
             reference: fixture.reference,
             vehicles,
-            parcels: parcels?.parcels ?? [],
-            parcelsTruncated: parcels?.truncated ?? false,
-            buildings: official.buildings.map((building) => building.ring),
+            parcels,
+            parcelsTruncated: lookup?.truncated ?? false,
+            buildings,
+            ...(vegetation ? { vegetation: storeVegetation(vegetation) } : {}),
           };
           dump.push(sample);
+          // After every site: a run of an hour must not lose its inputs to
+          // one failing service.
+          writeFileSync(
+            process.env.BOUNDARY_BENCHMARK_DUMP,
+            JSON.stringify(dump),
+          );
         }
         const boundary = await detectBoundary(
           fixture.lat,
@@ -304,8 +332,9 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
           undefined,
           DEFAULT_RISK_PARAMETERS,
           vehicles,
-          { osmDeadline: Date.now() },
+          { osmDeadline: Date.now(), vegetation },
         );
+        inputs.push({ reference: fixture.reference, vehicles, buildings });
         // Which sources actually produced a usable geometry. Without this a run
         // in which Overpass was unreachable looks identical to one in which OSM
         // was consulted and lost — and those demand opposite conclusions.
@@ -344,20 +373,38 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
 
       const all = evaluateBoundaryBenchmark(
         rows.map((r) => r.sample),
-        { dataset: `boundary-public-v1/${variant}` },
+        { dataset: `boundary-public-v2/${variant}` },
       );
       const tuning = evaluateBoundaryBenchmark(
         rows.filter((r) => !r.fixture.holdout).map((r) => r.sample),
-        { dataset: "boundary-public-v1/tuning" },
+        { dataset: "boundary-public-v2/tuning" },
       );
       const holdout = evaluateBoundaryBenchmark(
         rows.filter((r) => r.fixture.holdout).map((r) => r.sample),
-        { dataset: "boundary-public-v1/holdout" },
+        { dataset: "boundary-public-v2/holdout" },
       );
 
       table("ALL", all);
       table("TUNING", tuning);
       table("HOLD-OUT (decides whether a change is an improvement)", holdout);
+
+      // What the overlap scores do not show (boundary-replay.ts).
+      const { diagnostics, cutPerSample } = replayDiagnostics(
+        inputs,
+        rows.map((r) => r.sample.predicted),
+        rows.map((r) => r.sample.predictedSource === "synthetic"),
+      );
+      console.log(
+        `\nbuildings cut by the outline: ${diagnostics.cutBuildings} on ` +
+          `${diagnostics.samplesWithCutBuildings} of ` +
+          `${diagnostics.samples - diagnostics.fallbackSamples} sites ` +
+          `(${diagnostics.fallbackSamples} fallback circles not counted)`,
+      );
+      console.log(
+        `vehicles: ${diagnostics.referenceVehiclesInside} of ${diagnostics.referenceVehicles} ` +
+          `reference vehicles inside, ${diagnostics.foreignVehicles} of ` +
+          `${diagnostics.resultVehicles} result vehicles outside the reference`,
+      );
 
       const bySource = new Map<string, number>();
       for (const row of rows) {
@@ -384,12 +431,6 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
       );
 
       mkdirSync(dirname(OUTPUT), { recursive: true });
-      if (process.env.BOUNDARY_BENCHMARK_DUMP) {
-        writeFileSync(
-          process.env.BOUNDARY_BENCHMARK_DUMP,
-          JSON.stringify(dump),
-        );
-      }
       writeFileSync(
         OUTPUT,
         `${JSON.stringify(
@@ -398,6 +439,7 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
             all,
             tuning,
             holdout,
+            diagnostics,
             providerContribution: Object.fromEntries(
               [...contributed]
                 .sort()
@@ -406,8 +448,9 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
                   { sites: count, of: rows.length },
                 ]),
             ),
-            perSample: rows.map((r) => ({
+            perSample: rows.map((r, i) => ({
               id: r.fixture.id,
+              cutBuildings: cutPerSample[i],
               state: r.fixture.state,
               holdout: r.fixture.holdout,
               cadastreAvailable: r.fixture.cadastreAvailable,
@@ -429,7 +472,7 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
       expect(all.evaluatedSamples).toBe(rows.length);
     },
     // Public services can be slow; a full run over all sites may need longer.
-    Number(process.env.BOUNDARY_BENCHMARK_TIMEOUT_MIN ?? 30) * 60 * 1000,
+    Number(process.env.BOUNDARY_BENCHMARK_TIMEOUT_MIN ?? 120) * 60 * 1000,
   );
 
   it.skipIf(!process.env.BOUNDARY_GROUNDTRUTH)(

@@ -3,7 +3,7 @@ import type {
   BoundaryReviewFlag,
   RiskParameters,
 } from "@shared/types";
-import { outerRings } from "@shared/boundary-geometry-utils";
+import { geometryAreaSqm, outerRings } from "@shared/boundary-geometry-utils";
 import {
   approximatePolygonIoU,
   distanceToRingM,
@@ -29,6 +29,7 @@ import {
   vehicleLot,
   anchorBuildingOf,
   anchorParcelOf,
+  completeBuildings,
 } from "./cascade-anchors";
 import {
   isRoadParcel,
@@ -117,17 +118,25 @@ export function parcelStage(input: CascadeInput): StageOutcome {
       alternatives: [],
     };
   }
+  // As in stage 1: a building the parcel line would cut in two is in whole.
+  const whole = completeBuildings(
+    { type: "Polygon", coordinates: [anchor.ring] },
+    input,
+  );
   return {
     result: parcelResult(
-      { type: "Polygon", coordinates: [anchor.ring] },
-      anchor.areaSqm,
+      whole.geometry,
+      whole.added > 0 ? geometryAreaSqm(whole.geometry) : anchor.areaSqm,
       anchor.state,
       CASCADE_CONFIDENCE.parcel,
       4,
       "ALKIS parcel",
       "parcel",
     ),
-    reason: "cadastral parcel contains the point",
+    reason:
+      whole.added > 0
+        ? `cadastral parcel contains the point; ${whole.added} building(s) across the parcel line kept whole`
+        : "cadastral parcel contains the point",
     alternatives: [],
   };
 }

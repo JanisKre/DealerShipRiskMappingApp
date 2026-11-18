@@ -27,6 +27,7 @@ describe.skipIf(!path)("boundary replay (frozen inputs)", () => {
         `${row.id.padEnd(22)} stage ${row.stage} ${Math.round(row.areaSqm)
           .toString()
           .padStart(7)} m² conf ${row.confidence.toFixed(2)}` +
+          (row.cutBuildings > 0 ? ` cut buildings ${row.cutBuildings}` : "") +
           (row.reviewReasons.length > 0
             ? ` review: ${row.reviewReasons.join(", ")}`
             : ""),
@@ -40,7 +41,20 @@ describe.skipIf(!path)("boundary replay (frozen inputs)", () => {
       if (!result) continue;
       console.log(
         `\n${label}: n=${result.evaluatedSamples} mean IoU ${result.meanIoU.toFixed(3)}, ` +
-          `coverage ${result.meanCoverage.toFixed(3)}, area bias ${result.meanAreaBias.toFixed(3)}`,
+          `missing ${(1 - result.meanCoverage).toFixed(3)}, excess ${result.meanExcessShare.toFixed(3)}, ` +
+          `area bias ${result.meanAreaBias.toFixed(3)}`,
+      );
+    }
+    const d = outcome.diagnostics;
+    console.log(
+      `\nbuildings cut by the outline: ${d.cutBuildings} on ${d.samplesWithCutBuildings} of ` +
+        `${d.samples - d.fallbackSamples} sites (${d.fallbackSamples} fallback circles not counted)`,
+    );
+    if (d.vehicleSamples > 0) {
+      console.log(
+        `vehicles (${d.vehicleSamples} sites with a reference): ` +
+          `${d.referenceVehiclesInside} of ${d.referenceVehicles} reference vehicles inside, ` +
+          `${d.foreignVehicles} of ${d.resultVehicles} result vehicles outside the reference`,
       );
     }
     expect(outcome.rows).toHaveLength(samples.length);

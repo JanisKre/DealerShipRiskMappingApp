@@ -7,6 +7,30 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Buildings are no longer cut in half by the lot boundary (cascade
+  v14).** A boundary followed the parcel line straight through a showroom
+  that stands across two plots. A building that lies mostly on the chosen
+  plots, and the building at the position, is now inside the boundary
+  whole, along its own outline; the neighbouring plot stays out. An outline
+  drawn from the vehicles takes a building whole or stops at its wall.
+  Vehicle counts do not change (vehicles on roofs were never counted); the
+  area grows by the part of the building beyond the parcel line. On 76
+  public test sites the buildings cut by a boundary fell from 11 to 2.
+  Analyse a site again to get the new boundary. See
+  `docs/boundary-model.md`, "Cascade v14".
+- **The public boundary benchmark measured against roofs.** Eight of its 17
+  reference "lots" were showroom buildings, so every quality figure quoted
+  for the lot boundary so far rewarded results that were too small. The set
+  is replaced by 76 checked dealership lots from all 16 states
+  (`boundary-public-v2`); the benchmark now also reports the missing share,
+  the excess share, buildings cut by the boundary and how many of the
+  dealer's vehicles a boundary holds. On the new set the current engine
+  reaches a mean IoU of 0.667 (hold-out 0.654). The fallback octagon of
+  160 m holds 87 % of these lots, not 94 % as measured before; it is
+  unchanged. See `docs/boundary-model.md`, "Reference set v2".
+
 ## [0.6.0] – 2026-11-19
 
 ### Added

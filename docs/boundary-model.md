@@ -32,7 +32,11 @@ fences and greenery. No source publishes it directly.
 `shop=car` areas from OpenStreetMap, regenerable with
 `scripts/build-public-boundary-fixtures.mjs`. See
 `resources/benchmarks/LICENSES.md` for licensing and for what these references
-are and are not.
+are and are not. Since 19 November 2026 this is version 2 of the set (76
+lots); every figure in this document dated earlier was measured on version 1,
+of which 8 of 17 references were showroom roofs — see
+["Reference set v2"](#reference-set-v2-november-2026) before comparing
+numbers across that date.
 
 Reported metrics come from `src/main/services/boundary-benchmark.ts`:
 
@@ -40,10 +44,29 @@ Reported metrics come from `src/main/services/boundary-benchmark.ts`:
 | --- | --- |
 | mean IoU | overall shape agreement |
 | mean Boundary-F1 @ 2 m | how closely the *outline* tracks the reference |
-| mean coverage | share of the true lot that was captured |
+| mean coverage | share of the true lot that was captured; `1 − coverage` is the **missing share** |
 | coverage ≥ 90% rate | share of sites essentially fully captured |
+| mean excess share | area of the result outside the reference, as a share of the reference: **what was taken that is not the lot** |
 | mean area bias | `predicted/reference − 1`; **positive means too large** |
 | calibration MAE | how far stated confidence is from realised IoU |
+
+IoU and area bias mix two different faults. A result twice the size of the
+lot and a result half its size both score an IoU of 0.5; the missing share
+and the excess share tell them apart, and they are what a reviewer sees as
+"cut off" and "too much".
+
+The replay and the live run also report what no overlap score shows
+(`replayDiagnostics`, `boundary/boundary-replay.ts`):
+
+| Diagnostic | Reads as |
+| --- | --- |
+| buildings cut by the outline | footprints of at least 50 m² with 15–85 % of their area inside the result — an outline that runs through a building |
+| reference vehicles inside | of the detected vehicles standing on the reference, how many the result holds |
+| result vehicles outside the reference | vehicles the result counts that are not the dealer's by the reference |
+
+The vehicle figures matter most for the risk figure: what a dealership
+insures against hail is the stock standing outside, and the boundary's job
+is to decide which vehicles count.
 
 Overlap is measured on a **0.5 m raster** (`polygonRasterIoU`). The older
 `approximatePolygonIoU` clamps to a 200×200 sample grid, which over a 400 m
@@ -91,7 +114,8 @@ tree, and `*.local.json` is gitignored.
 
 ## Baseline: the engine before this work
 
-Measured on the 17-site public set, engine as of v0.2.1. Recorded in
+Measured on the 17-site public set (version 1, with its eight roof
+references), engine as of v0.2.1. Recorded in
 `resources/benchmarks/boundary-baseline.json`.
 
 | | all (n=17) | tuning (n=13) | hold-out (n=4) |
@@ -151,7 +175,7 @@ cause: a dealership is not one parcel.
 prior, so sites reported ~0.8 confidence at ~0.3 IoU. A calibration MAE of 0.40
 means the number cannot be used to triage review.
 
-## Workflow at a glance (current, cascade v13)
+## Workflow at a glance (current, cascade v14)
 
 One analysis decides the lot in six steps. The sections below record how each
 rule came about; this is what runs today.
@@ -176,7 +200,9 @@ rule came about; this is what runs today.
    only when dense with vehicles.
 6. **Outline.** The union of the chosen parcels, holes filled. **The outline
    consists of cadastral lines only**: nothing is cut off or added by what
-   the image shows (v12).
+   the image shows (v12). A building is not divided: a footprint that lies
+   mostly on the chosen parcels, and the building at the point, is in the
+   result whole, along its own outline (v14).
 
 When step 5 has no usable parcel, the fallbacks apply in order: the outline
 of the vehicle lot (stage 2), a cached OSM dealer area (stage 3), the parcel
@@ -320,6 +346,24 @@ octagon that is actually drawn.
 Radius needed per site (m, sorted): 57, 72, 76, 79, 81, 95, 103, 110, 110,
 119, 128, 141, 148, 150, 155, 159, 230. The one site above 160 m is a
 57,755 m² lot in Dresden.
+
+**Re-measured on reference set v2 (19 November 2026).** The 17 fixtures
+above included eight showroom roofs, which are small and easy to hold. On
+the 76 lots of version 2:
+
+| Corner radius | Sites fully held |
+| --- | --- |
+| 100 m | 34 of 76 (45 %) |
+| 120 m | 44 of 76 (58 %) |
+| 150 m | 61 of 76 (80 %) |
+| **160 m (default)** | **66 of 76 (87 %)** |
+| 190 m | 70 of 76 (92 %) |
+| 240 m | 76 of 76 |
+
+The default therefore misses the 90 % target by three points; 190 m would
+reach it. It has not been changed: a 190 m octagon is 41 % larger again
+and takes in that much more of the neighbours. `synthetic-calibration.test.ts`
+pins both figures.
 
 **Limitations.**
 
@@ -1019,6 +1063,213 @@ longer exist. The live benchmark with addresses was not run.
   (point moves to the address parcel, same-address parcels join) apply to
   them for the first time. A result calculated before v13 can therefore
   differ after a new analysis even when the point is not on a road.
+
+## Reference set v2 (November 2026)
+
+On 19 November 2026 the public reference set was replaced. Nothing in the
+engine changed with it; what changed is what the engine is measured against.
+
+### What was wrong with version 1
+
+Eight of its 17 references were not lots but **showroom roofs**:
+`de-be-89721010`, `de-by-31111675`, `de-he-181059557`, `de-nw-26706097`,
+`de-nw-46914586`, `de-sn-24678567`, `de-st-113379480`, `de-st-92412368`.
+Between 95 and 100 % of each lies under official building footprints, and
+of the 44 to 313 detected vehicles the result holds at each of these sites,
+none or one stands inside the reference (vehicles on roofs are masked).
+
+The cause is in the script that builds the set. It asked OSM for
+`way["shop"="car"]["name"]` and kept the ways with the most corners. Most
+`shop=car` areas in OSM are the building the dealer tag sits on, and a
+showroom with its annexes has many corners. The query that excludes
+`building`-tagged ways no longer returns any of the eight; the nine other
+references are returned again unchanged.
+
+### What that did to earlier numbers
+
+- **Every mean IoU, area bias and hold-out figure in this document dated
+  before 19 November 2026** was measured against a set of which nearly half
+  rewarded a result the size of a roof. A correct lot of 10,000 m² scores an
+  IoU of about 0.3 against a 3,000 m² roof and counts as "230 % too large".
+- **Limits chosen on that set were pushed towards smaller results.** The
+  80 m reach ("150 m doubled the area bias"), the 25 % cap on a lot
+  continued beyond it, the vehicle counts and densities a parcel needs to
+  join and the confidence priors were all compared on version 1. They have
+  **not** been re-tuned here; that needs the new set and is the next step.
+- **The fallback radius** was calibrated on the same set (see "Fallback
+  circle"): 160 m holds 87 % of the lots of version 2, not 94 %.
+- Of the four hold-out sites of version 1, two were roofs and two were
+  Austrian sites without a cadastre, so "the hold-out decides" decided very
+  little.
+
+### How version 2 is built
+
+`scripts/build-public-boundary-fixtures.mjs`, run on 19 November 2026:
+
+| Rule | Value |
+| --- | --- |
+| Query | `way["shop"="car"]["name"]` without a `building` or `building:part` tag |
+| Roof test | at most 60 % of the outline under OSM building footprints, measured on a 2 m lattice (`roofShare`, stored per sample) |
+| Area | 1,500–60,000 m² (was 3,000; small dealers are the weakest sites and were excluded only because a small area was almost always a roof) |
+| Shape | at least 8 corners, no sliver (unchanged) |
+| Spacing | references closer than 400 m share imagery and parcels; the richer one is kept |
+| Per region | up to 6, richest outlines first (Austria: 2) |
+| Regions | all 16 German states, two to four cities each, and Vienna/Linz |
+
+Of 189 candidate ways in the 46 city boxes, 76 were taken; one was rejected
+by the roof test. `public-fixtures.test.ts` checks on every test run that
+no reference in the committed file is mostly roof and that hold-out states
+do not appear among the tuning states.
+
+| | |
+| --- | --- |
+| Sites | 76: Baden-Württemberg 6, Bayern 6, Berlin 6, Brandenburg 3, Bremen 3, Hamburg 6, Hessen 4, Mecklenburg-Vorpommern 6, Niedersachsen 6, NRW 6, Rheinland-Pfalz 3, Saarland 3, Sachsen 6, Sachsen-Anhalt 6, Schleswig-Holstein 1, Thüringen 3, Austria 2 |
+| Hold-out | 18: all of Schleswig-Holstein, Sachsen-Anhalt, Thüringen, Baden-Württemberg and Austria |
+| Reference area | 1,545 to 57,755 m², median 10,290 m²; 8 under 3,000 m² |
+| Roof share | 0.01 to 0.58, median 0.29 |
+
+The benchmark runner now captures what an analysis sees: it passes the
+vegetation raster of the context image to the boundary (it did not before),
+and a dump holds the Bayern parcels read from the parcel map, the building
+footprints and that raster. A replay of the dump gives the same scores as
+the live run it was written by (mean IoU 0.667, hold-out 0.654 on this
+capture).
+
+### The engine on version 2
+
+All 76 sites captured live on 19 November 2026 (imagery `auto`, 22
+minutes), then replayed. These are the first figures against lots only.
+They are those of cascade v14, described in the next section; v13 on the
+same inputs is in its "Measured" table and differs in the second decimal.
+
+| | all (76) | hold-out (18) |
+| --- | --- | --- |
+| Mean IoU | 0.667 | 0.654 |
+| Median IoU | 0.72 | 0.75 |
+| Mean missing share | 0.159 | 0.227 |
+| Mean excess share | 0.856 | 1.818 |
+| Winning stage | 68 parcels, 6 outlines, 2 circles | |
+| Reference vehicles inside the result | 13,120 of 15,525 (85 %) | |
+| Result vehicles outside the reference | 2,459 of 15,579 (16 %) | |
+| Buildings cut by the outline | 2 on 2 of 74 sites | |
+
+The mean excess is carried by ten sites with more than 100 %; the median
+excess is 0.06 and the median missing share 0.05. Per site, with 25 % as
+the line for "missing" and "too much":
+
+| | Sites | neither | cut off only | too much only | both |
+| --- | --- | --- | --- | --- | --- |
+| All | 76 | 37 | 15 | 22 | 2 |
+| Parcels with vehicles (stage 1) | 68 | 37 | 10 | 20 | 1 |
+| Vehicle outline (stage 2) | 6 | 0 | 5 | 0 | 1 |
+| Circle (stage 5) | 2 | 0 | 0 | 2 | 0 |
+| Reference under 3,000 m² | 8 | 2 | 1 | 5 | 0 |
+
+Read plainly: half the sites are right to within a quarter either way; the
+engine takes too much more often than it cuts off; the vehicle outline
+always cuts off (median missing share 0.52); and five of the eight small
+dealers get a result more than twice their lot.
+
+**Limitations.** The references are still OSM outlines drawn by volunteers
+and a proxy for the operational lot. The sites are in cities, two to four
+per state, chosen by how detailed the outline is, which favours large,
+well-mapped dealers. One capture on one day: imagery and service answers
+differ between days. The hold-out sites were looked at in the per-site
+table above, so they are no longer untouched.
+
+## Cascade v14 (November 2026, buildings whole)
+
+`CASCADE_VERSION` 14. Outlines ran through buildings: the user reported
+buildings "cut in half, which makes no sense", and on the 17 sites of
+reference set v1 the result cut the dealer's own showroom in two on both
+Sachsen-Anhalt fixtures (62 % and 27 % of it inside).
+
+### What happened
+
+A parcel result is whole cadastral units (v12), and until v14 nothing in
+stage 1 or stage 4 looked at buildings for the shape. A showroom that
+stands across the line between the dealer's plot and a neighbouring one was
+cut at that line whenever the neighbouring plot did not join — in the two
+fixtures a plot of about 24,000 m² that the lot's vehicles do not stand on.
+The parcel line under a building is a legal line; it is not the edge of the
+site. Joining the neighbouring plot instead would have added 24,000 m² for
+the sake of 1,500 m² of roof.
+
+The vehicle outline (stage 2) had the same fault from the other side: it
+ends about 10 m beyond the outermost vehicles, wherever that falls, and a
+building joined only when the rows stand around it.
+
+### What changed
+
+| Change | Where | Effect |
+| --- | --- | --- |
+| **Buildings on the chosen parcels are whole.** A footprint of 25 to 20,000 m² with at least half its area on the chosen parcels is added along its own outline; holes the union leaves are filled. Nothing is added beyond `boundaryMaxAreaSqm`. | `withWholeBuildings`, `completeBuildings`; `wholeBuildingShare` 0.5, `wholeBuildingMinSqm` 25 | A parcel result is cadastral parcel lines plus the outlines of the buildings standing across them — both cadastral where the state publishes footprints. The neighbouring plot stays out. The trace reads "… 1 building(s) across the parcel line kept whole". |
+| **The building at the point is whole** whatever its share on the parcels. | same, `always` | The point is the dealership's address or POI; its building is the showroom as a rule. |
+| **Stage 4 likewise.** | `parcelStage` | The parcel at the point is returned with the buildings across its line. |
+| **A vehicle outline takes a building whole or not at all.** Where the outline runs through a building that did not join by the existing rule, it takes the building when it covers at least half of it and stops at its wall otherwise. | `completeOutline` | No outline through a roof. Buildings the outline surrounds are filled as before. |
+
+The vehicle counts do not change: vehicles on roofs are masked before the
+boundary sees them. The area grows by the part of each building beyond the
+parcel line.
+
+### Measured
+
+Frozen inputs of all 76 sites of reference set v2 (captured 19 November
+2026), v13 against v14 on identical inputs:
+
+| | v13 | v14 |
+| --- | --- | --- |
+| Sites | 76 | 76 |
+| Results that change | — | 11 |
+| Buildings cut by the outline (circles not counted) | 11 on 10 sites | 2 on 2 sites |
+| Mean IoU, all / hold-out | 0.663 / 0.652 | 0.667 / 0.654 |
+| Mean missing share | 0.165 | 0.159 |
+| Mean excess share | 0.852 | 0.856 |
+| Reference vehicles inside | 13,120 of 15,525 | unchanged |
+| Result vehicles outside the reference | 2,459 of 15,579 | unchanged |
+| Winning stage | 68 parcels, 6 outlines, 2 circles | unchanged |
+
+The eleven changed sites: six gain under 100 m² (a corner of a building),
+and five gain more. Against the references: a Bayern site whose hall stands
+across the parcel line goes from 8,362 to 16,789 m² and from an IoU of 0.24
+to 0.47; three sites improve by 0.02 to 0.08; one gets worse, from 0.22 to
+0.20 (Rheinland-Pfalz, +4,802 m²: the result there starts from the plot
+beside a road point and is not the dealer's lot in the first place, so the
+buildings completed are not the dealer's either). No stage changes.
+
+On the 17 sites of reference set v1: 5 change, cut buildings 3 → 1, both
+Sachsen-Anhalt showrooms whole (19,400 → 22,510 m² and 22,364 →
+25,578 m²).
+
+**Not an independent result.** The share of one half was set before the 76
+sites were captured and was not varied on them, but the rule was written
+for the cut buildings these sites show, and "cut" is measured with the
+same footprints the rule uses.
+
+### Limitations of v14
+
+- **Half is a convention.** A building with less than half its footprint on
+  the chosen parcels stays cut, unless it is the building at the point. Two
+  such buildings remain on the 76 sites; one of them is 47 % inside, and
+  the reference cuts it too.
+- **A neighbour's building can be taken.** Where a neighbour's hall stands
+  mostly on a plot the lot chose, it is in the result whole. The rule has
+  no evidence of whose building it is.
+- **Only where footprints are known**: official ALKIS or LoD2 footprints
+  (docs/official-buildings.md) and OSM buildings when cached. Elsewhere the
+  outline is the parcel lines as before.
+- **Footprints and parcels come from different services** and can be offset
+  by a few decimetres; a building then counts as "across the line" by the
+  width of that offset. Footprints with at least 98 % inside are left alone
+  for this reason.
+- **Bayern.** The parcels are read from a rendered map, where a building on
+  a parcel line may be assigned to the neighbour's plot. Such a building is
+  then mostly outside the chosen plots and is not completed.
+- **On an image the line can still look wrong.** Aerial images that are not
+  true orthophotos show roofs displaced from their footprints; an outline
+  that follows the footprint then appears to cut the roof.
+- The outline of stage 2 is a 1 m raster: the wall it stops at, or the
+  building it takes, is traced to about a metre.
 
 ## Earlier engines (removed)
 

@@ -38,6 +38,13 @@ export interface BoundaryBenchmarkResult {
   coverage90Rate: number;
   within2mBoundaryRate: number;
   meanAreaBias: number;
+  /**
+   * Mean of A(predicted \ reference) / A(reference): area the result holds
+   * that the reference does not, as a share of the reference. With
+   * `1 − meanCoverage` (the missing share) it says which way a result is
+   * wrong; IoU and area bias mix the two.
+   */
+  meanExcessShare: number;
   calibration: BoundaryCalibration;
   evaluatedAt: string;
 }
@@ -75,6 +82,7 @@ export function evaluateBoundaryBenchmark(
       coverage90Rate: 0,
       within2mBoundaryRate: 0,
       meanAreaBias: 0,
+      meanExcessShare: 0,
       calibration: emptyCalibration(),
       evaluatedAt: new Date().toISOString(),
     };
@@ -108,6 +116,9 @@ export function evaluateBoundaryBenchmark(
     meanAreaBias: round(
       mean(evaluations.map((evaluation) => evaluation.areaBias)),
     ),
+    meanExcessShare: round(
+      mean(evaluations.map((evaluation) => evaluation.excess)),
+    ),
     calibration: buildCalibration(confidencePairs),
     evaluatedAt: new Date().toISOString(),
   };
@@ -120,6 +131,7 @@ function evaluateSample(
   iou: number;
   boundaryF1: number;
   coverage: number;
+  excess: number;
   areaBias: number;
   confidence?: number;
 } {
@@ -130,7 +142,7 @@ function evaluateSample(
   // algebraically from IoU. The old derivation assumed a relationship between
   // intersection and union that only holds exactly, which made coverage a
   // restatement of IoU instead of an independent signal.
-  const { iou, coverage } = overlapMetrics(
+  const { iou, coverage, excess } = overlapMetrics(
     sample.reference,
     sample.predicted,
     resolutionM,
@@ -140,6 +152,7 @@ function evaluateSample(
     iou,
     boundaryF1: boundaryF1AtTolerance(sample.reference, sample.predicted, 2),
     coverage,
+    excess,
     areaBias: referenceArea === 0 ? 0 : predictedArea / referenceArea - 1,
     confidence: sample.predictedConfidence,
   };
@@ -149,13 +162,13 @@ function overlapMetrics(
   reference: BoundaryGeometry,
   predicted: BoundaryGeometry,
   resolutionM: number,
-): { iou: number; coverage: number } {
+): { iou: number; coverage: number; excess: number } {
   const rings = [
     ...polygonParts(reference).flat(),
     ...polygonParts(predicted).flat(),
   ] as LonLat[][];
   if (rings.length === 0 || rings.some((ring) => ring.length < 4)) {
-    return { iou: 0, coverage: 0 };
+    return { iou: 0, coverage: 0, excess: 0 };
   }
   const { spec } = coveringGrid(rings, resolutionM);
   const cells = spec.cols * spec.rows;
@@ -177,6 +190,8 @@ function overlapMetrics(
   return {
     iou: union === 0 ? 0 : intersection / union,
     coverage: referenceCells === 0 ? 0 : intersection / referenceCells,
+    excess:
+      referenceCells === 0 ? 0 : (union - referenceCells) / referenceCells,
   };
 }
 

@@ -3,9 +3,10 @@ import {
   projectPoint,
   type LonLat,
 } from "../boundary-geometry";
+import type { BoundaryGeometry } from "@shared/types";
 import type { ParcelFeature } from "../alkis.service";
 import { CASCADE_LIMITS, type CascadeInput } from "./cascade-config";
-import { contains, metres } from "./cascade-geometry";
+import { contains, metres, withWholeBuildings } from "./cascade-geometry";
 
 // --- Vehicle lot ----------------------------------------------------------
 
@@ -73,4 +74,25 @@ export function anchorBuildingOf(input: CascadeInput): LonLat[] | undefined {
 
 export function anchorParcelOf(input: CascadeInput): ParcelFeature | undefined {
   return input.parcels.find((parcel) => contains(parcel.ring, input.anchor));
+}
+
+/**
+ * A parcel result with its buildings whole (v14): every footprint that lies
+ * mostly on the parcels, and the building at the point, is added along its
+ * own outline. `added` counts the footprints the parcel lines had cut.
+ */
+export function completeBuildings(
+  geometry: BoundaryGeometry,
+  input: CascadeInput,
+): { geometry: BoundaryGeometry; added: number } {
+  const buildings = input.buildings ?? [];
+  if (buildings.length === 0) return { geometry, added: 0 };
+  const atPoint = anchorBuildingOf(input);
+  return withWholeBuildings(geometry, buildings, {
+    minShare: CASCADE_LIMITS.wholeBuildingShare,
+    minBuildingSqm: CASCADE_LIMITS.wholeBuildingMinSqm,
+    maxBuildingSqm: CASCADE_LIMITS.hullBuildingMaxSqm,
+    maxAreaSqm: input.parameters.boundaryMaxAreaSqm,
+    ...(atPoint ? { always: atPoint } : {}),
+  });
 }

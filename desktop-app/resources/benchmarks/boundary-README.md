@@ -3,9 +3,9 @@
 Run it from `desktop-app/`:
 
 ```bash
-npm run benchmark:boundary                      # source cascade, ~75 s
+npm run benchmark:boundary                      # source cascade, about 35 min
 BOUNDARY_BENCHMARK_LIMIT=3 npm run benchmark:boundary   # quick smoke run
-BOUNDARY_BENCHMARK_TIMEOUT_MIN=90 npm run benchmark:boundary   # default 30
+BOUNDARY_BENCHMARK_TIMEOUT_MIN=180 npm run benchmark:boundary   # default 120
 BOUNDARY_BENCHMARK_DUMP=/tmp/inputs.json npm run benchmark:boundary
 ```
 
@@ -20,8 +20,11 @@ OSM is treated as not cached, which is what the app sees while the public
 Overpass servers are at capacity. The references are OSM dealer areas, so
 using OSM would also grade OSM against itself.
 
-`BOUNDARY_BENCHMARK_DUMP` writes each site's vehicles and parcels to a file, so
-cascade limits can be compared offline without fetching imagery again.
+`BOUNDARY_BENCHMARK_DUMP` writes each site's inputs to a file as the analysis
+sees them — vehicles, parcels (in Bayern from the parcel map), building
+footprints and the vegetation raster — after every site, so cascade rules can
+be compared offline (`npm run benchmark:boundary:replay`) without fetching
+imagery again, and a failing service late in the run does not lose them.
 
 It is opt-in (gated on `BOUNDARY_BENCHMARK`) because it queries the state
 cadastre services and the imagery provider. It must never gate CI.
@@ -30,8 +33,8 @@ cadastre services and the imagery provider. It must never gate CI.
 
 | File | What it is |
 | --- | --- |
-| `boundary-public-fixtures.json` | 17 real OSM dealership areas, 9 states. Committed. Regenerate with `node scripts/build-public-boundary-fixtures.mjs`. |
-| `boundary-baseline.json` | Scores of the engine as it shipped in v0.2.1, for measuring change against. |
+| `boundary-public-fixtures.json` | Version 2: 76 real OSM dealership lots, all 16 German states and 2 sites in Austria; no way tagged as a building, at most 60 % of each outline under mapped buildings (`roofShare`). Committed. Regenerate with `node scripts/build-public-boundary-fixtures.mjs`. |
+| `boundary-baseline.json` | Scores of the engine as it shipped in v0.2.1, on version 1 of the set (17 references, 8 of them showroom roofs). Kept as a record; not comparable with runs on version 2. |
 | `LICENSES.md` | ODbL attribution, and what the references are and are not. |
 
 Output goes to `coverage/boundary-benchmark.json`, including which providers

@@ -20,6 +20,12 @@ mappers differ in whether they include the forecourt, staff parking, or the
 service yard. Treat a mean IoU of 1.0 against this set as implausible rather
 than excellent.
 
+Most `shop=car` areas in OSM are the showroom building. Version 2 of the set
+(`boundary-public-v2`, November 2026) therefore takes a way only when it has
+no `building` tag and at most 60 % of it lies under OSM building footprints;
+each sample records that share as `roofShare`. Version 1 did not check this,
+and eight of its 17 references were roofs.
+
 They contain no customer or portfolio data and are safe to commit.
 
 ## `boundary-groundtruth-local` (not in this repository)
