@@ -2,7 +2,7 @@ import { cacheGet, cacheSet, TTL } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
 import type { LonLat } from "./boundary-geometry";
 import { createCircuitBreaker } from "./boundary/circuit-breaker";
-import { parseExteriorRings, statesForPoint, toUtm32 } from "./alkis.service";
+import { parsePolygons, statesForPoint, toUtm32 } from "./alkis.service";
 import {
   bavariaLod2Buildings,
   isInBavariaBox,
@@ -132,6 +132,8 @@ const BUILDING_TIMEOUT_MS = 45_000;
 
 export interface OfficialBuilding {
   ring: LonLat[];
+  /** Inner courtyards: open ground inside the footprint, not roof. */
+  holes?: LonLat[][];
   /**
    * The cadastre records a car park (Parkhaus, Parkdeck, Gebäude zum Parken)
    * or an underground garage (Tiefgarage), whose roof or covering ground
@@ -210,9 +212,16 @@ export function parseOfficialBuildings(xml: string): OfficialBuilding[] {
     );
     // An underground structure has no roof in the image.
     if (underground) continue;
-    for (const ring of parseExteriorRings(member[1])) {
-      if (ring.length >= 4)
-        buildings.push({ ring, parkingRoof, functionKnown });
+    for (const { exterior, interiors } of parsePolygons(member[1])) {
+      if (exterior.length >= 4)
+        buildings.push({
+          ring: exterior,
+          ...(interiors.length > 0
+            ? { holes: interiors.filter((hole) => hole.length >= 4) }
+            : {}),
+          parkingRoof,
+          functionKnown,
+        });
     }
   }
   return buildings;

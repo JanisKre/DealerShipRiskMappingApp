@@ -210,13 +210,25 @@ export async function withBwAttributes(
   lon: number,
   radiusM: number,
 ): Promise<ParcelFeature[]> {
-  if (parcels.length === 0) return parcels;
+  return (await withBwAttributesStatus(parcels, lat, lon, radiusM)).parcels;
+}
+
+/** As `withBwAttributes`, and whether a layer failed (the answer is incomplete). */
+export async function withBwAttributesStatus(
+  parcels: ParcelFeature[],
+  lat: number,
+  lon: number,
+  radiusM: number,
+): Promise<{ parcels: ParcelFeature[]; layerFailed: boolean }> {
+  if (parcels.length === 0) return { parcels, layerFailed: false };
   const [addressXml, useXml] = await Promise.all([
     fetchLayer("nora:v_al_lagebezeichnung", lat, lon, radiusM),
     fetchLayer("nora:v_al_tatsaechliche_nutzung", lat, lon, radiusM),
   ]);
+  const layerFailed = addressXml == null || useXml == null;
   const addresses = addressXml ? parseBwAddressPoints(addressXml) : [];
   const uses = useXml ? parseBwLandUse(useXml) : [];
-  if (addresses.length === 0 && uses.length === 0) return parcels;
-  return attachBwAttributes(parcels, addresses, uses);
+  if (addresses.length === 0 && uses.length === 0)
+    return { parcels, layerFailed };
+  return { parcels: attachBwAttributes(parcels, addresses, uses), layerFailed };
 }

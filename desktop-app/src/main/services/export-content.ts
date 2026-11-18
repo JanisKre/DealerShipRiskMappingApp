@@ -98,6 +98,10 @@ const LABELS = {
       boundaryConfidence: "Konfidenz Grenze",
       confidence: "Konfidenz Ergebnis",
       modelVersion: "Modellversion",
+      imageDate: "Bilddatum",
+      analysedAt: "Analysedatum",
+      boundaryReview: "Prüfung Grenze",
+      fallbackUsed: "Rückfallquelle verwendet",
       insured: "Bestandsgeschäft",
       salesPartner: "Vertriebspartner",
       subPortfolio: "Teilportfolio",
@@ -105,6 +109,11 @@ const LABELS = {
       productLimit: "Produktlimit (EUR)",
       deductible: "Selbstbehalt (EUR)",
       clusterId: "Kumulation",
+    },
+    boundaryReview: {
+      confirmed: "bestätigt",
+      open: "offen",
+      none: "",
     },
     ealStatus: {
       ok: "berechnet",
@@ -182,6 +191,10 @@ const LABELS = {
       boundaryConfidence: "boundaryConfidence",
       confidence: "confidence",
       modelVersion: "modelVersion",
+      imageDate: "imageDate",
+      analysedAt: "analysedAt",
+      boundaryReview: "boundaryReview",
+      fallbackUsed: "fallbackUsed",
       insured: "insured",
       salesPartner: "salesPartner",
       subPortfolio: "subPortfolio",
@@ -189,6 +202,11 @@ const LABELS = {
       productLimit: "productLimitEur",
       deductible: "deductibleEur",
       clusterId: "clusterId",
+    },
+    boundaryReview: {
+      confirmed: "confirmed",
+      open: "open",
+      none: "",
     },
     ealStatus: {
       ok: "computed",
@@ -264,6 +282,10 @@ const LABELS = {
       boundaryConfidence: "Confiance limite",
       confidence: "Confiance résultat",
       modelVersion: "Version du modèle",
+      imageDate: "Date de l’image",
+      analysedAt: "Date d’analyse",
+      boundaryReview: "Contrôle de la limite",
+      fallbackUsed: "Source de repli utilisée",
       insured: "Portefeuille existant",
       salesPartner: "Partenaire commercial",
       subPortfolio: "Sous-portefeuille",
@@ -271,6 +293,11 @@ const LABELS = {
       productLimit: "Limite produit (EUR)",
       deductible: "Franchise (EUR)",
       clusterId: "Cumul",
+    },
+    boundaryReview: {
+      confirmed: "confirmée",
+      open: "à contrôler",
+      none: "",
     },
     ealStatus: {
       ok: "calculée",
@@ -366,6 +393,14 @@ export interface SiteProvenance {
   boundaryConfidence?: number;
   confidence?: number;
   modelVersion?: string;
+  /** Capture date of the image the vehicles were counted on (ISO date). */
+  imageDate?: string;
+  /** When the risk was computed (ISO date). */
+  analysedAt?: string;
+  /** Boundary review: confirmed by a person, still open, or not needed. */
+  boundaryReview: "confirmed" | "open" | "none";
+  /** Whether any source of the result used a fallback. */
+  fallbackUsed: boolean;
 }
 
 export function siteProvenance(d: AnalyzedDealership): SiteProvenance {
@@ -377,5 +412,14 @@ export function siteProvenance(d: AnalyzedDealership): SiteProvenance {
     boundaryConfidence: d.boundary?.confidence,
     confidence: d.risk?.confidence,
     modelVersion: d.risk?.modelVersion,
+    imageDate:
+      d.detection?.imagery?.chosen.capturedAt?.slice(0, 10) ?? undefined,
+    analysedAt: d.risk?.computedAt?.slice(0, 10),
+    boundaryReview: d.boundary?.confirmedAt
+      ? "confirmed"
+      : d.boundary?.reviewRequired
+        ? "open"
+        : "none",
+    fallbackUsed: (d.risk?.evidence ?? []).some((e) => e.fallbackUsed),
   };
 }

@@ -73,10 +73,24 @@ export async function maskRoofDetections(
     ...(osm.length > 0 ? ["OSM buildings"] : []),
     ...(cadastre.length > 0 ? [`ALKIS buildings ${official.state}`] : []),
   ];
-  return excludeRoofDetections(
+  const masked = excludeRoofDetections(
     detection,
     [...osm, ...cadastre],
     ROOF_INSET_M,
     sources.join(" + ") || "OSM buildings",
   );
+  // A capped footprint answer leaves roofs unmasked at the edge of the lot.
+  if (official.truncated && masked.evidence) {
+    return {
+      ...masked,
+      evidence: {
+        ...masked.evidence,
+        limitations: [
+          ...masked.evidence.limitations,
+          "Official building footprints incomplete (service capped the answer); some roofs may be unmasked",
+        ],
+      },
+    };
+  }
+  return masked;
 }

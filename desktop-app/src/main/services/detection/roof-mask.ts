@@ -87,7 +87,7 @@ function centroid(ring: LonLat[]): LonLat {
 export function officialRoofRings(
   buildings: OfficialBuilding[],
   evidence: OsmEvidence | null,
-): LonLat[][] {
+): RoofFootprint[] {
   const osmParking = (evidence?.areas ?? [])
     .filter((area) => area.ring.length >= 4 && isOsmParkingArea(area.tags))
     .map((area) => area.ring);
@@ -100,19 +100,25 @@ export function officialRoofRings(
         (p) => ringContains(p, c) || ringContains(b.ring, centroid(p)),
       );
     })
-    .map((b) => b.ring);
+    .map((b) => (b.holes?.length ? { ring: b.ring, holes: b.holes } : b.ring));
 }
+
+/** A roof outline, optionally with courtyards that are open ground. */
+export type RoofFootprint = LonLat[] | { ring: LonLat[]; holes: LonLat[][] };
 
 interface IndexedRing {
   ring: LonLat[];
+  holes: LonLat[][];
   minLon: number;
   maxLon: number;
   minLat: number;
   maxLat: number;
 }
 
-function index(rings: LonLat[][]): IndexedRing[] {
-  return rings.map((ring) => {
+function index(footprints: RoofFootprint[]): IndexedRing[] {
+  return footprints.map((footprint) => {
+    const ring = Array.isArray(footprint) ? footprint : footprint.ring;
+    const holes = Array.isArray(footprint) ? [] : footprint.holes;
     let minLon = Infinity;
     let maxLon = -Infinity;
     let minLat = Infinity;
@@ -123,7 +129,7 @@ function index(rings: LonLat[][]): IndexedRing[] {
       minLat = Math.min(minLat, lat);
       maxLat = Math.max(maxLat, lat);
     }
-    return { ring, minLon, maxLon, minLat, maxLat };
+    return { ring, holes, minLon, maxLon, minLat, maxLat };
   });
 }
 
@@ -154,6 +160,8 @@ function roofOf(
       lat >= r.minLat &&
       lat <= r.maxLat &&
       ringContains(r.ring, point) &&
+      // A vehicle in a courtyard stands on open ground.
+      !r.holes.some((hole) => ringContains(hole, point)) &&
       distanceToRingM(point, r.ring) >= insetM,
   );
 }
@@ -165,7 +173,7 @@ function roofOf(
  */
 export function excludeRoofDetections(
   detection: DetectionResult,
-  roofs: LonLat[][],
+  roofs: RoofFootprint[],
   insetM = ROOF_INSET_M,
   /** Where the footprints came from, for the provenance line. */
   source = "OSM buildings",

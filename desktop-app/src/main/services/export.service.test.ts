@@ -194,7 +194,9 @@ describe("limitations and provenance in exports (UW-11, UW-03)", () => {
       "vehicleSource,hailZone,hailZoneSource,exposureEur,exposureEstimated,eal,ealStatus",
     );
     expect(header).toContain("boundarySource,boundaryConfidence");
-    expect(header).toContain("modelVersion");
+    expect(header).toContain(
+      "modelVersion,imageDate,analysedAt,boundaryReview,fallbackUsed",
+    );
     expect(counted).toContain(",detected,");
     expect(counted).toContain(",ok,");
     // Area estimate: flagged, exposure exported, EAL blank with the reason.

@@ -1,3 +1,5 @@
+import { STATE_CADASTRE_SERVICES } from "@shared/cadastre-sources";
+import type { GermanState } from "@shared/imagery-sources";
 import type {
   BoundaryGeometry,
   BoundaryResult,
@@ -142,6 +144,44 @@ export function addressAnchor(
  */
 const MAP_PARCEL_STATE = "Bayern";
 
+/** State names of the cadastre services → state codes of the source registry. */
+const CADASTRE_STATE_CODES: Record<string, GermanState> = {
+  NRW: "NW",
+  Sachsen: "SN",
+  Niedersachsen: "NI",
+  "Schleswig-Holstein": "SH",
+  "Sachsen-Anhalt": "ST",
+  Brandenburg: "BB",
+  Berlin: "BE",
+  Hessen: "HE",
+  "Baden-Württemberg": "BW",
+  Saarland: "SL",
+  Hamburg: "HH",
+  Bremen: "HB",
+  "Mecklenburg-Vorpommern": "MV",
+  Thüringen: "TH",
+  "Rheinland-Pfalz": "RP",
+  Bayern: "BY",
+};
+
+/**
+ * Source line of a parcel result with the attribution the state's licence
+ * requires (dl-de/by-2-0 and CC BY 4.0 ask for it); the state name alone
+ * when the registry has no entry.
+ */
+export function cadastreSourceLine(state: string): string {
+  if (state === MAP_PARCEL_STATE)
+    return "ALKIS-Parzellarkarte Bayern © Bayerische Vermessungsverwaltung (CC BY 4.0)";
+  const code = CADASTRE_STATE_CODES[state];
+  const service = code ? STATE_CADASTRE_SERVICES[code] : undefined;
+  if (!service) return `ALKIS (${state})`;
+  const attribution = service.attribution.replaceAll(
+    "{year}",
+    String(new Date().getFullYear()),
+  );
+  return `ALKIS (${state}) ${attribution}`;
+}
+
 export function parcelResult(
   geometry: BoundaryGeometry,
   areaSqm: number,
@@ -160,10 +200,7 @@ export function parcelResult(
     confidence,
     label,
     evidence: {
-      source:
-        state === MAP_PARCEL_STATE
-          ? "ALKIS-Parzellarkarte Bayern © Bayerische Vermessungsverwaltung (CC BY 4.0)"
-          : `ALKIS (${state})`,
+      source: cadastreSourceLine(state),
       retrievedAt: now(),
       method:
         stage === 1

@@ -205,3 +205,61 @@ describe("official roof rings", () => {
     );
   });
 });
+
+describe("courtyards", () => {
+  it("keeps a vehicle parked in a building's courtyard", () => {
+    // 100 m × 100 m block with a 40 m × 40 m courtyard in the middle.
+    const d = 100 / 111_320;
+    const outer: Array<[number, number]> = [
+      [13, 52],
+      [13 + d * 1.6, 52],
+      [13 + d * 1.6, 52 + d],
+      [13, 52 + d],
+      [13, 52],
+    ];
+    const c0 = 0.3 * d;
+    const c1 = 0.7 * d;
+    const hole: Array<[number, number]> = [
+      [13 + c0 * 1.6, 52 + c0],
+      [13 + c1 * 1.6, 52 + c0],
+      [13 + c1 * 1.6, 52 + c1],
+      [13 + c0 * 1.6, 52 + c1],
+      [13 + c0 * 1.6, 52 + c0],
+    ];
+    const detection = {
+      vehicleCount: 2,
+      confidence: 0.8,
+      model: "test",
+      boxes: [
+        // In the courtyard.
+        {
+          x: 0,
+          y: 0,
+          w: 0,
+          h: 0,
+          score: 0.8,
+          classLabel: "car",
+          lon: 13 + 0.5 * d * 1.6,
+          lat: 52 + 0.5 * d,
+        },
+        // On the roof ring.
+        {
+          x: 0,
+          y: 0,
+          w: 0,
+          h: 0,
+          score: 0.8,
+          classLabel: "car",
+          lon: 13 + 0.15 * d * 1.6,
+          lat: 52 + 0.15 * d,
+        },
+      ],
+    } as unknown as DetectionResult;
+    const masked = excludeRoofDetections(
+      detection,
+      [{ ring: outer, holes: [hole] }],
+      2,
+    );
+    expect(masked.vehicleCount).toBe(1);
+  });
+});

@@ -6,7 +6,10 @@ import { fetchWithResilience } from "./http.service";
 import { checkRing, type LonLat } from "./boundary-geometry";
 import { createCircuitBreaker } from "./boundary/circuit-breaker";
 import { fromUtm, toUtm } from "./utm";
-import { withBwAttributes } from "./bw-parcel-attributes";
+import { withBwAttributesStatus } from "./bw-parcel-attributes";
+
+/** Lifetime of an incomplete cadastre answer (see fetchParcelsNear). */
+export const DEGRADED_CADASTRE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * ALKIS cadastral parcels (official lot boundaries) via the open
@@ -724,8 +727,11 @@ export async function fetchParcelsNear(
       });
     }
     // BW publishes address and land use as separate layers.
+    let attributesFailed = false;
     if (state === "Baden-Württemberg") {
-      parcels = await withBwAttributes(parcels, lat, lon, radiusM);
+      const enriched = await withBwAttributesStatus(parcels, lat, lon, radiusM);
+      parcels = enriched.parcels;
+      attributesFailed = enriched.layerFailed;
     }
     const result: ParcelLookup = {
       parcels,
@@ -741,7 +747,12 @@ export async function fetchParcelsNear(
             ? "partial"
             : "success",
     };
-    cacheSet(key, result, TTL.cadastre);
+    // A degraded answer (INSPIRE fallback without address and land use, a
+    // capped answer, a failed BW attribute layer) is kept for a day only:
+    // the full answer must replace it once the service recovers, not a
+    // month later.
+    const degraded = source !== endpoint || truncated || attributesFailed;
+    cacheSet(key, result, degraded ? DEGRADED_CADASTRE_TTL_MS : TTL.cadastre);
 
     if (result.parcels.length > 0) return result;
     // Service answered but holds nothing here — try the next candidate state
@@ -985,7 +996,20 @@ export function ringsFromUtm(
  * `alkis_flurstuecke:flurstuecke`, …) — all use the same GML geometry.
  */
 export function parseExteriorRings(xml: string): [number, number][][] {
-  const rings: [number, number][][] = [];
+  return parsePolygons(xml).map((polygon) => polygon.exterior);
+}
+
+/**
+ * Polygons with their interior rings: courtyards of a building, parcels
+ * enclosed by another. `parseExteriorRings` drops the holes.
+ */
+export function parsePolygons(
+  xml: string,
+): Array<{ exterior: [number, number][]; interiors: [number, number][][] }> {
+  const polygons: Array<{
+    exterior: [number, number][];
+    interiors: [number, number][][];
+  }> = [];
   const polygonRe =
     /<(?:[\w.-]+:)?(?:PolygonPatch|Polygon)\b[\s\S]*?<\/(?:[\w.-]+:)?(?:PolygonPatch|Polygon)>/g;
   for (const match of xml.matchAll(polygonRe)) {
@@ -993,29 +1017,45 @@ export function parseExteriorRings(xml: string): [number, number][][] {
       /<(?:[\w.-]+:)?exterior>([\s\S]*?)<\/(?:[\w.-]+:)?exterior>/,
     );
     if (!exterior) continue;
-    // A LinearRing has one posList; a Ring (e.g. Hamburg) is a chain of
-    // curve segments, each with its own posList, joined end to start.
-    const ring: [number, number][] = [];
-    for (const list of exterior[1].matchAll(
-      /<(?:[\w.-]+:)?posList[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?posList>/g,
+    const ring = ringFromGml(exterior[1]);
+    if (!ring) continue;
+    const interiors: [number, number][][] = [];
+    for (const interior of match[0].matchAll(
+      /<(?:[\w.-]+:)?interior>([\s\S]*?)<\/(?:[\w.-]+:)?interior>/g,
     )) {
-      const nums = list[1].trim().split(/\s+/).map(Number);
-      for (let i = 0; i + 1 < nums.length; i += 2) {
-        const la = nums[i];
-        const lo = nums[i + 1];
-        if (!Number.isFinite(la) || !Number.isFinite(lo)) continue;
-        const prev = ring[ring.length - 1];
-        if (prev && prev[0] === lo && prev[1] === la) continue;
-        ring.push([lo, la]);
-      }
+      const hole = ringFromGml(interior[1]);
+      if (hole) interiors.push(hole);
     }
-    if (ring.length < 3) continue;
-    const first = ring[0];
-    const last = ring[ring.length - 1];
-    if (first[0] !== last[0] || first[1] !== last[1]) ring.push(first);
-    rings.push(ring);
+    polygons.push({ exterior: ring, interiors });
   }
-  return rings;
+  return polygons;
+}
+
+/**
+ * One closed ring from a GML ring element. A LinearRing has one posList; a
+ * Ring (e.g. Hamburg) is a chain of curve segments, each with its own
+ * posList, joined end to start. Null for fewer than three points.
+ */
+function ringFromGml(gml: string): [number, number][] | null {
+  const ring: [number, number][] = [];
+  for (const list of gml.matchAll(
+    /<(?:[\w.-]+:)?posList[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?posList>/g,
+  )) {
+    const nums = list[1].trim().split(/\s+/).map(Number);
+    for (let i = 0; i + 1 < nums.length; i += 2) {
+      const la = nums[i];
+      const lo = nums[i + 1];
+      if (!Number.isFinite(la) || !Number.isFinite(lo)) continue;
+      const prev = ring[ring.length - 1];
+      if (prev && prev[0] === lo && prev[1] === la) continue;
+      ring.push([lo, la]);
+    }
+  }
+  if (ring.length < 3) return null;
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) ring.push(first);
+  return ring;
 }
 
 /**
