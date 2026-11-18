@@ -56,19 +56,23 @@ slower answer still fills the cache (30 days) for the next analysis.
 | HB | LGLN `alkishb_wfs_sf` | `adv:AX_Gebaeude` | yes |
 | HE | `gds.hessen.de/wfs2/aaa-suite/cgi-bin/alkis/nas/wfs` | `adv:AX_Gebaeude` | yes |
 | BE | `gdi.berlin.de/services/wfs/alkis_gebaeude` | `alkis_gebaeude:gebaeude` | partly |
-| SN | INSPIRE `alkis/bu-core2d/dls/wfs` | `bu-core2d:Building` | no |
+| SN | `geodienste.sachsen.de/aaa/public_alkis/vereinf/wfs` | `ave:GebaeudeBauwerk` | yes |
 | MV | INSPIRE `inspire_bu_core2d_alkis_download` | `bu-core2d:Building` | no |
 | SH | INSPIRE `SH_INSPIREDOWNLOAD_AIII_BU` | `bu-core2d:Building` | no |
-| ST | INSPIRE `ows_INSPIRE_LVermGeo_ALKIS_BU_WFS` | `bu-core2d:Building` | no |
-| BB | INSPIRE `bu_alkis_wfs` | `bu-core2d:Building` | no |
+| ST | `ST_LVermGeo_ALKIS_WFS_OpenData/guest` | `ave:GebaeudeBauwerk` | yes |
+| BB | `isk.geobasis-bb.de/ows/alkis_vereinf_wfs` | `ave:GebaeudeBauwerk` | yes |
+| SL | INSPIRE `inspirewfs_2D_Gebaeude_ALKIS` | `bu-core2d:Building` | no |
 | BW | INSPIRE `WFS_INSP_BW_Gebaeude_ALKIS` | `bu-core2d:Building` | no |
 | BY | LoD2 CityGML tiles `download1/2.bayernwolke.de/a/lod2/citygml/{e}_{n}.gml` (no WFS) | `bldg:Building` ground surfaces | yes |
 
 Verified live on 11 November 2026 with a 190 m request over a city centre
 (between 44 and 401 footprints per state, car parks recognised in NW, NI,
-HB and HE). Not covered: Hamburg (its INSPIRE building WFS answers every
-BBOX request with a mixed-SRID server error) and Saarland (no open building
-WFS found).
+HB and HE). Sachsen, Sachsen-Anhalt and Brandenburg moved to their
+simplified ALKIS services on 19 November 2026 (with the building function
+and inner courtyards); Saarland's INSPIRE building service was added the same
+day. Not covered: Hamburg (its INSPIRE building WFS answers every BBOX
+request with a mixed-SRID server error; its simplified ALKIS is published as
+OGC API Features, which the app does not read).
 
 **Bayern (since November 2026).** Bayern publishes no open building or
 parcel WFS. Its open data contains the LoD2 building model (CC BY 4.0,
@@ -113,10 +117,12 @@ for example `anchor: official house coordinate (ALKIS Sachsen)`.
 | BW | INSPIRE `WFS_INSP_BW_Adr_Hauskoord_ALKIS` |
 | SL | INSPIRE `inspirewfs_Adressen_Hauskoordinaten` |
 | BE | `gdi.berlin.de/services/wfs/adressen_berlin` (street inline) |
+| NW | INSPIRE `wfs_nw_inspire-adressen_gebref` (dl-de/zero-2-0; RESOURCEID without typeNames) |
 
 Verified live on 11 November 2026 with one real address per state; all
 eight matched, moving the test anchor 25–344 m onto the address building.
-Not covered: Hamburg (same server error as its building service), NRW,
+NRW was added on 19 November 2026 (Köln test address matched on its
+building). Not covered: Hamburg (same server error as its building service),
 Hessen (house coordinates carry only a street key), Thüringen,
 Rheinland-Pfalz, Sachsen-Anhalt, Bremen and Bayern.
 

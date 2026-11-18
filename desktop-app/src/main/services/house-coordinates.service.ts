@@ -9,15 +9,16 @@ import { statesForPoint } from "./alkis.service";
  * house number; the cadastre has the address on its building.
  *
  * Endpoints verified live in November 2026 (docs/official-buildings.md):
- * the INSPIRE "Addresses" download services of seven states and Berlin's
- * address WFS. All of them honour a FES filter of BBOX plus house number, so
+ * the INSPIRE "Addresses" download services of eight states (NRW since
+ * November 2026, whose server takes RESOURCEID only without typeNames) and
+ * Berlin's address WFS. All of them honour a FES filter of BBOX plus house number, so
  * one request returns a handful of candidates instead of every address in
  * the box. INSPIRE addresses reference their street (ThoroughfareName) and
  * postcode (PostalDescriptor) by link; the postcode sits in the link itself,
  * the street name is resolved with a second request by feature id.
  *
  * Not covered: Hamburg (its INSPIRE WFS fails every spatial filter with a
- * server error), NRW, Hessen, Thüringen, Rheinland-Pfalz, Sachsen-Anhalt,
+ * server error), Hessen, Thüringen, Rheinland-Pfalz, Sachsen-Anhalt,
  * Bremen and Bayern (no open address WFS found or none with street names
  * that a client can match). There the Nominatim anchor stays as it is.
  */
@@ -25,6 +26,8 @@ import { statesForPoint } from "./alkis.service";
 interface AddressEndpoint {
   url: string;
   kind: "inspire" | "berlin";
+  /** The service rejects RESOURCEID together with typeNames (NRW). */
+  resourceIdAlone?: true;
 }
 
 const ADDRESS_ENDPOINTS: Record<string, AddressEndpoint> = {
@@ -59,6 +62,13 @@ const ADDRESS_ENDPOINTS: Record<string, AddressEndpoint> = {
   Berlin: {
     url: "https://gdi.berlin.de/services/wfs/adressen_berlin",
     kind: "berlin",
+  },
+  // INSPIRE addresses with the building reference (Gebäudereferenzen),
+  // dl-de/zero-2-0; checked with this filter form in November 2026.
+  NRW: {
+    url: "https://www.wfs.nrw.de/geobasis/wfs_nw_inspire-adressen_gebref",
+    kind: "inspire",
+    resourceIdAlone: true,
   },
 };
 
@@ -354,7 +364,8 @@ async function candidatesFrom(
     for (const [id, name] of parseThoroughfareNames(
       await getXml(
         `${endpoint.url}?service=WFS&version=2.0.0&request=GetFeature` +
-          `&typeNames=ad:ThoroughfareName&RESOURCEID=${encodeURIComponent(chunk.join(","))}`,
+          (endpoint.resourceIdAlone ? "" : "&typeNames=ad:ThoroughfareName") +
+          `&RESOURCEID=${encodeURIComponent(chunk.join(","))}`,
       ),
     )) {
       names.set(id, name);

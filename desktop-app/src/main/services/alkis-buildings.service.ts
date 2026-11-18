@@ -82,9 +82,12 @@ const BUILDING_ENDPOINTS: Record<string, BuildingEndpoint> = {
     typeName: "alkis_gebaeude:gebaeude",
     crs: 4326,
   },
+  // The simplified ALKIS services carry the building function (`funktion`,
+  // `gfkzshh`), so car parks and parking decks keep their vehicles; the
+  // INSPIRE building services used before do not (checked November 2026).
   Sachsen: {
-    url: "https://geodienste.sachsen.de/aaa/public_inspire/alkis/bu-core2d/dls/wfs",
-    typeName: "bu-core2d:Building",
+    url: "https://geodienste.sachsen.de/aaa/public_alkis/vereinf/wfs",
+    typeName: "ave:GebaeudeBauwerk",
     crs: 4258,
   },
   "Mecklenburg-Vorpommern": {
@@ -98,12 +101,19 @@ const BUILDING_ENDPOINTS: Record<string, BuildingEndpoint> = {
     crs: 4258,
   },
   "Sachsen-Anhalt": {
-    url: "https://geodatenportal.sachsen-anhalt.de/ows_INSPIRE_LVermGeo_ALKIS_BU_WFS",
-    typeName: "bu-core2d:Building",
+    url: "https://www.geodatenportal.sachsen-anhalt.de/wss/service/ST_LVermGeo_ALKIS_WFS_OpenData/guest",
+    typeName: "ave:GebaeudeBauwerk",
     crs: 4258,
   },
   Brandenburg: {
-    url: "https://inspire.brandenburg.de/services/bu_alkis_wfs",
+    url: "https://isk.geobasis-bb.de/ows/alkis_vereinf_wfs",
+    typeName: "ave:GebaeudeBauwerk",
+    crs: 4258,
+  },
+  // INSPIRE footprints without function: the roof mask treats them like
+  // OSM buildings (car parks recognised from OSM where mapped).
+  Saarland: {
+    url: "https://geoportal.saarland.de/gdi-sl/inspirewfs_2D_Gebaeude_ALKIS",
     typeName: "bu-core2d:Building",
     crs: 4258,
   },

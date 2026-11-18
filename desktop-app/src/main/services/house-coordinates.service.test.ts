@@ -276,3 +276,24 @@ describe("officialHouseCoordinate", () => {
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
 });
+
+describe("NRW INSPIRE addresses", () => {
+  it("reads a number stored as the extension of an empty address number", () => {
+    const xml = `<wfs:FeatureCollection><wfs:member><Address gml:id="Address_DENW1">
+<position><GeographicPosition><geometry><gml:Point><gml:pos>50.94196297 6.95613714</gml:pos></gml:Point></geometry></GeographicPosition></position>
+<locator><AddressLocator><designator><LocatorDesignator><designator/><type/></LocatorDesignator></designator>
+<designator><LocatorDesignator><designator>4</designator><type/></LocatorDesignator></designator></AddressLocator></locator>
+<component xlink:href="https://registry.gdi-de.org/id/de.nw.inspire.ad.gebref/ThoroughfareName_0531500002157"/>
+<component xlink:href="https://registry.gdi-de.org/id/de.nw.inspire.ad.gebref/PostalDescriptor_50667"/>
+</Address></wfs:member></wfs:FeatureCollection>`;
+    expect(parseInspireAddresses(xml)).toEqual([
+      {
+        lat: 50.94196297,
+        lon: 6.95613714,
+        houseNumber: "4",
+        postcode: "50667",
+        streetId: "ThoroughfareName_0531500002157",
+      },
+    ]);
+  });
+});
