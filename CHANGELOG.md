@@ -9,6 +9,56 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Hail score no longer depends on the date of the analysis
+  (screening-0.5.2).** For sites without a postcode zone the weather proxy
+  used the last 92 days: in winter a site landed in zone 1, in August the
+  same site up to zone 6. It now uses the last three complete
+  April–September seasons. Weather is fetched only when it decides the
+  score, a provider's annual probability replaces the placeholder λ, each
+  severity is capped at the vehicle value, the overall confidence follows
+  the weakest hail source (at most 0.6 while λ, p and S are placeholders),
+  and postcodes are looked up only for German sites; sites with coordinates
+  only take the zone from the postcode outlines. See `docs/risk-model.md`,
+  "Corrections (screening-0.5.2)". Sites without a postcode zone change
+  their EAL; the dashboard offers the recalculation.
+- **No more silent data loss.** A failed save shows "Saving failed" in the
+  header instead of "Automatically saved"; closing the window saves what
+  autosave had not; "Stop" keeps rows that had not started; re-analysis
+  errors are shown; a database that cannot be opened explains itself
+  instead of starting without a window; a second app instance focuses the
+  first instead of overwriting its portfolio.
+- **Readable PDFs.** "≥", "≈", "λ", "Σ" and French thousands separators came
+  out as garbage in the portfolio report; the location report printed an
+  EAL of 0 for sites without a vehicle count ("no vehicle count" now).
+- **Imagery dates from the states.** NRW, Bayern and Sachsen are dated from
+  their own flight-date layers (the BKG index was two years behind at test
+  points); Bremen and Berlin serve the flight year the index lists, so
+  Bremen's 10 cm image can win again; Bayern captures at z19 instead of
+  failing at z20; Sachsen-Anhalt's open DOP20 is used. Missing tiles and
+  failed inference windows are named in the limitations.
+- **Geocoding and import.** One User-Agent with the app version for every
+  service, Retry-After and a pause on 429 for Nominatim, responses that
+  stall after the headers end with an error, the name query only where the
+  address finds no building, empty answers cached for a day, house numbers
+  in streets like "Straße des 17. Juni 135" read correctly, post-office
+  boxes rejected, the import preview shows the point the analysis uses, and
+  postcodes Excel stored as numbers get their leading zero back.
+- **Cadastre.** Courtyards are open ground in the roof mask; incomplete
+  cadastre answers are cached for a day, not 30; parcel results carry the
+  state's licence line; NRW house coordinates; building function for
+  Sachsen, Sachsen-Anhalt and Brandenburg; Saarland footprints.
+- **AI (optional).** Non-streamed answers get 120 s instead of 15 s, OpenAI
+  receives `max_completion_tokens`, answers cut off at the token limit are
+  detected, and a custom provider URL no longer receives vendor keys from
+  the environment.
+- **Exports, cache, timeline, accessibility.** CSV and XLSX add image date,
+  analysis date, boundary review and fallback columns; the tile cache is
+  bounded at 1.5 GB and live Esri tiles expire with their date; only three
+  migration backups are kept; import dedupe folds umlauts and legal forms;
+  the vehicle timeline uses the analysis' capture size and continues at
+  z19; errors are announced as alerts. The OSM details show operator,
+  used-car and workshop tags. `drizzle-orm` (unused) was removed.
+
 - **Buildings are no longer cut in half by the lot boundary (cascade
   v14).** A boundary followed the parcel line straight through a showroom
   that stands across two plots. A building that lies mostly on the chosen
