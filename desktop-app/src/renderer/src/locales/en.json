@@ -1120,6 +1120,7 @@
       "imageryDateSources": {
         "esri-metadata": "Esri image metadata",
         "bkg-flight-index": "flight date per BKG",
+        "state-flight-index": "flight date per state survey",
         "none": "–",
         "esri-wayback-metadata": "Esri Wayback metadata"
       },

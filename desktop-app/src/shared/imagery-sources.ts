@@ -57,12 +57,37 @@ export interface StateDopService {
    * white tiles (scale limit), so the map must stay on Esri there.
    */
   minZoom?: number;
+  /**
+   * Highest zoom the service has tiles for. Above it the service answers
+   * with errors (Bayern's WMTS: HTTP 400 at z20), so captures stay at this
+   * level and the map upscales it.
+   */
+  maxZoom?: number;
+  /**
+   * The state's own flight-date layer (WMS GetFeatureInfo, text/plain). Its
+   * date is the one of the image the service serves; the BKG index lagged
+   * two years behind it at test points in Köln and München (November 2026).
+   */
+  flightInfo?: { url: string; layer: string };
+  /**
+   * Services published per flight year: the layer whose year matches the
+   * BKG flight date at the point is used (and dated); without a match the
+   * newest one, undated. Replaces `layer`, `url` and `label` when chosen.
+   */
+  vintages?: ReadonlyArray<{
+    year: number;
+    layer: string;
+    url?: string;
+    label: string;
+    resolutionM?: number;
+  }>;
 }
 
 /**
- * Open, keyless orthophoto services verified in October 2026 (EPSG:3857,
- * GetMap returns imagery). Hamburg and Sachsen-Anhalt have no verified open
- * endpoint; there the choice falls back to Esri.
+ * Open, keyless orthophoto services verified in October and November 2026
+ * (EPSG:3857, GetMap returns imagery). Hamburg's open time series also
+ * carries Maxar imagery under a closed licence (stated in the service's
+ * capabilities) and offers no date per tile, so Hamburg stays on Esri.
  */
 export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
   {
@@ -84,6 +109,12 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       resolutionM: 0.2,
       attribution: "© Bayerische Vermessungsverwaltung ({year}), CC BY 4.0",
       license: "CC BY 4.0",
+      // z20 answers HTTP 400, z19 serves the 20 cm image (November 2026).
+      maxZoom: 19,
+      flightInfo: {
+        url: "https://geoservices.bayern.de/od/wms/dop/v1/dop20",
+        layer: "by_dop20_info",
+      },
     },
     BE: {
       state: "BE",
@@ -92,9 +123,23 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       url: "https://gdi.berlin.de/services/wms/truedop_2024",
       layer: "truedop_2024",
       resolutionM: 0.2,
-      attribution: "© Geoportal Berlin / TrueDOP 2024, dl-de/zero-2-0",
+      attribution: "© Geoportal Berlin ({year}), dl-de/zero-2-0",
       license: "dl-de/zero-2-0",
       vintageYear: 2024,
+      vintages: [
+        {
+          year: 2024,
+          url: "https://gdi.berlin.de/services/wms/truedop_2024",
+          layer: "truedop_2024",
+          label: "TrueDOP Berlin 2024",
+        },
+        {
+          year: 2025,
+          url: "https://gdi.berlin.de/services/wms/dop_2025_fruehjahr",
+          layer: "dop20_2025",
+          label: "DOP20 Berlin Frühjahr 2025",
+        },
+      ],
     },
     BB: {
       state: "BB",
@@ -111,11 +156,29 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       label: "DOP10 Bremen 2025",
       kind: "wms",
       url: "https://geodienste.bremen.de/wms_dop_lb",
-      layer: "dop10_2025_HB",
+      // Bremen and Bremerhaven are separate layers of the same flight.
+      layer: "dop10_2025_HB,dop10_2025_BHV",
       resolutionM: 0.1,
       attribution: "© Landesamt GeoInformation Bremen ({year}), CC BY 4.0",
       license: "CC BY 4.0",
       vintageYear: 2025,
+      vintages: [
+        {
+          year: 2021,
+          layer: "dop10_2021_HB,dop10_2021_BHV",
+          label: "DOP10 Bremen 2021",
+        },
+        {
+          year: 2023,
+          layer: "dop10_2023_HB,dop10_2023_BHV",
+          label: "DOP10 Bremen 2023",
+        },
+        {
+          year: 2025,
+          layer: "dop10_2025_HB,dop10_2025_BHV",
+          label: "DOP10 Bremen 2025",
+        },
+      ],
     },
     HE: {
       state: "HE",
@@ -158,6 +221,10 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       resolutionM: 0.1,
       attribution: "© GeoBasis-DE / NRW ({year}), dl-de/zero-2-0",
       license: "dl-de/zero-2-0",
+      flightInfo: {
+        url: "https://www.wms.nrw.de/geobasis/wms_nw_dop",
+        layer: "nw_dop_utm_info",
+      },
     },
     RP: {
       state: "RP",
@@ -188,6 +255,20 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       resolutionM: 0.2,
       attribution: "© GeoSN ({year}), dl-de/by-2-0",
       license: "dl-de/by-2-0",
+      flightInfo: {
+        url: "https://geodienste.sachsen.de/wms_geosn_dop-rgb/guest",
+        layer: "sn_dop_020_info",
+      },
+    },
+    ST: {
+      state: "ST",
+      label: "DOP20 Sachsen-Anhalt",
+      kind: "wms",
+      url: "https://www.geodatenportal.sachsen-anhalt.de/wss/service/ST_LVermGeo_DOP_WMS_OpenData/guest",
+      layer: "lsa_lvermgeo_dop20_2",
+      resolutionM: 0.2,
+      attribution: "© GeoBasis-DE / LVermGeo ST ({year}), dl-de/by-2-0",
+      license: "dl-de/by-2-0",
     },
     SH: {
       state: "SH",
@@ -206,10 +287,59 @@ export const STATE_DOP_SERVICES: Partial<Record<GermanState, StateDopService>> =
       url: "https://www.geoproxy.geoportal-th.de/geoproxy/services/DOP",
       layer: "th_dop",
       resolutionM: 0.2,
-      attribution: "© GDI-Th ({year}), dl-de/by-2-0",
-      license: "dl-de/by-2-0",
+      // The service states CC BY 4.0 (checked November 2026).
+      attribution: "© GDI-Th ({year}), CC BY 4.0",
+      license: "CC BY 4.0",
     },
   };
+
+/**
+ * The service of a state as it serves one flight year: the matching entry of
+ * `vintages` (layer, URL, label), else the service as registered.
+ */
+export function resolveStateService(
+  state: GermanState,
+  vintage?: number,
+): StateDopService | undefined {
+  const service = STATE_DOP_SERVICES[state];
+  if (!service || vintage == null || !service.vintages) return service;
+  const match = service.vintages.find((v) => v.year === vintage);
+  if (!match) return service;
+  return {
+    ...service,
+    url: match.url ?? service.url,
+    layer: match.layer,
+    label: match.label,
+    resolutionM: match.resolutionM ?? service.resolutionM,
+    vintageYear: match.year,
+  };
+}
+
+/**
+ * Flight date in a state's text/plain GetFeatureInfo answer: NRW
+ * "Bildflugdatum = '11.05.2025'", Bayern "ua = '24.08.2024'", Sachsen
+ * "Datum: 19.03. + 07.04.2024" (several days: the latest). ISO date or null.
+ */
+export function parseStateFlightDate(text: string): string | null {
+  const line = text
+    .split(/\r?\n/)
+    .find((l) => /^\s*(?:Bildflugdatum|ua|Datum)\s*[=:]/i.test(l));
+  if (!line) return null;
+  const days = [...line.matchAll(/(\d{1,2})\.(\d{1,2})\.(\d{4})?/g)];
+  const year = days
+    .map((m) => m[3])
+    .filter(Boolean)
+    .at(-1);
+  if (!year) return null;
+  const iso = days
+    .map(
+      ([, d, m, y]) =>
+        `${y ?? year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`,
+    )
+    .filter((date) => !Number.isNaN(Date.parse(date)))
+    .sort();
+  return iso.at(-1) ?? null;
+}
 
 export function isGermanState(value: unknown): value is GermanState {
   return (
@@ -352,6 +482,7 @@ export const ImageryCandidateSchema = z.object({
     "esri-metadata",
     "esri-wayback-metadata",
     "bkg-flight-index",
+    "state-flight-index",
     "none",
   ]),
   resolutionM: z.number().nullable(),
@@ -359,6 +490,8 @@ export const ImageryCandidateSchema = z.object({
   zoom: z.number().int(),
   attribution: z.string(),
   state: z.enum(GERMAN_STATES).optional(),
+  /** Flight year of a state service published per year (`vintages`). */
+  vintage: z.number().int().optional(),
   /** Full Esri record for Esri candidates. */
   esri: ImageryMetadataSchema.optional(),
   /** Archived World Imagery version, for `esri-wayback` candidates. */

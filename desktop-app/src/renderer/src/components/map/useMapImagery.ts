@@ -11,7 +11,7 @@ import { validateTileTemplate } from "@shared/tile-template";
 import {
   IMAGERY_MIN_SELECTION_ZOOM,
   IMAGERY_TOLERANCE_DAYS,
-  STATE_DOP_SERVICES,
+  resolveStateService,
   stateImageryDrawableAt,
   stateTileTemplate,
   type ImageryCandidate,
@@ -187,15 +187,17 @@ export function useMapImagery({
   // year, another provider's registration) land on roofs and empty stalls.
   let tileUrl = TILE_URLS[basemap];
   let tileAttribution = tileAttributions(t)[basemap];
+  // A state service without tiles above some zoom (Bayern: z19) is upscaled.
+  let stateMaxZoom: number | undefined;
   if (basemap === "satellite") {
     const chosen = imagery?.chosen;
     const service =
       chosen?.kind === "state-dop" && chosen.state
-        ? STATE_DOP_SERVICES[chosen.state]
+        ? resolveStateService(chosen.state, chosen.vintage)
         : undefined;
     const countedService =
       countedOn?.kind === "state-dop" && countedOn.state
-        ? STATE_DOP_SERVICES[countedOn.state]
+        ? resolveStateService(countedOn.state, countedOn.vintage)
         : undefined;
     if (wmsUrl) {
       tileUrl = wmsUrl;
@@ -205,12 +207,14 @@ export function useMapImagery({
     } else if (countedService && countedOn) {
       tileUrl = stateTileTemplate(countedService);
       tileAttribution = countedOn.attribution;
+      stateMaxZoom = countedService.maxZoom;
     } else if (countedOn?.kind === "esri-wayback" && countedOn.wayback) {
       tileUrl = waybackTileTemplate(countedOn.wayback.release);
       tileAttribution = `&copy; ${countedOn.attribution.replace(/^© /, "")}`;
     } else if (service && chosen) {
       tileUrl = stateTileTemplate(service);
       tileAttribution = chosen.attribution;
+      stateMaxZoom = service.maxZoom;
     } else if (chosen?.kind === "esri") {
       tileAttribution = `&copy; ${chosen.attribution.replace(/^© /, "")}`;
     }
@@ -222,7 +226,7 @@ export function useMapImagery({
     // OpenTopoMap publishes native tiles only through z17. Leaflet may still
     // zoom farther, but must upscale z17 instead of requesting the provider's
     // conspicuous "max zoom / layer = 17" error tiles.
-    tileMaxNativeZoom: basemap === "terrain" ? 17 : undefined,
+    tileMaxNativeZoom: basemap === "terrain" ? 17 : stateMaxZoom,
     shownImagery,
     timeline: timelineEnabled ? imageryTimeline : null,
     timelineLoading: timelineEnabled && imageryTimelineLoading,

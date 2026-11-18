@@ -22,6 +22,7 @@ import {
   inferencePoolSize,
   OnnxYoloDetector,
   attachImageryProvenance,
+  coverageLimitations,
   detectVehiclesInContext,
   effectiveDetectionConfidence,
   filterDetectionToBoundary,
@@ -331,5 +332,28 @@ describe("inference pool", () => {
     // A second warm-up reuses the running workers.
     await detector.warmUp();
     expect(fork).toHaveBeenCalledTimes(size);
+  });
+});
+
+describe("coverageLimitations", () => {
+  it("names missing tiles and failed windows", () => {
+    expect(
+      coverageLimitations(
+        { validTileCount: 18, tileCount: 20 },
+        { failedWindows: 1, windows: 9 },
+      ),
+    ).toEqual([
+      "2 of 20 image tiles missing (filled grey); vehicles there are not counted",
+      "1 of 9 detection windows failed; vehicles there are not counted",
+    ]);
+  });
+
+  it("is empty for a complete image", () => {
+    expect(
+      coverageLimitations(
+        { validTileCount: 20, tileCount: 20 },
+        { failedWindows: 0, windows: 9 },
+      ),
+    ).toEqual([]);
   });
 });

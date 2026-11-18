@@ -1120,6 +1120,7 @@
       "imageryDateSources": {
         "esri-metadata": "métadonnées d'image Esri",
         "bkg-flight-index": "date de vol selon le BKG",
+        "state-flight-index": "date de vol selon le cadastre du Land",
         "none": "–",
         "esri-wayback-metadata": "métadonnées Esri Wayback"
       },

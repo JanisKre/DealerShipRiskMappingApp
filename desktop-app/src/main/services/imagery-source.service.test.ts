@@ -26,6 +26,7 @@ vi.mock("./cache.service", () => ({
 
 import {
   parseBkgFlightInfo,
+  stateCandidate,
   selectImageryForDetection,
   selectImageryForView,
   tileSourceForCandidate,
@@ -156,24 +157,24 @@ describe("selectImageryForDetection", () => {
   });
 
   it("withholds a BKG date the pinned state service does not serve", async () => {
-    // BKG lists a 2025 flight, the open Berlin service is truedop_2024.
+    // BKG lists a 2026 flight; Berlin publishes 2024 and 2025 only.
     mocks.fetchWithResilience.mockResolvedValue(
-      bkgResponse("BE", "2025-08-12"),
+      bkgResponse("BE", "2026-04-12"),
     );
 
     const selection = await selectImageryForDetection(52.52, 13.41);
     const berlin = selection.candidates.find((c) => c.id === "dop:BE");
 
     expect(berlin).toMatchObject({ capturedAt: null, dateSource: "none" });
-    expect(berlin?.note).toContain("2024");
+    expect(berlin?.note).toContain("2026");
     expect(selection.chosen.kind).toBe("esri");
   });
 
   it("falls back to Esri where the state has no open service", async () => {
     mocks.fetchWithResilience.mockResolvedValue(
-      bkgResponse("ST", "2024-07-21"),
+      bkgResponse("HH", "2024-05-08"),
     );
-    const selection = await selectImageryForDetection(52.12, 11.63);
+    const selection = await selectImageryForDetection(53.55, 9.99);
     expect(selection.candidates.every((c) => c.kind === "esri")).toBe(true);
   });
 
@@ -301,5 +302,41 @@ describe("tileSourceForCandidate", () => {
     expect(source.url(20, 350806, 564300)).toBe(
       "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/10321/20/350806/564300",
     );
+  });
+});
+
+describe("stateCandidate", () => {
+  it("dates a state image from the state's own flight-date layer", () => {
+    const candidate = stateCandidate(
+      { state: "NW", flightDate: "2023-03-01" },
+      20,
+      "2025-05-11",
+    );
+    expect(candidate).toMatchObject({
+      capturedAt: "2025-05-11",
+      dateSource: "state-flight-index",
+    });
+  });
+
+  it("serves the Bremen flight year the BKG lists, dated", () => {
+    const candidate = stateCandidate(
+      { state: "HB", flightDate: "2023-04-21" },
+      20,
+    );
+    expect(candidate).toMatchObject({
+      capturedAt: "2023-04-21",
+      dateSource: "bkg-flight-index",
+      vintage: 2023,
+      label: "DOP10 Bremen 2023",
+    });
+    expect(tileSourceForCandidate(candidate!).url(20, 1, 1)).toContain(
+      "dop10_2023_HB",
+    );
+  });
+
+  it("captures Bayern at z19, where its tiles end", () => {
+    expect(
+      stateCandidate({ state: "BY", flightDate: "2024-08-24" }, 20)?.zoom,
+    ).toBe(19);
   });
 });

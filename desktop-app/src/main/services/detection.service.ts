@@ -46,6 +46,8 @@ export interface VehicleDetector {
   readonly modelName: string;
   /** Loads the model ahead of the first detection (optional). */
   warmUp?(): Promise<void>;
+  /** Ends the detector's processes (optional). */
+  dispose?(): void;
   detect(
     image: AerialImage,
     boundary?: BoundaryResult,
@@ -251,6 +253,19 @@ export class OnnxYoloDetector implements VehicleDetector {
     }));
   }
 
+  /**
+   * Ends the inference processes. Running windows fail ("Worker exited");
+   * a detector replaced after a model install must not keep the old model's
+   * processes and memory for the rest of the session.
+   */
+  dispose(): void {
+    for (const worker of this.workers) {
+      worker.proc?.kill();
+      worker.proc = null;
+      worker.ready = null;
+    }
+  }
+
   /** Starts every worker and loads the model, so the first analysis does not wait for it. */
   warmUp(): Promise<void> {
     return Promise.all(this.workers.map((w) => this.start(w))).then(
@@ -390,23 +405,42 @@ export class OnnxYoloDetector implements VehicleDetector {
     let totalInferenceMs = 0;
 
     // Windows are independent: spread them over the pool, each worker
-    // working through its share one window at a time.
+    // working through its share one window at a time. A window is copied
+    // out of the mosaic only when its turn comes, so a large lot holds one
+    // crop per worker instead of all of them at once.
     const crops = planCrops(width, height, window, stride);
-    const results = await Promise.all(
-      crops.map((c, index) =>
-        this.runWindow(
-          this.workers[index % this.workers.length],
-          this.extractCrop(rgba, width, c.cropX, c.cropY, c.w, c.h),
-          c.w,
-          c.h,
-          confidence.threshold,
-          metersPerPixel,
-        ).then((res) => ({ res, c })),
-      ),
+    const shares = this.workers.map((_, w) =>
+      crops.filter((_c, index) => index % this.workers.length === w),
     );
+    const results = (
+      await Promise.all(
+        this.workers.map(async (worker, w) => {
+          const done: Array<{
+            res: WorkerResult;
+            c: (typeof crops)[number];
+          }> = [];
+          for (const c of shares[w]) {
+            const res = await this.runWindow(
+              worker,
+              this.extractCrop(rgba, width, c.cropX, c.cropY, c.w, c.h),
+              c.w,
+              c.h,
+              confidence.threshold,
+              metersPerPixel,
+            );
+            done.push({ res, c });
+          }
+          return done;
+        }),
+      )
+    ).flat();
     const allCandidates: VehicleCandidate[] = [];
+    let failedWindows = 0;
     for (const { res, c } of results) {
-      if (res.error || !res.detections) continue;
+      if (res.error || !res.detections) {
+        failedWindows += 1;
+        continue;
+      }
       totalInferenceMs += res.inferenceMs ?? 0;
       for (const d of res.detections) {
         allCandidates.push({ ...d, cx: d.cx + c.cropX, cy: d.cy + c.cropY });
@@ -426,6 +460,7 @@ export class OnnxYoloDetector implements VehicleDetector {
       factor,
       sourceResolutionM,
       confidence,
+      { failedWindows, windows: crops.length },
     );
   }
 
@@ -464,6 +499,10 @@ export class OnnxYoloDetector implements VehicleDetector {
     resample: number,
     sourceResolutionM: number,
     confidence: { threshold: number; fromModel: boolean },
+    windows: { failedWindows: number; windows: number } = {
+      failedWindows: 0,
+      windows: 0,
+    },
   ): DetectionResult {
     // Normalized axis-aligned hulls: consumers only need the extent and the
     // geographic center, and stay independent of the model's box type.
@@ -543,6 +582,7 @@ export class OnnxYoloDetector implements VehicleDetector {
         fallbackUsed: false,
         limitations: [
           ...coarseImageryLimitations(sourceResolutionM),
+          ...coverageLimitations(image, windows),
           "Accuracy depends on imagery resolution and capture date",
           "Screening estimate of vehicles visible on the capture date, not a current stock count",
           ...m.limitations,
@@ -550,6 +590,31 @@ export class OnnxYoloDetector implements VehicleDetector {
       },
     };
   }
+}
+
+/**
+ * Parts of the image the count could not see: tiles the imagery service did
+ * not deliver (filled grey) and inference windows that failed. Both lower
+ * the count without a visible trace otherwise.
+ */
+export function coverageLimitations(
+  image: Pick<AerialCapture, "validTileCount" | "tileCount">,
+  windows: { failedWindows: number; windows: number },
+): string[] {
+  const out: string[] = [];
+  const tiles = image.tileCount ?? 0;
+  const valid = image.validTileCount ?? tiles;
+  if (tiles > 0 && valid < tiles) {
+    out.push(
+      `${tiles - valid} of ${tiles} image tiles missing (filled grey); vehicles there are not counted`,
+    );
+  }
+  if (windows.failedWindows > 0) {
+    out.push(
+      `${windows.failedWindows} of ${windows.windows} detection windows failed; vehicles there are not counted`,
+    );
+  }
+  return out;
 }
 
 /**
@@ -621,6 +686,7 @@ export function warmUpDetector(): void {
  * (without a restart the process would otherwise be stuck on the stub for the session).
  */
 export function resetDetector(): void {
+  detector?.dispose?.();
   detector = null;
 }
 

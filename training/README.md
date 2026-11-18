@@ -229,7 +229,8 @@ builds the file from an OSM dealer export (columns `ID`, `Dealership Name`,
 
 - It drops non-dealers and sites closer than 400 m to another chosen site.
   Overlapping tiles would leak between the training and validation split.
-- Hamburg and Sachsen-Anhalt are skipped because they have no open service.
+- Hamburg is skipped: its open time series also carries Maxar imagery under
+  a closed licence and gives no date per tile.
 - Check the state of sites near state borders. A site placed in the wrong
   state gets empty tiles, which `fetch_tiles.py` reports.
 

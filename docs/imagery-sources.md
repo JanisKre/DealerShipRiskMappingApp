@@ -15,7 +15,7 @@ Tests: `imagery-sources.test.ts`, `imagery-source.service.test.ts`,
 | Source | Resolution | Capture date from | Coverage |
 | --- | --- | --- | --- |
 | Esri World Imagery | 0.3–0.5 m satellite, 0.1–0.2 m where Esri uses state orthophotos | Esri metadata layer for the zoom level (`World_Imagery/MapServer` layers 5–18, `SRC_DATE`) | worldwide |
-| State orthophotos (DOP) | 0.1–0.2 m | BKG flight index `sgx.geodatenzentrum.de/wms_info`, layer `dop` (`bildflug`) | 14 states with an open, keyless service |
+| State orthophotos (DOP) | 0.1–0.2 m | The state's own flight-date layer where one is registered (NW `nw_dop_utm_info`, BY `by_dop20_info`, SN `sn_dop_020_info`), else the BKG flight index `sgx.geodatenzentrum.de/wms_info`, layer `dop` (`bildflug`) | 15 states with an open, keyless service (all but Hamburg) |
 
 Esri is a mosaic: the same point can show a different scene, from a different
 date, at each zoom level. In October 2026, for example, Dresden showed a
@@ -23,9 +23,16 @@ February 2025 GeoEye-1 scene at z12–19 and a 2020 Saxon orthophoto at z20,
 the zoom vehicle detection runs at. Dates are therefore always resolved for a
 specific point *and* zoom.
 
-Hamburg and Sachsen-Anhalt had no verified open orthophoto endpoint when this
-was written, so they always use Esri. The nationwide BKG orthophoto service
-(`wms_dop`) needs a licence and is not used.
+Sachsen-Anhalt has been served since November 2026
+(`ST_LVermGeo_DOP_WMS_OpenData`, layer `lsa_lvermgeo_dop20_2`, dl-de/by-2-0,
+dated by the BKG index). Hamburg stays on Esri: its open time series
+(`wms_dop_zeitreihe_unbelaubt`) also carries Maxar imagery under a closed
+licence according to its capabilities, and it answers no GetFeatureInfo, so
+no date per tile. The nationwide BKG orthophoto service (`wms_dop`) needs a
+licence and is not used.
+
+Bayern's WMTS answers HTTP 400 at z20; captures and the map use z19 there
+(`maxZoom`), the map upscales it.
 
 ## Decision rule (`selectImagery`)
 
@@ -104,12 +111,18 @@ and recommends re-analysing.
 ## Limitations
 
 - The BKG date is the flight date of the version delivered to the BKG. A
-  state service can serve a newer or an older flight. In spot checks in
-  October 2026, the states' own info layers matched exactly for NW, MV, RP,
-  SL and TH, and differed by about three weeks for SN. Services pinned to one
-  flight year (Berlin `truedop_2024`, Bremen `dop10_2025_HB`) have a
-  `vintageYear`. When BKG reports another year, the date is withheld and the
-  candidate cannot win.
+  state service can serve a newer or an older flight: in November 2026 the
+  BKG index listed 2023-03-01 in Köln where NRW's own layer gives
+  2025-05-11, and 2022-08-14 in München against Bayern's 2024-08-24. NW, BY
+  and SN are therefore dated from their own flight-date layers (text/plain
+  GetFeatureInfo; Sachsen lists several days, the latest is used); the
+  other states from BKG. Bayern's date comes from the WMS `dop20` info
+  layer while the image comes from the WMTS `by_dop`; that both serve the
+  same flight is assumed, not checked.
+- Services published per flight year (Berlin `truedop_2024` and
+  `dop_2025_fruehjahr`, Bremen `dop10_2021/2023/2025_HB` with Bremerhaven's
+  `_BHV`) serve the year the BKG lists at the point and are dated with it.
+  Without a matching year the newest is used undated and cannot win.
 - Near state borders, a capture can extend past the coverage of the chosen
   state service. The selection is made for the centre of the capture.
 - Mecklenburg-Vorpommern stamps a copyright mark into its tiles.

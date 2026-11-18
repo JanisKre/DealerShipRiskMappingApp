@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   describeImagerySelection,
   fillTileTemplate,
+  parseStateFlightDate,
+  resolveStateService,
   GERMAN_STATES,
   selectImagery,
   stateAttribution,
@@ -160,7 +162,9 @@ describe("STATE_DOP_SERVICES", () => {
       expect(service.resolutionM).toBeLessThanOrEqual(0.2);
     }
     // Hamburg and Sachsen-Anhalt have no verified open endpoint yet.
-    expect(Object.keys(STATE_DOP_SERVICES)).toHaveLength(14);
+    // All states but Hamburg (closed Maxar imagery in its open series).
+    expect(Object.keys(STATE_DOP_SERVICES)).toHaveLength(15);
+    expect(STATE_DOP_SERVICES.HH).toBeUndefined();
   });
 
   it("inserts the retrieval year into attributions", () => {
@@ -200,7 +204,40 @@ describe("stateImageryDrawableAt", () => {
   });
 
   it("is false without an open service", () => {
-    expect(stateImageryDrawableAt("ST", 19)).toBe(false);
+    expect(stateImageryDrawableAt("HH", 19)).toBe(false);
     expect(stateImageryDrawableAt(undefined, 19)).toBe(false);
+  });
+});
+
+describe("state flight dates and vintages", () => {
+  it("reads the flight date of NRW, Bayern and Sachsen", () => {
+    expect(
+      parseStateFlightDate(
+        "GetFeatureInfo results:\n\nLayer 'nw_dop_utm_info'\n  Feature 20117: \n    Kachelname = '32356_5645'\n    Bildflugdatum = '11.05.2025'\n",
+      ),
+    ).toBe("2025-05-11");
+    expect(
+      parseStateFlightDate(
+        "Layer 'by_dop20_info'\n    nummer = '124028'\n    ua = '24.08.2024'\n",
+      ),
+    ).toBe("2024-08-24");
+    // Several flight days: the latest.
+    expect(
+      parseStateFlightDate(
+        "Sachdatenabfrage - Kartenebene: 'sn_dop_020_info'|\nGebiet: Dresden|\nDatum: 19.03. + 07.04.2024|\n",
+      ),
+    ).toBe("2024-04-07");
+    expect(parseStateFlightDate("no feature")).toBeNull();
+  });
+
+  it("serves the flight year the BKG lists for a service published per year", () => {
+    expect(resolveStateService("HB", 2023)?.layer).toBe(
+      "dop10_2023_HB,dop10_2023_BHV",
+    );
+    expect(resolveStateService("BE", 2025)?.url).toContain(
+      "dop_2025_fruehjahr",
+    );
+    expect(resolveStateService("BE", 2019)?.layer).toBe("truedop_2024");
+    expect(resolveStateService("NW", 2023)).toBe(STATE_DOP_SERVICES.NW);
   });
 });

@@ -5,6 +5,8 @@ import {
   IMAGERY_MIN_SELECTION_ZOOM,
   IMAGERY_TOLERANCE_DAYS,
   isGermanState,
+  parseStateFlightDate,
+  resolveStateService,
   selectImagery,
   stateAttribution,
   stateImageryDrawableAt,
@@ -112,26 +114,88 @@ async function esriCandidate(
   };
 }
 
-function stateCandidate(
+/**
+ * Flight date from the state's own flight-date layer at a point (text/plain
+ * GetFeatureInfo). Null when the state has none, it is unreachable or the
+ * answer carries no date.
+ */
+export async function getStateFlightDate(
+  state: GermanState,
+  lat: number,
+  lon: number,
+): Promise<string | null> {
+  const info = STATE_DOP_SERVICES[state]?.flightInfo;
+  if (!info) return null;
+  const key = `state-dop-info:${state}:${lat.toFixed(3)},${lon.toFixed(3)}`;
+  try {
+    return await cached(key, TTL.imageryMetadata, async () => {
+      const d = 0.001;
+      const params = new URLSearchParams({
+        SERVICE: "WMS",
+        VERSION: "1.3.0",
+        REQUEST: "GetFeatureInfo",
+        LAYERS: info.layer,
+        QUERY_LAYERS: info.layer,
+        STYLES: "",
+        CRS: "EPSG:4326",
+        BBOX: `${lat - d},${lon - d},${lat + d},${lon + d}`,
+        WIDTH: "101",
+        HEIGHT: "101",
+        I: "50",
+        J: "50",
+        INFO_FORMAT: "text/plain",
+        FEATURE_COUNT: "1",
+      });
+      const sep = info.url.includes("?") ? "&" : "?";
+      const res = await fetchWithResilience(`${info.url}${sep}${params}`);
+      if (!res.ok) throw new Error(`${state} DOP info ${res.status}`);
+      return parseStateFlightDate(await res.text());
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The state orthophoto as a candidate. Its date comes from the state's own
+ * flight-date layer where there is one, else from the BKG index. A service
+ * published per flight year serves the year the BKG lists; a service pinned
+ * to another year is not given the BKG date.
+ */
+export function stateCandidate(
   info: BkgFlightInfo,
   zoom: number,
+  stateFlightDate: string | null = null,
 ): ImageryCandidate | null {
-  const service = STATE_DOP_SERVICES[info.state];
-  if (!service) return null;
+  const registered = STATE_DOP_SERVICES[info.state];
+  if (!registered) return null;
   const flightYear = Number(info.flightDate.slice(0, 4));
+  const vintage = registered.vintages?.some((v) => v.year === flightYear)
+    ? flightYear
+    : undefined;
+  const service = resolveStateService(info.state, vintage) ?? registered;
   // A service pinned to one flight year must not borrow a newer BKG date.
   const vintageMismatch =
-    service.vintageYear != null && service.vintageYear !== flightYear;
+    stateFlightDate == null &&
+    service.vintageYear != null &&
+    service.vintageYear !== flightYear;
+  const capturedAt =
+    stateFlightDate ?? (vintageMismatch ? null : info.flightDate);
   return {
     id: `dop:${service.state}`,
     kind: "state-dop",
     label: service.label,
-    capturedAt: vintageMismatch ? null : info.flightDate,
-    dateSource: vintageMismatch ? "none" : "bkg-flight-index",
+    capturedAt,
+    dateSource: stateFlightDate
+      ? "state-flight-index"
+      : vintageMismatch
+        ? "none"
+        : "bkg-flight-index",
     resolutionM: service.resolutionM,
-    zoom,
+    zoom: Math.min(zoom, service.maxZoom ?? zoom),
     attribution: stateAttribution(service),
     state: service.state,
+    ...(vintage != null ? { vintage } : {}),
     ...(vintageMismatch
       ? {
           note: `BKG lists a ${flightYear} flight, the open service serves ${service.vintageYear}`,
@@ -205,7 +269,8 @@ export async function selectImageryForDetection(
   const esri = [esriHigh.esri?.available ? esriHigh : null, esriLow].filter(
     (c): c is ImageryCandidate => c != null,
   );
-  const state = bkg ? stateCandidate(bkg, DETECTION_ZOOM) : null;
+  const stateDate = bkg ? await getStateFlightDate(bkg.state, lat, lon) : null;
+  const state = bkg ? stateCandidate(bkg, DETECTION_ZOOM, stateDate) : null;
   const candidates = state ? [...esri, state] : esri;
   const fallback = esri[0];
 
@@ -267,7 +332,7 @@ export function tileSourceForCandidate(
   candidate: ImageryCandidate,
 ): TileSource {
   if (candidate.kind === "state-dop" && candidate.state) {
-    const service = STATE_DOP_SERVICES[candidate.state];
+    const service = resolveStateService(candidate.state, candidate.vintage);
     if (service) {
       return {
         cacheId: `dop:${service.state}:${cacheKeyFragment(`${service.url}|${service.layer ?? ""}`)}`,

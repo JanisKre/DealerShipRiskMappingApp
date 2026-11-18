@@ -32,7 +32,7 @@ from common import DATA, EARTH_HALF_CIRCUMFERENCE, TARGET_GSD_M, TILE_PX, lonlat
 SERVICES = {
     # state: (kind, url, WMS layer or XYZ zoom, native GSD m, licence)
     "NW": ("wms", "https://www.wms.nrw.de/geobasis/wms_nw_dop", "nw_dop_rgb", 0.1, "dl-de/zero-2-0"),
-    "HB": ("wms", "https://geodienste.bremen.de/wms_dop_lb", "dop10_2025_HB", 0.1, "CC BY 4.0"),
+    "HB": ("wms", "https://geodienste.bremen.de/wms_dop_lb", "dop10_2025_HB,dop10_2025_BHV", 0.1, "CC BY 4.0"),
     "NI": ("wms", "https://opendata.lgln.niedersachsen.de/doorman/noauth/dop_wms", "ni_dop20", 0.2, "CC BY 4.0"),
     "BW": ("wms", "https://owsproxy.lgl-bw.de/owsproxy/ows/WMS_LGL-BW_ATKIS_DOP_20_C", "IMAGES_DOP_20_RGB", 0.2, "dl-de/by-2-0"),
     "BE": ("wms", "https://gdi.berlin.de/services/wms/truedop_2024", "truedop_2024", 0.2, "dl-de/zero-2-0"),
@@ -43,7 +43,8 @@ SERVICES = {
     "SL": ("wms", "https://geoportal.saarland.de/freewms/dop", "sl_dop", 0.2, "dl-de/by-2-0"),
     "SN": ("wms", "https://geodienste.sachsen.de/wms_geosn_dop-rgb/guest", "sn_dop_020", 0.2, "dl-de/by-2-0"),
     "SH": ("wms", "https://service.gdi-sh.de/WMS_SH_DOP20col_OpenGBD", "sh_dop20_rgb", 0.2, "CC BY 4.0"),
-    "TH": ("wms", "https://www.geoproxy.geoportal-th.de/geoproxy/services/DOP", "th_dop", 0.2, "dl-de/by-2-0"),
+    "TH": ("wms", "https://www.geoproxy.geoportal-th.de/geoproxy/services/DOP", "th_dop", 0.2, "CC BY 4.0"),
+    "ST": ("wms", "https://www.geodatenportal.sachsen-anhalt.de/wss/service/ST_LVermGeo_DOP_WMS_OpenData/guest", "lsa_lvermgeo_dop20_2", 0.2, "dl-de/by-2-0"),
     "BY": ("xyz", "https://wmtsod1.bayernwolke.de/wmts/by_dop/smerc/{z}/{x}/{y}", 19, 0.2, "CC BY 4.0"),
 }
 
