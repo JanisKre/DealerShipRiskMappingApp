@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCsvWithReport } from "./csv.service";
+import { parseCsvWithReport, postcodesLostLeadingZero } from "./csv.service";
 
 describe("portfolio import report", () => {
   it("reports mappings, duplicates, and invalid numeric cells", () => {
@@ -288,5 +288,25 @@ describe("insured-value headers (UW-20)", () => {
     );
     expect(result.report.columnMapping.productLimitEur).toBe("Insured Value");
     expect(result.rows[0].productLimitEur).toBe(250000);
+  });
+});
+
+describe("postcodes that lost their leading zero", () => {
+  it("pads German postcodes stored as numbers", () => {
+    expect(postcodesLostLeadingZero(["1067", "80331"])).toBe(true);
+    // Dresden and Leipzig only: every padded code is a German postcode.
+    expect(postcodesLostLeadingZero(["1067", "4109"])).toBe(true);
+  });
+
+  it("leaves Austrian and Swiss postcodes alone", () => {
+    expect(postcodesLostLeadingZero(["1010", "8010", "6020"])).toBe(false);
+    expect(postcodesLostLeadingZero(["80331", "10115"])).toBe(false);
+  });
+
+  it("restores the zero in the composed address", async () => {
+    const result = await parseCsvWithReport(
+      "Name;Straße;PLZ;Ort\nAutohaus A;Hauptstr. 1;1067;Dresden\nAutohaus B;Ring 2;80331;München\n",
+    );
+    expect(result.rows[0].address).toBe("Hauptstr. 1, 01067 Dresden");
   });
 });

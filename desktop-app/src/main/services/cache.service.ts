@@ -45,6 +45,8 @@ export async function cached<T>(
   key: string,
   ttlMs: number,
   fetcher: () => Promise<T>,
+  /** Lifetime for a particular value, e.g. shorter for an empty answer. */
+  ttlFor?: (value: T) => number,
 ): Promise<T> {
   const cachedEntry = readCache<T>(key);
   if (cachedEntry && cachedEntry.expires_at >= Date.now()) {
@@ -52,7 +54,7 @@ export async function cached<T>(
   }
   try {
     const value = await fetcher();
-    cacheSet(key, value, ttlMs);
+    cacheSet(key, value, ttlFor ? ttlFor(value) : ttlMs);
     return value;
   } catch (error) {
     // Offline mode remains useful with stale data. Callers can still expose

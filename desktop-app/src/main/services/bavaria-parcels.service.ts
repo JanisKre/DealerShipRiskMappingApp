@@ -51,7 +51,6 @@ const TIMEOUT_MS = 25_000;
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** 2: farmland counts as open land; open-land sections are parcels of their own. */
 const CACHE_VERSION = 2;
-const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
 
 /** Smallest region kept as a parcel, as in `fetchParcelsNear`. */
 const MIN_PARCEL_SQM = 25;
@@ -542,7 +541,7 @@ export function bavariaParcelsNear(
     try {
       const res = await fetchWithResilience(
         url,
-        { headers: { "User-Agent": USER_AGENT } },
+        {},
         { timeoutMs: TIMEOUT_MS, retries: 1 },
       );
       if (

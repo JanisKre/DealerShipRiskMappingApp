@@ -543,7 +543,11 @@ function ImportPreviewTable({
       const id = row.row.id;
       setChecks((c) => ({ ...c, [id]: { state: "checking" } }));
       try {
-        const [hit] = await window.api.geocode(row.row.address ?? "");
+        // Same pick as the analysis: name, postcode and house number count.
+        const [hit] = await window.api.geocode(
+          row.row.address ?? "",
+          row.row.name,
+        );
         setChecks((c) => ({
           ...c,
           [id]: hit

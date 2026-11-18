@@ -7,7 +7,15 @@
  */
 
 export interface HttpRequestOptions {
+  /** Time until the response headers arrive. */
   timeoutMs?: number;
+  /**
+   * Longest pause between two chunks of the response body once the headers
+   * are in. A server that sends headers and then stalls used to block an
+   * analysis for good, since the header timeout no longer applied. 0 turns
+   * it off. Default: the larger of 60 s and `timeoutMs`.
+   */
+  bodyIdleTimeoutMs?: number;
   retries?: number;
   backoffMs?: number;
   retryStatuses?: readonly number[];
@@ -75,6 +83,22 @@ export function electronNetTransport(
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_BODY_IDLE_MS = 60_000;
+/** Longest Retry-After the app waits for before a retry. */
+const MAX_RETRY_AFTER_MS = 60_000;
+
+/**
+ * User-Agent of every request: public services (Nominatim, Overpass, the
+ * state geoportals) ask clients to identify themselves. Set once at start
+ * with the app version; requests that set their own keep it.
+ */
+let userAgent = "DealershipRiskMapping-Desktop";
+export function setUserAgent(next: string): void {
+  userAgent = next;
+}
+export function currentUserAgent(): string {
+  return userAgent;
+}
 const DEFAULT_RETRIES = 2;
 const DEFAULT_BACKOFF_MS = 250;
 const DEFAULT_RETRY_STATUSES = [408, 425, 429, 500, 502, 503, 504];
@@ -109,14 +133,61 @@ const HOST_POLICIES: Record<string, HostPolicy> = {
   "metadata.maptiles.arcgis.com": { maxConcurrent: 4 },
   // DWD open data: station archives for the hail history, a few at a time.
   "opendata.dwd.de": { maxConcurrent: 2 },
+  // State geoportals (orthophotos, cadastre WFS/WMS, address points) and
+  // the BKG index: each capture already caps its tile requests, this keeps
+  // three parallel analyses from stacking up on one state's server.
+  ...Object.fromEntries(
+    [
+      "sgx.geodatenzentrum.de",
+      "owsproxy.lgl-bw.de",
+      "wmtsod1.bayernwolke.de",
+      "geoservices.bayern.de",
+      "download1.bayernwolke.de",
+      "download2.bayernwolke.de",
+      "gdi.berlin.de",
+      "isk.geobasis-bb.de",
+      "inspire.brandenburg.de",
+      "geodienste.bremen.de",
+      "geodienste.hamburg.de",
+      "www.gds-srv.hessen.de",
+      "www.gds.hessen.de",
+      "inspire-hessen.de",
+      "www.geodaten-mv.de",
+      "opendata.lgln.niedersachsen.de",
+      "www.inspire.niedersachsen.de",
+      "www.wms.nrw.de",
+      "www.wfs.nrw.de",
+      "geo4.service24.rlp.de",
+      "geo5.service24.rlp.de",
+      "geoportal.saarland.de",
+      "geodienste.sachsen.de",
+      "www.geodatenportal.sachsen-anhalt.de",
+      "geodatenportal.sachsen-anhalt.de",
+      "service.gdi-sh.de",
+      "www.geoproxy.geoportal-th.de",
+    ].map((host) => [host, { maxConcurrent: 6 }]),
+  ),
 };
 
 class HostGate {
   private active = 0;
   private nextStartAt = 0;
-  private readonly waiting: Array<() => void> = [];
 
   constructor(private readonly policy: HostPolicy) {}
+
+  /** A service with a fixed request rate (Nominatim), which bans on abuse. */
+  get paced(): boolean {
+    return (this.policy.minIntervalMs ?? 0) > 0;
+  }
+
+  /**
+   * After a 429 or 403 from a rate-limited service: no request starts
+   * before `ms` have passed (Nominatim blocks clients that keep going).
+   */
+  coolDown(ms: number): void {
+    this.nextStartAt = Math.max(this.nextStartAt, Date.now() + ms);
+  }
+  private readonly waiting: Array<() => void> = [];
 
   /** Resolves with a release function once a slot is free and paced. */
   async acquire(): Promise<() => void> {
@@ -126,12 +197,10 @@ class HostGate {
     else await new Promise<void>((resolve) => this.waiting.push(resolve));
 
     const interval = this.policy.minIntervalMs ?? 0;
-    if (interval > 0) {
-      const now = Date.now();
-      const startAt = Math.max(now, this.nextStartAt);
-      this.nextStartAt = startAt + interval;
-      if (startAt > now) await delay(startAt - now);
-    }
+    const now = Date.now();
+    const startAt = Math.max(now, this.nextStartAt);
+    if (interval > 0) this.nextStartAt = startAt + interval;
+    if (startAt > now) await delay(startAt - now);
 
     let released = false;
     return () => {
@@ -181,10 +250,28 @@ export async function fetchWithResilience(
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const release = gate ? await gate.acquire() : null;
+    let retryAfterMs = 0;
     try {
-      const response = await fetchOnce(input, init, options.timeoutMs);
+      const response = await fetchOnce(
+        input,
+        withUserAgent(init),
+        options.timeoutMs,
+        options.bodyIdleTimeoutMs,
+      );
       release?.();
-      if (!retryStatuses.has(response.status) || attempt === retries) {
+      if (response.status === 429 || response.status === 503) {
+        retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
+      }
+      // A rate-limited shared service: pause every caller, not only this
+      // one, and do not hammer it with immediate retries.
+      if (gate?.paced && (response.status === 429 || response.status === 403)) {
+        gate.coolDown(Math.max(retryAfterMs, RATE_LIMIT_COOLDOWN_MS));
+      }
+      if (
+        !retryStatuses.has(response.status) ||
+        attempt === retries ||
+        retryAfterMs > MAX_RETRY_AFTER_MS
+      ) {
         return response;
       }
       lastError = new HttpRequestError(
@@ -197,7 +284,12 @@ export async function fetchWithResilience(
       lastError = error;
       if (attempt === retries) throw error;
     }
-    await delay((options.backoffMs ?? DEFAULT_BACKOFF_MS) * 2 ** attempt);
+    await delay(
+      Math.max(
+        retryAfterMs,
+        (options.backoffMs ?? DEFAULT_BACKOFF_MS) * 2 ** attempt,
+      ),
+    );
   }
 
   throw lastError instanceof Error
@@ -205,10 +297,103 @@ export async function fetchWithResilience(
     : new HttpRequestError("HTTP request failed");
 }
 
+/** Pause for a host that answered 429/403 (when it sends no Retry-After). */
+const RATE_LIMIT_COOLDOWN_MS = 30_000;
+
+/** Retry-After in milliseconds (seconds or an HTTP date); 0 when absent. */
+export function parseRetryAfter(value: string | null): number {
+  if (!value) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const at = Date.parse(value);
+  return Number.isNaN(at) ? 0 : Math.max(0, at - Date.now());
+}
+
+/** Adds the app's User-Agent unless the request sets one; keeps the headers' shape. */
+function withUserAgent(init: RequestInit): RequestInit {
+  const given = init.headers;
+  if (given instanceof Headers) {
+    if (given.has("user-agent")) return init;
+    const headers = new Headers(given);
+    headers.set("User-Agent", userAgent);
+    return { ...init, headers };
+  }
+  if (Array.isArray(given)) {
+    return given.some(([name]) => name.toLowerCase() === "user-agent")
+      ? init
+      : { ...init, headers: [...given, ["User-Agent", userAgent]] };
+  }
+  const record = (given ?? {}) as Record<string, string>;
+  return Object.keys(record).some((name) => name.toLowerCase() === "user-agent")
+    ? init
+    : { ...init, headers: { ...record, "User-Agent": userAgent } };
+}
+
+/**
+ * The response with a body that aborts the request when the server sends
+ * no chunk for `idleMs` while one is awaited, so a stalled server ends in
+ * an error instead of a hang.
+ */
+function withBodyIdleTimeout(
+  response: Response,
+  controller: AbortController,
+  idleMs: number,
+): Response {
+  if (!response.body || idleMs <= 0) return response;
+  const reader = response.body.getReader();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let stalled = false;
+  const stalledError = (): HttpRequestError =>
+    new HttpRequestError("HTTP response stalled", { timedOut: true });
+  const arm = (): void => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      stalled = true;
+      controller.abort();
+      // Ends a pending read even where the abort does not reach the body.
+      void reader.cancel(stalledError()).catch(() => undefined);
+    }, idleMs);
+    (timer as { unref?: () => void }).unref?.();
+  };
+  // The clock runs only while a read waits on the server, so a slow
+  // consumer (parsing, writing to disk) never counts as a stalled server.
+  const body = new ReadableStream<Uint8Array>({
+    async pull(stream) {
+      try {
+        arm();
+        const { done, value } = await reader.read();
+        clearTimeout(timer);
+        if (stalled) {
+          stream.error(stalledError());
+          return;
+        }
+        if (done) {
+          stream.close();
+          return;
+        }
+        stream.enqueue(value);
+      } catch (error) {
+        clearTimeout(timer);
+        stream.error(stalled ? stalledError() : error);
+      }
+    },
+    cancel(reason) {
+      clearTimeout(timer);
+      return reader.cancel(reason);
+    },
+  });
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
 async function fetchOnce(
   input: RequestInfo | URL,
   init: RequestInit,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  bodyIdleTimeoutMs = Math.max(DEFAULT_BODY_IDLE_MS, timeoutMs),
 ): Promise<Response> {
   const controller = new AbortController();
   let timedOut = false;
@@ -222,7 +407,11 @@ async function fetchOnce(
   else init.signal?.addEventListener("abort", onCallerAbort, { once: true });
 
   try {
-    return await transport(input, { ...init, signal: controller.signal });
+    const response = await transport(input, {
+      ...init,
+      signal: controller.signal,
+    });
+    return withBodyIdleTimeout(response, controller, bodyIdleTimeoutMs);
   } catch (error) {
     if (timedOut) {
       throw new HttpRequestError("HTTP request timed out", { timedOut: true });

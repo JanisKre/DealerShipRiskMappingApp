@@ -33,8 +33,6 @@ const OVERPASS_ENDPOINTS = [
   "https://overpass.private.coffee/api/interpreter",
 ];
 
-const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
-
 /**
  * The user's own Overpass server (settings), validated by
  * `validateOverpassUrl` before it gets here. It is asked first; the public
@@ -159,13 +157,10 @@ export async function fetchOverpass<T>(
         const res = await fetchWithResilience(
           useGet ? `${url}?${new URLSearchParams({ data: query })}` : url,
           useGet
-            ? { method: "GET", headers: { "User-Agent": USER_AGENT } }
+            ? { method: "GET" }
             : {
                 method: "POST",
-                headers: {
-                  "Content-Type": "text/plain",
-                  "User-Agent": USER_AGENT,
-                },
+                headers: { "Content-Type": "text/plain" },
                 body: query,
               },
           // One attempt per mirror; the mirror list provides the redundancy.

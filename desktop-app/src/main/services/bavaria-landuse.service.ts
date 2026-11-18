@@ -29,7 +29,6 @@ export const STREET_MASK_RADIUS_M = 220;
 const TIMEOUT_MS = 20_000;
 const CACHE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 const CACHE_VERSION = 1;
-const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
 
 /** A raster in geographic coordinates: 1 = traffic area. */
 export interface StreetMask {
@@ -161,7 +160,7 @@ export function bavariaStreetMask(
     try {
       const res = await fetchWithResilience(
         url,
-        { headers: { "User-Agent": USER_AGENT } },
+        {},
         { timeoutMs: TIMEOUT_MS, retries: 1 },
       );
       if (

@@ -33,8 +33,6 @@ import {
  * the mask uses OSM alone, as before.
  */
 
-const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
-
 interface BuildingEndpoint {
   url: string;
   typeName: string;
@@ -293,7 +291,7 @@ async function lookup(
     try {
       const res = await fetchWithResilience(
         requestUrl(endpoint, lat, lon, radiusM),
-        { headers: { "User-Agent": USER_AGENT } },
+        {},
         { timeoutMs: BUILDING_TIMEOUT_MS, retries: 0 },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

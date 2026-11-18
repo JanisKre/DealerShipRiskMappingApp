@@ -83,9 +83,7 @@ async function loadTileRgb(
 
   if (!bytes) {
     try {
-      const res = await fetchWithResilience(source.url(z, y, x, time), {
-        headers: { "User-Agent": "DealershipRiskMapping/1.0 (desktop)" },
-      });
+      const res = await fetchWithResilience(source.url(z, y, x, time), {});
       if (res.ok) {
         bytes = Buffer.from(await res.arrayBuffer());
         cacheSet(cacheKey, bytes.toString("base64"), TILE_TTL);

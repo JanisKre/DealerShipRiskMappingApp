@@ -24,7 +24,6 @@ import { fetchWithResilience } from "./http.service";
 export const BW_NORA_WFS =
   "https://owsproxy.lgl-bw.de/owsproxy/wfs/WFS_LGL-BW_ALKIS";
 const LAYER_LIMIT = 2_000;
-const USER_AGENT = "DealershipRiskMapping/1.0 (desktop; cadastre)";
 
 export interface BwAddressPoint {
   point: LonLat;
@@ -192,9 +191,7 @@ async function fetchLayer(
     `&typeNames=${encodeURIComponent(typeName)}&count=${LAYER_LIMIT}` +
     `&srsName=${encodeURIComponent(crs)}&bbox=${encodeURIComponent(box)}`;
   try {
-    const res = await fetchWithResilience(url, {
-      headers: { "User-Agent": USER_AGENT },
-    });
+    const res = await fetchWithResilience(url, {});
     if (!res.ok) return null;
     const text = await res.text();
     return text.includes("ExceptionReport") ? null : text;

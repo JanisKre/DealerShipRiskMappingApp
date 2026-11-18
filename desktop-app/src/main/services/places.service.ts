@@ -50,7 +50,6 @@ import {
 export { normalisePlaceQuery, similarBusinessNames };
 
 const PHOTON_URL = "https://photon.komoot.io/api";
-const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
 
 /** Bias used without a map position: Germany as a whole. */
 const DEFAULT_BIAS = { lat: 51.16, lon: 10.45, zoom: 6 };
@@ -208,7 +207,7 @@ async function photonFetch(
   try {
     res = await fetchWithResilience(
       `${PHOTON_URL}?${params}`,
-      { headers: { "User-Agent": USER_AGENT } },
+      {},
       { retries: 0, timeoutMs: PHOTON_TIMEOUT_MS },
     );
   } catch (err) {

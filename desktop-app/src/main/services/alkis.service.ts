@@ -86,8 +86,6 @@ import { withBwAttributes } from "./bw-parcel-attributes";
  *    unavailable above.
  */
 
-const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
-
 export interface AlkisEndpoint {
   url: string;
   typeName: string;
@@ -927,9 +925,7 @@ async function fetchAlkisXml(
       `&srsName=${crsUrn}&bbox=${encodeURIComponent(bbox)}`;
   }
   try {
-    const res = await fetchWithResilience(url, {
-      headers: { "User-Agent": USER_AGENT },
-    });
+    const res = await fetchWithResilience(url, {});
     if (!res.ok) return "error";
     const text = await res.text();
     if (text.includes("ExceptionReport")) return "error";

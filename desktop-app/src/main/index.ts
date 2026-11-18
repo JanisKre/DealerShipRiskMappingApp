@@ -29,6 +29,7 @@ import { applyPendingDataReset } from "./services/data-reset.service";
 import {
   electronNetTransport,
   setHttpTransport,
+  setUserAgent,
 } from "./services/http.service";
 import { installFileLogging, logToFile } from "./services/log.service";
 import { startUpdateChecks } from "./services/update.service";
@@ -198,6 +199,10 @@ app.whenReady().then(() => {
   // Chromium's network stack: system proxy and OS certificate store.
   setHttpTransport(
     electronNetTransport((input, init) => net.fetch(input, init)),
+  );
+  // Public services ask clients to identify themselves (Nominatim policy).
+  setUserAgent(
+    `DealershipRiskMapping-Desktop/${app.getVersion()} (+https://github.com/JanisKre/DealerShipRiskMappingApp)`,
   );
 
   session.defaultSession.setPermissionRequestHandler(

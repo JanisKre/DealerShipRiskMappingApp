@@ -258,7 +258,15 @@ export const ipcRequest = {
     base64: z.string(),
     overrides: ColumnOverridesSchema.optional(),
   }),
-  "geocode:search": z.object({ query: z.string().min(1) }),
+  "geocode:search": z.object({
+    query: z.string().min(1),
+    /**
+     * Dealership name: the hits are then ranked the way an analysis picks
+     * its anchor (postcode, house number, name), so the import preview
+     * shows the point the analysis will use. Never sent to the geocoder.
+     */
+    name: z.string().max(500).optional(),
+  }),
   "places:autocomplete": z.object({
     query: z.string().min(1).max(200),
     /** Map viewport the results are biased towards. */

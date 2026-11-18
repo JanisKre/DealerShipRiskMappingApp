@@ -67,9 +67,7 @@ export async function getBkgFlightInfo(
         INFO_FORMAT: "application/json",
         FEATURE_COUNT: "1",
       });
-      const res = await fetchWithResilience(`${BKG_INFO_URL}?${params}`, {
-        headers: { "User-Agent": "DealershipRiskMapping/1.0 (desktop)" },
-      });
+      const res = await fetchWithResilience(`${BKG_INFO_URL}?${params}`, {});
       if (!res.ok) throw new Error(`BKG DOP info ${res.status}`);
       return parseBkgFlightInfo(await res.json());
     });

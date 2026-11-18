@@ -25,7 +25,7 @@ export async function getEsriImageryMetadata(
     return await cached(key, TTL.imageryMetadata, async () => {
       const res = await fetchWithResilience(
         buildEsriIdentifyUrl(lat, lon, zoom),
-        { headers: { "User-Agent": "DealershipRiskMapping/1.0 (desktop)" } },
+        {},
       );
       if (!res.ok) throw new Error(`Esri imagery metadata ${res.status}`);
       return parseEsriIdentify(await res.json(), zoom);

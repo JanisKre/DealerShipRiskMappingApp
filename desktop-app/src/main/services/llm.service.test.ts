@@ -109,7 +109,8 @@ describe("LLM setup helpers", () => {
     });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("http://localhost:11434/v1/models");
-    expect(init?.headers).toEqual({});
+    // No key, only the app's User-Agent.
+    expect(Object.keys(init?.headers ?? {})).toEqual(["User-Agent"]);
   });
 
   it("refuses a local provider URL that points to another machine", async () => {

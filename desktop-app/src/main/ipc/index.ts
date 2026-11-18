@@ -188,7 +188,7 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.parseXlsx, ({ base64, overrides }) =>
     parseXlsxWithReport(base64, overrides),
   );
-  handle(IPC.geocode, ({ query }) => geocode(query));
+  handle(IPC.geocode, ({ query, name }) => geocode(query, name));
   handle(IPC.placesAutocomplete, ({ query, near }) =>
     placesAutocomplete(query, near),
   );

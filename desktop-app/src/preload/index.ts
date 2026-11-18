@@ -34,9 +34,13 @@ const api = {
       overrides,
     } satisfies IpcRequest["xlsx:parse"]),
 
-  geocode: (query: string): Promise<IpcResponse["geocode:search"]> =>
+  geocode: (
+    query: string,
+    name?: string,
+  ): Promise<IpcResponse["geocode:search"]> =>
     ipcRenderer.invoke(IPC.geocode, {
       query,
+      ...(name ? { name } : {}),
     } satisfies IpcRequest["geocode:search"]),
 
   placesAutocomplete: (

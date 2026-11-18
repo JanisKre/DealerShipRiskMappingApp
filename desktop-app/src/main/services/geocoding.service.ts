@@ -2,13 +2,14 @@ import { cached, TTL } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
 import { matchesSite } from "./boundary/site-membership";
 import { haversineMeters } from "@shared/dedupe";
+import { houseNumberOf, isPoBox, postcodeOf } from "@shared/address-parts";
 
 /**
  * Geocoding via Nominatim — im Main-Process direkt aufrufbar (kein CORS).
  * Ergebnisse werden persistent gecacht. Nominatim verlangt einen User-Agent.
  */
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
-const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
+// The app-wide User-Agent (name, version, project URL) is set by http.service.
 
 export interface GeocodeResult {
   label: string;
@@ -24,48 +25,83 @@ export interface GeocodeCandidate extends GeocodeResult {
   type?: string;
   postcode?: string;
   houseNumber?: string;
+  /**
+   * Nominatim `place_rank`: 30 is a building or POI, 26–27 a street, lower
+   * a district or town. Tells a rooftop hit from a street centroid.
+   */
+  placeRank?: number;
+  /** Nominatim `addresstype`, e.g. "building", "road", "suburb". */
+  addressType?: string;
 }
 
-export async function geocode(query: string): Promise<GeocodeResult[]> {
-  return (await geocodeCandidates(query)).map(({ label, lat, lon }) => ({
-    label,
-    lat,
-    lon,
-  }));
+/** A hit on a building, house number or POI, not a street or area centroid. */
+export function isHouseLevel(hit: GeocodeCandidate): boolean {
+  return (hit.placeRank ?? 0) >= 30 || hit.houseNumber != null;
+}
+
+/** An empty answer is cached for a day only: the address may be fixed in OSM. */
+const EMPTY_GEOCODE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Geocoder hits for a query. With the dealership's name the hit an analysis
+ * would pick comes first (`pickGeocodeHit`), so a preview and the analysis
+ * agree; the name only ranks the hits and is not sent anywhere.
+ */
+export async function geocode(
+  query: string,
+  name?: string,
+): Promise<GeocodeResult[]> {
+  if (isPoBox(query)) return [];
+  const hits = await geocodeCandidates(query);
+  const pick =
+    name != null ? pickGeocodeHit(hits, { name, address: query }) : null;
+  const ordered = pick
+    ? [pick.hit, ...hits.filter((hit) => hit !== pick.hit)]
+    : hits;
+  return ordered.map(({ label, lat, lon }) => ({ label, lat, lon }));
 }
 
 export async function geocodeCandidates(
   query: string,
 ): Promise<GeocodeCandidate[]> {
-  const key = `geocode:v2:${query.toLowerCase().trim()}`;
-  return cached(key, TTL.geocode, async () => {
-    const url = `${NOMINATIM}?format=jsonv2&addressdetails=1&limit=5&q=${encodeURIComponent(query)}`;
-    const res = await fetchWithResilience(url, {
-      headers: { "User-Agent": USER_AGENT },
-    });
-    if (!res.ok) throw new Error(`Nominatim ${res.status}`);
-    const data = (await res.json()) as Array<{
-      display_name: string;
-      lat: string;
-      lon: string;
-      name?: string;
-      category?: string;
-      type?: string;
-      address?: { postcode?: string; house_number?: string };
-    }>;
-    return data.map((d) => ({
-      label: d.display_name,
-      lat: Number(d.lat),
-      lon: Number(d.lon),
-      ...(d.name ? { name: d.name } : {}),
-      ...(d.category ? { category: d.category } : {}),
-      ...(d.type ? { type: d.type } : {}),
-      ...(d.address?.postcode ? { postcode: d.address.postcode } : {}),
-      ...(d.address?.house_number
-        ? { houseNumber: d.address.house_number }
-        : {}),
-    }));
-  });
+  const key = `geocode:v3:${query.toLowerCase().trim()}`;
+  return cached(
+    key,
+    TTL.geocode,
+    async () => {
+      const url = `${NOMINATIM}?format=jsonv2&addressdetails=1&limit=5&q=${encodeURIComponent(query)}`;
+      const res = await fetchWithResilience(url);
+      if (!res.ok) throw new Error(`Nominatim ${res.status}`);
+      const data = (await res.json()) as Array<{
+        display_name: string;
+        lat: string;
+        lon: string;
+        name?: string;
+        category?: string;
+        type?: string;
+        place_rank?: number;
+        addresstype?: string;
+        address?: { postcode?: string; house_number?: string };
+      }>;
+      return data.map((d) => ({
+        label: d.display_name,
+        lat: Number(d.lat),
+        lon: Number(d.lon),
+        ...(d.name ? { name: d.name } : {}),
+        ...(d.category ? { category: d.category } : {}),
+        ...(d.type ? { type: d.type } : {}),
+        ...(d.address?.postcode ? { postcode: d.address.postcode } : {}),
+        ...(d.address?.house_number
+          ? { houseNumber: d.address.house_number }
+          : {}),
+        ...(typeof d.place_rank === "number"
+          ? { placeRank: d.place_rank }
+          : {}),
+        ...(d.addresstype ? { addressType: d.addresstype } : {}),
+      }));
+    },
+    (hits) => (hits.length === 0 ? EMPTY_GEOCODE_TTL_MS : TTL.geocode),
+  );
 }
 
 /** Vehicle-trade POI types: a hit of this kind is likely the dealership itself. */
@@ -110,12 +146,8 @@ export function pickGeocodeHit(
   context: { name?: string; address?: string },
 ): GeocodePick | null {
   if (hits.length === 0) return null;
-  const postcode = context.address?.match(/\b\d{5}\b/)?.[0];
-  const houseNumber = context.address
-    ?.replace(/\b\d{5}\b/g, " ")
-    .match(/\b\d+\s*[a-z]?\b/i)?.[0]
-    ?.replace(/\s+/g, "")
-    .toLowerCase();
+  const postcode = postcodeOf(context.address);
+  const houseNumber = houseNumberOf(context.address);
 
   const scored = hits.map((hit, index) => {
     let score = 0;

@@ -37,8 +37,6 @@ const TILE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 
 const CACHE_VERSION = 1;
 
-const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
-
 /**
  * Rough outline of Bayern. Neighbouring states inside it are asked first
  * (their services answer with nothing for a point in Bayern); a point
@@ -191,7 +189,7 @@ async function downloadTile(tile: string): Promise<CompactFootprint[] | null> {
     try {
       const res = await fetchWithResilience(
         `${host}${tile}.gml`,
-        { headers: { "User-Agent": USER_AGENT }, signal: controller.signal },
+        { signal: controller.signal },
         { timeoutMs: 30_000, retries: 0 },
       );
       // 404: no tile there (outside Bayern, or no buildings).

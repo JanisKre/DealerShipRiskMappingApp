@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   electronNetTransport,
   fetchWithResilience,
+  parseRetryAfter,
   setHttpTransport,
+  setUserAgent,
 } from "./http.service";
 
 afterEach(() => {
@@ -142,7 +144,44 @@ describe("Electron network transport", () => {
     // No session cookies, like Node's fetch; the timeout signal is kept.
     expect(init.credentials).toBe("omit");
     expect(init.signal).toBeInstanceOf(AbortSignal);
-    expect(init.headers).toEqual({ "User-Agent": "test" });
+    expect(new Headers(init.headers).get("user-agent")).toBe("test");
+  });
+
+  it("identifies the app when the caller sets no User-Agent", async () => {
+    const netFetch = vi.fn(async () => new Response("ok", { status: 200 }));
+    setHttpTransport(electronNetTransport(netFetch));
+    setUserAgent("DealershipRiskMapping-Desktop/9.9.9");
+
+    await fetchWithResilience("https://example.test/");
+
+    const [, init] = netFetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(new Headers(init.headers).get("user-agent")).toBe(
+      "DealershipRiskMapping-Desktop/9.9.9",
+    );
+  });
+
+  it("ends a response whose body stalls after the headers", async () => {
+    const stalled = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("partial"));
+        // …and never closes.
+      },
+    });
+    setHttpTransport(async () => new Response(stalled, { status: 200 }));
+    const response = await fetchWithResilience(
+      "https://example.test/slow",
+      {},
+      { bodyIdleTimeoutMs: 20 },
+    );
+    await expect(response.text()).rejects.toThrow(/stalled/);
+  });
+
+  it("reads Retry-After in seconds and as a date", () => {
+    expect(parseRetryAfter("5")).toBe(5_000);
+    expect(parseRetryAfter(null)).toBe(0);
+    expect(
+      parseRetryAfter(new Date(Date.now() + 10_000).toUTCString()),
+    ).toBeGreaterThan(8_000);
   });
 
   it("refuses non-HTTP schemes that net.fetch would otherwise read", async () => {

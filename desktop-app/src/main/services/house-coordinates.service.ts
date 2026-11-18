@@ -22,8 +22,6 @@ import { statesForPoint } from "./alkis.service";
  * that a client can match). There the Nominatim anchor stays as it is.
  */
 
-const USER_AGENT = "DealershipRiskMapping-Desktop/0.1 (contact: internal)";
-
 interface AddressEndpoint {
   url: string;
   kind: "inspire" | "berlin";
@@ -298,7 +296,7 @@ export function matchAddress(
 async function getXml(url: string): Promise<string> {
   const res = await fetchWithResilience(
     url,
-    { headers: { "User-Agent": USER_AGENT } },
+    {},
     { timeoutMs: REQUEST_TIMEOUT_MS, retries: 0 },
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

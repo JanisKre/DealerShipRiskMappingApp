@@ -29,7 +29,8 @@ import { fetchWithResilience } from "./http.service";
  * walk continues just below that release. Methodology: docs/imagery-sources.md.
  */
 
-const HEADERS = { "User-Agent": "DealershipRiskMapping/1.0 (desktop)" };
+// The app-wide User-Agent is set by http.service.
+const HEADERS = {};
 
 /** Versions shown per location; older ones are reported as `truncated`. */
 export const WAYBACK_TIMELINE_LIMIT = 8;

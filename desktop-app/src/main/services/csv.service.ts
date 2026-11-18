@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { lookupHailZone } from "@shared/hail-zones";
 import ExcelJS from "exceljs";
 import { normalizeWebsiteUrl } from "@shared/website";
 import {
@@ -269,6 +270,22 @@ function headerScore(matrix: string[][]): number {
   return row ? knownFields(row) : 0;
 }
 
+/**
+ * Whether four-digit values in a postcode column are German postcodes that
+ * lost their leading zero (Excel stores 01067 as the number 1067; Sachsen,
+ * Thüringen, Sachsen-Anhalt and parts of Brandenburg start with 0). Yes when
+ * the column also holds five-digit codes, or when every four-digit value
+ * with a 0 in front is a known German postcode. A column of Austrian or
+ * Swiss postcodes (four digits by design) is left alone.
+ */
+export function postcodesLostLeadingZero(values: string[]): boolean {
+  const codes = values.map((v) => v.trim()).filter(Boolean);
+  const four = codes.filter((v) => /^\d{4}$/.test(v));
+  if (four.length === 0) return false;
+  if (codes.some((v) => /^\d{5}$/.test(v))) return true;
+  return four.every((v) => lookupHailZone(`0${v}`) != null);
+}
+
 /** Shared row/column mapping for CSV, TSV, and XLSX. */
 function rowsFromMatrix(
   matrix: string[][],
@@ -322,9 +339,18 @@ function rowsFromMatrix(
       ].includes(i),
   );
   const nameCol = nameIdx >= 0 ? nameIdx : fallbackNameIdx;
+  const padPostcodes = postcodesLostLeadingZero(
+    postalCodeIdx >= 0
+      ? matrix.slice(headerRow + 1).map((row) => row[postalCodeIdx] ?? "")
+      : [],
+  );
   const composeAddress = (cols: string[]): string | undefined => {
     if (addrIdx >= 0) return cols[addrIdx]?.trim() || undefined;
-    const cell = (i: number): string => (i >= 0 ? (cols[i]?.trim() ?? "") : "");
+    const raw = (i: number): string => (i >= 0 ? (cols[i]?.trim() ?? "") : "");
+    const cell = (i: number): string =>
+      i === postalCodeIdx && padPostcodes && /^\d{4}$/.test(raw(i))
+        ? `0${raw(i)}`
+        : raw(i);
     const street = [cell(streetIdx), cell(houseNumberIdx)]
       .filter(Boolean)
       .join(" ");

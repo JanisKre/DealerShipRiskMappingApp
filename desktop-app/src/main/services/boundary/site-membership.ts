@@ -1,4 +1,5 @@
 import { distanceToRingM, type LonLat } from "../boundary-geometry";
+import { houseNumberOf, postcodeOf } from "@shared/address-parts";
 import type { ParcelFeature } from "../alkis.service";
 
 /**
@@ -55,12 +56,9 @@ export function matchesSite(
     .filter((token) => token.length >= 4 && !NAME_STOPWORDS.has(token));
   if (tokens.some((token) => haystack.includes(token))) return true;
 
-  const postcode = address?.match(/\b\d{5}\b/)?.[0];
+  const postcode = postcodeOf(address);
   if (postcode && tags["addr:postcode"] === postcode) {
-    const houseNumber = address
-      ?.match(/\b\d+\s*[a-z]?\b/i)?.[0]
-      ?.trim()
-      .toLowerCase();
+    const houseNumber = houseNumberOf(address);
     if (!houseNumber) return true;
     return tags["addr:housenumber"]?.toLowerCase() === houseNumber;
   }
@@ -91,12 +89,8 @@ export function matchesSiteStrictly(
     return true;
   }
 
-  const postcode = address?.match(/\b\d{5}\b/)?.[0];
-  const houseNumber = address
-    ?.replace(/\b\d{5}\b/g, " ")
-    .match(/\b\d+\s*[a-z]?\b/i)?.[0]
-    ?.trim()
-    .toLowerCase();
+  const postcode = postcodeOf(address);
+  const houseNumber = houseNumberOf(address);
   return Boolean(
     postcode &&
     houseNumber &&

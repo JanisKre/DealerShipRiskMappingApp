@@ -24,6 +24,7 @@ import { vegetationMask } from "./boundary/vegetation";
 import { officialHouseCoordinate } from "./house-coordinates.service";
 import {
   geocodeCandidates,
+  isHouseLevel,
   isSitePoi,
   pickGeocodeHit,
 } from "./geocoding.service";
@@ -44,6 +45,7 @@ import type {
 import type { LonLat } from "./boundary-geometry";
 import { resolveNatCat } from "./natcat.service";
 import { cachedHailZoneAt } from "./hail-zone-overlay/overlay.service";
+import { isPoBox } from "@shared/address-parts";
 
 /** Rough bounding box of Germany (incl. a margin for border sites). */
 const GERMANY_BBOX = { south: 47.2, north: 55.1, west: 5.8, east: 15.1 };
@@ -141,7 +143,9 @@ async function detectWebsite(
  * Anchor for a record that has only an address. The name query often finds
  * the dealership POI where the address query only finds the street; both are
  * scored together (`pickGeocodeHit`), address hits first so ties keep the old
- * behaviour. The name query is best effort.
+ * behaviour. The name query is best effort and only sent when the address
+ * found no building or house number: it halves the Nominatim requests of an
+ * import and keeps the dealership's name to itself where it is not needed.
  *
  * Where the state publishes house coordinates, an exact match of street,
  * number and postcode near the pick replaces it: Nominatim often lands on
@@ -152,10 +156,16 @@ async function geocodeDealership(
   address: string,
   name?: string,
 ): Promise<{ lat: number; lon: number; ambiguity?: string; source?: string }> {
+  if (isPoBox(address)) {
+    throw new Error(
+      `Address is a post-office box and names no site: ${address}`,
+    );
+  }
   const byAddress = await geocodeCandidates(address);
-  const byName = name
-    ? await geocodeCandidates(`${name}, ${address}`).catch(() => [])
-    : [];
+  const byName =
+    name && !byAddress.some(isHouseLevel)
+      ? await geocodeCandidates(`${name}, ${address}`).catch(() => [])
+      : [];
   const pick = pickGeocodeHit([...byAddress, ...byName], { name, address });
   if (!pick) throw new Error(`Address could not be resolved: ${address}`);
   if (!isSitePoi(pick.hit, name)) {
