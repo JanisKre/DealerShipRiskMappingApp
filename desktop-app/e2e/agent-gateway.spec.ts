@@ -104,8 +104,12 @@ test.beforeAll(async () => {
     },
   );
   // The server starts asynchronously after the settings are saved.
+  // A failed start reports its error instead of a bare `false`.
   await expect
-    .poll(async () => (await api((a) => a.gatewayStatus())).running)
+    .poll(async () => {
+      const s = await api((a) => a.gatewayStatus());
+      return s.running || (s.error ?? false);
+    })
     .toBe(true);
   const status = await api((a) => a.gatewayStatus());
   expect(status.port).toBe(PORT);
