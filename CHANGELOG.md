@@ -7,6 +7,8 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] – 2026-11-19
+
 ### Added
 
 All of the following is optional; the app works unchanged without AI and
@@ -43,6 +45,9 @@ without any of the protocols switched on.
   or let the AI draft a message to the dealerships.
 
 ### Fixed
+
+- **Training studio:** a round no longer ends as "failed" when every site
+  is labelled; the suggestion step is skipped.
 
 - **A road is no longer returned as the lot (cascade v13).** A site whose
   position lay on the carriageway got the road parcel as its boundary, in
@@ -142,6 +147,18 @@ without any of the protocols switched on.
   an AI dashboard have "move earlier" and "move later" buttons.
 
 ### Changed
+
+- **New vehicle model.** Installers ship `dealer_vehicles`
+  2026-11-19-round-02: one vehicle class, trained on 69 of the 80 labelled
+  sample sites after a label audit, base confidence 0.30. On 20 validation sites
+  from all federal states it is off by 5.7 vehicles per site (bias −2.0 %,
+  every site within 10 %), against 11.2 for the previous model at its
+  threshold. Vehicle counts and therefore hail EAL values change for every
+  location; re-run an analysis to see the new counts
+  (`docs/detection-benchmark.md`, "Shipped model (2026-11-19, round 02)").
+- **Training: larger validation set.** `make_dataset.py --grow-val` moves
+  train sites into validation, spread over federal states and imagery
+  resolutions, and keeps the previous validation sites.
 
 - **Simpler location detail dialog.** Each tab spells out only what its task
   needs; everything else is one collapsible row that names the section and
@@ -1040,7 +1057,8 @@ without any of the protocols switched on.
 - Export as PDF, Excel, CSV, plus portfolio file (`.drm`).
 - i18n (de / en / fr).
 
-[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/JanisKre/DealerShipRiskMappingApp/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.6.0
 [0.5.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.5.0
 [0.4.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.4.0
 [0.3.0]: https://github.com/JanisKre/DealerShipRiskMappingApp/releases/tag/v0.3.0

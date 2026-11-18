@@ -1,14 +1,14 @@
 {
   "repository": "JanisKre/DealerShipRiskMappingApp",
-  "tag": "model-dealer-vehicles-2026-10-10",
+  "tag": "model-dealer-vehicles-2026-11-19-round-02",
   "files": [
     {
       "name": "dealer_vehicles.json",
-      "sha256": "56626a7c507ab05f78bc463adb8eb6c15d8b9df0886fba7746006e03592fdde0"
+      "sha256": "990e0783bfaa48396fe52ae5c59dcc793b1beb1a77162866c1b841f477af6571"
     },
     {
       "name": "dealer_vehicles.onnx",
-      "sha256": "944d81642c829d2b1be4b612ccd7458b1c0633a9d8cb86ea7eae55d330b51264"
+      "sha256": "aaff961deffabb967ce2595ffd5025506ebd599b19e455af1c85c492cad497d0"
     }
   ]
 }

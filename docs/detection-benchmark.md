@@ -157,9 +157,69 @@ dealership sites at 0.10 m/px, compared with the corrected labels per site.
   sweep before `--default-conf` is set; without it the global default
   applies.
 
+## Shipped model (2026-11-19, round 02)
+
+**What ships.** From v0.6.0, release installers contain `dealer_vehicles`
+2026-11-19-round-02 (YOLO11s-OBB, one class `vehicle`, base confidence
+0.30) from the GitHub release `model-dealer-vehicles-2026-11-19-round-02`
+(not marked latest). `model-release.json` pins its tag and both hashes; the
+fetch and wizard checks described below are unchanged.
+
+**How it was trained.** All 80 sample sites (14 federal states, state
+orthophotos at 0.10 or 0.20 m/px) were labelled completely, then audited in
+the studio: the model's extra detections on finished sites were shown as
+questions (456 vehicles added, 82 suggestions and 29 labels rejected, 202
+labels confirmed). Round 01 fine-tuned the two-class 2026-10-10 weights on
+the one-class dataset for 20 epochs; round 02 fine-tuned round 01 on the
+audited labels for another 20 epochs. No DLR 3K tiles, no pseudo-labels.
+
+**Validation set.** `make_dataset.py --val-share 0.25 --grow-val` grew the
+held-out set from 11 to 20 sites (180 tiles, 3,093 labelled vehicles; every
+federal state, 3 sites at 0.10 m/px). The 9 added sites were train sites
+before, so the 2026-10-10 model and both rounds have seen them. Only
+`scratch-01`, trained from the DOTA start weights on the other 60 sites,
+never saw any of the 20.
+
+**Measurement.** App pipeline (`npm run benchmark:detection`), 20 sites,
+labels after the audit. Cells are count MAE / bias / share of sites within
+10 %:
+
+| Base confidence | dealer_vehicles 2026-10-10 | round 01 | **round 02** | scratch-01 |
+|---|---|---|---|---|
+| 0.30 | 8.1 / +1.6 % / 70 % | 7.0 / −2.2 % / 85 % | **5.7 / −2.0 % / 100 %** | 6.5 / −2.2 % / 85 % |
+| 0.35 | 8.1 / −1.0 % / 85 % | 7.2 / −3.9 % / 75 % | 7.1 / −3.4 % / 80 % | 7.4 / −3.4 % / 75 % |
+| 0.40 | 8.9 / −3.6 % / 80 % | 9.4 / −6.0 % / 70 % | 8.6 / −4.8 % / 75 % | 8.2 / −4.3 % / 70 % |
+| 0.45 | 11.2 / −5.8 % / 70 % | 11.5 / −7.4 % / 55 % | 9.6 / −5.9 % / 70 % | 9.0 / −5.3 % / 70 % |
+| 0.50 | 13.1 / −7.5 % / 65 % | 13.3 / −8.6 % / 50 % | 11.2 / −7.0 % / 60 % | 10.2 / −6.2 % / 70 % |
+
+On the 11 original validation sites, which no model trained on
+(`evaluate.py` per site, best of 0.25–0.50), all four models lie within
+about one vehicle of each other (MAE 3.8–5.0); round 02 is the only one with
+all 11 sites within 10 %. The public DOTA start weights (`yolo11s-obb.pt`,
+`yolo26s-obb.pt`) miss 17–27 % of the vehicles on the same sites (MAE 25.7
+and 40.6 at their best threshold).
+
+**Why this model.** Round 02 has the lowest error and every site within
+10 % at 0.30, where the shipped model at its threshold 0.45 is 11.2 vehicles
+off on the audited labels. 0.30 is the lowest threshold of the app sweep;
+the Ultralytics sweep is flat between 0.25 and 0.30, so the optimum is not
+cut off by much.
+
+**Limitations.**
+
+- 9 of the 20 validation sites were in round 02's training data; on unseen
+  sites the error is likely closer to scratch-01's 6.5. The threshold was
+  chosen on the same sites it is reported on.
+- 15 of the 20 validation sites were audited with suggestions of the
+  2026-10-10 model, so the labels lean slightly towards that model family.
+- Tiles are scored whole, without boundary clip and roof mask; German state
+  orthophotos only.
+- A new shipped model changes vehicle counts and therefore the hail EAL of
+  every location. Counts remain a screening estimate.
+
 ## Shipped model (2026-11)
 
-**What ships.** Release installers contain `dealer_vehicles` 2026-10-10
+**What shipped in v0.5.0.** Release installers contained `dealer_vehicles` 2026-10-10
 (YOLO11s-OBB fine-tuned on state DOP tiles of dealership sites and DLR 3K
 Munich, base confidence 0.45). It comes from the GitHub release
 `model-dealer-vehicles-2026-10-10`, which holds only the ONNX model and its
@@ -247,3 +307,6 @@ changes for users.
 | 2026-11-14 | dealer_vehicles 2026-10-10, base conf 0.45 (shipped) | State DOP tiles, 0.10 m/px | 11 | 8.0 | +0.2 % | 73 % |
 | 2026-11-14 | Pseudo-label run 2026-11-14, base conf 0.50 | State DOP tiles, 0.10 m/px | 11 | 8.6 | +0.7 % | 82 % |
 | 2026-11-14 | YOLO26s run 2026-11-14, base conf 0.30 | State DOP tiles, 0.10 m/px | 11 | 7.8 | −1.2 % | 73 % |
+| 2026-11-19 | dealer_vehicles 2026-10-10, base conf 0.45, audited labels | State DOP tiles, 0.10 m/px | 20 | 11.2 | −5.8 % | 70 % |
+| 2026-11-19 | round 02, base conf 0.30 (shipped from v0.6.0) | State DOP tiles, 0.10 m/px | 20 | 5.7 | −2.0 % | 100 % |
+| 2026-11-19 | scratch-01, base conf 0.30 (no validation site in training) | State DOP tiles, 0.10 m/px | 20 | 6.5 | −2.2 % | 85 % |
