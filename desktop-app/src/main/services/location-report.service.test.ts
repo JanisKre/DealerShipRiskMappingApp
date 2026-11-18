@@ -274,6 +274,39 @@ describe("location report", () => {
     expect(text).not.toContain("PRIVATE NOTE");
   });
 
+  it("writes 'no vehicle count' instead of an EAL of 0", () => {
+    const uncounted = {
+      ...site,
+      name: "Autohaus Łódź",
+      detection: undefined,
+      risk: {
+        ...site.risk!,
+        eal: 0,
+        ealBreakdown: {
+          ...site.risk!.ealBreakdown!,
+          hailDetail: {
+            ...site.risk!.ealBreakdown!.hailDetail!,
+            vehicles: 0,
+            exposedVehicles: 0,
+            vehicleSource: "none" as const,
+          },
+        },
+      },
+    } as AnalyzedDealership;
+    const text = Buffer.from(
+      buildLocationReportPdf(
+        { dealership: uncounted, locale: "de", reviewNotes: [] },
+        null,
+        history,
+        new Date("2026-11-13T00:00:00Z"),
+      ),
+    ).toString("latin1");
+    expect(text).toContain("keine Fahrzeugzahl");
+    // The name stays readable in the standard font (no UTF-16 bytes).
+    expect(text).toContain("Autohaus L");
+    expect(text).not.toContain("\u00fe\u00ff");
+  });
+
   it("writes the file with image and history, and honours cancel", async () => {
     mocks.next = join(dir, "report.pdf");
     const path = await exportLocationReport({

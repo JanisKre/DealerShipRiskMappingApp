@@ -251,4 +251,15 @@ describe("limitations and provenance in exports (UW-11, UW-03)", () => {
     expect(await exportReport(mixed, "pdf", "de")).toBe(path);
     expect(readFileSync(path).length).toBeGreaterThan(2_000);
   });
+
+  it("writes readable text: symbols outside the PDF font are replaced", async () => {
+    for (const locale of ["de", "fr"] as const) {
+      const path = target(`report-${locale}-text.pdf`);
+      expect(await exportReport(mixed, "pdf", locale)).toBe(path);
+      const pdf = readFileSync(path).toString("latin1");
+      // jsPDF writes text outside WinAnsi as UTF-16 with a byte-order mark.
+      expect(pdf).not.toContain("\u00fe\u00ff");
+      expect(pdf).toMatch(locale === "de" ? /In Hagelzone >= 4/ : /grêle >= 4/);
+    }
+  });
 });

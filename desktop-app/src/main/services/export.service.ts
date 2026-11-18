@@ -1,5 +1,6 @@
 import { BrowserWindow, ClipboardItem, clipboard, dialog } from "electron";
 import { readFile, writeFile } from "fs/promises";
+import { withPdfSafeText } from "./pdf-text";
 import { jsPDF } from "jspdf";
 // Named import: the CJS build Electron loads exports `autoTable` and a
 // `default` property, so a default import calls the module object itself.
@@ -267,7 +268,9 @@ async function writePdf(
   locale: ExportLocale,
 ): Promise<void> {
   const L = exportLabels(locale);
-  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const doc = withPdfSafeText(
+    new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" }),
+  );
 
   doc.setFontSize(18);
   doc.text(L.reportTitle, 40, 46);

@@ -1,5 +1,6 @@
 import { dialog } from "electron";
 import { writeFile } from "fs/promises";
+import { withPdfSafeText } from "./pdf-text";
 import { jsPDF } from "jspdf";
 import { autoTable } from "jspdf-autotable";
 import sharp from "sharp";
@@ -13,6 +14,7 @@ import { RISK_MODEL_VERSION, DETECTION_ZOOM } from "@shared/constants";
 import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { getHailHistory } from "./hail-history/hail-history.service";
 import { aerialImageForBbox, type AerialCapture } from "./tiles.service";
+import { siteProvenance } from "./export-content";
 
 /**
  * One-page PDF for a single location — what goes to a colleague or broker:
@@ -36,6 +38,7 @@ const LABELS = {
     hailZone: "Hagelzone",
     zoneEstimated: "geschätzt",
     hailEal: "Hagel-EAL (erwarteter Jahresschaden)",
+    noVehicleCount: "keine Fahrzeugzahl",
     vehicles: "Fahrzeuge",
     vehiclesManual: "manuell gezählt",
     vehiclesDetected: "erkannt",
@@ -85,6 +88,7 @@ const LABELS = {
     hailZone: "Hail zone",
     zoneEstimated: "estimated",
     hailEal: "Hail EAL (expected annual loss)",
+    noVehicleCount: "no vehicle count",
     vehicles: "Vehicles",
     vehiclesManual: "counted manually",
     vehiclesDetected: "detected",
@@ -134,6 +138,7 @@ const LABELS = {
     hailZone: "Zone de grêle",
     zoneEstimated: "estimée",
     hailEal: "EAL grêle (perte annuelle attendue)",
+    noVehicleCount: "aucun nombre de véhicules",
     vehicles: "Véhicules",
     vehiclesManual: "comptés manuellement",
     vehiclesDetected: "détectés",
@@ -391,7 +396,9 @@ export function buildLocationReportPdf(
   const pct = (n: number | undefined): string =>
     n == null ? "-" : `${Math.round(n * 100)} %`;
 
-  const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+  const doc = withPdfSafeText(
+    new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" }),
+  );
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 40;
@@ -470,7 +477,13 @@ export function buildLocationReportPdf(
         ? `${zone.zone}${zone.source === "estimated" ? ` (${L.zoneEstimated})` : ""}`
         : "-",
     ],
-    [L.hailEal, eur(d.risk?.eal)],
+    // Without a vehicle count there is no EAL: "0" would read as no risk.
+    [
+      L.hailEal,
+      siteProvenance(d).ealStatus === "noCount"
+        ? L.noVehicleCount
+        : eur(d.risk?.eal),
+    ],
     [
       L.vehicles,
       vehicles == null
