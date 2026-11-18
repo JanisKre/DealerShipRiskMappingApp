@@ -9,7 +9,7 @@ vi.mock("electron", () => ({ app: { getPath: () => state.dir } }));
 const fetchMock = vi.hoisted(() => vi.fn());
 vi.mock("../http.service", () => ({ fetchWithResilience: fetchMock }));
 
-import { getHailZoneOverlay } from "./overlay.service";
+import { getHailZoneOverlay, hailZoneAreaAt } from "./overlay.service";
 
 const TOPOLOGY = {
   copyright: "© OpenStreetMap contributors",
@@ -124,5 +124,49 @@ describe("getHailZoneOverlay", () => {
       }),
     );
     await expect(getHailZoneOverlay()).rejects.toThrow("unexpectedly large");
+  });
+});
+
+describe("hailZoneAreaAt", () => {
+  const overlay = {
+    attribution: "© OpenStreetMap contributors",
+    dataDate: null,
+    areas: [
+      {
+        postcode: "10115",
+        zone: 2 as const,
+        polygons: [
+          [
+            [
+              [13.0, 52.0],
+              [13.2, 52.0],
+              [13.2, 52.2],
+              [13.0, 52.2],
+              [13.0, 52.0],
+            ],
+            // A hole: another postcode enclosed by this one.
+            [
+              [13.05, 52.05],
+              [13.1, 52.05],
+              [13.1, 52.1],
+              [13.05, 52.1],
+              [13.05, 52.05],
+            ],
+          ],
+        ] as Array<Array<Array<[number, number]>>>,
+      },
+    ],
+  };
+
+  it("finds the area holding the point", () => {
+    expect(hailZoneAreaAt(overlay, 52.15, 13.15)).toEqual({
+      postcode: "10115",
+      zone: 2,
+    });
+  });
+
+  it("leaves out holes and points outside", () => {
+    expect(hailZoneAreaAt(overlay, 52.07, 13.07)).toBeNull();
+    expect(hailZoneAreaAt(overlay, 48.0, 11.0)).toBeNull();
   });
 });

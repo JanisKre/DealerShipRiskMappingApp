@@ -11,7 +11,11 @@ import {
   openMeteoProvider,
 } from "./weather.service";
 import { capacityForArea, estimatedExposureEur } from "./risk/exposure";
-import { riskEvidence, riskLimitations } from "./risk/evidence";
+import {
+  overallConfidence,
+  riskEvidence,
+  riskLimitations,
+} from "./risk/evidence";
 import { computeEalBreakdown, RISK_MODEL_VERSION } from "./risk/financial-loss";
 import { primaryHailScore, scorePerils } from "./risk/hazard-models";
 import { effectiveVehicleCount } from "@shared/risk-math";
@@ -34,15 +38,24 @@ export async function scoreRisk(
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
   natCat?: NatCatAssessment,
 ): Promise<RiskAssessment> {
+  // The weather proxy only decides the hail score when neither a licensed
+  // provider nor the postcode table delivers one. Otherwise no coordinates
+  // are sent to Open-Meteo and it is not listed as evidence.
+  const providerHail = natCat?.hazards.some(
+    (hazard) => hazard.peril === "hail",
+  );
+  const weatherNeeded = hailZone == null && !providerHail;
   let weatherFallbackUsed = false;
-  const weather = await fetchWeather(lat, lon).catch((error: unknown) => {
-    // A transient Open-Meteo failure (outage, rate limit, timeout) must
-    // degrade the weather-driven score, not abort the whole analysis —
-    // boundary detection and vehicle counting already succeeded by now.
-    console.warn("Weather lookup failed; using a neutral fallback", error);
-    weatherFallbackUsed = true;
-    return NEUTRAL_WEATHER_METRICS;
-  });
+  const weather = weatherNeeded
+    ? await fetchWeather(lat, lon).catch((error: unknown) => {
+        // A transient Open-Meteo failure (outage, rate limit, timeout) must
+        // degrade the weather-driven score, not abort the whole analysis —
+        // boundary detection and vehicle counting already succeeded by now.
+        console.warn("Weather lookup failed; using a neutral fallback", error);
+        weatherFallbackUsed = true;
+        return NEUTRAL_WEATHER_METRICS;
+      })
+    : NEUTRAL_WEATHER_METRICS;
 
   const perils = scorePerils(weather, hailZone, natCat);
   const overallScore = primaryHailScore(perils);
@@ -62,25 +75,25 @@ export async function scoreRisk(
 
   const hazardEvidence =
     natCat?.evidence ??
-    (weatherFallbackUsed
-      ? {
-          ...openMeteoProvider.evidence(),
-          confidence: 0.15,
-          fallbackUsed: true,
-          limitations: [
-            "Live weather lookup failed; using conservative neutral defaults",
-          ],
-        }
-      : openMeteoProvider.evidence());
+    (!weatherNeeded
+      ? undefined
+      : weatherFallbackUsed
+        ? {
+            ...openMeteoProvider.evidence(),
+            confidence: 0.15,
+            fallbackUsed: true,
+            limitations: [
+              "Live weather lookup failed; using conservative neutral defaults",
+            ],
+          }
+        : openMeteoProvider.evidence());
   const evidence = riskEvidence(
     boundary,
     detection,
     hazardEvidence,
     ealBreakdown.hailDetail,
   );
-  const confidence = round(
-    evidence.reduce((sum, item) => sum + item.confidence, 0) / evidence.length,
-  );
+  const confidence = round(overallConfidence(evidence, hazardEvidence?.source));
 
   return {
     overallScore: round(overallScore),

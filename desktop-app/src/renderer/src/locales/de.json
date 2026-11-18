@@ -357,7 +357,7 @@
           "available": "Nicht verbunden"
         },
         "notes": {
-          "screening": "Wetterbasierte Näherung aus Open-Meteo-Klimadaten plus GDV-Hagelzonen. Kein Katastrophenmodell.",
+          "screening": "Wetterbasierte Näherung aus Open-Meteo-Daten (CAPE über feste Sommerhalbjahre) plus PLZ-Hagelzonen. Kein Katastrophenmodell. Die kostenlose Open-Meteo-API ist nur für nicht-kommerzielle Nutzung freigegeben; für kommerziellen Einsatz ist ein Open-Meteo-Abo nötig.",
           "catnet": "Gefahrendaten von Swiss Re für Standorte weltweit; die App nutzt den Hagelwert.",
           "munichre": "Standort-Scores u. a. für Hagel (früher NATHAN); die App nutzt den Hagel-Score.",
           "moodys": "Risk-Scores für über 100 Länder; die App nutzt den Hagel-Score.",
@@ -698,6 +698,9 @@
         "hazardProxy": "Gefahrenwerte sind standortbezogene Näherungen und sollten vor Underwriting-Entscheidungen geprüft werden",
         "notEngineeringAssessment": "Kein Katastrophenmodell und keine ingenieurtechnische Bewertung",
         "weatherWindow": "92-Tage-Wetterfenster mit Screening-Näherungen",
+        "weatherSeasons": "CAPE-Häufigkeit über feste Sommerhalbjahre (April–September) mit Screening-Näherungen",
+        "hailZoneRegional": "Die PLZ-Hagelzone beschreibt die regionale Gefährdung, nicht den einzelnen Standort",
+        "openMeteoLicence": "Kostenlose Open-Meteo-API nur für nicht-kommerzielle Nutzung; Daten CC BY 4.0",
         "syntheticBoundaryMethod": "Geschätzte Grenze (Kreis um den Adresspunkt)",
         "boundaryLookupMethod": "Geodatenbasierte Grenzermittlung",
         "manualBoundaryReview": "Manuelle Prüfung der Grundstücksgrenze empfohlen",

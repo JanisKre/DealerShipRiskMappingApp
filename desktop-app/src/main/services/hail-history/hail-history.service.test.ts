@@ -159,6 +159,22 @@ describe("hail observations", () => {
     });
   });
 
+  it("does not count a year observed only outside the hail season", () => {
+    // 2011: January–March and October–December, 182 valid days, none in
+    // the hail season.
+    const winterOnly = new Map<string, 0 | 1>();
+    for (let i = 0; i < 365; i++) {
+      const iso = new Date(Date.UTC(2011, 0, 1) + i * 86_400_000)
+        .toISOString()
+        .slice(0, 10)
+        .replace(/-/g, "");
+      const m = Number(iso.slice(4, 6));
+      if (m < 4 || m > 9) winterOnly.set(iso, 0);
+    }
+    expect(winterOnly.size).toBeGreaterThanOrEqual(180);
+    expect(summarizeHail(winterOnly)).toBeNull();
+  });
+
   it("returns null without an observed year", () => {
     expect(summarizeHail(new Map([["20100101", 1]]))).toBeNull();
   });

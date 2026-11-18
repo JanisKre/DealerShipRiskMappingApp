@@ -639,15 +639,25 @@ export function hailFrequencyForZone(
 /**
  * Σ p_k·S_k: expected loss per exposed vehicle and hail event (EUR). The
  * class shares are weights normalized by their sum, so editing one share on
- * the parameters page never leaves the model in an invalid state.
+ * the parameters page never leaves the model in an invalid state. Each S_k
+ * is capped at the vehicle value.
  */
 export function meanHailSeverityEur(
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): number {
+  // A loss per vehicle above the vehicle's value is not possible; an edited
+  // severity is capped there (no cap without a vehicle value).
+  const cap =
+    parameters.vehicleValueCarEur > 0
+      ? parameters.vehicleValueCarEur
+      : Number.POSITIVE_INFINITY;
   const classes = [
-    [parameters.hailShareSmall, parameters.hailSeveritySmallEur],
-    [parameters.hailShareMedium, parameters.hailSeverityMediumEur],
-    [parameters.hailShareLarge, parameters.hailSeverityLargeEur],
+    [parameters.hailShareSmall, Math.min(cap, parameters.hailSeveritySmallEur)],
+    [
+      parameters.hailShareMedium,
+      Math.min(cap, parameters.hailSeverityMediumEur),
+    ],
+    [parameters.hailShareLarge, Math.min(cap, parameters.hailSeverityLargeEur)],
   ] as const;
   const shareSum = classes.reduce((sum, [share]) => sum + share, 0);
   if (shareSum <= 0) return 0;
@@ -725,7 +735,15 @@ export function displayedHailVehicleSource(
  * A screening estimate — not an engineering, tariff, or insurance decision.
  */
 export function computeHailEal(
-  input: { vehicles: number; zone: HailZone },
+  input: {
+    vehicles: number;
+    zone: HailZone;
+    /**
+     * λ from a licensed provider (annual exceedance probability or
+     * 1 / return period). Replaces the zone's placeholder λ when given.
+     */
+    frequency?: number;
+  },
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): {
   eal: number;
@@ -734,7 +752,10 @@ export function computeHailEal(
   meanSeverityEur: number;
 } {
   const exposedVehicles = Math.max(0, input.vehicles);
-  const frequency = hailFrequencyForZone(input.zone, parameters);
+  const frequency =
+    input.frequency != null && Number.isFinite(input.frequency)
+      ? Math.max(0, Math.min(1, input.frequency))
+      : hailFrequencyForZone(input.zone, parameters);
   const meanSeverityEur = meanHailSeverityEur(parameters);
   return {
     eal: exposedVehicles * frequency * meanSeverityEur,

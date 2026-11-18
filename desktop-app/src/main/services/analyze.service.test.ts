@@ -59,10 +59,14 @@ vi.mock("./osmDetails.service", () => ({
   websiteFromEvidence: mocks.websiteFromEvidence,
 }));
 vi.mock("./natcat.service", () => ({ resolveNatCat: async () => undefined }));
+vi.mock("./hail-zone-overlay/overlay.service", () => ({
+  cachedHailZoneAt: async () => null,
+}));
 vi.mock("./risk.service", () => ({ scoreRisk: async () => ({}) }));
 
 import {
   analyzeDealership,
+  extractPostalCode,
   lotReachesImageEdge,
   OSM_WAIT_MS,
 } from "./analyze.service";
@@ -392,5 +396,30 @@ describe("lotReachesImageEdge", () => {
       quality: { reasons: [], cascadeStage: 5 },
     } as unknown as BoundaryResult;
     expect(lotReachesImageEdge(circle, edgeCars(5), image)).toBe(false);
+  });
+});
+
+describe("extractPostalCode", () => {
+  it("reads the postcode before the place name", () => {
+    expect(extractPostalCode("Gewerbepark 12345 Ost, 80331 München")).toBe(
+      "80331",
+    );
+    expect(extractPostalCode("Straße des 17. Juni 135, 10623 Berlin")).toBe(
+      "10623",
+    );
+    expect(extractPostalCode("D-01067 Dresden")).toBe("01067");
+  });
+
+  it("ignores addresses of other countries", () => {
+    expect(
+      extractPostalCode("12 Rue de Rivoli, 75001 Paris, France"),
+    ).toBeNull();
+    expect(extractPostalCode("Via Roma 1, 00184 Roma", 41.9, 12.5)).toBeNull();
+  });
+
+  it("keeps German sites inside the bounding box", () => {
+    expect(extractPostalCode("Hauptstr. 1, 70173 Stuttgart", 48.78, 9.18)).toBe(
+      "70173",
+    );
   });
 });

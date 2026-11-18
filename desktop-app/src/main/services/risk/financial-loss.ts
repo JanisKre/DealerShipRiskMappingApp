@@ -35,6 +35,23 @@ export function resolveHailZone(
   return { zone: estimateHailZoneFromScore(hailScore), source: "estimated" };
 }
 
+/**
+ * λ delivered by a licensed provider for hail: its annual exceedance
+ * probability, else 1 / return period. Null when it only delivers a score
+ * or class, then the zone's λ is used.
+ */
+export function providerHailFrequency(
+  natCat?: NatCatAssessment,
+): number | null {
+  const hail = natCat?.hazards.find((hazard) => hazard.peril === "hail");
+  if (!hail) return null;
+  if (hail.annualExceedanceProbability != null)
+    return hail.annualExceedanceProbability;
+  if (hail.returnPeriodYears != null && hail.returnPeriodYears > 0)
+    return 1 / hail.returnPeriodYears;
+  return null;
+}
+
 /** Hail EAL (`EAL = N × λ_z × Σ p_k·S_k`). */
 export function computeEalBreakdown(
   detection: DetectionResult | undefined,
@@ -49,11 +66,20 @@ export function computeEalBreakdown(
     hailZone,
     natCat,
   );
-  const result = computeHailEal({ vehicles, zone }, parameters);
+  const providerFrequency = providerHailFrequency(natCat) ?? undefined;
+  const result = computeHailEal(
+    { vehicles, zone, frequency: providerFrequency },
+    parameters,
+  );
   const hail = round(result.eal);
   const range = stockRangeVehicles(detection, vehicles, vehicleSource);
   const ealFor = (n: number): number =>
-    round(computeHailEal({ vehicles: n, zone }, parameters).eal);
+    round(
+      computeHailEal(
+        { vehicles: n, zone, frequency: providerFrequency },
+        parameters,
+      ).eal,
+    );
   return {
     hail,
     total: hail,

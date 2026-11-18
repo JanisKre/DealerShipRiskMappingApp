@@ -357,7 +357,7 @@
           "available": "Non connecté"
         },
         "notes": {
-          "screening": "Approximation météo à partir des données climatiques Open-Meteo et des zones de grêle GDV. Pas un modèle catastrophe.",
+          "screening": "Approximation météo à partir des données Open-Meteo (CAPE sur des semestres d’été fixes) et des zones de grêle par code postal. Pas un modèle catastrophe. L’API gratuite Open-Meteo est réservée à un usage non commercial ; un usage commercial nécessite un abonnement Open-Meteo.",
           "catnet": "Données d’aléas de Swiss Re pour des sites dans le monde entier ; l’application utilise la valeur grêle.",
           "munichre": "Scores de site notamment pour la grêle (anciennement NATHAN) ; l’application utilise le score grêle.",
           "moodys": "Scores de risque pour plus de 100 pays ; l’application utilise le score grêle.",
@@ -698,6 +698,9 @@
         "hazardProxy": "Les valeurs d’aléa sont des approximations locales à valider avant toute décision de souscription",
         "notEngineeringAssessment": "Ni modèle de catastrophe ni évaluation technique",
         "weatherWindow": "Fenêtre météo de 92 jours avec approximations de présélection",
+        "weatherSeasons": "Fréquence de CAPE sur des semestres d’été fixes (avril–septembre) avec approximations de présélection",
+        "hailZoneRegional": "La zone de grêle par code postal décrit l’aléa régional, pas le site individuel",
+        "openMeteoLicence": "API gratuite Open-Meteo : usage non commercial uniquement ; données CC BY 4.0",
         "syntheticBoundaryMethod": "Limite estimée (cercle autour du point d’adresse)",
         "boundaryLookupMethod": "Recherche géospatiale de limite",
         "manualBoundaryReview": "Vérification manuelle de la limite recommandée",

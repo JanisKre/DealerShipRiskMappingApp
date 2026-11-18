@@ -43,12 +43,49 @@ import type {
 } from "@shared/types";
 import type { LonLat } from "./boundary-geometry";
 import { resolveNatCat } from "./natcat.service";
+import { cachedHailZoneAt } from "./hail-zone-overlay/overlay.service";
 
-/** Extracts a 5-digit postal code from a German address string. */
-function extractPostalCode(address: string | undefined): string | null {
+/** Rough bounding box of Germany (incl. a margin for border sites). */
+const GERMANY_BBOX = { south: 47.2, north: 55.1, west: 5.8, east: 15.1 };
+
+/**
+ * Country names and codes that mark an address as not German. A five-digit
+ * number in a French, Italian, Spanish or US address is a postcode of that
+ * country and must not be looked up in the German hail zone table.
+ */
+const FOREIGN_COUNTRY =
+  /\b(?:france|frankreich|italia|italien|italy|espa[ñn]a|spanien|spain|usa|united states|vereinigte staaten|finland|finnland|suomi|estonia|estland|croatia|kroatien|hrvatska|serbia|serbien|mexico|mexiko|turkey|türkei|türkiye|ukraine|ukraina|polska|polen|poland|czech|tschechien|česko|slovakia|slowakei|greece|griechenland|morocco|marokko|algeria|algerien|malaysia|indonesia|indonesien|thailand)\b/i;
+
+/**
+ * Extracts a German postal code from an address. Only for sites inside
+ * Germany and addresses that name no other country; a five-digit number
+ * followed by a place name ("80331 München") wins over one inside the
+ * street; of several, the last one (the postcode follows the street).
+ */
+export function extractPostalCode(
+  address: string | undefined,
+  lat?: number,
+  lon?: number,
+): string | null {
   if (!address) return null;
-  const match = address.match(/\b(\d{5})\b/);
-  return match ? match[1] : null;
+  if (
+    lat != null &&
+    lon != null &&
+    (lat < GERMANY_BBOX.south ||
+      lat > GERMANY_BBOX.north ||
+      lon < GERMANY_BBOX.west ||
+      lon > GERMANY_BBOX.east)
+  )
+    return null;
+  if (FOREIGN_COUNTRY.test(address)) return null;
+  // The postcode follows the street in German addresses: take the last
+  // five-digit number that is followed by a place name.
+  const beforePlace = [
+    ...address.matchAll(/(?:^|[\s,]|D-)(\d{5})\s+\p{L}/gu),
+  ].at(-1);
+  if (beforePlace) return beforePlace[1];
+  const any = address.match(/\b(\d{5})\b/);
+  return any ? any[1] : null;
 }
 
 /**
@@ -206,9 +243,13 @@ export async function analyzeDealership(
   const siteLat = lat;
   const siteLon = lon;
 
-  // Extract postal code from the address and look up the hail zone.
-  const postalCode = extractPostalCode(input.address);
-  const hailZone = postalCode ? lookupHailZone(postalCode) : null;
+  // Postal code from the address, else from the cached postcode outlines at
+  // the coordinates (sites imported with coordinates only).
+  const postalCode = extractPostalCode(input.address, siteLat, siteLon);
+  const hailZone =
+    (postalCode ? lookupHailZone(postalCode) : null) ??
+    (await cachedHailZoneAt(siteLat, siteLon).catch(() => null))?.zone ??
+    null;
 
   const osmDeadline =
     Date.now() + (hasCustomOverpass() ? OSM_WAIT_OWN_SERVER_MS : OSM_WAIT_MS);

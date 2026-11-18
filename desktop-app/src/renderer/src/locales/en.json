@@ -357,7 +357,7 @@
           "available": "Not connected"
         },
         "notes": {
-          "screening": "Weather-based approximation from Open-Meteo climate data plus GDV hail zones. Not a catastrophe model.",
+          "screening": "Weather-based approximation from Open-Meteo data (CAPE over fixed summer half-years) plus postcode hail zones. Not a catastrophe model. The free Open-Meteo API is for non-commercial use only; commercial use needs an Open-Meteo subscription.",
           "catnet": "Swiss Re hazard data for locations worldwide; the app uses the hail value.",
           "munichre": "Location scores including hail (formerly NATHAN); the app uses the hail score.",
           "moodys": "Risk scores for more than 100 countries; the app uses the hail score.",
@@ -698,6 +698,9 @@
         "hazardProxy": "Hazard values are location-level proxies and should be validated before underwriting decisions",
         "notEngineeringAssessment": "Not a catastrophe-model or engineering assessment",
         "weatherWindow": "92-day weather window with screening proxies",
+        "weatherSeasons": "CAPE frequency over fixed summer half-years (April–September) with screening proxies",
+        "hailZoneRegional": "Postcode hail zone describes regional hazard, not the individual site",
+        "openMeteoLicence": "Open-Meteo free API: non-commercial use only; data CC BY 4.0",
         "syntheticBoundaryMethod": "Estimated boundary (circle around the address point)",
         "boundaryLookupMethod": "Geospatial boundary lookup",
         "manualBoundaryReview": "Manual boundary review recommended",

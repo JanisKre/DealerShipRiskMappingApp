@@ -131,3 +131,73 @@ async function loadOverlay(): Promise<HailZoneOverlay> {
   }
   return overlay;
 }
+
+// --- Zone at a point -----------------------------------------------------
+
+let localOverlay: Promise<HailZoneOverlay | null> | null = null;
+
+/**
+ * The overlay as far as it is already on disk. Never downloads: an analysis
+ * must not wait for the 14 MB outline release; the map overlay fetches it.
+ */
+function overlayFromDisk(): Promise<HailZoneOverlay | null> {
+  localOverlay ??= readCache(join(cacheDir(), CACHE_FILE)).then((overlay) => {
+    // A missing cache is looked up again on the next call.
+    if (!overlay) localOverlay = null;
+    return overlay;
+  });
+  return localOverlay;
+}
+
+/** Clears the in-memory copy (tests, data reset). */
+export function resetLocalHailZoneOverlay(): void {
+  localOverlay = null;
+}
+
+/**
+ * Postcode area and hail zone containing a point, from the cached postcode
+ * outlines. For sites imported with coordinates only, which have no postcode
+ * in their address. Null when the outlines are not cached or no area holds
+ * the point. The outlines are simplified (about 100 m), so a site right on a
+ * postcode border can get the neighbouring zone.
+ */
+export async function cachedHailZoneAt(
+  lat: number,
+  lon: number,
+): Promise<{
+  postcode: string;
+  zone: HailZoneOverlay["areas"][number]["zone"];
+} | null> {
+  const overlay = await overlayFromDisk();
+  if (!overlay) return null;
+  return hailZoneAreaAt(overlay, lat, lon);
+}
+
+/** Pure lookup of the area containing a point (even-odd over all rings). */
+export function hailZoneAreaAt(
+  overlay: HailZoneOverlay,
+  lat: number,
+  lon: number,
+): { postcode: string; zone: HailZoneOverlay["areas"][number]["zone"] } | null {
+  for (const area of overlay.areas) {
+    for (const polygon of area.polygons) {
+      const [outer, ...holes] = polygon;
+      if (!outer || !inRing(lon, lat, outer)) continue;
+      if (holes.some((hole) => inRing(lon, lat, hole))) continue;
+      return { postcode: area.postcode, zone: area.zone };
+    }
+  }
+  return null;
+}
+
+function inRing(x: number, y: number, ring: Array<[number, number]>): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}

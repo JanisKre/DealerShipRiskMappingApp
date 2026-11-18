@@ -18,6 +18,64 @@ The orchestration entry point is
 Every new risk result includes a model version, overall confidence, source
 evidence, and limitations.
 
+## Corrections (screening-0.5.2)
+
+A review in November 2026 found that the weather fallback depended on the
+date of the analysis and that several provenance and consistency rules did
+not hold. Deterministic fixtures: `weather.service.test.ts`,
+`risk/evidence.test.ts` ("overallConfidence"), `risk/financial-loss.test.ts`,
+`hail-history.service.test.ts` and `analyze.service.test.ts`
+("extractPostalCode").
+
+- **Weather proxy over fixed seasons.** The CAPE proxy used a rolling 92-day
+  window. Analysed in winter it hit the 5 % clamp (zone 1); in August the
+  same site could reach zone 6, a factor of 15 in the EAL through λ alone.
+  It now uses the last three complete April–September seasons from
+  Open-Meteo's historical forecast archive (host
+  `historical-forecast-api.open-meteo.com`, CAPE from 2022). Hours without a
+  value are skipped instead of counting as calm. The result only changes
+  once a year, when a season completes.
+- **Weather only when it is used.** With a postcode zone or a provider value
+  no coordinates are sent to Open-Meteo, Open-Meteo is not listed as
+  evidence and a failed lookup no longer lowers the confidence.
+- **Postcode zone only for German addresses.** A five-digit number in an
+  address outside Germany (by coordinates or a named country) is no longer
+  looked up in the German table. Sites imported with coordinates only take
+  the zone of the postcode area holding the point, from the cached postcode
+  outlines (simplified to about 100 m; sites on a border can get the
+  neighbouring zone).
+- **Provider frequency.** A provider's annual exceedance probability, else
+  1 / return period, replaces the zone's placeholder λ. A score or class
+  alone still maps to a zone.
+- **Severity cap.** Each S_k is capped at the vehicle value; an edited
+  severity can no longer exceed what a vehicle is worth.
+- **Confidence.** The overall confidence is the mean of all evidence, but
+  never above the weakest entry of the hail chain (provider, postcode zone
+  or weather proxy) and never above 0.6 while λ, p and S are placeholders.
+  A confirmed boundary no longer lifts the confidence of an estimated zone.
+- **Station history.** A DWD station year counts as observed only with at
+  least 180 valid days, of which at least 120 fall in April–September; a
+  year observed only in winter no longer counts as a year without hail.
+- **Provenance.** The postcode-zone evidence carries the table version and
+  the limitation that a postcode zone describes regional hazard. The
+  Open-Meteo evidence states that the free API is for non-commercial use
+  only (data CC BY 4.0).
+
+Data sources and limitations are otherwise unchanged; these remain
+screening estimates, not engineering, tariff or insurance decisions.
+Results stored by `screening-0.5.1` are offered for recalculation on the
+dashboard; sites without a postcode zone and sites with a provider
+probability change their EAL.
+
+**Reference anchors, not calibration.** For the pending calibration of λ,
+p and S (see the parameters page) the review found these public figures.
+They are context for the underwriting team, not values used by the model:
+a median of 0.3 potential hail tracks per km² and year in Germany (Mohr et
+al. 2026, Front. Environ. Sci.; summer half-years 2005–2024); about EUR 3,860
+per reported hail claim in 2023 (ADAC Autoversicherung); a car damage
+function by hail size (Schmid et al. 2024, NHESS). No public source was found
+for the share of vehicles damaged on an open dealership lot.
+
 ## Corrections (screening-0.5.1)
 
 A code review in November 2026 found four calculations that did not do what
@@ -59,13 +117,14 @@ The hail score (0–100) comes from, in this order:
    settings and delivers one;
 2. the postcode hail zone (`shared/hail-zones.ts`): `(zone − 1) / 5 × 100`;
 3. the Open-Meteo screening proxy: 3 × the share of days with a daily
-   maximum CAPE ≥ 1,500 J/kg plus 0.3 × the share with ≥ 1,000 J/kg, over a
-   92-day window, clamped to 5–90 %. Only the hourly CAPE series is
-   requested.
+   maximum CAPE ≥ 1,500 J/kg plus 0.3 × the share with ≥ 1,000 J/kg, over
+   the last three complete April–September seasons (since screening-0.5.2;
+   a 92-day window before), clamped to 5–90 %. Only the hourly CAPE series
+   is requested.
 
 Data sources: GDV/K-Kasko hail zones by postcode, Open-Meteo forecast API
 (CAPE), optionally a contracted hail provider. Limitations: the CAPE proxy
-reflects a recent 92-day window, not a hail climatology; hail zones describe
+reflects three recent summer seasons, not a hail climatology; hail zones describe
 regional hazard, not the individual site.
 
 Removed with this version: the score caps for wind, lightning, snow, heat

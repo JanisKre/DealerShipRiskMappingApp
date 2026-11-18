@@ -86,6 +86,12 @@ function localizedRiskText(t: TFunction, text: string): string {
       "dashboard.detailDialog.riskText.notEngineeringAssessment",
     "92-day weather window with screening proxies":
       "dashboard.detailDialog.riskText.weatherWindow",
+    "summer half-year CAPE frequency with screening proxies":
+      "dashboard.detailDialog.riskText.weatherSeasons",
+    "Postcode hail zone describes regional hazard, not the individual site":
+      "dashboard.detailDialog.riskText.hailZoneRegional",
+    "Open-Meteo free API: non-commercial use only; data CC BY 4.0":
+      "dashboard.detailDialog.riskText.openMeteoLicence",
     "synthetic radius fallback":
       "dashboard.detailDialog.riskText.syntheticBoundaryMethod",
     "geospatial boundary lookup":

@@ -14,18 +14,9 @@ export function riskEvidence(
   hailDetail?: HailEalDetail,
 ): RiskEvidence[] {
   const now = new Date().toISOString();
-  const evidence: RiskEvidence[] = [
-    hazardEvidence ?? {
-      source: "Open-Meteo",
-      retrievedAt: now,
-      dataVersion: "forecast-api",
-      spatialResolution: "model grid",
-      method: "92-day weather window with screening proxies",
-      confidence: 0.55,
-      fallbackUsed: false,
-      limitations: ["Not a catastrophe-model or engineering assessment"],
-    },
-  ];
+  // The hazard source is listed only when it contributed: with a postcode
+  // zone no weather data is fetched (see scoreRisk).
+  const evidence: RiskEvidence[] = hazardEvidence ? [hazardEvidence] : [];
 
   // The hail zone drives λ_z in the EAL, so its source is evidence in its
   // own right. A provider zone is already covered by the provider evidence.
@@ -33,11 +24,12 @@ export function riskEvidence(
     evidence.push({
       source: "Postcode hail zones",
       retrievedAt: now,
+      dataVersion: HAIL_ZONE_TABLE_VERSION,
       spatialResolution: "postcode",
       method: "postcode hail-zone lookup",
       confidence: 0.7,
       fallbackUsed: false,
-      limitations: [],
+      limitations: [HAIL_ZONE_REGIONAL],
     });
   } else if (hailDetail?.zoneSource === "estimated") {
     evidence.push({
@@ -90,12 +82,50 @@ export function riskEvidence(
   return evidence;
 }
 
+/** Version of the static postcode table in `shared/hail-zones.ts`. */
+export const HAIL_ZONE_TABLE_VERSION =
+  "postcode table, as of 2024 (8,183 postcodes)";
+export const HAIL_ZONE_REGIONAL =
+  "Postcode hail zone describes regional hazard, not the individual site";
 export const HAIL_ZONE_ESTIMATED =
   "Hail zone estimated from weather data; no postcode hail zone available";
 export const HAIL_EAL_PLACEHOLDERS =
   "Hail EAL frequency and severity parameters are uncalibrated placeholders";
 export const HAIL_VEHICLES_FROM_ASSET_VALUE =
   "Hail EAL vehicle count derived from the declared asset value";
+
+/**
+ * Upper bound of the overall confidence while λ, p and S are uncalibrated
+ * placeholders: a reviewed boundary or a checked vehicle count must not
+ * make the hail EAL look more certain than its parameters are.
+ */
+export const PLACEHOLDER_CONFIDENCE_CAP = 0.6;
+
+/** Evidence entries that belong to the hail chain (hazard and zone). */
+const HAIL_CHAIN_SOURCES = new Set(["Open-Meteo", "Postcode hail zones"]);
+
+/**
+ * Overall confidence of an assessment: the mean of all evidence, but never
+ * above the weakest link of the hail chain (provider, zone or weather
+ * proxy) and never above `PLACEHOLDER_CONFIDENCE_CAP`. Averaging alone let
+ * a confirmed boundary lift the confidence of an estimated hail zone.
+ */
+export function overallConfidence(
+  evidence: RiskEvidence[],
+  hazardSource?: string,
+): number {
+  if (evidence.length === 0) return 0;
+  const mean =
+    evidence.reduce((sum, item) => sum + item.confidence, 0) / evidence.length;
+  const chain = evidence.filter(
+    (item) =>
+      HAIL_CHAIN_SOURCES.has(item.source) || item.source === hazardSource,
+  );
+  const weakest = chain.length
+    ? Math.min(...chain.map((item) => item.confidence))
+    : 1;
+  return Math.min(mean, weakest, PLACEHOLDER_CONFIDENCE_CAP);
+}
 
 export const STOCK_SNAPSHOT_PREFIX = "Stock snapshot not typical: ";
 

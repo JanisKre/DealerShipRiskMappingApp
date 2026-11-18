@@ -36,6 +36,12 @@ const MAX_STATIONS = 3;
 const MIN_YEARS = 10;
 /** A year counts as observed with at least this many valid daily values. */
 const MIN_VALID_DAYS_PER_YEAR = 180;
+/**
+ * …of which at least this many in the hail season (April–September, 183
+ * days). Without it a year with 180 winter days counted as observed with no
+ * hail day at all.
+ */
+const MIN_VALID_SEASON_DAYS_PER_YEAR = 120;
 const RECENT_DATES = 5;
 /** Station archives are a few kilobytes; anything far larger is not one. */
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
@@ -126,12 +132,17 @@ export function summarizeHail(
   HailHistoryStation,
   "stationId" | "name" | "state" | "distanceKm"
 > | null {
-  const byYear = new Map<number, { valid: number; hail: number }>();
+  const byYear = new Map<
+    number,
+    { valid: number; season: number; hail: number }
+  >();
   const hailDates: string[] = [];
   for (const [date, value] of observations) {
     const year = Number(date.slice(0, 4));
-    const entry = byYear.get(year) ?? { valid: 0, hail: 0 };
+    const month = Number(date.slice(4, 6));
+    const entry = byYear.get(year) ?? { valid: 0, season: 0, hail: 0 };
     entry.valid++;
+    if (month >= 4 && month <= 9) entry.season++;
     if (value === 1) {
       entry.hail++;
       hailDates.push(date);
@@ -139,7 +150,11 @@ export function summarizeHail(
     byYear.set(year, entry);
   }
   const observed = [...byYear.entries()]
-    .filter(([, v]) => v.valid >= MIN_VALID_DAYS_PER_YEAR)
+    .filter(
+      ([, v]) =>
+        v.valid >= MIN_VALID_DAYS_PER_YEAR &&
+        v.season >= MIN_VALID_SEASON_DAYS_PER_YEAR,
+    )
     .sort(([a], [b]) => a - b);
   if (observed.length === 0) return null;
   const observedYears = new Set(observed.map(([year]) => year));

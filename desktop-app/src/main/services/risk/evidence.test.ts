@@ -4,6 +4,8 @@ import {
   HAIL_EAL_PLACEHOLDERS,
   HAIL_VEHICLES_FROM_ASSET_VALUE,
   HAIL_ZONE_ESTIMATED,
+  HAIL_ZONE_REGIONAL,
+  overallConfidence,
   riskEvidence,
   riskLimitations,
 } from "./evidence";
@@ -90,12 +92,38 @@ describe("hail EAL provenance", () => {
       vehicleSource: "detected",
       zoneSource: "estimated",
     });
-    // [0] is the hazard evidence; [1] the hail-zone evidence.
-    expect(postcode[1]).toMatchObject({
+    // Without hazard evidence only the hail-zone evidence is listed.
+    expect(postcode[0]).toMatchObject({
       source: "Postcode hail zones",
       fallbackUsed: false,
+      limitations: [HAIL_ZONE_REGIONAL],
     });
-    expect(estimated[1]).toMatchObject({ fallbackUsed: true });
-    expect(estimated[1].confidence).toBeLessThan(postcode[1].confidence);
+    expect(postcode[0].dataVersion).toBeTruthy();
+    expect(estimated[0]).toMatchObject({ fallbackUsed: true });
+    expect(estimated[0].confidence).toBeLessThan(postcode[0].confidence);
+  });
+});
+
+describe("overallConfidence", () => {
+  const item = (source: string, confidence: number) => ({
+    source,
+    retrievedAt: "2026-11-19T00:00:00Z",
+    method: "m",
+    confidence,
+    fallbackUsed: false,
+    limitations: [],
+  });
+
+  it("never exceeds the weakest link of the hail chain", () => {
+    const evidence = [item("Open-Meteo", 0.3), item("ALKIS", 0.95)];
+    expect(overallConfidence(evidence)).toBe(0.3);
+  });
+
+  it("is capped while the EAL parameters are placeholders", () => {
+    expect(overallConfidence([item("Provider", 0.9)], "Provider")).toBe(0.6);
+  });
+
+  it("is zero without evidence", () => {
+    expect(overallConfidence([])).toBe(0);
   });
 });

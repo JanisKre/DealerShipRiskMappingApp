@@ -5,6 +5,7 @@ import type {
   VehicleTimeline,
 } from "@shared/types";
 import { PERILS } from "@shared/types";
+import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import { computeEalBreakdown, resolveHailZone } from "./financial-loss";
 
 function perils(hail: number): PerilScore[] {
@@ -60,6 +61,36 @@ describe("computeEalBreakdown", () => {
       frequency: 0.15,
       meanSeverityEur: 2_080,
     });
+  });
+
+  it("takes λ from a provider's annual exceedance probability", () => {
+    const natCat = {
+      hazards: [
+        { peril: "hail", score: 40, annualExceedanceProbability: 0.02 },
+      ],
+    } as unknown as NatCatAssessment;
+    const eb = computeEalBreakdown(DETECTION, perils(40), 6, undefined, natCat);
+    // 100 vehicles × λ 0.02 × 2,080 = 4,160, not the zone placeholder λ.
+    expect(eb.hailDetail?.frequency).toBe(0.02);
+    expect(eb.hail).toBe(4_160);
+    expect(eb.hailDetail?.zoneSource).toBe("provider");
+  });
+
+  it("takes λ as 1 / return period when no probability is given", () => {
+    const natCat = {
+      hazards: [{ peril: "hail", score: 40, returnPeriodYears: 50 }],
+    } as unknown as NatCatAssessment;
+    const eb = computeEalBreakdown(DETECTION, perils(40), 6, undefined, natCat);
+    expect(eb.hailDetail?.frequency).toBe(0.02);
+  });
+
+  it("caps a severity above the vehicle value", () => {
+    const eb = computeEalBreakdown(DETECTION, perils(0), 6, {
+      ...DEFAULT_RISK_PARAMETERS,
+      vehicleValueCarEur: 5_000,
+      hailSeverityLargeEur: 50_000,
+    });
+    expect(eb.hailDetail?.meanSeverityEur).toBeLessThanOrEqual(5_000);
   });
 
   it("never estimates a vehicle count from the asset value", () => {

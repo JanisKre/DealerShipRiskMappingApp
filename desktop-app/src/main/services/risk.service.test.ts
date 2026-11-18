@@ -47,6 +47,43 @@ describe("scoreRisk weather resilience", () => {
   });
 });
 
+describe("scoreRisk weather lookup", () => {
+  it("does not fetch weather when the postcode zone decides the score", async () => {
+    mocks.fetchWeather.mockClear();
+
+    const result = await scoreRisk(
+      52.5,
+      13.4,
+      100_000,
+      undefined,
+      undefined,
+      3,
+    );
+
+    expect(mocks.fetchWeather).not.toHaveBeenCalled();
+    expect(result.evidence?.some((e) => e.source === "Open-Meteo")).toBe(false);
+    expect(
+      result.evidence?.find((e) => e.source === "Postcode hail zones")
+        ?.dataVersion,
+    ).toContain("2024");
+  });
+
+  it("caps the overall confidence while λ, p and S are placeholders", async () => {
+    mocks.fetchWeather.mockResolvedValue(REAL_WEATHER);
+
+    const result = await scoreRisk(
+      52.5,
+      13.4,
+      100_000,
+      undefined,
+      undefined,
+      3,
+    );
+
+    expect(result.confidence).toBeLessThanOrEqual(0.6);
+  });
+});
+
 describe("scoreRisk perils", () => {
   it("scores hail only", async () => {
     mocks.fetchWeather.mockResolvedValue(REAL_WEATHER);
