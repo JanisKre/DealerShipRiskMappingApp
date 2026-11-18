@@ -65,12 +65,15 @@ function json(body: unknown): unknown {
 interface Options {
   /** Zoom levels without imagery in any version. */
   emptyZooms?: number[];
+  /** Releases (and older ones) without imagery at z20, e.g. before z20 existed. */
+  noZ20From?: number;
   /** Metadata services that fail. */
   failingMeta?: string[];
   config?: unknown;
 }
 
 function route({
+  noZ20From,
   emptyZooms = [],
   failingMeta = [],
   config = CONFIG,
@@ -81,7 +84,10 @@ function route({
     const tilemap = /\/tilemap\/(\d+)\/(\d+)\//.exec(url);
     if (tilemap) {
       const [, release, z] = tilemap;
-      if (emptyZooms.includes(Number(z))) {
+      if (
+        emptyZooms.includes(Number(z)) ||
+        (noZ20From != null && Number(z) === 20 && Number(release) <= noZ20From)
+      ) {
         return json({ data: [0], select: [Number(release)], valid: true });
       }
       return json({ data: [1], select: [HOLDER[release]], valid: true });
@@ -162,6 +168,19 @@ describe("waybackTimeline", () => {
     expect(timeline.zoom).toBe(19);
     expect(timeline.candidates).toHaveLength(3);
     expect(timeline.candidates[0].id).toBe("wayback:63116:z19");
+  });
+
+  it("continues at z19 where older versions have no z20 imagery", async () => {
+    // 63116 has z20; 26334 and older were published before z20.
+    mocks.fetchWithResilience.mockImplementation(route({ noZ20From: 26334 }));
+
+    const timeline = await waybackTimeline(51.0504, 13.7373, 20);
+
+    expect(timeline.zoom).toBe(20);
+    expect(timeline.candidates[0].id).toBe("wayback:63116:z20");
+    // The older versions are still in the timeline, at z19.
+    expect(timeline.candidates.slice(1).map((c) => c.zoom)).not.toHaveLength(0);
+    expect(timeline.candidates.slice(1).every((c) => c.zoom === 19)).toBe(true);
   });
 
   it("returns an empty timeline where no version has imagery", async () => {

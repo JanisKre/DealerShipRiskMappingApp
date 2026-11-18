@@ -288,9 +288,10 @@ export async function aerialImageForContextFrom(
   candidate: ImageryCandidate,
   lat: number,
   lon: number,
+  radiusM: number = CONTEXT_CAPTURE_RADIUS_M,
 ): Promise<AerialCapture> {
   return captureMosaic(
-    contextBbox(lat, lon),
+    contextBbox(lat, lon, radiusM),
     Math.min(DETECTION_ZOOM, candidate.zoom),
     tileSourceForCandidate(candidate),
   );

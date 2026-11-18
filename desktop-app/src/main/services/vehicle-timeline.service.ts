@@ -17,7 +17,11 @@ import {
   isModelAvailable,
 } from "./detection.service";
 import { maskRoofDetections } from "./detection/roof-mask.service";
-import { aerialImageForContextFrom } from "./tiles.service";
+import {
+  aerialImageForContextFrom,
+  CONTEXT_CAPTURE_RADIUS_M,
+  WIDE_CONTEXT_CAPTURE_RADIUS_M,
+} from "./tiles.service";
 import { waybackTimeline } from "./wayback.service";
 
 /**
@@ -29,6 +33,38 @@ import { waybackTimeline } from "./wayback.service";
  * so the counts are comparable with the stored one. Runs are sequential:
  * each is a full CPU inference in the ONNX worker.
  */
+/**
+ * Capture radius for the archived images: the wide capture when the lot
+ * reaches beyond the normal one (any boundary vertex farther from the
+ * point than its half width), as in the analysis.
+ */
+export function timelineRadiusM(
+  lat: number,
+  lon: number,
+  boundary?: BoundaryResult,
+): number {
+  if (!boundary?.polygon?.coordinates) return CONTEXT_CAPTURE_RADIUS_M;
+  const polygons =
+    boundary.polygon.type === "Polygon"
+      ? [boundary.polygon.coordinates]
+      : boundary.polygon.coordinates;
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  const reach = Math.max(
+    0,
+    ...polygons.flatMap((rings) =>
+      (rings[0] ?? []).map(([x, y]) =>
+        Math.max(
+          Math.abs(y - lat) * 111_320,
+          Math.abs(x - lon) * 111_320 * cosLat,
+        ),
+      ),
+    ),
+  );
+  return reach > CONTEXT_CAPTURE_RADIUS_M * 0.9
+    ? WIDE_CONTEXT_CAPTURE_RADIUS_M
+    : CONTEXT_CAPTURE_RADIUS_M;
+}
+
 export async function countVehiclesOverTime(
   lat: number,
   lon: number,
@@ -57,9 +93,12 @@ export async function countVehiclesOverTime(
     );
   }
 
+  // The same capture size the analysis used: a large lot that needed the
+  // wide capture was cut off at 125 m on every archived image before.
+  const radiusM = timelineRadiusM(lat, lon, boundary);
   const counts: VehicleTimelineCount[] = [];
   for (const candidate of eligible) {
-    const image = await aerialImageForContextFrom(candidate, lat, lon);
+    const image = await aerialImageForContextFrom(candidate, lat, lon, radiusM);
     const raw = await detectVehiclesInContext(image, parameters);
     const detection = await maskRoofDetections(
       boundary

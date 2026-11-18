@@ -110,6 +110,8 @@ async function releasesWithLocalChanges(
   holders: WaybackRelease[];
   hasTile: boolean;
   truncated: boolean;
+  /** Index of the first release the walk did not reach (end: all done). */
+  stoppedAt: number;
 }> {
   const indexOf = new Map(releases.map((r, i) => [r.release, i]));
   const x = lon2tile(lon, zoom);
@@ -119,11 +121,12 @@ async function releasesWithLocalChanges(
   let i = 0;
   for (let step = 0; i < releases.length; step++) {
     if (holders.length >= limit || step >= MAX_TILEMAP_STEPS) {
-      return { holders, hasTile, truncated: true };
+      return { holders, hasTile, truncated: true, stoppedAt: i };
     }
     const map = await tilemapAt(releases[i].release, zoom, y, x);
     // Older versions do not gain imagery the newer ones lack at this zoom.
-    if (!map.hasTile) break;
+    if (!map.hasTile)
+      return { holders, hasTile, truncated: false, stoppedAt: i };
     hasTile = true;
     const holderIndex = indexOf.get(map.release ?? releases[i].release);
     // Holders are never newer than the version asked; anything else would loop.
@@ -131,7 +134,7 @@ async function releasesWithLocalChanges(
     holders.push(releases[holderIndex]);
     i = holderIndex + 1;
   }
-  return { holders, hasTile, truncated: false };
+  return { holders, hasTile, truncated: false, stoppedAt: releases.length };
 }
 
 function waybackCandidate(
@@ -175,20 +178,43 @@ export async function waybackTimeline(
     walk = await releasesWithLocalChanges(releases, lat, lon, z, limit);
   }
 
+  // Esri published z20 only from some year on: older versions still have
+  // z19 imagery. Continue there instead of ending the timeline.
+  const steps: Array<{ release: WaybackRelease; zoom: number }> =
+    walk.holders.map((release) => ({ release, zoom: z }));
+  let truncated = walk.truncated;
+  if (
+    walk.hasTile &&
+    !walk.truncated &&
+    walk.stoppedAt < releases.length &&
+    z > 0 &&
+    steps.length < limit
+  ) {
+    const older = await releasesWithLocalChanges(
+      releases.slice(walk.stoppedAt),
+      lat,
+      lon,
+      z - 1,
+      limit - steps.length,
+    );
+    for (const release of older.holders) steps.push({ release, zoom: z - 1 });
+    truncated = older.truncated;
+  }
+
   const metas = await Promise.all(
-    walk.holders.map((r) => waybackMetadata(r, lat, lon, z)),
+    steps.map((s) => waybackMetadata(s.release, lat, lon, s.zoom)),
   );
   // A re-published version can show the very same scene; keep the newest.
   const seen = new Set<string>();
   const candidates: ImageryCandidate[] = [];
-  walk.holders.forEach((release, i) => {
+  steps.forEach(({ release, zoom: stepZoom }, i) => {
     const meta = metas[i];
     const sceneKey = meta.capturedAt
       ? `${meta.capturedAt}|${meta.collection ?? ""}|${meta.resolutionM ?? ""}`
       : `release:${release.release}`;
     if (seen.has(sceneKey)) return;
     seen.add(sceneKey);
-    candidates.push(waybackCandidate(release, meta, z));
+    candidates.push(waybackCandidate(release, meta, stepZoom));
   });
-  return { candidates, zoom: z, truncated: walk.truncated };
+  return { candidates, zoom: z, truncated };
 }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImageryCandidate } from "@shared/imagery-sources";
+import type { BoundaryResult } from "@shared/types";
 
 const mocks = vi.hoisted(() => ({
   isModelAvailable: vi.fn(),
@@ -18,6 +19,8 @@ vi.mock("./detection.service", () => ({
 }));
 vi.mock("./tiles.service", () => ({
   aerialImageForContextFrom: mocks.aerialImageForContextFrom,
+  CONTEXT_CAPTURE_RADIUS_M: 125,
+  WIDE_CONTEXT_CAPTURE_RADIUS_M: 190,
 }));
 vi.mock("./wayback.service", () => ({
   waybackTimeline: mocks.waybackTimeline,
@@ -27,7 +30,10 @@ vi.mock("./detection/roof-mask.service", () => ({
   maskRoofDetections: async (detection: unknown) => detection,
 }));
 
-import { countVehiclesOverTime } from "./vehicle-timeline.service";
+import {
+  countVehiclesOverTime,
+  timelineRadiusM,
+} from "./vehicle-timeline.service";
 
 function candidate(
   release: number,
@@ -126,6 +132,8 @@ describe("countVehiclesOverTime", () => {
       expect.objectContaining({ id: "wayback:63124:z20" }),
       51,
       13.7,
+      // A small lot: the normal capture, as in the analysis.
+      125,
     );
     expect(mocks.filterDetectionToBoundary).toHaveBeenCalledWith(
       { vehicleCount: 40 },
@@ -164,5 +172,29 @@ describe("countVehiclesOverTime", () => {
     await expect(countVehiclesOverTime(51, 13.7)).rejects.toThrow(
       /sharp enough/,
     );
+  });
+});
+
+describe("timelineRadiusM", () => {
+  it("uses the wide capture for a lot reaching past the normal one", () => {
+    const d = 150 / 111_320;
+    const boundary = {
+      source: "alkis",
+      polygon: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [13, 52 - d],
+            [13 + d, 52],
+            [13, 52 + d],
+            [13, 52 - d],
+          ],
+        ],
+      },
+      areaSqm: 40_000,
+      confidence: 0.8,
+    } as unknown as BoundaryResult;
+    expect(timelineRadiusM(52, 13, boundary)).toBe(190);
+    expect(timelineRadiusM(52, 13)).toBe(125);
   });
 });
