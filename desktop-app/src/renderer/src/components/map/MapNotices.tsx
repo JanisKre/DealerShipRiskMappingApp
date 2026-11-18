@@ -289,7 +289,8 @@ export function AnalysisErrorNotice({
   const failedIds = Object.keys(analysisErrors);
   if (analyzing || dismissed || failedIds.length === 0) return null;
   return (
-    <div className={cn(NOTICE_CLASS, "border-destructive/40")}>
+    // An error that appears after a run must be announced (WCAG 4.1.3).
+    <div role="alert" className={cn(NOTICE_CLASS, "border-destructive/40")}>
       <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="font-medium">
@@ -331,7 +332,7 @@ export function ResumeAnalysisNotice({
   if (analyzing || dismissed || unanalyzedCount === 0 || errorCount > 0)
     return null;
   return (
-    <div className={NOTICE_CLASS}>
+    <div role="status" className={NOTICE_CLASS}>
       <RefreshCw className="mt-0.5 size-4 shrink-0 text-primary" />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="font-medium">

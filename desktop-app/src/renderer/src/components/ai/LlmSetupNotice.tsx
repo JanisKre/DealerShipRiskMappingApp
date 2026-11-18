@@ -78,7 +78,7 @@ export function LlmErrorMessage({
     );
   }
   return (
-    <p className={cn("text-xs text-destructive", className)}>
+    <p role="alert" className={cn("text-xs text-destructive", className)}>
       {format ? format(error) : t("ui.error", { error })}
     </p>
   );

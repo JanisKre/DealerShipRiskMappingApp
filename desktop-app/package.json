@@ -61,7 +61,6 @@
     "@turf/union": "^7.4.0",
     "better-sqlite3": "13.0.3",
     "cmdk": "^1.1.1",
-    "drizzle-orm": "0.45.4",
     "electron-updater": "6.8.12",
     "exceljs": "^4.4.0",
     "hyparquet": "1.33.0",

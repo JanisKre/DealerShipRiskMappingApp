@@ -113,7 +113,9 @@ export function ScenarioFromSentence(): React.JSX.Element {
         </Button>
       </form>
       {error && (
-        <p className="text-[11px] leading-snug text-destructive">{error}</p>
+        <p role="alert" className="text-[11px] leading-snug text-destructive">
+          {error}
+        </p>
       )}
       {draft && (
         <div className="space-y-1.5 rounded-md border bg-muted/40 p-2 text-xs">

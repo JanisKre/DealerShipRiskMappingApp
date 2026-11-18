@@ -23,9 +23,11 @@ It is not a conformance report (ACR/VPAT); one needs a manual audit first.
   colour is the information there.
 - **Reduce motion** (OS setting) ends CSS animations and transitions at once
   and turns off Leaflet's zoom, fade and marker animations (WCAG 2.3.3).
-- Live regions: analysis progress and update status are `role="status"`; the
-  chat is a `role="log"` that announces an answer once it is complete
-  (`aria-busy` while tokens stream in).
+- Live regions: analysis progress, the resume notice and update status are
+  `role="status"`; failed analyses, a failed save, AI errors and invalid
+  inputs (vehicle count, website, scenario sentence) are `role="alert"`
+  (WCAG 4.1.3). The chat is a `role="log"` that announces an answer once it
+  is complete (`aria-busy` while tokens stream in).
 - Charts use Recharts' accessibility layer (keyboard focus and arrow keys
   between data points).
 - Text colours meet 4.5:1 in light and dark themes (`--muted-foreground` was

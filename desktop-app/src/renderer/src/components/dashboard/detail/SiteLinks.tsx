@@ -183,7 +183,7 @@ export function WebsiteRow({
           </Button>
         </div>
         {invalid && (
-          <p className="text-xs text-destructive">
+          <p role="alert" className="text-xs text-destructive">
             {t("dashboard.detailDialog.websiteInvalid")}
           </p>
         )}

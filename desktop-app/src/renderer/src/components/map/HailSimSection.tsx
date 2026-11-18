@@ -581,7 +581,7 @@ function LibraryMode(): React.JSX.Element {
         )
       )}
       {s.listError && (
-        <p className="text-[11px] leading-snug text-destructive">
+        <p role="alert" className="text-[11px] leading-snug text-destructive">
           {s.listError}
         </p>
       )}

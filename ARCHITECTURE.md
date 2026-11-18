@@ -99,7 +99,9 @@ The move from web to desktop enables four concrete simplifications:
    fallback octagon (see [docs/boundary-model.md](./docs/boundary-model.md)).
    Overture is used only for the offline dealer directory.
 2. **Persistent local API cache** — a SQLite cache with a per-source TTL
-   (Overpass 1 h, Buildings 7 d, weather configurable). Survives app restarts
+   (Overpass 1 h, Buildings 7 d, weather 12 h, geocoding 30 d, empty
+   geocoding answers 1 d, cadastre 30 d or 1 d when incomplete, live Esri
+   tiles 7 d, other tiles 30 d within a 1.5 GB bound). Survives app restarts
    (the nginx cache was ephemeral) and enables partial offline operation.
    Replaces the Express proxies.
 3. **Swappable detector interface** — a `VehicleDetector` abstraction so the
