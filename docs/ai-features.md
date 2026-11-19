@@ -23,6 +23,13 @@ Rules every AI layer follows:
   feature sends is listed below and in `PRIVACY.md`.
 - **No native tool calling needed.** Planning is a JSON answer, so the
   features also work with local models.
+- **Room for reasoning.** Current Anthropic and OpenAI models think before
+  they answer and the provider counts the thinking against the answer's
+  limit. Their requests get 4 096 extra tokens; an answer cut off before
+  its first character, or after visible reasoning (local models), is asked
+  for once more with 12 288 more (`chatComplete`/`chatCompleteStream` in
+  `src/main/services/llm.service.ts`). A Claude refusal ends the request
+  with an error, so the fixed result stays.
 
 | Feature                        | Without AI                                                                                                                                                                                                                                                     | Optional AI layer                                                                                                                                                                                                           | Sent to the provider                                                                                                                      |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |

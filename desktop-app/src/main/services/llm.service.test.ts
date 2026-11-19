@@ -17,6 +17,8 @@ import {
   CHAT_MAX_TOKENS,
   chatComplete,
   LLM_TRUNCATED,
+  REASONING_HEADROOM_TOKENS,
+  REASONING_RETRY_TOKENS,
   classifyLlmError,
   classifyChatIntent,
   detectLocalRuntimes,
@@ -271,8 +273,10 @@ describe("portfolio chat", () => {
       max_completion_tokens?: number;
     };
     // OpenAI's own API: max_completion_tokens (reasoning models reject
-    // max_tokens).
-    expect(body.max_completion_tokens).toBe(CHAT_MAX_TOKENS);
+    // max_tokens), with room for the reasoning it counts against the limit.
+    expect(body.max_completion_tokens).toBe(
+      CHAT_MAX_TOKENS + REASONING_HEADROOM_TOKENS,
+    );
     expect(body.max_tokens).toBeUndefined();
     expect(body.messages.map((m) => m.role)).toEqual(["system", "user"]);
     expect(body.messages[0].content).not.toContain("pirate");
@@ -383,19 +387,182 @@ describe("non-streamed completions", () => {
     expect(body.max_tokens).toBe(50);
   });
 
+  const limitOf = (call: number): number => {
+    const body = JSON.parse(String(fetchMock.mock.calls[call][1]?.body)) as {
+      max_tokens?: number;
+      max_completion_tokens?: number;
+    };
+    return body.max_tokens ?? body.max_completion_tokens ?? -1;
+  };
+  const cutOff = { message: { content: "" }, finish_reason: "length" };
+
   it("reports an answer that stopped at the token limit before any text", async () => {
     mocks.settings = {
       language: "en",
       llm: { provider: "openai", model: "gpt-5-mini" },
     };
-    fetchMock.mockResolvedValueOnce(
-      json({
-        choices: [{ message: { content: "" }, finish_reason: "length" }],
-      }),
-    );
+    // Cut off twice: the one repeat with more room did not help either.
+    fetchMock.mockImplementation(async () => json({ choices: [cutOff] }));
     await expect(
       chatComplete([{ role: "user", content: "hi" }], 16),
     ).rejects.toThrow(LLM_TRUNCATED);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves a reasoning model room beyond the limit of the answer", async () => {
+    mocks.settings = {
+      language: "en",
+      llm: { provider: "claude", model: "claude-opus-5-5" },
+    };
+    mocks.apiKey = "sk-ant-test";
+    fetchMock.mockResolvedValueOnce(
+      json({
+        content: [
+          { type: "thinking", thinking: "" },
+          { type: "text", text: "create" },
+        ],
+        stop_reason: "end_turn",
+      }),
+    );
+    // 16 tokens are enough for the one word, not for the thinking before it.
+    await expect(
+      chatComplete([{ role: "user", content: "hi" }], 16),
+    ).resolves.toBe("create");
+    expect(limitOf(0)).toBe(16 + REASONING_HEADROOM_TOKENS);
+  });
+
+  it("asks once more with more room when reasoning used up the limit", async () => {
+    mocks.settings = {
+      language: "en",
+      llm: {
+        provider: "local",
+        model: "qwen3:8b",
+        baseUrl: "http://127.0.0.1:11434/v1",
+      },
+    };
+    fetchMock
+      .mockResolvedValueOnce(
+        json({
+          choices: [
+            {
+              message: { content: '{"calls":[', reasoning: "The user asks…" },
+              finish_reason: "length",
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        json({
+          choices: [
+            { message: { content: '{"calls":[]}' }, finish_reason: "stop" },
+          ],
+        }),
+      );
+    await expect(
+      chatComplete([{ role: "user", content: "hi" }], 400),
+    ).resolves.toBe('{"calls":[]}');
+    // A local server keeps the exact limit until an answer shows reasoning.
+    expect(limitOf(0)).toBe(400);
+    expect(limitOf(1)).toBe(400 + REASONING_RETRY_TOKENS);
+  });
+
+  it("does not repeat a request whose model simply wrote past the limit", async () => {
+    mocks.settings = {
+      language: "en",
+      llm: {
+        provider: "local",
+        model: "llama3.2",
+        baseUrl: "http://127.0.0.1:11434/v1",
+      },
+    };
+    fetchMock.mockResolvedValueOnce(
+      json({
+        choices: [
+          { message: { content: "Ein langer Text" }, finish_reason: "length" },
+        ],
+      }),
+    );
+    await expect(
+      chatComplete([{ role: "user", content: "hi" }], 50),
+    ).resolves.toBe("Ein langer Text");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks a stream again that was cut off before its first character", async () => {
+    mocks.settings = {
+      language: "en",
+      llm: { provider: "claude", model: "claude-opus-5-5" },
+    };
+    mocks.apiKey = "sk-ant-test";
+    const sse = (...events: unknown[]): Response =>
+      new Response(
+        events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""),
+        { status: 200 },
+      );
+    fetchMock
+      .mockResolvedValueOnce(
+        sse(
+          { type: "content_block_start", content_block: { type: "thinking" } },
+          { type: "message_delta", delta: { stop_reason: "max_tokens" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        sse(
+          { type: "content_block_delta", delta: { text: "Drei." } },
+          { type: "message_delta", delta: { stop_reason: "end_turn" } },
+        ),
+      );
+    const tokens: string[] = [];
+    for await (const token of portfolioChatStream(
+      [{ role: "user", content: "Wie viele Standorte?" }],
+      "Portfolio: 3 locations.",
+    )) {
+      tokens.push(token);
+    }
+    expect(tokens.join("")).toBe("Drei.");
+    expect(limitOf(0)).toBe(CHAT_MAX_TOKENS + REASONING_HEADROOM_TOKENS);
+    expect(limitOf(1)).toBe(
+      CHAT_MAX_TOKENS + REASONING_HEADROOM_TOKENS + REASONING_RETRY_TOKENS,
+    );
+  });
+
+  it("ends a stream with an error when it is cut off twice without text", async () => {
+    mocks.settings = {
+      language: "en",
+      llm: { provider: "claude", model: "claude-opus-5-5" },
+    };
+    mocks.apiKey = "sk-ant-test";
+    fetchMock.mockImplementation(
+      async () =>
+        new Response(
+          'data: {"type":"message_delta","delta":{"stop_reason":"max_tokens"}}\n\n',
+          { status: 200 },
+        ),
+    );
+    const read = async (): Promise<void> => {
+      for await (const token of portfolioChatStream(
+        [{ role: "user", content: "Hallo" }],
+        undefined,
+      )) {
+        void token;
+      }
+    };
+    await expect(read()).rejects.toThrow(LLM_TRUNCATED);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports that Claude declined instead of an empty answer", async () => {
+    mocks.settings = {
+      language: "en",
+      llm: { provider: "claude", model: "claude-opus-5-5" },
+    };
+    mocks.apiKey = "sk-ant-test";
+    fetchMock.mockResolvedValueOnce(
+      json({ content: [], stop_reason: "refusal" }),
+    );
+    await expect(
+      chatComplete([{ role: "user", content: "hi" }], 100),
+    ).rejects.toThrow("declined");
   });
 
   it("reads Claude text blocks and its stop reason", async () => {

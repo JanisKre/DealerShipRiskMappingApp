@@ -75,6 +75,48 @@ const CLOUD_TIMEOUT_MS = 120_000;
 export const LLM_TRUNCATED = "AI answer stopped at the token limit";
 
 /**
+ * Room for a model that reasons before it answers. Current Claude and OpenAI
+ * models think by default and the provider counts that thinking against the
+ * limit of the answer, so a limit sized for the visible answer alone (16
+ * tokens for one word, 400 for a small JSON object) is spent before the
+ * first character. Measured on claude-opus-5-5: the one-word routing answer
+ * failed at 16 tokens and the memo was cut off at 1200.
+ */
+export const REASONING_HEADROOM_TOKENS = 4096;
+
+/**
+ * Extra room for the one repeat of a request whose answer the limit cut
+ * although the model had reasoned (or had written nothing at all).
+ */
+export const REASONING_RETRY_TOKENS = 12_288;
+
+/**
+ * Providers whose current models reason by default. Other OpenAI-compatible
+ * servers (custom, local) keep the exact limit and get the room only when
+ * an answer shows that the model reasoned.
+ */
+function reasonsByDefault(p: ResolvedProvider): boolean {
+  return (
+    p.provider === "claude" ||
+    (p.provider === "openai" &&
+      new URL(p.baseUrl).hostname === "api.openai.com")
+  );
+}
+
+/** The limit sent to the provider for an answer the caller caps at `maxTokens`. */
+function providerTokenLimit(
+  p: ResolvedProvider,
+  maxTokens: number,
+  attempt: number,
+): number {
+  return (
+    maxTokens +
+    (reasonsByDefault(p) ? REASONING_HEADROOM_TOKENS : 0) +
+    (attempt > 0 ? REASONING_RETRY_TOKENS : 0)
+  );
+}
+
+/**
  * OpenAI's own API takes `max_completion_tokens`; its reasoning models
  * reject `max_tokens`. OpenAI-compatible servers (custom, local) still take
  * `max_tokens`.
@@ -88,6 +130,28 @@ function openAiTokenLimit(
   return official
     ? { max_completion_tokens: maxTokens }
     : { max_tokens: maxTokens };
+}
+
+/** One provider answer and how it ended. */
+interface Completion {
+  text: string;
+  /** The provider stopped at the token limit. */
+  truncated: boolean;
+  /** The model reasoned before (or instead of) answering. */
+  reasoned: boolean;
+}
+
+/**
+ * A cut-off answer is asked for once more with more room when the limit was
+ * (or may have been) spent on reasoning: nothing was written, or the answer
+ * shows reasoning. A model that simply writes past the limit is not asked
+ * again; its cut-off text is passed on.
+ */
+function cutByReasoning(completion: Completion): boolean {
+  return (
+    completion.truncated &&
+    (completion.reasoned || completion.text.trim() === "")
+  );
 }
 
 /**
@@ -215,7 +279,32 @@ export async function chatComplete(
     startedAt,
   };
   try {
-    const response = await completeWith(p, messages, maxTokens, images);
+    let completion = await completeWith(
+      p,
+      messages,
+      providerTokenLimit(p, maxTokens, 0),
+      images,
+    );
+    if (cutByReasoning(completion)) {
+      // Each request to the provider gets its own line in the record book.
+      recordAiCall({
+        ...logged,
+        response: completion.text,
+        error: new Error(`${LLM_TRUNCATED} (${maxTokens}); asked again`),
+      });
+      logged.startedAt = Date.now();
+      completion = await completeWith(
+        p,
+        messages,
+        providerTokenLimit(p, maxTokens, 1),
+        images,
+      );
+    }
+    const response = checkCompletion(
+      completion.text,
+      completion.truncated,
+      maxTokens,
+    );
     recordAiCall({ ...logged, response });
     return response;
   } catch (error) {
@@ -235,7 +324,7 @@ function completeWith(
   messages: ChatMessage[],
   maxTokens: number,
   images: readonly LlmImage[],
-): Promise<string> {
+): Promise<Completion> {
   switch (p.provider) {
     case "openai":
     case "custom":
@@ -261,7 +350,7 @@ async function openAiComplete(
   messages: ChatMessage[],
   maxTokens: number,
   images: readonly LlmImage[] = [],
-): Promise<string> {
+): Promise<Completion> {
   const imageAt = images.length > 0 ? imageMessageIndex(messages) : -1;
   const body = messages.map((m, i) =>
     i === imageAt
@@ -298,16 +387,24 @@ async function openAiComplete(
   if (!res.ok) throw new Error(`LLM ${res.status}: ${await res.text()}`);
   const data = (await res.json()) as {
     choices?: Array<{
-      message?: { content?: string };
+      message?: {
+        content?: string;
+        // Ollama and vLLM / DeepSeek name the reasoning text differently.
+        reasoning?: string;
+        reasoning_content?: string;
+      };
       finish_reason?: string;
     }>;
+    usage?: { completion_tokens_details?: { reasoning_tokens?: number } };
   };
   const choice = data.choices?.[0];
-  return checkCompletion(
-    choice?.message?.content ?? "",
-    choice?.finish_reason === "length",
-    maxTokens,
-  );
+  return {
+    text: choice?.message?.content ?? "",
+    truncated: choice?.finish_reason === "length",
+    reasoned:
+      (data.usage?.completion_tokens_details?.reasoning_tokens ?? 0) > 0 ||
+      Boolean(choice?.message?.reasoning || choice?.message?.reasoning_content),
+  };
 }
 
 async function claudeComplete(
@@ -315,7 +412,7 @@ async function claudeComplete(
   messages: ChatMessage[],
   maxTokens: number,
   images: readonly LlmImage[] = [],
-): Promise<string> {
+): Promise<Completion> {
   const system = messages.find((m) => m.role === "system")?.content;
   const imageAt = images.length > 0 ? imageMessageIndex(messages) : -1;
   const rest = messages.flatMap((m, i): unknown[] => {
@@ -361,13 +458,25 @@ async function claudeComplete(
     content?: Array<{ type?: string; text?: string }>;
     stop_reason?: string;
   };
+  if (data.stop_reason === "refusal") throw new Error(CLAUDE_DECLINED);
   const text =
     data.content
       ?.filter((c) => c.type == null || c.type === "text")
       .map((c) => c.text ?? "")
       .join("") ?? "";
-  return checkCompletion(text, data.stop_reason === "max_tokens", maxTokens);
+  return {
+    text,
+    truncated: data.stop_reason === "max_tokens",
+    reasoned: Boolean(
+      data.content?.some(
+        (c) => c.type === "thinking" || c.type === "redacted_thinking",
+      ),
+    ),
+  };
 }
+
+/** Claude's safety classifiers ended the answer (`stop_reason: "refusal"`). */
+const CLAUDE_DECLINED = "Claude declined to answer this request";
 
 // --- Streaming --------------------------------------------------------------
 
@@ -387,20 +496,51 @@ export async function* chatCompleteStream(
   let response = "";
   let error: unknown;
   let finished = false;
+  let inner: AsyncGenerator<string, StreamEnd, unknown> | undefined;
   try {
-    const stream =
-      p.provider === "claude"
-        ? claudeStream(p, messages, signal, maxTokens)
-        : openAiStream(p, messages, signal, maxTokens);
-    for await (const token of stream) {
-      response += token;
-      yield token;
+    for (let attempt = 0; ; attempt++) {
+      // Claude needs a limit; without one its stream gets the default.
+      const limit =
+        maxTokens ?? (p.provider === "claude" ? CLAUDE_STREAM_TOKENS : null);
+      const sent =
+        limit == null ? undefined : providerTokenLimit(p, limit, attempt);
+      inner =
+        p.provider === "claude"
+          ? claudeStream(p, messages, signal, sent ?? CLAUDE_STREAM_TOKENS)
+          : openAiStream(p, messages, signal, sent);
+      let end: StreamEnd;
+      for (;;) {
+        const step = await inner.next();
+        if (step.done) {
+          end = step.value;
+          break;
+        }
+        response += step.value;
+        yield step.value;
+      }
+      inner = undefined;
+      // Cut before the first character: the limit went into reasoning. Ask
+      // once more with more room; text already shown is never replaced.
+      if (!end.truncated || response !== "") break;
+      if (attempt > 0 || limit == null) {
+        throw new Error(`${LLM_TRUNCATED} (${limit ?? "provider default"})`);
+      }
+      recordAiCall({
+        provider: p.provider,
+        model: p.model,
+        baseUrl: p.baseUrl,
+        messages,
+        startedAt,
+        error: new Error(`${LLM_TRUNCATED} (${limit}); asked again`),
+      });
     }
     finished = true;
   } catch (err) {
     error = err;
     throw err;
   } finally {
+    // The consumer stopped reading: close the provider connection too.
+    await inner?.return({ truncated: false }).catch(() => undefined);
     // Not finished and no error: the consumer stopped reading (cancel).
     recordAiCall({
       provider: p.provider,
@@ -415,12 +555,21 @@ export async function* chatCompleteStream(
   }
 }
 
+/** How a provider stream ended. */
+interface StreamEnd {
+  /** The provider stopped at the token limit. */
+  truncated: boolean;
+}
+
+/** Limit of a Claude stream whose caller sets none. */
+const CLAUDE_STREAM_TOKENS = 2048;
+
 async function* openAiStream(
   p: ResolvedProvider,
   messages: ChatMessage[],
   signal?: AbortSignal,
   maxTokens?: number,
-): AsyncGenerator<string, void, unknown> {
+): AsyncGenerator<string, StreamEnd, unknown> {
   const res = await fetchWithResilience(
     `${p.baseUrl}/chat/completions`,
     {
@@ -441,26 +590,32 @@ async function* openAiStream(
   );
   if (!res.ok || !res.body)
     throw new Error(`LLM ${res.status}: ${await res.text()}`);
+  let truncated = false;
   for await (const data of sseLines(res.body, signal)) {
-    if (data === "[DONE]") return;
+    if (data === "[DONE]") break;
     const json = parseSseJson<{
-      choices?: Array<{ delta?: { content?: string } }>;
+      choices?: Array<{
+        delta?: { content?: string };
+        finish_reason?: string | null;
+      }>;
       error?: { message?: string };
     }>(data);
     if (!json) continue;
     // An error mid-stream must end the answer visibly, not as a short reply.
     if (json.error) throw new Error(`LLM: ${json.error.message ?? "error"}`);
-    const token = json.choices?.[0]?.delta?.content;
-    if (token) yield token;
+    const choice = json.choices?.[0];
+    if (choice?.finish_reason === "length") truncated = true;
+    if (choice?.delta?.content) yield choice.delta.content;
   }
+  return { truncated };
 }
 
 async function* claudeStream(
   p: ResolvedProvider,
   messages: ChatMessage[],
   signal?: AbortSignal,
-  maxTokens = 2048,
-): AsyncGenerator<string, void, unknown> {
+  maxTokens: number = CLAUDE_STREAM_TOKENS,
+): AsyncGenerator<string, StreamEnd, unknown> {
   const system = messages.find((m) => m.role === "system")?.content;
   const rest = messages.filter((m) => m.role !== "system");
   const res = await fetchWithResilience(
@@ -485,10 +640,11 @@ async function* claudeStream(
   );
   if (!res.ok || !res.body)
     throw new Error(`Claude ${res.status}: ${await res.text()}`);
+  let truncated = false;
   for await (const data of sseLines(res.body, signal)) {
     const json = parseSseJson<{
       type?: string;
-      delta?: { type?: string; text?: string };
+      delta?: { type?: string; text?: string; stop_reason?: string };
       error?: { type?: string; message?: string };
     }>(data);
     if (!json) continue;
@@ -498,9 +654,15 @@ async function* claudeStream(
         `Claude: ${json.error?.message ?? json.error?.type ?? "stream error"}`,
       );
     }
+    if (json.type === "message_delta") {
+      if (json.delta?.stop_reason === "refusal")
+        throw new Error(CLAUDE_DECLINED);
+      if (json.delta?.stop_reason === "max_tokens") truncated = true;
+    }
     if (json.type === "content_block_delta" && json.delta?.text)
       yield json.delta.text;
   }
+  return { truncated };
 }
 
 /** One SSE payload as JSON; null for a line that is not (yet) valid JSON. */
