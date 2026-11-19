@@ -6,10 +6,9 @@ import type { ParcelFeature } from "../alkis.service";
 import {
   CASCADE_LIMITS,
   cutBuildings,
-  parcelStage,
+  siteStage,
   ringShareInside,
   vehicleHullStage,
-  vehicleParcelStage,
   withWholeBuildings,
   type CascadeInput,
 } from "./cascade";
@@ -171,7 +170,7 @@ describe("stage 1 keeps buildings whole (v14)", () => {
   it("takes a showroom across the parcel line whole, not the neighbour's plot", () => {
     // 30 m of the showroom on the yard, 20 m on the neighbouring plot.
     const showroom = rect(10, -20, 60, 20);
-    const outcome = vehicleParcelStage(input([showroom]));
+    const outcome = siteStage(input([showroom]));
     const result = outcome.result!;
     expect(outcome.reason).toContain(
       "1 building(s) across the parcel line kept whole",
@@ -184,7 +183,7 @@ describe("stage 1 keeps buildings whole (v14)", () => {
 
   it("leaves the outline on the parcels when no building crosses them", () => {
     const showroom = rect(0, -20, 30, 20);
-    const outcome = vehicleParcelStage(input([showroom]));
+    const outcome = siteStage(input([showroom]));
     expect(outcome.reason).not.toContain("kept whole");
     expectArea(outcome.result!.areaSqm, yard.areaSqm);
   });
@@ -192,7 +191,7 @@ describe("stage 1 keeps buildings whole (v14)", () => {
   it("does not take a neighbour's hall that reaches a little into the yard", () => {
     // 5 m on the yard, 45 m beyond it.
     const hall = rect(35, -20, 85, 20);
-    const outcome = vehicleParcelStage(input([hall]));
+    const outcome = siteStage(input([hall]));
     expect(outcome.reason).not.toContain("kept whole");
     expectArea(outcome.result!.areaSqm, yard.areaSqm);
   });
@@ -201,7 +200,7 @@ describe("stage 1 keeps buildings whole (v14)", () => {
     // The point lies in a building of which 40 m are on the yard's
     // neighbour: 0…40 of 100 m on the yard.
     const showroom = rect(-5, -10, 95, 10);
-    const outcome = vehicleParcelStage(input([showroom]));
+    const outcome = siteStage(input([showroom]));
     expect(outcome.reason).toContain("kept whole");
     expect(cutBuildings(outcome.result!.polygon, [showroom])).toHaveLength(0);
   });
@@ -210,15 +209,15 @@ describe("stage 1 keeps buildings whole (v14)", () => {
 describe("stage 4 keeps buildings whole (v14)", () => {
   it("returns the parcel at the point with the showroom across its line", () => {
     const showroom = rect(10, -20, 60, 20);
-    const outcome = parcelStage(input([showroom], { vehicles: null }));
+    const outcome = siteStage(input([showroom], { vehicles: null }));
     expect(outcome.reason).toContain("kept whole");
     expectArea(outcome.result!.areaSqm, yard.areaSqm + 20 * 40);
   });
 
   it("returns the bare parcel without buildings", () => {
-    const outcome = parcelStage(input([], { vehicles: null }));
-    expect(outcome.reason).toBe("cadastral parcel contains the point");
-    expect(outcome.result!.areaSqm).toBe(yard.areaSqm);
+    const outcome = siteStage(input([], { vehicles: null }));
+    expect(outcome.reason).toMatch(/^parcel at the point, \d+ m²$/);
+    expectArea(outcome.result!.areaSqm, yard.areaSqm);
   });
 });
 

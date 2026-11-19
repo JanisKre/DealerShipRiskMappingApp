@@ -9,6 +9,30 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Lot boundary rebuilt around a site model (cascade v16).** A check of
+  100 directory dealers and the 68 usable reference lots showed that whole
+  cadastral parcels are the right unit and that the choice of parcels was
+  the fault. Which parcels beside the parcel at the point belong to the site
+  is now decided by a fitted model over evidence read off the cadastre, the
+  footprints, the aerial image and the detected vehicles: shared border and
+  whether a hedge, a wall or open ground lies on it, a building across the
+  line, vehicle density and whether the rows at the point run on, house
+  number, land use. The reach limits around the point (80 m, 160 m, 25 %
+  more area), the join by vehicle count and the lot across the street are
+  gone. A parcel in doubt sends the result to review, and the site without
+  it ("sure parcels only") or with it ("with doubtful neighbouring
+  parcels") is offered as an alternative. Measured on identical frozen
+  inputs: reference lots right to within a quarter 40 → 47 of 68 (mean IoU
+  0.714 → 0.751, too much 17 → 11, cut off 11 → 9), labelled directory
+  dealers 86 → 83 of 91, wrong in all 33 → 29 of 159, as many results
+  flagged as before. Not better on the typical small dealer, and a second
+  building of the same dealer under another house number is still often
+  left out (flagged, one click away). See `docs/boundary-model.md`, "Site
+  model"; `npm run benchmark:boundary:fit` reproduces the weights.
+- **The analysis takes the wider image when the site reaches beyond the
+  first one**, not only when vehicles of the lot stand at its edge: beyond
+  the image "no vehicles" means "not seen".
+
 - **Lot boundary cuts open land off a parcel outside Bayern too (cascade
   v15).** In NRW, Sachsen, Niedersachsen, Hamburg, Hessen, Brandenburg and
   Mecklenburg-Vorpommern the cadastre's land-use sections
@@ -23,6 +47,12 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **"53", "53 b" and "53 c" are one house number** when a parcel's address
+  is compared with the dealership's; plots split off one property counted
+  as neighbours with another address.
+- **A small parcel at the point is returned instead of the 160 m circle.**
+  In town centres the parcel under a dealer's address is often under
+  300 m²; the circle then covered half the village.
 - **Hail score no longer depends on the date of the analysis
   (screening-0.5.2).** For sites without a postcode zone the weather proxy
   used the last 92 days: in winter a site landed in zone 1, in August the

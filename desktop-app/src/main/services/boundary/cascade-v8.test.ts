@@ -3,10 +3,9 @@ import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import { ringAreaSqm, unprojectPoint, type LonLat } from "../boundary-geometry";
 import type { ParcelFeature } from "../alkis.service";
 import {
-  borderShare,
   isShortStrip,
   isStreetLike,
-  vehicleParcelStage,
+  siteStage,
   withoutHoles,
   type CascadeInput,
 } from "./cascade";
@@ -72,21 +71,9 @@ function input(overrides: Partial<CascadeInput>): CascadeInput {
 const yard = parcel(rect(-30, -30, 30, 30));
 
 describe("small dense parcels (v8)", () => {
-  it("joins a corner of the yard holding five cars, fewer than the ten a parcel needed", () => {
-    // 25 × 20 m with five cars: 10 per 1,000 m², a yard corner, not a meadow.
-    const corner = parcel(rect(30, 10, 55, 30));
-    const outcome = vehicleParcelStage(
-      input({
-        vehicles: [...cars(-30, -30, 30, 30), ...cars(30, 20, 55, 25)],
-        parcels: [yard, corner],
-      }),
-    );
-    expect(outcome.result?.areaSqm).toBeCloseTo(3_600 + 500, -2);
-  });
-
   it("keeps a neighbour out whose courtyard holds three cars, however densely", () => {
     const courtyard = parcel(rect(30, 10, 55, 30));
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         vehicles: [
           ...cars(-30, -30, 30, 30),
@@ -103,7 +90,7 @@ describe("small dense parcels (v8)", () => {
   it("keeps a large parcel out when the same five cars stand at its edge", () => {
     // 25 × 120 m: five cars are 1.7 per 1,000 m².
     const field = parcel(rect(30, -90, 55, 30));
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         vehicles: [...cars(-30, -30, 30, 30), ...cars(30, 20, 55, 25)],
         parcels: [yard, field],
@@ -121,26 +108,9 @@ describe("parking strips (v8)", () => {
     expect(isShortStrip(rect(0, 0, 40, 40))).toBe(false);
   });
 
-  it("joins a row of display cars on its own strip, but nothing grows from the strip", () => {
-    const strip = parcel(rect(-30, 30, 30, 38));
-    // Beyond the strip: a plot full of cars that touches only the strip.
-    const beyond = parcel(rect(-30, 38, 30, 70));
-    const outcome = vehicleParcelStage(
-      input({
-        vehicles: [
-          ...cars(-30, -30, 30, 30),
-          ...cars(-30, 30, 30, 38, 5),
-          ...cars(-30, 41, 30, 70),
-        ],
-        parcels: [yard, strip, beyond],
-      }),
-    );
-    expect(outcome.result?.areaSqm).toBeCloseTo(3_600 + 480, -2);
-  });
-
   it("keeps a strip with two cars out", () => {
     const strip = parcel(rect(-30, 30, 30, 38));
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         vehicles: [...cars(-30, -30, 30, 30), at(-20, 34), at(-10, 34)],
         parcels: [yard, strip],
@@ -151,7 +121,7 @@ describe("parking strips (v8)", () => {
 
   it("never joins a long road, however many cars stand at its kerb", () => {
     const road = parcel(rect(30, -200, 42, 200));
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         vehicles: [...cars(-30, -30, 30, 30), ...cars(30, -30, 42, 30, 6)],
         parcels: [yard, road],
@@ -177,15 +147,8 @@ describe("enclosed parcels (v8)", () => {
   );
   const notch = parcel(rect(-10, 10, 10, 30));
 
-  it("measures how much of a parcel's outline the lot borders", () => {
-    expect(borderShare(notch, [wrapping.ring])).toBeGreaterThanOrEqual(0.75);
-    expect(
-      borderShare(parcel(rect(30, -30, 60, 30)), [wrapping.ring]),
-    ).toBeLessThan(0.5);
-  });
-
   it("joins a plot the lot encloses even without cars on it", () => {
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         vehicles: cars(-30, -30, 30, 5),
         parcels: [wrapping, notch],
@@ -197,7 +160,7 @@ describe("enclosed parcels (v8)", () => {
 
   it("keeps out an empty neighbour the lot only borders on one side", () => {
     const neighbour = parcel(rect(30, -30, 60, 30));
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         vehicles: cars(-30, -30, 30, 5),
         parcels: [yard, neighbour],

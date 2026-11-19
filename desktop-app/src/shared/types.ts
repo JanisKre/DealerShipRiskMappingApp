@@ -322,7 +322,8 @@ export type BoundaryGrowthStop = z.infer<typeof BoundaryGrowthStopSchema>;
  *   the point may not be where the dealership is.
  * - winterImagery: the image was taken in winter; long shadows hide vehicles.
  * - anchorOffLot: the parcel at the point holds little of the vehicle lot —
- *   the point may be on a neighbouring plot.
+ *   the point may be on a neighbouring plot. Not set since cascade v16;
+ *   kept so that stored results keep parsing.
  * - staleImagery: the image is older than the review limit; the site may
  *   have changed since.
  * - pointOffSite: the point lies in woodland or open land with no building

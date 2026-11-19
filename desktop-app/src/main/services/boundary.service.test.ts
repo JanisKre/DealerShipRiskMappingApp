@@ -73,6 +73,7 @@ function parcels(...rings: LonLat[][]): ParcelLookup {
       ring,
       areaSqm: ringAreaSqm(ring),
       state: "Sachsen",
+      landUse: { commercial: 1 },
     })),
     state: "Sachsen",
     truncated: false,

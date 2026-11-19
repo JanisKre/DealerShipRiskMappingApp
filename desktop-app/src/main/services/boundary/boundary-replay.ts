@@ -16,6 +16,9 @@ import {
 } from "./cascade";
 import { vegetationAt, type VegetationMask } from "./vegetation";
 
+/** Radius of the analysis' first image (`CONTEXT_CAPTURE_RADIUS_M`). */
+const REPLAY_IMAGE_RADIUS_M = 125;
+
 /** A vegetation raster as it is stored in a dump: cells as base64. */
 export type StoredVegetationMask = Omit<VegetationMask, "cells"> & {
   cells: string;
@@ -56,6 +59,26 @@ export interface ReplaySample {
   address?: string;
   /** Vegetation raster of the context image (cascade v9). */
   vegetation?: VegetationMask | StoredVegetationMask;
+  /**
+   * Radius of the image the vehicles were detected on (cascade v16): beyond
+   * it a parcel is "not seen". 125 m, the analysis' first image, when unset.
+   */
+  imageRadiusM?: number;
+}
+
+/** [west, south, east, north] of the square image of `radiusM` at a point. */
+export function imageBoundsAround(
+  anchor: LonLat,
+  radiusM: number,
+): [number, number, number, number] {
+  const dLat = radiusM / 111_320;
+  const dLon = dLat / Math.max(0.1, Math.cos((anchor[1] * Math.PI) / 180));
+  return [
+    anchor[0] - dLon,
+    anchor[1] - dLat,
+    anchor[0] + dLon,
+    anchor[1] + dLat,
+  ];
 }
 
 export interface ReplayRow {
@@ -178,6 +201,10 @@ export function replayBoundarySamples(
       parcels: sample.parcels,
       parcelsTruncated: sample.parcelsTruncated ?? false,
       buildings: sample.buildings ?? [],
+      imageBounds: imageBoundsAround(
+        sample.anchor,
+        sample.imageRadiusM ?? REPLAY_IMAGE_RADIUS_M,
+      ),
       parameters,
     });
     const stage = outcome.stage ?? 5;
@@ -200,6 +227,7 @@ export function replayBoundarySamples(
         parcels: sample.parcels,
         lotVehicles: outcome.lotVehicles,
         flags: outcome.flags,
+        ...(outcome.imageTooSmall ? { imageTooSmall: true } : {}),
       },
     );
     return {

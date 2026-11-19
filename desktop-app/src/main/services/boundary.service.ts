@@ -43,10 +43,17 @@ export interface BoundaryRunOptions {
   buildingsDeadline?: number;
   /**
    * Vegetation on the context image the vehicles were detected on
-   * (boundary/vegetation.ts). It decides whether a parcel without the
-   * dealership's vehicles may join; without it parcels join as registered.
+   * (boundary/vegetation.ts): a hedge or a verge on the line between two
+   * parcels speaks against one site. Without it borders count as unseen.
    */
   vegetation?: VegetationMask | null;
+  /**
+   * [west, south, east, north] of the image the vehicles were detected on.
+   * Parcels beyond it are "not seen", not "empty"; a site that reaches
+   * beyond it is marked `possiblyIncomplete`, and the analysis then takes
+   * the wider image.
+   */
+  imageBounds?: [number, number, number, number] | null;
 }
 
 /**
@@ -118,6 +125,7 @@ export async function detectBoundary(
     buildings,
     ...(isStreetAt ? { isStreetAt } : {}),
     ...(isVegetationAt ? { vegetationAt: isVegetationAt } : {}),
+    ...(options.imageBounds ? { imageBounds: options.imageBounds } : {}),
     parameters,
   });
   const trace = [...cascade.trace];
@@ -174,6 +182,7 @@ export async function detectBoundary(
       lotVehicles: cascade.lotVehicles,
       flags: cascade.flags,
       ...(isStreetAt ? { isStreetAt } : {}),
+      ...(cascade.imageTooSmall ? { imageTooSmall: true } : {}),
     },
   );
   const reviewRequired = boundaryNeedsReview(result, parameters);

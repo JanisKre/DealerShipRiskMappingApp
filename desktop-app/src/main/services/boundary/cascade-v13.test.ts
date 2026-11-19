@@ -4,9 +4,8 @@ import { ringAreaSqm, unprojectPoint, type LonLat } from "../boundary-geometry";
 import type { ParcelFeature, ParcelLandUse } from "../alkis.service";
 import {
   isRoadParcel,
-  parcelStage,
+  siteStage,
   runCascade,
-  vehicleParcelStage,
   type CascadeInput,
 } from "./cascade";
 
@@ -105,7 +104,7 @@ describe("a point on a road parcel (v13)", () => {
   });
 
   it("starts from the plot beside the road that holds the vehicles", () => {
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         parcels: [road, yard, house, opposite],
         vehicles: [...yardCars, ...kerbCars],
@@ -117,7 +116,7 @@ describe("a point on a road parcel (v13)", () => {
   });
 
   it("declines stage 1 when no plot beside the road holds a lot", () => {
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({ parcels: [road, yard, house, opposite], vehicles: kerbCars }),
     );
     expect(outcome.result).toBeNull();
@@ -125,7 +124,7 @@ describe("a point on a road parcel (v13)", () => {
   });
 
   it("never returns the road as the parcel at the point (stage 4)", () => {
-    const outcome = parcelStage(input({ parcels: [road, yard, house] }));
+    const outcome = siteStage(input({ parcels: [road, yard, house] }));
     expect(outcome.result).toBeNull();
     expect(outcome.reason).toContain("road");
   });

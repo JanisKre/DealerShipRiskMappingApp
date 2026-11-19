@@ -83,3 +83,32 @@ export function sharesAddress(
   if (keys.size === 0 || !address) return false;
   return addressKeys(address).some((key) => keys.has(key));
 }
+
+/**
+ * The keys of an address with letter suffixes dropped ("53 c" → "53"):
+ * plots split off one property keep its number and get a letter, so "53",
+ * "53 b" and "53 c" are one site far more often than neighbours.
+ */
+export function addressBaseKeys(address: string | undefined): string[] {
+  return [
+    ...new Set(addressKeys(address).map((key) => key.replace(/[a-z]+$/, ""))),
+  ];
+}
+
+/**
+ * The street names in a cadastral address text, with or without a house
+ * number ("Hansestraße 47; Am Hof" → ["hansestr", "amhof"]). Only for the
+ * address of a parcel: in a dealership's address a part without a number
+ * is its name or its town.
+ */
+export function parcelStreets(address: string | undefined): string[] {
+  if (!address) return [];
+  const streets = new Set<string>();
+  for (const segment of address.split(/[;,]/)) {
+    const match = segment.trim().match(/^(\D+?)\s*(\d.*)?$/);
+    if (!match) continue;
+    const street = normaliseStreet(match[1]);
+    if (street.length >= 3) streets.add(street);
+  }
+  return [...streets];
+}

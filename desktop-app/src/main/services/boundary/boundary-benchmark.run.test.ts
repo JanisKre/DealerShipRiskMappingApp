@@ -332,7 +332,7 @@ describe.skipIf(!enabled)("boundary benchmark (network)", () => {
           undefined,
           DEFAULT_RISK_PARAMETERS,
           vehicles,
-          { osmDeadline: Date.now(), vegetation },
+          { osmDeadline: Date.now(), vegetation, imageBounds: image.bbox },
         );
         inputs.push({ reference: fixture.reference, vehicles, buildings });
         // Which sources actually produced a usable geometry. Without this a run

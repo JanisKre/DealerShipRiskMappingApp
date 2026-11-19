@@ -10,11 +10,10 @@ import {
   finalizeCascadeResult,
   isStreetLike,
   osmDealerStage,
-  parcelStage,
+  siteStage,
   runCascade,
   vehicleHullStage,
   vehicleLot,
-  vehicleParcelStage,
   type CascadeInput,
 } from "./cascade";
 
@@ -56,8 +55,16 @@ function cars(
   return points;
 }
 
-function parcel(ring: LonLat[]): ParcelFeature {
-  return { ring, areaSqm: ringAreaSqm(ring), state: "Sachsen" };
+function parcel(
+  ring: LonLat[],
+  landUse?: ParcelFeature["landUse"],
+): ParcelFeature {
+  return {
+    ring,
+    areaSqm: ringAreaSqm(ring),
+    state: "Sachsen",
+    ...(landUse ? { landUse } : {}),
+  };
 }
 
 let nextId = 1;
@@ -145,12 +152,13 @@ describe("street-like parcels", () => {
   });
 });
 
-describe("stage 1: parcels holding the vehicle lot", () => {
+describe("stages 1 and 4: the parcels of the site", () => {
   // The Autopark case: a small showroom parcel and the yard next to it.
-  const showroom = parcel(rect(-12, -12, 12, 12)); // 576 m²
-  const yard = parcel(rect(-52, -12, -12, 12)); // west neighbour, 960 m²
-  const neighbour = parcel(rect(12, -12, 52, 12)); // east, no cars
-  const street = parcel(rect(-60, -24, 60, -12)); // south, 120 × 12 m
+  const trade = { commercial: 1 };
+  const showroom = parcel(rect(-12, -12, 12, 12), trade); // 576 m²
+  const yard = parcel(rect(-52, -12, -12, 12), trade); // west neighbour, 960 m²
+  const neighbour = parcel(rect(12, -12, 52, 12), trade); // east, no cars
+  const street = parcel(rect(-60, -24, 60, -12), { traffic: 1 }); // south
 
   it("joins the adjacent parcel full of vehicles, not the empty one or the street", () => {
     const vehicles = [
@@ -159,53 +167,70 @@ describe("stage 1: parcels holding the vehicle lot", () => {
       at(5, 5),
       at(-5, 5),
     ];
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({ parcels: [showroom, yard, neighbour, street], vehicles }),
     );
+    expect(outcome.hasLot).toBe(true);
     expect(outcome.result?.provider).toBe("alkis-vehicle-parcels");
     expect(outcome.result?.role).toBe("operationalLot");
     expect(outcome.result?.confidence).toBe(CASCADE_CONFIDENCE.vehicleParcels);
     expectArea(outcome.result?.areaSqm, 576 + 960);
+    expect(outcome.lotVehicles).toBe(vehicles.length);
   });
 
-  it("grows across several parcels in a row", () => {
-    const far = parcel(rect(-92, -12, -52, 12));
-    const vehicles = cars(-90, -10, 10, 10);
-    const outcome = vehicleParcelStage(
-      input({ parcels: [showroom, yard, far], vehicles }),
+  it("grows across several parcels in a row, however far from the point", () => {
+    // Four yards in a row: the last one ends 172 m from the point.
+    const yards = [1, 2, 3].map((i) =>
+      parcel(rect(-52 - 40 * i, -12, -12 - 40 * i, 12), trade),
     );
-    expectArea(outcome.result?.areaSqm, 576 + 960 + 960);
+    const vehicles = cars(-170, -10, 10, 10);
+    const outcome = siteStage(
+      input({ parcels: [showroom, yard, ...yards], vehicles }),
+    );
+    expectArea(outcome.result?.areaSqm, 576 + 4 * 960);
   });
 
-  it("lowers confidence when the parcels hold only part of the lot", () => {
-    // Most cars stand on the street parcel, which never joins.
+  it("never joins a road, however many cars stand on it", () => {
     const vehicles = [...cars(-10, -10, 10, 10), ...cars(-58, -22, 58, -14)];
-    const outcome = vehicleParcelStage(
-      input({ parcels: [showroom, street], vehicles }),
-    );
-    expect(outcome.result?.confidence).toBe(
-      CASCADE_CONFIDENCE.vehicleParcelsPartial,
-    );
+    const outcome = siteStage(input({ parcels: [showroom, street], vehicles }));
+    expectArea(outcome.result?.areaSqm, 576);
   });
 
-  it("declines without vehicles, without a parcel, or on an estate parcel", () => {
+  it("returns the same parcels without a vehicle lot, as the stage-4 answer", () => {
+    for (const vehicles of [null, []]) {
+      const outcome = siteStage(input({ parcels: [showroom], vehicles }));
+      expect(outcome.hasLot).toBe(false);
+      expect(outcome.result?.provider).toBe("alkis-parcel");
+      expect(outcome.result?.role).toBe("parcel");
+      expect(outcome.result?.confidence).toBe(CASCADE_CONFIDENCE.parcel);
+    }
+  });
+
+  it("declines without a parcel at the point or on an empty estate parcel", () => {
+    expect(siteStage(input({ vehicles: cars(-10, -10, 10, 10) })).reason).toBe(
+      "no cadastral parcels here",
+    );
+    expect(siteStage(input({ parcels: [yard], vehicles: [] })).reason).toBe(
+      "no cadastral parcel contains the point",
+    );
+    // 300 × 300 m with sixteen cars: an estate, not a lot.
     expect(
-      vehicleParcelStage(input({ parcels: [showroom], vehicles: null })).reason,
-    ).toBe("no vehicle detection");
-    expect(
-      vehicleParcelStage(input({ parcels: [showroom], vehicles: [] })).reason,
-    ).toBe("no vehicle lot at the point");
-    expect(
-      vehicleParcelStage(input({ vehicles: cars(-10, -10, 10, 10) })).reason,
-    ).toBe("no cadastral parcels here");
-    expect(
-      vehicleParcelStage(
+      siteStage(
         input({
           parcels: [parcel(rect(-150, -150, 150, 150))],
           vehicles: cars(-10, -10, 10, 10),
         }),
       ).result,
     ).toBeNull();
+  });
+
+  it("takes a large parcel that is full of vehicles as the lot", () => {
+    // 200 × 200 m dealer centre on one parcel, 1,600 cars.
+    const centre = parcel(rect(-100, -100, 100, 100), trade);
+    const outcome = siteStage(
+      input({ parcels: [centre], vehicles: cars(-100, -100, 100, 100) }),
+    );
+    expectArea(outcome.result?.areaSqm, 40_000);
   });
 });
 
@@ -253,7 +278,7 @@ describe("stage 3: OSM dealer area (cached)", () => {
 
 describe("stage 4: parcel at the point", () => {
   it("returns the parcel for review", () => {
-    const outcome = parcelStage(
+    const outcome = siteStage(
       input({ parcels: [parcel(rect(-30, -30, 30, 30))] }),
     );
     expect(outcome.result?.role).toBe("parcel");
@@ -306,7 +331,12 @@ describe("cascade order", () => {
   it("returns no result when every stage declines", () => {
     const outcome = runCascade(input());
     expect(outcome.result).toBeNull();
-    expect(outcome.trace).toHaveLength(4);
+    // Stage 4 would repeat the reason of stage 1.
+    expect(outcome.trace).toEqual([
+      "stage 1: no cadastral parcels here",
+      "stage 2: no vehicle lot at the point",
+      "stage 3: OSM not cached",
+    ]);
   });
 });
 

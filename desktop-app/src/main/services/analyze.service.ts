@@ -317,16 +317,23 @@ export async function analyzeDealership(
           buildingsDeadline,
           // Grass and trees on the image the vehicles were detected on.
           vegetation: vegetationMask(image),
+          // Beyond the image "no vehicles" means "not seen".
+          imageBounds: image.bbox,
         },
       ),
     );
     return { image, detection, boundary };
   };
-  // A lot that reaches the edge of the image may continue beyond it: capture
-  // once more, wider, and decide again on the vehicles that image shows.
+  // A site that reaches beyond the image (a parcel of it, or one in doubt at
+  // its edge, lies partly outside), or a lot whose vehicles stand at the
+  // image edge, may continue: capture once more, wider, and decide again on
+  // the vehicles that image shows.
   const siteTask = (async () => {
     const normal = await runContext(CONTEXT_CAPTURE_RADIUS_M);
-    if (!lotReachesImageEdge(normal.boundary, normal.detection, normal.image)) {
+    if (
+      !normal.boundary.quality?.possiblyIncomplete &&
+      !lotReachesImageEdge(normal.boundary, normal.detection, normal.image)
+    ) {
       return normal;
     }
     const wide = await runContext(WIDE_CONTEXT_CAPTURE_RADIUS_M).catch(

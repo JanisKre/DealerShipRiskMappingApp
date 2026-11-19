@@ -175,7 +175,7 @@ cause: a dealership is not one parcel.
 prior, so sites reported ~0.8 confidence at ~0.3 IoU. A calibration MAE of 0.40
 means the number cannot be used to triage review.
 
-## Workflow at a glance (current, cascade v14)
+## Workflow at a glance (current, cascade v16)
 
 One analysis decides the lot in six steps. The sections below record how each
 rule came about; this is what runs today.
@@ -183,30 +183,40 @@ rule came about; this is what runs today.
 1. **Point.** The geocoded or given position. Where the cadastre publishes
    addresses and the point lies on a street or a foreign plot, it moves to
    the parcel with the dealership's address (v9). A road parcel is never
-   the parcel at the point: without an address parcel the lot starts from
-   the plot beside the road that holds the vehicles (v13).
+   the parcel at the point: without an address parcel the site starts from
+   the plot beside the road that holds the most vehicles (v13).
 2. **Image and vehicles.** One aerial image of 125 m around the point; the
-   vehicle model runs on it; roofs are masked.
+   vehicle model runs on it; roofs are masked. When the site, or a parcel in
+   doubt at its edge, reaches beyond that image, the analysis takes the
+   190 m image and decides again (v16).
 3. **Cadastre.** Parcels around the point (all 16 states; Bayern from the
    parcel map, with open land inside a parcel as a unit of its own, v12),
    building footprints, and a vegetation raster from the same image.
-4. **Vehicle lot.** The vehicles that stand together at the point (gaps of at
-   most 12 m, within 40 m of the point or on its parcel).
-5. **Parcels of the lot (stage 1).** The parcel at the point, plus adjacent
-   parcels chosen by one of these reasons, each named in the trace: vehicles
-   of the lot stand on it, it carries the same address, it is enclosed by the
-   chosen parcels, it is a full parking strip, or it is a dense car lot
-   directly across a street. Streets, housing, open land and vegetation join
-   only when dense with vehicles.
+4. **Evidence.** For every parcel bordering the parcels chosen so far: how
+   much border they share and whether a hedge, a wall or open ground lies
+   on it, whether a building stands on both, how many vehicles stand on it
+   and whether the rows of the lot at the point run onto it, its house
+   number and its land use (`site-graph.ts`).
+5. **Parcels of the site (stage 1).** The parcel at the point; then, one at
+   a time, the bordering parcel the site model gives the highest
+   probability, while one reaches 0.4 (`site-model.ts`, "Site model"
+   below). There is no reach limit around the point. Roads never join;
+   plots the site all but encloses do.
 6. **Outline.** The union of the chosen parcels, holes filled. **The outline
    consists of cadastral lines only**: nothing is cut off or added by what
    the image shows (v12). A building is not divided: a footprint that lies
    mostly on the chosen parcels, and the building at the point, is in the
    result whole, along its own outline (v14).
 
-When step 5 has no usable parcel, the fallbacks apply in order: the outline
-of the vehicle lot (stage 2), a cached OSM dealer area (stage 3), the parcel
-at the point (stage 4), a circle or marker (stage 5). Every result carries
+A parcel that joined below 0.5, or stayed out at 0.3 or more, is a doubt: the
+result then carries the partial confidence, goes to review, and the site
+without the first ("sure parcels only") and with the second ("with doubtful
+neighbouring parcels") are offered as alternatives.
+
+When step 5 has no parcel at the point, or no vehicle lot stands on the
+parcels, the fallbacks apply in order: the outline of the vehicle lot
+(stage 2), a cached OSM dealer area (stage 3), the same parcels without a
+vehicle lot (stage 4), a circle or marker (stage 5). Every result carries
 its stage, a trace of reasons, a fixed confidence per stage and review flags.
 
 ## Source cascade (current engine)
@@ -1374,6 +1384,197 @@ few for a figure; the judgement rests on the images.
 - The sections are as current as the cadastre (`aktualit`), which can lag
   behind a site that was paved or extended recently.
 
+## Site model (cascade v16, November 2026)
+
+`CASCADE_VERSION` 16. Stage 1 no longer joins parcels by rules about the
+vehicle lot; a fitted model decides parcel by parcel. This section records
+why, how it was fitted and what it does and does not achieve.
+
+### What the check found
+
+On 19 November 2026 a hundred sites were captured as the app analyses them
+(97 dealers drawn from the dealer directory in id order, three the user had
+reported; 190 m image, vehicle detection, parcels, footprints, vegetation)
+and every result of cascade v15 was looked at on the aerial image with the
+parcels numbered:
+
+| Verdict on cascade v15                                          | Sites |
+| --------------------------------------------------------------- | ----- |
+| Plausible                                                       | 80    |
+| Too much (a neighbour, a garden, a plot across the street)      | 5     |
+| Cut off                                                         | 3     |
+| 160 m circle over a town centre (parcel at the point too small) | 3     |
+| The point is not on a dealership (house, farm, pit, meadow)     | 9     |
+
+On the 68 reference lots of `boundary-public-v2` whose point lies on the
+reference, 40 were right to within a quarter either way. The errors sit with
+the larger sites. Four causes were in the rules themselves:
+
+- **Reach limits around the point.** Vehicles beyond 80 m were ignored and
+  the continuation to 160 m could add at most 25 % of area. A dealer centre
+  whose point lies at one end lost its other half (a reported site in
+  Dresden: 28,620 m² of 58,072 m²). The limits had been tuned on reference
+  set v1, half of which were showroom roofs.
+- **Vehicle counts as the reason to join.** "Ten vehicles of the lot stand
+  on it" is as true of the dealer next door as of the dealer's own yard: 17
+  of the 68 reference sites took too much.
+- **House numbers compared letter for letter.** "53", "53 b" and "53 c"
+  counted as three addresses, so the plots of one property were
+  "neighbours with another number".
+- **A small parcel at the point was discarded** and the answer became the
+  160 m circle.
+
+A fifth finding decided the design: taking exactly the parcels that lie at
+least half inside the reference gives a mean IoU of 0.86 (63 of 74 sites
+above 0.8), against 0.67 for the engine. **Parcels are the right unit; the
+choice of parcels was the problem.**
+
+### The model
+
+For a parcel `p` bordering the parcels chosen so far, `site-graph.ts`
+measures the evidence and `site-model.ts` turns it into a probability with
+a logistic model. Each weight is a log-odds contribution and can be read on
+its own:
+
+| Feature          | Weight | Meaning                                                                   |
+| ---------------- | ------ | ------------------------------------------------------------------------- |
+| `bias`           | −2.87  | A bordering parcel does not belong unless something speaks for it         |
+| `borderOfParcel` | +1.25  | Share of its outline that borders the site                                |
+| `openBorder`     | +0.94  | Metres of that border that are open ground on the image (saturates at 40) |
+| `greenBorder`    | −1.21  | Share of that border that is vegetation: a hedge, a verge, trees          |
+| `borderUnseen`   | −0.34  | The image does not show the border                                        |
+| `thin`           | −0.78  | Larger than the site (×1.5) and sharing under 12 % of its outline         |
+| `sharedBuilding` | +2.39  | A building stands on it and on the site                                   |
+| `ownBuilding`    | −0.51  | It has a building of its own                                              |
+| `firstBuilding`  | +1.71  | The site so far has no building, and it has one                           |
+| `density`        | +1.71  | Vehicles per 1,000 m² of unbuilt area (saturates at 30)                   |
+| `yard`           | +1.13  | Density × share of its vehicles within 25 m of the site                   |
+| `lot`            | +1.22  | Vehicles on it in the rows of the lot at the point (saturates at 10)      |
+| `firstLot`       | +1.92  | The site so far shows under 3 vehicles, and it shows 5 or more            |
+| `unseen`         | −1.03  | Under half of it is on the image: its vehicles are unknown                |
+| `addressSame`    | +0.87  | A house number of the site, letter suffixes aside                         |
+| `addressOther`   | −1.28  | Only other house numbers                                                  |
+| `residential`    | −1.27  | Share of housing in the cadastre's land use                               |
+| `open`           | −0.40  | Share of farmland, woodland, parks                                        |
+| `useUnknown`     | −0.65  | The cadastre publishes no land use here                                   |
+| `sliver`         | +0.51  | Under 300 m²                                                              |
+
+"The lot at the point" is the rows of vehicles (gaps of at most 12 m) that
+stand on the parcel at the point or within 40 m of the point — the vehicle
+lot of the earlier versions without its 80 m limit. Vehicle features are 0
+for a parcel under half on the image, and `unseen` says so.
+
+Growth is greedy: the most probable bordering parcel joins while one
+reaches `joinAt` = 0.4, the evidence of the rest is read again against the
+larger site, up to `boundaryMaxAreaSqm`. Three rules stand beside the model
+because they are not a matter of weighing:
+
+- **Roads never join** (`isRoadParcel`), nor does a parcel over 30,000 m².
+- **A plot larger than a site with its own lot that merely touches it never
+  joins** (`merelyTouches`): the model alone let a 14,000 m² new-car
+  compound join a dealer over 30 m of fence, because its rows chained to his.
+- **A plot the site encloses to 75 % joins** (the v8 rule), so the outline
+  has no notch where the cadastre cuts out a transformer.
+
+The parcel at the point is kept when it is small (the circle is no longer
+drawn over a town centre for want of 300 m²) and, above 30,000 m², when it
+holds at least 5 vehicles per 1,000 m² of unbuilt area (a dealer centre on
+one parcel). A point on a field strip still declines stage 1 (v4).
+
+### How the weights were fitted
+
+`npm run benchmark:boundary:fit` (`site-model-fit.run.test.ts`, no network)
+reproduces them from frozen inputs: the 68 usable reference sites, with the
+vehicles of the 190 m image, and the 91 labelled directory sites. A
+reference parcel is a member when half of it lies inside the reference; a
+labelled site lists the parcels that surely belong and those that may
+either way. The true set is grown round by round from the parcel at the
+point, and every bordering parcel is one row with the evidence it shows
+against the set at that time: 1,418 rows, 273 members. Logistic regression
+with a ridge penalty of 1; rows of labelled sites weigh three times, as
+there are fewer of them.
+
+The labelled inputs name real businesses and stay outside the repository;
+the reference inputs are public data and are written by
+`BOUNDARY_BENCHMARK_DUMP`.
+
+Tried and dropped because cross-validation showed no gain: boosted trees in
+place of the logistic model, the dealer directory as evidence of a
+neighbouring business (its weight came out near zero: one dealer is listed
+under several names, several dealers under one address), vehicles standing
+across the parcel line, shared border over the parcel's width, the area
+ratio as such, vegetation share of the parcel.
+
+### Measured
+
+Both engines on identical frozen inputs, run as the analysis runs them
+(125 m image, then 190 m when the engine asks). "Fine" is missing and
+excess share both within 25 % of the lot.
+
+|                                                  | Cascade v15   | Cascade v16   |
+| ------------------------------------------------ | ------------- | ------------- |
+| Reference lots fine (of 68)                      | 40            | 47            |
+| … cut off / too much / both                      | 11 / 17 / 0   | 9 / 11 / 1    |
+| … mean IoU                                       | 0.714         | 0.751         |
+| … mean missing / excess share                    | 0.137 / 0.427 | 0.123 / 0.358 |
+| Labelled directory sites fine (of 91)            | 86            | 83            |
+| … cut off / too much / both                      | 2 / 3 / 0     | 5 / 2 / 1     |
+| Wrong in all (of 159)                            | 33            | 29            |
+| … of which not flagged for review                | 14            | 13            |
+| Result or an offered alternative fine: reference | 45            | 49            |
+| Result or an offered alternative fine: labelled  | 87            | 87            |
+| Results flagged for review                       | 58            | 59            |
+| Sites that take the 190 m image                  | 32            | 33            |
+
+The replay of all 76 reference sites on the frozen inputs of 19 November
+(`npm run benchmark:boundary:replay`, 125 m image only), against the v15
+baseline on the same file:
+
+|                                       | Cascade v15     | Cascade v16     |
+| ------------------------------------- | --------------- | --------------- |
+| Mean IoU, all 76                      | 0.670           | 0.723           |
+| Mean missing / excess share           | 0.158 / 0.863   | 0.136 / 0.782   |
+| Reference vehicles inside the result  | 13,129 (85 %)   | 13,560 (87 %)   |
+| Result vehicles outside the reference | 2,522 of 15,651 | 1,843 of 15,403 |
+| Buildings cut by the outline          | 2               | 0               |
+
+The former hold-out states are among the sites the weights were fitted on,
+so there is no untouched stratum left; the cross-validated figures below
+stand in for it.
+
+With weights fitted without the site's own group (state for references,
+five folds for labelled sites) the whole engine scores 47 and 82. The
+reported Dresden site goes from 28,620 m² to 58,072 m²; the three circles
+over town centres become the parcel at the point.
+
+Read plainly: large sites are complete where the reach limits cut them, and
+the engine takes too much less often. It does **not** cut off fewer sites
+than before, and on the typical small dealer it is no better than v15.
+
+### Limitations of v16
+
+- **A second building of the same dealer under another house number**, with
+  a shared car park, gets 0.3–0.4 and is usually left out. On the reference
+  set the same picture is as often the dealer next door; nothing on the
+  image or in the cadastre tells the two apart. Such a result is flagged and
+  the larger site is one click away, unless the parcel falls under 0.3.
+- **The labels lean towards v15.** The directory sites were judged with
+  v15's outline on the image, so "86 fine" for v15 is flattering and the
+  weights learnt from them inherit that.
+- **A parcel larger than the lot** (a retail park, a dealer's plot shared
+  with another business) cannot be divided by choosing parcels; two Berlin
+  and München reference sites take too much for that reason alone.
+- **A car row on the neighbour's parcel** (a reported site in Bayern, where
+  the user added the strip by hand) stays outside: the result is whole
+  parcels.
+- **A wrong point** (9 of 100 directory dealers) is not corrected; the
+  off-site check and the `noLotAtPoint` flag are as before.
+- The weights rest on 159 sites. They are a screening aid, not a finding
+  about ownership; the result names its doubts for that reason.
+- Without a vegetation raster (no image) every border counts as unseen, and
+  without land use (Berlin, Bremen, Saarland) every parcel carries
+  `useUnknown`: both make the model more reluctant, not more generous.
+
 ## Earlier engines (removed)
 
 Version 0.2 ranked candidates from ALKIS, OSM, Nominatim and Overture; 0.2.x
@@ -1451,8 +1652,10 @@ first.
   circle.
 - Parcel addresses are available in twelve states and land use in eleven
   (Bayern: land use only; Hessen and Brandenburg from the land-use
-  sections since v15); in Berlin and Bremen the v8 rules apply unchanged,
-  plus the vegetation test.
+  sections since v15); in Berlin and Bremen the site model works from
+  borders, buildings and vehicles alone.
+- Which neighbouring parcels belong to a site is an estimate from the image
+  and the cadastre (see "Site model"), not a statement about ownership.
 - Imagery vintage is provider-dependent and often unknown, so a recently
   rebuilt or extended site may be scored against years-old imagery.
 - OSM reference polygons are mapper-dependent: an IoU of 1.0 against them

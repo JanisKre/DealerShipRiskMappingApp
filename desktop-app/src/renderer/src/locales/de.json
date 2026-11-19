@@ -822,13 +822,15 @@
       "natCatNone": "Keine externe Hagel-Datenquelle eingerichtet; die Hagelzone stammt aus der PLZ-Tabelle.",
       "notesSaving": "Wird gespeichert …",
       "candidate": {
-        "vehicleParcels": "Flurstücke mit Fahrzeugen",
+        "vehicleParcels": "Flurstücke des Standorts",
+        "siteCore": "Nur sichere Flurstücke",
+        "siteExtended": "Mit unsicheren Nachbarflurstücken",
         "vehicleHull": "Fahrzeug-Umriss",
         "parcel": "Flurstück am Punkt",
         "osmDealerArea": "OSM-Händlerfläche",
         "synthetic": "Geschätzte Grenze (Kreis)",
-        "parcelPlusVehicles_one": "Flurstück am Punkt + {{count}} Flurstück mit Fahrzeugen",
-        "parcelPlusVehicles_other": "Flurstück am Punkt + {{count}} Flurstücke mit Fahrzeugen"
+        "parcelPlusVehicles_one": "Flurstück am Punkt + {{count}} Nachbarflurstück",
+        "parcelPlusVehicles_other": "Flurstück am Punkt + {{count}} Nachbarflurstücke"
       },
       "boundaryAdopted": "„{{label}}“ übernommen; die Fahrzeuge wurden neu gezählt.",
       "boundaryRestore": "Ursprüngliche Grenze",

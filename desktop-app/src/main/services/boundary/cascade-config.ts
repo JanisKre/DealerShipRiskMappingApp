@@ -52,8 +52,16 @@ import type { OsmEvidence } from "./osm-overpass";
  * (`ave:NutzungFlurstueck`, seven states) is a unit of its own, and Hessen
  * and Brandenburg parcels get their land use from those sections
  * (parcel-sections.ts; docs/boundary-model.md, "Cascade v15").
+ * 16: stage 1 is the site model: the parcel at the point grows onto the
+ * neighbouring parcels a fitted model takes for the same site, from the
+ * shared border and what the image shows on it, buildings across the line,
+ * the vehicles and their rows, house numbers and land use. The reach limits
+ * around the point (80 m, 160 m, 25 % extension), the vehicle-count joins
+ * and the lot across the street are gone; "53", "53 b" and "53 c" are one
+ * house number; a small parcel at the point is returned instead of the
+ * circle (docs/boundary-model.md, "Site model").
  */
-export const CASCADE_VERSION = 15;
+export const CASCADE_VERSION = 16;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 
@@ -80,68 +88,8 @@ export const CASCADE_LIMITS = {
    * through a business park. 150 m doubled the area bias on the benchmark.
    */
   maxReachM: 80,
-  /**
-   * Second pass: a cluster up to this far from the point joins when it
-   * continues the lot (shares a vehicle with it) or stands on a parcel the
-   * lot already holds. Bounded, unlike a plain larger `maxReachM`.
-   */
-  extendedReachM: 160,
-  /**
-   * The second pass may add at most this share of the first pass's area.
-   * A larger jump is offered as an alternative instead: in the audit, small
-   * additions completed a lot (Dresden, Kassel) and large ones reached into
-   * neighbouring blocks whose ownership the image cannot tell.
-   */
-  maxExtensionShare: 0.25,
   /** Fewer vehicles than this are a few parked cars, not a lot. */
   minLotVehicles: 3,
-  /**
-   * An adjacent parcel joins when at least this many lot vehicles stand on it:
-   * a yard, not a neighbour's staff parking.
-   */
-  parcelMinVehicles: 10,
-  /**
-   * … or, for a small lot, this share of it (at least `minLotVehicles`): the
-   * yard of a small dealer never holds ten cars, and its result was the
-   * building parcel alone.
-   */
-  parcelMinLotShare: 0.3,
-  /**
-   * … and at least this many per 1,000 m² of its unbuilt area (parcel minus
-   * buildings). Keeps a meadow with a row of cars at its edge out; a showroom
-   * parcel, mostly roof, still joins.
-   */
-  parcelMinVehiclesPer1000Sqm: 3,
-  /**
-   * … or this many when the unbuilt area exceeds `largeUnbuiltSqm`. In the
-   * 50-site run a 13,900 m² sand lot with 49 scattered detections (3.5)
-   * joined a Berlin site at confidence 0.75; real yards stand at 20–70. A
-   * global 5 cut a dealer's own yard where the lot reached only part of its
-   * rows, and counting every vehicle on the parcel let dense street parking
-   * of inner-city neighbours join (Hannover 0.90 → 0.34).
-   */
-  parcelMinVehiclesPer1000SqmLarge: 5,
-  largeUnbuiltSqm: 10_000,
-  /** Unbuilt area is never taken as less than this share of the parcel. */
-  minUnbuiltShare: 0.2,
-  /**
-   * A small adjacent parcel also joins with fewer than `parcelMinVehicles`,
-   * but at least `parcelDenseMinVehicles`, when its lot vehicles stand at
-   * least `parcelDenseVehiclesPer1000Sqm` per 1,000 m² of unbuilt area: a
-   * 970 m² corner of the yard holds five cars, not ten, and was cut out of
-   * the lot as a notch (docs/boundary-model.md, "Cascade v8"). Three cars in
-   * the courtyard of a town-centre block were not enough.
-   */
-  parcelDenseMinVehicles: 5,
-  parcelDenseVehiclesPer1000Sqm: 8,
-  /**
-   * A short narrow parcel (street-like by width only, not longer than
-   * `streetMinLengthM`) joins as a leaf — nothing grows from it — when at
-   * least this many lot vehicles stand per 1,000 m² of the strip: a parking
-   * strip or corner of the forecourt cut as its own plot, not a driveway
-   * with a few cars at its edge.
-   */
-  stripMinVehiclesPer1000Sqm: 15,
   /**
    * A parcel of which at least this share of the outline borders the parcels
    * already chosen is enclosed by the lot and joins whatever stands on it: an
@@ -165,17 +113,6 @@ export const CASCADE_LIMITS = {
   foreignUseShare: 0.5,
   enclosedForeignMaxSqm: 200,
   /**
-   * A parcel of which at least this share is vegetation on the aerial image
-   * is treated like open land: it joins only by the dense rule.
-   */
-  greenParcelShare: 0.5,
-  /**
-   * A parcel with the address of the parcel at the point joins without
-   * vehicles up to this size, and beyond it only while it is no larger than
-   * the parcels chosen so far.
-   */
-  addressJoinFreeSqm: 5000,
-  /**
    * A parcel carrying the dealership's address counts as the parcel at the
    * point when it lies within this distance of a point whose own parcel has
    * another address or none.
@@ -186,6 +123,23 @@ export const CASCADE_LIMITS = {
    * geocoder puts a house on the carriageway in front of it.
    */
   roadAnchorReachM: 40,
+  /**
+   * A parcel at the point larger than `maxParcelSqm` is a lot only with at
+   * least this many vehicles per 1,000 m² of its unbuilt area (a dealer
+   * centre on one parcel), and never beyond `boundaryMaxAreaSqm`.
+   */
+  largeSeedMinVehiclesPer1000Sqm: 5,
+  /**
+   * A parcel of the site with less than this share on the image the
+   * vehicles were counted on asks for the wider image …
+   */
+  siteSeenShare: 0.9,
+  /**
+   * … and so does a parcel left out whose vehicles the image does not show
+   * (under half of it on the image) and that the model gives at least this
+   * probability without them.
+   */
+  unseenMinProbability: 0.1,
   /** Vertex distance at which two parcels count as neighbours. */
   adjacentParcelM: 3,
   /**
@@ -202,13 +156,6 @@ export const CASCADE_LIMITS = {
   fieldStripMinNeighbours: 2,
   /** … within this angle is a field strip, not a street. */
   fieldStripMaxAngleDeg: 15,
-  /**
-   * The point is "off the lot" when the parcel at the point holds less than
-   * this share of the lot vehicles off the street …
-   */
-  anchorOffLotShare: 0.25,
-  /** … and the chosen parcels less than this share. */
-  anchorOffLotResultShare: 0.5,
   /**
    * Margin around the outermost vehicle centres in the outline: half a car,
    * a driving lane and the forecourt edge.
@@ -246,21 +193,6 @@ export const CASCADE_LIMITS = {
   wholeBuildingMinSqm: 25,
   /** Vehicles outside the result but this close to it count as unexplained. */
   outsideNearbyM: 15,
-  /**
-   * Share of lot vehicles a parcel result must cover for full confidence.
-   * Was 0.8; on 76 visually judged sites, correct results covered 0.70–0.78
-   * of their lot (kerbside cars and a neighbour's yard in the lot) and were
-   * flagged for that alone (docs/boundary-model.md, "Review calibration").
-   */
-  goodCoverage: 0.7,
-  /**
-   * A parcel across a street from the lot (adjacent to a street parcel the
-   * lot borders, not to the lot) joins as a second part when at least this
-   * many lot vehicles stand on it…
-   */
-  acrossMinVehicles: 10,
-  /** … at this density (a parked-up car lot, not a customer car park)… */
-  acrossMinVehiclesPer1000Sqm: 15,
   /** … or when it has the dealership's address and `minLotVehicles`. */
 } as const;
 
@@ -307,10 +239,16 @@ export interface CascadeInput {
   isStreetAt?: (point: LonLat) => boolean;
   /**
    * Vegetation on the aerial image (grass, trees in leaf); null outside the
-   * image. A parcel that is mostly vegetation joins only when dense with
-   * vehicles (boundary/vegetation.ts). It never reshapes a parcel.
+   * image. A hedge or a verge on the line between two parcels speaks
+   * against one site (boundary/vegetation.ts). It never reshapes a parcel.
    */
   vegetationAt?: (point: LonLat) => boolean | null;
+  /**
+   * [west, south, east, north] of the image the vehicles were detected on.
+   * Beyond it "no vehicles" means "not seen"; without it every parcel
+   * counts as seen.
+   */
+  imageBounds?: [number, number, number, number] | null;
   parameters: RiskParameters;
 }
 
@@ -341,6 +279,11 @@ export interface CascadeOutcome {
    * near it; the caller then draws a small marker, not the full circle.
    */
   pointOffSite?: boolean;
+  /**
+   * The site, or a parcel in doubt at its edge, lies partly outside the
+   * image the vehicles were counted on: a wider image may change the result.
+   */
+  imageTooSmall?: boolean;
   /**
    * The point the stages started from, when it is not the given one: a
    * point inside the parcel that carries the dealership's address.

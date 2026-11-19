@@ -3,7 +3,7 @@ import type {
   BoundaryReviewFlag,
   RiskParameters,
 } from "@shared/types";
-import { geometryAreaSqm, outerRings } from "@shared/boundary-geometry-utils";
+import { outerRings } from "@shared/boundary-geometry-utils";
 import {
   approximatePolygonIoU,
   distanceToRingM,
@@ -29,117 +29,53 @@ import {
   vehicleLot,
   anchorBuildingOf,
   anchorParcelOf,
-  completeBuildings,
 } from "./cascade-anchors";
-import {
-  isRoadParcel,
-  isStreetParcel,
-  greenShare,
-  lotParcelRing,
-} from "./cascade-parcels";
-import {
-  addressAnchor,
-  parcelResult,
-  vehicleParcelStage,
-} from "./cascade-vehicle-parcel";
+import { isStreetParcel, greenShare, lotParcelRing } from "./cascade-parcels";
+import { addressAnchor, siteStage } from "./cascade-site";
 import { vehicleHullStage, osmDealerStage } from "./cascade-hull";
 
 /**
- * Source cascade: the boundary engine. Version 2 lets the detected vehicles
- * decide how far the site reaches and the cadastre decide its shape
- * (docs/boundary-model.md, "Source cascade").
+ * Source cascade: the boundary engine (docs/boundary-model.md, "Source
+ * cascade" and "Site model").
  *
  * Each stage has one acceptance rule, and the first stage that accepts wins:
  *
- *   1. vehicle parcels  — the parcel at the point plus every adjacent parcel
- *                         holding part of the vehicle lot at the point
- *   2. vehicle hull     — the outline of the vehicle lot, where there is no
+ *   1. site parcels     — the parcel at the point and the neighbouring
+ *                         parcels the site model takes for the same site,
+ *                         when vehicles stand on them
+ *   2. vehicle outline  — the outline of the vehicle lot, where there is no
  *                         usable cadastre
  *   3. OSM dealer area  — only when OSM is already cached; never waited for
- *   4. parcel           — the parcel at the point when no vehicles were seen
+ *   4. site parcels     — the same parcels as stage 1 when no vehicle lot
+ *                         was seen on them
  *   5. synthetic circle — always succeeds, always reviewed (caller)
  *
- * Why vehicles: what a dealership insures against hail is the stock standing
- * outside, and the stock is what the aerial image shows. No map source knows
- * which plots a dealer actually uses; a parcel is a legal unit, OSM is drawn
- * by volunteers and the public Overpass servers are mostly at capacity.
+ * The cadastre gives the shape: a result of stage 1 or 4 is whole parcels,
+ * on cadastral lines. Which parcels belong together is decided by evidence
+ * read off the cadastre, the building footprints, the aerial image and the
+ * detected vehicles (`site-model.ts`), not by distance from the point.
  *
- * Every stage is pure over already-fetched evidence. Stages that also produced
- * a geometry are returned as alternatives for review.
+ * Every stage is pure over already-fetched evidence. Stages that also
+ * produced a geometry are returned as alternatives for review.
  *
- * Confidence values are fixed priors per stage, not calibrated probabilities.
- * Only stage 1 with good vehicle coverage clears the default review threshold
- * (0.7).
+ * Confidence values are fixed priors per stage, not calibrated
+ * probabilities. Only stage 1 without a parcel in doubt clears the default
+ * review threshold (0.7).
  *
  * Files: `cascade-config` (version, limits, shapes), `cascade-geometry`
  * (ring helpers), `cascade-parcels` (street, strip and land-use tests),
- * `cascade-anchors` (vehicle lot, anchor building and parcel),
- * `cascade-vehicle-parcel` (stage 1), `cascade-hull` (stages 2 and 3 and
- * their grid masks); this file holds stage 4, the off-site check and the
- * cascade itself, and re-exports the rest.
+ * `cascade-anchors` (vehicle lot, anchor building and parcel), `site-graph`
+ * and `site-model` (evidence and the model), `cascade-site` (stages 1 and
+ * 4), `cascade-hull` (stages 2 and 3 and their grid masks); this file holds
+ * the off-site check and the cascade itself, and re-exports the rest.
  */
 
 export * from "./cascade-config";
 export * from "./cascade-geometry";
 export * from "./cascade-parcels";
 export * from "./cascade-anchors";
-export * from "./cascade-vehicle-parcel";
+export * from "./cascade-site";
 export * from "./cascade-hull";
-
-// --- Stage 4: the parcel at the point ---------------------------------------
-
-/** The parcel containing the point, between `minLotSqm` and `maxParcelSqm`. */
-export function parcelStage(input: CascadeInput): StageOutcome {
-  const anchor = anchorParcelOf(input);
-  if (!anchor) {
-    return {
-      result: null,
-      reason:
-        input.parcels.length === 0
-          ? "no cadastral parcels here"
-          : "no cadastral parcel contains the point",
-      alternatives: [],
-    };
-  }
-  if (isRoadParcel(anchor, input.parcels)) {
-    return {
-      result: null,
-      reason: "parcel at the point is a road, not a plot",
-      alternatives: [],
-    };
-  }
-  if (
-    anchor.areaSqm < CASCADE_LIMITS.minLotSqm ||
-    anchor.areaSqm > CASCADE_LIMITS.maxParcelSqm
-  ) {
-    return {
-      result: null,
-      reason: `parcel at the point is ${Math.round(anchor.areaSqm)} m², outside the plausible range`,
-      alternatives: [],
-    };
-  }
-  // As in stage 1: a building the parcel line would cut in two is in whole.
-  const whole = completeBuildings(
-    { type: "Polygon", coordinates: [anchor.ring] },
-    input,
-  );
-  return {
-    result: parcelResult(
-      whole.geometry,
-      whole.added > 0 ? geometryAreaSqm(whole.geometry) : anchor.areaSqm,
-      anchor.state,
-      CASCADE_CONFIDENCE.parcel,
-      4,
-      "ALKIS parcel",
-      "parcel",
-    ),
-    reason:
-      whole.added > 0
-        ? `cadastral parcel contains the point; ${whole.added} building(s) across the parcel line kept whole`
-        : "cadastral parcel contains the point",
-    alternatives: [],
-  };
-}
 
 // --- Point plausibility (v11) -------------------------------------------
 
@@ -235,12 +171,12 @@ function nearestLot(
     );
     tried.push(...(lot.length > 0 ? lot : [v]));
     if (lot.length < CASCADE_LIMITS.hullMinVehicles) continue;
-    for (const [stage, run] of [
-      [1, vehicleParcelStage],
-      [2, vehicleHullStage],
+    const site = siteStage(at);
+    for (const [stage, outcome] of [
+      [1, site.hasLot ? site : null],
+      [2, vehicleHullStage(at)],
     ] as const) {
-      const outcome = run(at);
-      if (outcome.result) {
+      if (outcome?.result) {
         return {
           result: {
             ...outcome.result,
@@ -265,7 +201,7 @@ function nearestLot(
  * Runs stages 1–4 in order and stops at the first that accepts. Later stages
  * still run so their geometry can be offered as an alternative, but they never
  * change the chosen result. The vehicle outline is not offered next to
- * well-covering parcels.
+ * parcels without a parcel in doubt.
  */
 export function runCascade(given: CascadeInput): CascadeOutcome {
   const trace: string[] = [];
@@ -277,37 +213,60 @@ export function runCascade(given: CascadeInput): CascadeOutcome {
     );
   }
   const alternatives: BoundaryResult[] = [];
-  const stages: Array<[CascadeStage, (input: CascadeInput) => StageOutcome]> = [
-    [1, vehicleParcelStage],
-    [2, vehicleHullStage],
-    [3, osmDealerStage],
-    [4, parcelStage],
+  // The site parcels are formed once: with a vehicle lot on them they are
+  // stage 1, without one the last answer before the circle.
+  const site = siteStage(input);
+  const noLot: StageOutcome = {
+    result: null,
+    reason: site.result
+      ? "no vehicle lot on the parcels at the point"
+      : site.reason,
+    alternatives: [],
+  };
+  const noSite: StageOutcome = {
+    result: null,
+    reason: site.reason,
+    alternatives: [],
+  };
+  const stages: Array<[CascadeStage, StageOutcome]> = [
+    [1, site.hasLot ? site : noLot],
+    [2, vehicleHullStage(input)],
+    [3, osmDealerStage(input)],
+    [4, site.result && !site.hasLot ? site : noSite],
   ];
   let chosen: { result: BoundaryResult; stage: CascadeStage } | null = null;
   let lotVehicles: number | undefined;
   let stageFlags: BoundaryReviewFlag[] = [];
-  for (const [stage, run] of stages) {
-    const outcome = run(input);
-    alternatives.push(...outcome.alternatives);
-    lotVehicles ??= outcome.lotVehicles;
+  for (const [stage, outcome] of stages) {
     if (chosen) {
-      // Parcels that hold most of the lot leave the vehicle outline nothing
+      // Parcels without a parcel in doubt leave the vehicle outline nothing
       // to add: it only follows parked cars into the street.
       const outlineAfterGoodParcels =
         stage === 2 &&
         chosen.stage === 1 &&
         chosen.result.confidence >= CASCADE_CONFIDENCE.vehicleParcels;
-      if (outcome.result && !outlineAfterGoodParcels) {
-        alternatives.push(outcome.result);
+      // The parcels of stage 4 are those of stage 1.
+      const sameParcels = stage === 4 && chosen.stage === 1;
+      if (outcome.result && !outlineAfterGoodParcels && !sameParcels) {
+        alternatives.push(outcome.result, ...outcome.alternatives);
       }
       continue;
     }
-    trace.push(`stage ${stage}: ${outcome.reason}`);
+    // Stage 4 after a declined stage 1 would repeat its reason.
+    if (!(stage === 4 && !outcome.result && !site.result)) {
+      trace.push(`stage ${stage}: ${outcome.reason}`);
+    }
     if (outcome.result) {
       chosen = { result: outcome.result, stage };
       stageFlags = outcome.flags ?? [];
+      lotVehicles = outcome.lotVehicles;
+      alternatives.push(...outcome.alternatives);
+    } else {
+      lotVehicles ??= outcome.lotVehicles;
     }
   }
+  const imageTooSmall =
+    site.imageTooSmall && chosen != null && chosen.result === site.result;
   const flags: BoundaryReviewFlag[] = [...stageFlags];
   const anchorParcel = anchorParcelOf(input);
   if (input.parcelsTruncated && !anchorParcel) {
@@ -359,6 +318,7 @@ export function runCascade(given: CascadeInput): CascadeOutcome {
     ...(lotVehicles != null ? { lotVehicles } : {}),
     flags,
     ...(pointOffSite ? { pointOffSite } : {}),
+    ...(imageTooSmall && !pointOffSite ? { imageTooSmall } : {}),
     ...(moved ? { anchor: moved.anchor } : {}),
   };
 }
@@ -385,6 +345,8 @@ export function finalizeCascadeResult(
     flags?: BoundaryReviewFlag[];
     /** Traffic areas without street parcels (Bayern), as in `CascadeInput`. */
     isStreetAt?: (point: LonLat) => boolean;
+    /** The site reaches beyond the image (`CascadeOutcome.imageTooSmall`). */
+    imageTooSmall?: boolean;
   } = {},
 ): BoundaryResult {
   const rings = outerRings(result.polygon) as LonLat[][];
@@ -447,6 +409,7 @@ export function finalizeCascadeResult(
       ...(context.flags && context.flags.length > 0
         ? { reviewFlags: [...context.flags] }
         : {}),
+      ...(context.imageTooSmall ? { possiblyIncomplete: true } : {}),
       requestedEngine: "cascade",
       usedEngine: "cascade",
       resultVersion: CASCADE_VERSION,

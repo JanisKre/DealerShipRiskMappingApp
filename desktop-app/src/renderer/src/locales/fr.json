@@ -822,13 +822,15 @@
       "natCatNone": "Aucune source externe de données grêle n’est configurée ; la zone de grêle provient de la table des codes postaux.",
       "notesSaving": "Enregistrement …",
       "candidate": {
-        "vehicleParcels": "Parcelles avec véhicules",
+        "vehicleParcels": "Parcelles du site",
+        "siteCore": "Parcelles sûres uniquement",
+        "siteExtended": "Avec les parcelles voisines incertaines",
         "vehicleHull": "Contour des véhicules",
         "parcel": "Parcelle au point",
         "osmDealerArea": "Zone concession OSM",
         "synthetic": "Limite estimée (cercle)",
-        "parcelPlusVehicles_one": "Parcelle au point + {{count}} parcelle avec véhicules",
-        "parcelPlusVehicles_other": "Parcelle au point + {{count}} parcelles avec véhicules"
+        "parcelPlusVehicles_one": "Parcelle au point + {{count}} parcelle voisine",
+        "parcelPlusVehicles_other": "Parcelle au point + {{count}} parcelles voisines"
       },
       "boundaryAdopted": "« {{label}} » appliqué ; les véhicules ont été recomptés.",
       "boundaryRestore": "Limite d’origine",

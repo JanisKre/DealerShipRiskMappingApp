@@ -12,7 +12,6 @@ import {
   contains,
   boundingLengthM,
   boundingBox,
-  ringCentre,
   ringBounds,
 } from "./cascade-geometry";
 
@@ -237,60 +236,6 @@ export function greenShare(
   const share = inside >= 5 && known >= 0.7 * inside ? green / known : null;
   perMask.set(ring, share);
   return share;
-}
-
-/**
- * Share of a parcel's outline that lies within `adjacentParcelM` of the
- * given rings, sampled every 2 m. 1 for a parcel the rings surround.
- */
-export function borderShare(parcel: ParcelFeature, rings: LonLat[][]): number {
-  const ring = parcel.ring;
-  const origin = ring[0];
-  const near = rings.filter((other) => isAdjacent(parcel, { ring: other }));
-  if (near.length === 0) return 0;
-  let total = 0;
-  let shared = 0;
-  for (let i = 1; i < ring.length; i += 1) {
-    const [x0, y0] = projectPoint(ring[i - 1], origin);
-    const [x1, y1] = projectPoint(ring[i], origin);
-    const length = Math.hypot(x1 - x0, y1 - y0);
-    const steps = Math.max(1, Math.ceil(length / 2));
-    for (let s = 0; s < steps; s += 1) {
-      const t = (s + 0.5) / steps;
-      const point: LonLat = [
-        ring[i - 1][0] + (ring[i][0] - ring[i - 1][0]) * t,
-        ring[i - 1][1] + (ring[i][1] - ring[i - 1][1]) * t,
-      ];
-      const weight = length / steps;
-      total += weight;
-      if (
-        near.some(
-          (other) =>
-            distanceToRingM(point, other) <= CASCADE_LIMITS.adjacentParcelM,
-        )
-      ) {
-        shared += weight;
-      }
-    }
-  }
-  return total > 0 ? shared / total : 0;
-}
-
-/**
- * Parcel area not covered by buildings, never below `minUnbuiltShare` of the
- * parcel. Buildings are assigned to the parcel holding their centre.
- */
-export function unbuiltAreaSqm(
-  parcel: ParcelFeature,
-  buildings: LonLat[][],
-): number {
-  const built = buildings
-    .filter((ring) => contains(parcel.ring, ringCentre(ring)))
-    .reduce((sum, ring) => sum + ringAreaSqm(ring), 0);
-  return Math.max(
-    parcel.areaSqm - built,
-    CASCADE_LIMITS.minUnbuiltShare * parcel.areaSqm,
-  );
 }
 
 export function isAdjacent(

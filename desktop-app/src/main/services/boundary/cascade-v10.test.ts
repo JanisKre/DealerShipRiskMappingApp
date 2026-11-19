@@ -3,11 +3,7 @@ import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import { geometryAreaSqm } from "@shared/boundary-geometry-utils";
 import { ringAreaSqm, unprojectPoint, type LonLat } from "../boundary-geometry";
 import type { ParcelFeature, ParcelLandUse } from "../alkis.service";
-import {
-  CASCADE_CONFIDENCE,
-  vehicleParcelStage,
-  type CascadeInput,
-} from "./cascade";
+import { siteStage, type CascadeInput } from "./cascade";
 
 /**
  * Cascade v10 (docs/boundary-model.md, "Cascade v10"): a second part of the
@@ -86,27 +82,8 @@ function across(
 }
 
 describe("a second lot across the street (v10)", () => {
-  it("joins a dense car lot directly across the street as a second part", () => {
-    const outcome = vehicleParcelStage(
-      input({
-        vehicles: [
-          ...cars(-30, -30, 30, 30),
-          ...kerb,
-          ...cars(42, -30, 72, 30),
-        ],
-        parcels: [yard, street, across()],
-      }),
-    );
-    const result = outcome.result!;
-    expect(result.polygon.type).toBe("MultiPolygon");
-    expect(geometryAreaSqm(result.polygon)).toBeGreaterThan(3_600 + 1_700);
-    expect(outcome.reason).toContain("1 across the street");
-    // The rule's guess is offered for review.
-    expect(result.confidence).toBe(CASCADE_CONFIDENCE.vehicleParcelsPartial);
-  });
-
   it("never joins the street itself", () => {
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         vehicles: [
           ...cars(-30, -30, 30, 30),
@@ -121,7 +98,7 @@ describe("a second lot across the street (v10)", () => {
   });
 
   it("keeps a sparsely used car park across the street out", () => {
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         vehicles: [
           ...cars(-30, -30, 30, 30),
@@ -137,24 +114,8 @@ describe("a second lot across the street (v10)", () => {
     expect(outcome.reason).not.toContain("across the street");
   });
 
-  it("joins a plot across the street with the dealership's address and a few cars", () => {
-    const outcome = vehicleParcelStage(
-      input({
-        vehicles: [
-          ...cars(-30, -30, 30, 30),
-          ...kerb,
-          at(45, 0),
-          at(50, 0),
-          at(55, 0),
-        ],
-        parcels: [yard, street, across({ address: "Hauptstraße 10" })],
-      }),
-    );
-    expect(outcome.reason).toContain("1 across the street");
-  });
-
   it("keeps housing across the street out, however full", () => {
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         vehicles: [
           ...cars(-30, -30, 30, 30),

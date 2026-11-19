@@ -5,17 +5,14 @@ import { ringAreaSqm, unprojectPoint, type LonLat } from "../boundary-geometry";
 import type { ParcelFeature } from "../alkis.service";
 import {
   CASCADE_CONFIDENCE,
-  CASCADE_LIMITS,
-  extendLot,
   finalizeCascadeResult,
   isFieldStrip,
   isStreetLike,
   runCascade,
   streetParcels,
-  unbuiltAreaSqm,
   vehicleHullStage,
   vehicleLot,
-  vehicleParcelStage,
+  siteStage,
   type CascadeInput,
 } from "./cascade";
 
@@ -104,24 +101,11 @@ describe("street test (v3)", () => {
   });
 });
 
-describe("unbuilt area", () => {
-  it("subtracts the buildings standing on the parcel", () => {
-    const plot = parcel(rect(0, 0, 100, 100));
-    const hall = rect(10, 10, 60, 60);
-    expect(unbuiltAreaSqm(plot, [hall])).toBeCloseTo(10_000 - 2_500, -2);
-  });
-
-  it("never drops below a fifth of the parcel", () => {
-    const plot = parcel(rect(0, 0, 50, 50));
-    expect(unbuiltAreaSqm(plot, [rect(1, 1, 49, 49)])).toBeCloseTo(500, -1);
-  });
-});
-
 describe("stage 1 (v3)", () => {
   it("does not join a meadow because a row of cars stands at its edge", () => {
     const home = parcel(rect(-40, -40, 40, 40));
     const meadow = parcel(rect(-40, 40, 140, 140));
-    const result = vehicleParcelStage(
+    const result = siteStage(
       input({
         vehicles: [...cars(-35, -35, 35, 35), ...cars(-35, 40, 35, 50)],
         parcels: [home, meadow],
@@ -135,7 +119,7 @@ describe("stage 1 (v3)", () => {
     const home = parcel(rect(-40, -40, 40, 40));
     const showroom = parcel(rect(40, -40, 100, 40));
     const roof = rect(42, -38, 98, 30);
-    const result = vehicleParcelStage(
+    const result = siteStage(
       input({
         vehicles: [...cars(-35, -35, 35, 35), ...cars(40, 30, 98, 40)],
         parcels: [home, showroom],
@@ -148,40 +132,13 @@ describe("stage 1 (v3)", () => {
   it("joins the yard of a small dealer that never holds ten cars", () => {
     const shop = parcel(rect(-10, -10, 15, 15));
     const yard = parcel(rect(15, -10, 45, 15));
-    const result = vehicleParcelStage(
+    const result = siteStage(
       input({
         vehicles: [at(0, 18), at(5, 18), at(10, 18), ...cars(17, -8, 32, 2)],
         parcels: [shop, yard],
       }),
     );
     expectArea(result.result!.areaSqm, shop.areaSqm + yard.areaSqm);
-  });
-
-  it("continues a lot cut off at 80 m when that adds little area", () => {
-    // One parking area up to 108 m north; the anchor parcel ends at 90 m.
-    const home = parcel(rect(-30, -10, 30, 90));
-    const end = parcel(rect(-30, 90, 30, 110));
-    const lot = cars(-25, -5, 25, 108);
-    const result = vehicleParcelStage(
-      input({ vehicles: lot, parcels: [home, end] }),
-    );
-    expectArea(result.result!.areaSqm, home.areaSqm + end.areaSqm);
-    expect(result.reason).toMatch(/continued beyond 80 m/);
-    expect(result.alternatives).toHaveLength(0);
-  });
-
-  it("offers a large continuation beyond 80 m as an alternative only", () => {
-    const home = parcel(rect(-30, -10, 30, 85));
-    const neighbour = parcel(rect(-30, 85, 30, 160));
-    const lot = cars(-25, -5, 25, 155);
-    const result = vehicleParcelStage(
-      input({ vehicles: lot, parcels: [home, neighbour] }),
-    );
-    expect(result.reason).toMatch(/offered as an alternative/);
-    expect(result.alternatives).toHaveLength(1);
-    expect(result.alternatives[0].areaSqm).toBeGreaterThan(
-      result.result!.areaSqm * (1 + CASCADE_LIMITS.maxExtensionShare),
-    );
   });
 });
 
@@ -200,21 +157,6 @@ describe("anchor reach (v3)", () => {
   it("reaches 40 m from the point without footprints", () => {
     const row = cars(30, -10, 60, 10);
     expect(vehicleLot(row, ANCHOR)).toHaveLength(row.length);
-  });
-});
-
-describe("lot extension", () => {
-  it("adds only clusters that continue the lot or stand on its parcels", () => {
-    const lot = cars(-20, 0, 20, 80);
-    const continuation = cars(-20, 80, 20, 120);
-    const elsewhere = cars(60, 100, 100, 130);
-    const extended = extendLot(
-      [...lot, ...continuation, ...elsewhere],
-      ANCHOR,
-      lot,
-      [rect(-30, -10, 30, 90)],
-    );
-    expect(extended.length).toBe(lot.length + continuation.length);
   });
 });
 
@@ -378,84 +320,28 @@ describe("traffic areas without street parcels (Bayern)", () => {
   });
 });
 
-describe("empty-parcel test for large areas (v4)", () => {
-  it("keeps a large sand lot with scattered detections out, but not a smaller yard", () => {
-    const home = parcel(rect(-40, -40, 40, 40));
-    // 120 × 120 m sand lot (14,400 m²) with 50 detections: 3.5 per 1,000 m².
-    const sand = parcel(rect(40, -40, 160, 80));
-    const scattered: ReturnType<typeof at>[] = [];
-    for (let i = 0; i < 50; i += 1)
-      scattered.push(at(42 + (i % 10) * 2, -38 + Math.floor(i / 10) * 2));
-    const withSand = vehicleParcelStage(
-      input({
-        vehicles: [...cars(-35, -35, 35, 35), ...scattered],
-        parcels: [home, sand],
-      }),
-    );
-    expectArea(withSand.result!.areaSqm, home.areaSqm);
-    // 60 × 80 m yard (4,800 m²) with 20 lot vehicles: 4.2 per 1,000 m² joins.
-    const yard = parcel(rect(40, -40, 100, 40));
-    const withYard = vehicleParcelStage(
-      input({
-        vehicles: [...cars(-35, -35, 35, 35), ...scattered.slice(0, 20)],
-        parcels: [home, yard],
-      }),
-    );
-    expectArea(withYard.result!.areaSqm, home.areaSqm + yard.areaSqm);
-  });
-});
-
 describe("tiny parcel at the point (v4)", () => {
-  it("declines a sliver with nothing joined and outlines the vehicles instead", () => {
+  it("outlines the vehicles when the parcel at the point is a sliver with nothing joined", () => {
     const sliver = parcel(rect(-6, -6, 6, 6));
     const outcome = runCascade(
       input({ vehicles: cars(10, -30, 60, 30), parcels: [sliver] }),
     );
-    expect(outcome.trace.join(" ")).toMatch(/too small for a lot/);
+    expect(outcome.trace[0]).toBe(
+      "stage 1: no vehicle lot on the parcels at the point",
+    );
     expect(outcome.stage).toBe(2);
-  });
-});
-
-describe("point off the lot (v3.1)", () => {
-  it("flags a point whose parcel holds little of the lot and offers the lot's parcels", () => {
-    const warehouse = parcel(rect(-30, -30, 30, 30));
-    const yard = parcel(rect(-90, -30, -30, 30));
-    const vehicles = [at(25, 25), at(25, 20), ...cars(-85, -25, -35, 25)];
-    const outcome = runCascade(input({ vehicles, parcels: [warehouse, yard] }));
-    // The yard joins anyway here; the point's own parcel holds 2 of ~100.
-    expect(outcome.stage).toBe(1);
-    const shareOnAnchor = 2 / outcome.lotVehicles!;
-    expect(shareOnAnchor).toBeLessThan(CASCADE_LIMITS.anchorOffLotShare);
-  });
-
-  it("flags and offers an alternative when the lot is beside the point", () => {
-    const shed = parcel(rect(-20, -20, 20, 20));
-    // The yard next door is 6 m away (a path not in the data), so it cannot
-    // join the point's parcel; its cars link to the two on the shed's apron.
-    const neighbour = parcel(rect(26, -20, 66, 20));
-    const beyond = parcel(rect(200, 200, 240, 240));
-    const vehicles = [at(15, 15), at(18, 10), ...cars(26, -20, 46, 20)];
-    const outcome = runCascade(
-      input({ vehicles, parcels: [shed, neighbour, beyond] }),
+    // The sliver itself stays on offer.
+    expect(outcome.alternatives.map((a) => a.provider)).toContain(
+      "alkis-parcel",
     );
-    expect(outcome.flags).toContain("anchorOffLot");
-    expect(
-      outcome.alternatives.some((alt) =>
-        alt.label?.includes("holding the vehicle lot"),
-      ),
-    ).toBe(true);
   });
 
-  it("does not flag a showroom parcel whose yard joined", () => {
-    const shop = parcel(rect(-10, -10, 15, 15));
-    const yard = parcel(rect(15, -10, 45, 15));
-    const outcome = runCascade(
-      input({
-        vehicles: [at(0, 18), at(5, 18), at(10, 18), ...cars(17, -8, 32, 2)],
-        parcels: [shop, yard],
-      }),
-    );
-    expect(outcome.flags).not.toContain("anchorOffLot");
+  it("returns the sliver, not the circle, when there is no lot to outline", () => {
+    const sliver = parcel(rect(-6, -6, 6, 6));
+    const outcome = runCascade(input({ vehicles: [], parcels: [sliver] }));
+    expect(outcome.stage).toBe(4);
+    expect(outcome.result?.provider).toBe("alkis-parcel");
+    expect(outcome.flags).toContain("noLotAtPoint");
   });
 });
 

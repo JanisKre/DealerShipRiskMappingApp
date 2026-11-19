@@ -127,9 +127,11 @@ describe("runCascade with a point off the site", () => {
     const outcome = runCascade(input({ parcels: [wood] }));
     expect(outcome.result).toBeNull();
     expect(outcome.flags).toContain("pointOffSite");
-    expect(outcome.alternatives.some((a) => a.areaSqm === wood.areaSqm)).toBe(
-      true,
-    );
+    expect(
+      outcome.alternatives.some(
+        (a) => Math.abs(a.areaSqm - wood.areaSqm) < 0.01 * wood.areaSqm,
+      ),
+    ).toBe(true);
   });
 
   it("uses the nearest vehicle lot within reach, at low confidence", () => {

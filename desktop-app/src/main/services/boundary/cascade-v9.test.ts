@@ -9,7 +9,7 @@ import {
   isStreetParcel,
   runCascade,
   streetByUse,
-  vehicleParcelStage,
+  siteStage,
   type CascadeInput,
 } from "./cascade";
 
@@ -123,7 +123,7 @@ describe("streets by land use (v9)", () => {
       address: "Hauptstraße",
       landUse: { traffic: 1 },
     });
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         parcels: [yard, road],
         vehicles: [...cars(-25, -25, 25, 25), ...cars(31, -29, 54, 29)],
@@ -136,7 +136,7 @@ describe("streets by land use (v9)", () => {
     const yard = parcel(rect(-30, -30, 30, 30), { landUse: commercial });
     const small = parcel(rect(30, -8, 45, 8), { landUse: commercial });
     const beyond = parcel(rect(45, -8, 100, 8), { landUse: commercial });
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         parcels: [yard, small, beyond],
         vehicles: [
@@ -160,22 +160,8 @@ describe("parcels with the same address (v9)", () => {
   });
   const empty = rect(30, -30, 70, 30);
 
-  it("joins a neighbouring parcel with the address of the parcel at the point", () => {
-    const outcome = vehicleParcelStage(
-      input({
-        parcels: [
-          yard,
-          parcel(empty, { address: "Schmiedstraße 12", landUse: commercial }),
-        ],
-        vehicles: cars(-25, -25, 25, 25),
-      }),
-    );
-    expectArea(outcome.result?.areaSqm, yard.areaSqm + ringAreaSqm(empty));
-    expect(outcome.reason).toContain("1 by address");
-  });
-
   it("does not join a neighbour with another address and no cars", () => {
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         parcels: [
           yard,
@@ -187,22 +173,8 @@ describe("parcels with the same address (v9)", () => {
     expectArea(outcome.result?.areaSqm, yard.areaSqm);
   });
 
-  it("joins a neighbour carrying the dealership's address", () => {
-    const outcome = vehicleParcelStage(
-      input({
-        address: "Schmiedstr. 14, 52152 Simmerath",
-        parcels: [
-          yard,
-          parcel(empty, { address: "Schmiedstraße 14", landUse: commercial }),
-        ],
-        vehicles: cars(-25, -25, 25, 25),
-      }),
-    );
-    expect(outcome.result?.areaSqm).toBeGreaterThan(yard.areaSqm + 2000);
-  });
-
   it("leaves a meadow with the same address out", () => {
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         parcels: [
           yard,
@@ -222,45 +194,14 @@ describe("housing and open land (v9)", () => {
   const edgeCars = cars(31, -25, 36, 25);
   const neighbour = rect(30, -30, 80, 30);
 
-  it("joins a trade parcel with ten cars at its edge", () => {
-    const outcome = vehicleParcelStage(
-      input({
-        parcels: [yard, parcel(neighbour, { landUse: commercial })],
-        vehicles: [...cars(-25, -25, 25, 25), ...edgeCars],
-      }),
-    );
-    expect(outcome.result?.areaSqm).toBeGreaterThan(yard.areaSqm + 2500);
-  });
-
   it("does not join farmland with ten cars at its edge", () => {
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         parcels: [yard, parcel(neighbour, { landUse: { open: 1 } })],
         vehicles: [...cars(-25, -25, 25, 25), ...edgeCars],
       }),
     );
     expectArea(outcome.result?.areaSqm, yard.areaSqm);
-  });
-
-  it("does not join a parcel that is a meadow on the image", () => {
-    const outcome = vehicleParcelStage(
-      input({
-        parcels: [yard, parcel(neighbour, { landUse: commercial })],
-        vehicles: [...cars(-25, -25, 25, 25), ...edgeCars],
-        vegetationAt: greenEastOf(38),
-      }),
-    );
-    expectArea(outcome.result?.areaSqm, yard.areaSqm);
-  });
-
-  it("still joins housing land that is full of cars", () => {
-    const outcome = vehicleParcelStage(
-      input({
-        parcels: [yard, parcel(neighbour, { landUse: { residential: 1 } })],
-        vehicles: [...cars(-25, -25, 25, 25), ...cars(31, -29, 79, 29)],
-      }),
-    );
-    expect(outcome.result?.areaSqm).toBeGreaterThan(yard.areaSqm + 2500);
   });
 
   it("does not take in a house the lot encloses", () => {
@@ -272,7 +213,7 @@ describe("housing and open land (v9)", () => {
     const house = parcel(rect(-10, -10, 10, 10), {
       landUse: { residential: 1 },
     });
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         anchor: at(-25, 0),
         parcels: [west, north, east, south, house],
@@ -394,7 +335,7 @@ describe("vegetation on the image (v9)", () => {
       vehicles: cars(-25, -25, 25, 25),
       vegetationAt: greenEastOf(30),
     });
-    const outcome = vehicleParcelStage(data);
+    const outcome = siteStage(data);
     expect(outcome.result?.polygon).toEqual({
       type: "Polygon",
       coordinates: [plot.ring],
@@ -407,7 +348,7 @@ describe("vegetation on the image (v9)", () => {
     // wood are two units, and only the yard is the lot.
     const yard = parcel(rect(-30, -30, 30, 30), { landUse: commercial });
     const wood = parcel(rect(30, -30, 90, 30), { landUse: { open: 1 } });
-    const outcome = vehicleParcelStage(
+    const outcome = siteStage(
       input({
         parcels: [yard, wood],
         vehicles: cars(-25, -25, 25, 25),

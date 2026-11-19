@@ -822,13 +822,15 @@
       "natCatNone": "No external hail data source is set up; the hail zone comes from the postcode table.",
       "notesSaving": "Saving …",
       "candidate": {
-        "vehicleParcels": "Parcels with vehicles",
+        "vehicleParcels": "Parcels of the site",
+        "siteCore": "Sure parcels only",
+        "siteExtended": "With doubtful neighbouring parcels",
         "vehicleHull": "Vehicle outline",
         "parcel": "Parcel at the point",
         "osmDealerArea": "OSM dealer area",
         "synthetic": "Estimated boundary (circle)",
-        "parcelPlusVehicles_one": "Parcel at the point + {{count}} parcel with vehicles",
-        "parcelPlusVehicles_other": "Parcel at the point + {{count}} parcels with vehicles"
+        "parcelPlusVehicles_one": "Parcel at the point + {{count}} neighbouring parcel",
+        "parcelPlusVehicles_other": "Parcel at the point + {{count}} neighbouring parcels"
       },
       "boundaryAdopted": "“{{label}}” applied; the vehicles were recounted.",
       "boundaryRestore": "Original boundary",

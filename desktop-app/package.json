@@ -32,6 +32,7 @@
     "benchmark:boundary": "BOUNDARY_BENCHMARK=1 vitest run src/main/services/boundary/boundary-benchmark.run.test.ts",
     "benchmark:detection": "vitest run src/main/services/detection/detection-sweep.run.test.ts",
     "benchmark:boundary:replay": "vitest run src/main/services/boundary/boundary-replay.run.test.ts",
+    "benchmark:boundary:fit": "vitest run src/main/services/boundary/site-model-fit.run.test.ts --reporter=verbose",
     "notices": "node scripts/generate-third-party-notices.mjs",
     "test:e2e": "playwright test"
   },

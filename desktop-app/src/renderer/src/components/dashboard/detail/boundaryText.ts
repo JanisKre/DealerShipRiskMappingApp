@@ -21,6 +21,8 @@ export function candidateLabel(
 ): string {
   const key: Record<string, string> = {
     "alkis-vehicle-parcels": "dashboard.detailDialog.candidate.vehicleParcels",
+    "alkis-site-core": "dashboard.detailDialog.candidate.siteCore",
+    "alkis-site-extended": "dashboard.detailDialog.candidate.siteExtended",
     "vehicle-hull": "dashboard.detailDialog.candidate.vehicleHull",
     "alkis-parcel": "dashboard.detailDialog.candidate.parcel",
     "osm-dealer-area": "dashboard.detailDialog.candidate.osmDealerArea",
@@ -30,7 +32,7 @@ export function candidateLabel(
   if (!k) {
     // Labels written by the boundary engine in English (stored per site).
     const parcels = candidate.label?.match(
-      /^ALKIS parcel(?: \+ (\d+) with vehicles)?$/,
+      /^ALKIS parcel(?: \+ (\d+) (?:with vehicles|adjacent))?$/,
     );
     if (parcels)
       return parcels[1]
