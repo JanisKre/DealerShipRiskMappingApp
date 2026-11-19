@@ -459,7 +459,7 @@ describe("MCP client", () => {
 
   it("runs only planned calls that match an offered read-only tool", async () => {
     fetchMock.mockImplementation(async (input, request) => {
-      if (String(input).includes("api.openai.com")) {
+      if (new URL(String(input)).hostname === "api.openai.com") {
         return llmReply({
           calls: [
             { server: "claims", tool: "close_claim", arguments: {} },

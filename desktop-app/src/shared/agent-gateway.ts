@@ -90,12 +90,34 @@ export function checkGatewayRequest(input: {
     return { status: 403, reason: "origin" };
   }
   if (input.requireToken) {
-    const match = /^Bearer\s+(.+)$/i.exec(input.authorization ?? "");
-    if (!match || !input.tokensEqual(match[1].trim(), input.token)) {
+    const presented = bearerToken(input.authorization);
+    if (presented == null || !input.tokensEqual(presented, input.token)) {
       return { status: 401, reason: "token" };
     }
   }
   return null;
+}
+
+/** Longest Authorization header read; a gateway token is 64 characters. */
+const MAX_AUTHORIZATION_LENGTH = 1024;
+
+/**
+ * The token of an `Authorization: Bearer <token>` header (scheme in any
+ * case, at least one space or tab after it, surrounding whitespace
+ * dropped), or null. Read by position, not with a regular expression: the
+ * pattern it replaced (`^Bearer\s+(.+)$`) backtracked quadratically on a
+ * header of many spaces (CodeQL js/polynomial-redos), and the header comes
+ * from any local process.
+ */
+export function bearerToken(header: string | undefined): string | null {
+  if (!header || header.length > MAX_AUTHORIZATION_LENGTH) return null;
+  const scheme = "bearer";
+  if (header.slice(0, scheme.length).toLowerCase() !== scheme) return null;
+  const separator = header.charAt(scheme.length);
+  if (separator !== " " && separator !== "\t") return null;
+  const token = header.slice(scheme.length).trim();
+  // A header value never spans lines; a token with whitespace inside is none.
+  return token.length > 0 && !/\s/.test(token) ? token : null;
 }
 
 // --- Connecting Claude -------------------------------------------------------

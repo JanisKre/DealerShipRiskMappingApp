@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { AnalyzedDealership, Session } from "@shared/types";
 import {
   DEFAULT_GATEWAY_SETTINGS,
+  bearerToken,
   checkGatewayRequest,
   claudeCodeCommand,
   claudeDesktopConfig,
@@ -420,6 +421,33 @@ describe("gateway request guard", () => {
     expect(
       checkGatewayRequest({ ...base, authorization: undefined })?.status,
     ).toBe(401);
+  });
+});
+
+describe("bearer token", () => {
+  it("reads the token whatever the case of the scheme and the spacing", () => {
+    expect(bearerToken("Bearer secret")).toBe("secret");
+    expect(bearerToken("bearer secret")).toBe("secret");
+    expect(bearerToken("BEARER \t secret  ")).toBe("secret");
+  });
+
+  it("rejects other schemes, a missing separator and an empty token", () => {
+    expect(bearerToken(undefined)).toBeNull();
+    expect(bearerToken("")).toBeNull();
+    expect(bearerToken("Basic c2VjcmV0")).toBeNull();
+    expect(bearerToken("Bearersecret")).toBeNull();
+    expect(bearerToken("Bearer")).toBeNull();
+    expect(bearerToken("Bearer    ")).toBeNull();
+    expect(bearerToken("Bearer sec ret")).toBeNull();
+    expect(bearerToken("Bearer secret\nX-Other: 1")).toBeNull();
+  });
+
+  it("answers at once on a header of many spaces (no backtracking)", () => {
+    const hostile = `Bearer ${" ".repeat(50_000)}x`;
+    const started = performance.now();
+    expect(bearerToken(hostile)).toBeNull();
+    expect(bearerToken(`Bearer ${" ".repeat(900)}x`)).toBe("x");
+    expect(performance.now() - started).toBeLessThan(50);
   });
 });
 
