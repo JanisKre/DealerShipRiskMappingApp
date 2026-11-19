@@ -73,20 +73,11 @@ export function NatCatSettingsCard({
   onSettingsChange: (next: Settings) => void;
 }>): React.JSX.Element {
   const { t } = useTranslation();
-  const [showAllProviders, setShowAllProviders] = useState(false);
   const routing = effectiveNatCatRouting(settings.natCat);
   const connected = NAT_CAT_API_PROVIDERS.filter(
     (p) => routing.connectors[p]?.endpoint,
   );
   const isDefault = isDefaultRouting(routing);
-  const visibleCatalog = showAllProviders
-    ? NAT_CAT_CATALOG
-    : NAT_CAT_CATALOG.filter(
-        (entry) =>
-          entry.kind !== "api" ||
-          (isApiProvider(entry.id) && connected.includes(entry.id)),
-      );
-  const hiddenProviderCount = NAT_CAT_CATALOG.length - visibleCatalog.length;
 
   async function save(partial: Partial<NatCatSettings>): Promise<void> {
     try {
@@ -163,35 +154,14 @@ export function NatCatSettingsCard({
         />
 
         <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-medium">
-              {t("settings.natCat.catalog.title")}
-            </h3>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-8 gap-1 px-2 text-xs"
-              onClick={() => setShowAllProviders((open) => !open)}
-            >
-              {showAllProviders ? (
-                <ChevronDown className="size-3.5" />
-              ) : (
-                <ChevronRight className="size-3.5" />
-              )}
-              {t(
-                showAllProviders
-                  ? "settings.natCat.catalog.hideAll"
-                  : "settings.natCat.catalog.showAll",
-                { count: hiddenProviderCount },
-              )}
-            </Button>
-          </div>
+          <h3 className="text-sm font-medium">
+            {t("settings.natCat.catalog.title")}
+          </h3>
           <p className="text-xs text-muted-foreground">
             {t("settings.natCat.catalog.description")}
           </p>
           <ul className="divide-y rounded-md border">
-            {visibleCatalog.map((entry) => (
+            {NAT_CAT_CATALOG.map((entry) => (
               <CatalogRow
                 key={entry.id}
                 entry={entry}

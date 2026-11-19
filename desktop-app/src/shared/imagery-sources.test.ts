@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  CUSTOM_IMAGERY_LABEL,
+  customImageryCandidate,
   describeImagerySelection,
   fillTileTemplate,
   parseStateFlightDate,
@@ -11,6 +13,7 @@ import {
   stateImageryDrawableAt,
   stateTileTemplate,
   tileBboxEpsg3857,
+  unstatedResolutionLimitations,
   type ImageryCandidate,
 } from "./imagery-sources";
 
@@ -239,5 +242,52 @@ describe("state flight dates and vintages", () => {
     );
     expect(resolveStateService("BE", 2019)?.layer).toBe("truedop_2024");
     expect(resolveStateService("NW", 2023)).toBe(STATE_DOP_SERVICES.NW);
+  });
+});
+
+describe("custom imagery source", () => {
+  it("carries what the user stated into the candidate", () => {
+    expect(
+      customImageryCandidate(
+        {
+          name: "DOP Hamburg",
+          attribution: "© FHH, LGV (2026), dl-de/by-2-0",
+          resolutionM: 0.2,
+        },
+        20,
+      ),
+    ).toMatchObject({
+      kind: "custom",
+      label: "DOP Hamburg",
+      attribution: "© FHH, LGV (2026), dl-de/by-2-0",
+      resolutionM: 0.2,
+      capturedAt: null,
+      dateSource: "none",
+      zoom: 20,
+    });
+  });
+
+  it("falls back to a generic label and unknown resolution", () => {
+    expect(customImageryCandidate(undefined, 19)).toMatchObject({
+      label: CUSTOM_IMAGERY_LABEL,
+      attribution: "",
+      resolutionM: null,
+    });
+  });
+
+  it("notes an unstated resolution on counts made on the custom source only", () => {
+    const unstated = customImageryCandidate(undefined, 20);
+    expect(unstatedResolutionLimitations(unstated)).toEqual([
+      expect.stringContaining("not stated"),
+    ]);
+    expect(
+      unstatedResolutionLimitations(
+        customImageryCandidate({ resolutionM: 0.2 }, 20),
+      ),
+    ).toEqual([]);
+    expect(
+      unstatedResolutionLimitations(candidate("esri:z20", null, null)),
+    ).toEqual([]);
+    expect(unstatedResolutionLimitations(undefined)).toEqual([]);
   });
 });

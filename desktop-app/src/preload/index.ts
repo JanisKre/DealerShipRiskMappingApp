@@ -508,6 +508,13 @@ const api = {
       zoom,
     } satisfies IpcRequest["imagery:select"]),
 
+  testCustomImagery: (
+    point?: IpcRequest["imagery:testCustom"]["point"],
+  ): Promise<IpcResponse["imagery:testCustom"]> =>
+    ipcRenderer.invoke(IPC.imageryTestCustom, {
+      point,
+    } satisfies IpcRequest["imagery:testCustom"]),
+
   imageryTimeline: (
     lat: number,
     lon: number,

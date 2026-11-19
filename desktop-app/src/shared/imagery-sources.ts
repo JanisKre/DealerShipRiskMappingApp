@@ -507,6 +507,45 @@ export const ImageryCandidateSchema = z.object({
 });
 export type ImageryCandidate = z.infer<typeof ImageryCandidateSchema>;
 
+/** Label of the custom tile source when the user gave it no name. */
+export const CUSTOM_IMAGERY_LABEL = "Custom WMS/XYZ";
+
+/**
+ * The custom tile source as a candidate. Name, attribution and resolution
+ * are the user's statements from the settings; a tile service publishes none
+ * of them, and no capture date either.
+ */
+export function customImageryCandidate(
+  stated:
+    { name?: string; attribution?: string; resolutionM?: number } | undefined,
+  zoom: number,
+): ImageryCandidate {
+  return {
+    id: "custom",
+    kind: "custom",
+    label: stated?.name ?? CUSTOM_IMAGERY_LABEL,
+    capturedAt: null,
+    dateSource: "none",
+    resolutionM: stated?.resolutionM ?? null,
+    zoom,
+    attribution: stated?.attribution ?? "",
+  };
+}
+
+/**
+ * Limitation for a custom source without a stated resolution: the detector
+ * cannot tell whether the imagery is sharp enough, so the count says so.
+ */
+export function unstatedResolutionLimitations(
+  chosen: ImageryCandidate | undefined,
+): string[] {
+  if (chosen?.kind !== "custom" || chosen.resolutionM != null) return [];
+  return [
+    "Resolution of the custom imagery source is not stated; on imagery " +
+      `coarser than ${DETECTION_MAX_RESOLUTION_M} m/px the vehicle count is likely too low`,
+  ];
+}
+
 export const ImagerySelectionReasonSchema = z.enum([
   "newest",
   "sharper-within-tolerance",

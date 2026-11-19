@@ -375,8 +375,6 @@
       },
       "catalog": {
         "title": "Providers",
-        "showAll": "Show more providers ({{count}})",
-        "hideAll": "Collapse provider list",
         "description": "Common hail data sources. Commercial providers connect through an HTTPS endpoint in the app's hazard API format (a contract and, if needed, a translation service at the provider are required). Only the hail value is used. Coverage per vendor information, October 2026.",
         "customName": "Custom hazard API",
         "website": "Provider website",
@@ -413,16 +411,55 @@
       }
     },
     "satelliteSource": {
-      "title": "Aerial Imagery Source",
-      "customOption": "WMS/XYZ (custom)",
-      "customShort": "Use a custom tile URL",
-      "esriOption": "Esri World Imagery",
-      "esriShort": "Use Esri only",
-      "tileTemplateLabel": "Tile Template",
-      "tileTemplateHint": "HTTPS XYZ URL with {z}/{x}/{y} or WMS GetMap URL with {bbox-epsg-3857}; optional {time}. Falls back to Esri without a valid template.",
+      "title": "Aerial imagery source",
+      "description": "Aerial imagery for the map view and vehicle detection. Both use the same source; it is stored with every detection.",
       "autoOption": "Automatic (recommended)",
       "autoShort": "Best available source per location",
-      "autoHint": "Picks the newest source per location: Esri World Imagery or the official state orthophoto (14 German states with an open service). Map view and vehicle detection use the same source; the choice is stored with every detection.",
+      "esriOption": "Esri World Imagery",
+      "esriShort": "Use Esri only",
+      "customOption": "Own source",
+      "customShort": "Use only your own tile service",
+      "modeHint": {
+        "auto": "Picks the newest source per location: Esri World Imagery or the official state orthophoto ({{count}} German states with an open service). If a sharper image is less than half a year older, the sharper one wins.",
+        "esri": "Uses Esri World Imagery everywhere, also where an official orthophoto is newer or sharper.",
+        "wms": "Uses only your own source everywhere. Outside its coverage the map stays empty and no vehicles are counted there."
+      },
+      "sources": {
+        "title": "Sources",
+        "status": {
+          "active": "Active",
+          "unused": "Not used"
+        },
+        "esriNote": "Worldwide. Satellite imagery at 0.3–0.5 m, orthophotos at 0.1–0.2 m in places. Capture date from Esri's metadata.",
+        "stateName": "Official orthophotos of the German states",
+        "stateNote": "{{count}} states with an open service, 0.1–0.2 m. Capture date from the flight index of the state or of the BKG. Hamburg stays on Esri.",
+        "stateList": "States ({{count}})",
+        "customName": "Own source (WMS/XYZ)",
+        "customNote": "A tile service of your own, such as a licensed provider or a service missing here. The app cannot query its capture date or resolution.",
+        "customInactive": "Connected but not in use. Choose “Own source” above to use it."
+      },
+      "form": {
+        "name": "Name",
+        "namePlaceholder": "e.g. DOP Hamburg",
+        "attribution": "Attribution",
+        "attributionHint": "Shown on the map and stored with every count.",
+        "resolution": "Resolution (m per pixel)",
+        "resolutionError": "Please enter a number above 0 and up to 100.",
+        "resolutionHint": "Vehicle detection needs 0.25 m or finer; on coarser imagery it counts too few. Without a value, every count notes that the resolution is unknown."
+      },
+      "test": {
+        "ok": "Image received in {{ms}} ms.",
+        "not-configured": "No own source is saved.",
+        "unreachable": "The service cannot be reached: {{detail}}",
+        "http-error": "The service answers with HTTP {{status}}.",
+        "not-an-image": "The answer is not an image: {{detail}}",
+        "blank": "The service answers, but returns only a single flat colour here. The place is probably outside its coverage, or the layer is wrong.",
+        "previewAlt": "Sample tile of the own source",
+        "atSite": "Sample tile at the location “{{name}}”.",
+        "atDefault": "Sample tile in Berlin, because the portfolio has no location."
+      },
+      "tileTemplateLabel": "Tile template",
+      "tileTemplateHint": "HTTPS XYZ URL with {z}/{x}/{y} or WMS GetMap URL with {bbox-epsg-3857}; optional {time}. An access key in the address is stored unencrypted in the settings.",
       "tileTemplateErrors": {
         "empty": "Please enter a template.",
         "too-long": "The template is too long (max. 2048 characters).",
@@ -432,8 +469,7 @@
         "placeholder-in-host": "Placeholders are only allowed in the path or query, not in the server name.",
         "unknown-placeholder": "Unknown placeholder. Allowed are {z}, {x}, {y}, {bbox-epsg-3857} and {time}.",
         "missing-placeholders": "{z}/{x}/{y} or {bbox-epsg-3857} is missing."
-      },
-      "description": "Aerial imagery for the map view and vehicle detection."
+      }
     },
     "appearance": {
       "title": "Appearance",

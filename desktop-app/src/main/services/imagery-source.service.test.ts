@@ -202,6 +202,25 @@ describe("selectImageryForDetection", () => {
     expect(selection.chosen.kind).toBe("custom");
     expect(mocks.getEsriImageryMetadata).not.toHaveBeenCalled();
   });
+
+  it("labels the custom source with what the user stated about it", async () => {
+    mocks.getSettings.mockReturnValue({
+      satelliteProvider: "wms",
+      wmsTileUrl: "https://example.test/{z}/{x}/{y}.png",
+      customImagery: {
+        name: "DOP Hamburg",
+        attribution: "© FHH, LGV",
+        resolutionM: 0.2,
+      },
+    });
+    const selection = await selectImageryForDetection(53.55, 9.99);
+    expect(selection.chosen).toMatchObject({
+      kind: "custom",
+      label: "DOP Hamburg",
+      attribution: "© FHH, LGV",
+      resolutionM: 0.2,
+    });
+  });
 });
 
 describe("selectImageryForView", () => {

@@ -37,8 +37,23 @@ the project follows [Semantic Versioning](https://semver.org/).
   the step that closes the gap; the export menu lists what the report will
   mark as provisional.
 
+- **Own aerial imagery source with name, attribution, resolution and a
+  connection test.** Settings → Data sources → "Aerial imagery source" now
+  lists the sources the app knows (Esri, the 15 state orthophotos with
+  resolution and licence, the own WMS/XYZ source) and which of them the
+  chosen mode uses. The own source is connected like a hail provider: name,
+  tile template, attribution and resolution, "Test connection" (one sample
+  tile at the first location of the portfolio, shown in the settings; a
+  flat-colour tile is reported as outside the coverage) and "Disconnect".
+  What is stated goes into the provenance of every count made on that
+  source; without a stated resolution the count carries a limitation saying
+  so. See `docs/imagery-sources.md`, "Own source".
+
 ### Changed
 
+- **Hail providers are listed without a click.** The provider list in
+  Settings → Data sources is shown in full instead of behind "Show more
+  providers".
 - **Declared value before the area estimate (screening-0.5.3).** Without a
   detection model the lot-area estimate replaced the vehicle value declared
   in the import (a fallback circle gave 72.4 M€ instead of the declared
@@ -93,6 +108,13 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Own aerial imagery source: a tile template with `{time}` no longer takes
+  the map page down ("This page could not be displayed"); the placeholder
+  stays empty on the map, as it does for a capture.
+- Own aerial imagery source: the map credits the source with its stated
+  attribution or name instead of "© Esri World Imagery".
+- Settings: the imagery hint named 14 states with an open orthophoto
+  service; there are 15, and the number now comes from the registry.
 - Review of an old aerial image: the review strip offers "View image
   history", which opens the history on the site tab (it is already open in
   a review for an old image). When the counted image already is the newest

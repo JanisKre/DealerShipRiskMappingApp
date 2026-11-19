@@ -29,11 +29,14 @@ export function tileAttributions(t: TFunction): Record<Basemap, string> {
 /**
  * Leaflet fills template keys from layer options and calls function values
  * with the tile coords — this resolves the `{bbox-epsg-3857}` placeholder of
- * WMS templates (state orthophotos, custom WMS) per tile.
+ * WMS templates (state orthophotos, custom WMS) per tile. `{time}` of a
+ * custom template is left empty, as the main process does for a capture of
+ * the current image; Leaflet throws on a placeholder without a value.
  */
-export const BBOX_TEMPLATE_OPTION = {
+export const TILE_TEMPLATE_OPTIONS = {
   "bbox-epsg-3857": (d: { x: number; y: number; z: number }) =>
     tileBboxEpsg3857(d.z, d.x, d.y).join(","),
+  time: "",
 };
 
 /** Max zoom of the base TileLayer; imagery metadata is resolved at the level actually drawn. */

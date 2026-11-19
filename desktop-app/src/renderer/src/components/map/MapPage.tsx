@@ -40,7 +40,7 @@ import {
   isUndoShortcut,
   undoShortcutTarget,
 } from "@renderer/lib/boundaryUndo";
-import { BASEMAP_MAX_ZOOM, BBOX_TEMPLATE_OPTION } from "./basemapTiles";
+import { BASEMAP_MAX_ZOOM, TILE_TEMPLATE_OPTIONS } from "./basemapTiles";
 import {
   FitBounds,
   GeomanLanguage,
@@ -431,7 +431,7 @@ export function MapPage(): React.JSX.Element {
           maxNativeZoom={imagery.tileMaxNativeZoom}
           ancestorFallback
           opacity={1}
-          {...BBOX_TEMPLATE_OPTION}
+          {...TILE_TEMPLATE_OPTIONS}
         />
         <MapResizer />
         <GeomanLanguage />

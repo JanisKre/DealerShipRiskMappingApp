@@ -1,6 +1,7 @@
 import { buildTileUrl, DETECTION_ZOOM } from "@shared/constants";
 import {
   buildStateTileUrl,
+  customImageryCandidate,
   DETECTION_MAX_RESOLUTION_M,
   IMAGERY_MIN_SELECTION_ZOOM,
   IMAGERY_TOLERANCE_DAYS,
@@ -203,16 +204,7 @@ export function stateCandidate(
 }
 
 function customCandidate(zoom: number): ImageryCandidate {
-  return {
-    id: "custom",
-    kind: "custom",
-    label: "Custom WMS/XYZ",
-    capturedAt: null,
-    dateSource: "none",
-    resolutionM: null,
-    zoom,
-    attribution: "",
-  };
+  return customImageryCandidate(getSettings().customImagery, zoom);
 }
 
 function selection(

@@ -375,8 +375,6 @@
       },
       "catalog": {
         "title": "Fournisseurs",
-        "showAll": "Afficher plus de fournisseurs ({{count}})",
-        "hideAll": "Réduire la liste des fournisseurs",
         "description": "Sources courantes de données grêle. Les fournisseurs commerciaux se connectent via un endpoint HTTPS au format hazard API de l’application (contrat et, si nécessaire, service de traduction chez le fournisseur requis). Seule la valeur grêle est utilisée. Couverture selon les éditeurs, octobre 2026.",
         "customName": "Hazard API personnalisée",
         "website": "Site du fournisseur",
@@ -414,15 +412,54 @@
     },
     "satelliteSource": {
       "title": "Source d'imagerie aérienne",
-      "customOption": "WMS/XYZ (personnalisé)",
-      "customShort": "Utiliser une URL de tuiles",
-      "esriOption": "Esri World Imagery",
-      "esriShort": "Utiliser Esri uniquement",
-      "tileTemplateLabel": "Modèle de tuile",
-      "tileTemplateHint": "URL XYZ HTTPS avec {z}/{x}/{y} ou URL WMS GetMap avec {bbox-epsg-3857} ; {time} en option. Revient à Esri sans modèle valide.",
+      "description": "Imagerie aérienne pour la carte et la détection des véhicules. Les deux utilisent la même source ; elle est enregistrée avec chaque détection.",
       "autoOption": "Automatique (recommandé)",
       "autoShort": "Meilleure source disponible par site",
-      "autoHint": "Choisit la source la plus récente par site : Esri World Imagery ou l'orthophoto officielle du Land (14 Länder avec service ouvert). La carte et la détection de véhicules utilisent la même source ; le choix est enregistré avec chaque détection.",
+      "esriOption": "Esri World Imagery",
+      "esriShort": "Utiliser Esri uniquement",
+      "customOption": "Source personnelle",
+      "customShort": "Utiliser uniquement votre service de tuiles",
+      "modeHint": {
+        "auto": "Choisit la source la plus récente par site : Esri World Imagery ou l'orthophoto officielle du Land ({{count}} Länder avec service ouvert). Si une image plus nette a moins de six mois de plus, la plus nette l'emporte.",
+        "esri": "Utilise Esri World Imagery partout, même là où une orthophoto officielle est plus récente ou plus nette.",
+        "wms": "Utilise partout uniquement votre source. Hors de sa couverture, la carte reste vide et aucun véhicule n'y est compté."
+      },
+      "sources": {
+        "title": "Sources",
+        "status": {
+          "active": "Active",
+          "unused": "Non utilisée"
+        },
+        "esriNote": "Monde entier. Images satellite à 0,3–0,5 m, orthophotos à 0,1–0,2 m par endroits. Date de prise de vue issue des métadonnées d'Esri.",
+        "stateName": "Orthophotos officielles des Länder",
+        "stateNote": "{{count}} Länder avec service ouvert, 0,1–0,2 m. Date de prise de vue issue de l'index des vols du Land ou du BKG. Hambourg reste sur Esri.",
+        "stateList": "Länder ({{count}})",
+        "customName": "Source personnelle (WMS/XYZ)",
+        "customNote": "Votre propre service de tuiles, par exemple un fournisseur sous licence ou un service absent ici. L'application ne peut pas interroger sa date de prise de vue ni sa résolution.",
+        "customInactive": "Connectée mais non utilisée. Choisissez « Source personnelle » ci-dessus pour l'utiliser."
+      },
+      "form": {
+        "name": "Nom",
+        "namePlaceholder": "p. ex. DOP Hamburg",
+        "attribution": "Mention de la source",
+        "attributionHint": "Affichée sur la carte et enregistrée avec chaque comptage.",
+        "resolution": "Résolution (m par pixel)",
+        "resolutionError": "Veuillez saisir un nombre supérieur à 0 et d'au plus 100.",
+        "resolutionHint": "La détection des véhicules exige 0,25 m ou plus fin ; sur des images plus grossières, elle en compte trop peu. Sans valeur, chaque comptage indique que la résolution est inconnue."
+      },
+      "test": {
+        "ok": "Image reçue en {{ms}} ms.",
+        "not-configured": "Aucune source personnelle n'est enregistrée.",
+        "unreachable": "Le service est injoignable : {{detail}}",
+        "http-error": "Le service répond avec HTTP {{status}}.",
+        "not-an-image": "La réponse n'est pas une image : {{detail}}",
+        "blank": "Le service répond, mais ne renvoie ici qu'une couleur unie. L'endroit est probablement hors de sa couverture, ou la couche est incorrecte.",
+        "previewAlt": "Tuile d'essai de la source personnelle",
+        "atSite": "Tuile d'essai sur le site « {{name}} ».",
+        "atDefault": "Tuile d'essai à Berlin, car le portefeuille n'a aucun site."
+      },
+      "tileTemplateLabel": "Modèle de tuile",
+      "tileTemplateHint": "URL XYZ HTTPS avec {z}/{x}/{y} ou URL WMS GetMap avec {bbox-epsg-3857} ; {time} en option. Une clé d'accès dans l'adresse est enregistrée en clair dans les paramètres.",
       "tileTemplateErrors": {
         "empty": "Veuillez saisir un modèle.",
         "too-long": "Le modèle est trop long (2048 caractères max.).",
@@ -432,8 +469,7 @@
         "placeholder-in-host": "Les espaces réservés ne sont autorisés que dans le chemin ou la requête, pas dans le nom du serveur.",
         "unknown-placeholder": "Espace réservé inconnu. Autorisés : {z}, {x}, {y}, {bbox-epsg-3857} et {time}.",
         "missing-placeholders": "Il manque {z}/{x}/{y} ou {bbox-epsg-3857}."
-      },
-      "description": "Imagerie aérienne pour la carte et la détection des véhicules."
+      }
     },
     "appearance": {
       "title": "Apparence",

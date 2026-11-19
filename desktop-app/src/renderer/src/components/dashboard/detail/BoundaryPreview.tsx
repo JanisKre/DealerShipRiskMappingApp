@@ -14,7 +14,7 @@ import {
   useMap,
 } from "@renderer/components/map/leaflet-react";
 import {
-  BBOX_TEMPLATE_OPTION,
+  TILE_TEMPLATE_OPTIONS,
   TILE_URLS,
   tileAttributions,
 } from "@renderer/components/map/basemapTiles";
@@ -145,7 +145,7 @@ export function BoundaryPreview({
           maxNativeZoom={tiles.maxNativeZoom}
           attribution={tileAttributions(t).satellite}
           // WMS templates of the state orthophotos take a bbox per tile.
-          {...BBOX_TEMPLATE_OPTION}
+          {...TILE_TEMPLATE_OPTIONS}
         />
         <Polygon
           positions={current}

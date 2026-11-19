@@ -375,8 +375,6 @@
       },
       "catalog": {
         "title": "Anbieter",
-        "showAll": "Weitere Anbieter anzeigen ({{count}})",
-        "hideAll": "Anbieterliste einklappen",
         "description": "Gängige Datenquellen für Hagel. Kommerzielle Anbieter werden über einen HTTPS-Endpunkt im Hazard-API-Format der App angebunden (Vertrag und ggf. Übersetzungsdienst beim Anbieter erforderlich). Verwendet wird nur der Hagelwert. Angaben zur Abdeckung laut Herstellern, Stand Oktober 2026.",
         "customName": "Eigene Hazard-API",
         "website": "Website des Anbieters",
@@ -413,16 +411,55 @@
       }
     },
     "satelliteSource": {
-      "title": "Luftbild-Kachelquelle",
-      "customOption": "WMS/XYZ (eigen)",
-      "customShort": "Eigene Kachel-URL",
-      "esriOption": "Esri World Imagery",
-      "esriShort": "Nur Esri verwenden",
-      "tileTemplateLabel": "Kachel-Template",
-      "tileTemplateHint": "HTTPS-XYZ-URL mit {z}/{x}/{y} oder WMS-GetMap-URL mit {bbox-epsg-3857}; optional {time}. Ohne gültiges Template wird auf Esri zurückgefallen.",
+      "title": "Luftbildquelle",
+      "description": "Luftbilder für die Kartenansicht und die Fahrzeugerkennung. Beide nutzen dieselbe Quelle; sie wird mit jeder Erkennung gespeichert.",
       "autoOption": "Automatisch (empfohlen)",
       "autoShort": "Beste verfügbare Quelle je Standort",
-      "autoHint": "Wählt pro Standort die neueste Quelle: Esri World Imagery oder das amtliche Orthophoto des Bundeslandes (14 Länder mit offenem Dienst). Kartenansicht und Fahrzeugerkennung nutzen dieselbe Quelle; die Auswahl wird mit jeder Erkennung gespeichert.",
+      "esriOption": "Esri World Imagery",
+      "esriShort": "Nur Esri verwenden",
+      "customOption": "Eigene Quelle",
+      "customShort": "Nur den eigenen Kacheldienst verwenden",
+      "modeHint": {
+        "auto": "Wählt pro Standort die neueste Quelle: Esri World Imagery oder das amtliche Orthophoto des Bundeslandes ({{count}} Länder mit offenem Dienst). Ist ein schärferes Bild weniger als ein halbes Jahr älter, gewinnt das schärfere.",
+        "esri": "Verwendet überall Esri World Imagery, auch dort, wo ein amtliches Orthophoto neuer oder schärfer ist.",
+        "wms": "Verwendet überall nur die eigene Quelle. Außerhalb ihrer Abdeckung bleibt die Karte leer, und dort werden keine Fahrzeuge gezählt."
+      },
+      "sources": {
+        "title": "Quellen",
+        "status": {
+          "active": "Aktiv",
+          "unused": "Nicht verwendet"
+        },
+        "esriNote": "Weltweit. Satellitenbilder mit 0,3–0,5 m, stellenweise Orthophotos mit 0,1–0,2 m. Aufnahmedatum aus den Metadaten von Esri.",
+        "stateName": "Amtliche Orthophotos der Bundesländer",
+        "stateNote": "{{count}} Bundesländer mit offenem Dienst, 0,1–0,2 m. Aufnahmedatum aus dem Bildflugverzeichnis des Landes oder des BKG. Hamburg bleibt bei Esri.",
+        "stateList": "Länder ({{count}})",
+        "customName": "Eigene Quelle (WMS/XYZ)",
+        "customNote": "Ein eigener Kacheldienst, etwa ein lizenzierter Anbieter oder ein Dienst, der hier fehlt. Aufnahmedatum und Auflösung kann die App nicht abfragen.",
+        "customInactive": "Angebunden, aber nicht in Verwendung. Zum Verwenden oben „Eigene Quelle“ wählen."
+      },
+      "form": {
+        "name": "Name",
+        "namePlaceholder": "z. B. DOP Hamburg",
+        "attribution": "Quellenhinweis",
+        "attributionHint": "Steht auf der Karte und wird mit jeder Zählung gespeichert.",
+        "resolution": "Auflösung (m pro Pixel)",
+        "resolutionError": "Bitte eine Zahl über 0 bis höchstens 100 eingeben.",
+        "resolutionHint": "Die Fahrzeugerkennung braucht 0,25 m oder feiner; auf gröberen Bildern zählt sie zu wenig. Ohne Angabe steht bei jeder Zählung, dass die Auflösung unbekannt ist."
+      },
+      "test": {
+        "ok": "Bild erhalten in {{ms}} ms.",
+        "not-configured": "Es ist keine eigene Quelle gespeichert.",
+        "unreachable": "Der Dienst ist nicht erreichbar: {{detail}}",
+        "http-error": "Der Dienst antwortet mit HTTP {{status}}.",
+        "not-an-image": "Die Antwort ist kein Bild: {{detail}}",
+        "blank": "Der Dienst antwortet, liefert hier aber nur eine einfarbige Fläche. Vermutlich liegt die Stelle außerhalb seiner Abdeckung, oder der Layer stimmt nicht.",
+        "previewAlt": "Testkachel der eigenen Quelle",
+        "atSite": "Testkachel am Standort „{{name}}“.",
+        "atDefault": "Testkachel in Berlin, weil das Portfolio keinen Standort hat."
+      },
+      "tileTemplateLabel": "Kachel-Template",
+      "tileTemplateHint": "HTTPS-XYZ-URL mit {z}/{x}/{y} oder WMS-GetMap-URL mit {bbox-epsg-3857}; optional {time}. Ein Zugangsschlüssel in der Adresse wird unverschlüsselt in den Einstellungen gespeichert.",
       "tileTemplateErrors": {
         "empty": "Bitte ein Template eingeben.",
         "too-long": "Das Template ist zu lang (max. 2048 Zeichen).",
@@ -432,8 +469,7 @@
         "placeholder-in-host": "Platzhalter sind nur im Pfad oder in der Abfrage erlaubt, nicht im Servernamen.",
         "unknown-placeholder": "Unbekannter Platzhalter. Erlaubt sind {z}, {x}, {y}, {bbox-epsg-3857} und {time}.",
         "missing-placeholders": "Es fehlen {z}/{x}/{y} oder {bbox-epsg-3857}."
-      },
-      "description": "Luftbilder für die Kartenansicht und die Fahrzeugerkennung."
+      }
     },
     "appearance": {
       "title": "Darstellung",

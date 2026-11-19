@@ -985,6 +985,21 @@ export type NatCatSettings = z.infer<typeof NatCatSettingsSchema>;
 
 // --- Settings ---------------------------------------------------------------
 
+/**
+ * The user's own statements about the custom tile source (`wmsTileUrl`). The
+ * app cannot read them from a tile service, so they are stored as stated and
+ * carried into the provenance of every count made on that source.
+ */
+export const CustomImagerySchema = z.object({
+  /** Shown as the source in the legend, reports and provenance. */
+  name: z.string().trim().min(1).max(80).optional(),
+  /** Copyright line the source's licence asks for; shown on the map. */
+  attribution: z.string().trim().min(1).max(200).optional(),
+  /** Ground resolution in metres per pixel. */
+  resolutionM: z.number().positive().max(100).optional(),
+});
+export type CustomImagery = z.infer<typeof CustomImagerySchema>;
+
 export const SettingsSchema = z.object({
   language: z.enum(["en", "de", "fr"]).default("de"),
   llm: LlmSettingsSchema.optional(),
@@ -997,6 +1012,8 @@ export const SettingsSchema = z.object({
   satelliteProvider: z.enum(["auto", "esri", "wms"]).optional(),
   /** XYZ/WMS tile template with {z}/{x}/{y} placeholders (for provider 'wms'). */
   wmsTileUrl: z.string().optional(),
+  /** What the user states about the custom tile source (see the schema). */
+  customImagery: CustomImagerySchema.optional(),
   /**
    * Own Overpass server (e.g. a local instance with a regional extract). Asked
    * first; the public servers stay the fallback. Unset: public servers only.

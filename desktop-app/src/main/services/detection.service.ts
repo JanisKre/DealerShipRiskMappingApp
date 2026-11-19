@@ -13,6 +13,7 @@ import type {
 } from "@shared/types";
 import {
   describeImagerySelection,
+  unstatedResolutionLimitations,
   type ImagerySelection,
 } from "@shared/imagery-sources";
 import {
@@ -590,6 +591,7 @@ export class OnnxYoloDetector implements VehicleDetector {
         fallbackUsed: false,
         limitations: [
           ...coarseImageryLimitations(sourceResolutionM),
+          ...unstatedResolutionLimitations(image.imagery?.chosen),
           ...coverageLimitations(image, windows),
           "Accuracy depends on imagery resolution and capture date",
           "Screening estimate of vehicles visible on the capture date, not a current stock count",

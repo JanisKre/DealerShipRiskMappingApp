@@ -128,6 +128,7 @@ import {
 import { configureCustomOverpass } from "../services/boundary/overpass-client";
 import { fetchWeather } from "../services/weather.service";
 import { selectImageryForView } from "../services/imagery-source.service";
+import { testCustomImagery } from "../services/custom-imagery-test.service";
 import { waybackTimeline } from "../services/wayback.service";
 import { countVehiclesOverTime } from "../services/vehicle-timeline.service";
 import {
@@ -365,6 +366,7 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.imagerySelect, ({ lat, lon, zoom }) =>
     selectImageryForView(lat, lon, zoom),
   );
+  handle(IPC.imageryTestCustom, ({ point }) => testCustomImagery(point));
   handle(IPC.imageryTimeline, ({ lat, lon, zoom }) =>
     waybackTimeline(lat, lon, zoom),
   );

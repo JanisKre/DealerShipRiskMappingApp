@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { validateTileTemplate } from "@shared/tile-template";
 import { validateOverpassUrl } from "@shared/overpass-url";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -45,6 +44,7 @@ import { AppSupportCard } from "./AppSupportCard";
 import { DealerDirectoryCard } from "./DealerDirectoryCard";
 import { DetectionDisplayCard } from "./DetectionDisplayCard";
 import { DetectionModelCard } from "./DetectionModelCard";
+import { ImagerySourceCard } from "./ImagerySourceCard";
 import { LlmSettingsCard } from "./LlmSettingsCard";
 import { NatCatSettingsCard } from "./NatCatSettingsCard";
 import { SettingRow } from "./SettingRow";
@@ -75,7 +75,6 @@ export function SettingsPage(): React.JSX.Element {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   // Local draft for text fields — persist only onBlur (no toast per keystroke).
-  const [wmsTileUrl, setWmsTileUrl] = useState("");
   const [overpassUrl, setOverpassUrl] = useState("");
   // `?section=…` picks the tab. A link to `?section=ai` (the AI setup
   // prompt) also highlights the AI card; picking the tab here doesn't, so
@@ -108,20 +107,13 @@ export function SettingsPage(): React.JSX.Element {
     };
   }, []);
 
-  // Sync the draft with the persisted values (only when they change externally).
-  useEffect(() => {
-    setWmsTileUrl(settings?.wmsTileUrl ?? "");
-  }, [settings?.wmsTileUrl]);
-
-  // Checked as the user types; only a valid template (or none) is saved.
+  // Sync the draft with the persisted value (only when it changes externally).
   useEffect(() => {
     setOverpassUrl(settings?.overpassUrl ?? "");
   }, [settings?.overpassUrl]);
+  // Checked as the user types; only a valid address (or none) is saved.
   const overpassCheck =
     overpassUrl.trim() === "" ? null : validateOverpassUrl(overpassUrl);
-
-  const wmsCheck =
-    wmsTileUrl.trim() === "" ? null : validateTileTemplate(wmsTileUrl);
 
   const settingsLoaded = settings !== null;
   useEffect(() => {
@@ -277,88 +269,7 @@ export function SettingsPage(): React.JSX.Element {
             onSettingsChange={setSettings}
           />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {t("settings.satelliteSource.title")}
-              </CardTitle>
-              <CardDescription>
-                {t("settings.satelliteSource.description")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                value={settings.satelliteProvider ?? "auto"}
-                onValueChange={(v) =>
-                  v &&
-                  update({
-                    satelliteProvider: v as Settings["satelliteProvider"],
-                  })
-                }
-                className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3"
-              >
-                {(
-                  [
-                    ["auto", "autoOption", "autoShort"],
-                    ["esri", "esriOption", "esriShort"],
-                    ["wms", "customOption", "customShort"],
-                  ] as const
-                ).map(([value, option, short]) => (
-                  <ToggleGroupItem
-                    key={value}
-                    value={value}
-                    className="h-auto min-h-14 rounded-md px-3 py-2 text-center whitespace-normal leading-tight first:rounded-md last:rounded-md"
-                  >
-                    <span className="flex flex-col items-center gap-0.5">
-                      <span className="font-medium">
-                        {t(`settings.satelliteSource.${option}`)}
-                      </span>
-                      <span className="text-[11px] font-normal opacity-75">
-                        {t(`settings.satelliteSource.${short}`)}
-                      </span>
-                    </span>
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-              {(settings.satelliteProvider ?? "auto") === "auto" && (
-                <p className="text-xs text-muted-foreground">
-                  {t("settings.satelliteSource.autoHint")}
-                </p>
-              )}
-              {settings.satelliteProvider === "wms" && (
-                <div className="space-y-1">
-                  <label htmlFor="wms-tile-url" className="text-sm font-medium">
-                    {t("settings.satelliteSource.tileTemplateLabel")}
-                  </label>
-                  <Input
-                    id="wms-tile-url"
-                    value={wmsTileUrl}
-                    placeholder="https://…/{z}/{x}/{y}.png"
-                    aria-invalid={wmsCheck?.ok === false}
-                    onChange={(e) => setWmsTileUrl(e.target.value)}
-                    onBlur={() => {
-                      if (wmsCheck?.ok === false) return;
-                      const next = wmsCheck?.ok ? wmsCheck.template : undefined;
-                      if (next !== settings.wmsTileUrl)
-                        void update({ wmsTileUrl: next });
-                    }}
-                  />
-                  {wmsCheck?.ok === false && (
-                    <p className="text-xs text-destructive">
-                      {t(
-                        `settings.satelliteSource.tileTemplateErrors.${wmsCheck.problem}`,
-                      )}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    {t("settings.satelliteSource.tileTemplateHint")}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ImagerySourceCard settings={settings} onUpdate={update} />
 
           <DetectionModelCard />
 

@@ -8,7 +8,9 @@ import {
 } from "@renderer/lib/useImagerySelection";
 import { useImageryTimeline } from "@renderer/lib/useImageryTimeline";
 import { validateTileTemplate } from "@shared/tile-template";
+import { escapeHtml } from "@renderer/lib/escapeHtml";
 import {
+  CUSTOM_IMAGERY_LABEL,
   IMAGERY_MIN_SELECTION_ZOOM,
   IMAGERY_TOLERANCE_DAYS,
   resolveStateService,
@@ -85,16 +87,29 @@ export function useMapImagery({
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
   const useCountedImage = useMapStore((s) => s.useCountedImage);
 
-  // WMS URL from settings (only for the satellite basemap).
-  const [wmsUrl, setWmsUrl] = useState<string | null>(null);
+  // Custom tile source from the settings (only for the satellite basemap).
+  const [custom, setCustom] = useState<{
+    url: string;
+    attribution: string;
+  } | null>(null);
   useEffect(() => {
     window.api.getSettings().then((s) => {
       if (s.satelliteProvider === "wms" && s.wmsTileUrl) {
         const check = validateTileTemplate(s.wmsTileUrl);
-        if (check.ok) setWmsUrl(check.template);
+        if (check.ok)
+          setCustom({
+            url: check.template,
+            // The source's own line, never Esri's: its tiles are not Esri's.
+            attribution: escapeHtml(
+              s.customImagery?.attribution ??
+                s.customImagery?.name ??
+                CUSTOM_IMAGERY_LABEL,
+            ),
+          });
       }
     });
   }, []);
+  const wmsUrl = custom?.url ?? null;
 
   // Wayback history at the map centre — only where a location-level choice
   // makes sense (same zoom floor as the automatic selection) and no custom
@@ -199,8 +214,9 @@ export function useMapImagery({
       countedOn?.kind === "state-dop" && countedOn.state
         ? resolveStateService(countedOn.state, countedOn.vintage)
         : undefined;
-    if (wmsUrl) {
-      tileUrl = wmsUrl;
+    if (custom) {
+      tileUrl = custom.url;
+      tileAttribution = custom.attribution;
     } else if (pinnedWayback) {
       tileUrl = waybackTileTemplate(pinnedWayback.release);
       tileAttribution = `&copy; ${(pinnedCandidate?.attribution ?? WAYBACK_ATTRIBUTION).replace(/^© /, "")}`;

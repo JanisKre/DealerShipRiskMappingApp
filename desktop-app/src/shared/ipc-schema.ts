@@ -116,6 +116,35 @@ export const NatCatConnectorTestSchema = z.object({
 });
 export type NatCatConnectorTest = z.infer<typeof NatCatConnectorTestSchema>;
 
+/**
+ * Outcome of "Test connection" for the custom tile source: one sample tile.
+ * `blank` is a reachable source that answers with one flat colour, as
+ * services do outside their coverage.
+ */
+export const ImagerySourceTestSchema = z.object({
+  ok: z.boolean(),
+  code: z.enum([
+    "ok",
+    "not-configured",
+    "unreachable",
+    "http-error",
+    "not-an-image",
+    "blank",
+  ]),
+  /** HTTP status for `http-error`. */
+  status: z.number().int().optional(),
+  /** Start of the server's answer or the network error, for diagnosis. */
+  detail: z.string().max(300).optional(),
+  /** The sample tile as a PNG data URL. */
+  preview: z.string().startsWith("data:image/png;base64,").optional(),
+  /** Where the sample tile was requested. */
+  lat: z.number(),
+  lon: z.number(),
+  zoom: z.number().int(),
+  latencyMs: z.number().nonnegative(),
+});
+export type ImagerySourceTest = z.infer<typeof ImagerySourceTestSchema>;
+
 // --- AI provider setup -------------------------------------------------------
 
 /**
@@ -450,6 +479,15 @@ export const ipcRequest = {
     mode: z.enum(["save", "clipboard"]),
   }),
   "imagery:select": ImageryViewRequestSchema,
+  "imagery:testCustom": z.object({
+    /** Where to request the sample tile; a fixed point when omitted. */
+    point: z
+      .object({
+        lat: z.number().finite().min(-90).max(90),
+        lon: z.number().finite().min(-180).max(180),
+      })
+      .optional(),
+  }),
   "imagery:timeline": ImageryViewRequestSchema,
   "imagery:prefetch": z.object({
     lat: z.number().finite().min(-90).max(90),
@@ -604,6 +642,7 @@ export const ipcResponse = {
   }),
   "clipboard:writeText": z.object({ ok: z.boolean() }),
   "imagery:select": ImagerySelectionSchema,
+  "imagery:testCustom": ImagerySourceTestSchema,
   "imagery:timeline": ImageryTimelineSchema,
   "imagery:prefetch": z.null(),
   "dealerDirectory:status": DealerDirectoryStatusSchema.nullable(),

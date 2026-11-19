@@ -115,6 +115,8 @@ export const IPC = {
 
   // Imagery source for the map view (Esri vs. state orthophoto) incl. capture dates
   imagerySelect: "imagery:select",
+  // One sample tile of the saved custom tile source ("Test connection")
+  imageryTestCustom: "imagery:testCustom",
   // Dated Esri World Imagery Wayback versions at a point (history of the image)
   imageryTimeline: "imagery:timeline",
   imageryPrefetch: "imagery:prefetch", // invoke -> null (fire and forget)

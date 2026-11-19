@@ -6,6 +6,7 @@ import { hasEalBasis } from "@shared/estimates";
 import type { AnalyzedDealership } from "@shared/types";
 import { dealershipHailZone, effectiveVehicleCount } from "@shared/risk-math";
 import { isHttpWebsiteUrl, websiteLabel } from "@shared/website";
+import { escapeHtml } from "@renderer/lib/escapeHtml";
 import { eur } from "@renderer/lib/format";
 import { hailZoneColor, hailZoneTextColor } from "@renderer/lib/riskColor";
 import { useMap } from "./leaflet-react";
@@ -38,16 +39,6 @@ function vehicleLabel(
     d.detection.manualVehicleCount == null
     ? `~${count} (${t("ui.estimated")})`
     : String(count);
-}
-
-/** Escapes text for the imperative Leaflet HTML (names come from imports/OSM). */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 function zoneOf(d: AnalyzedDealership): number | undefined {

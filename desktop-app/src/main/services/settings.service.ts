@@ -41,12 +41,18 @@ export function getSettings(): Settings {
 export function setSettings(partial: Partial<Settings>): Settings {
   // The custom tile template is fetched by the main process; reject it here
   // rather than at use, so the user sees why it was not saved.
+  // An empty value disconnects the source (an undefined key would not
+  // survive IPC); what was stated about it goes with it.
   if (partial.wmsTileUrl !== undefined) {
-    const check = validateTileTemplate(partial.wmsTileUrl);
-    if (!check.ok) {
-      throw new Error(`Invalid tile template (${check.problem})`);
+    if (partial.wmsTileUrl.trim() === "") {
+      partial = { ...partial, wmsTileUrl: undefined, customImagery: undefined };
+    } else {
+      const check = validateTileTemplate(partial.wmsTileUrl);
+      if (!check.ok) {
+        throw new Error(`Invalid tile template (${check.problem})`);
+      }
+      partial = { ...partial, wmsTileUrl: check.template };
     }
-    partial = { ...partial, wmsTileUrl: check.template };
   }
   // The Overpass server is queried by the main process: same rule.
   // An empty value clears it (an undefined key would not survive IPC).

@@ -96,8 +96,41 @@ lookup for a new view is running, the legend and the list show a loading state
 instead of the previous place's capture date.
 
 The settings offer "Automatic" (default), "Esri World Imagery" (Esri only;
-still picks the newer of Esri z19/z20) and a custom WMS/XYZ template, which
-now also accepts `{bbox-epsg-3857}` for plain WMS GetMap URLs.
+still picks the newer of Esri z19/z20) and "Own source", a custom WMS/XYZ
+tile service. The settings list the sources the app knows (Esri, the state
+orthophotos with resolution and licence, the own source) and which of them
+the chosen mode uses.
+
+## Own source (custom WMS/XYZ)
+
+A tile service the app does not know is connected in the settings with an
+HTTPS template: XYZ with `{z}/{x}/{y}`, or a WMS GetMap URL with
+`{bbox-epsg-3857}`; `{time}` is optional and stays empty for the current
+image. The template is validated when it is saved (`shared/tile-template.ts`)
+and is the only custom URL the main process fetches.
+
+- **Replaces every other source.** "Own source" is used everywhere, with no
+  fall-back to Esri or a state orthophoto. Outside its coverage the map is
+  empty and no vehicles are counted. It does not compete in "Automatic".
+- **Stated, not measured.** A tile service publishes neither a capture date
+  nor a resolution. Name, attribution and resolution (m per pixel) are what
+  the user enters (`Settings.customImagery`); they go into the selection
+  stored with every detection. The capture date stays unknown.
+- **Resolution and the count.** A stated resolution coarser than 0.25 m adds
+  the same "count is likely too low" limitation as for any coarse source.
+  Without a stated resolution every count carries the limitation that the
+  resolution is not stated.
+- **Attribution.** The map shows the stated attribution, else the stated
+  name, never Esri's line. Entering the line the source's licence asks for
+  is the user's responsibility.
+- **Test connection.** Fetches one tile of the saved template at zoom 18, at
+  the first location of the open portfolio (Berlin without one), and shows
+  it. It reports an HTTP error, an answer that is not an image (WMS errors
+  arrive as XML with HTTP 200), and a tile of one flat colour, which is what
+  services answer outside their coverage.
+- **Access keys.** A key inside the template is stored with the other
+  settings, unencrypted, unlike the hail and AI keys in the OS keychain.
+  Credentials in the URL's user part are rejected.
 
 ## Provenance
 

@@ -98,6 +98,38 @@ describe("settings persistence", () => {
     mocks.statement.get.mockReset();
   });
 
+  it("disconnects the custom tile source with an empty template", () => {
+    mocks.statement.get.mockReturnValue({
+      value: JSON.stringify({
+        satelliteProvider: "auto",
+        wmsTileUrl: "https://t.example.com/{z}/{x}/{y}.png",
+        customImagery: { name: "Own", resolutionM: 0.2 },
+      }),
+    });
+
+    const next = setSettings({ wmsTileUrl: "" });
+    expect(next.wmsTileUrl).toBeUndefined();
+    expect(next.customImagery).toBeUndefined();
+    const saved = JSON.parse(mocks.statement.run.mock.calls[0][1] as string);
+    expect(saved).not.toHaveProperty("wmsTileUrl");
+    expect(saved).not.toHaveProperty("customImagery");
+    mocks.statement.get.mockReset();
+  });
+
+  it("rejects implausible statements about the custom tile source", () => {
+    mocks.statement.get.mockReturnValue({ value: JSON.stringify({}) });
+
+    expect(() => setSettings({ customImagery: { resolutionM: 0 } })).toThrow();
+    expect(() =>
+      setSettings({ customImagery: { name: "x".repeat(81) } }),
+    ).toThrow();
+    expect(
+      setSettings({ customImagery: { name: " DOP ", resolutionM: 0.2 } })
+        .customImagery,
+    ).toEqual({ name: "DOP", resolutionM: 0.2 });
+    mocks.statement.get.mockReset();
+  });
+
   it.each(["legacy", "fused"])(
     "migrates a stored %s boundary engine to the source cascade",
     (engine) => {
