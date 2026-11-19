@@ -561,12 +561,41 @@ export type ImagerySelectionReason = z.infer<
   typeof ImagerySelectionReasonSchema
 >;
 
+/** Why the own tile source has no image at a place. */
+export const OwnSourceGapSchema = z.enum([
+  /** One flat colour: outside the coverage (or below a scale limit). */
+  "blank",
+  "unreachable",
+  "http-error",
+  "not-an-image",
+]);
+export type OwnSourceGap = z.infer<typeof OwnSourceGapSchema>;
+
+const OWN_SOURCE_GAP_TEXT: Record<OwnSourceGap, string> = {
+  blank: "blank tile, outside its coverage",
+  unreachable: "not reachable",
+  "http-error": "HTTP error",
+  "not-an-image": "answer is not an image",
+};
+
+/** Note on the own source as a candidate that was not used. */
+export function ownSourceGapNote(gap: OwnSourceGap): string {
+  return `no image at this location (${OWN_SOURCE_GAP_TEXT[gap]})`;
+}
+
 export const ImagerySelectionSchema = z.object({
   mode: z.enum(["auto", "esri", "wms"]),
   chosen: ImageryCandidateSchema,
   reason: ImagerySelectionReasonSchema,
   /** Every source that was considered, including the chosen one. */
   candidates: z.array(ImageryCandidateSchema),
+  /**
+   * Set when the settings name the own tile source but it has no image
+   * here: `chosen` and `reason` are then the automatic choice made instead.
+   */
+  fallbackFrom: z
+    .object({ label: z.string(), gap: OwnSourceGapSchema })
+    .optional(),
   toleranceDays: z.number(),
   resolvedAt: z.string(),
 });
@@ -632,5 +661,9 @@ export function describeImagerySelection(selection: ImagerySelection): string {
   const c = selection.chosen;
   const date = c.capturedAt ?? "unknown capture date";
   const res = c.resolutionM != null ? `, ${c.resolutionM} m` : "";
-  return `Vehicles counted on ${c.label} (${date}${res}, z${c.zoom}; selection: ${selection.reason})`;
+  const line = `Vehicles counted on ${c.label} (${date}${res}, z${c.zoom}; selection: ${selection.reason})`;
+  const from = selection.fallbackFrom;
+  return from
+    ? `${line}; own source "${from.label}" has ${ownSourceGapNote(from.gap)}`
+    : line;
 }

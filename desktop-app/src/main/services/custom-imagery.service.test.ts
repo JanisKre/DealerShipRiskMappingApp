@@ -4,6 +4,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getSettings: vi.fn(),
   fetchWithResilience: vi.fn(),
+  /** Lifetime the coverage answer was cached with, per cache key. */
+  ttl: new Map<string, number>(),
+}));
+
+vi.mock("./cache.service", () => ({
+  cacheKeyFragment: (v: string) => v.length.toString(16),
+  cached: async (
+    key: string,
+    ttlMs: number,
+    fetcher: () => Promise<unknown>,
+    ttlFor?: (value: unknown) => number,
+  ) => {
+    const value = await fetcher();
+    mocks.ttl.set(key, ttlFor ? ttlFor(value) : ttlMs);
+    return value;
+  },
 }));
 
 vi.mock("./settings.service", () => ({ getSettings: mocks.getSettings }));
@@ -12,10 +28,11 @@ vi.mock("./http.service", () => ({
 }));
 
 import {
+  customImageryCoverage,
   TEST_POINT,
   TEST_ZOOM,
   testCustomImagery,
-} from "./custom-imagery-test.service";
+} from "./custom-imagery.service";
 
 const TEMPLATE = "https://tiles.example.test/{z}/{x}/{y}.jpg";
 
@@ -121,5 +138,62 @@ describe("testCustomImagery", () => {
       code: "unreachable",
       detail: "getaddrinfo ENOTFOUND",
     });
+  });
+});
+
+describe("customImageryCoverage", () => {
+  const HOUR = 60 * 60 * 1000;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.ttl.clear();
+    mocks.getSettings.mockReturnValue({ wmsTileUrl: TEMPLATE });
+  });
+
+  it("asks for the zoom-18 tile of a site and trusts an image for a day", async () => {
+    mocks.fetchWithResilience.mockResolvedValue(
+      answer(await tile(false), "image/png"),
+    );
+    expect(await customImageryCoverage(51.0504, 13.7373)).toBe("ok");
+    expect(mocks.fetchWithResilience.mock.calls[0][0]).toBe(
+      "https://tiles.example.test/18/141075/87701.jpg",
+    );
+    expect([...mocks.ttl.values()]).toEqual([24 * HOUR]);
+  });
+
+  it("asks at the map zoom for an overview and never above zoom 18", async () => {
+    mocks.fetchWithResilience.mockImplementation(async () =>
+      answer(await tile(false), "image/png"),
+    );
+    await customImageryCoverage(51.0504, 13.7373, 6);
+    await customImageryCoverage(51.0504, 13.7373, 21);
+    expect(mocks.fetchWithResilience.mock.calls.map((c) => c[0])).toEqual([
+      "https://tiles.example.test/6/34/21.jpg",
+      "https://tiles.example.test/18/141075/87701.jpg",
+    ]);
+  });
+
+  it("reads a flat tile as no image here", async () => {
+    mocks.fetchWithResilience.mockResolvedValue(
+      answer(await tile(true), "image/png"),
+    );
+    expect(await customImageryCoverage(51.0504, 13.7373)).toBe("blank");
+    expect([...mocks.ttl.values()]).toEqual([24 * HOUR]);
+  });
+
+  it("asks again soon after an error instead of trusting it for a day", async () => {
+    mocks.fetchWithResilience.mockRejectedValue(new Error("offline"));
+    expect(await customImageryCoverage(51.0504, 13.7373)).toBe("unreachable");
+    mocks.fetchWithResilience.mockResolvedValue(
+      new Response("no", { status: 401 }),
+    );
+    expect(await customImageryCoverage(48.137, 11.575)).toBe("http-error");
+    expect([...mocks.ttl.values()]).toEqual([5 * 60 * 1000, 5 * 60 * 1000]);
+  });
+
+  it("does not fetch without a usable template", async () => {
+    mocks.getSettings.mockReturnValue({});
+    expect(await customImageryCoverage(51.0504, 13.7373)).toBe("unreachable");
+    expect(mocks.fetchWithResilience).not.toHaveBeenCalled();
   });
 });

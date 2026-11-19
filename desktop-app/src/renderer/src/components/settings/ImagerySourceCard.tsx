@@ -68,6 +68,8 @@ export function ImagerySourceCard({
 
   const active = t("settings.satelliteSource.sources.status.active");
   const unused = t("settings.satelliteSource.sources.status.unused");
+  // With the own source, the others step in where it has no image.
+  const fallback = t("settings.satelliteSource.sources.status.fallback");
 
   return (
     <Card>
@@ -124,7 +126,7 @@ export function ImagerySourceCard({
             <SourceRow
               name={t("settings.satelliteSource.esriOption")}
               note={t("settings.satelliteSource.sources.esriNote")}
-              status={mode === "wms" ? unused : active}
+              status={mode === "wms" ? fallback : active}
               ok={mode !== "wms"}
             />
             <SourceRow
@@ -132,7 +134,9 @@ export function ImagerySourceCard({
               note={t("settings.satelliteSource.sources.stateNote", {
                 count: stateCount,
               })}
-              status={mode === "auto" ? active : unused}
+              status={
+                mode === "auto" ? active : mode === "wms" ? fallback : unused
+              }
               ok={mode === "auto"}
               action={
                 <RowToggle

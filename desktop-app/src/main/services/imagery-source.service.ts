@@ -6,6 +6,7 @@ import {
   IMAGERY_MIN_SELECTION_ZOOM,
   IMAGERY_TOLERANCE_DAYS,
   isGermanState,
+  ownSourceGapNote,
   parseStateFlightDate,
   resolveStateService,
   selectImagery,
@@ -15,10 +16,12 @@ import {
   type GermanState,
   type ImageryCandidate,
   type ImagerySelection,
+  type OwnSourceGap,
 } from "@shared/imagery-sources";
 import { buildWaybackTileUrl } from "@shared/imagery-wayback";
 import { isUsableTileTemplate } from "@shared/tile-template";
 import { cached, cacheKeyFragment, TTL } from "./cache.service";
+import { customImageryCoverage } from "./custom-imagery.service";
 import { fetchWithResilience } from "./http.service";
 import { getEsriImageryMetadata } from "./imagery-metadata.service";
 import { getSettings } from "./settings.service";
@@ -233,22 +236,60 @@ function currentMode(): ImagerySelection["mode"] {
 }
 
 /**
- * Source for vehicle detection at a point. Esri is considered at
- * DETECTION_ZOOM and one level below, because Esri often serves a different
- * (older or newer) image at z20 than at z19. Only sources up to
- * DETECTION_MAX_RESOLUTION_M compete; when none qualifies, Esri is still used
- * and the detector flags the coarse imagery in its limitations.
+ * The automatic choice made instead of the own source, which has no image
+ * here. The own source stays in the record as a candidate that was not used.
+ */
+function insteadOfOwnSource(
+  automatic: ImagerySelection,
+  custom: ImageryCandidate,
+  gap: OwnSourceGap,
+): ImagerySelection {
+  return {
+    ...automatic,
+    mode: "wms",
+    candidates: [
+      ...automatic.candidates,
+      { ...custom, note: ownSourceGapNote(gap) },
+    ],
+    fallbackFrom: { label: custom.label, gap },
+  };
+}
+
+/**
+ * Source for vehicle detection at a point. The own source from the settings
+ * is used where it has an image; elsewhere the automatic choice is made, and
+ * the selection says so (`fallbackFrom`).
  */
 export async function selectImageryForDetection(
   lat: number,
   lon: number,
 ): Promise<ImagerySelection> {
   const mode = currentMode();
-  if (mode === "wms") {
-    const custom = customCandidate(DETECTION_ZOOM);
+  if (mode !== "wms") return detectionSelection(lat, lon, mode);
+  const custom = customCandidate(DETECTION_ZOOM);
+  const coverage = await customImageryCoverage(lat, lon);
+  if (coverage === "ok") {
     return selection(mode, custom, "fixed-provider", [custom]);
   }
+  return insteadOfOwnSource(
+    await detectionSelection(lat, lon, "auto"),
+    custom,
+    coverage,
+  );
+}
 
+/**
+ * Esri or state orthophoto for vehicle detection. Esri is considered at
+ * DETECTION_ZOOM and one level below, because Esri often serves a different
+ * (older or newer) image at z20 than at z19. Only sources up to
+ * DETECTION_MAX_RESOLUTION_M compete; when none qualifies, Esri is still used
+ * and the detector flags the coarse imagery in its limitations.
+ */
+async function detectionSelection(
+  lat: number,
+  lon: number,
+  mode: "auto" | "esri",
+): Promise<ImagerySelection> {
   const [esriHigh, esriLow, bkg] = await Promise.all([
     esriCandidate(lat, lon, DETECTION_ZOOM),
     esriCandidate(lat, lon, DETECTION_ZOOM - 1),
@@ -274,17 +315,38 @@ export async function selectImageryForDetection(
   return selection(mode, chosen, reason, candidates);
 }
 
-/** Source for the map view centred at a point at the current map zoom. */
+/**
+ * Source for the map view centred at a point at the current map zoom. The
+ * own source is drawn where it has an image for the tile at the map centre
+ * (at the map zoom, so an overview asks for the area in view); elsewhere the
+ * automatic choice is drawn.
+ */
 export async function selectImageryForView(
   lat: number,
   lon: number,
   zoom: number,
 ): Promise<ImagerySelection> {
   const mode = currentMode();
-  if (mode === "wms") {
-    const custom = customCandidate(zoom);
+  if (mode !== "wms") return viewSelection(lat, lon, zoom, mode);
+  const custom = customCandidate(zoom);
+  const coverage = await customImageryCoverage(lat, lon, zoom);
+  if (coverage === "ok") {
     return selection(mode, custom, "fixed-provider", [custom]);
   }
+  return insteadOfOwnSource(
+    await viewSelection(lat, lon, zoom, "auto"),
+    custom,
+    coverage,
+  );
+}
+
+/** Esri or state orthophoto for the map view. */
+async function viewSelection(
+  lat: number,
+  lon: number,
+  zoom: number,
+  mode: "auto" | "esri",
+): Promise<ImagerySelection> {
   const esri = await esriCandidate(lat, lon, zoom);
   if (mode === "esri") return selection(mode, esri, "fixed-provider", [esri]);
   if (zoom < IMAGERY_MIN_SELECTION_ZOOM)
@@ -293,7 +355,7 @@ export async function selectImageryForView(
   // The map follows the choice vehicle detection makes here (same candidates,
   // same sharpness limit), so "Automatic" shows the image a fresh analysis
   // counts on instead of a newer scene too coarse to count cars on.
-  const detection = await selectImageryForDetection(lat, lon);
+  const detection = await detectionSelection(lat, lon, "auto");
   const counted = detection.candidates.find((c) => c.kind === "state-dop");
   const state = counted ? { ...counted, zoom } : null;
   const candidates = state ? [esri, state] : [esri];

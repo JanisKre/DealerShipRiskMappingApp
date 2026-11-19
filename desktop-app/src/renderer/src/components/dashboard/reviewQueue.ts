@@ -127,7 +127,11 @@ const NEWEST_AVAILABLE: ReadonlySet<string> = new Set([
  */
 export function countedOnNewestImagery(d: AnalyzedDealership): boolean {
   const selection = d.detection?.imagery;
-  return selection?.mode === "auto" && NEWEST_AVAILABLE.has(selection.reason);
+  // Outside the own source's coverage the automatic selection ran as well.
+  // After an error of the own source a re-analysis may count on it instead.
+  const automatic =
+    selection?.mode === "auto" || selection?.fallbackFrom?.gap === "blank";
+  return automatic && NEWEST_AVAILABLE.has(selection.reason);
 }
 
 /** Recommended actions for the reasons, in reason order, each once. */

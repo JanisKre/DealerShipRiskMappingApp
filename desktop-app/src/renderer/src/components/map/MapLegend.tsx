@@ -272,6 +272,13 @@ function ImageryDetails({
           {chosen.label}
         </MetaRow>
       </dl>
+      {selection.fallbackFrom && (
+        <p className="mt-1 text-muted-foreground">
+          {t("map.legend.imageryOwnSourceGap", {
+            name: selection.fallbackFrom.label,
+          })}
+        </p>
+      )}
       <details className="mt-1 rounded-md border bg-muted/20">
         <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-muted-foreground">
           {t("map.legend.imageryMoreDetails")}

@@ -160,6 +160,27 @@ describe("review recommendations", () => {
     ).toEqual(["reanalyze"]);
   });
 
+  it("treats a count outside the own source's coverage like an automatic one", () => {
+    const fellBack = (gap: string): AnalyzedDealership =>
+      site("i", {
+        detection: {
+          vehicleCount: 3,
+          imagery: {
+            mode: "wms",
+            reason: "newest",
+            fallbackFrom: { label: "Own", gap },
+          },
+        } as unknown as AnalyzedDealership["detection"],
+      });
+    expect(recommendedActions(["imagery"], fellBack("blank"))).toEqual([
+      "compareImagery",
+    ]);
+    // The own source failed that day: a re-analysis may count on it.
+    expect(recommendedActions(["imagery"], fellBack("unreachable"))).toEqual([
+      "reanalyze",
+    ]);
+  });
+
   it("gives the AI order only reasons, ranks and provenance", () => {
     const flagged = site("b", { boundary, notes: "geheime Notiz" });
     const items = reviewPlanItems(

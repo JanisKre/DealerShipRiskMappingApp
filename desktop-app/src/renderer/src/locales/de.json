@@ -418,17 +418,18 @@
       "esriOption": "Esri World Imagery",
       "esriShort": "Nur Esri verwenden",
       "customOption": "Eigene Quelle",
-      "customShort": "Nur den eigenen Kacheldienst verwenden",
+      "customShort": "Eigener Kacheldienst, sonst automatisch",
       "modeHint": {
         "auto": "Wählt pro Standort die neueste Quelle: Esri World Imagery oder das amtliche Orthophoto des Bundeslandes ({{count}} Länder mit offenem Dienst). Ist ein schärferes Bild weniger als ein halbes Jahr älter, gewinnt das schärfere.",
         "esri": "Verwendet überall Esri World Imagery, auch dort, wo ein amtliches Orthophoto neuer oder schärfer ist.",
-        "wms": "Verwendet überall nur die eigene Quelle. Außerhalb ihrer Abdeckung bleibt die Karte leer, und dort werden keine Fahrzeuge gezählt."
+        "wms": "Verwendet die eigene Quelle überall dort, wo sie ein Bild liefert. Wo nicht, gilt die automatische Auswahl (Esri oder amtliches Orthophoto); das steht dann in der Legende und bei der Zählung."
       },
       "sources": {
         "title": "Quellen",
         "status": {
           "active": "Aktiv",
-          "unused": "Nicht verwendet"
+          "unused": "Nicht verwendet",
+          "fallback": "Ersatz"
         },
         "esriNote": "Weltweit. Satellitenbilder mit 0,3–0,5 m, stellenweise Orthophotos mit 0,1–0,2 m. Aufnahmedatum aus den Metadaten von Esri.",
         "stateName": "Amtliche Orthophotos der Bundesländer",
@@ -453,7 +454,7 @@
         "unreachable": "Der Dienst ist nicht erreichbar: {{detail}}",
         "http-error": "Der Dienst antwortet mit HTTP {{status}}.",
         "not-an-image": "Die Antwort ist kein Bild: {{detail}}",
-        "blank": "Der Dienst antwortet, liefert hier aber nur eine einfarbige Fläche. Vermutlich liegt die Stelle außerhalb seiner Abdeckung, oder der Layer stimmt nicht.",
+        "blank": "Der Dienst antwortet, liefert hier aber nur eine einfarbige Fläche. Vermutlich liegt die Stelle außerhalb seiner Abdeckung, oder der Layer stimmt nicht. An solchen Stellen gilt die automatische Auswahl.",
         "previewAlt": "Testkachel der eigenen Quelle",
         "atSite": "Testkachel am Standort „{{name}}“.",
         "atDefault": "Testkachel in Berlin, weil das Portfolio keinen Standort hat."
@@ -1267,6 +1268,7 @@
         "pinned-version": "manuell gewählter Wayback-Bildstand"
       },
       "imageryAlternatives": "Geprüfte Alternativen",
+      "imageryOwnSourceGap": "Die eigene Quelle „{{name}}“ liefert hier kein Bild; es gilt die automatische Auswahl.",
       "business": "Geschäftsart",
       "existingBusiness": "Bestandsgeschäft (blauer Rand)",
       "newBusiness": "Neugeschäft (violetter Rand, +)",

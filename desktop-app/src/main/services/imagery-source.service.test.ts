@@ -8,11 +8,15 @@ const mocks = vi.hoisted(() => ({
   getSettings: vi.fn(),
   fetchWithResilience: vi.fn(),
   getEsriImageryMetadata: vi.fn(),
+  customImageryCoverage: vi.fn(),
 }));
 
 vi.mock("./settings.service", () => ({ getSettings: mocks.getSettings }));
 vi.mock("./http.service", () => ({
   fetchWithResilience: mocks.fetchWithResilience,
+}));
+vi.mock("./custom-imagery.service", () => ({
+  customImageryCoverage: mocks.customImageryCoverage,
 }));
 vi.mock("./imagery-metadata.service", () => ({
   getEsriImageryMetadata: mocks.getEsriImageryMetadata,
@@ -193,14 +197,55 @@ describe("selectImageryForDetection", () => {
     expect(mocks.fetchWithResilience).not.toHaveBeenCalled();
   });
 
-  it("uses the custom template unchanged in WMS mode", async () => {
+  it("uses only the own source where it has an image", async () => {
     mocks.getSettings.mockReturnValue({
       satelliteProvider: "wms",
       wmsTileUrl: "https://example.test/{z}/{x}/{y}.png",
     });
+    mocks.customImageryCoverage.mockResolvedValue("ok");
     const selection = await selectImageryForDetection(51.2277, 6.7735);
+    expect(mocks.customImageryCoverage).toHaveBeenCalledWith(51.2277, 6.7735);
     expect(selection.chosen.kind).toBe("custom");
+    expect(selection.reason).toBe("fixed-provider");
+    expect(selection.fallbackFrom).toBeUndefined();
     expect(mocks.getEsriImageryMetadata).not.toHaveBeenCalled();
+  });
+
+  it("makes the automatic choice where the own source has no image, and records it", async () => {
+    mocks.getSettings.mockReturnValue({
+      satelliteProvider: "wms",
+      wmsTileUrl: "https://example.test/{z}/{x}/{y}.png",
+      customImagery: { name: "DOP Hamburg" },
+    });
+    mocks.customImageryCoverage.mockResolvedValue("blank");
+    const own = await selectImageryForDetection(51.2277, 6.7735);
+
+    mocks.getSettings.mockReturnValue({ satelliteProvider: "auto" });
+    const automatic = await selectImageryForDetection(51.2277, 6.7735);
+
+    // The same image as in "Automatic", for the same reason …
+    expect(own.chosen.id).toBe(automatic.chosen.id);
+    expect(own.chosen.kind).not.toBe("custom");
+    expect(own.reason).toBe(automatic.reason);
+    // … with the own source on record as asked for and not used.
+    expect(own.mode).toBe("wms");
+    expect(own.fallbackFrom).toEqual({ label: "DOP Hamburg", gap: "blank" });
+    expect(own.candidates.map((c) => c.id)).toEqual([
+      ...automatic.candidates.map((c) => c.id),
+      "custom",
+    ]);
+    expect(own.candidates.at(-1)?.note).toContain("no image at this location");
+  });
+
+  it("falls back as well when the own source cannot be reached", async () => {
+    mocks.getSettings.mockReturnValue({
+      satelliteProvider: "wms",
+      wmsTileUrl: "https://example.test/{z}/{x}/{y}.png",
+    });
+    mocks.customImageryCoverage.mockResolvedValue("unreachable");
+    const selection = await selectImageryForDetection(51.2277, 6.7735);
+    expect(selection.chosen.kind).not.toBe("custom");
+    expect(selection.fallbackFrom?.gap).toBe("unreachable");
   });
 
   it("labels the custom source with what the user stated about it", async () => {
@@ -213,6 +258,7 @@ describe("selectImageryForDetection", () => {
         resolutionM: 0.2,
       },
     });
+    mocks.customImageryCoverage.mockResolvedValue("ok");
     const selection = await selectImageryForDetection(53.55, 9.99);
     expect(selection.chosen).toMatchObject({
       kind: "custom",
@@ -233,6 +279,33 @@ describe("selectImageryForView", () => {
     mocks.fetchWithResilience.mockResolvedValue(
       bkgResponse("NW", "2025-04-07"),
     );
+  });
+
+  it("draws the own source where the tile at the map centre is an image", async () => {
+    mocks.getSettings.mockReturnValue({
+      satelliteProvider: "wms",
+      wmsTileUrl: "https://example.test/{z}/{x}/{y}.png",
+    });
+    mocks.customImageryCoverage.mockResolvedValue("ok");
+    const selection = await selectImageryForView(53.55, 9.99, 12);
+    // Asked at the map zoom: an overview asks for the area in view.
+    expect(mocks.customImageryCoverage).toHaveBeenCalledWith(53.55, 9.99, 12);
+    expect(selection.chosen).toMatchObject({ kind: "custom", zoom: 12 });
+  });
+
+  it("draws the automatic choice where the own source has no image", async () => {
+    mocks.getSettings.mockReturnValue({
+      satelliteProvider: "wms",
+      wmsTileUrl: "https://example.test/{z}/{x}/{y}.png",
+    });
+    mocks.customImageryCoverage.mockResolvedValue("blank");
+    const detail = await selectImageryForView(51.2, 6.8, 17);
+    expect(detail.chosen).toMatchObject({ id: "dop:NW", zoom: 17 });
+    expect(detail.fallbackFrom?.gap).toBe("blank");
+    const overview = await selectImageryForView(51.2, 6.8, 12);
+    expect(overview.chosen.kind).toBe("esri");
+    expect(overview.reason).toBe("overview-zoom");
+    expect(overview.fallbackFrom?.gap).toBe("blank");
   });
 
   it("shows Esri's mosaic at overview zoom without querying BKG", async () => {

@@ -51,6 +51,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The own aerial imagery source falls back to the automatic choice.**
+  "Own source" no longer replaces every other source everywhere: where it
+  has no image (one sample tile at the site, or at the map centre, is a
+  flat colour, an error or unreachable), the map and vehicle detection use
+  the automatic choice (Esri or state orthophoto) instead of a white map
+  and a count of zero. The count records it: the stored selection names the
+  own source and why it was not used, and the legend and the site detail
+  say so. Counts at places the own source covers are unchanged. See
+  `docs/imagery-sources.md`, "Own source".
 - **Hail providers are listed without a click.** The provider list in
   Settings → Data sources is shown in full instead of behind "Show more
   providers".

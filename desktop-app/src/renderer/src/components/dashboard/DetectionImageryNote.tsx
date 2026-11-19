@@ -64,6 +64,14 @@ export function DetectionImageryNote({
           {" — "}
           {t(`map.legend.imageryReasons.${imagery.reason}`)}
         </span>
+        {imagery.fallbackFrom && (
+          <span className="text-muted-foreground">
+            {". "}
+            {t("map.legend.imageryOwnSourceGap", {
+              name: imagery.fallbackFrom.label,
+            })}
+          </span>
+        )}
       </div>
     </div>
   );

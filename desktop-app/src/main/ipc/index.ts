@@ -128,7 +128,7 @@ import {
 import { configureCustomOverpass } from "../services/boundary/overpass-client";
 import { fetchWeather } from "../services/weather.service";
 import { selectImageryForView } from "../services/imagery-source.service";
-import { testCustomImagery } from "../services/custom-imagery-test.service";
+import { testCustomImagery } from "../services/custom-imagery.service";
 import {
   WAYBACK_QUICK_METADATA_MS,
   waybackTimeline,

@@ -109,9 +109,29 @@ HTTPS template: XYZ with `{z}/{x}/{y}`, or a WMS GetMap URL with
 image. The template is validated when it is saved (`shared/tile-template.ts`)
 and is the only custom URL the main process fetches.
 
-- **Replaces every other source.** "Own source" is used everywhere, with no
-  fall-back to Esri or a state orthophoto. Outside its coverage the map is
-  empty and no vehicles are counted. It does not compete in "Automatic".
+- **Used where it has an image, automatic elsewhere.** Before the own
+  source is used at a place, one tile of it is fetched there
+  (`customImageryCoverage`): for vehicle detection the zoom-18 tile that
+  contains the site, for the map the tile at the map centre at the map zoom
+  (at most 18), so an overview asks for the area in view. If the tile is an
+  image, the own source is used (`fixed-provider`), and it alone. If not,
+  the automatic choice above is made instead (Esri or state orthophoto,
+  same rule and limits), and the selection records it: `fallbackFrom` names
+  the own source and why it has no image (`blank`: one flat colour, which
+  is what services answer outside their coverage; `unreachable`;
+  `http-error`; `not-an-image`), the own source stays in `candidates` with
+  that note, and the one-line summary in `evidence.limitations` ends with
+  it. The legend and the site detail say the same. The own source still
+  does not compete in "Automatic".
+- **What the check cannot see.** One tile stands for the place. A site at
+  the edge of the coverage can pass the check and still have missing tiles
+  in its capture (reported as missing tiles, as for any source); a tile of
+  one flat colour that is a real image (open water, a uniform roof at a
+  high zoom) reads as "no image". A source that is down when a site is
+  analysed leaves that count on the automatic choice, with the reason
+  recorded; re-analysing later uses the own source again. "Image" and
+  "flat colour" answers are cached for 24 hours per tile, errors for
+  5 minutes.
 - **Stated, not measured.** A tile service publishes neither a capture date
   nor a resolution. Name, attribution and resolution (m per pixel) are what
   the user enters (`Settings.customImagery`); they go into the selection

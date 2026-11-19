@@ -195,6 +195,26 @@ describe("describeImagerySelection", () => {
   });
 });
 
+describe("describeImagerySelection with the own source", () => {
+  it("says which own source was asked for and why it was not used", () => {
+    const dop = candidate("dop:SN", "2024-04-07", 0.2);
+    expect(
+      describeImagerySelection({
+        mode: "wms",
+        chosen: { ...dop, label: "DOP20 Sachsen" },
+        reason: "only-option",
+        candidates: [dop],
+        fallbackFrom: { label: "DOP Hamburg", gap: "blank" },
+        toleranceDays: 183,
+        resolvedAt: "2026-11-19T00:00:00.000Z",
+      }),
+    ).toBe(
+      "Vehicles counted on DOP20 Sachsen (2024-04-07, 0.2 m, z20; selection: only-option); " +
+        'own source "DOP Hamburg" has no image at this location (blank tile, outside its coverage)',
+    );
+  });
+});
+
 describe("stateImageryDrawableAt", () => {
   it("draws state orthophotos from the selection zoom on", () => {
     expect(stateImageryDrawableAt("NW", 14)).toBe(false);

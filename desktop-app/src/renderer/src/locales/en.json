@@ -418,17 +418,18 @@
       "esriOption": "Esri World Imagery",
       "esriShort": "Use Esri only",
       "customOption": "Own source",
-      "customShort": "Use only your own tile service",
+      "customShort": "Your tile service, otherwise automatic",
       "modeHint": {
         "auto": "Picks the newest source per location: Esri World Imagery or the official state orthophoto ({{count}} German states with an open service). If a sharper image is less than half a year older, the sharper one wins.",
         "esri": "Uses Esri World Imagery everywhere, also where an official orthophoto is newer or sharper.",
-        "wms": "Uses only your own source everywhere. Outside its coverage the map stays empty and no vehicles are counted there."
+        "wms": "Uses your own source wherever it has an image. Where it has none, the automatic choice applies (Esri or official orthophoto); the legend and the count then say so."
       },
       "sources": {
         "title": "Sources",
         "status": {
           "active": "Active",
-          "unused": "Not used"
+          "unused": "Not used",
+          "fallback": "Fallback"
         },
         "esriNote": "Worldwide. Satellite imagery at 0.3–0.5 m, orthophotos at 0.1–0.2 m in places. Capture date from Esri's metadata.",
         "stateName": "Official orthophotos of the German states",
@@ -453,7 +454,7 @@
         "unreachable": "The service cannot be reached: {{detail}}",
         "http-error": "The service answers with HTTP {{status}}.",
         "not-an-image": "The answer is not an image: {{detail}}",
-        "blank": "The service answers, but returns only a single flat colour here. The place is probably outside its coverage, or the layer is wrong.",
+        "blank": "The service answers, but returns only a single flat colour here. The place is probably outside its coverage, or the layer is wrong. In such places the automatic choice applies.",
         "previewAlt": "Sample tile of the own source",
         "atSite": "Sample tile at the location “{{name}}”.",
         "atDefault": "Sample tile in Berlin, because the portfolio has no location."
@@ -1267,6 +1268,7 @@
         "pinned-version": "Wayback image version chosen manually"
       },
       "imageryAlternatives": "Alternatives checked",
+      "imageryOwnSourceGap": "The own source “{{name}}” has no image here; the automatic choice applies.",
       "business": "Business type",
       "existingBusiness": "Existing business (blue outline)",
       "newBusiness": "New business (violet outline, +)",

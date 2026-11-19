@@ -418,17 +418,18 @@
       "esriOption": "Esri World Imagery",
       "esriShort": "Utiliser Esri uniquement",
       "customOption": "Source personnelle",
-      "customShort": "Utiliser uniquement votre service de tuiles",
+      "customShort": "Votre service de tuiles, sinon automatique",
       "modeHint": {
         "auto": "Choisit la source la plus récente par site : Esri World Imagery ou l'orthophoto officielle du Land ({{count}} Länder avec service ouvert). Si une image plus nette a moins de six mois de plus, la plus nette l'emporte.",
         "esri": "Utilise Esri World Imagery partout, même là où une orthophoto officielle est plus récente ou plus nette.",
-        "wms": "Utilise partout uniquement votre source. Hors de sa couverture, la carte reste vide et aucun véhicule n'y est compté."
+        "wms": "Utilise votre source partout où elle fournit une image. Ailleurs, le choix automatique s'applique (Esri ou orthophoto officielle) ; la légende et le comptage l'indiquent alors."
       },
       "sources": {
         "title": "Sources",
         "status": {
           "active": "Active",
-          "unused": "Non utilisée"
+          "unused": "Non utilisée",
+          "fallback": "Repli"
         },
         "esriNote": "Monde entier. Images satellite à 0,3–0,5 m, orthophotos à 0,1–0,2 m par endroits. Date de prise de vue issue des métadonnées d'Esri.",
         "stateName": "Orthophotos officielles des Länder",
@@ -453,7 +454,7 @@
         "unreachable": "Le service est injoignable : {{detail}}",
         "http-error": "Le service répond avec HTTP {{status}}.",
         "not-an-image": "La réponse n'est pas une image : {{detail}}",
-        "blank": "Le service répond, mais ne renvoie ici qu'une couleur unie. L'endroit est probablement hors de sa couverture, ou la couche est incorrecte.",
+        "blank": "Le service répond, mais ne renvoie ici qu'une couleur unie. L'endroit est probablement hors de sa couverture, ou la couche est incorrecte. Dans ces endroits, le choix automatique s'applique.",
         "previewAlt": "Tuile d'essai de la source personnelle",
         "atSite": "Tuile d'essai sur le site « {{name}} ».",
         "atDefault": "Tuile d'essai à Berlin, car le portefeuille n'a aucun site."
@@ -1267,6 +1268,7 @@
         "pinned-version": "version d’image Wayback choisie manuellement"
       },
       "imageryAlternatives": "Alternatives vérifiées",
+      "imageryOwnSourceGap": "La source personnelle « {{name}} » n'a pas d'image ici ; le choix automatique s'applique.",
       "business": "Type d’affaire",
       "existingBusiness": "Portefeuille existant (bord bleu)",
       "newBusiness": "Affaire nouvelle (bord violet, +)",

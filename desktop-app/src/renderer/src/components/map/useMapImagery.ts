@@ -43,7 +43,7 @@ export interface MapImagery {
   /** Wayback versions at the map centre; null where no choice makes sense. */
   timeline: ImageryTimeline | null;
   timelineLoading: boolean;
-  /** False for other basemaps and with a custom WMS. */
+  /** False for other basemaps and where the own source is drawn. */
   timelineAvailable: boolean;
   /** The image the selected site's vehicles were counted on, if drawable. */
   countedCandidate: ImageryCandidate | null;
@@ -54,8 +54,8 @@ export interface MapImagery {
 /**
  * Which aerial image the map draws and describes: the automatic choice per
  * view (state orthophoto or Esri), a pinned Wayback version, the image the
- * selected site's vehicles were counted on, or a custom WMS from the
- * settings — in that order of precedence, see the comments below.
+ * selected site's vehicles were counted on, or the own source from the
+ * settings where it has an image; see the comments below for precedence.
  */
 export function useMapImagery({
   t,
@@ -109,14 +109,20 @@ export function useMapImagery({
       }
     });
   }, []);
-  const wmsUrl = custom?.url ?? null;
+  // The own source is drawn where the selection for this view chose it; where
+  // it has no image the main process chose automatically and that is drawn.
+  // Before the first answer it is drawn right away, so the map does not open
+  // on Esri and then swap.
+  const customActive =
+    custom != null &&
+    (resolvedImagery == null || resolvedImagery.chosen.kind === "custom");
 
   // Wayback history at the map centre — only where a location-level choice
-  // makes sense (same zoom floor as the automatic selection) and no custom
-  // WMS replaces Esri.
+  // makes sense (same zoom floor as the automatic selection) and the own
+  // source is not what the map draws.
   const timelineEnabled =
     basemap === "satellite" &&
-    !wmsUrl &&
+    !customActive &&
     mapView != null &&
     mapView.zoom >= IMAGERY_MIN_SELECTION_ZOOM;
   const { timeline: imageryTimeline, loading: imageryTimelineLoading } =
@@ -147,7 +153,7 @@ export function useMapImagery({
             wayback: pinnedWayback,
           }));
   const legendImagery: ImagerySelection | null =
-    basemap === "satellite" && pinnedWayback && !wmsUrl
+    basemap === "satellite" && pinnedWayback && !customActive
       ? pinnedCandidate
         ? {
             mode: imagery?.mode ?? "auto",
@@ -176,7 +182,7 @@ export function useMapImagery({
   // The image the selected site's vehicles were counted on, when it is a
   // source the map can draw (a state orthophoto only where one is allowed).
   const countedAvailable =
-    basemap === "satellite" && !wmsUrl && detectionsShown && siteInView
+    basemap === "satellite" && !customActive && detectionsShown && siteInView
       ? (selected?.detection?.imagery ?? null)
       : null;
   const countedCandidate =
@@ -187,7 +193,7 @@ export function useMapImagery({
       ? countedAvailable.chosen
       : null;
   // Shown instead of the automatic choice (unless the user pinned a version,
-  // set a WMS or switched it off in the version list), so the dots sit on the
+  // the own source is drawn or it is switched off in the version list), so the dots sit on the
   // cars they were counted from.
   const countedActive =
     countedCandidate != null && useCountedImage && !pinnedWayback;
@@ -196,7 +202,7 @@ export function useMapImagery({
   const shownImagery = countedOn ? countedSelection : legendImagery;
 
   // Tile URL for the active basemap. Satellite follows the per-location
-  // imagery choice (state orthophoto or Esri); a custom WMS overrides both.
+  // imagery choice (own source, state orthophoto or Esri).
   // With vehicles shown for a selected site, the map shows the image the
   // vehicles were counted on: dots drawn over a different capture (another
   // year, another provider's registration) land on roofs and empty stalls.
@@ -214,7 +220,7 @@ export function useMapImagery({
       countedOn?.kind === "state-dop" && countedOn.state
         ? resolveStateService(countedOn.state, countedOn.vintage)
         : undefined;
-    if (custom) {
+    if (custom && customActive) {
       tileUrl = custom.url;
       tileAttribution = custom.attribution;
     } else if (pinnedWayback) {
@@ -246,7 +252,7 @@ export function useMapImagery({
     shownImagery,
     timeline: timelineEnabled ? imageryTimeline : null,
     timelineLoading: timelineEnabled && imageryTimelineLoading,
-    timelineAvailable: basemap === "satellite" && !wmsUrl,
+    timelineAvailable: basemap === "satellite" && !customActive,
     countedCandidate,
     autoImagery: imageryLoading ? null : (imagery?.chosen ?? null),
   };
