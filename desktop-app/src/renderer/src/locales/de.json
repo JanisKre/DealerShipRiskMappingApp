@@ -2010,11 +2010,17 @@
     "hitsList": "Erreichte Standorte",
     "title": "Hagel-Szenarien",
     "tabs": {
-      "simulate": "Zufall",
-      "draw": "Zeichnen",
-      "history": "Historie",
-      "library": "Archiv"
+      "create": "Neuer Sturm",
+      "open": "Echte & gespeicherte"
     },
+    "path": "Weg",
+    "paths": {
+      "auto": "Automatisch",
+      "start": "Ab einem Startpunkt",
+      "line": "Entlang einer Linie"
+    },
+    "moreSettings": "Weitere Einstellungen",
+    "staticCorridor": "Statischer Korridor",
     "strength": "Stärke",
     "strengths": {
       "moderate": "Mäßig",
@@ -2039,7 +2045,7 @@
     "drawHint": "Klicke Punkte der Zugbahn in die Karte, Doppelklick beendet. Der Sturm zieht dann in 5-Minuten-Schritten entlang der Linie.",
     "historicIntro": "Echte Unwettertage seit 2001 aus der DWD-Radarklimatologie (RADKLIM). Die stärksten Niederschlagskerne dienen als Hagel-Indikator. Ein Tag sind 10–35 MB vom DWD.",
     "presetAndreas": "„Andreas“ · 28.07.2013",
-    "historicDay": "Tag",
+    "historicDay": "Echter Unwettertag",
     "historicLoad": "Laden",
     "historicLoading": "Lädt vom DWD und wertet 288 Radarbilder aus. Das dauert meist ein bis zwei Minuten.",
     "historicNone": "Am {{day}} gab es keine starken Gewitterkerne.",
@@ -2088,16 +2094,11 @@
     "dirE": "Ost",
     "dirW": "West",
     "millions": "{{value}} Mio. €",
-    "drawKind": "Art",
-    "drawKinds": {
-      "track": "Sturmzug",
-      "corridor": "Korridor"
-    },
     "drawCorridor": "Korridor einzeichnen",
     "redrawCorridor": "Korridor neu zeichnen",
     "drawCorridorHint": "Klicke Punkte der Korridor-Mittellinie in die Karte, Doppelklick beendet. Breite und Stärke lassen sich danach im Panel ändern.",
     "trackIntro": "Ein Sturm zieht in 5-Minuten-Schritten entlang der Linie und wird abgespielt.",
-    "corridorIntro": "Statischer Korridor: Alle Standorte darin gelten mit derselben Stärke als getroffen.",
+    "corridorIntro": "Alle Standorte im Korridor gelten mit derselben Stärke als getroffen; nichts wird abgespielt.",
     "corridorWidth": "Breite: {{km}} km",
     "corridorExposure": "Exposure × {{value}}",
     "corridorSubtitle": "Korridor · {{intensity}} · {{width}} km · {{years}} Jahre",
@@ -2114,14 +2115,7 @@
     "importNotGeojson": "Erwartet wird eine GeoJSON-FeatureCollection oder ein Feature.",
     "importNoPolygons": "Die Datei enthält keine Polygon-Fußabdrücke in WGS84 (Länge/Breite).",
     "importTooManyPolygons": "Die Datei enthält zu viele Polygone.",
-    "intro": "Lass ein Hagelunwetter über die Karte ziehen und sieh, welche Standorte es trifft und was das kostet.",
-    "modeHint": {
-      "simulate": "Zufällige Gewitter erzeugen – der schnellste Weg zu einem Ergebnis.",
-      "draw": "Den Weg des Unwetters selbst in die Karte zeichnen.",
-      "history": "Einen echten Unwettertag seit 2001 nachspielen.",
-      "library": "Gespeicherte Szenarien, Radartage und importierte Dateien öffnen."
-    },
-    "simOptions": "Stärke, Richtung, anderer Startpunkt"
+    "intro": "Lass ein Hagelunwetter über die Karte ziehen und sieh, welche Standorte es trifft und was das kostet."
   },
   "aiInsight": {
     "copy": "Kopieren",

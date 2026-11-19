@@ -2010,11 +2010,17 @@
     "hitsList": "Sites atteints",
     "title": "Scénarios de grêle",
     "tabs": {
-      "simulate": "Aléatoire",
-      "draw": "Dessin",
-      "history": "Passé",
-      "library": "Archive"
+      "create": "Nouvel orage",
+      "open": "Réels et enregistrés"
     },
+    "path": "Trajet",
+    "paths": {
+      "auto": "Automatique",
+      "start": "Depuis un point de départ",
+      "line": "Le long d’une ligne"
+    },
+    "moreSettings": "Autres réglages",
+    "staticCorridor": "Corridor statique",
     "strength": "Intensité",
     "strengths": {
       "moderate": "Modérée",
@@ -2039,7 +2045,7 @@
     "drawHint": "Cliquez les points de la trajectoire sur la carte, double-clic pour terminer. L’orage suit ensuite la ligne par pas de 5 minutes.",
     "historicIntro": "Vraies journées orageuses depuis 2001 issues de la climatologie radar du DWD (RADKLIM). Les noyaux de précipitation les plus intenses servent d’indicateur de grêle. Une journée représente 10 à 35 Mo du DWD.",
     "presetAndreas": "« Andreas » · 28/07/2013",
-    "historicDay": "Jour",
+    "historicDay": "Vraie journée d’orage",
     "historicLoad": "Charger",
     "historicLoading": "Téléchargement depuis le DWD et lecture de 288 images radar. Cela prend en général une à deux minutes.",
     "historicNone": "Aucun noyau orageux intense le {{day}}.",
@@ -2088,16 +2094,11 @@
     "dirE": "est",
     "dirW": "ouest",
     "millions": "{{value}} M€",
-    "drawKind": "Type",
-    "drawKinds": {
-      "track": "Trajectoire",
-      "corridor": "Corridor"
-    },
     "drawCorridor": "Tracer le corridor",
     "redrawCorridor": "Retracer le corridor",
     "drawCorridorHint": "Cliquez les points de la ligne médiane du corridor sur la carte ; un double-clic termine. Largeur et intensité se modifient ensuite dans le panneau.",
     "trackIntro": "Un orage suit la ligne par pas de 5 minutes et est rejoué.",
-    "corridorIntro": "Corridor statique : tous les sites à l'intérieur sont touchés avec la même intensité.",
+    "corridorIntro": "Tous les sites dans le corridor sont touchés avec la même intensité ; rien n’est rejoué.",
     "corridorWidth": "Largeur : {{km}} km",
     "corridorExposure": "Exposition × {{value}}",
     "corridorSubtitle": "Corridor · {{intensity}} · {{width}} km · {{years}} ans",
@@ -2114,14 +2115,7 @@
     "importNotGeojson": "Une FeatureCollection ou un Feature GeoJSON est attendu.",
     "importNoPolygons": "Le fichier ne contient aucune empreinte polygonale en WGS84 (lon/lat).",
     "importTooManyPolygons": "Le fichier contient trop de polygones.",
-    "intro": "Faites passer un orage de grêle sur la carte et voyez quels sites il touche et ce que cela coûte.",
-    "modeHint": {
-      "simulate": "Générer des orages aléatoires – le moyen le plus rapide d’obtenir un résultat.",
-      "draw": "Tracer vous-même le trajet de l’orage sur la carte.",
-      "history": "Rejouer une vraie journée d’orage depuis 2001.",
-      "library": "Ouvrir les scénarios enregistrés, les journées radar et les fichiers importés."
-    },
-    "simOptions": "Intensité, direction, autre point de départ"
+    "intro": "Faites passer un orage de grêle sur la carte et voyez quels sites il touche et ce que cela coûte."
   },
   "aiInsight": {
     "copy": "Copier",

@@ -109,6 +109,12 @@ const result = (): ReturnType<Page["getByTestId"]> =>
 const reached = (): ReturnType<Page["getByRole"]> =>
   page.getByRole("list", { name: "Erreichte Standorte" });
 
+/** Chooses where the next storm's path comes from. */
+async function choosePath(name: string): Promise<void> {
+  await page.locator("#storm-path").click();
+  await page.getByRole("option", { name }).click();
+}
+
 async function openDetails(): Promise<void> {
   const toggle = result().getByRole("button", { name: /^Details/ });
   if ((await toggle.getAttribute("aria-expanded")) !== "true")
@@ -116,7 +122,7 @@ async function openDetails(): Promise<void> {
 }
 
 test("storms generated on the portfolio play and reach its locations", async () => {
-  // Simulation and corridor share one section of the layer panel.
+  // Every storm is made or opened in one section of the layer panel.
   await page.getByRole("button", { name: /^Ebenen/ }).click();
   await page.getByRole("button", { name: "Hagel-Szenarien" }).click();
   await page.getByRole("button", { name: "Auf mein Portfolio" }).click();
@@ -130,14 +136,14 @@ test("storms generated on the portfolio play and reach its locations", async () 
   await expect(reached().getByRole("button")).toHaveCount(3);
   await shot("hail-sim-details");
 
-  // Saved as a scenario, it appears in the archive.
+  // Saved as a scenario, it appears among the real and saved storms.
   await result()
     .getByRole("button", { name: "Als Szenario speichern" })
     .click();
   await expect(
     page.getByText(/„Unwetter auf Portfolio #\d+“ gespeichert\./),
   ).toBeVisible();
-  await page.getByRole("radio", { name: "Archiv" }).click();
+  await page.getByRole("radio", { name: "Echte & gespeicherte" }).click();
   await expect(
     page
       .getByTestId("hail-section")
@@ -146,7 +152,8 @@ test("storms generated on the portfolio play and reach its locations", async () 
 });
 
 test("a drawn track becomes a storm that moves along it", async () => {
-  await page.getByRole("radio", { name: "Zeichnen" }).click();
+  await page.getByRole("radio", { name: "Neuer Sturm" }).click();
+  await choosePath("Entlang einer Linie");
   await page.getByRole("button", { name: "Zugbahn einzeichnen" }).click();
   await expect(page.getByTestId("hail-hint")).toBeVisible();
   const map = page.locator(".leaflet-container");
@@ -165,7 +172,13 @@ test("a drawn track becomes a storm that moves along it", async () => {
 });
 
 test("an imported storm reaches the locations on its path and can be dragged off them", async () => {
-  await page.getByRole("radio", { name: "Archiv" }).click();
+  await page.getByRole("radio", { name: "Echte & gespeicherte" }).click();
+  // A known storm day is offered until it has been loaded from DWD.
+  await expect(
+    page
+      .getByTestId("hail-section")
+      .getByRole("button", { name: /Andreas.*Laden/ }),
+  ).toBeVisible();
   await page.locator('input[type="file"][accept*="geojson"]').setInputFiles({
     name: "Teststurm.geojson",
     mimeType: "application/geo+json",
@@ -209,8 +222,9 @@ test("an imported storm reaches the locations on its path and can be dragged off
 });
 
 test("a drawn corridor shows its impact, follows its settings and can be removed", async () => {
-  await page.getByRole("radio", { name: "Zeichnen" }).click();
-  await page.getByRole("radio", { name: "Korridor" }).click();
+  await page.getByRole("radio", { name: "Neuer Sturm" }).click();
+  await choosePath("Entlang einer Linie");
+  await page.getByRole("checkbox", { name: /^Statischer Korridor/ }).click();
   await page.getByRole("button", { name: "Korridor einzeichnen" }).click();
   // Drawing a corridor works like drawing a storm track.
   await expect(page.getByTestId("hail-hint")).toContainText("Korridor");

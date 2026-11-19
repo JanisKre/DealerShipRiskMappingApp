@@ -17,7 +17,14 @@ export const REPLAY_SPEEDS = [
 ] as const;
 export type ReplaySpeed = (typeof REPLAY_SPEEDS)[number]["id"];
 
-export type HailPanelTab = "simulate" | "draw" | "history" | "library";
+/** The panel's two modes: make a storm, or open a real or saved one. */
+export type HailPanelTab = "create" | "open";
+
+/**
+ * Where a new storm's path comes from: aimed by the app, from a clicked
+ * start point, or along a line drawn on the map.
+ */
+export type StormPath = "auto" | "start" | "line";
 
 /**
  * What a drawn line becomes: a storm that moves along it (played like a
@@ -43,8 +50,10 @@ export type HailMapMode = "pickStart" | "draw" | null;
  * have sensible defaults.
  */
 interface HailReplayState {
-  /** Creation mode in the layer panel's hail section. */
+  /** Mode of the layer panel's hail section. */
   tab: HailPanelTab;
+  /** How the next storm gets its path. */
+  path: StormPath;
   /** The event card's list of reached locations and settings is open. */
   detailsOpen: boolean;
   list: HailEventList | null;
@@ -68,7 +77,8 @@ interface HailReplayState {
     storms: number;
     seed: number;
   };
-  draw: { kind: DrawKind; strength: SimStrength; speedKmh: number };
+  /** A drawn line: storm track or corridor; a track uses `sim.strength`. */
+  draw: { kind: DrawKind; speedKmh: number };
   /** Settings of the next corridor (the drawn one carries its own). */
   corridor: CorridorSettings;
   /** Points of the track being drawn ([lon, lat]). */
@@ -78,6 +88,7 @@ interface HailReplayState {
 
   setDetailsOpen: (open: boolean) => void;
   setTab: (tab: HailPanelTab) => void;
+  setPath: (path: StormPath) => void;
   setList: (list: HailEventList | null) => void;
   setListLoading: (loading: boolean) => void;
   setListError: (error: string | null) => void;
@@ -100,7 +111,8 @@ interface HailReplayState {
 
 export const useHailReplayStore = create<HailReplayState>((set) => ({
   detailsOpen: false,
-  tab: "simulate",
+  tab: "create",
+  path: "auto",
   list: null,
   listLoading: false,
   listError: null,
@@ -113,7 +125,7 @@ export const useHailReplayStore = create<HailReplayState>((set) => ({
   radiusKm: RADAR_HAIL_RADIUS_KM,
   mapMode: null,
   sim: { strength: "severe", heading: "sw-ne", storms: 5, seed: 1 },
-  draw: { kind: "track", strength: "severe", speedKmh: 50 },
+  draw: { kind: "track", speedKmh: 50 },
   corridor: {
     widthKm: 20,
     intensityLevel: "HIGH",
@@ -126,6 +138,7 @@ export const useHailReplayStore = create<HailReplayState>((set) => ({
 
   setDetailsOpen: (detailsOpen) => set({ detailsOpen }),
   setTab: (tab) => set({ tab, mapMode: null, drawPoints: [] }),
+  setPath: (path) => set({ path, mapMode: null, drawPoints: [] }),
   setList: (list) => set({ list }),
   setListLoading: (listLoading) => set({ listLoading }),
   setListError: (listError) => set({ listError }),

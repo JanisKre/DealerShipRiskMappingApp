@@ -201,11 +201,11 @@ export function useHailSimActions(): {
   const simulateAlong = useCallback(
     (path: [number, number][]): void => {
       const seed = nextSeed();
-      const { draw } = store.getState();
+      const { draw, sim } = store.getState();
       const cells = stormAlongPath(
         path,
         draw.speedKmh,
-        draw.strength,
+        sim.strength,
         simulationStart(),
         seed,
       );
