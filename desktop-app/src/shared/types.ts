@@ -499,6 +499,15 @@ export const DetectionBoxSchema = z.object({
   // Geographic center point of the box (if georeferenced)
   lon: z.number().optional(),
   lat: z.number().optional(),
+  /**
+   * Georeferenced corners of the (possibly rotated) box as [lon, lat], in
+   * drawing order. Only display geometry: counts and risk use the center.
+   * Missing on detections saved before the map could draw boxes.
+   */
+  corners: z
+    .array(z.tuple([z.number(), z.number()]))
+    .length(4)
+    .optional(),
 });
 export type DetectionBox = z.infer<typeof DetectionBoxSchema>;
 

@@ -10,6 +10,24 @@ const current = (): ReturnType<typeof useMapStore.getState> =>
   useMapStore.getState();
 
 describe("mergePersistedMapState", () => {
+  it("checks saved detection display options field by field", () => {
+    const merged = mergePersistedMapState(
+      { detectionDisplay: { shape: "box", color: "neon" } },
+      current(),
+    );
+    expect(merged.detectionDisplay).toEqual({
+      ...current().detectionDisplay,
+      shape: "box",
+    });
+  });
+
+  it("keeps the default detection display when none was saved", () => {
+    expect(
+      mergePersistedMapState({ basemap: "streets" }, current())
+        .detectionDisplay,
+    ).toBe(current().detectionDisplay);
+  });
+
   it("keeps the defaults when nothing was saved", () => {
     expect(mergePersistedMapState(undefined, current())).toBe(current());
   });

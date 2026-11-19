@@ -587,6 +587,38 @@
       "description": "Apparence et langue de l’application.",
       "languageHint": "Langue de l’interface."
     },
+    "detectionDisplay": {
+      "title": "Véhicules sur la carte",
+      "description": "Apparence des véhicules détectés sur la carte. S’applique uniquement à cet appareil.",
+      "shape": "Affichage",
+      "shapeHint": "La boîte montre le contour détecté par le modèle, comme lors de l’annotation.",
+      "shapes": {
+        "dot": "Point",
+        "box": "Boîte",
+        "boxAndDot": "Boîte + point"
+      },
+      "color": "Couleur",
+      "colorHint": "Le vert correspond à la couleur de l’annotation.",
+      "colorHintConfidence": "Vert à partir de {{high}} %, jaune à partir de {{medium}} %, orange en dessous. Les véhicules ajoutés à la main restent bleus.",
+      "colors": {
+        "blue": "Bleu",
+        "green": "Vert",
+        "confidence": "Selon la confiance"
+      },
+      "dotSize": "Taille des points",
+      "dotSizeHint": "Uniquement pour l’affichage en points.",
+      "dotSizes": {
+        "small": "Petite",
+        "medium": "Moyenne",
+        "large": "Grande"
+      },
+      "boxFill": "Remplir les boîtes",
+      "boxFillHint": "Teinte légère à l’intérieur de la boîte, sinon seulement le contour.",
+      "onlySelected": "Site sélectionné uniquement",
+      "onlySelectedHint": "Masquer les véhicules des sites voisins, même en zoomant.",
+      "note": "Affichage uniquement : le nombre de véhicules et l’EAL ne changent pas. Les anciennes détections montrent des boîtes alignées sur les axes ; après une nouvelle détection, elles suivent l’orientation des véhicules.",
+      "reset": "Par défaut"
+    },
     "data": {
       "description": "Origine des données de grêle, d’imagerie et de localisation."
     },
@@ -1203,7 +1235,12 @@
       "business": "Type d’affaire",
       "existingBusiness": "Portefeuille existant (bord bleu)",
       "newBusiness": "Affaire nouvelle (bord violet, +)",
-      "imageryWaybackVersion": "Version Wayback"
+      "imageryWaybackVersion": "Version Wayback",
+      "confidence": {
+        "high": "Confiance à partir de {{min}} %",
+        "medium": "Confiance à partir de {{min}} %",
+        "low": "Confiance inférieure à 40 %"
+      }
     },
     "locationsPanel": {
       "toggleAriaLabel": "Afficher/masquer la liste des sites",

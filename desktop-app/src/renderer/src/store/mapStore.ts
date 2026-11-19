@@ -2,6 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PinnedWayback } from "@shared/imagery-wayback";
 import type { RiskLevel } from "@renderer/lib/riskColor";
+import {
+  DEFAULT_DETECTION_DISPLAY,
+  normalizeDetectionDisplay,
+  type DetectionDisplay,
+} from "@renderer/lib/detectionDisplay";
 
 /** Basemap variants. WMS override (from settings) only applies to "satellite". */
 export type Basemap = "satellite" | "official" | "streets" | "terrain";
@@ -70,6 +75,8 @@ interface MapState {
    * Not persisted.
    */
   useCountedImage: boolean;
+  /** How detected vehicles are drawn (settings page, persisted). */
+  detectionDisplay: DetectionDisplay;
   editing: boolean;
   detectionEditing: boolean;
   filter: MapFilter;
@@ -88,6 +95,7 @@ interface MapState {
   setSatelliteOpacity: (v: number) => void;
   setPinnedWayback: (v: PinnedWayback | null) => void;
   setUseCountedImage: (v: boolean) => void;
+  setDetectionDisplay: (v: Partial<DetectionDisplay>) => void;
   setEditing: (v: boolean) => void;
   setDetectionEditing: (v: boolean) => void;
   setFilter: (f: Partial<MapFilter>) => void;
@@ -133,13 +141,22 @@ const DEFAULT_LAYERS: MapLayers = {
 /**
  * Merges the persisted UI state into the defaults. Layers saved before a
  * layer existed keep its default, and basemaps that were removed (the
- * former "light" and "dark" CARTO maps) fall back to streets.
+ * former "light" and "dark" CARTO maps) fall back to streets. Detection
+ * display options are checked field by field.
  */
 export function mergePersistedMapState<
-  T extends { layers: MapLayers; basemap: Basemap },
+  T extends {
+    layers: MapLayers;
+    basemap: Basemap;
+    detectionDisplay: DetectionDisplay;
+  },
 >(persisted: unknown, current: T): T {
   if (!persisted || typeof persisted !== "object") return current;
-  const saved = persisted as { layers?: unknown; basemap?: unknown };
+  const saved = persisted as {
+    layers?: unknown;
+    basemap?: unknown;
+    detectionDisplay?: unknown;
+  };
   const layers =
     saved.layers && typeof saved.layers === "object"
       ? { ...current.layers, ...saved.layers }
@@ -148,7 +165,11 @@ export function mergePersistedMapState<
   if (saved.basemap !== undefined) {
     basemap = isBasemap(saved.basemap) ? saved.basemap : "streets";
   }
-  return { ...current, ...persisted, layers, basemap };
+  const detectionDisplay =
+    saved.detectionDisplay === undefined
+      ? current.detectionDisplay
+      : normalizeDetectionDisplay(saved.detectionDisplay);
+  return { ...current, ...persisted, layers, basemap, detectionDisplay };
 }
 
 const DEFAULT_FILTER: MapFilter = {
@@ -165,6 +186,7 @@ export const useMapStore = create<MapState>()(
       satelliteOpacity: 1,
       pinnedWayback: null,
       useCountedImage: true,
+      detectionDisplay: DEFAULT_DETECTION_DISPLAY,
       editing: false,
       detectionEditing: false,
       filter: DEFAULT_FILTER,
@@ -181,6 +203,10 @@ export const useMapStore = create<MapState>()(
       setSatelliteOpacity: (satelliteOpacity) => set({ satelliteOpacity }),
       setPinnedWayback: (pinnedWayback) => set({ pinnedWayback }),
       setUseCountedImage: (useCountedImage) => set({ useCountedImage }),
+      setDetectionDisplay: (partial) =>
+        set((s) => ({
+          detectionDisplay: { ...s.detectionDisplay, ...partial },
+        })),
       setEditing: (editing) => set({ editing }),
       setDetectionEditing: (detectionEditing) => set({ detectionEditing }),
       setFilter: (partial) =>
@@ -196,12 +222,14 @@ export const useMapStore = create<MapState>()(
     {
       name: "drm-map-ui",
       merge: (persisted, current) => mergePersistedMapState(persisted, current),
-      // Only persistent fields — view/filter/layers/basemap/opacity.
+      // Only persistent fields — view/filter/layers/basemap/opacity and
+      // the detection display options.
       // `editing` is always false on startup (no persisted edit mode).
       partialize: (s) => ({
         layers: s.layers,
         basemap: s.basemap,
         satelliteOpacity: s.satelliteOpacity,
+        detectionDisplay: s.detectionDisplay,
         filter: s.filter,
         view: s.view,
         locationsPanelOpen: s.locationsPanelOpen,

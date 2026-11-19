@@ -1,10 +1,38 @@
 import { useState } from "react";
-import { CircleMarker, useMapEvents } from "./leaflet-react";
+import { CircleMarker, Polygon, useMapEvents } from "./leaflet-react";
 import type { LatLngBounds } from "leaflet";
 import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
 import { point as turfPoint } from "@turf/helpers";
-import type { AnalyzedDealership, ManualVehiclePoint } from "@shared/types";
+import type {
+  AnalyzedDealership,
+  DetectionBox,
+  ManualVehiclePoint,
+} from "@shared/types";
 import { ALL_DETECTIONS_MIN_ZOOM } from "@renderer/lib/legendPresence";
+import {
+  boxFootprints,
+  DETECTION_COLORS,
+  detectionColor,
+  DOT_RADIUS,
+  type Footprint,
+} from "@renderer/lib/detectionDisplay";
+import { useMapStore } from "@renderer/store/mapStore";
+
+// One footprint list per stored box array: stable positions keep Leaflet
+// from resetting every polygon on each pan.
+const footprintCache = new WeakMap<
+  readonly DetectionBox[],
+  (Footprint | null)[]
+>();
+
+function footprintsOf(boxes: readonly DetectionBox[]): (Footprint | null)[] {
+  let cached = footprintCache.get(boxes);
+  if (!cached) {
+    cached = boxFootprints(boxes);
+    footprintCache.set(boxes, cached);
+  }
+  return cached;
+}
 
 /** In-memory changes made while the map review mode is active. */
 export interface DetectionEditDraft {
@@ -20,7 +48,8 @@ function samePoint(a: ManualVehiclePoint, b: ManualVehiclePoint): boolean {
 }
 
 /**
- * Draws detected vehicles as dots at their georeferenced center. In review
+ * Draws detected vehicles as dots at their georeferenced center, as boxes
+ * (the detector's footprint), or both, as chosen in the settings. In review
  * mode, clicks inside the selected boundary add points and point clicks remove
  * or restore them. Draft changes are intentionally kept separate until Save.
  */
@@ -37,6 +66,7 @@ export function DetectionOverlay({
   draft: DetectionEditDraft | null;
   onDraftChange: (draft: DetectionEditDraft) => void;
 }>): React.JSX.Element {
+  const display = useMapStore((s) => s.detectionDisplay);
   const selected = dealerships.find((d) => d.id === selectedId);
   const activeDraft = editable && draft ? draft : null;
   const manualPoints =
@@ -115,7 +145,8 @@ export function DetectionOverlay({
   const drawn = dealerships.filter(
     (d) =>
       d.id === selected?.id ||
-      (view.zoom >= ALL_DETECTIONS_MIN_ZOOM &&
+      (!display.onlySelected &&
+        view.zoom >= ALL_DETECTIONS_MIN_ZOOM &&
         d.lat != null &&
         d.lon != null &&
         view.bounds.pad(0.2).contains([d.lat, d.lon])),
@@ -171,29 +202,62 @@ export function DetectionOverlay({
           d.id === selected?.id && activeDraft
             ? removedPoints
             : (d.detection?.manualVehicleRemovedPoints ?? []);
-        return (d.detection?.boxes ?? [])
-          .filter((b) => b.lat != null && b.lon != null)
-          .filter(
-            (b) =>
-              !dRemoved.some(
-                (removed) =>
-                  Math.abs(removed.lat - (b.lat as number)) < 0.000001 &&
-                  Math.abs(removed.lon - (b.lon as number)) < 0.000001,
-              ),
+        const boxes = d.detection?.boxes ?? [];
+        const footprints = footprintsOf(boxes);
+        const reviewing = d.id === selected?.id && activeDraft != null;
+        return boxes.flatMap((b, i) => {
+          if (b.lat == null || b.lon == null) return [];
+          const { lat, lon } = b;
+          if (
+            dRemoved.some(
+              (removed) =>
+                Math.abs(removed.lat - lat) < 0.000001 &&
+                Math.abs(removed.lon - lon) < 0.000001,
+            )
           )
-          .map((b, i) => (
-            <CircleMarker
-              key={`${d.id}-${i}`}
-              center={[b.lat as number, b.lon as number]}
-              radius={d.id === selected?.id && activeDraft ? 5 : 2.5}
-              interactive={!activeDraft}
-              pathOptions={{
-                color: "#2563eb",
-                weight: 1,
-                fillOpacity: 0.8,
-              }}
-            />
-          ));
+            return [];
+          const color = detectionColor(display.color, b.score);
+          const footprint = display.shape === "dot" ? null : footprints[i];
+          // Review clicks hit the center, so review keeps a visible dot.
+          const dot = !footprint || display.shape === "boxAndDot" || reviewing;
+          const out: React.JSX.Element[] = [];
+          if (footprint)
+            out.push(
+              <Polygon
+                key={`${d.id}-box-${i}`}
+                positions={footprint}
+                interactive={!activeDraft}
+                pathOptions={{
+                  color,
+                  weight: 1.6,
+                  fill: display.boxFill,
+                  fillColor: color,
+                  fillOpacity: 0.12,
+                }}
+              />,
+            );
+          if (dot)
+            out.push(
+              <CircleMarker
+                key={`${d.id}-${i}`}
+                center={[lat, lon]}
+                radius={
+                  reviewing
+                    ? Math.max(5, DOT_RADIUS[display.dotSize])
+                    : footprint
+                      ? Math.min(2, DOT_RADIUS[display.dotSize])
+                      : DOT_RADIUS[display.dotSize]
+                }
+                interactive={!activeDraft}
+                pathOptions={{
+                  color,
+                  weight: 1,
+                  fillOpacity: 0.8,
+                }}
+              />,
+            );
+          return out;
+        });
       })}
 
       {selected &&
@@ -201,10 +265,15 @@ export function DetectionOverlay({
           <CircleMarker
             key={`${selected.id}-manual-${i}`}
             center={[p.lat, p.lon]}
-            radius={editable ? 4 : 2.5}
+            radius={editable ? 4 : DOT_RADIUS[display.dotSize]}
             interactive={!activeDraft}
             pathOptions={{
-              color: editable ? "#16a34a" : "#2563eb",
+              // Added by hand: no model score, so never a confidence colour.
+              color: editable
+                ? "#16a34a"
+                : display.color === "green"
+                  ? DETECTION_COLORS.green
+                  : DETECTION_COLORS.blue,
               weight: 1,
               fillOpacity: 0.95,
             }}

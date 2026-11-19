@@ -18,6 +18,7 @@ import {
   LEGACY_VISDRONE_MANIFEST,
   parseVehicleModelManifest,
 } from "@shared/model-manifest";
+import { boxCorners } from "./detection/yolo";
 import {
   inferencePoolSize,
   OnnxYoloDetector,
@@ -26,6 +27,7 @@ import {
   detectVehiclesInContext,
   effectiveDetectionConfidence,
   filterDetectionToBoundary,
+  georeferenceCorners,
   loadModelManifest,
   MODEL_FILENAME,
   StubVehicleDetector,
@@ -355,5 +357,43 @@ describe("coverageLimitations", () => {
         { failedWindows: 0, windows: 9 },
       ),
     ).toEqual([]);
+  });
+});
+
+describe("georeferenceCorners", () => {
+  const image = {
+    originLon: 7,
+    originLat: 51.01,
+    lonSpan: 0.01,
+    latSpan: 0.006,
+  };
+
+  it("puts the corners on the same frame as the box center", () => {
+    // A car rotated by 30° around pixel (300, 200) of a 1000 × 800 image.
+    const corners = boxCorners({
+      cx: 300,
+      cy: 200,
+      w: 40,
+      h: 18,
+      angle: Math.PI / 6,
+    }).map(([x, y]) => [x / 1000, y / 800] as const);
+    const geo = georeferenceCorners(corners, image);
+    expect(geo).toHaveLength(4);
+    const meanLon = geo.reduce((a, [lon]) => a + lon, 0) / 4;
+    const meanLat = geo.reduce((a, [, lat]) => a + lat, 0) / 4;
+    expect(meanLon).toBeCloseTo(7 + 0.3 * 0.01, 12);
+    expect(meanLat).toBeCloseTo(51.01 - 0.25 * 0.006, 12);
+  });
+
+  it("flips the image y axis so north stays up", () => {
+    const [top, bottom] = georeferenceCorners(
+      [
+        [0, 0],
+        [0, 1],
+      ],
+      image,
+    );
+    expect(top[1]).toBeGreaterThan(bottom[1]);
+    expect(bottom).toEqual([7, 51.01 - 0.006]);
   });
 });

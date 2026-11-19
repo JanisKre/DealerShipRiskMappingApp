@@ -587,6 +587,38 @@
       "description": "Aussehen und Sprache der App.",
       "languageHint": "Sprache der Oberfläche."
     },
+    "detectionDisplay": {
+      "title": "Fahrzeuge auf der Karte",
+      "description": "Wie erkannte Fahrzeuge auf der Karte erscheinen. Gilt nur für dieses Gerät.",
+      "shape": "Darstellung",
+      "shapeHint": "Die Box zeigt den Umriss, den das Modell erkannt hat, wie beim Labeling.",
+      "shapes": {
+        "dot": "Punkt",
+        "box": "Box",
+        "boxAndDot": "Box + Punkt"
+      },
+      "color": "Farbe",
+      "colorHint": "Grün entspricht der Farbe im Labeling.",
+      "colorHintConfidence": "Grün ab {{high}} %, Gelb ab {{medium}} %, darunter Orange. Von Hand ergänzte Fahrzeuge bleiben blau.",
+      "colors": {
+        "blue": "Blau",
+        "green": "Grün",
+        "confidence": "Nach Konfidenz"
+      },
+      "dotSize": "Punktgröße",
+      "dotSizeHint": "Nur bei der Darstellung als Punkt.",
+      "dotSizes": {
+        "small": "Klein",
+        "medium": "Mittel",
+        "large": "Groß"
+      },
+      "boxFill": "Box füllen",
+      "boxFillHint": "Leicht eingefärbte Fläche in der Box, sonst nur der Rand.",
+      "onlySelected": "Nur beim ausgewählten Standort",
+      "onlySelectedHint": "Fahrzeuge benachbarter Standorte ausblenden, auch beim Hineinzoomen.",
+      "note": "Nur Anzeige: Fahrzeugzahl und EAL bleiben gleich. Ältere Erkennungen zeigen achsenparallele Boxen; nach einer neuen Erkennung sind sie gedreht wie die Fahrzeuge.",
+      "reset": "Standard"
+    },
     "data": {
       "description": "Woher die App Hagel-, Luftbild- und Standortdaten bezieht."
     },
@@ -1203,7 +1235,12 @@
       "business": "Geschäftsart",
       "existingBusiness": "Bestandsgeschäft (blauer Rand)",
       "newBusiness": "Neugeschäft (violetter Rand, +)",
-      "imageryWaybackVersion": "Wayback-Version"
+      "imageryWaybackVersion": "Wayback-Version",
+      "confidence": {
+        "high": "Konfidenz ab {{min}} %",
+        "medium": "Konfidenz ab {{min}} %",
+        "low": "Konfidenz unter 40 %"
+      }
     },
     "locationsPanel": {
       "toggleAriaLabel": "Standorte-Liste ein-/ausklappen",

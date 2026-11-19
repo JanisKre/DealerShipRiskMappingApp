@@ -13,6 +13,11 @@ import {
   satelliteSensorName,
 } from "@shared/imagery-metadata";
 import type { ImagerySelection } from "@shared/imagery-sources";
+import {
+  CONFIDENCE_BANDS,
+  DETECTION_COLORS,
+} from "@renderer/lib/detectionDisplay";
+import { useMapStore } from "@renderer/store/mapStore";
 
 const HAIL_ZONES = [1, 2, 3, 4, 5, 6] as const;
 
@@ -49,6 +54,7 @@ export function MapLegend({
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const detectionDisplay = useMapStore((s) => s.detectionDisplay);
   const boundarySources = present?.boundarySources ?? [];
   const absent = {
     zone: (zone: number) =>
@@ -136,12 +142,28 @@ export function MapLegend({
             ))}
           </LegendGroup>
           <LegendGroup title={t("map.legend.vehicles")}>
-            <LegendRow
-              color="#2563eb"
-              label={t("map.legend.carCategory")}
-              dot
-              muted={present != null && !present.vehicles}
-            />
+            {detectionDisplay.color === "confidence" ? (
+              CONFIDENCE_BANDS.map((band) => (
+                <LegendRow
+                  key={band.key}
+                  color={band.color}
+                  label={t(`map.legend.confidence.${band.key}`, {
+                    min: Math.round(band.min * 100),
+                  })}
+                  dot={detectionDisplay.shape === "dot"}
+                  outline={detectionDisplay.shape !== "dot"}
+                  muted={present != null && !present.vehicles}
+                />
+              ))
+            ) : (
+              <LegendRow
+                color={DETECTION_COLORS[detectionDisplay.color]}
+                label={t("map.legend.carCategory")}
+                dot={detectionDisplay.shape === "dot"}
+                outline={detectionDisplay.shape !== "dot"}
+                muted={present != null && !present.vehicles}
+              />
+            )}
           </LegendGroup>
           {showImagery && (
             <div className="border-t pt-2">

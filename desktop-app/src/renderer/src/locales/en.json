@@ -587,6 +587,38 @@
       "description": "How the app looks and which language it uses.",
       "languageHint": "Language of the interface."
     },
+    "detectionDisplay": {
+      "title": "Vehicles on the map",
+      "description": "How detected vehicles appear on the map. Applies to this device only.",
+      "shape": "Display",
+      "shapeHint": "The box shows the outline the model detected, as in labeling.",
+      "shapes": {
+        "dot": "Dot",
+        "box": "Box",
+        "boxAndDot": "Box + dot"
+      },
+      "color": "Colour",
+      "colorHint": "Green matches the labeling colour.",
+      "colorHintConfidence": "Green from {{high}} %, yellow from {{medium}} %, orange below. Vehicles added by hand stay blue.",
+      "colors": {
+        "blue": "Blue",
+        "green": "Green",
+        "confidence": "By confidence"
+      },
+      "dotSize": "Dot size",
+      "dotSizeHint": "Only when shown as dots.",
+      "dotSizes": {
+        "small": "Small",
+        "medium": "Medium",
+        "large": "Large"
+      },
+      "boxFill": "Fill boxes",
+      "boxFillHint": "A light tint inside the box, otherwise only the outline.",
+      "onlySelected": "Selected location only",
+      "onlySelectedHint": "Hide vehicles of neighbouring locations, also when zoomed in.",
+      "note": "Display only: the vehicle count and the EAL stay the same. Older detections show axis-aligned boxes; after a new detection they are rotated like the vehicles.",
+      "reset": "Default"
+    },
     "data": {
       "description": "Where the app gets hail, imagery and location data."
     },
@@ -1203,7 +1235,12 @@
       "business": "Business type",
       "existingBusiness": "Existing business (blue outline)",
       "newBusiness": "New business (violet outline, +)",
-      "imageryWaybackVersion": "Wayback version"
+      "imageryWaybackVersion": "Wayback version",
+      "confidence": {
+        "high": "Confidence {{min}} % and above",
+        "medium": "Confidence {{min}} % and above",
+        "low": "Confidence below 40 %"
+      }
     },
     "locationsPanel": {
       "toggleAriaLabel": "Toggle locations list",

@@ -9,6 +9,14 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Vehicle display on the map is configurable.** Settings → General →
+  "Vehicles on the map" draws detections as dots, as boxes (the detector's
+  outline, green as in labeling) or both; colour blue, green or by
+  confidence (green ≥ 60 %, yellow ≥ 40 %, orange below); dot size; box
+  fill; and an option to show only the selected location's vehicles. The
+  legend follows the choice. New detections store the rotated box corners;
+  older ones show the axis-aligned box recovered from the stored boxes.
+  Display only: counts and EAL are unchanged.
 - **Assumptions before the first analysis.** The import dialog ends with
   the detection status (without a model there is no hail EAL), a parameter
   template and the four values that set exposure and review notes

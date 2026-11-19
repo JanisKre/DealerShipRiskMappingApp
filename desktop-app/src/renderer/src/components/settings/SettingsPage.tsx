@@ -43,9 +43,11 @@ import {
 } from "./AiIntegrationsCards";
 import { AppSupportCard } from "./AppSupportCard";
 import { DealerDirectoryCard } from "./DealerDirectoryCard";
+import { DetectionDisplayCard } from "./DetectionDisplayCard";
 import { DetectionModelCard } from "./DetectionModelCard";
 import { LlmSettingsCard } from "./LlmSettingsCard";
 import { NatCatSettingsCard } from "./NatCatSettingsCard";
+import { SettingRow } from "./SettingRow";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message
@@ -66,27 +68,6 @@ const LANGUAGE_NAMES: Record<Settings["language"], string> = {
   en: "English",
   fr: "Français",
 };
-
-/** One labelled setting: label and hint on the left, the control on the right. */
-function SettingRow({
-  label,
-  hint,
-  children,
-}: Readonly<{
-  label: string;
-  hint: string;
-  children: React.ReactNode;
-}>): React.JSX.Element {
-  return (
-    <div className="grid gap-3 py-4 first:pt-0 last:pb-0 sm:grid-cols-[1fr_auto] sm:items-center">
-      <div className="min-w-0">
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      </div>
-      {children}
-    </div>
-  );
-}
 
 export function SettingsPage(): React.JSX.Element {
   const { t } = useTranslation();
@@ -270,6 +251,7 @@ export function SettingsPage(): React.JSX.Element {
               </SettingRow>
             </CardContent>
           </Card>
+          <DetectionDisplayCard />
           <AppSupportCard settings={settings} onUpdateSettings={update} />
         </TabsContent>
 

@@ -26,6 +26,7 @@ import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import { AREA_ESTIMATE_DETECTOR } from "@shared/risk-math";
 import type { RiskParameters } from "@shared/types";
 import {
+  boxCorners,
   coarseImageryLimitations,
   hullSize,
   mosaicMetersPerPixel,
@@ -514,6 +515,10 @@ export class OnnxYoloDetector implements VehicleDetector {
         w: hull.w / width,
         h: hull.h / height,
         confidence: c.score,
+        // The oriented footprint, normalized like the hull, for the map.
+        corners: boxCorners(c).map(
+          ([px, py]) => [px / width, py / height] as const,
+        ),
       };
     });
     const hasGeo =
@@ -529,7 +534,9 @@ export class OnnxYoloDetector implements VehicleDetector {
     for (const b of boxes) {
       let lon: number | undefined;
       let lat: number | undefined;
+      let corners: DetectionBox["corners"];
       if (hasGeo) {
+        corners = georeferenceCorners(b.corners, image);
         const cx = b.x + b.w / 2;
         const cy = b.y + b.h / 2;
         lon = image.originLon + cx * image.lonSpan;
@@ -555,6 +562,7 @@ export class OnnxYoloDetector implements VehicleDetector {
         classLabel: "car",
         lon,
         lat,
+        ...(corners ? { corners } : {}),
       });
     }
 
@@ -744,6 +752,20 @@ export async function detectVehiclesInContext(
   parameters: RiskParameters = DEFAULT_RISK_PARAMETERS,
 ): Promise<DetectionResult> {
   return getDetector().detect(image, undefined, parameters);
+}
+
+/**
+ * Normalized image corners [x, y] to [lon, lat], on the same linear frame
+ * as the box centers, so the corners' mean is the stored center.
+ */
+export function georeferenceCorners(
+  corners: readonly (readonly [number, number])[],
+  image: Pick<AerialCapture, "originLon" | "originLat" | "lonSpan" | "latSpan">,
+): [number, number][] {
+  return corners.map(([nx, ny]) => [
+    image.originLon + nx * image.lonSpan,
+    image.originLat - ny * image.latSpan,
+  ]);
 }
 
 /**
