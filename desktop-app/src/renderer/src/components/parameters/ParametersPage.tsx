@@ -5,13 +5,28 @@ import {
   Info,
   Loader2,
   RotateCcw,
+  Save,
+  Trash2,
   TriangleAlert,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { RiskParameters } from "@shared/types";
+import type { AnalyzedDealership, RiskParameters } from "@shared/types";
+import { ealCoverage, hasEalBasis } from "@shared/estimates";
+import {
+  DEFAULT_TEMPLATE_ID,
+  useParameterTemplates,
+} from "@renderer/lib/useParameterTemplates";
+import { Label } from "@renderer/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@renderer/components/ui/select";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import { meanHailSeverityEur } from "@shared/risk-math";
-import { eur, pct } from "@renderer/lib/format";
+import { eur } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
 import { PageErrorBoundary } from "@renderer/components/common/PageErrorBoundary";
 import { Badge } from "@renderer/components/ui/badge";
@@ -25,10 +40,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@renderer/components/ui/dialog";
+import { HintButton } from "@renderer/components/ui/hint-button";
 import { Input } from "@renderer/components/ui/input";
 import { TileInfo } from "@renderer/components/dashboard/TileInfo";
 import {
   formatParameterValue,
+  fromPercentDisplay,
+  toPercentDisplay,
   parameterInputError,
   parseLocaleNumber,
   zonesWithFallingFrequency,
@@ -66,7 +84,7 @@ type ParameterField = {
   tip?: boolean;
 };
 type ParameterGroup = {
-  id: "exposure" | "risk" | "portfolio" | "quality";
+  id: "exposure" | "risk" | "portfolio" | "quality" | "advanced";
   fields: ParameterField[];
   defaultOpen?: boolean;
 };
@@ -309,14 +327,29 @@ const GROUPS: ParameterGroup[] = [
         tip: true,
       },
       {
-        key: "alertLowBoundaryConfidence",
+        key: "alertEalPortfolioShare",
         unit: "fraction",
         min: 0,
         max: 1,
         step: 0.01,
       },
+    ],
+  },
+  // Thresholds of the boundary and vehicle detection: rarely touched, kept
+  // apart from the business assumptions above (UX review, November 2026).
+  {
+    id: "advanced",
+    fields: [
       {
-        key: "alertEalPortfolioShare",
+        key: "detectionConfidence",
+        unit: "fraction",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        tip: true,
+      },
+      {
+        key: "alertLowBoundaryConfidence",
         unit: "fraction",
         min: 0,
         max: 1,
@@ -357,18 +390,56 @@ const GROUPS: ParameterGroup[] = [
         max: 10_000,
         step: 10,
       },
-      {
-        key: "detectionConfidence",
-        unit: "fraction",
-        min: 0,
-        max: 1,
-        step: 0.01,
-        recommended: true,
-        tip: true,
-      },
     ],
   },
 ];
+
+const FIELD_BY_KEY = new Map(
+  GROUPS.flatMap((g) => g.fields).map((field) => [field.key, field]),
+);
+
+/** Shares are shown and typed in percent. */
+const isPercent = (field: ParameterField | undefined): boolean =>
+  field?.unit === "fraction";
+
+/** The stored value as the field shows it (percent for shares). */
+function displayValue(
+  key: ParameterKey,
+  value: number,
+  locale: string,
+): string {
+  const field = FIELD_BY_KEY.get(key);
+  return formatParameterValue(
+    isPercent(field) ? toPercentDisplay(value) : value,
+    locale,
+  );
+}
+
+/** Validation range in the unit the user types. */
+function displayRule(field: ParameterField): ParameterField {
+  return isPercent(field)
+    ? { ...field, min: field.min * 100, max: (field.max ?? 1) * 100 }
+    : field;
+}
+
+/** Unit label of a field (shares: "%"). */
+function unitKey(field: ParameterField): string {
+  return isPercent(field) ? "percent" : field.unit;
+}
+
+/**
+ * "Fahrzeugwert Pkw" and "Standard-Fahrzeugwert" read as one value: the
+ * second is shown only once a portfolio holds two different ones.
+ */
+function hiddenField(
+  field: ParameterField,
+  parameters: RiskParameters,
+): boolean {
+  return (
+    field.key === "vehicleValueDefaultEur" &&
+    parameters.vehicleValueDefaultEur === parameters.vehicleValueCarEur
+  );
+}
 
 /** A warning sentence: the colour sits on the icon, the text stays readable. */
 function WarningLine({
@@ -484,7 +555,7 @@ function HailEalTables({
         unit=""
         value={
           bindings.draft[key] ??
-          formatParameterValue(bindings.parameters[key], bindings.locale)
+          displayValue(key, bindings.parameters[key], bindings.locale)
         }
         locale={bindings.locale}
         onDraftChange={(value) => bindings.onDraftChange(key, value)}
@@ -550,7 +621,7 @@ function HailEalTables({
       <div className="grid gap-4 lg:grid-cols-2">
         {section(
           t("parameters.hailEal.probability"),
-          t("parameters.units.fraction"),
+          t("parameters.units.percent"),
           t("parameters.hailEal.probabilityHint"),
           classes.map((c) => ({
             id: c.id,
@@ -580,7 +651,6 @@ function HailEalTables({
 function readableValue(field: ParameterField, value: number): string | null {
   if (!Number.isFinite(value)) return null;
   if (field.unit === "eur" && Math.abs(value) >= 10_000) return eur(value);
-  if (field.unit === "fraction") return pct(value, 1);
   return null;
 }
 
@@ -737,6 +807,213 @@ function NativeDetails({
   );
 }
 
+/** Portfolio totals the parameters drive, for the impact bar. */
+function portfolioTotals(dealerships: AnalyzedDealership[]): {
+  eal: number;
+  exposure: number;
+  counted: number;
+  analyzed: number;
+} {
+  let eal = 0;
+  let exposure = 0;
+  for (const d of dealerships) {
+    if (!d.risk) continue;
+    exposure += d.risk.exposureEur ?? 0;
+    if (hasEalBasis(d)) eal += d.risk.eal;
+  }
+  const { withBasis, analyzed } = ealCoverage(dealerships);
+  return { eal, exposure, counted: withBasis, analyzed };
+}
+
+function signedPercent(now: number, before: number): string | null {
+  if (before <= 0 || Math.abs(now - before) < 0.5) return null;
+  const change = ((now - before) / before) * 100;
+  return `${change > 0 ? "+" : ""}${change.toFixed(Math.abs(change) < 10 ? 1 : 0)} %`;
+}
+
+/**
+ * What the values on this page mean for the open portfolio, and how much
+ * that moved since the page was opened, so a change is seen, not guessed.
+ */
+function ImpactBar(): React.JSX.Element | null {
+  const { t } = useTranslation();
+  const dealerships = useAppStore((s) => s.dealerships);
+  const updating = useAppStore((s) => s.parametersUpdating);
+  const totals = portfolioTotals(dealerships);
+  const [baseline] = useState(totals);
+  if (totals.analyzed === 0) return null;
+  const ealDelta = signedPercent(totals.eal, baseline.eal);
+  const exposureDelta = signedPercent(totals.exposure, baseline.exposure);
+  return (
+    <div
+      role="status"
+      className="sticky bottom-4 z-10 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl border bg-card/95 px-4 py-2.5 text-sm shadow-lg backdrop-blur"
+    >
+      <span className="font-medium">{t("parameters.impact.title")}</span>
+      <span className="tabular-nums">
+        {t("parameters.impact.eal")}{" "}
+        <strong>{totals.counted > 0 ? eur(totals.eal) : "–"}</strong>
+        {ealDelta && (
+          <span className="ml-1 text-xs text-muted-foreground">
+            ({ealDelta})
+          </span>
+        )}
+      </span>
+      <span className="tabular-nums">
+        {t("parameters.impact.exposure")}{" "}
+        <strong>{eur(totals.exposure)}</strong>
+        {exposureDelta && (
+          <span className="ml-1 text-xs text-muted-foreground">
+            ({exposureDelta})
+          </span>
+        )}
+      </span>
+      <span className="text-xs text-muted-foreground">
+        {updating
+          ? t("parameters.recalculating")
+          : t("parameters.impact.coverage", {
+              counted: totals.counted,
+              analyzed: totals.analyzed,
+            })}
+      </span>
+    </div>
+  );
+}
+
+/** Apply a saved parameter set, or save the current values as one. */
+function TemplateControls({
+  disabled,
+}: Readonly<{ disabled: boolean }>): React.JSX.Element {
+  const { t } = useTranslation();
+  const parameters = useAppStore((s) => s.parameters);
+  const updateParameters = useAppStore((s) => s.updateParameters);
+  const { templates, parametersOf, save, remove } = useParameterTemplates();
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [name, setName] = useState("");
+  async function apply(id: string): Promise<void> {
+    const next = parametersOf(id);
+    if (!next) return;
+    const previous = parameters;
+    await updateParameters(next);
+    toast.success(
+      t("parameters.templates.applied", {
+        name:
+          id === DEFAULT_TEMPLATE_ID ? t("parameters.templates.defaults") : id,
+      }),
+      {
+        action: {
+          label: t("parameters.resetUndo"),
+          onClick: () => void updateParameters(previous),
+        },
+      },
+    );
+  }
+  async function confirmSave(): Promise<void> {
+    if (!name.trim()) return;
+    try {
+      await save(name, parameters);
+      toast.success(t("parameters.templates.saved", { name: name.trim() }));
+      setSaveOpen(false);
+      setName("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  }
+  return (
+    <>
+      <Select
+        value=""
+        onValueChange={(id) => void apply(id)}
+        disabled={disabled}
+      >
+        <SelectTrigger
+          className="h-9 w-52"
+          aria-label={t("parameters.templates.apply")}
+        >
+          <SelectValue placeholder={t("parameters.templates.apply")} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={DEFAULT_TEMPLATE_ID}>
+            {t("parameters.templates.defaults")}
+          </SelectItem>
+          {templates.map((tpl) => (
+            <SelectItem key={tpl.name} value={tpl.name}>
+              {tpl.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button variant="outline" onClick={() => setSaveOpen(true)}>
+        <Save className="mr-2 size-4" />
+        {t("parameters.templates.save")}
+      </Button>
+      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("parameters.templates.saveTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("parameters.templates.saveDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="parameter-template-name">
+              {t("parameters.templates.name")}
+            </Label>
+            <Input
+              id="parameter-template-name"
+              value={name}
+              maxLength={80}
+              autoFocus
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void confirmSave();
+              }}
+            />
+          </div>
+          {templates.length > 0 && (
+            <ul className="divide-y rounded-md border text-sm">
+              {templates.map((tpl) => (
+                <li
+                  key={tpl.name}
+                  className="flex items-center justify-between gap-2 px-3 py-1.5"
+                >
+                  <button
+                    type="button"
+                    className="min-w-0 truncate text-left hover:underline"
+                    onClick={() => setName(tpl.name)}
+                  >
+                    {tpl.name}
+                  </button>
+                  <HintButton
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label={t("parameters.templates.delete", {
+                      name: tpl.name,
+                    })}
+                    onClick={() => void remove(tpl.name)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </HintButton>
+                </li>
+              ))}
+            </ul>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button disabled={!name.trim()} onClick={() => void confirmSave()}>
+              {t("parameters.templates.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 export function ParametersPage(): React.JSX.Element {
   const { t } = useTranslation();
   return (
@@ -768,7 +1045,7 @@ function ParametersContent(): React.JSX.Element {
       Object.fromEntries(
         Object.entries(parameters).map(([key, value]) => [
           key,
-          formatParameterValue(value, locale),
+          displayValue(key as ParameterKey, value, locale),
         ]),
       ),
     );
@@ -785,10 +1062,11 @@ function ParametersContent(): React.JSX.Element {
     setError(field.key);
     setDraft((current) => ({
       ...current,
-      [field.key]: formatParameterValue(parameters[field.key], locale),
+      [field.key]: displayValue(field.key, parameters[field.key], locale),
     }));
   }
-  function ruleText(field: ParameterField): string {
+  function ruleText(shown: ParameterField): string {
+    const field = displayRule(shown);
     const fmt = (n: number): string => formatParameterValue(n, locale);
     if (field.max == null)
       return t("parameters.validation.atLeast", { min: fmt(field.min) });
@@ -803,7 +1081,7 @@ function ParametersContent(): React.JSX.Element {
     field: ParameterField,
     raw: string,
   ): Promise<void> {
-    const error = parameterInputError(raw, field, locale);
+    const error = parameterInputError(raw, displayRule(field), locale);
     if (error) {
       // Keep what was typed and say, at this field, why it was not taken;
       // Escape restores the stored value.
@@ -812,20 +1090,29 @@ function ParametersContent(): React.JSX.Element {
         t(`parameters.validation.${error}`, {
           label: fieldLabel(field),
           rule: ruleText(field),
-          value: formatParameterValue(parameters[field.key], locale),
+          value: displayValue(field.key, parameters[field.key], locale),
         }),
       );
       return;
     }
     setError(field.key);
-    const value = parseLocaleNumber(raw, locale);
+    const typed = parseLocaleNumber(raw, locale);
+    const value = isPercent(field) ? fromPercentDisplay(typed) : typed;
     // Unchanged ("30000" for 30.000): show it in the usual notation again.
     if (value === parameters[field.key]) {
       revertDraft(field);
       return;
     }
+    // One vehicle value on the page: the hidden default follows it.
+    const patch = {
+      [field.key]: value,
+      ...(field.key === "vehicleValueCarEur" &&
+      parameters.vehicleValueDefaultEur === parameters.vehicleValueCarEur
+        ? { vehicleValueDefaultEur: value }
+        : {}),
+    } as Partial<RiskParameters>;
     try {
-      await updateParameters({ [field.key]: value } as Partial<RiskParameters>);
+      await updateParameters(patch);
     } catch (err) {
       setError(
         field.key,
@@ -891,6 +1178,7 @@ function ParametersContent(): React.JSX.Element {
               {t("parameters.recalculating")}
             </Badge>
           )}
+          <TemplateControls disabled={parametersUpdating} />
           <Button
             variant="outline"
             onClick={requestReset}
@@ -954,8 +1242,9 @@ function ParametersContent(): React.JSX.Element {
                     </>
                   ) : (
                     <div className="divide-y rounded-lg border">
-                      {[...recommendedFields, ...advancedFields].map(
-                        (field) => (
+                      {[...recommendedFields, ...advancedFields]
+                        .filter((field) => !hiddenField(field, parameters))
+                        .map((field) => (
                           <div
                             key={field.key}
                             className="grid gap-2 px-4 py-2.5 sm:grid-cols-[1fr_180px] sm:items-center"
@@ -986,6 +1275,41 @@ function ParametersContent(): React.JSX.Element {
                                     )}
                                   />
                                 )}
+                                {parameters[field.key] !==
+                                  DEFAULT_RISK_PARAMETERS[field.key] && (
+                                  <>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px]"
+                                    >
+                                      {t("parameters.changedBadge", {
+                                        value: `${displayValue(field.key, DEFAULT_RISK_PARAMETERS[field.key], locale)}${isPercent(field) ? " %" : ""}`,
+                                      })}
+                                    </Badge>
+                                    <HintButton
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-6"
+                                      disabled={parametersUpdating}
+                                      aria-label={t("parameters.resetField", {
+                                        label: fieldLabel(field),
+                                      })}
+                                      onClick={() =>
+                                        void commitValue(
+                                          field,
+                                          displayValue(
+                                            field.key,
+                                            DEFAULT_RISK_PARAMETERS[field.key],
+                                            locale,
+                                          ),
+                                        )
+                                      }
+                                    >
+                                      <RotateCcw className="size-3" />
+                                    </HintButton>
+                                  </>
+                                )}
                               </div>
                               <p className="text-xs text-muted-foreground">
                                 {fieldDescription(field)}
@@ -994,10 +1318,11 @@ function ParametersContent(): React.JSX.Element {
                             <ParameterEditor
                               field={field}
                               label={fieldLabel(field)}
-                              unit={t(`parameters.units.${field.unit}`)}
+                              unit={t(`parameters.units.${unitKey(field)}`)}
                               value={
                                 draft[field.key] ??
-                                formatParameterValue(
+                                displayValue(
+                                  field.key,
                                   parameters[field.key],
                                   locale,
                                 )
@@ -1015,8 +1340,7 @@ function ParametersContent(): React.JSX.Element {
                               error={errors[field.key]}
                             />
                           </div>
-                        ),
-                      )}
+                        ))}
                     </div>
                   )}
                 </div>
@@ -1025,6 +1349,7 @@ function ParametersContent(): React.JSX.Element {
           );
         })}
       </div>
+      <ImpactBar />
       <ResetDialog
         open={confirmReset}
         changedCount={changedFromDefaults}

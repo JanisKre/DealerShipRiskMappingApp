@@ -197,8 +197,13 @@ export function BoundaryEditNotices(): React.JSX.Element {
 function useLocationName(): (id: string) => string {
   const dealerships = useAppStore((s) => s.dealerships);
   const failedInputs = useAppStore((s) => s.failedInputs);
+  // A location in its first analysis is only in the pending batch yet.
+  const pendingAnalysis = useAppStore((s) => s.pendingAnalysis);
   return (id) =>
-    dealerships.find((d) => d.id === id)?.name ?? failedInputs[id]?.name ?? id;
+    dealerships.find((d) => d.id === id)?.name ??
+    failedInputs[id]?.name ??
+    pendingAnalysis.find((input) => input.id === id)?.name ??
+    id;
 }
 
 /** Progress of a running batch analysis, with the stop button. */
@@ -222,7 +227,7 @@ export function AnalysisProgressNotice(): React.JSX.Element | null {
           role="status"
           className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5"
         >
-          <span className="whitespace-nowrap font-medium tabular-nums">
+          <span className="min-w-0 font-medium tabular-nums">
             {t("map.page.analyzingProgress", {
               done: progress.done,
               total: progress.total,
@@ -499,6 +504,9 @@ export function BoundaryReviewHint({
               >
                 <Check className="size-3" />
                 {t("map.page.boundaryConfirm")}
+                <kbd className="ml-0.5 rounded border border-current/30 px-1 font-mono text-[10px] leading-none opacity-70">
+                  ↵
+                </kbd>
               </Button>
               <Button
                 type="button"
@@ -509,6 +517,9 @@ export function BoundaryReviewHint({
               >
                 <Pencil className="size-3" />
                 {t("map.page.boundaryCorrect")}
+                <kbd className="ml-0.5 rounded border border-current/30 px-1 font-mono text-[10px] leading-none opacity-70">
+                  E
+                </kbd>
               </Button>
               {count > 1 && (
                 <Button
@@ -520,6 +531,9 @@ export function BoundaryReviewHint({
                 >
                   {t("map.page.boundaryNext")}
                   <ArrowRight className="size-3" />
+                  <kbd className="ml-0.5 rounded border border-current/30 px-1 font-mono text-[10px] leading-none opacity-70">
+                    N
+                  </kbd>
                 </Button>
               )}
             </div>
@@ -564,10 +578,15 @@ export function BoundaryReviewHint({
 export function DetectionModelHint({
   count,
   total,
+  modelAvailable,
+  onReanalyze,
   onDismiss,
 }: Readonly<{
   count: number;
   total: number;
+  /** The model is installed by now: offer the re-analysis, not the setup. */
+  modelAvailable: boolean;
+  onReanalyze: () => void;
   onDismiss: () => void;
 }>): React.JSX.Element {
   const { t } = useTranslation();
@@ -580,18 +599,34 @@ export function DetectionModelHint({
           {t("map.page.detectionWarning", { count, total })}
         </div>
         <p className="text-xs leading-snug text-muted-foreground">
-          {t("map.page.detectionWarningHint")}
+          {t(
+            modelAvailable
+              ? "map.page.detectionWarningReady"
+              : "map.page.detectionWarningHint",
+          )}
         </p>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-7 text-xs"
-          onClick={() => navigate("/settings?section=data")}
-        >
-          <ScanEye className="size-3" />
-          {t("map.page.setupDetection")}
-        </Button>
+        {modelAvailable ? (
+          <Button
+            type="button"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={onReanalyze}
+          >
+            <RefreshCw className="size-3" />
+            {t("map.page.reanalyzeEstimated", { count })}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={() => navigate("/settings?section=data")}
+          >
+            <ScanEye className="size-3" />
+            {t("map.page.setupDetection")}
+          </Button>
+        )}
       </div>
       <DismissButton label={t("map.page.dismissHint")} onClick={onDismiss} />
     </div>

@@ -247,7 +247,8 @@ describe("quoted CSV cells", () => {
       { name: "Breite", hint: "latitude", field: "lat" },
       { name: "Laenge", hint: "longitude", field: "lon" },
       { name: "PLZ Standort", hint: "postcode", field: null },
-      { name: "Fahrzeugwert", hint: "amount", field: null },
+      // Recognised since the November UX review (a common header).
+      { name: "Fahrzeugwert", hint: "amount", field: "assetValue" },
     ]);
   });
 

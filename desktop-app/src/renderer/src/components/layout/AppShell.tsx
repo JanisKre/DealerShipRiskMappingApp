@@ -12,6 +12,8 @@ import {
   WifiOff,
 } from "lucide-react";
 import { useAppStore } from "@renderer/store/appStore";
+import { eur, num } from "@renderer/lib/format";
+import { toast } from "sonner";
 import { WIDE_WINDOW_PX, useMapStore } from "@renderer/store/mapStore";
 import { PageErrorBoundary } from "@renderer/components/common/PageErrorBoundary";
 import { CommandPalette } from "@renderer/components/command/CommandPalette";
@@ -21,6 +23,7 @@ import {
   SETTINGS_ITEM,
 } from "@renderer/components/layout/navigation";
 import { PortfolioSwitcher } from "@renderer/components/layout/PortfolioSwitcher";
+import { WorkflowSteps } from "@renderer/components/layout/WorkflowSteps";
 import { ThemeToggle } from "@renderer/components/theme/ThemeToggle";
 import { HintButton } from "@renderer/components/ui/hint-button";
 import { Separator } from "@renderer/components/ui/separator";
@@ -99,6 +102,44 @@ function AutosaveController(): null {
     [],
   );
 
+  return null;
+}
+
+/**
+ * After a saved boundary change: what it did to the count and the EAL, so
+ * the reviewer sees the effect of the decision without opening the site.
+ */
+function BoundaryImpactToast(): null {
+  const { t } = useTranslation();
+  const impact = useAppStore((s) => s.boundaryImpact);
+  const at = impact?.at;
+  useEffect(() => {
+    if (!impact) return;
+    const { vehiclesBefore, vehiclesAfter, eal } = impact;
+    const parts = [
+      vehiclesAfter == null
+        ? null
+        : vehiclesBefore != null && vehiclesBefore !== vehiclesAfter
+          ? t("shell.boundaryImpact.vehiclesChanged", {
+              before: num(vehiclesBefore),
+              after: num(vehiclesAfter),
+            })
+          : t("shell.boundaryImpact.vehiclesSame", {
+              count: vehiclesAfter,
+              formatted: num(vehiclesAfter),
+            }),
+      eal == null
+        ? t("shell.boundaryImpact.noEal")
+        : t("shell.boundaryImpact.eal", {
+            value: eur(eal),
+          }),
+    ].filter(Boolean);
+    toast.success(t("shell.boundaryImpact.title", { name: impact.name }), {
+      description: parts.join(" · "),
+    });
+    // Once per saved change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [at]);
   return null;
 }
 
@@ -227,6 +268,7 @@ export function AppShell(): React.JSX.Element {
     >
       <SessionLoader />
       <AutosaveController />
+      <BoundaryImpactToast />
       <NarrowWindowWatcher />
       <Sidebar collapsible="icon">
         <SidebarHeader>
@@ -312,7 +354,11 @@ export function AppShell(): React.JSX.Element {
           <h1 className="hidden truncate text-sm leading-tight font-semibold sm:block">
             {t(activeTitleKey)}
           </h1>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          {/* Where the portfolio stands; only where the header has room. */}
+          <div className="ml-auto hidden min-w-0 xl:flex">
+            <WorkflowSteps />
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-2 xl:ml-4">
             {!online && (
               <span
                 role="status"

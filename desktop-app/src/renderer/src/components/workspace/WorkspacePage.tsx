@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@renderer/store/appStore";
+import { useLlmReady } from "@renderer/lib/useLlmReady";
 import { WIDE_WINDOW_PX, useMapStore } from "@renderer/store/mapStore";
 import { usePanelRef, useDefaultLayout } from "react-resizable-panels";
 import {
@@ -56,13 +57,20 @@ export function WorkspacePage(): React.JSX.Element {
 
   // Narrow window at start: collapse the chat dock (it can be reopened from
   // the header), instead of squeezing the map to a strip.
+  // Without an AI provider the assistant dock only shows its setup card:
+  // the map gets that quarter of the window instead (reopened from the
+  // header, like on a narrow window).
+  const llmReady = useLlmReady();
   useEffect(() => {
-    if (narrowDefaultApplied) return;
+    if (narrowDefaultApplied || llmReady === null) return;
     narrowDefaultApplied = true;
     const store = useMapStore.getState();
-    if (window.innerWidth < WIDE_WINDOW_PX && store.chatPanelOpen)
+    if (
+      (window.innerWidth < WIDE_WINDOW_PX || !llmReady) &&
+      store.chatPanelOpen
+    )
       store.toggleChatPanel();
-  }, []);
+  }, [llmReady]);
 
   // Sync store flags -> imperative collapse/expand.
   useEffect(() => {

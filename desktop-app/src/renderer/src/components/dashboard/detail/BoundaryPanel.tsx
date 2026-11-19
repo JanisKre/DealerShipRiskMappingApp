@@ -22,6 +22,7 @@ import { useAppStore } from "@renderer/store/appStore";
 import { num, pct } from "@renderer/lib/format";
 import { Disclosure, Metric } from "./shared";
 import { candidateLabel, boundaryReviewText } from "./boundaryText";
+import { BoundaryPreview } from "./BoundaryPreview";
 
 /**
  * Drops every extra `MultiPolygon` part except the largest, producing a
@@ -95,6 +96,8 @@ export function BoundaryPanel({
   const revertBoundaryToDefault = useAppStore((s) => s.revertBoundaryToDefault);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<BoundaryCandidate | null>(null);
+  // Suggestion under the pointer: drawn dashed on the preview image.
+  const [hovered, setHovered] = useState<BoundaryCandidate | null>(null);
   const boundary = d.boundary;
   if (!boundary) {
     return (
@@ -197,6 +200,11 @@ export function BoundaryPanel({
           {boundaryReviewText(t, boundary, parameters)}
         </p>
       )}
+      <BoundaryPreview
+        d={d}
+        compare={(pending ?? hovered)?.polygon ?? null}
+        frame={others.slice(0, 4).map((candidate) => candidate.polygon)}
+      />
       <p className="text-muted-foreground">
         {candidateLabel(t, boundary)} · {num(boundary.areaSqm)} m² ·{" "}
         {t("dashboard.detailDialog.confidenceValue", {
@@ -260,10 +268,23 @@ export function BoundaryPanel({
           })}
         >
           <div className="space-y-1">
+            {others
+              .slice(0, 4)
+              .some((c) => c.confidence > boundary.confidence + 0.05) && (
+              // A higher percentage next to the chosen one read as a wrong
+              // pick: say what the percentage means and how the pick works.
+              <p className="text-xs text-muted-foreground">
+                {t("dashboard.detailDialog.boundaryHigherConfidenceNote")}
+              </p>
+            )}
             {others.slice(0, 4).map((candidate, index) => (
               <div
                 key={`${candidate.provider ?? candidate.source}-${index}`}
-                className="flex items-center justify-between gap-2"
+                className="flex items-center justify-between gap-2 rounded-sm hover:bg-muted/50"
+                onMouseEnter={() => setHovered(candidate)}
+                onMouseLeave={() => setHovered(null)}
+                onFocus={() => setHovered(candidate)}
+                onBlur={() => setHovered(null)}
               >
                 <span className="min-w-0 truncate">
                   {candidateLabel(t, candidate)}

@@ -14,6 +14,7 @@ import {
 import type { ImportResult } from "@shared/types";
 import type { ColumnOverrides } from "@shared/import-fields";
 import { ColumnAssignment } from "./ColumnAssignment";
+import { ImportAssumptions } from "./ImportAssumptions";
 import { Button } from "@renderer/components/ui/button";
 import { Checkbox } from "@renderer/components/ui/checkbox";
 import {
@@ -39,6 +40,7 @@ import { type ImportBusinessMode, useAppStore } from "@renderer/store/appStore";
 import {
   buildPreviewRows,
   editPreviewRow,
+  geocodePrecision,
   needsAttention,
   skippedIssues,
   type PreviewRow,
@@ -216,6 +218,8 @@ function ImportForm({
   const analyzing = useAppStore((s) => s.analyzing);
   const currentName = useAppStore((s) => s.sessionName);
   const existing = useAppStore((s) => s.dealerships);
+  const currentParameters = useAppStore((s) => s.parameters);
+  const [assumptions, setAssumptions] = useState(currentParameters);
   const currentCount = existing.length;
   const { result, fileName } = pending;
   const { report, rows } = result;
@@ -227,6 +231,9 @@ function ImportForm({
     businessColumn ? "file" : null,
   );
   const intoCurrent = currentCount > 0 && target === "current";
+  // A filled portfolio keeps its parameters; a new or empty one starts
+  // from what the assumptions step says.
+  const assumptionsEditable = !intoCurrent;
 
   // Preview rows: duplicates against the portfolio only count when the rows
   // go into it. Edits and ticks are kept per row across that switch.
@@ -306,6 +313,7 @@ function ImportForm({
         name,
         business: mode,
         report,
+        ...(assumptionsEditable ? { parameters: assumptions } : {}),
       });
       if (skipped > 0)
         toast.info(t("start.duplicatesSkipped", { count: skipped }));
@@ -452,12 +460,14 @@ function ImportForm({
               description={t("portfolioImport.businessNewDesc")}
             />
           </div>
-          {!business && (
-            <p className="text-xs text-muted-foreground">
-              {t("portfolioImport.businessRequired")}
-            </p>
-          )}
         </fieldset>
+
+        <ImportAssumptions
+          value={assumptions}
+          onChange={setAssumptions}
+          editable={assumptionsEditable}
+          onLeave={onDone}
+        />
       </div>
 
       <DialogFooter className="gap-2 sm:items-center">
@@ -515,11 +525,22 @@ function ImportPreviewTable({
   onToggleAll: (include: boolean) => void;
 }>): React.JSX.Element {
   const { t } = useTranslation();
-  const flagged = rows.filter(needsAttention);
-  const [onlyFlagged, setOnlyFlagged] = useState(flagged.length > 0);
+  const [checks, setChecks] = useState<Record<string, AddressCheck>>({});
+  // Rows the address check placed only roughly count as needing a look.
+  const flagged = rows.filter((row) => {
+    if (needsAttention(row)) return true;
+    const check = checks[row.row.id];
+    return (
+      check?.state === "notFound" ||
+      (check?.state === "found" &&
+        geocodePrecision(row.row.address ?? "", check.label).kind !== "exact")
+    );
+  });
+  const [onlyFlagged, setOnlyFlagged] = useState(
+    () => rows.filter(needsAttention).length > 0,
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState({ name: "", address: "" });
-  const [checks, setChecks] = useState<Record<string, AddressCheck>>({});
   const [checking, setChecking] = useState(false);
   const cancelRef = useRef(false);
   useEffect(
@@ -590,7 +611,8 @@ function ImportPreviewTable({
         {flagged.length > 0 && (
           <Button
             size="sm"
-            variant={onlyFlagged ? "secondary" : "ghost"}
+            // Pressed reads as pressed: filled, not a second shade of grey.
+            variant={onlyFlagged ? "default" : "outline"}
             className="h-7 gap-1 px-2 text-xs"
             onClick={() => setOnlyFlagged((v) => !v)}
             aria-pressed={onlyFlagged}
@@ -856,13 +878,37 @@ function PlacementCell({
         {t("importPreview.checking")}
       </span>
     );
-  if (check.state === "found")
+  if (check.state === "found") {
+    const precision = geocodePrecision(row.row.address ?? "", check.label);
+    if (precision.kind === "exact")
+      return (
+        <span className="flex items-start gap-1 text-success">
+          <Check className="mt-px size-3.5 shrink-0" />
+          <span className="line-clamp-2 break-words">{check.label}</span>
+        </span>
+      );
+    // Found, but only roughly: such sites often get an estimated circle.
     return (
-      <span className="flex items-start gap-1 text-success">
-        <Check className="mt-px size-3.5 shrink-0" />
-        <span className="line-clamp-2 break-words">{check.label}</span>
+      <span className="flex items-start gap-1 text-warning-foreground">
+        <TriangleAlert className="mt-px size-3.5 shrink-0 text-warning" />
+        <span className="min-w-0">
+          <span className="block font-medium">
+            {precision.kind === "postcodeDiffers"
+              ? t("importPreview.postcodeDiffers", {
+                  requested: precision.requested,
+                  found: precision.found,
+                })
+              : t("importPreview.streetOnly", {
+                  number: precision.houseNumber,
+                })}
+          </span>
+          <span className="line-clamp-2 break-words text-muted-foreground">
+            {check.label}
+          </span>
+        </span>
       </span>
     );
+  }
   return (
     <span className="inline-flex items-center gap-1 text-destructive">
       <TriangleAlert className="size-3.5 shrink-0" />

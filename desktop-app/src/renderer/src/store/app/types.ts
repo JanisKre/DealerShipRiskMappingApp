@@ -58,6 +58,18 @@ export interface AppState {
   detectionUpdateErrors: Record<string, string>;
   /** Locations with unsaved manual boundary edits. */
   boundaryEditIds: string[];
+  /**
+   * What the last saved boundary change did to the vehicle count and hail
+   * EAL, for the confirmation toast; `at` tells repeated saves apart.
+   */
+  boundaryImpact: {
+    id: string;
+    name: string;
+    vehiclesBefore: number | null;
+    vehiclesAfter: number | null;
+    eal: number | null;
+    at: number;
+  } | null;
   /** Previous manual boundary states, newest state last. */
   boundaryHistory: Record<string, BoundaryResult[]>;
   /** Most recently added location IDs — drives map focus. */
@@ -225,6 +237,11 @@ export interface AppState {
   removeDealerships: (ids: string[]) => void;
   /** Re-analyzes an existing location (recomputes boundary/detection/risk). */
   reanalyzeDealership: (id: string) => Promise<void>;
+  /**
+   * Re-analyzes several locations as one run, with the batch progress and
+   * its stop button (for example once the detection model is installed).
+   */
+  reanalyzeDealerships: (ids: string[]) => Promise<void>;
   /** Re-resolves the routed NatCat sources and rescores one location. */
   refreshNatCat: (id: string) => Promise<void>;
   analyzeAll: (inputs: DealershipInput[]) => Promise<void>;
@@ -284,6 +301,11 @@ export interface PortfolioImportOptions {
   business: ImportBusinessMode;
   /** Parser report, kept for the import-quality notice. */
   report?: ImportReport;
+  /**
+   * Assumptions confirmed in the import dialog, for a new or still empty
+   * portfolio; an import into a filled one keeps its parameters.
+   */
+  parameters?: RiskParameters;
 }
 
 /** Active portfolio filters. `null`/`undefined` = no restriction. */

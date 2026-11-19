@@ -146,3 +146,37 @@ export function skippedIssues(
   const kept = new Set(rowNumbers ?? []);
   return issues.filter((issue) => !kept.has(issue.row));
 }
+
+/**
+ * How closely a geocoder hit matches the address it was asked for, from
+ * the label alone: a hit in another postcode, or one on the street without
+ * the house number, places the site only roughly. Such sites often end up
+ * with an estimated circle instead of a parcel, so the preview says so
+ * before the import.
+ */
+export type GeocodePrecision =
+  | { kind: "exact" }
+  | { kind: "streetOnly"; houseNumber: string }
+  | { kind: "postcodeDiffers"; requested: string; found: string };
+
+const POSTCODE = /\b\d{5}\b/g;
+
+export function geocodePrecision(
+  address: string,
+  label: string,
+): GeocodePrecision {
+  const requested = address.match(POSTCODE)?.[0];
+  const found = label.match(POSTCODE)?.at(-1);
+  if (requested && found && requested !== found)
+    return { kind: "postcodeDiffers", requested, found };
+  // A house number is a short number token outside the postcode ("100",
+  // "5a"); a road like "B19" has none.
+  const houseNumber = address
+    .replace(POSTCODE, " ")
+    .match(/(?:^|[\s,])(\d{1,4}\s?[a-z]?)(?=$|[\s,])/i)?.[1]
+    ?.trim();
+  // Nominatim leads with the house number when it found the building.
+  const labelHouse = /^\s*\d{1,4}\s?[a-z]?\s*(,|$)/i.test(label);
+  if (houseNumber && !labelHouse) return { kind: "streetOnly", houseNumber };
+  return { kind: "exact" };
+}

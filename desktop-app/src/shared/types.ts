@@ -1018,6 +1018,20 @@ export const SettingsSchema = z.object({
   aiLogEnabled: z.boolean().optional(),
   /** Local agent gateway (MCP, A2A, AG-UI); off unless enabled here. */
   agentGateway: AgentGatewaySettingsSchema.optional(),
+  /**
+   * Named parameter sets to start a portfolio from (parameters page and
+   * import). App-wide; each portfolio still keeps its own copy.
+   */
+  parameterTemplates: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(80),
+        savedAt: z.string().max(40),
+        parameters: RiskParametersSchema,
+      }),
+    )
+    .max(20)
+    .optional(),
   /** External MCP servers whose read-only tools the chat may use. */
   mcpServers: z
     .array(McpServerConfigSchema)

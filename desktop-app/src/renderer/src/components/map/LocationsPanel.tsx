@@ -631,7 +631,8 @@ export function LocationsPanel({
                   ))}
                 </ul>
               )}
-              {rows.length === 0 ? (
+              {rows.length === 0 &&
+              unlocated.length > 0 ? null : rows.length === 0 ? (
                 <p className="px-2.5 py-3 text-xs text-muted-foreground">
                   {dealerships.length > 0
                     ? t("map.locationsPanel.noMatches")
@@ -808,7 +809,8 @@ function LocationRow({
       <button
         type="button"
         className={cn(
-          "flex min-w-0 flex-1 items-start gap-2 px-2.5 py-2 text-left text-sm hover:bg-accent/60",
+          // select-none: a click on the name must not highlight its text.
+          "flex min-w-0 flex-1 select-none items-start gap-2 px-2.5 py-2 text-left text-sm hover:bg-accent/60",
           FOCUS_RING_INSET,
         )}
         onClick={() => (selectMode ? onToggleCheck?.(d.id) : onSelect(d.id))}

@@ -5,6 +5,7 @@ import {
   accumulationVerdict,
   computeAccumulationClusters,
   computeHailEal,
+  exposureSource,
   dealershipHailZone,
   estimateHailZoneFromScore,
   groupSummary,
@@ -570,5 +571,29 @@ describe("hailstorm scenario corridor", () => {
     expect(impact.estimatedLossEur).toBe(
       Math.round(3_000_000 * DEFAULT_RISK_PARAMETERS.scenarioDamageHigh),
     );
+  });
+});
+
+describe("exposureSource", () => {
+  const stub = {
+    vehicleCount: 2_896,
+    confidence: 0.1,
+    model: AREA_ESTIMATE_DETECTOR,
+  };
+  it("names the declared value when only the area estimate exists", () => {
+    expect(exposureSource(stub, 2_500_000)).toBe("declared");
+    expect(exposureSource(stub, undefined)).toBe("areaEstimate");
+  });
+  it("lets a count beat the declared value", () => {
+    expect(
+      exposureSource({ ...stub, model: "dealer_vehicles" }, 2_500_000),
+    ).toBe("detected");
+    expect(exposureSource({ ...stub, manualVehicleCount: 3 }, 2_500_000)).toBe(
+      "manual",
+    );
+  });
+  it("falls back to the declared value without any detection", () => {
+    expect(exposureSource(undefined, 100)).toBe("declared");
+    expect(exposureSource(undefined, 0)).toBe("none");
   });
 });

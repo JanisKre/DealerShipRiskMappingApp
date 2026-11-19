@@ -46,7 +46,15 @@
     "resizeLocations": "Resize the locations panel",
     "resizeChat": "Resize the assistant",
     "openCommands": "Search commands and locations – {{shortcut}}",
-    "ctrlK": "Ctrl+K"
+    "ctrlK": "Ctrl+K",
+    "boundaryImpact": {
+      "title": "Boundary of {{name}} saved",
+      "vehiclesChanged": "Vehicles {{before}} → {{after}}",
+      "vehiclesSame_one": "{{formatted}} vehicle (unchanged)",
+      "vehiclesSame_other": "{{formatted}} vehicles (unchanged)",
+      "eal": "Hail EAL now {{value}}",
+      "noEal": "no hail EAL yet"
+    }
   },
   "start": {
     "title": "Portfolio & Analysis",
@@ -88,7 +96,7 @@
     "recalculating": "Recalculating scores…",
     "startHereTitle": "Start here",
     "startHereDescription": "For most portfolios, the fields marked “important” are enough. They directly affect exposure, EAL or review notes; the other fields are only needed in special cases. All hail EAL values are important.",
-    "fractionHint": "Enter fractions as decimals (0.15 = 15%); the percentage is shown under the field. Changes are applied when you leave a field.",
+    "fractionHint": "Shares are entered in percent (15 = 15 %). Changes apply when you leave a field.",
     "recommended": "important",
     "retry": "Try again",
     "loadErrorTitle": "Parameters could not be loaded",
@@ -107,8 +115,12 @@
         "description": "Concentration risk, reinsurance and portfolio-level stress scenarios."
       },
       "quality": {
-        "title": "Alerts & data quality",
-        "description": "Thresholds for alerts, reviews and the quality of automated results."
+        "title": "Review notes",
+        "description": "When a location gets a review note."
+      },
+      "advanced": {
+        "title": "Advanced: boundary and detection thresholds",
+        "description": "Technical thresholds of the lot boundary and vehicle detection. Change them only if you know what they do."
       }
     },
     "units": {
@@ -120,12 +132,13 @@
       "meters": "m",
       "eventsPerYear": "events/year",
       "eurPerVehicle": "€/vehicle",
-      "hailZone": "zone"
+      "hailZone": "zone",
+      "percent": "%"
     },
     "parameterFields": {
       "vehicleValueCarEur": {
-        "label": "Passenger-car value",
-        "description": "Average value per passenger car.",
+        "label": "Vehicle value",
+        "description": "Average value per vehicle on the lot.",
         "tip": "Adjust this if the typical vehicle mix differs materially from the default value."
       },
       "vehicleValueDefaultEur": {
@@ -305,6 +318,25 @@
       "between": "a value between {{min}} and {{max}}",
       "atLeast": "a value of at least {{min}}",
       "wholeBetween": "a whole number between {{min}} and {{max}}"
+    },
+    "changedBadge": "changed · default {{value}}",
+    "resetField": "Reset {{label}} to the default",
+    "impact": {
+      "title": "With these values:",
+      "eal": "Hail EAL",
+      "exposure": "Exposure",
+      "coverage": "{{counted}} of {{analyzed}} locations with a vehicle count · change since opening the page in brackets"
+    },
+    "templates": {
+      "apply": "Apply template…",
+      "defaults": "Default values (placeholders)",
+      "applied": "Template “{{name}}” applied.",
+      "save": "Save as template",
+      "saveTitle": "Save parameters as a template",
+      "saveDescription": "Templates are app-wide: apply them to any portfolio here or when importing. An existing name is replaced.",
+      "name": "Template name",
+      "saved": "Template “{{name}}” saved.",
+      "delete": "Delete template “{{name}}”"
     }
   },
   "settings": {
@@ -898,7 +930,15 @@
       "kpiEstimate": "estimate",
       "kpiVehiclesDetectedOn": "counted · image {{date}}",
       "kpiExposure": "Vehicle value (exposure)",
-      "kpiExposurePerVehicle": "avg. {{value}} per vehicle"
+      "kpiExposurePerVehicle": "avg. {{value}} per vehicle",
+      "reanalyzing": "Analysing…",
+      "reanalyzingHint": "Imagery, boundary, vehicles and hail EAL are being recalculated. This usually takes 10–30 seconds.",
+      "kpiExposureDeclared": "declared value from the import",
+      "previewCurrent": "Current boundary",
+      "previewCompared": "Suggestion compared",
+      "previewVehicles_one": "{{count}} counted vehicle",
+      "previewVehicles_other": "{{count}} counted vehicles",
+      "boundaryHigherConfidenceNote": "The pick follows the order of the sources (parcels at the address point with vehicles first), not the highest percentage. The confidence rates each suggestion on its own – point at a suggestion to compare it on the aerial image above."
     },
     "hailEal": "Hail EAL",
     "hailZone": "Hail zone",
@@ -1010,7 +1050,9 @@
       "stockRange_other": "The calculation uses the current count. On {{count}} archived images there were {{vehiclesLow}}–{{vehiclesHigh}} vehicles; with that the hail EAL would be {{low}} to {{high}} (median {{median}}).",
       "screeningShort": "Screening estimate with placeholder values – not a pricing or underwriting decision.",
       "inputsToggle": "Where the values come from",
-      "placeholdersShort": "Frequency and loss per vehicle are placeholder values; calibration by underwriting is pending."
+      "placeholdersShort": "Frequency and loss per vehicle are placeholder values; calibration by underwriting is pending.",
+      "noCountedVehicles": "No hail EAL yet: the EAL uses counted vehicles only. The ≈{{estimate}} vehicles of the area estimate are not used.",
+      "noVehicles": "No hail EAL yet: no vehicles were counted on the site."
     },
     "info": {
       "label": "What does this mean?",
@@ -1087,7 +1129,22 @@
       "badge": "no vehicle count",
       "tooltip": "Without a vehicle count there is no hail EAL (not €0). Set up vehicle detection or enter the vehicle count under “Site & vehicles” for this location."
     },
-    "estimatedShare": "{{share}}% estimated"
+    "estimatedShare": "{{share}}% estimated",
+    "completeness": {
+      "provisional_one": "Provisional: {{count}} of {{total}} locations has no vehicle count yet",
+      "provisional_other": "Provisional: {{count}} of {{total}} locations have no vehicle count yet",
+      "provisionalHint": "The hail EAL below sums only locations with counted vehicles and is therefore incomplete. Exposure from area estimates is marked with ≈.",
+      "reviewsOpen_one": "{{count}} review point is still open",
+      "reviewsOpen_other": "{{count}} review points are still open",
+      "reviewsOpenHint": "Boundaries and vehicle counts of these locations are machine-made and not checked yet."
+    },
+    "exportPrecheck": {
+      "noCount_one": "{{count}} location without a vehicle count",
+      "noCount_other": "{{count}} locations without a vehicle count",
+      "boundaries_one": "{{count}} boundary unchecked",
+      "boundaries_other": "{{count}} boundaries unchecked",
+      "marked": "the report marks these points as provisional."
+    }
   },
   "map": {
     "satellite": "Aerial",
@@ -1207,8 +1264,8 @@
       "ealValue": "Hail EAL {{value}}",
       "unlocatedTitle_one": "{{count}} row not on the map yet",
       "unlocatedTitle_other": "{{count}} rows not on the map yet",
-      "unlocatedWaiting": "No coordinates – waiting for the address search",
-      "unlocatedSearching": "Searching for the address…",
+      "unlocatedWaiting": "Queued – will be located and analysed shortly",
+      "unlocatedSearching": "Locating and analysing…",
       "unlocatedFailed": "Not imported: {{reason}}",
       "unlocatedNotFound": "address not found",
       "unlocatedOther": "analysis failed",
@@ -1326,7 +1383,13 @@
       "mapCopyFailed": "Couldn't copy the map image.",
       "mapSaveFailed": "Couldn't save the map image.",
       "durationRange": "{{low}}–{{high}}",
-      "nextHint": "Next hint ({{current}} of {{total}})"
+      "nextHint": "Next hint ({{current}} of {{total}})",
+      "detectionWarningReady": "The detection model is installed now. Re-analyse these locations so their vehicles are counted.",
+      "reanalyzeEstimated_one": "Re-analyse {{count}} location",
+      "reanalyzeEstimated_other": "Re-analyse {{count}} locations",
+      "locatingTitle_one": "Locating {{count}} location…",
+      "locatingTitle_other": "Locating {{count}} locations…",
+      "locatingDescription": "The addresses are being looked up. Each location appears on the map as soon as it is found."
     }
   },
   "ai": {
@@ -1538,7 +1601,7 @@
       "address": "Address",
       "lat": "Latitude",
       "lon": "Longitude",
-      "assetValue": "Value",
+      "assetValue": "Vehicle value / sum insured (€)",
       "insured": "Business type",
       "productLimitEur": "Max. indemnity",
       "deductibleEur": "Deductible",
@@ -1754,7 +1817,9 @@
     "coords": {
       "outsideGermany": "Coordinates lie outside Germany – please check (not selected)",
       "swapped": "Latitude/longitude swapped? Swapped, the point would lie in Germany (not selected)"
-    }
+    },
+    "postcodeDiffers": "Found in postcode {{found}} instead of {{requested}} – please check",
+    "streetOnly": "Only the street was found, not no. {{number}} – the site is placed roughly"
   },
   "a2ui": {
     "needsAi": "AI dashboards are built by the AI assistant. Set up an AI provider first.",
@@ -2275,5 +2340,29 @@
         "hint": "Paste in Claude Desktop under Settings → Developer → Edit Config and restart Claude. Needs Node.js; the “mcp-remote” bridge is downloaded on first start."
       }
     }
+  },
+  "importAssumptions": {
+    "title": "Assumptions for the analysis",
+    "modelMissing": "No detection model installed:",
+    "modelMissingHint": "Vehicles are only estimated from the area, so there is no hail EAL. You can still import and re-analyse after the setup – or set it up now (this cancels the import).",
+    "modelReady": "Vehicle detection ready – vehicles are counted on the aerial image.",
+    "template": "Parameter template",
+    "currentValues": "Values of the open portfolio",
+    "invalid": "Enter a value between {{min}} and {{max}}.",
+    "more": "All other parameters (hail EAL, PML, thresholds) are on the Parameters page and can be changed at any time.",
+    "keepsParameters": "The locations go into an existing portfolio and are scored with its parameters."
+  },
+  "workflow": {
+    "label": "Portfolio workflow",
+    "steps": {
+      "prepare": "Prepare",
+      "import": "Import",
+      "review": "Review",
+      "evaluate": "Evaluate"
+    },
+    "modelMissing": "model missing",
+    "openCount_one": "{{count}} open",
+    "openCount_other": "{{count}} open",
+    "provisional": "provisional"
   }
 }

@@ -19,6 +19,7 @@ export function analysisActions(
 ): Pick<
   AppState,
   | "reanalyzeDealership"
+  | "reanalyzeDealerships"
   | "refreshNatCat"
   | "analyzeAll"
   | "cancelAnalysis"
@@ -131,6 +132,45 @@ export function analysisActions(
       } finally {
         set((s) => ({ analyzingIds: s.analyzingIds.filter((x) => x !== id) }));
       }
+    },
+
+    reanalyzeDealerships: async (ids) => {
+      const known = ids.filter((id) =>
+        get().dealerships.some((d) => d.id === id),
+      );
+      if (known.length === 0 || get().analyzing) return;
+      const generation = portfolioGeneration();
+      let next = 0;
+      let done = 0;
+      set({
+        analyzing: true,
+        progress: { done: 0, total: known.length, startedAt: Date.now() },
+        analysisCancelRequested: false,
+      });
+      async function worker(): Promise<void> {
+        while (
+          next < known.length &&
+          !get().analysisCancelRequested &&
+          generation === portfolioGeneration()
+        ) {
+          await get().reanalyzeDealership(known[next++]);
+          done++;
+          set((s) => ({
+            progress: s.progress ? { ...s.progress, done } : s.progress,
+          }));
+        }
+      }
+      // Same parallelism as a batch import (see runAnalysisQueue).
+      await Promise.all(
+        Array.from({ length: Math.min(3, known.length) }, () => worker()),
+      );
+      if (generation !== portfolioGeneration()) return;
+      set({ analyzing: false, analysisCancelRequested: false });
+      await get()
+        .saveSession()
+        .catch((err: unknown) => {
+          console.error("Saving after the re-analysis failed:", err);
+        });
     },
 
     refreshNatCat: async (id) => {
@@ -269,20 +309,29 @@ export function analysisActions(
       return duplicates.length;
     },
 
-    importPortfolio: async ({ rows, target, name, business, report }) => {
+    importPortfolio: async ({
+      rows,
+      target,
+      name,
+      business,
+      report,
+      parameters: assumptions,
+    }) => {
       const classified = applyBusinessClassification(rows, business);
       if (target === "new") {
         // A new portfolio keeps the parameter set in use (e.g. calibrated
-        // hail EAL values) instead of falling back to the defaults.
-        const parameters = get().parameters;
+        // hail EAL values) instead of falling back to the defaults, unless
+        // the dialog confirmed other assumptions.
+        const parameters = assumptions ?? get().parameters;
         await get().newPortfolio();
         const trimmed = name.trim();
         set({ sessionName: trimmed || DEFAULT_PORTFOLIO_NAME });
         get().setParameters(parameters);
-      } else if (get().dealerships.length === 0 && name.trim()) {
+      } else if (get().dealerships.length === 0) {
         // The first import into the empty start portfolio names it, as the
         // dialog's name field promises; otherwise it stayed "New Portfolio".
-        set({ sessionName: name.trim() });
+        if (name.trim()) set({ sessionName: name.trim() });
+        if (assumptions) get().setParameters(assumptions);
       }
       if (report) set({ lastImportReport: report });
       // addAndAnalyze adds the pins and the pending queue synchronously and

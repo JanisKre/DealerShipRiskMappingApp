@@ -18,6 +18,34 @@ The orchestration entry point is
 Every new risk result includes a model version, overall confidence, source
 evidence, and limitations.
 
+## Declared value before the area estimate (screening-0.5.3)
+
+A UI review in November 2026 imported a portfolio with a vehicle value per
+site while no detection model was installed. The area fallback detector
+(`stub-area-heuristic`, lot area ÷ m² per vehicle) then set the exposure,
+and the declared value was ignored: a fallback circle of 72,400 m² gave
+≈2,896 vehicles, 72.4 M€ instead of the declared 2.5 M€.
+
+- **Order of the exposure sources** (`exposureSource` in
+  `shared/risk-math.ts`, applied by `risk/exposure.ts`): a reviewed vehicle
+  count, a count by the detection model, the value declared in the
+  imported portfolio, the area estimate. A model count still beats the
+  declared value: it is a count on the current image, the declared value a
+  figure of unknown date.
+- **Not an estimate.** Exposure from a declared value is no longer counted
+  as "estimated" in the portfolio share (`estimatedExposure` in
+  `shared/estimates.ts`); the site detail labels it "declared value from
+  the import".
+- **The hail EAL is unchanged.** N stays the counted vehicles; a declared
+  value never becomes a vehicle count (screening-0.5.1).
+
+Fixtures: `risk/exposure.test.ts` and `shared/risk-math.test.ts`
+("exposureSource"). Data sources and limitations are unchanged; the
+exposure stays a screening figure, not an insured value or an underwriting
+decision. Results stored by `screening-0.5.2` are offered for
+recalculation on the dashboard; only sites with a declared value and no
+model count change.
+
 ## Corrections (screening-0.5.2)
 
 A review in November 2026 found that the weather fallback depended on the

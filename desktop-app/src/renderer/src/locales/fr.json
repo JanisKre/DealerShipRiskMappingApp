@@ -46,7 +46,15 @@
     "resizeLocations": "Redimensionner le panneau des sites",
     "resizeChat": "Redimensionner l’assistant",
     "openCommands": "Rechercher des commandes et des sites – {{shortcut}}",
-    "ctrlK": "Ctrl+K"
+    "ctrlK": "Ctrl+K",
+    "boundaryImpact": {
+      "title": "Limite de {{name}} enregistrée",
+      "vehiclesChanged": "Véhicules {{before}} → {{after}}",
+      "vehiclesSame_one": "{{formatted}} véhicule (inchangé)",
+      "vehiclesSame_other": "{{formatted}} véhicules (inchangés)",
+      "eal": "EAL grêle maintenant {{value}}",
+      "noEal": "pas encore d’EAL grêle"
+    }
   },
   "start": {
     "title": "Portefeuille et analyse",
@@ -88,7 +96,7 @@
     "recalculating": "Recalcul des scores…",
     "startHereTitle": "Commencer ici",
     "startHereDescription": "Pour la plupart des portefeuilles, les champs marqués « important » suffisent. Ils influencent directement l’exposition, l’EAL ou les points à vérifier ; les autres ne servent que dans des cas particuliers. Toutes les valeurs de l’EAL grêle sont importantes.",
-    "fractionHint": "Repère : saisissez les proportions sous forme décimale — 0,15 correspond à 15 %. Les changements sont appliqués en quittant le champ.",
+    "fractionHint": "Les parts sont saisies en pourcentage (15 = 15 %). Les modifications s’appliquent en quittant le champ.",
     "recommended": "important",
     "retry": "Recharger",
     "loadErrorTitle": "Impossible de charger les paramètres",
@@ -107,8 +115,12 @@
         "description": "Risques de concentration, réassurance et scénarios de stress au niveau du portefeuille."
       },
       "quality": {
-        "title": "Alertes et qualité des données",
-        "description": "Seuils pour les alertes, les vérifications et la qualité des résultats automatiques."
+        "title": "Points de contrôle",
+        "description": "À partir de quand un site reçoit un point de contrôle."
+      },
+      "advanced": {
+        "title": "Avancé : seuils de limite et de détection",
+        "description": "Seuils techniques de la limite du terrain et de la détection des véhicules. À ne modifier qu’en connaissance de cause."
       }
     },
     "units": {
@@ -120,12 +132,13 @@
       "meters": "m",
       "eventsPerYear": "événements/an",
       "eurPerVehicle": "€/véhicule",
-      "hailZone": "zone"
+      "hailZone": "zone",
+      "percent": "%"
     },
     "parameterFields": {
       "vehicleValueCarEur": {
-        "label": "Valeur par voiture",
-        "description": "Valeur moyenne par voiture particulière.",
+        "label": "Valeur du véhicule",
+        "description": "Valeur moyenne par véhicule sur le terrain.",
         "tip": "À ajuster si la composition habituelle du parc diffère nettement de la valeur par défaut."
       },
       "vehicleValueDefaultEur": {
@@ -305,6 +318,25 @@
       "between": "une valeur entre {{min}} et {{max}}",
       "atLeast": "une valeur d’au moins {{min}}",
       "wholeBetween": "un nombre entier entre {{min}} et {{max}}"
+    },
+    "changedBadge": "modifié · défaut {{value}}",
+    "resetField": "Rétablir la valeur par défaut de {{label}}",
+    "impact": {
+      "title": "Avec ces valeurs :",
+      "eal": "EAL grêle",
+      "exposure": "Exposition",
+      "coverage": "{{counted}} sites sur {{analyzed}} avec un nombre de véhicules · variation depuis l’ouverture de la page entre parenthèses"
+    },
+    "templates": {
+      "apply": "Appliquer un modèle…",
+      "defaults": "Valeurs par défaut (provisoires)",
+      "applied": "Modèle « {{name}} » appliqué.",
+      "save": "Enregistrer comme modèle",
+      "saveTitle": "Enregistrer les paramètres comme modèle",
+      "saveDescription": "Les modèles valent pour toute l’application : applique-les ici ou à l’import. Un nom existant est remplacé.",
+      "name": "Nom du modèle",
+      "saved": "Modèle « {{name}} » enregistré.",
+      "delete": "Supprimer le modèle « {{name}} »"
     }
   },
   "settings": {
@@ -898,7 +930,15 @@
       "kpiEstimate": "estimation",
       "kpiVehiclesDetectedOn": "comptés · image {{date}}",
       "kpiExposure": "Valeur des véhicules",
-      "kpiExposurePerVehicle": "Ø {{value}} par véhicule"
+      "kpiExposurePerVehicle": "Ø {{value}} par véhicule",
+      "reanalyzing": "Analyse en cours…",
+      "reanalyzingHint": "Image aérienne, limite, véhicules et EAL grêle sont recalculés. Cela prend en général 10 à 30 secondes.",
+      "kpiExposureDeclared": "valeur déclarée à l’import",
+      "previewCurrent": "Limite actuelle",
+      "previewCompared": "Proposition comparée",
+      "previewVehicles_one": "{{count}} véhicule compté",
+      "previewVehicles_other": "{{count}} véhicules comptés",
+      "boundaryHigherConfidenceNote": "Le choix suit l’ordre des sources (parcelles au point d’adresse avec véhicules d’abord), pas le pourcentage le plus élevé. La confiance évalue chaque proposition séparément – survole une proposition pour la comparer sur l’image aérienne ci-dessus."
     },
     "hailEal": "EAL grêle",
     "hailZone": "Zone de grêle",
@@ -1010,7 +1050,9 @@
       "stockRange_other": "Le calcul utilise le comptage actuel. Sur {{count}} images archivées, il y avait {{vehiclesLow}}–{{vehiclesHigh}} véhicules ; l’EAL grêle serait alors de {{low}} à {{high}} (médiane {{median}}).",
       "screeningShort": "Estimation de screening avec des valeurs provisoires – pas une décision de tarification ou de souscription.",
       "inputsToggle": "D’où viennent les valeurs",
-      "placeholdersShort": "La fréquence et le sinistre par véhicule sont des valeurs provisoires ; le calibrage par la souscription est en attente."
+      "placeholdersShort": "La fréquence et le sinistre par véhicule sont des valeurs provisoires ; le calibrage par la souscription est en attente.",
+      "noCountedVehicles": "Pas encore d’EAL grêle : l’EAL n’utilise que des véhicules comptés. Les ≈{{estimate}} véhicules estimés d’après la surface n’y entrent pas.",
+      "noVehicles": "Pas encore d’EAL grêle : aucun véhicule n’a été compté sur le site."
     },
     "info": {
       "label": "Qu’est-ce que cela signifie ?",
@@ -1087,7 +1129,22 @@
       "badge": "aucun nombre de véhicules",
       "tooltip": "Sans nombre de véhicules, pas d’EAL grêle (pas 0 €). Configurez la détection des véhicules ou saisissez le nombre de véhicules sous « Site & véhicules »."
     },
-    "estimatedShare": "dont {{share}} % estimés"
+    "estimatedShare": "dont {{share}} % estimés",
+    "completeness": {
+      "provisional_one": "Provisoire : {{count}} site sur {{total}} n’a pas encore de nombre de véhicules",
+      "provisional_other": "Provisoire : {{count}} sites sur {{total}} n’ont pas encore de nombre de véhicules",
+      "provisionalHint": "L’EAL grêle ci-dessous n’additionne que les sites aux véhicules comptés et reste donc incomplète. L’exposition estimée d’après la surface est marquée ≈.",
+      "reviewsOpen_one": "{{count}} point de contrôle reste ouvert",
+      "reviewsOpen_other": "{{count}} points de contrôle restent ouverts",
+      "reviewsOpenHint": "Les limites et nombres de véhicules de ces sites sont automatiques et pas encore vérifiés."
+    },
+    "exportPrecheck": {
+      "noCount_one": "{{count}} site sans nombre de véhicules",
+      "noCount_other": "{{count}} sites sans nombre de véhicules",
+      "boundaries_one": "{{count}} limite non vérifiée",
+      "boundaries_other": "{{count}} limites non vérifiées",
+      "marked": "le rapport signale ces points comme provisoires."
+    }
   },
   "map": {
     "satellite": "Vue aérienne",
@@ -1207,8 +1264,8 @@
       "ealValue": "EAL grêle {{value}}",
       "unlocatedTitle_one": "{{count}} ligne pas encore sur la carte",
       "unlocatedTitle_other": "{{count}} lignes pas encore sur la carte",
-      "unlocatedWaiting": "Sans coordonnées – en attente de la recherche d’adresse",
-      "unlocatedSearching": "Recherche de l’adresse…",
+      "unlocatedWaiting": "En file d’attente – sera localisé et analysé sous peu",
+      "unlocatedSearching": "Localisation et analyse…",
       "unlocatedFailed": "Non importé : {{reason}}",
       "unlocatedNotFound": "adresse introuvable",
       "unlocatedOther": "échec de l’analyse",
@@ -1326,7 +1383,13 @@
       "mapCopyFailed": "Impossible de copier l’image de la carte.",
       "mapSaveFailed": "Impossible d’enregistrer l’image de la carte.",
       "durationRange": "{{low}}–{{high}}",
-      "nextHint": "Conseil suivant ({{current}} sur {{total}})"
+      "nextHint": "Conseil suivant ({{current}} sur {{total}})",
+      "detectionWarningReady": "Le modèle de détection est maintenant installé. Réanalyse ces sites pour compter leurs véhicules.",
+      "reanalyzeEstimated_one": "Réanalyser {{count}} site",
+      "reanalyzeEstimated_other": "Réanalyser {{count}} sites",
+      "locatingTitle_one": "Localisation de {{count}} site…",
+      "locatingTitle_other": "Localisation de {{count}} sites…",
+      "locatingDescription": "Les adresses sont recherchées. Chaque site apparaît sur la carte dès qu’il est trouvé."
     }
   },
   "ai": {
@@ -1538,7 +1601,7 @@
       "address": "Adresse",
       "lat": "Latitude",
       "lon": "Longitude",
-      "assetValue": "Valeur",
+      "assetValue": "Valeur des véhicules / somme assurée (€)",
       "insured": "Type d’affaire",
       "productLimitEur": "Indemnité max.",
       "deductibleEur": "Franchise",
@@ -1754,7 +1817,9 @@
     "coords": {
       "outsideGermany": "Coordonnées hors d’Allemagne – à vérifier (non sélectionné)",
       "swapped": "Latitude/longitude inversées ? Inversé, le point serait en Allemagne (non sélectionné)"
-    }
+    },
+    "postcodeDiffers": "Trouvé dans le code postal {{found}} au lieu de {{requested}} – à vérifier",
+    "streetOnly": "Seule la rue a été trouvée, pas le n° {{number}} – le site est placé approximativement"
   },
   "a2ui": {
     "needsAi": "Les tableaux de bord IA sont créés par l’assistant IA. Configurez d’abord un fournisseur d’IA.",
@@ -2275,5 +2340,29 @@
         "hint": "À coller dans Claude Desktop sous Paramètres → Développeur → Modifier la configuration, puis redémarrer Claude. Nécessite Node.js ; le pont « mcp-remote » est téléchargé au premier démarrage."
       }
     }
+  },
+  "importAssumptions": {
+    "title": "Hypothèses pour l’analyse",
+    "modelMissing": "Aucun modèle de détection installé :",
+    "modelMissingHint": "Les véhicules ne sont estimés que d’après la surface, il n’y a donc pas d’EAL grêle. Tu peux importer quand même et réanalyser après l’installation – ou l’installer maintenant (l’import est alors annulé).",
+    "modelReady": "Détection des véhicules prête – les véhicules sont comptés sur l’image aérienne.",
+    "template": "Modèle de paramètres",
+    "currentValues": "Valeurs du portefeuille ouvert",
+    "invalid": "Saisis une valeur entre {{min}} et {{max}}.",
+    "more": "Tous les autres paramètres (EAL grêle, PML, seuils) se trouvent sur la page « Paramètres » et restent modifiables.",
+    "keepsParameters": "Les sites rejoignent un portefeuille existant et sont évalués avec ses paramètres."
+  },
+  "workflow": {
+    "label": "Étapes du portefeuille",
+    "steps": {
+      "prepare": "Préparer",
+      "import": "Importer",
+      "review": "Contrôler",
+      "evaluate": "Évaluer"
+    },
+    "modelMissing": "modèle manquant",
+    "openCount_one": "{{count}} ouvert",
+    "openCount_other": "{{count}} ouverts",
+    "provisional": "provisoire"
   }
 }

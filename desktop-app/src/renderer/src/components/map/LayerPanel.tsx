@@ -419,10 +419,11 @@ export function LayerPanel({
       : hasCorridor
         ? t("hailReplay.corridorBadge")
         : undefined;
-  // Editing started from a map notice must not stay hidden in a closed panel.
+  // Vehicle review keeps its tools in the panel; a boundary edit has its own
+  // notice with "Done", and an opened panel covered the lot being edited.
   useEffect(() => {
-    if (editing || detectionEditing) setOpen(true);
-  }, [editing, detectionEditing]);
+    if (detectionEditing) setOpen(true);
+  }, [detectionEditing]);
   const bmLabels = basemapLabels(t);
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
   // The year the pinned image was taken, not when Esri published the

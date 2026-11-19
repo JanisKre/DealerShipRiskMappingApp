@@ -1,6 +1,7 @@
 import type { AnalyzedDealership } from "./types";
 import {
   displayedHailVehicleSource,
+  exposureSource,
   isAreaEstimatedDetection,
 } from "./risk-math";
 
@@ -84,7 +85,10 @@ export function estimatedExposure(dealerships: readonly AnalyzedDealership[]): {
   for (const d of dealerships) {
     const exposure = d.risk?.exposureEur ?? 0;
     totalEur += exposure;
-    if (estimateReasons(d).length > 0) estimatedEur += exposure;
+    // A value declared in the portfolio is the client's figure, not an
+    // estimate of the app, whatever the lot looks like.
+    const declared = exposureSource(d.detection, d.assetValue) === "declared";
+    if (!declared && estimateReasons(d).length > 0) estimatedEur += exposure;
   }
   return {
     totalEur,

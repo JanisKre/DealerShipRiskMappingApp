@@ -111,3 +111,17 @@ export function zonesWithFallingFrequency(lambdas: number[]): number[] {
 export function zonesWithImplausibleFrequency(lambdas: number[]): number[] {
   return lambdas.flatMap((lambda, i) => (lambda > 1 ? [i + 1] : []));
 }
+
+/**
+ * Shares are typed in percent (15 for 0.15): "0,15 = 15 %" had to be
+ * explained on the page and was still typed wrong. Rounded so 0.07 × 100
+ * shows as 7, not 7.000000000000001.
+ */
+export function toPercentDisplay(value: number): number {
+  return Math.round(value * 100 * 1e6) / 1e6;
+}
+
+/** The stored share for a typed percentage. */
+export function fromPercentDisplay(value: number): number {
+  return Math.round((value / 100) * 1e10) / 1e10;
+}

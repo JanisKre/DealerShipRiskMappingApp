@@ -4,6 +4,7 @@ import {
   buildPreviewRows,
   coordinateWarning,
   editPreviewRow,
+  geocodePrecision,
   needsAttention,
   placement,
   skippedIssues,
@@ -106,5 +107,52 @@ describe("coordinate plausibility (UW-06)", () => {
       "null",
       "swap",
     ]);
+  });
+});
+
+describe("geocodePrecision", () => {
+  it("accepts a hit on the building in the same postcode", () => {
+    expect(
+      geocodePrecision(
+        "Washingtonstraße 40, 01139 Dresden",
+        "40, Washingtonstraße, Mickten, Dresden, Sachsen, 01139, Deutschland",
+      ),
+    ).toEqual({ kind: "exact" });
+  });
+
+  it("flags a hit in another postcode", () => {
+    expect(
+      geocodePrecision(
+        "Liebstädter Str. 5, 01219 Dresden",
+        "5, Liebstädter Straße, Gruna, Dresden, Sachsen, 01277, Deutschland",
+      ),
+    ).toEqual({ kind: "postcodeDiffers", requested: "01219", found: "01277" });
+  });
+
+  it("flags a hit on the street without the house number", () => {
+    expect(
+      geocodePrecision(
+        "Nürnberger Str. 100, 97076 Würzburg",
+        "Nürnberger Straße, Lengfeld, Würzburg, Bayern, 97076, Deutschland",
+      ),
+    ).toEqual({ kind: "streetOnly", houseNumber: "100" });
+  });
+
+  it("does not read a road name as a house number", () => {
+    expect(
+      geocodePrecision(
+        "B19, 97234 Reichenberg",
+        "Klingholz/B19, B 19, Albertshausen, Reichenberg, 97234, Deutschland",
+      ),
+    ).toEqual({ kind: "exact" });
+  });
+
+  it("accepts a house number with a letter", () => {
+    expect(
+      geocodePrecision(
+        "Hauptstraße 12a, 80331 München",
+        "12a, Hauptstraße, München, Bayern, 80331, Deutschland",
+      ),
+    ).toEqual({ kind: "exact" });
   });
 });

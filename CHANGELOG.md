@@ -7,8 +7,50 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **One workflow from import to dashboard (UX review, November 2026).**
+  The header shows the four steps Prepare → Import → Review → Evaluate
+  with their state (model missing, analysis running, open boundaries,
+  provisional EAL), each a click to where it is done.
+- **Assumptions before the first analysis.** The import dialog ends with
+  the detection status (without a model there is no hail EAL), a parameter
+  template and the four values that set exposure and review notes
+  (vehicle value, m² per vehicle, accumulation radius, hail-zone threshold).
+- **Parameter templates.** Parameter sets can be saved app-wide and applied
+  to any portfolio, from the parameters page or the import.
+- **Boundary preview in the site detail.** The current boundary and the
+  counted vehicles on the image they were counted on; pointing at another
+  suggestion draws it dashed beside it. A note explains why a suggestion
+  with a higher percentage was not picked.
+- **Review keys and feedback.** On the map's review notice ↵ confirms and
+  moves on, E corrects, N skips; every saved boundary change reports what
+  it did ("Vehicles 108 → 142 · Hail EAL now 5,900 €"). Starting an edit
+  from anywhere frames the lot; hints and the layer panel stay out of the
+  way while editing.
+- **Dashboard completeness.** A banner says when the hail EAL is
+  provisional (locations without a vehicle count, open review points) with
+  the step that closes the gap; the export menu lists what the report will
+  mark as provisional.
+
 ### Changed
 
+- **Declared value before the area estimate (screening-0.5.3).** Without a
+  detection model the lot-area estimate replaced the vehicle value declared
+  in the import (a fallback circle gave 72.4 M€ instead of the declared
+  2.5 M€). The declared value now wins over the estimate; a count by the
+  model still wins over the declared value; the hail EAL is unchanged. See
+  `docs/risk-model.md`. Common headers such as "Fahrzeugwert",
+  "Versicherungssumme" or "TSI" are recognised on import.
+- **Parameters page.** Shares are typed in percent; technical boundary and
+  detection thresholds moved to their own "Advanced" section; changed
+  values show the default and reset per field; one vehicle value instead of
+  two identical fields; a bar shows the portfolio's EAL and exposure with
+  the change since the page was opened.
+- **Dashboard toolbar.** "Review" is the main button while points are open;
+  compare, stock over time and saving a snapshot moved into the "…" menu.
+- **Import preview.** Address hits in another postcode or without the house
+  number are flagged before the import.
 - **Lot boundary rebuilt around a site model (cascade v16).** A check of
   100 directory dealers and the 68 usable reference lots showed that whole
   cadastral parcels are the right unit and that the choice of parcels was
@@ -47,6 +89,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The analysis progress showed location ids instead of names, and its text
+  ran into the stop button.
+- The detection-model hint said no model was installed after one had been
+  installed; it now offers to re-analyse the estimated locations.
+- "No locations yet" showed next to imported rows still being located; the
+  map now widens its view with every located row of an import.
+- The site detail no longer shows "0 vehicles × … = 0 €" next to an
+  estimated count, and shows a running re-analysis.
+- The assistant dock starts folded when no AI provider is set up.
 - **"53", "53 b" and "53 c" are one house number** when a parcel's address
   is compared with the dealership's; plots split off one property counted
   as neighbours with another address.

@@ -1,3 +1,4 @@
+import { hasEalBasis } from "@shared/estimates";
 import { BOUNDARY_UNDO_LIMIT } from "@shared/types";
 import { type AppState, type StoreSet } from "./types";
 import { DETECTION_BOUNDARY_ATTEMPTS, saveBoundaryDraft } from "./runtime";
@@ -233,6 +234,20 @@ export function boundaryActions(
       if (get().detectionUpdateErrors[id]) return;
       const saved = get().dealerships.find((d) => d.id === id);
       if (saved?.boundary) {
+        // The count before: the last logged one (analysis or earlier edit).
+        const before = [...(saved.history ?? [])]
+          .reverse()
+          .find((change) => change.to != null)?.to;
+        set({
+          boundaryImpact: {
+            id,
+            name: saved.name,
+            vehiclesBefore: before ?? null,
+            vehiclesAfter: saved.detection?.vehicleCount ?? null,
+            eal: hasEalBasis(saved) ? (saved.risk?.eal ?? null) : null,
+            at: Date.now(),
+          },
+        });
         get().upsertDealership(
           withChange(saved, {
             kind: "boundaryChanged",

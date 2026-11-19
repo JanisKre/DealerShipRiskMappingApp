@@ -46,7 +46,15 @@
     "resizeLocations": "Breite der Standorte-Leiste ändern",
     "resizeChat": "Breite des Assistenten ändern",
     "openCommands": "Befehle und Standorte suchen – {{shortcut}}",
-    "ctrlK": "Strg+K"
+    "ctrlK": "Strg+K",
+    "boundaryImpact": {
+      "title": "Grenze von {{name}} gespeichert",
+      "vehiclesChanged": "Fahrzeuge {{before}} → {{after}}",
+      "vehiclesSame_one": "{{formatted}} Fahrzeug (unverändert)",
+      "vehiclesSame_other": "{{formatted}} Fahrzeuge (unverändert)",
+      "eal": "Hagel-EAL jetzt {{value}}",
+      "noEal": "noch keine Hagel-EAL"
+    }
   },
   "start": {
     "title": "Portfolio & Analyse",
@@ -88,7 +96,7 @@
     "recalculating": "Scores werden neu berechnet…",
     "startHereTitle": "Hier beginnen",
     "startHereDescription": "Für die meisten Portfolios reichen die mit „wichtig“ markierten Felder. Diese beeinflussen direkt Exposure, EAL oder Prüfhinweise; die übrigen Felder brauchst du nur in Sonderfällen. Die Hagel-EAL-Werte sind alle wichtig.",
-    "fractionHint": "Anteile werden als Dezimalzahl eingegeben (0,15 = 15 %); unter dem Feld steht der Wert in Prozent. Änderungen werden beim Verlassen eines Feldes übernommen.",
+    "fractionHint": "Anteile werden in Prozent eingegeben (15 = 15 %). Änderungen werden beim Verlassen eines Feldes übernommen.",
     "recommended": "wichtig",
     "retry": "Erneut laden",
     "loadErrorTitle": "Parameter konnten nicht geladen werden",
@@ -107,8 +115,12 @@
         "description": "Konzentrationsrisiken, Rückversicherung und Stressszenarien auf Portfolioebene."
       },
       "quality": {
-        "title": "Warnungen & Datenqualität",
-        "description": "Schwellenwerte für Hinweise, Prüfbedarf und die Qualität automatischer Ergebnisse."
+        "title": "Prüfhinweise",
+        "description": "Ab wann ein Standort einen Prüfhinweis bekommt."
+      },
+      "advanced": {
+        "title": "Erweitert: Grenz- und Erkennungsschwellen",
+        "description": "Technische Schwellen der Grundstücksgrenze und Fahrzeugerkennung. Nur ändern, wenn du weißt, was sie bewirken."
       }
     },
     "units": {
@@ -120,12 +132,13 @@
       "meters": "m",
       "eventsPerYear": "Ereignisse/Jahr",
       "eurPerVehicle": "€/Fahrzeug",
-      "hailZone": "Zone"
+      "hailZone": "Zone",
+      "percent": "%"
     },
     "parameterFields": {
       "vehicleValueCarEur": {
-        "label": "Fahrzeugwert Pkw",
-        "description": "Durchschnittlicher Wert pro Pkw.",
+        "label": "Fahrzeugwert",
+        "description": "Durchschnittlicher Wert je Fahrzeug auf dem Gelände.",
         "tip": "Anpassen, wenn der typische Fahrzeugmix deutlich vom Standardwert abweicht."
       },
       "vehicleValueDefaultEur": {
@@ -305,6 +318,25 @@
       "between": "ein Wert zwischen {{min}} und {{max}}",
       "atLeast": "ein Wert ab {{min}}",
       "wholeBetween": "eine ganze Zahl zwischen {{min}} und {{max}}"
+    },
+    "changedBadge": "geändert · Standard {{value}}",
+    "resetField": "{{label}} auf den Standardwert zurücksetzen",
+    "impact": {
+      "title": "Mit diesen Werten:",
+      "eal": "Hagel-EAL",
+      "exposure": "Exposure",
+      "coverage": "{{counted}} von {{analyzed}} Standorten mit Fahrzeugzahl · Änderung seit Öffnen der Seite in Klammern"
+    },
+    "templates": {
+      "apply": "Vorlage anwenden…",
+      "defaults": "Standardwerte (Platzhalter)",
+      "applied": "Vorlage „{{name}}“ angewendet.",
+      "save": "Als Vorlage speichern",
+      "saveTitle": "Parameter als Vorlage speichern",
+      "saveDescription": "Vorlagen gelten app-weit: Du kannst sie beim Import oder hier auf jedes Portfolio anwenden. Ein bestehender Name wird ersetzt.",
+      "name": "Name der Vorlage",
+      "saved": "Vorlage „{{name}}“ gespeichert.",
+      "delete": "Vorlage „{{name}}“ löschen"
     }
   },
   "settings": {
@@ -898,7 +930,15 @@
       "kpiEstimate": "Schätzung",
       "kpiVehiclesDetectedOn": "gezählt · Luftbild {{date}}",
       "kpiExposure": "Fahrzeugwert (Exposure)",
-      "kpiExposurePerVehicle": "Ø {{value}} je Fahrzeug"
+      "kpiExposurePerVehicle": "Ø {{value}} je Fahrzeug",
+      "reanalyzing": "Wird analysiert…",
+      "reanalyzingHint": "Luftbild, Grundstücksgrenze, Fahrzeuge und Hagel-EAL werden neu berechnet. Das dauert meist 10–30 Sekunden.",
+      "kpiExposureDeclared": "angegebener Wert aus dem Import",
+      "previewCurrent": "Aktuelle Grenze",
+      "previewCompared": "Vorschlag im Vergleich",
+      "previewVehicles_one": "{{count}} gezähltes Fahrzeug",
+      "previewVehicles_other": "{{count}} gezählte Fahrzeuge",
+      "boundaryHigherConfidenceNote": "Gewählt wird nach der Reihenfolge der Quellen (Flurstücke am Adresspunkt mit Fahrzeugen zuerst), nicht nach der höchsten Prozentzahl. Die Konfidenz bewertet jeden Vorschlag für sich – zeig auf einen Vorschlag, um ihn oben im Luftbild zu vergleichen."
     },
     "hailEal": "Hagel-EAL",
     "hailZone": "Hagelzone",
@@ -1010,7 +1050,9 @@
       "stockRange_other": "Gerechnet wird mit der aktuellen Zählung. Auf {{count}} archivierten Luftbildern standen {{vehiclesLow}}–{{vehiclesHigh}} Fahrzeuge; damit läge die Hagel-EAL bei {{low}} bis {{high}} (Median {{median}}).",
       "screeningShort": "Screening-Schätzung mit Platzhalterwerten – keine Tarif- oder Zeichnungsentscheidung.",
       "inputsToggle": "Woher die Werte kommen",
-      "placeholdersShort": "Häufigkeit und Schaden je Fahrzeug sind Platzhalterwerte; die Kalibrierung durch das Underwriting steht aus."
+      "placeholdersShort": "Häufigkeit und Schaden je Fahrzeug sind Platzhalterwerte; die Kalibrierung durch das Underwriting steht aus.",
+      "noCountedVehicles": "Noch keine Hagel-EAL: Die EAL rechnet nur mit gezählten Fahrzeugen. Die ≈{{estimate}} Fahrzeuge aus der Flächenschätzung fließen nicht ein.",
+      "noVehicles": "Noch keine Hagel-EAL: Auf dem Gelände wurden keine Fahrzeuge gezählt."
     },
     "info": {
       "label": "Was bedeutet das?",
@@ -1087,7 +1129,22 @@
       "badge": "keine Fahrzeugzahl",
       "tooltip": "Ohne Fahrzeugzahl gibt es keine Hagel-EAL (keine 0 €). Fahrzeugerkennung einrichten oder die Fahrzeugzahl im Standort unter „Gelände & Fahrzeuge“ eintragen."
     },
-    "estimatedShare": "davon {{share}} % geschätzt"
+    "estimatedShare": "davon {{share}} % geschätzt",
+    "completeness": {
+      "provisional_one": "Vorläufig: {{count}} von {{total}} Standorten hat noch keine Fahrzeugzahl",
+      "provisional_other": "Vorläufig: {{count}} von {{total}} Standorten haben noch keine Fahrzeugzahl",
+      "provisionalHint": "Die Hagel-EAL unten summiert nur Standorte mit gezählten Fahrzeugen und ist deshalb unvollständig. Exposure aus Flächenschätzungen ist mit ≈ markiert.",
+      "reviewsOpen_one": "{{count}} Prüfpunkt ist noch offen",
+      "reviewsOpen_other": "{{count}} Prüfpunkte sind noch offen",
+      "reviewsOpenHint": "Grenzen und Fahrzeugzahlen dieser Standorte sind maschinell bestimmt und noch nicht geprüft."
+    },
+    "exportPrecheck": {
+      "noCount_one": "{{count}} Standort ohne Fahrzeugzahl",
+      "noCount_other": "{{count}} Standorte ohne Fahrzeugzahl",
+      "boundaries_one": "{{count}} Grenze ungeprüft",
+      "boundaries_other": "{{count}} Grenzen ungeprüft",
+      "marked": "der Bericht weist diese Punkte als vorläufig aus."
+    }
   },
   "map": {
     "satellite": "Luftbild",
@@ -1207,8 +1264,8 @@
       "ealValue": "Hagel-EAL {{value}}",
       "unlocatedTitle_one": "{{count}} Zeile noch nicht auf der Karte",
       "unlocatedTitle_other": "{{count}} Zeilen noch nicht auf der Karte",
-      "unlocatedWaiting": "Ohne Koordinaten – wartet auf die Adresssuche",
-      "unlocatedSearching": "Adresse wird gesucht…",
+      "unlocatedWaiting": "In der Warteschlange – wird gleich verortet und analysiert",
+      "unlocatedSearching": "Wird verortet und analysiert…",
       "unlocatedFailed": "Nicht übernommen: {{reason}}",
       "unlocatedNotFound": "Adresse nicht gefunden",
       "unlocatedOther": "Analyse fehlgeschlagen",
@@ -1326,7 +1383,13 @@
       "mapCopyFailed": "Das Kartenbild konnte nicht kopiert werden.",
       "mapSaveFailed": "Das Kartenbild konnte nicht gespeichert werden.",
       "durationRange": "{{low}}–{{high}}",
-      "nextHint": "Nächster Hinweis ({{current}} von {{total}})"
+      "nextHint": "Nächster Hinweis ({{current}} von {{total}})",
+      "detectionWarningReady": "Das Erkennungsmodell ist jetzt installiert. Analysiere diese Standorte neu, damit die Fahrzeuge gezählt werden.",
+      "reanalyzeEstimated_one": "{{count}} Standort neu analysieren",
+      "reanalyzeEstimated_other": "{{count}} Standorte neu analysieren",
+      "locatingTitle_one": "{{count}} Standort wird verortet…",
+      "locatingTitle_other": "{{count}} Standorte werden verortet…",
+      "locatingDescription": "Die Adressen werden gesucht. Jeder gefundene Standort erscheint sofort auf der Karte."
     }
   },
   "ai": {
@@ -1538,7 +1601,7 @@
       "address": "Adresse",
       "lat": "Breite",
       "lon": "Länge",
-      "assetValue": "Wert",
+      "assetValue": "Fahrzeugwert / Versicherungssumme (€)",
       "insured": "Geschäftsart",
       "productLimitEur": "Höchstentschädigung",
       "deductibleEur": "Selbstbehalt",
@@ -1754,7 +1817,9 @@
     "coords": {
       "outsideGermany": "Koordinaten liegen außerhalb Deutschlands – bitte prüfen (nicht ausgewählt)",
       "swapped": "Breite/Länge vertauscht? Vertauscht läge der Punkt in Deutschland (nicht ausgewählt)"
-    }
+    },
+    "postcodeDiffers": "Gefunden in PLZ {{found}} statt {{requested}} – bitte prüfen",
+    "streetOnly": "Nur die Straße gefunden, nicht Nr. {{number}} – der Standort wird ungenau verortet"
   },
   "a2ui": {
     "needsAi": "KI-Dashboards baut der KI-Assistent. Richte dafür zuerst einen KI-Anbieter ein.",
@@ -2275,5 +2340,29 @@
         "hint": "In Claude Desktop unter Einstellungen → Entwickler → Konfiguration bearbeiten einfügen und Claude neu starten. Braucht Node.js; die Brücke „mcp-remote“ wird beim ersten Start geladen."
       }
     }
+  },
+  "importAssumptions": {
+    "title": "Annahmen für die Analyse",
+    "modelMissing": "Kein Erkennungsmodell installiert:",
+    "modelMissingHint": "Fahrzeuge werden nur aus der Fläche geschätzt, eine Hagel-EAL gibt es dann nicht. Du kannst trotzdem importieren und nach der Einrichtung neu analysieren – oder jetzt einrichten (der Import wird dann abgebrochen).",
+    "modelReady": "Fahrzeugerkennung bereit – die Fahrzeuge werden auf dem Luftbild gezählt.",
+    "template": "Parameter-Vorlage",
+    "currentValues": "Werte des geöffneten Portfolios",
+    "invalid": "Bitte einen Wert zwischen {{min}} und {{max}} eingeben.",
+    "more": "Alle weiteren Parameter (Hagel-EAL, PML, Schwellen) stehen auf der Seite „Parameter“ und lassen sich jederzeit ändern.",
+    "keepsParameters": "Die Standorte kommen in ein bestehendes Portfolio und werden mit dessen Parametern bewertet."
+  },
+  "workflow": {
+    "label": "Arbeitsschritte des Portfolios",
+    "steps": {
+      "prepare": "Vorbereiten",
+      "import": "Importieren",
+      "review": "Prüfen",
+      "evaluate": "Auswerten"
+    },
+    "modelMissing": "Modell fehlt",
+    "openCount_one": "{{count}} offen",
+    "openCount_other": "{{count}} offen",
+    "provisional": "vorläufig"
   }
 }

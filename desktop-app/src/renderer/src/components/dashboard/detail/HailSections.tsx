@@ -38,14 +38,26 @@ export function HailOverview({
       </h4>
       {detail ? (
         <>
-          <p className="rounded-md bg-muted/40 px-3 py-2 font-medium tabular-nums">
-            {t("dashboard.hailEalDetail.formula", {
-              vehicles: num(detail.vehicles),
-              frequency: num(detail.frequency, 3),
-              severity: eur(detail.meanSeverityEur),
-              eal: eur(eb.hail),
-            })}
-          </p>
+          {detail.vehicles > 0 ? (
+            <p className="rounded-md bg-muted/40 px-3 py-2 font-medium tabular-nums">
+              {t("dashboard.hailEalDetail.formula", {
+                vehicles: num(detail.vehicles),
+                frequency: num(detail.frequency, 3),
+                severity: eur(detail.meanSeverityEur),
+                eal: eur(eb.hail),
+              })}
+            </p>
+          ) : (
+            // "0 Fahrzeuge × … = 0 €" next to "≈2.896 Fahrzeuge" in the
+            // header read as a contradiction: say why there is no EAL.
+            <p className="rounded-md bg-muted/40 px-3 py-2 text-sm">
+              {(d.detection?.vehicleCount ?? 0) > 0
+                ? t("dashboard.hailEalDetail.noCountedVehicles", {
+                    estimate: num(d.detection?.vehicleCount ?? 0),
+                  })
+                : t("dashboard.hailEalDetail.noVehicles")}
+            </p>
+          )}
           {/* λ, p and S are placeholders until calibrated (UX-06): the
               qualification stays in view, the long form is below. */}
           <p className="text-xs text-muted-foreground">

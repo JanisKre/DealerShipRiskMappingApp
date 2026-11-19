@@ -66,16 +66,33 @@ export function ViewPersistence({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
-  // Fit newly added locations into view.
+  // Fit newly added locations into view. An import places its rows one by
+  // one as their addresses are found, so the view widens with each new one
+  // until the user moves the map themselves.
+  const presentAdded = dealerships.filter((d) => lastAddedIds.includes(d.id));
+  const userMovedRef = useRef(false);
   useEffect(() => {
-    if (selectedId || lastAddedIds.length === 0) return;
-    const pts = dealerships
-      .filter((d) => lastAddedIds.includes(d.id))
-      .map((d) => [d.lat, d.lon] as [number, number]);
-    if (pts.length === 1) map.setView(pts[0], 15);
-    else if (pts.length > 1) map.fitBounds(pts, { padding: [50, 50] });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    userMovedRef.current = false;
   }, [lastAddedIds]);
+  useEffect(() => {
+    const container = map.getContainer();
+    const moved = (): void => {
+      userMovedRef.current = true;
+    };
+    map.on("dragstart", moved);
+    container.addEventListener("wheel", moved, { passive: true });
+    return () => {
+      map.off("dragstart", moved);
+      container.removeEventListener("wheel", moved);
+    };
+  }, [map]);
+  useEffect(() => {
+    if (selectedId || presentAdded.length === 0 || userMovedRef.current) return;
+    const pts = presentAdded.map((d) => [d.lat, d.lon] as [number, number]);
+    if (pts.length === 1) map.setView(pts[0], 15);
+    else map.fitBounds(pts, { padding: [50, 50], maxZoom: 15 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastAddedIds, presentAdded.length]);
 
   // Fit a requested set of locations (e.g. an accumulation from the dashboard).
   useEffect(() => {

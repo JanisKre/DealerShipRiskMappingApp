@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   formatParameterValue,
+  fromPercentDisplay,
+  toPercentDisplay,
   parameterInputError,
   parseLocaleNumber,
   zonesWithFallingFrequency,
@@ -112,5 +114,16 @@ describe("zonesWithImplausibleFrequency", () => {
       zonesWithImplausibleFrequency([0.01, 0.02, 5, 0.07, 1, 1.5]),
     ).toEqual([3, 6]);
     expect(zonesWithImplausibleFrequency([0.01, 0.1])).toEqual([]);
+  });
+});
+
+describe("percent display", () => {
+  it("shows shares as rounded percentages", () => {
+    expect(toPercentDisplay(0.07)).toBe(7);
+    expect(toPercentDisplay(0.155)).toBe(15.5);
+  });
+  it("stores a typed percentage as a share", () => {
+    expect(fromPercentDisplay(7)).toBe(0.07);
+    expect(fromPercentDisplay(toPercentDisplay(0.35))).toBe(0.35);
   });
 });

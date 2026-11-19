@@ -18,6 +18,7 @@ import type { AnalyzedDealership } from "@shared/types";
 import { PageErrorBoundary } from "@renderer/components/common/PageErrorBoundary";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
+import { cn } from "@renderer/lib/utils";
 import { HintButton } from "@renderer/components/ui/hint-button";
 import {
   Dialog,
@@ -49,6 +50,7 @@ import {
   dealershipHailZone,
   displayedHailVehicleSource,
   effectiveVehicleCount,
+  exposureSource,
   isAreaEstimatedDetection,
 } from "@shared/risk-math";
 import { hasEalBasis } from "@shared/estimates";
@@ -194,6 +196,7 @@ function DetailBody({
   const dealerships = useAppStore((s) => s.dealerships);
   const parameters = useAppStore((s) => s.parameters);
   const reanalyze = useAppStore((s) => s.reanalyzeDealership);
+  const reanalyzing = useAppStore((s) => s.analyzingIds.includes(d.id));
   const [exporting, setExporting] = useState(false);
   const select = useAppStore((s) => s.select);
   const removeDealership = useAppStore((s) => s.removeDealership);
@@ -395,10 +398,17 @@ function DetailBody({
               size="sm"
               variant="ghost"
               className="h-7 gap-1 px-2 text-xs"
+              disabled={reanalyzing}
               onClick={() => void reanalyze(d.id)}
             >
-              <RefreshCw className="size-3.5" />
-              {t("map.page.reanalyze")}
+              <RefreshCw
+                className={cn("size-3.5", reanalyzing && "animate-spin")}
+              />
+              {t(
+                reanalyzing
+                  ? "dashboard.detailDialog.reanalyzing"
+                  : "map.page.reanalyze",
+              )}
             </Button>
             <Button
               size="sm"
@@ -454,6 +464,15 @@ function DetailBody({
             </DropdownMenu>
           </div>
         </div>
+        {reanalyzing && (
+          <p
+            role="status"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground"
+          >
+            <Loader2 className="size-3 animate-spin" />
+            {t("dashboard.detailDialog.reanalyzingHint")}
+          </p>
+        )}
       </DialogHeader>
 
       {review && inReview && onNavigate && (
@@ -515,13 +534,17 @@ function DetailBody({
             label={t("dashboard.detailDialog.kpiExposure")}
             value={eur(d.risk?.exposureEur)}
             hint={
-              d.risk?.exposureEur != null && vehicles != null && vehicles > 0
-                ? t("dashboard.detailDialog.kpiExposurePerVehicle", {
-                    value: eur(
-                      Math.round(d.risk.exposureEur / vehicles / 100) * 100,
-                    ),
-                  })
-                : undefined
+              exposureSource(d.detection, d.assetValue) === "declared"
+                ? t("dashboard.detailDialog.kpiExposureDeclared")
+                : d.risk?.exposureEur != null &&
+                    vehicles != null &&
+                    vehicles > 0
+                  ? t("dashboard.detailDialog.kpiExposurePerVehicle", {
+                      value: eur(
+                        Math.round(d.risk.exposureEur / vehicles / 100) * 100,
+                      ),
+                    })
+                  : undefined
             }
           />
         </div>

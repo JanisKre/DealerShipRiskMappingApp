@@ -132,9 +132,14 @@ export function ChatView({
           ...(selected
             ? [t("chat.commandPrompts.open", { name: selected.name })]
             : []),
-          t("chat.commandPrompts.clusters"),
-          t("chat.commandPrompts.hailZones"),
-          t("chat.commandPrompts.exportPdf"),
+          // Map and report commands need locations to act on.
+          ...(dealerships.length > 0
+            ? [
+                t("chat.commandPrompts.clusters"),
+                t("chat.commandPrompts.hailZones"),
+                t("chat.commandPrompts.exportPdf"),
+              ]
+            : []),
         ]
       : selected
         ? [

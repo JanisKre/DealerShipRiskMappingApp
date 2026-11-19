@@ -41,6 +41,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   detectionUpdateIds: [],
   detectionUpdateErrors: {},
   boundaryEditIds: [],
+  boundaryImpact: null,
   boundaryHistory: {},
   lastAddedIds: [],
   mapFocusIds: null,

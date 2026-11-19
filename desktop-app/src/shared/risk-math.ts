@@ -684,6 +684,33 @@ export function isAreaEstimatedDetection(
 }
 
 /**
+ * Where a location's exposure (vehicle value on the lot) comes from, in the
+ * order `estimatedExposureEur` applies: a reviewed count, a model count, the
+ * value declared in the imported portfolio, the lot-area estimate. A
+ * declared value beats the area estimate (lot area ÷ m² per vehicle, often
+ * of a fallback circle): it is the client's own figure, the estimate a
+ * placeholder. A count by the model still beats the declared value.
+ */
+export type ExposureSource =
+  "manual" | "detected" | "declared" | "areaEstimate" | "none";
+
+export function exposureSource(
+  detection: DetectionResult | undefined,
+  assetValue: number | undefined,
+): ExposureSource {
+  if (detection?.manualVehicleCount != null) return "manual";
+  const declared = assetValue != null && assetValue > 0;
+  if (isAreaEstimatedDetection(detection)) {
+    if (declared) return "declared";
+    return (detection?.vehicleCount ?? 0) > 0 ? "areaEstimate" : "none";
+  }
+  const c = detection?.classCounts;
+  if (c && c.car + c.van + c.truck + c.bus > 0) return "detected";
+  if (detection && detection.vehicleCount > 0) return "detected";
+  return declared ? "declared" : "none";
+}
+
+/**
  * N for the hail EAL: a reviewed count wins, then the detector count. Only
  * vehicles on the lot are counted; a number is never estimated (not from an
  * asset value, not from the lot area, not for cars inside the showroom).

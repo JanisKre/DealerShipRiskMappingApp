@@ -1,8 +1,3 @@
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@renderer/components/ui/tooltip";
 import { toastExported } from "@renderer/lib/exportToast";
 import { exportLocale } from "@renderer/lib/format";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +21,7 @@ import {
   Save,
   Sparkles,
   Settings2,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -67,6 +63,8 @@ import { useAppStore } from "@renderer/store/appStore";
 import { useMapStore } from "@renderer/store/mapStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import { useReviewRun } from "./useReviewRun";
+import { DataCompletenessBanner } from "./DataCompletenessBanner";
+import { ealCoverage } from "@shared/estimates";
 import { useStockCount } from "./useStockCount";
 import { A2uiSurfaceView } from "./a2ui/A2uiSurfaceView";
 import type { A2uiSurface } from "@shared/a2ui";
@@ -361,8 +359,11 @@ export function DashboardPage(): React.JSX.Element {
                 </p>
               </div>
               <div className="ml-auto flex shrink-0 items-center gap-2">
+                {/* The page's main action while points are open. */}
                 <Button
-                  variant="outline"
+                  variant={
+                    (reviewRun.openCount ?? 0) > 0 ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => reviewRun.start()}
                   disabled={reviewRun.openCount === 0}
@@ -426,6 +427,11 @@ export function DashboardPage(): React.JSX.Element {
           >
             <DashboardTabPanel className="mt-0 space-y-5 p-4 sm:p-6 lg:p-8">
               <ModelVersionBanner dealerships={dealerships} />
+              <DataCompletenessBanner
+                dealerships={dealerships}
+                openReviews={reviewRun.openCount}
+                onReview={() => reviewRun.start()}
+              />
               <PortfolioFilterBar dealerships={dealerships} />
               {building && (
                 <p
@@ -845,102 +851,113 @@ function Actions({
     </>
   );
 
-  return (
+  // Rarely used actions share one menu; review and export stay buttons
+  // (UX review, November 2026: six buttons in a row hid the main step).
+  const moreItems = (
     <>
-      <div className={compact ? "hidden" : "hidden items-center gap-2 xl:flex"}>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCompareOpen(true)}
-        >
-          <GitCompare /> {t("ui.compare")}
-        </Button>
-        <Tooltip delayDuration={150}>
-          <TooltipTrigger asChild>
-            {/* span keeps the tooltip working while the button is disabled */}
-            <span className="inline-flex">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={stockCount.start}
-                disabled={stockCount.running || stockCount.available === false}
-              >
-                {stockCount.running ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <History />
-                )}
-                {t("dashboard.stockCount.button")}
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-64">
+      <DropdownMenuItem onSelect={() => setCompareOpen(true)}>
+        <GitCompare /> {t("ui.compare")}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={stockCount.running || stockCount.available === false}
+        onSelect={stockCount.start}
+      >
+        {stockCount.running ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <History />
+        )}
+        <span className="flex flex-col">
+          {t("dashboard.stockCount.button")}
+          <span className="text-xs text-muted-foreground">
             {stockCount.available === false
               ? t("dashboard.stockCount.needsModel")
               : t("dashboard.stockCount.hint")}
-          </TooltipContent>
-        </Tooltip>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void snapshot.save()}
-          disabled={snapshot.saving}
-        >
-          {snapshot.saving ? <Loader2 className="animate-spin" /> : <Save />}
-          {t("ui.saveSnapshot")}
-        </Button>
+          </span>
+        </span>
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={snapshot.saving}
+        onSelect={() => void snapshot.save()}
+      >
+        {snapshot.saving ? <Loader2 className="animate-spin" /> : <Save />}
+        {t("ui.saveSnapshot")}
+      </DropdownMenuItem>
+    </>
+  );
+
+  return (
+    <>
+      <div className={compact ? "hidden" : "hidden items-center gap-2 lg:flex"}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm">
               <Download /> {t("common.export")}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">{exportItems}</DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <div className={compact ? "" : "xl:hidden"}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <HintButton
-              variant="outline"
-              size="icon"
-              className="size-8"
-              aria-label={t("ui.moreActions")}
-            >
-              <MoreHorizontal />
-            </HintButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onSelect={() => setCompareOpen(true)}>
-              <GitCompare /> {t("ui.compare")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={stockCount.running || stockCount.available === false}
-              onSelect={stockCount.start}
-            >
-              <History />
-              <span className="flex flex-col">
-                {t("dashboard.stockCount.button")}
-                {stockCount.available === false && (
-                  <span className="text-xs text-muted-foreground">
-                    {t("dashboard.stockCount.needsModel")}
-                  </span>
-                )}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={snapshot.saving}
-              onSelect={() => void snapshot.save()}
-            >
-              <Save /> {t("ui.saveSnapshot")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>{t("common.export")}</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-72">
+            <ExportPrecheck />
             {exportItems}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <HintButton
+            variant="outline"
+            size="icon"
+            className="size-8"
+            aria-label={t("ui.moreActions")}
+          >
+            <MoreHorizontal />
+          </HintButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          {moreItems}
+          <div className={compact ? "" : "lg:hidden"}>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{t("common.export")}</DropdownMenuLabel>
+            <ExportPrecheck />
+            {exportItems}
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <ComparisonView open={compareOpen} onOpenChange={setCompareOpen} />
+    </>
+  );
+}
+
+/**
+ * Before a report leaves the app: what in it is still provisional. The
+ * export is not blocked; the report marks the same points.
+ */
+function ExportPrecheck(): React.JSX.Element | null {
+  const { t } = useTranslation();
+  const dealerships = useAppStore((s) => s.dealerships);
+  const { withBasis, analyzed } = ealCoverage(dealerships);
+  const boundaries = dealerships.filter(
+    (d) => d.boundary?.reviewRequired,
+  ).length;
+  const missing = analyzed - withBasis;
+  if (missing === 0 && boundaries === 0) return null;
+  return (
+    <>
+      <div className="flex items-start gap-1.5 px-2 py-1.5 text-xs text-muted-foreground">
+        <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warning" />
+        <span>
+          {[
+            missing > 0 &&
+              t("dashboard.exportPrecheck.noCount", { count: missing }),
+            boundaries > 0 &&
+              t("dashboard.exportPrecheck.boundaries", { count: boundaries }),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          {" – "}
+          {t("dashboard.exportPrecheck.marked")}
+        </span>
+      </div>
+      <DropdownMenuSeparator />
     </>
   );
 }

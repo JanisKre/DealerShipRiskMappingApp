@@ -71,7 +71,9 @@ test("a saved state never opens as the active portfolio after a restart", async 
   await page.reload();
   await dismissModelWizard(page);
   await page.getByRole("link", { name: "Dashboard" }).first().click();
-  await page.getByRole("button", { name: "Stand speichern" }).first().click();
+  // Rarely used actions sit in the "…" menu since the November UX review.
+  await page.getByRole("button", { name: "Weitere Aktionen" }).first().click();
+  await page.getByRole("menuitem", { name: "Stand speichern" }).click();
   await expect(
     page.getByText(/Live-Portfolio – Stand .* gespeichert/),
   ).toBeVisible();

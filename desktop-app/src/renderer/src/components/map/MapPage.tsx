@@ -5,11 +5,12 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
-import { ArrowRight, MapPinned } from "lucide-react";
+import { ArrowRight, Loader2, MapPinned } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { computeAccumulationClusters } from "@shared/risk-math";
 import { EmptyState } from "@renderer/components/common/EmptyState";
 import { Button } from "@renderer/components/ui/button";
+import { useModelAvailable } from "@renderer/lib/useModelAvailable";
 import { useAppStore } from "@renderer/store/appStore";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
 import type { MapViewPoint } from "@renderer/lib/useImagerySelection";
@@ -206,12 +207,16 @@ export function MapPage(): React.JSX.Element {
 
   // Locations whose vehicle count is only estimated because no ONNX model
   // is available (StubVehicleDetector) — otherwise placeholder values would be mistaken for real detections.
-  const stubDetectionCount = useMemo(
+  const stubDetectionIds = useMemo(
     () =>
-      withCoords.filter((d) => d.detection?.model === "stub-area-heuristic")
-        .length,
+      withCoords
+        .filter((d) => d.detection?.model === "stub-area-heuristic")
+        .map((d) => d.id),
     [withCoords],
   );
+  const modelAvailable = useModelAvailable();
+  const pendingAnalysis = useAppStore((s) => s.pendingAnalysis);
+  const reanalyzeDealerships = useAppStore((s) => s.reanalyzeDealerships);
 
   // Same calculation as in AccumulationClusterLayer — just to detect
   // whether the layer is active but empty (e.g. only 1 location in the portfolio),
@@ -260,6 +265,43 @@ export function MapPage(): React.JSX.Element {
     if (bounds) setFitRequest({ bounds });
   }
 
+  // However editing starts (detail dialog, layer panel, review notice), the
+  // map frames the selected lot, so its handles are not a heap of dots.
+  const selectedBoundary = selectedDealership?.boundary?.polygon;
+  useEffect(() => {
+    if (!editing || !selectedBoundary) return;
+    const bounds = geometryBounds(selectedBoundary);
+    if (bounds) setFitRequest({ bounds });
+    // Only when editing starts or another site is selected meanwhile.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, selectedId]);
+
+  // Keys of the review notice: ↵ confirms and moves on, E corrects, N skips.
+  const reviewKeysActive =
+    !analyzing &&
+    !editing &&
+    !detectionEditing &&
+    !boundaryWarningDismissed &&
+    reviewTarget != null;
+  useEffect(() => {
+    if (!reviewKeysActive || !reviewTarget) return;
+    const target = reviewTarget;
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.altKey || e.ctrlKey || e.metaKey || isTextEntry(e.target)) return;
+      // A dialog or menu on top owns the keyboard.
+      if (document.querySelector("[role=dialog],[role=menu]")) return;
+      // Enter on a focused button already clicks it.
+      if (e.target instanceof HTMLButtonElement) return;
+      if (e.key === "Enter") void confirmAndContinue(target.id);
+      else if (e.key === "e" || e.key === "E") startBoundaryEditing(target);
+      else if (e.key === "n" || e.key === "N") reviewNextBoundary();
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
   /** Selects (and flies to) the next location whose boundary needs a check. */
   function reviewNextBoundary(): void {
     if (boundaryReviewIds.length === 0) return;
@@ -276,6 +318,20 @@ export function MapPage(): React.JSX.Element {
   // Passive hints share one slot with "1 von N" paging instead of stacking
   // over half the map; dismissing one is remembered per portfolio (UW-14).
   const passiveHints = [
+    // First: without the model every count and EAL is only a placeholder,
+    // which matters more than any single boundary.
+    !analyzing &&
+      !editing &&
+      !modelWarningDismissed &&
+      stubDetectionIds.length > 0 && (
+        <DetectionModelHint
+          count={stubDetectionIds.length}
+          total={withCoords.length}
+          modelAvailable={modelAvailable === true}
+          onReanalyze={() => void reanalyzeDealerships(stubDetectionIds)}
+          onDismiss={() => setModelWarningDismissed(true)}
+        />
+      ),
     !analyzing &&
       !editing &&
       !boundaryWarningDismissed &&
@@ -295,14 +351,8 @@ export function MapPage(): React.JSX.Element {
           onDismiss={() => setBoundaryWarningDismissed(true)}
         />
       ),
-    !analyzing && !modelWarningDismissed && stubDetectionCount > 0 && (
-      <DetectionModelHint
-        count={stubDetectionCount}
-        total={withCoords.length}
-        onDismiss={() => setModelWarningDismissed(true)}
-      />
-    ),
     layers.accumulationClusters &&
+      !editing &&
       !clustersInfoDismissed &&
       visibleDealerships.length > 0 &&
       accumulationClusterCount === 0 && (
@@ -329,16 +379,30 @@ export function MapPage(): React.JSX.Element {
   );
 
   if (withCoords.length === 0) {
+    // Only while the batch runs; a stopped one has the resume notice.
+    const pendingCount = analyzing ? pendingAnalysis.length : 0;
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
+        {/* Progress and "Stop" before the first row reaches the map too. */}
+        <AnalysisProgressNotice />
         {errorNotice}
         {resumeNotice}
-        <EmptyState
-          icon={MapPinned}
-          title={t("map.page.emptyTitle")}
-          description={t("map.page.emptyDescription")}
-          className="bg-card/50"
-        />
+        {/* Imported rows still being located are no "empty" portfolio. */}
+        {pendingCount > 0 ? (
+          <EmptyState
+            icon={Loader2}
+            title={t("map.page.locatingTitle", { count: pendingCount })}
+            description={t("map.page.locatingDescription")}
+            className="bg-card/50 [&_svg]:animate-spin"
+          />
+        ) : (
+          <EmptyState
+            icon={MapPinned}
+            title={t("map.page.emptyTitle")}
+            description={t("map.page.emptyDescription")}
+            className="bg-card/50"
+          />
+        )}
       </div>
     );
   }
