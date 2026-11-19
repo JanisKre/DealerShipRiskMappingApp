@@ -18,6 +18,7 @@ import {
 import { A2uiSurfaceSchema } from "./a2ui";
 import { AiLogDetailSchema, AiLogPageSchema } from "./ai-log";
 import { AgentGatewayStatusSchema } from "./agent-gateway";
+import { AgentCommandResultSchema } from "./agent-control";
 import { McpServerToolsSchema } from "./mcp-client";
 import { BoundaryOpinionSchema, SiteCheckResultSchema } from "./site-check";
 import { EvidenceMemoSchema } from "./evidence-memo";
@@ -515,6 +516,12 @@ export const ipcRequest = {
   "aiLog:export": z.void(),
   "gateway:status": z.void(),
   "gateway:rotateToken": z.void(),
+  // The window's answer to a remote-control command. The renderer is
+  // untrusted: the answer is validated before it leaves the app.
+  "agent:commandResult": z.object({
+    id: z.string().uuid(),
+    result: AgentCommandResultSchema,
+  }),
   "mcp:serverTools": z.object({ serverId: McpServerIdSchema }),
   "mcp:setServerToken": z.object({
     serverId: McpServerIdSchema,
@@ -671,6 +678,7 @@ export const ipcResponse = {
   "aiLog:export": z.object({ path: z.string().nullable() }),
   "gateway:status": AgentGatewayStatusSchema,
   "gateway:rotateToken": AgentGatewayStatusSchema,
+  "agent:commandResult": z.object({ ok: z.boolean() }),
   "mcp:serverTools": McpServerToolsSchema,
   "mcp:setServerToken": z.object({ ok: z.boolean() }),
   "mcp:chatLookup": z.object({

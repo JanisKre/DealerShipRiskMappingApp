@@ -98,7 +98,8 @@ function SwitchRow({
 
 /**
  * Local agent gateway: lets other AI tools on this computer read the
- * portfolio over MCP, A2A and AG-UI. Off by default.
+ * portfolio over MCP, A2A and AG-UI and, with its own switch, operate the
+ * app window over MCP. Off by default.
  */
 export function AgentGatewayCard({
   settings,
@@ -181,6 +182,13 @@ export function AgentGatewayCard({
             checked={gateway.mcp}
             disabled={!gateway.enabled}
             onChange={(mcp) => save({ mcp })}
+          />
+          <SwitchRow
+            label={t("agentGateway.control")}
+            hint={t("agentGateway.controlHint")}
+            checked={gateway.control}
+            disabled={!gateway.enabled || !gateway.mcp}
+            onChange={(control) => save({ control })}
           />
           <SwitchRow
             label={t("agentGateway.a2a")}

@@ -93,7 +93,14 @@ test.beforeAll(async () => {
         dealerships,
       } as never);
       await drm.setSettings({
-        agentGateway: { enabled: true, port, mcp: true, a2a: true, agUi: true },
+        agentGateway: {
+          enabled: true,
+          port,
+          mcp: true,
+          control: false,
+          a2a: true,
+          agUi: true,
+        },
       });
     },
     {
@@ -247,6 +254,101 @@ test("the settings offer a prompt, a command and a Claude Desktop entry to copy"
   }
 });
 
+/** Calls an MCP tool and returns its result object. */
+async function tool(
+  name: string,
+  args: Record<string, unknown> = {},
+): Promise<{
+  isError?: boolean;
+  content: Array<{ text: string }>;
+  structuredContent?: Record<string, unknown>;
+}> {
+  const reply = await rpc("/mcp", "tools/call", { name, arguments: args });
+  return reply.json.result as never;
+}
+
+test("MCP remote control is off by default and, switched on, operates the window", async () => {
+  // Off: the tools are neither listed nor callable.
+  const before = await rpc("/mcp", "tools/list");
+  expect(JSON.stringify(before.json)).not.toContain("open_portfolio");
+  expect((await tool("open_view", { view: "dashboard" })).isError).toBe(true);
+
+  await page.evaluate(async (port) => {
+    const drm = (window as unknown as { api: DrmApi }).api;
+    await drm.setSettings({
+      agentGateway: {
+        enabled: true,
+        port,
+        mcp: true,
+        control: true,
+        a2a: true,
+        agUi: true,
+      },
+    });
+  }, PORT);
+  // The server restarts with the new setting.
+  await expect
+    .poll(async () => {
+      try {
+        return JSON.stringify((await rpc("/mcp", "tools/list")).json);
+      } catch {
+        return "";
+      }
+    })
+    .toContain("open_portfolio");
+
+  // The window starts on a new, unsaved portfolio.
+  const start = await tool("get_app_state");
+  expect(start.structuredContent).toMatchObject({
+    portfolio: { id: null, locations: 0 },
+    analysis: { running: false },
+  });
+
+  const opened = await tool("open_portfolio", { portfolioId: "e2e-gateway" });
+  expect(opened.structuredContent).toMatchObject({
+    portfolio: {
+      id: "e2e-gateway",
+      name: "Gateway-Testportfolio",
+      locations: 2,
+    },
+  });
+  await expect(
+    page.getByText("Portfolio „Gateway-Testportfolio“ geöffnet"),
+  ).toBeVisible();
+  expect((await tool("open_portfolio", { portfolioId: "nope" })).isError).toBe(
+    true,
+  );
+
+  // By name, with the detail dialog; from another page it returns to the map.
+  await tool("open_view", { view: "dashboard" });
+  await expect(page).toHaveURL(/#\/dashboard$/);
+  const shown = await tool("show_location", {
+    location: "Autohaus Beta",
+    details: true,
+  });
+  expect(shown.structuredContent).toMatchObject({
+    view: "map",
+    selectedLocation: { id: "b", name: "Autohaus Beta" },
+    detailsOpenFor: "b",
+  });
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(
+    page.getByRole("dialog").getByText("Autohaus Beta").first(),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // Nothing leaves the app that the read tools would not pass on either.
+  const text = JSON.stringify([start, opened, shown]);
+  expect(text).not.toContain("E2E-GEHEIM");
+  expect(text).not.toContain("Hauptstraße");
+
+  const stop = await tool("stop_analysis");
+  expect(stop.isError).toBe(true);
+  expect(stop.content[0].text).toContain("No analysis is running");
+  // Arguments outside the schema never reach the window.
+  expect((await tool("open_view", { view: "devtools" })).isError).toBe(true);
+});
+
 test("switching the gateway off closes the port", async () => {
   test.skip(
     process.env.DRM_E2E_CLAUDE_HOST === "1",
@@ -258,6 +360,7 @@ test("switching the gateway off closes the port", async () => {
         enabled: false,
         port: 47_821,
         mcp: true,
+        control: false,
         a2a: true,
         agUi: true,
       },
@@ -316,6 +419,73 @@ test("Claude Code as an MCP host answers from the tools", async () => {
     expect(answer).toContain("Autohaus Beta");
     expect(answer.replace(/[.,\s\u00a0\u202f]/g, "")).toContain("13000");
     expect((await api((a) => a.gatewayStatus())).requests).toBeGreaterThan(2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("Claude Code as an MCP host operates the window", async () => {
+  test.skip(
+    process.env.DRM_E2E_CLAUDE_HOST !== "1",
+    "set DRM_E2E_CLAUDE_HOST=1 to connect the claude CLI",
+  );
+  test.setTimeout(180_000);
+  const dir = mkdtempSync(join(tmpdir(), "drm-mcp-host-"));
+  try {
+    const config = join(dir, "mcp.json");
+    writeFileSync(
+      config,
+      JSON.stringify({
+        mcpServers: {
+          "dealership-risk": {
+            type: "http",
+            url: `${BASE}/mcp`,
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        },
+      }),
+    );
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(
+        (entry): entry is [string, string] =>
+          entry[1] !== undefined && !entry[0].startsWith("CLAUDE"),
+      ),
+    );
+    await tool("open_view", { view: "map" });
+    const { stdout } = await promisify(execFile)(
+      "claude",
+      [
+        "-p",
+        "Use the dealership-risk MCP tools to operate the app: open the dashboard page, then show the location with the highest hail EAL of the open portfolio with its details. Answer in one sentence naming the location you showed.",
+        "--mcp-config",
+        config,
+        "--strict-mcp-config",
+        "--allowedTools",
+        [
+          "list_portfolios",
+          "portfolio_summary",
+          "list_locations",
+          "get_location",
+          "get_app_state",
+          "open_portfolio",
+          "show_location",
+          "open_view",
+        ]
+          .map((name) => `mcp__dealership-risk__${name}`)
+          .join(","),
+        "--output-format",
+        "json",
+      ],
+      { cwd: dir, env, timeout: 170_000, maxBuffer: 10_000_000 },
+    );
+    const answer = (JSON.parse(stdout) as { result?: string }).result ?? "";
+    console.log(`Claude Code answered: ${answer}`);
+    expect(answer).toContain("Autohaus Beta");
+    const state = await tool("get_app_state");
+    expect(state.structuredContent).toMatchObject({
+      selectedLocation: { id: "b" },
+      detailsOpenFor: "b",
+    });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

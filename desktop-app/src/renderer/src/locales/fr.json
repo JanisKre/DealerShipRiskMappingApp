@@ -2371,11 +2371,13 @@
   },
   "agentGateway": {
     "title": "Accès pour d'autres outils d'IA",
-    "description": "D'autres programmes sur cet ordinateur, comme Claude ou votre propre agent, peuvent lire le portefeuille. Lecture seule, depuis cet ordinateur uniquement et avec le jeton.",
+    "description": "D'autres programmes sur cet ordinateur, comme Claude ou votre propre agent, peuvent lire le portefeuille et, si vous l'autorisez, piloter l'application. Depuis cet ordinateur uniquement et avec le jeton.",
     "enable": "Activer l'accès",
     "enableHint": "Démarre un service local sur 127.0.0.1. Désactivé, rien n'est accessible.",
     "mcp": "Serveur MCP",
     "mcpHint": "Outils pour des assistants comme Claude : portefeuilles, sites, justificatifs. Avec une vue du portefeuille directement dans le chat (MCP App).",
+    "control": "Autoriser le pilotage",
+    "controlHint": "Outils MCP supplémentaires : ouvrir un portefeuille, afficher un site, changer de page, lancer et arrêter une analyse. Chaque action est affichée dans l'application. Désactivé, un outil ne peut que lire.",
     "a2a": "Agent A2A",
     "a2aHint": "Carte d'agent et requêtes d'autres agents (Agent2Agent 1.0). Répond selon des règles fixes, sans IA.",
     "agUi": "AG-UI",
@@ -2387,7 +2389,7 @@
     "stopped": "arrêté",
     "startFailed": "Le service n'a pas pu démarrer : {{error}}",
     "connect": "Connexion",
-    "tokenHint": "Chaque requête nécessite l'en-tête « Authorization: Bearer <jeton> ». Quiconque détient le jeton peut lire le portefeuille.",
+    "tokenHint": "Chaque requête nécessite l'en-tête « Authorization: Bearer <jeton> ». Quiconque détient le jeton peut lire le portefeuille et, si le pilotage est autorisé, piloter l'application.",
     "copyToken": "Copier le jeton",
     "copied": "Copié dans le presse-papiers.",
     "rotateToken": "Nouveau jeton",
@@ -2410,6 +2412,15 @@
         "hint": "À coller dans Claude Desktop sous Paramètres → Développeur → Modifier la configuration, puis redémarrer Claude. Nécessite Node.js ; le pont « mcp-remote » est téléchargé au premier démarrage."
       }
     }
+  },
+  "agentControl": {
+    "source": "Déclenché via MCP par un outil d'IA connecté",
+    "openedPortfolio": "Portefeuille « {{name}} » ouvert",
+    "shownLocation": "Site « {{name}} » affiché",
+    "openedView": "Page « {{view}} » ouverte",
+    "startedAnalysis_one": "Analyse lancée pour {{count}} site",
+    "startedAnalysis_other": "Analyse lancée pour {{count}} sites",
+    "stoppedAnalysis": "L'analyse est en cours d'arrêt"
   },
   "importAssumptions": {
     "title": "Hypothèses pour l’analyse",

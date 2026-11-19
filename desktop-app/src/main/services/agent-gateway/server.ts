@@ -13,6 +13,7 @@ import {
   type AgentGatewaySettings,
 } from "@shared/agent-gateway";
 import { A2A_CARD_PATH, A2aAgent, buildAgentCard } from "./a2a";
+import type { AppControl } from "./app-control";
 import {
   RunAgentInputSchema,
   agUiRun,
@@ -28,7 +29,9 @@ import type { ChatMessage } from "@shared/types";
 /**
  * HTTP server of the agent gateway. Binds to 127.0.0.1 only; every request
  * passes `checkGatewayRequest` (Host, Origin, bearer token) before a route
- * runs. Bodies are JSON and capped; no route writes data.
+ * runs. Bodies are JSON and capped. No route writes data itself; with
+ * remote control switched on, the MCP route can ask the app window to act
+ * (`deps.control`).
  */
 
 export const GATEWAY_MAX_BODY_BYTES = 1_000_000;
@@ -45,6 +48,8 @@ export interface GatewayDeps {
   ) => AsyncIterable<string>;
   /** Wraps a route so AI calls inside it are attributed in the record book. */
   withFeature?: <T>(feature: string, fn: () => T) => T;
+  /** Remote control of the app window; used only while `settings.control` is on. */
+  control?: AppControl;
 }
 
 function tokensEqual(a: string, b: string): boolean {
@@ -219,10 +224,11 @@ export class AgentGatewayServer {
     }
 
     if (path === "/mcp") {
-      const response = handleMcpMessage(
+      const response = await handleMcpMessage(
         json,
         this.deps.data,
         this.deps.appVersion,
+        this.settings.control ? (this.deps.control ?? null) : null,
       );
       if (!response) {
         res.writeHead(202, cors);

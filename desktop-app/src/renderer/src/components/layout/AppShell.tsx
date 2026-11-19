@@ -22,6 +22,7 @@ import {
   NAV_ITEMS,
   SETTINGS_ITEM,
 } from "@renderer/components/layout/navigation";
+import { AgentControlBridge } from "@renderer/components/layout/AgentControlBridge";
 import { PortfolioSwitcher } from "@renderer/components/layout/PortfolioSwitcher";
 import { ThemeToggle } from "@renderer/components/theme/ThemeToggle";
 import { HintButton } from "@renderer/components/ui/hint-button";
@@ -267,6 +268,7 @@ export function AppShell(): React.JSX.Element {
     >
       <SessionLoader />
       <AutosaveController />
+      <AgentControlBridge />
       <BoundaryImpactToast />
       <NarrowWindowWatcher />
       <Sidebar collapsible="icon">

@@ -9,6 +9,15 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Operate the app from Claude over MCP.** Settings → AI → "Access for
+  other AI tools" has a new switch, "Allow operating the app" (off by
+  default, needs the MCP server). With it, the MCP server adds six tools:
+  `get_app_state`, `open_portfolio`, `show_location`, `open_view`,
+  `start_analysis` and `stop_analysis`. They use the same actions as the
+  buttons, every action shows a notice in the app, and a portfolio is never
+  switched under a running analysis. `get_location` and `show_location`
+  also take a location's exact name. Tested end to end with Claude Code as
+  the MCP host (`DRM_E2E_CLAUDE_HOST=1`).
 - **Vehicle display on the map is configurable.** Settings → General →
   "Vehicles on the map" draws detections as dots, as boxes (the detector's
   outline, green as in labeling) or both; colour blue, green or by
@@ -117,6 +126,16 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **AI answers cut off with Claude Opus 5.5 and other reasoning models.**
+  These models think before they answer and the provider counts that
+  against the answer's token limit, so the app's tight limits were used up
+  before the first character: the chat's routing ("build a dashboard?")
+  failed every time (16 tokens) and the evidence memo needed a second
+  attempt. Anthropic and OpenAI requests now get room for the reasoning;
+  an answer still cut off before its first character, or after visible
+  reasoning, is asked for once more with more room (each attempt is in the
+  AI record book). A Claude refusal is reported as one instead of an empty
+  answer. Checked against the real API for every AI feature.
 - Own aerial imagery source: a tile template with `{time}` no longer takes
   the map page down ("This page could not be displayed"); the placeholder
   stays empty on the map, as it does for a capture.

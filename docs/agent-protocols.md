@@ -7,6 +7,7 @@ any feature of the app.
 | Protocol                                | Role of the app                                                               | Where                                                            | Needs an AI provider |
 | --------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------- |
 | MCP (Model Context Protocol), server    | Other assistants read the portfolio through four read-only tools              | Agent gateway, `/mcp`                                            | No                   |
+| MCP, remote control                     | With its own switch: six more tools that operate the app window               | Agent gateway, `/mcp`                                            | No                   |
 | MCP Apps (`io.modelcontextprotocol/ui`) | The `portfolio_summary` tool brings its own view, rendered in the host's chat | Agent gateway, resource `ui://dealership-risk/portfolio-summary` | No                   |
 | MCP, client                             | The chat may call read-only tools of servers the user connected               | Settings → AI → External MCP servers                             | Yes (the chat)       |
 | A2A (Agent2Agent 1.0)                   | Other agents discover the app through an agent card and send it messages      | Agent gateway, `/.well-known/agent-card.json`, `/a2a`            | No                   |
@@ -29,8 +30,11 @@ One HTTP server in the main process (`src/main/services/agent-gateway/`).
   computer and port (DNS rebinding) and requests with a non-local `Origin`,
   and sends CORS headers to local origins only (`checkGatewayRequest` in
   `src/shared/agent-gateway.ts`, tested in `gateway.test.ts`).
-- **Read-only.** No route writes data; request bodies are JSON, capped at
-  1 MB.
+- **Read-only unless control is allowed.** No route writes data itself;
+  request bodies are JSON, capped at 1 MB. With "Allow operating the app"
+  switched on (off by default) the MCP server can ask the window to open a
+  portfolio, show a location, change the page or start and stop an
+  analysis (see Remote control).
 
 ### What is passed on
 
@@ -54,12 +58,12 @@ Streamable HTTP, stateless: one JSON response per `POST /mcp`, no
 server-initiated stream. Protocol versions `2025-11-25`, `2025-06-18`,
 `2025-03-26` and `2024-11-05`.
 
-| Tool                | Returns                                                                    |
-| ------------------- | -------------------------------------------------------------------------- |
-| `list_portfolios`   | Saved portfolios; saved comparison states are marked                       |
-| `portfolio_summary` | Totals, hail zone distribution, ten highest-EAL locations, limitations     |
-| `list_locations`    | Locations with filters (`minHailZone`, `reviewOnly`), sorting and paging   |
-| `get_location`      | EAL inputs, provenance, boundary quality, weakest assumptions, limitations |
+| Tool                | Returns                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `list_portfolios`   | Saved portfolios; saved comparison states are marked                                                                |
+| `portfolio_summary` | Totals, hail zone distribution, ten highest-EAL locations, limitations                                              |
+| `list_locations`    | Locations with filters (`minHailZone`, `reviewOnly`), sorting and paging                                            |
+| `get_location`      | EAL inputs, provenance, boundary quality, weakest assumptions, limitations; the location by id or by its exact name |
 
 Connect Claude Code (the settings card copies this command with the token):
 
@@ -75,6 +79,37 @@ Desktop only starts local programs (stdio), so that entry runs the
 `mcp-remote` bridge through `npx` (needs Node.js) pointed at the same URL,
 with the header passed in an environment variable. The Claude Desktop entry
 has not been tested against Claude Desktop.
+
+### Remote control
+
+Off by default; switched on with "Allow operating the app" in the same
+card (needs the MCP server). The server then lists six more tools and
+tells the host in its `instructions` to call `get_app_state` first:
+
+| Tool             | Does                                                                                      | Annotation              |
+| ---------------- | ----------------------------------------------------------------------------------------- | ----------------------- |
+| `get_app_state`  | Page, open portfolio (id, name, locations, saved), selected location, analysis progress   | read-only               |
+| `open_portfolio` | Opens a saved portfolio; the open one is saved first. Refused while an analysis runs      | changes the window      |
+| `show_location`  | Selects a location (id or exact name) on the map; with `details`, opens its detail dialog | changes the window      |
+| `open_view`      | Shows `map`, `dashboard`, `parameters` or `settings`                                      | changes the window      |
+| `start_analysis` | Analyses named locations, or `scope` `unanalysed` (default) or `all`; returns at once     | destructive, open world |
+| `stop_analysis`  | Stops the running analysis after the locations in progress                                | changes the window      |
+
+How it works: the main process validates the arguments, sends a command
+(`agent:command`) to the window and waits up to 15 s for the answer
+(`agent:commandResult`), which it validates again before passing it on
+(`src/shared/agent-control.ts`, `agent-gateway/app-control.ts`). The window
+runs the command with the same store actions as its buttons
+(`renderer/src/lib/agentControl.ts`) and shows a notice for every action.
+Commands carry ids and fixed values only: no file paths, URLs or text that
+ends up in the data. The state passed on contains no notes, addresses or
+coordinates. `start_analysis` is marked destructive because analysing a
+location again replaces its automatic boundary, count and estimate;
+boundaries and counts the user corrected or confirmed are kept, as with the
+button.
+
+The read tools read saved portfolios; the window saves a few seconds after
+a change (`saved` in `get_app_state`).
 
 ### MCP App
 
@@ -121,6 +156,11 @@ record book as `gateway:ag-ui`.
 
 ## Limitations
 
+- Claude Code reports the server as failed ("connection refused") while the
+  app is closed or "Enable access" is off; it connects again after a
+  restart of the session once the app runs.
+- Remote control acts on the window the user is looking at. It does not
+  import files, edit boundaries, change settings or delete anything.
 - The protocol implementations are hand-written against the specifications
   and covered by unit tests; they have not been tested against every host.
   MCP Apps and A2A 1.0 are recent; host support varies.

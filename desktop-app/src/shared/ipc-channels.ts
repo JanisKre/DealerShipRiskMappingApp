@@ -166,6 +166,12 @@ export const IPC = {
   // Local agent gateway (MCP server + MCP App, A2A, AG-UI); off by default
   gatewayStatus: "gateway:status",
   gatewayRotateToken: "gateway:rotateToken",
+  // Remote control through the gateway's MCP server (off by default): the
+  // main process sends a validated command (`agent:command`, main ->
+  // renderer); the window carries it out and answers over
+  // `agent:commandResult` (invoke).
+  agentCommand: "agent:command",
+  agentCommandResult: "agent:commandResult",
 
   // External MCP servers the user connected (read-only tools)
   mcpServerTools: "mcp:serverTools", // connects and lists the tools

@@ -4,8 +4,10 @@ import { z } from "zod";
  * Local agent gateway: an HTTP server on this computer (loopback only, off
  * by default) through which other AI tools can read the portfolio over
  * standard protocols — MCP (tools + an MCP App view), A2A (agent card +
- * JSON-RPC) and AG-UI (event stream of the portfolio chat). Read-only: no
- * route changes data. See docs/agent-protocols.md.
+ * JSON-RPC) and AG-UI (event stream of the portfolio chat). Read-only
+ * unless the user also switches on `control`, which adds MCP tools that
+ * operate the app window (shared/agent-control.ts). See
+ * docs/agent-protocols.md.
  */
 
 export const GATEWAY_DEFAULT_PORT = 47821;
@@ -16,6 +18,11 @@ export const AgentGatewaySettingsSchema = z.object({
   port: z.number().int().min(1024).max(65535).default(GATEWAY_DEFAULT_PORT),
   /** Model Context Protocol server at /mcp. */
   mcp: z.boolean().default(true),
+  /**
+   * MCP tools that operate the app window: open a portfolio, show a
+   * location, change the page, start or stop an analysis. Needs `mcp`.
+   */
+  control: z.boolean().default(false),
   /** Agent2Agent card and JSON-RPC endpoint at /a2a. */
   a2a: z.boolean().default(false),
   /** AG-UI run endpoint at /ag-ui (needs an AI provider). */
@@ -27,6 +34,7 @@ export const DEFAULT_GATEWAY_SETTINGS: AgentGatewaySettings = {
   enabled: false,
   port: GATEWAY_DEFAULT_PORT,
   mcp: true,
+  control: false,
   a2a: false,
   agUi: false,
 };

@@ -2371,11 +2371,13 @@
   },
   "agentGateway": {
     "title": "Zugriff für andere KI-Werkzeuge",
-    "description": "Andere Programme auf diesem Computer, etwa Claude oder ein eigener Agent, können das Portfolio lesen. Nur lesend, nur von diesem Computer aus und nur mit Token.",
+    "description": "Andere Programme auf diesem Computer, etwa Claude oder ein eigener Agent, können das Portfolio lesen und, wenn du es erlaubst, die App bedienen. Nur von diesem Computer aus und nur mit Token.",
     "enable": "Zugriff einschalten",
     "enableHint": "Startet einen lokalen Dienst auf 127.0.0.1. Ausgeschaltet ist nichts erreichbar.",
     "mcp": "MCP-Server",
     "mcpHint": "Werkzeuge für Assistenten wie Claude: Portfolios, Standorte, Belege. Mit Portfolio-Ansicht direkt im Chat (MCP App).",
+    "control": "Bedienung erlauben",
+    "controlHint": "Zusätzliche MCP-Werkzeuge: Portfolio öffnen, Standort zeigen, Seite wechseln, Analyse starten und stoppen. Jede Aktion wird in der App angezeigt. Ausgeschaltet kann ein Werkzeug nur lesen.",
     "a2a": "A2A-Agent",
     "a2aHint": "Agent Card und Anfragen anderer Agenten (Agent2Agent 1.0). Antwortet nach festen Regeln, ohne KI.",
     "agUi": "AG-UI",
@@ -2387,7 +2389,7 @@
     "stopped": "läuft nicht",
     "startFailed": "Der Dienst konnte nicht starten: {{error}}",
     "connect": "Verbinden",
-    "tokenHint": "Jede Anfrage braucht den Header „Authorization: Bearer <Token>“. Wer das Token hat, kann das Portfolio lesen.",
+    "tokenHint": "Jede Anfrage braucht den Header „Authorization: Bearer <Token>“. Wer das Token hat, kann das Portfolio lesen und, wenn die Bedienung erlaubt ist, die App bedienen.",
     "copyToken": "Token kopieren",
     "copied": "In die Zwischenablage kopiert.",
     "rotateToken": "Neues Token",
@@ -2410,6 +2412,15 @@
         "hint": "In Claude Desktop unter Einstellungen → Entwickler → Konfiguration bearbeiten einfügen und Claude neu starten. Braucht Node.js; die Brücke „mcp-remote“ wird beim ersten Start geladen."
       }
     }
+  },
+  "agentControl": {
+    "source": "Ausgelöst über MCP von einem verbundenen KI-Werkzeug",
+    "openedPortfolio": "Portfolio „{{name}}“ geöffnet",
+    "shownLocation": "Standort „{{name}}“ angezeigt",
+    "openedView": "Seite „{{view}}“ geöffnet",
+    "startedAnalysis_one": "Analyse für {{count}} Standort gestartet",
+    "startedAnalysis_other": "Analyse für {{count}} Standorte gestartet",
+    "stoppedAnalysis": "Analyse wird gestoppt"
   },
   "importAssumptions": {
     "title": "Annahmen für die Analyse",

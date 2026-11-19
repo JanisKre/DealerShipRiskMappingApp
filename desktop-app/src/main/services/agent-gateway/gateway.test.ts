@@ -12,7 +12,19 @@ import { A2aAgent, buildAgentCard, matchSkill } from "./a2a";
 import { agUiRun, chatMessagesFromAgUi, RunAgentInputSchema } from "./ag-ui";
 import type { GatewayData } from "./gateway-data";
 import { MCP_APP_MIME_TYPE, PORTFOLIO_SUMMARY_UI_URI } from "./mcp-app";
-import { MCP_TOOLS, callMcpTool, handleMcpMessage } from "./mcp-server";
+import {
+  MCP_CONTROL_TOOLS,
+  MCP_TOOLS,
+  callMcpTool,
+  handleMcpMessage,
+} from "./mcp-server";
+import { WindowAppControl, type AppControl } from "./app-control";
+import type {
+  AgentCommand,
+  AgentCommandRequest,
+  AgentCommandResult,
+  AppState,
+} from "@shared/agent-control";
 import {
   listLocations,
   locationEvidence,
@@ -138,17 +150,24 @@ describe("MCP server", () => {
     result?: Record<string, unknown>;
     error?: { code: number };
   }
-  const call = (method: string, params?: unknown): McpReply | null =>
-    handleMcpMessage(
+  const call = async (
+    method: string,
+    params?: unknown,
+    control: AppControl | null = null,
+  ): Promise<McpReply | null> =>
+    (await handleMcpMessage(
       { jsonrpc: "2.0", id: 1, method, params },
       data,
       "0.5.0",
-    ) as McpReply | null;
+      control,
+    )) as McpReply | null;
 
-  it("negotiates the protocol version and advertises tools and the UI extension", () => {
-    const known = call("initialize", { protocolVersion: "2025-06-18" });
+  it("negotiates the protocol version and advertises tools and the UI extension", async () => {
+    const known = await call("initialize", { protocolVersion: "2025-06-18" });
     expect(known?.result?.protocolVersion).toBe("2025-06-18");
-    const unknown = call("initialize", { protocolVersion: "1999-01-01" });
+    const unknown = await call("initialize", {
+      protocolVersion: "1999-01-01",
+    });
     expect(unknown?.result?.protocolVersion).toBe("2025-11-25");
     expect(known?.result?.capabilities).toMatchObject({
       tools: {},
@@ -156,22 +175,22 @@ describe("MCP server", () => {
     });
   });
 
-  it("answers notifications with nothing and unknown methods with an error", () => {
+  it("answers notifications with nothing and unknown methods with an error", async () => {
     expect(
-      handleMcpMessage(
+      await handleMcpMessage(
         { jsonrpc: "2.0", method: "notifications/initialized" },
         data,
         "0.5.0",
       ),
     ).toBeNull();
-    expect(call("nope")?.error?.code).toBe(-32601);
-    expect(handleMcpMessage([], data, "0.5.0")).toMatchObject({
+    expect((await call("nope"))?.error?.code).toBe(-32601);
+    expect(await handleMcpMessage([], data, "0.5.0")).toMatchObject({
       error: { code: -32600 },
     });
   });
 
-  it("lists only read-only tools", () => {
-    const tools = call("tools/list")?.result?.tools as typeof MCP_TOOLS;
+  it("lists only read-only tools", async () => {
+    const tools = (await call("tools/list"))?.result?.tools as typeof MCP_TOOLS;
     expect(tools.map((t) => t.name)).toEqual([
       "list_portfolios",
       "portfolio_summary",
@@ -181,31 +200,62 @@ describe("MCP server", () => {
     expect(tools.every((t) => t.annotations.readOnlyHint)).toBe(true);
   });
 
-  it("uses the newest portfolio that is not a comparison state", () => {
-    const result = callMcpTool("portfolio_summary", {}, data);
+  it("uses the newest portfolio that is not a comparison state", async () => {
+    const result = await callMcpTool("portfolio_summary", {}, data);
     expect(result.isError).toBeUndefined();
     expect(result.structuredContent).toMatchObject({ portfolioId: "p1" });
   });
 
-  it("returns tool errors as results, not protocol errors", () => {
-    expect(callMcpTool("get_location", {}, data).isError).toBe(true);
+  it("returns tool errors as results, not protocol errors", async () => {
+    expect((await callMcpTool("get_location", {}, data)).isError).toBe(true);
     expect(
-      callMcpTool("get_location", { locationId: "zzz" }, data).isError,
+      (await callMcpTool("get_location", { locationId: "zzz" }, data)).isError,
     ).toBe(true);
-    expect(callMcpTool("list_locations", { limit: 9999 }, data).isError).toBe(
+    expect(
+      (await callMcpTool("list_locations", { limit: 9999 }, data)).isError,
+    ).toBe(true);
+    expect((await callMcpTool("delete_everything", {}, data)).isError).toBe(
       true,
     );
-    expect(callMcpTool("delete_everything", {}, data).isError).toBe(true);
-    const viaRpc = call("tools/call", { name: "get_location", arguments: {} });
+    const viaRpc = await call("tools/call", {
+      name: "get_location",
+      arguments: {},
+    });
     expect(viaRpc?.result?.isError).toBe(true);
   });
 
-  it("serves the MCP App view for the summary tool", () => {
+  it("finds a location by its exact name when the id is not known", async () => {
+    const byName = await callMcpTool(
+      "get_location",
+      { locationId: " autohaus beta " },
+      data,
+    );
+    expect(byName.isError).toBeUndefined();
+    expect(byName.structuredContent).toMatchObject({ location: { id: "b" } });
+    const twins: GatewayData = {
+      ...data,
+      loadPortfolio: () => ({
+        ...session,
+        dealerships: [site("x", "Zwilling", 1, 1), site("y", "Zwilling", 1, 1)],
+      }),
+    };
+    const ambiguous = await callMcpTool(
+      "get_location",
+      { locationId: "Zwilling" },
+      twins,
+    );
+    expect(ambiguous.isError).toBe(true);
+    expect(ambiguous.content[0].text).toContain("Use the id");
+  });
+
+  it("serves the MCP App view for the summary tool", async () => {
     const summaryTool = MCP_TOOLS.find((t) => t.name === "portfolio_summary");
     expect(
       summaryTool && "_meta" in summaryTool && summaryTool._meta.ui,
     ).toEqual({ resourceUri: PORTFOLIO_SUMMARY_UI_URI });
-    const read = call("resources/read", { uri: PORTFOLIO_SUMMARY_UI_URI });
+    const read = await call("resources/read", {
+      uri: PORTFOLIO_SUMMARY_UI_URI,
+    });
     const [content] = read?.result?.contents as Array<{
       mimeType: string;
       text: string;
@@ -214,9 +264,208 @@ describe("MCP server", () => {
     expect(content.text).toContain("ui/initialize");
     // Self-contained: nothing is loaded from elsewhere, nothing becomes markup.
     expect(content.text).not.toMatch(/src=|href=|innerHTML/);
-    expect(call("resources/read", { uri: "ui://other" })?.error?.code).toBe(
-      -32002,
+    expect(
+      (await call("resources/read", { uri: "ui://other" }))?.error?.code,
+    ).toBe(-32002);
+  });
+
+  describe("remote control", () => {
+    const state: AppState = {
+      view: "map",
+      portfolio: {
+        id: "p1",
+        name: "Bayern",
+        locations: 3,
+        analyzed: 3,
+        saved: true,
+      },
+      selectedLocation: null,
+      detailsOpenFor: null,
+      analysis: { running: false, done: 0, total: 0, waiting: 0, failed: 0 },
+    };
+    function recorder(result: AgentCommandResult = { ok: true, state }): {
+      control: AppControl;
+      commands: AgentCommand[];
+    } {
+      const commands: AgentCommand[] = [];
+      return {
+        commands,
+        control: {
+          run: async (command) => {
+            commands.push(command);
+            return result;
+          },
+        },
+      };
+    }
+
+    it("does not exist while it is switched off", async () => {
+      const tools = (await call("tools/list"))?.result?.tools as Array<{
+        name: string;
+      }>;
+      expect(tools.map((t) => t.name)).not.toContain("open_portfolio");
+      const refused = await callMcpTool(
+        "open_portfolio",
+        { portfolioId: "p1" },
+        data,
+      );
+      expect(refused.isError).toBe(true);
+      expect(refused.content[0].text).toContain("Unknown tool");
+    });
+
+    it("lists the control tools with honest annotations and tells the host how to use them", async () => {
+      const { control } = recorder();
+      const tools = (await call("tools/list", undefined, control))?.result
+        ?.tools as Array<{
+        name: string;
+        annotations: { readOnlyHint: boolean; destructiveHint: boolean };
+      }>;
+      expect(tools.map((t) => t.name)).toEqual([
+        "list_portfolios",
+        "portfolio_summary",
+        "list_locations",
+        "get_location",
+        ...MCP_CONTROL_TOOLS.map((t) => t.name),
+      ]);
+      const hint = (name: string): { readOnlyHint: boolean } =>
+        tools.find((t) => t.name === name)!.annotations;
+      expect(hint("get_app_state").readOnlyHint).toBe(true);
+      expect(hint("open_portfolio").readOnlyHint).toBe(false);
+      // Re-analysing replaces automatic results: hosts should ask first.
+      expect(hint("start_analysis")).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: true,
+      });
+      const init = await call(
+        "initialize",
+        { protocolVersion: "2025-06-18" },
+        control,
+      );
+      expect(String(init?.result?.instructions)).toContain("get_app_state");
+    });
+
+    it("turns tool calls into validated commands", async () => {
+      const { control, commands } = recorder({ ok: true, state, started: 2 });
+      const shown = await callMcpTool(
+        "show_location",
+        { location: "Autohaus Beta" },
+        data,
+        control,
+      );
+      expect(shown.structuredContent).toMatchObject({ view: "map" });
+      const started = await callMcpTool("start_analysis", {}, data, control);
+      expect(started.structuredContent).toMatchObject({ started: 2 });
+      await callMcpTool("open_view", { view: "dashboard" }, data, control);
+      expect(commands).toEqual([
+        { type: "showLocation", location: "Autohaus Beta", details: false },
+        { type: "startAnalysis", scope: "unanalysed" },
+        { type: "openView", view: "dashboard" },
+      ]);
+    });
+
+    it("refuses arguments outside the schema before the window is asked", async () => {
+      const { control, commands } = recorder();
+      for (const [name, args] of [
+        ["open_view", { view: "devtools" }],
+        ["open_portfolio", {}],
+        ["show_location", { location: "a", path: "/etc/passwd" }],
+        ["start_analysis", { locations: [] }],
+      ] as const) {
+        const result = await callMcpTool(name, args, data, control);
+        expect(result.isError, name).toBe(true);
+      }
+      expect(commands).toEqual([]);
+    });
+
+    it("explains what the window refused", async () => {
+      const { control } = recorder({ ok: false, error: "analysisRunning" });
+      const result = await callMcpTool(
+        "open_portfolio",
+        { portfolioId: "p1" },
+        data,
+        control,
+      );
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("stop_analysis");
+    });
+  });
+});
+
+describe("window remote control", () => {
+  const state: AppState = {
+    view: "dashboard",
+    portfolio: {
+      id: null,
+      name: "Neu",
+      locations: 0,
+      analyzed: 0,
+      saved: false,
+    },
+    selectedLocation: null,
+    detailsOpenFor: null,
+    analysis: { running: false, done: 0, total: 0, waiting: 0, failed: 0 },
+  };
+
+  it("passes the window's answer on and ignores a second or made-up one", async () => {
+    const sent: AgentCommandRequest[] = [];
+    const control = new WindowAppControl((request) => {
+      sent.push(request);
+      return true;
+    });
+    const pending = control.run({ type: "getState" });
+    expect(sent).toHaveLength(1);
+    expect(control.answer("00000000-0000-4000-8000-000000000000", {})).toBe(
+      false,
     );
+    expect(control.answer(sent[0].id, { ok: true, state })).toBe(true);
+    await expect(pending).resolves.toEqual({ ok: true, state });
+    expect(control.answer(sent[0].id, { ok: true, state })).toBe(false);
+  });
+
+  it("does not pass on an answer that is not a result", async () => {
+    const sent: AgentCommandRequest[] = [];
+    const control = new WindowAppControl((request) => {
+      sent.push(request);
+      return true;
+    });
+    const pending = control.run({ type: "getState" });
+    control.answer(sent[0].id, {
+      ok: true,
+      state: { ...state, notes: "SECRET" },
+      extra: "<script>",
+    });
+    const result = await pending;
+    // Unknown keys are stripped by the schema, never forwarded.
+    expect(JSON.stringify(result)).not.toContain("SECRET");
+    expect(JSON.stringify(result)).not.toContain("script");
+    const second = control.run({ type: "getState" });
+    control.answer(sent[1].id, { ok: "yes" });
+    await expect(second).resolves.toEqual({ ok: false, error: "failed" });
+  });
+
+  it("gives up when there is no window or it stays silent", async () => {
+    const noWindow = new WindowAppControl(() => false);
+    await expect(noWindow.run({ type: "getState" })).resolves.toEqual({
+      ok: false,
+      error: "noAnswer",
+    });
+    const silent = new WindowAppControl(() => true, 20);
+    await expect(silent.run({ type: "stopAnalysis" })).resolves.toEqual({
+      ok: false,
+      error: "noAnswer",
+    });
+  });
+
+  it("refuses a command that is not one, without asking the window", async () => {
+    let asked = 0;
+    const control = new WindowAppControl(() => {
+      asked += 1;
+      return true;
+    });
+    await expect(
+      control.run({ type: "openView", view: "devtools" } as never),
+    ).resolves.toEqual({ ok: false, error: "failed" });
+    expect(asked).toBe(0);
   });
 });
 
@@ -458,9 +707,11 @@ describe("gateway HTTP server", () => {
     server = null;
   });
 
+  const controlled: AgentCommand[] = [];
   async function start(
     overrides: Partial<typeof DEFAULT_GATEWAY_SETTINGS> = {},
   ): Promise<string> {
+    controlled.length = 0;
     server = new AgentGatewayServer(
       {
         ...DEFAULT_GATEWAY_SETTINGS,
@@ -475,6 +726,12 @@ describe("gateway HTTP server", () => {
         appVersion: "0.5.0",
         chat: async function* (messages) {
           yield `echo:${messages.at(-1)?.content}`;
+        },
+        control: {
+          run: async (command) => {
+            controlled.push(command);
+            return { ok: false, error: "noAnswer" };
+          },
         },
       },
     );
@@ -513,6 +770,37 @@ describe("gateway HTTP server", () => {
     });
     expect(note.status).toBe(202);
     expect((await fetch(`${url}/mcp`, { headers: auth })).status).toBe(405);
+  });
+
+  it("reaches the app window only while remote control is switched on", async () => {
+    const callTool = async (url: string): Promise<{ isError?: boolean }> => {
+      const res = await fetch(`${url}/mcp`, {
+        method: "POST",
+        headers: auth,
+        body: rpc("tools/call", {
+          name: "open_view",
+          arguments: { view: "dashboard" },
+        }),
+      });
+      return ((await res.json()) as { result: { isError?: boolean } }).result;
+    };
+    const off = await start();
+    expect((await callTool(off)).isError).toBe(true);
+    expect(controlled).toEqual([]);
+    await server?.stop();
+    const on = await start({ control: true });
+    await callTool(on);
+    expect(controlled).toEqual([{ type: "openView", view: "dashboard" }]);
+    // Still behind the token.
+    const denied = await fetch(`${on}/mcp`, {
+      method: "POST",
+      body: rpc("tools/call", {
+        name: "open_view",
+        arguments: { view: "map" },
+      }),
+    });
+    expect(denied.status).toBe(401);
+    expect(controlled).toHaveLength(1);
   });
 
   it("refuses foreign origins and sends no CORS header to them", async () => {

@@ -2371,11 +2371,13 @@
   },
   "agentGateway": {
     "title": "Access for other AI tools",
-    "description": "Other programs on this computer, such as Claude or your own agent, can read the portfolio. Read-only, from this computer only and only with the token.",
+    "description": "Other programs on this computer, such as Claude or your own agent, can read the portfolio and, if you allow it, operate the app. From this computer only and only with the token.",
     "enable": "Enable access",
     "enableHint": "Starts a local service on 127.0.0.1. Switched off, nothing is reachable.",
     "mcp": "MCP server",
     "mcpHint": "Tools for assistants such as Claude: portfolios, locations, evidence. With a portfolio view right in the chat (MCP App).",
+    "control": "Allow operating the app",
+    "controlHint": "Additional MCP tools: open a portfolio, show a location, change the page, start and stop an analysis. Every action is shown in the app. Switched off, a tool can only read.",
     "a2a": "A2A agent",
     "a2aHint": "Agent card and requests from other agents (Agent2Agent 1.0). Answers by fixed rules, without AI.",
     "agUi": "AG-UI",
@@ -2387,7 +2389,7 @@
     "stopped": "not running",
     "startFailed": "The service could not start: {{error}}",
     "connect": "Connect",
-    "tokenHint": "Every request needs the header “Authorization: Bearer <token>”. Whoever has the token can read the portfolio.",
+    "tokenHint": "Every request needs the header “Authorization: Bearer <token>”. Whoever has the token can read the portfolio and, if operating is allowed, operate the app.",
     "copyToken": "Copy token",
     "copied": "Copied to the clipboard.",
     "rotateToken": "New token",
@@ -2410,6 +2412,15 @@
         "hint": "Paste in Claude Desktop under Settings → Developer → Edit Config and restart Claude. Needs Node.js; the “mcp-remote” bridge is downloaded on first start."
       }
     }
+  },
+  "agentControl": {
+    "source": "Triggered over MCP by a connected AI tool",
+    "openedPortfolio": "Portfolio “{{name}}” opened",
+    "shownLocation": "Location “{{name}}” shown",
+    "openedView": "Page “{{view}}” opened",
+    "startedAnalysis_one": "Analysis started for {{count}} location",
+    "startedAnalysis_other": "Analysis started for {{count}} locations",
+    "stoppedAnalysis": "Analysis is being stopped"
   },
   "importAssumptions": {
     "title": "Assumptions for the analysis",

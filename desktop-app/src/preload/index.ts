@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { IPC } from "@shared/ipc-channels";
+import type { AgentCommandRequest } from "@shared/agent-control";
 import type {
   DealerDirectoryChunk,
   IpcRequest,
@@ -656,6 +657,29 @@ const api = {
     ipcRenderer.invoke(IPC.gatewayStatus),
   rotateGatewayToken: (): Promise<IpcResponse["gateway:rotateToken"]> =>
     ipcRenderer.invoke(IPC.gatewayRotateToken),
+  /**
+   * Calls `onCommand` for every remote-control command the main process
+   * validated and passed on (only while the user has remote control
+   * switched on). The window answers with `agentCommandResult`. Returns
+   * the unsubscribe.
+   */
+  onAgentCommand: (
+    onCommand: (request: AgentCommandRequest) => void,
+  ): (() => void) => {
+    const listener = (_e: unknown, request: AgentCommandRequest): void =>
+      onCommand(request);
+    ipcRenderer.on(IPC.agentCommand, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.agentCommand, listener);
+    };
+  },
+  agentCommandResult: (
+    request: IpcRequest["agent:commandResult"],
+  ): Promise<IpcResponse["agent:commandResult"]> =>
+    ipcRenderer.invoke(
+      IPC.agentCommandResult,
+      request satisfies IpcRequest["agent:commandResult"],
+    ),
 
   // --- External MCP servers ------------------------------------------------
   /** Connects to a saved server and lists its tools. */

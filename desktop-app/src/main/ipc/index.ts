@@ -31,6 +31,7 @@ import { withAiFeature } from "../services/ai-log.service";
 import { exportAiLog } from "../services/ai-log-export.service";
 import {
   agentGatewayStatus,
+  answerAgentCommand,
   rotateAgentGatewayToken,
   syncAgentGateway,
 } from "../services/agent-gateway/gateway.service";
@@ -434,6 +435,9 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
 
   handle(IPC.gatewayStatus, () => agentGatewayStatus());
   handle(IPC.gatewayRotateToken, () => rotateAgentGatewayToken());
+  handle(IPC.agentCommandResult, ({ id, result }) => ({
+    ok: answerAgentCommand(id, result),
+  }));
 
   handle(IPC.mcpServerTools, ({ serverId }) => listMcpServerTools(serverId));
   handle(IPC.mcpSetServerToken, ({ serverId, token }) => {

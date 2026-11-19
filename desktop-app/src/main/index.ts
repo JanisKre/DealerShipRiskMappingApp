@@ -21,6 +21,7 @@ import { closeDb, getDb } from "./db/database";
 import { insertAiLogEntry } from "./db/ai-log.repo";
 import { configureAiLog } from "./services/ai-log.service";
 import {
+  setAgentControlWindow,
   stopAgentGateway,
   syncAgentGateway,
 } from "./services/agent-gateway/gateway.service";
@@ -262,6 +263,7 @@ app.whenReady().then(() => {
   }
   mainWindow = createWindow();
   registerIpcHandlers(() => mainWindow);
+  setAgentControlWindow(() => mainWindow);
   app.on("second-instance", () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
