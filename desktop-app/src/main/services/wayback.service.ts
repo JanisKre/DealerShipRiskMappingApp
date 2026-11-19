@@ -34,6 +34,11 @@ const HEADERS = {};
 
 /** Versions shown per location; older ones are reported as `truncated`. */
 export const WAYBACK_TIMELINE_LIMIT = 8;
+/**
+ * How long a quick timeline waits for capture metadata before it returns
+ * the versions without it. Long enough for cached and fast answers.
+ */
+export const WAYBACK_QUICK_METADATA_MS = 1_500;
 /** Upper bound on tilemap requests per lookup, independent of the data. */
 const MAX_TILEMAP_STEPS = 24;
 
@@ -70,30 +75,50 @@ async function tilemapAt(
   );
 }
 
+/**
+ * Metadata lookups under way. The quick timeline returns before they
+ * finish; the full one that follows waits for the same requests instead of
+ * sending them again.
+ */
+const metadataLookups = new Map<string, Promise<ImageryMetadata>>();
+
 /** Capture metadata of the image a version shows; never throws. */
-async function waybackMetadata(
+function waybackMetadata(
   release: WaybackRelease,
   lat: number,
   lon: number,
   zoom: number,
 ): Promise<ImageryMetadata> {
   const metadataUrl = release.metadataLayerUrl;
-  if (!metadataUrl) return emptyImageryMetadata("esri", zoom);
+  if (!metadataUrl) return Promise.resolve(emptyImageryMetadata("esri", zoom));
   const layerId = waybackMetadataLayerForZoom(zoom);
   // ~100 m buckets like the live metadata lookup (imagery-metadata.service).
   const key = `imagery-meta:v1:wayback:${release.release}:${zoom}:${lat.toFixed(3)},${lon.toFixed(3)}`;
-  try {
-    return await cached(key, TTL.waybackArchive, async () => {
-      const res = await fetchWithResilience(
-        buildMetadataIdentifyUrl(metadataUrl, layerId, lat, lon),
-        { headers: HEADERS },
-      );
-      if (!res.ok) throw new Error(`Wayback metadata ${res.status}`);
-      return parseEsriIdentify(await res.json(), zoom, layerId);
-    });
-  } catch {
-    return emptyImageryMetadata("esri", zoom);
-  }
+  const running = metadataLookups.get(key);
+  if (running) return running;
+  const lookup = cached(key, TTL.waybackArchive, async () => {
+    const res = await fetchWithResilience(
+      buildMetadataIdentifyUrl(metadataUrl, layerId, lat, lon),
+      { headers: HEADERS },
+    );
+    if (!res.ok) throw new Error(`Wayback metadata ${res.status}`);
+    return parseEsriIdentify(await res.json(), zoom, layerId);
+  })
+    .catch(() => emptyImageryMetadata("esri", zoom))
+    .finally(() => metadataLookups.delete(key));
+  metadataLookups.set(key, lookup);
+  return lookup;
+}
+
+/** Each result that arrives within `ms`; `null` for those still running. */
+function settledWithin<T>(
+  lookups: Promise<T>[],
+  ms: number,
+): Promise<(T | null)[]> {
+  const timeUp = new Promise<null>((resolve) => {
+    setTimeout(resolve, ms, null);
+  });
+  return Promise.all(lookups.map((lookup) => Promise.race([lookup, timeUp])));
 }
 
 /**
@@ -163,12 +188,19 @@ function waybackCandidate(
  * Distinct, dated World Imagery versions at a point. Where the newest
  * version has no imagery at `zoom` (Esri publishes z20 only in parts of
  * Germany), the lookup drops one zoom level once.
+ *
+ * With `metadataWithinMs`, the versions are returned once that time has
+ * passed, whatever metadata has arrived by then: Esri's metadata service
+ * at times takes half a minute per version, and the list of versions is of
+ * use before their capture dates are. Versions still waiting are named in
+ * `pendingIds`; their lookups go on and are shared with the next call.
  */
 export async function waybackTimeline(
   lat: number,
   lon: number,
   zoom: number,
   limit = WAYBACK_TIMELINE_LIMIT,
+  metadataWithinMs?: number,
 ): Promise<ImageryTimeline> {
   const releases = await getWaybackReleases();
   let z = Math.min(23, Math.max(0, Math.round(zoom)));
@@ -201,20 +233,36 @@ export async function waybackTimeline(
     truncated = older.truncated;
   }
 
-  const metas = await Promise.all(
-    steps.map((s) => waybackMetadata(s.release, lat, lon, s.zoom)),
+  const lookups = steps.map((s) =>
+    waybackMetadata(s.release, lat, lon, s.zoom),
   );
+  const metas =
+    metadataWithinMs == null
+      ? await Promise.all(lookups)
+      : await settledWithin(lookups, metadataWithinMs);
   // A re-published version can show the very same scene; keep the newest.
   const seen = new Set<string>();
   const candidates: ImageryCandidate[] = [];
+  const pendingIds: string[] = [];
   steps.forEach(({ release, zoom: stepZoom }, i) => {
     const meta = metas[i];
-    const sceneKey = meta.capturedAt
+    const sceneKey = meta?.capturedAt
       ? `${meta.capturedAt}|${meta.collection ?? ""}|${meta.resolutionM ?? ""}`
       : `release:${release.release}`;
     if (seen.has(sceneKey)) return;
     seen.add(sceneKey);
-    candidates.push(waybackCandidate(release, meta, stepZoom));
+    const candidate = waybackCandidate(
+      release,
+      meta ?? emptyImageryMetadata("esri", stepZoom),
+      stepZoom,
+    );
+    candidates.push(candidate);
+    if (!meta) pendingIds.push(candidate.id);
   });
-  return { candidates, zoom: z, truncated };
+  return {
+    candidates,
+    zoom: z,
+    truncated,
+    ...(pendingIds.length > 0 ? { pendingIds } : {}),
+  };
 }

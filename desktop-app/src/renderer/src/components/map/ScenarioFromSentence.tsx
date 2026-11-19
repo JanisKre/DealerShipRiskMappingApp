@@ -6,6 +6,7 @@ import { scenarioFromDraft, type ScenarioDraft } from "@shared/scenario-draft";
 import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
 import { useAppStore } from "@renderer/store/appStore";
+import { showCorridor } from "@renderer/store/hailReplayStore";
 import {
   PANEL_ACTION_CLASS,
   PANEL_CONTROL_CLASS,
@@ -24,7 +25,6 @@ export const SCENARIO_MODEL_VERSION = "scenario-screening-0.2.0";
 export function ScenarioFromSentence(): React.JSX.Element {
   const { t } = useTranslation();
   const scenario = useAppStore((s) => s.scenario);
-  const setScenario = useAppStore((s) => s.setScenario);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +134,7 @@ export function ScenarioFromSentence(): React.JSX.Element {
               size="sm"
               className={PANEL_ACTION_CLASS}
               onClick={() => {
-                setScenario(draft.scenario);
+                showCorridor(draft.scenario);
                 setDraft(null);
                 setText("");
               }}

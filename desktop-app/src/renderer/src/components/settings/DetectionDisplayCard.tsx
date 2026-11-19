@@ -86,6 +86,38 @@ function Preview({
   );
 }
 
+/** One of a few fixed options, as a segmented control. */
+function Choice<T extends string>({
+  value,
+  options,
+  label,
+  disabled,
+  onChange,
+}: Readonly<{
+  value: T;
+  options: readonly T[];
+  label: (option: T) => string;
+  disabled?: boolean;
+  onChange: (option: T) => void;
+}>): React.JSX.Element {
+  return (
+    <ToggleGroup
+      type="single"
+      variant="outline"
+      value={value}
+      disabled={disabled}
+      // Radix sends "" when the active option is clicked again: keep it.
+      onValueChange={(next) => next && onChange(next as T)}
+    >
+      {options.map((option) => (
+        <ToggleGroupItem key={option} value={option} className="flex-auto px-3">
+          {label(option)}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  );
+}
+
 /**
  * How detected vehicles look on the map. Stored with the other map view
  * choices on this device; the vehicle count and the EAL are unaffected.
@@ -118,24 +150,12 @@ export function DetectionDisplayCard(): React.JSX.Element {
           label={t("settings.detectionDisplay.shape")}
           hint={t("settings.detectionDisplay.shapeHint")}
         >
-          <ToggleGroup
-            type="single"
-            variant="outline"
+          <Choice
             value={display.shape}
-            onValueChange={(v) =>
-              v && setDisplay({ shape: v as DetectionDisplay["shape"] })
-            }
-          >
-            {DETECTION_SHAPES.map((shape) => (
-              <ToggleGroupItem
-                key={shape}
-                value={shape}
-                className="flex-auto px-3"
-              >
-                {t(`settings.detectionDisplay.shapes.${shape}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+            options={DETECTION_SHAPES}
+            label={(shape) => t(`settings.detectionDisplay.shapes.${shape}`)}
+            onChange={(shape) => setDisplay({ shape })}
+          />
         </SettingRow>
         <SettingRow
           label={t("settings.detectionDisplay.color")}
@@ -149,48 +169,24 @@ export function DetectionDisplayCard(): React.JSX.Element {
             },
           )}
         >
-          <ToggleGroup
-            type="single"
-            variant="outline"
+          <Choice
             value={display.color}
-            onValueChange={(v) =>
-              v && setDisplay({ color: v as DetectionDisplay["color"] })
-            }
-          >
-            {DETECTION_COLOR_MODES.map((mode) => (
-              <ToggleGroupItem
-                key={mode}
-                value={mode}
-                className="flex-auto px-3"
-              >
-                {t(`settings.detectionDisplay.colors.${mode}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+            options={DETECTION_COLOR_MODES}
+            label={(mode) => t(`settings.detectionDisplay.colors.${mode}`)}
+            onChange={(color) => setDisplay({ color })}
+          />
         </SettingRow>
         <SettingRow
           label={t("settings.detectionDisplay.dotSize")}
           hint={t("settings.detectionDisplay.dotSizeHint")}
         >
-          <ToggleGroup
-            type="single"
-            variant="outline"
+          <Choice
             value={display.dotSize}
+            options={DETECTION_DOT_SIZES}
+            label={(size) => t(`settings.detectionDisplay.dotSizes.${size}`)}
             disabled={display.shape !== "dot"}
-            onValueChange={(v) =>
-              v && setDisplay({ dotSize: v as DetectionDisplay["dotSize"] })
-            }
-          >
-            {DETECTION_DOT_SIZES.map((size) => (
-              <ToggleGroupItem
-                key={size}
-                value={size}
-                className="flex-auto px-3"
-              >
-                {t(`settings.detectionDisplay.dotSizes.${size}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+            onChange={(dotSize) => setDisplay({ dotSize })}
+          />
         </SettingRow>
         <SettingRow
           label={t("settings.detectionDisplay.boxFill")}

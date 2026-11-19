@@ -238,6 +238,8 @@ test("a drawn corridor shows its impact, follows its settings and can be removed
     .click();
   const card = page.getByTestId("hail-corridor");
   await expect(card).toContainText("Korridor · Hoch · 20 km · 100 Jahre");
+  // One scenario at a time: the corridor took the place of the storm.
+  await expect(result()).toHaveCount(0);
   await shot("hail-corridor");
 
   // The panel's settings change the drawn corridor.

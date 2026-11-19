@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import {
   Building2,
   ChevronRight,
@@ -222,7 +223,8 @@ function HeadingField(): React.JSX.Element {
 /** Storms the app aims itself: at the portfolio, or anywhere in Germany. */
 function AutoPath(): React.JSX.Element {
   const { t } = useTranslation();
-  const s = useHailReplayStore();
+  const storms = useHailReplayStore((st) => st.sim.storms);
+  const setSim = useHailReplayStore((st) => st.setSim);
   const actions = useHailSimActions();
   const targets = usePortfolioTargets();
   return (
@@ -243,15 +245,15 @@ function AutoPath(): React.JSX.Element {
       <MoreSettings forceOpen={targets.length === 0}>
         <Field
           id="sim-storms"
-          label={t("hailReplay.storms", { count: s.sim.storms })}
+          label={t("hailReplay.storms", { count: storms })}
         >
           <Slider
             id="sim-storms"
             min={1}
             max={12}
             step={1}
-            value={s.sim.storms}
-            onValueChange={(storms) => s.setSim({ storms })}
+            value={storms}
+            onValueChange={(next) => setSim({ storms: next })}
           />
         </Field>
         <Button
@@ -401,12 +403,13 @@ function ReturnPeriodField(): React.JSX.Element {
 /** A line drawn on the map: a moving storm, or a static corridor. */
 function LinePath(): React.JSX.Element {
   const { t } = useTranslation();
-  const s = useHailReplayStore();
+  const drawing = useHailReplayStore((st) => st.mapMode === "draw");
+  const corridor = useHailReplayStore((st) => st.draw.kind === "corridor");
+  const setDraw = useHailReplayStore((st) => st.setDraw);
+  const setMapMode = useHailReplayStore((st) => st.setMapMode);
   const hasCorridor = useAppStore((st) => st.scenario != null);
   const llmReady = useLlmReady();
   const [c, patch] = useCorridorSettings();
-  const drawing = s.mapMode === "draw";
-  const corridor = s.draw.kind === "corridor";
   const startLabel = corridor
     ? hasCorridor
       ? t("hailReplay.redrawCorridor")
@@ -419,8 +422,8 @@ function LinePath(): React.JSX.Element {
         <Checkbox
           checked={corridor}
           onCheckedChange={(checked) => {
-            s.setDraw({ kind: checked === true ? "corridor" : "track" });
-            s.setMapMode(null);
+            setDraw({ kind: checked === true ? "corridor" : "track" });
+            setMapMode(null);
           }}
           className="mt-px shrink-0"
         />
@@ -455,7 +458,7 @@ function LinePath(): React.JSX.Element {
         variant={drawing ? "default" : "outline"}
         className={PANEL_ACTION_CLASS}
         aria-pressed={drawing}
-        onClick={() => s.setMapMode(drawing ? null : "draw")}
+        onClick={() => setMapMode(drawing ? null : "draw")}
       >
         <PenLine className="size-3" />
         {drawing ? t("hailReplay.drawCancel") : startLabel}
@@ -529,7 +532,19 @@ function CreateMode(): React.JSX.Element {
  */
 function OpenMode(): React.JSX.Element {
   const { t } = useTranslation();
-  const s = useHailReplayStore();
+  // Field by field: the replay clock ticks many times a second while a
+  // storm plays, and the list has no part in that.
+  const s = useHailReplayStore(
+    useShallow((st) => ({
+      list: st.list,
+      listLoading: st.listLoading,
+      listError: st.listError,
+      activeId: st.detail?.summary.id,
+      historicDay: st.historicDay,
+      historicLoading: st.historicLoading,
+      setHistoricDay: st.setHistoricDay,
+    })),
+  );
   const actions = useHailSimActions();
   const fileRef = useRef<HTMLInputElement>(null);
   const { refresh } = actions;
@@ -577,7 +592,7 @@ function OpenMode(): React.JSX.Element {
   }
 
   function eventRow(e: HailEventSummary): React.JSX.Element {
-    const active = s.detail?.summary.id === e.id;
+    const active = s.activeId === e.id;
     const known = KNOWN_DAYS.find((k) => storedDayId(k.day) === e.id);
     const label = known
       ? t(known.labelKey)

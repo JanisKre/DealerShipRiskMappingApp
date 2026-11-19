@@ -999,7 +999,6 @@
       "kpiVehiclesDetectedOn": "counted · image {{date}}",
       "kpiExposure": "Vehicle value (exposure)",
       "kpiExposurePerVehicle": "avg. {{value}} per vehicle",
-      "reanalyzing": "Analysing…",
       "reanalyzingHint": "Imagery, boundary, vehicles and hail EAL are being recalculated. This usually takes 10–30 seconds.",
       "kpiExposureDeclared": "declared value from the import",
       "previewCurrent": "Current boundary",
@@ -1272,10 +1271,11 @@
       "existingBusiness": "Existing business (blue outline)",
       "newBusiness": "New business (violet outline, +)",
       "imageryWaybackVersion": "Wayback version",
+      "vehiclesByConfidence": "Vehicles by confidence",
       "confidence": {
-        "high": "Confidence {{min}} % and above",
-        "medium": "Confidence {{min}} % and above",
-        "low": "Confidence below 40 %"
+        "high": "{{min}} % and above",
+        "medium": "{{min}} to {{max}} %",
+        "low": "below {{max}} %"
       }
     },
     "locationsPanel": {

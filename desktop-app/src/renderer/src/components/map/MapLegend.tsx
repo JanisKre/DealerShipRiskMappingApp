@@ -55,6 +55,13 @@ export function MapLegend({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const detectionDisplay = useMapStore((s) => s.detectionDisplay);
+  const byConfidence = detectionDisplay.color === "confidence";
+  // Vehicles are listed the way the map draws them: dots or box outlines.
+  const vehicleMark = {
+    dot: detectionDisplay.shape === "dot",
+    outline: detectionDisplay.shape !== "dot",
+    muted: present != null && !present.vehicles,
+  };
   const boundarySources = present?.boundarySources ?? [];
   const absent = {
     zone: (zone: number) =>
@@ -141,27 +148,31 @@ export function MapLegend({
               />
             ))}
           </LegendGroup>
-          <LegendGroup title={t("map.legend.vehicles")}>
-            {detectionDisplay.color === "confidence" ? (
-              CONFIDENCE_BANDS.map((band) => (
+          <LegendGroup
+            title={t(
+              byConfidence
+                ? "map.legend.vehiclesByConfidence"
+                : "map.legend.vehicles",
+            )}
+          >
+            {byConfidence ? (
+              CONFIDENCE_BANDS.map((band, i) => (
                 <LegendRow
                   key={band.key}
                   color={band.color}
+                  // A band ends where the one above it starts.
                   label={t(`map.legend.confidence.${band.key}`, {
                     min: Math.round(band.min * 100),
+                    max: Math.round((CONFIDENCE_BANDS[i - 1]?.min ?? 1) * 100),
                   })}
-                  dot={detectionDisplay.shape === "dot"}
-                  outline={detectionDisplay.shape !== "dot"}
-                  muted={present != null && !present.vehicles}
+                  {...vehicleMark}
                 />
               ))
             ) : (
               <LegendRow
                 color={DETECTION_COLORS[detectionDisplay.color]}
                 label={t("map.legend.carCategory")}
-                dot={detectionDisplay.shape === "dot"}
-                outline={detectionDisplay.shape !== "dot"}
-                muted={present != null && !present.vehicles}
+                {...vehicleMark}
               />
             )}
           </LegendGroup>

@@ -129,7 +129,10 @@ import { configureCustomOverpass } from "../services/boundary/overpass-client";
 import { fetchWeather } from "../services/weather.service";
 import { selectImageryForView } from "../services/imagery-source.service";
 import { testCustomImagery } from "../services/custom-imagery-test.service";
-import { waybackTimeline } from "../services/wayback.service";
+import {
+  WAYBACK_QUICK_METADATA_MS,
+  waybackTimeline,
+} from "../services/wayback.service";
 import { countVehiclesOverTime } from "../services/vehicle-timeline.service";
 import {
   deleteSession,
@@ -367,8 +370,14 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     selectImageryForView(lat, lon, zoom),
   );
   handle(IPC.imageryTestCustom, ({ point }) => testCustomImagery(point));
-  handle(IPC.imageryTimeline, ({ lat, lon, zoom }) =>
-    waybackTimeline(lat, lon, zoom),
+  handle(IPC.imageryTimeline, ({ lat, lon, zoom, quick }) =>
+    waybackTimeline(
+      lat,
+      lon,
+      zoom,
+      undefined,
+      quick ? WAYBACK_QUICK_METADATA_MS : undefined,
+    ),
   );
   handle(IPC.imageryPrefetch, ({ lat, lon }) => {
     prefetchContextImagery(lat, lon);

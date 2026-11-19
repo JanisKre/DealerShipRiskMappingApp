@@ -220,6 +220,61 @@ describe("waybackTimeline", () => {
     });
   });
 
+  it("returns the versions before slow metadata and shares the lookup", async () => {
+    const answer = route();
+    let release: () => void = () => {};
+    const slow = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mocks.fetchWithResilience.mockImplementation(async (input: string) => {
+      if (input.includes("Metadata_2025_r03")) await slow;
+      return answer(input);
+    });
+
+    const quick = await waybackTimeline(51.0504, 13.7373, 19, undefined, 10);
+
+    // All three versions are listed; the slow one without its date for now.
+    expect(quick.candidates.map((c) => c.capturedAt)).toEqual([
+      "2026-03-19",
+      null,
+      "2020-07-01",
+    ]);
+    expect(quick.pendingIds).toEqual([quick.candidates[1].id]);
+
+    const full = waybackTimeline(51.0504, 13.7373, 19);
+    // Once the full lookup waits for the metadata as well (the cache of
+    // these tests keeps nothing, so a finished lookup would be sent again).
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    release();
+    const timeline = await full;
+
+    expect(timeline.pendingIds).toBeUndefined();
+    expect(timeline.candidates.map((c) => c.capturedAt)).toEqual([
+      "2026-03-19",
+      "2024-06-11",
+      "2020-07-01",
+    ]);
+    const slowRequests = mocks.fetchWithResilience.mock.calls.filter(([url]) =>
+      String(url).includes("Metadata_2025_r03"),
+    );
+    expect(slowRequests).toHaveLength(1);
+  });
+
+  it("reports nothing pending when the metadata is there in time", async () => {
+    mocks.fetchWithResilience.mockImplementation(route());
+
+    const timeline = await waybackTimeline(
+      51.0504,
+      13.7373,
+      19,
+      undefined,
+      1_000,
+    );
+
+    expect(timeline.pendingIds).toBeUndefined();
+    expect(timeline.candidates.every((c) => c.capturedAt != null)).toBe(true);
+  });
+
   it("de-duplicates versions that show the same scene", async () => {
     SCENES["2025_r03_dup"] = SCENES["2026_r09"];
     mocks.fetchWithResilience.mockImplementation(

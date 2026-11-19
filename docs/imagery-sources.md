@@ -193,6 +193,14 @@ Implementation: `desktop-app/src/shared/imagery-wayback.ts` (URLs, parsing),
   number their layers 0–13 (1.9 cm to 150 m) instead of the live service's
   5–18, so the layer is `clamp(23 − zoom, 0, 13)`. Versions that show the same
   scene (same date, collection and resolution) are listed once.
+- **Slow metadata**: Esri's metadata service at times takes half a minute
+  per version. The image history in the location detail therefore asks for
+  a quick timeline first (`quick` on `imagery:timeline`): the versions are
+  returned 1.5 s after the tilemap walk with whatever metadata has arrived,
+  the rest are named in `pendingIds` and shown as placeholders. The full
+  lookup that follows waits for the same requests; none is sent twice.
+  Analyses (vehicle counts over time, site check) always use the full
+  lookup.
 - **Display**: a pinned version replaces the satellite basemap until the
   user returns to "Automatic". It is not persisted across restarts. The
   legend shows the capture date of the pinned version's image at the map

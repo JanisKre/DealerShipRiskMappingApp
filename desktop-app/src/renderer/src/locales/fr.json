@@ -999,7 +999,6 @@
       "kpiVehiclesDetectedOn": "comptés · image {{date}}",
       "kpiExposure": "Valeur des véhicules",
       "kpiExposurePerVehicle": "Ø {{value}} par véhicule",
-      "reanalyzing": "Analyse en cours…",
       "reanalyzingHint": "Image aérienne, limite, véhicules et EAL grêle sont recalculés. Cela prend en général 10 à 30 secondes.",
       "kpiExposureDeclared": "valeur déclarée à l’import",
       "previewCurrent": "Limite actuelle",
@@ -1272,10 +1271,11 @@
       "existingBusiness": "Portefeuille existant (bord bleu)",
       "newBusiness": "Affaire nouvelle (bord violet, +)",
       "imageryWaybackVersion": "Version Wayback",
+      "vehiclesByConfidence": "Véhicules selon la confiance",
       "confidence": {
-        "high": "Confiance à partir de {{min}} %",
-        "medium": "Confiance à partir de {{min}} %",
-        "low": "Confiance inférieure à 40 %"
+        "high": "à partir de {{min}} %",
+        "medium": "{{min}} à {{max}} %",
+        "low": "moins de {{max}} %"
       }
     },
     "locationsPanel": {

@@ -67,10 +67,11 @@ export function Disclosure({
       open={open}
       onToggle={(event) => {
         const next = event.currentTarget.open;
+        // Also when the caller opened it: the content stays from then on.
+        if (next) setMounted(true);
         if (next === open) return;
         setOwnOpen(next);
         onOpenChange?.(next);
-        if (next) setMounted(true);
       }}
     >
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md px-3 py-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">

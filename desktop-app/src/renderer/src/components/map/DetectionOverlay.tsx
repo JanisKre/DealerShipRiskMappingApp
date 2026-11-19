@@ -142,14 +142,17 @@ export function DetectionOverlay({
   const [view, setView] = useState<{ zoom: number; bounds: LatLngBounds }>(
     () => ({ zoom: map.getZoom(), bounds: map.getBounds() }),
   );
+  const neighbours =
+    !display.onlySelected && view.zoom >= ALL_DETECTIONS_MIN_ZOOM
+      ? view.bounds.pad(0.2)
+      : null;
   const drawn = dealerships.filter(
     (d) =>
       d.id === selected?.id ||
-      (!display.onlySelected &&
-        view.zoom >= ALL_DETECTIONS_MIN_ZOOM &&
+      (neighbours != null &&
         d.lat != null &&
         d.lon != null &&
-        view.bounds.pad(0.2).contains([d.lat, d.lon])),
+        neighbours.contains([d.lat, d.lon])),
   );
 
   function removePoint(
@@ -203,30 +206,25 @@ export function DetectionOverlay({
             ? removedPoints
             : (d.detection?.manualVehicleRemovedPoints ?? []);
         const boxes = d.detection?.boxes ?? [];
-        const footprints = footprintsOf(boxes);
+        const footprints = display.shape === "dot" ? null : footprintsOf(boxes);
         const reviewing = d.id === selected?.id && activeDraft != null;
         return boxes.flatMap((b, i) => {
           if (b.lat == null || b.lon == null) return [];
-          const { lat, lon } = b;
-          if (
-            dRemoved.some(
-              (removed) =>
-                Math.abs(removed.lat - lat) < 0.000001 &&
-                Math.abs(removed.lon - lon) < 0.000001,
-            )
-          )
-            return [];
+          const center = { lat: b.lat, lon: b.lon };
+          if (dRemoved.some((removed) => samePoint(removed, center))) return [];
           const color = detectionColor(display.color, b.score);
-          const footprint = display.shape === "dot" ? null : footprints[i];
+          const footprint = footprints?.[i];
+          let radius = DOT_RADIUS[display.dotSize];
           // Review clicks hit the center, so review keeps a visible dot.
-          const dot = !footprint || display.shape === "boxAndDot" || reviewing;
-          const out: React.JSX.Element[] = [];
-          if (footprint)
-            out.push(
+          if (reviewing) radius = Math.max(5, radius);
+          else if (footprint) radius = Math.min(2, radius);
+          return [
+            footprint && (
+              // Not interactive: a click goes through to the map below.
               <Polygon
                 key={`${d.id}-box-${i}`}
                 positions={footprint}
-                interactive={!activeDraft}
+                interactive={false}
                 pathOptions={{
                   color,
                   weight: 1.6,
@@ -234,29 +232,18 @@ export function DetectionOverlay({
                   fillColor: color,
                   fillOpacity: 0.12,
                 }}
-              />,
-            );
-          if (dot)
-            out.push(
+              />
+            ),
+            (!footprint || display.shape === "boxAndDot" || reviewing) && (
               <CircleMarker
                 key={`${d.id}-${i}`}
-                center={[lat, lon]}
-                radius={
-                  reviewing
-                    ? Math.max(5, DOT_RADIUS[display.dotSize])
-                    : footprint
-                      ? Math.min(2, DOT_RADIUS[display.dotSize])
-                      : DOT_RADIUS[display.dotSize]
-                }
+                center={[center.lat, center.lon]}
+                radius={radius}
                 interactive={!activeDraft}
-                pathOptions={{
-                  color,
-                  weight: 1,
-                  fillOpacity: 0.8,
-                }}
-              />,
-            );
-          return out;
+                pathOptions={{ color, weight: 1, fillOpacity: 0.8 }}
+              />
+            ),
+          ];
         });
       })}
 

@@ -488,7 +488,10 @@ export const ipcRequest = {
       })
       .optional(),
   }),
-  "imagery:timeline": ImageryViewRequestSchema,
+  "imagery:timeline": ImageryViewRequestSchema.extend({
+    /** Return the versions at once; capture dates may follow (pendingIds). */
+    quick: z.boolean().optional(),
+  }),
   "imagery:prefetch": z.object({
     lat: z.number().finite().min(-90).max(90),
     lon: z.number().finite().min(-180).max(180),

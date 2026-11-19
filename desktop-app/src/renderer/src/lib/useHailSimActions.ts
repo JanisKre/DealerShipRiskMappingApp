@@ -16,7 +16,11 @@ import {
   simulationEvidence,
   stormAlongPath,
 } from "@shared/hail-sim";
-import { useHailReplayStore } from "@renderer/store/hailReplayStore";
+import {
+  showCorridor,
+  showStorm,
+  useHailReplayStore,
+} from "@renderer/store/hailReplayStore";
 import { useAppStore } from "@renderer/store/appStore";
 import { SCENARIO_MODEL_VERSION } from "@renderer/components/map/ScenarioFromSentence";
 import { usePortfolioTargets } from "./useHailEventImpact";
@@ -109,7 +113,7 @@ export function useHailSimActions(): {
           await refresh();
           return;
         }
-        s.setDetail(loaded, autoplay);
+        showStorm(loaded, autoplay);
       } catch (error) {
         console.warn("Loading hail event failed", error);
         toast.error(t("hailReplay.eventFailed"));
@@ -155,12 +159,10 @@ export function useHailSimActions(): {
           : "hailReplay.simNameGermany",
         { seed },
       );
-      store
-        .getState()
-        .setDetail(
-          simulationDetail(`sim-${seed}`, "simulation", name, cells),
-          true,
-        );
+      showStorm(
+        simulationDetail(`sim-${seed}`, "simulation", name, cells),
+        true,
+      );
     },
     [nextSeed, store, t, targets],
   );
@@ -182,17 +184,15 @@ export function useHailSimActions(): {
         },
         random,
       );
-      store
-        .getState()
-        .setDetail(
-          simulationDetail(
-            `sim-${seed}`,
-            "simulation",
-            t("hailReplay.simNamePoint", { seed }),
-            cells,
-          ),
-          true,
-        );
+      showStorm(
+        simulationDetail(
+          `sim-${seed}`,
+          "simulation",
+          t("hailReplay.simNamePoint", { seed }),
+          cells,
+        ),
+        true,
+      );
       store.getState().setMapMode(null);
     },
     [nextSeed, store, t],
@@ -210,17 +210,15 @@ export function useHailSimActions(): {
         seed,
       );
       if (cells.length === 0) return;
-      store
-        .getState()
-        .setDetail(
-          simulationDetail(
-            `sim-${seed}`,
-            "drawn",
-            t("hailReplay.drawnName", { seed }),
-            cells,
-          ),
-          true,
-        );
+      showStorm(
+        simulationDetail(
+          `sim-${seed}`,
+          "drawn",
+          t("hailReplay.drawnName", { seed }),
+          cells,
+        ),
+        true,
+      );
       store.getState().setMapMode(null);
     },
     [nextSeed, store, t],
@@ -239,7 +237,7 @@ export function useHailSimActions(): {
       }
       if (path.length < 2) return;
       const current = useAppStore.getState().scenario;
-      useAppStore.getState().setScenario({
+      showCorridor({
         id: current?.id ?? crypto.randomUUID(),
         name: current?.name ?? t("map.page.defaultScenarioName"),
         pathCoordinates: path,

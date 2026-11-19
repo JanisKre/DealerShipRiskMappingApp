@@ -999,7 +999,6 @@
       "kpiVehiclesDetectedOn": "gezählt · Luftbild {{date}}",
       "kpiExposure": "Fahrzeugwert (Exposure)",
       "kpiExposurePerVehicle": "Ø {{value}} je Fahrzeug",
-      "reanalyzing": "Wird analysiert…",
       "reanalyzingHint": "Luftbild, Grundstücksgrenze, Fahrzeuge und Hagel-EAL werden neu berechnet. Das dauert meist 10–30 Sekunden.",
       "kpiExposureDeclared": "angegebener Wert aus dem Import",
       "previewCurrent": "Aktuelle Grenze",
@@ -1272,10 +1271,11 @@
       "existingBusiness": "Bestandsgeschäft (blauer Rand)",
       "newBusiness": "Neugeschäft (violetter Rand, +)",
       "imageryWaybackVersion": "Wayback-Version",
+      "vehiclesByConfidence": "Fahrzeuge nach Konfidenz",
       "confidence": {
-        "high": "Konfidenz ab {{min}} %",
-        "medium": "Konfidenz ab {{min}} %",
-        "low": "Konfidenz unter 40 %"
+        "high": "ab {{min}} %",
+        "medium": "{{min}} bis {{max}} %",
+        "low": "unter {{max}} %"
       }
     },
     "locationsPanel": {

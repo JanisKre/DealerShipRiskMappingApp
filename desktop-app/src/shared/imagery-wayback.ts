@@ -188,6 +188,11 @@ export const ImageryTimelineSchema = z.object({
   zoom: z.number().int(),
   /** True when older versions exist beyond the returned ones. */
   truncated: z.boolean(),
+  /**
+   * Versions whose capture metadata was still being fetched when a quick
+   * lookup returned: listed without date, resolution and source for now.
+   */
+  pendingIds: z.array(z.string()).optional(),
 });
 export type ImageryTimeline = z.infer<typeof ImageryTimelineSchema>;
 

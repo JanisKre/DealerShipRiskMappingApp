@@ -69,8 +69,7 @@ export function detectionColor(
   mode: DetectionColorMode,
   score: number,
 ): string {
-  if (mode === "blue") return DETECTION_COLORS.blue;
-  if (mode === "green") return DETECTION_COLORS.green;
+  if (mode !== "confidence") return DETECTION_COLORS[mode];
   const band =
     CONFIDENCE_BANDS.find((b) => score >= b.min) ?? CONFIDENCE_BANDS[2];
   return band.color;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AnalyzedDealership, BoundaryGeometry } from "@shared/types";
 import {
@@ -12,6 +12,7 @@ import {
   Polygon,
   TileLayer,
   useMap,
+  useMapEvents,
 } from "@renderer/components/map/leaflet-react";
 import {
   TILE_TEMPLATE_OPTIONS,
@@ -19,6 +20,13 @@ import {
   tileAttributions,
 } from "@renderer/components/map/basemapTiles";
 import { geometryBounds } from "@renderer/components/map/mapSelection";
+import {
+  CONFIDENCE_BANDS,
+  DETECTION_COLORS,
+  detectionColor,
+  DOT_RADIUS,
+} from "@renderer/lib/detectionDisplay";
+import { useMapStore } from "@renderer/store/mapStore";
 
 /** [lon,lat] rings → Leaflet [lat,lon] positions (Polygon or MultiPolygon). */
 function positionsOf(geometry: BoundaryGeometry): [number, number][][][] {
@@ -76,6 +84,52 @@ function FitTo({
   return null;
 }
 
+interface VehicleDot {
+  center: [number, number];
+  color: string;
+}
+
+/**
+ * The counted vehicles as dots no wider than a car at the preview's zoom:
+ * a large lot is shown from further away, and dots of one fixed size hid
+ * its image and its boundary under several hundred vehicles.
+ */
+function VehicleDots({
+  dots,
+}: Readonly<{ dots: VehicleDot[] }>): React.JSX.Element {
+  const map = useMap();
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
+  const metersPerPixel =
+    (156_543 * Math.cos((map.getCenter().lat * Math.PI) / 180)) / 2 ** zoom;
+  // About a car's width (2.2 m) across, within 0.8 px and the map's dot.
+  const radius = Math.min(
+    DOT_RADIUS.small,
+    Math.max(0.8, 1.1 / metersPerPixel),
+  );
+  // The white rim separates neighbours only while the dots have room.
+  const rim = radius >= 2;
+  return (
+    <>
+      {dots.map((dot, index) => (
+        <CircleMarker
+          key={index}
+          center={dot.center}
+          radius={radius}
+          interactive={false}
+          pathOptions={{
+            stroke: rim,
+            color: "#ffffff",
+            weight: 1,
+            fillColor: dot.color,
+            fillOpacity: 1,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 /**
  * The lot on its aerial image, inside the detail: the current boundary
  * solid, a suggestion being compared dashed, the counted vehicles as dots.
@@ -116,15 +170,26 @@ export function BoundaryPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [boundary, frame?.length],
   );
+  // Coloured as on the map (settings: blue, green or by confidence).
+  const colorMode = useMapStore((s) => s.detectionDisplay.color);
   const points = useMemo(
     () =>
-      (d.detection?.boxes ?? []).flatMap((box) =>
+      (d.detection?.boxes ?? []).flatMap((box): VehicleDot[] =>
         box.lat != null && box.lon != null
-          ? [[box.lat, box.lon] as [number, number]]
+          ? [
+              {
+                center: [box.lat, box.lon],
+                color: detectionColor(colorMode, box.score),
+              },
+            ]
           : [],
       ),
-    [d.detection],
+    [d.detection, colorMode],
   );
+  const legendColors =
+    colorMode === "confidence"
+      ? CONFIDENCE_BANDS.map((band) => band.color)
+      : [DETECTION_COLORS[colorMode]];
   if (!boundary || !current) return null;
   return (
     <figure className="space-y-1">
@@ -136,7 +201,9 @@ export function BoundaryPreview({
         zoomControl={false}
         attributionControl={false}
         scrollWheelZoom={false}
-        className="h-64 w-full overflow-hidden rounded-md border bg-muted"
+        // Isolated: Leaflet's panes carry z-indices of 200 and more, which
+        // otherwise paint the image over the dialog's sticky tab bar.
+        className="isolate h-64 w-full overflow-hidden rounded-md border bg-muted"
       >
         <TileLayer
           key={tiles.url}
@@ -169,20 +236,7 @@ export function BoundaryPreview({
             }}
           />
         )}
-        {points.map((point, index) => (
-          <CircleMarker
-            key={index}
-            center={point}
-            radius={2.5}
-            interactive={false}
-            pathOptions={{
-              color: "#ffffff",
-              weight: 1,
-              fillColor: "#2563eb",
-              fillOpacity: 1,
-            }}
-          />
-        ))}
+        <VehicleDots dots={points} />
         <FitTo geometries={fit} />
       </MapContainer>
       <figcaption className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
@@ -198,7 +252,15 @@ export function BoundaryPreview({
         )}
         {points.length > 0 && (
           <span className="inline-flex items-center gap-1">
-            <span className="inline-block size-1.5 rounded-full bg-[#2563eb]" />
+            <span className="inline-flex gap-0.5">
+              {legendColors.map((color) => (
+                <span
+                  key={color}
+                  className="inline-block size-1.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </span>
             {t("dashboard.detailDialog.previewVehicles", {
               count: points.length,
             })}

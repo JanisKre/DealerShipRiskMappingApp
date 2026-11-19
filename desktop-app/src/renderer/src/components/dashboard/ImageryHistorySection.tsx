@@ -57,7 +57,9 @@ export function ImageryHistorySection({
     () => ({ lat: d.lat, lon: d.lon, zoom: DETECTION_ZOOM }),
     [d.lat, d.lon],
   );
-  const { timeline, loading } = useImageryTimeline(point, true);
+  // The versions first; their capture dates can take a while (Esri).
+  const { timeline, loading } = useImageryTimeline(point, true, true);
+  const waiting = new Set(timeline?.pendingIds);
   const basis = d.detection?.imagery?.chosen;
   const countVehicleTimeline = useAppStore((s) => s.countVehicleTimeline);
   const [counting, setCounting] = useState(false);
@@ -135,26 +137,37 @@ export function ImageryHistorySection({
             <TableBody>
               {timeline.candidates.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="whitespace-nowrap font-medium">
-                    {c.capturedAt
-                      ? formatImageryDate(c.capturedAt, i18n.language)
-                      : t("map.legend.imageryUnknown")}
-                    {isCountBasis(c, basis) && (
-                      <Badge variant="outline" className="ml-1.5">
-                        {t("dashboard.detailDialog.imageryHistory.countBasis")}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {c.resolutionM != null
-                      ? formatMeters(c.resolutionM, i18n.language)
-                      : "–"}
-                  </TableCell>
-                  <TableCell className="max-w-40 truncate">
-                    {[c.esri?.collection, c.esri?.source]
-                      .filter(Boolean)
-                      .join(" · ") || "–"}
-                  </TableCell>
+                  {waiting.has(c.id) ? (
+                    // Date, resolution and source arrive together.
+                    <TableCell colSpan={3}>
+                      <Skeleton className="h-4 w-full max-w-64" />
+                    </TableCell>
+                  ) : (
+                    <>
+                      <TableCell className="whitespace-nowrap font-medium">
+                        {c.capturedAt
+                          ? formatImageryDate(c.capturedAt, i18n.language)
+                          : t("map.legend.imageryUnknown")}
+                        {isCountBasis(c, basis) && (
+                          <Badge variant="outline" className="ml-1.5">
+                            {t(
+                              "dashboard.detailDialog.imageryHistory.countBasis",
+                            )}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {c.resolutionM != null
+                          ? formatMeters(c.resolutionM, i18n.language)
+                          : "–"}
+                      </TableCell>
+                      <TableCell className="max-w-40 truncate">
+                        {[c.esri?.collection, c.esri?.source]
+                          .filter(Boolean)
+                          .join(" · ") || "–"}
+                      </TableCell>
+                    </>
+                  )}
                   <TableCell className="whitespace-nowrap text-muted-foreground">
                     {c.wayback
                       ? formatImageryDate(c.wayback.publishedAt, i18n.language)

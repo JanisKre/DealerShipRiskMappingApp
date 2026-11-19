@@ -120,6 +120,32 @@ the project follows [Semantic Versioning](https://semver.org/).
   a review for an old image). When the counted image already is the newest
   usable one, the strip recommends comparing in the history instead of a
   re-analysis that would pick the same image again.
+- "View image history" left the history at the bottom edge of the dialog:
+  the list loads after the section opens, and the dialog could not scroll
+  that far before. The section now moves up as it fills, until the user
+  scrolls or clicks.
+- Location detail dialog: the lot preview painted over the tab bar while
+  scrolling, text showed through above the bar's rounded corners, and the
+  label "Gelände & Fahrzeuge" ran to the edges of its tab.
+- Map legend with vehicles coloured by confidence: the three bands read
+  "60 % and above", "40 to 60 %" and "below 40 %" under one heading
+  instead of three wrapped lines, two of them with the same wording.
+- Vehicle boxes on the map no longer take clicks or the pointer; they are
+  display only.
+- The hail scenario panel re-rendered with every tick of a playing storm.
+- Image history: the versions are listed as soon as they are known, each
+  with its "Map" button; capture date, resolution and source follow per
+  version. Before, the whole list waited for Esri's metadata service, which
+  at times takes half a minute per version.
+- A storm and a static corridor no longer show at the same time, each with
+  a result card of its own over the map: a new storm takes the place of the
+  corridor and a drawn corridor the place of the storm.
+- Lot preview in the location detail: the vehicle dots are no wider than a
+  car at the preview's zoom, so a lot with several hundred vehicles is no
+  longer hidden under them, and they take the colour chosen for the map
+  (blue, green or by confidence).
+- "Re-analyse" in the location detail keeps its label while it runs; the
+  longer "Analysing…" pushed the address onto a second line.
 - The analysis progress showed location ids instead of names, and its text
   ran into the stop button.
 - The detection-model hint said no model was installed after one had been

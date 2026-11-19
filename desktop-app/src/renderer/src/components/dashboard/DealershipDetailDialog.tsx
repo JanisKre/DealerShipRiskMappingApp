@@ -255,12 +255,25 @@ function DetailBody({
     setTab("site");
     setHistoryOpen(true);
     // After the site tab and the opened section are rendered.
-    requestAnimationFrame(() =>
-      historyRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      }),
-    );
+    requestAnimationFrame(() => {
+      const section = historyRef.current;
+      if (!section) return;
+      // The history loads after it opens and the dialog cannot scroll that
+      // far before: bring it up again as it grows (the observer also fires
+      // once at the start), until the user scrolls or clicks themselves.
+      const follow = new ResizeObserver(() =>
+        section.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
+      follow.observe(section);
+      for (const type of ["wheel", "pointerdown", "keydown"]) {
+        // Capturing: the dialog keeps some of these events to itself.
+        window.addEventListener(type, () => follow.disconnect(), {
+          once: true,
+          passive: true,
+          capture: true,
+        });
+      }
+    });
   }
 
   // ←/→ step through the locations (or the review queue). Ignored while
@@ -422,11 +435,9 @@ function DetailBody({
               <RefreshCw
                 className={cn("size-3.5", reanalyzing && "animate-spin")}
               />
-              {t(
-                reanalyzing
-                  ? "dashboard.detailDialog.reanalyzing"
-                  : "map.page.reanalyze",
-              )}
+              {/* The same label while it runs (the line below says what
+                  happens): a longer one pushed the address onto two lines. */}
+              {t("map.page.reanalyze")}
             </Button>
             <Button
               size="sm"
@@ -576,7 +587,9 @@ function DetailBody({
         )}
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as DetailTab)}>
-          <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 shadow-[0_-1rem_0_0_var(--background)]">
+          {/* Columns as wide as their labels need; the strip above the bar
+              covers what scrolls through the container's top padding. */}
+          <TabsList className="sticky top-0 z-10 grid w-full grid-cols-[repeat(4,auto)] justify-stretch before:absolute before:inset-x-0 before:bottom-full before:h-4 before:bg-background">
             <TabsTrigger value="overview">
               {t("dashboard.detailDialog.tabOverview")}
             </TabsTrigger>
@@ -614,7 +627,7 @@ function DetailBody({
             <VehiclePanel d={d} />
             <DetectionImageryNote detection={d.detection} />
             <div className="space-y-2">
-              <div ref={historyRef} className="scroll-mt-12">
+              <div ref={historyRef} className="scroll-mt-16">
                 <Disclosure
                   title={t("dashboard.detailDialog.imageryHistoryToggle")}
                   open={historyOpen}

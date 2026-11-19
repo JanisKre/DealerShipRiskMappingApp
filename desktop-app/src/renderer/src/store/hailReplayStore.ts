@@ -8,6 +8,7 @@ import {
 import type { SimHeading, SimStrength } from "@shared/hail-sim";
 import type { HailstormScenario } from "@shared/types";
 import { RADAR_HAIL_RADIUS_KM } from "@shared/radar-hail";
+import { useAppStore } from "./appStore";
 
 /** Replay speeds: radar time per second of playback. */
 export const REPLAY_SPEEDS = [
@@ -167,3 +168,18 @@ export const useHailReplayStore = create<HailReplayState>((set) => ({
   setHistoricDay: (historicDay) => set({ historicDay }),
   setHistoricLoading: (historicLoading) => set({ historicLoading }),
 }));
+
+/**
+ * One hail scenario on the map at a time: a storm takes the place of the
+ * corridor and a corridor the place of the storm. Both at once stacked two
+ * result cards over the map, each with figures of its own.
+ */
+export function showStorm(detail: HailEventDetail, autoplay = false): void {
+  useAppStore.getState().setScenario(null);
+  useHailReplayStore.getState().setDetail(detail, autoplay);
+}
+
+export function showCorridor(corridor: HailstormScenario): void {
+  useHailReplayStore.getState().setDetail(null);
+  useAppStore.getState().setScenario(corridor);
+}

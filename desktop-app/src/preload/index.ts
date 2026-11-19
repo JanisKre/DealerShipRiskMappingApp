@@ -515,15 +515,21 @@ const api = {
       point,
     } satisfies IpcRequest["imagery:testCustom"]),
 
+  /**
+   * Dated Wayback versions at a point. With `quick`, the versions come at
+   * once and those still waiting for their capture date are in `pendingIds`.
+   */
   imageryTimeline: (
     lat: number,
     lon: number,
     zoom: number,
+    quick?: boolean,
   ): Promise<IpcResponse["imagery:timeline"]> =>
     ipcRenderer.invoke(IPC.imageryTimeline, {
       lat,
       lon,
       zoom,
+      quick,
     } satisfies IpcRequest["imagery:timeline"]),
 
   /** Loads the context image of a location into the tile cache, in the background. */
