@@ -3,7 +3,7 @@
 How the app decides where a dealership's operational lot is, how good that
 answer is, and how to measure whether a change made it better.
 
-This document covers the *lot boundary* only. The risk model that consumes the
+This document covers the _lot boundary_ only. The risk model that consumes the
 resulting area lives in [risk-model.md](risk-model.md); the vehicle detector
 that runs inside the boundary is in
 [detection-benchmark.md](detection-benchmark.md).
@@ -14,7 +14,7 @@ The **operational lot**: the contiguous area a dealership actually uses —
 display forecourt, customer and staff parking, workshop yard, and the buildings
 between them.
 
-It is deliberately *not*:
+It is deliberately _not_:
 
 - a **cadastral parcel**, which is a legal unit. Dealerships routinely occupy
   several adjacent parcels, or only part of one.
@@ -22,7 +22,7 @@ It is deliberately *not*:
 - a **single OSM parking polygon**, which is usually one bay of several.
 
 That gap is the central design constraint: the shape we want is normally the
-*union* of things several sources each describe partially, bounded by roads,
+_union_ of things several sources each describe partially, bounded by roads,
 fences and greenery. No source publishes it directly.
 
 ## Measuring quality
@@ -40,15 +40,15 @@ numbers across that date.
 
 Reported metrics come from `src/main/services/boundary-benchmark.ts`:
 
-| Metric | Reads as |
-| --- | --- |
-| mean IoU | overall shape agreement |
-| mean Boundary-F1 @ 2 m | how closely the *outline* tracks the reference |
-| mean coverage | share of the true lot that was captured; `1 − coverage` is the **missing share** |
-| coverage ≥ 90% rate | share of sites essentially fully captured |
-| mean excess share | area of the result outside the reference, as a share of the reference: **what was taken that is not the lot** |
-| mean area bias | `predicted/reference − 1`; **positive means too large** |
-| calibration MAE | how far stated confidence is from realised IoU |
+| Metric                 | Reads as                                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- |
+| mean IoU               | overall shape agreement                                                                                       |
+| mean Boundary-F1 @ 2 m | how closely the _outline_ tracks the reference                                                                |
+| mean coverage          | share of the true lot that was captured; `1 − coverage` is the **missing share**                              |
+| coverage ≥ 90% rate    | share of sites essentially fully captured                                                                     |
+| mean excess share      | area of the result outside the reference, as a share of the reference: **what was taken that is not the lot** |
+| mean area bias         | `predicted/reference − 1`; **positive means too large**                                                       |
+| calibration MAE        | how far stated confidence is from realised IoU                                                                |
 
 IoU and area bias mix two different faults. A result twice the size of the
 lot and a result half its size both score an IoU of 0.5; the missing share
@@ -58,11 +58,11 @@ and the excess share tell them apart, and they are what a reviewer sees as
 The replay and the live run also report what no overlap score shows
 (`replayDiagnostics`, `boundary/boundary-replay.ts`):
 
-| Diagnostic | Reads as |
-| --- | --- |
-| buildings cut by the outline | footprints of at least 50 m² with 15–85 % of their area inside the result — an outline that runs through a building |
-| reference vehicles inside | of the detected vehicles standing on the reference, how many the result holds |
-| result vehicles outside the reference | vehicles the result counts that are not the dealer's by the reference |
+| Diagnostic                            | Reads as                                                                                                            |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| buildings cut by the outline          | footprints of at least 50 m² with 15–85 % of their area inside the result — an outline that runs through a building |
+| reference vehicles inside             | of the detected vehicles standing on the reference, how many the result holds                                       |
+| result vehicles outside the reference | vehicles the result counts that are not the dealer's by the reference                                               |
 
 The vehicle figures matter most for the risk figure: what a dealership
 insures against hail is the stock standing outside, and the boundary's job
@@ -88,7 +88,7 @@ so a random split leaks.
 The benchmark calls detection with **coordinates only** — no name, no address —
 even though the fixtures carry both.
 
-That is not an oversight. The reference polygon *is* the OSM object; passing its
+That is not an oversight. The reference polygon _is_ the OSM object; passing its
 name to an address-matching provider would have that provider look up that exact
 object and hand it back, producing an IoU near 1.0 that measures nothing. The
 public set therefore scores the coordinate-only path, which is the honest
@@ -107,7 +107,7 @@ into a second evaluation set: each corrected site yields the polygon the engine
 produced and the polygon a human decided was right.
 
 This set is **biased** and must be reported separately. Users only correct
-boundaries they *noticed* were wrong, so it over-represents visible failures
+boundaries they _noticed_ were wrong, so it over-represents visible failures
 and is silent about boundaries that were quietly wrong. It is also
 customer-derived: the script refuses to write anywhere inside the git working
 tree, and `*.local.json` is gitignored.
@@ -118,15 +118,15 @@ Measured on the 17-site public set (version 1, with its eight roof
 references), engine as of v0.2.1. Recorded in
 `resources/benchmarks/boundary-baseline.json`.
 
-| | all (n=17) | tuning (n=13) | hold-out (n=4) |
-| --- | --- | --- | --- |
-| mean IoU | 0.331 | 0.334 | 0.323 |
-| mean Boundary-F1 | 0.181 | 0.215 | 0.073 |
-| mean coverage | 0.677 | 0.664 | 0.718 |
-| coverage ≥ 90% | 0.294 | 0.308 | 0.250 |
-| outline within 2 m | 0.059 | 0.077 | 0.000 |
-| mean area bias | +0.900 | +0.772 | +1.317 |
-| calibration MAE | 0.399 | 0.394 | 0.413 |
+|                    | all (n=17) | tuning (n=13) | hold-out (n=4) |
+| ------------------ | ---------- | ------------- | -------------- |
+| mean IoU           | 0.331      | 0.334         | 0.323          |
+| mean Boundary-F1   | 0.181      | 0.215         | 0.073          |
+| mean coverage      | 0.677      | 0.664         | 0.718          |
+| coverage ≥ 90%     | 0.294      | 0.308         | 0.250          |
+| outline within 2 m | 0.059      | 0.077         | 0.000          |
+| mean area bias     | +0.900     | +0.772        | +1.317         |
+| calibration MAE    | 0.399      | 0.394         | 0.413          |
 
 Read plainly: the predicted lot overlaps the true lot by about a third, is on
 average **90% too large**, its outline is almost never within 2 m, and
@@ -139,7 +139,7 @@ service), `synthetic` — the 100 m fallback octagon — on the remaining 6.
 ## Findings this baseline exposed
 
 **1. The OSM semantic provider returned nothing, ever.** The reference
-polygons in the benchmark *are* OSM `shop=car` ways; the pipeline queries OSM
+polygons in the benchmark _are_ OSM `shop=car` ways; the pipeline queries OSM
 for exactly that tag; and it still never produced a candidate.
 
 The cause is the Overpass output statement. `fromOsm` ended its query with
@@ -238,13 +238,13 @@ is exactly what the aerial image shows. The analysis detects the vehicles anyway
 
 Each stage has **one acceptance rule**, and the first stage that accepts wins.
 
-| Stage | Result | Accepted when | Confidence |
-| --- | --- | --- | --- |
-| 1 | Parcel at the point plus every adjacent parcel (shared edge) on which ≥ 10 lot vehicles stand; grows parcel by parcel | a vehicle lot exists, the parcel at the point is ≤ 30,000 m² | 0.75 when the parcels hold ≥ 80 % of the lot vehicles, else 0.6 |
-| 2 | Outline of the vehicle lot | no usable parcel at the point, ≥ 20 lot vehicles | 0.55 |
-| 3 | OSM dealer area — only when OSM is already cached | contains the point, or matches name/address within `boundaryNearPointDistanceM` | 0.45–0.65 |
-| 4 | Parcel at the point | no vehicle lot seen, 300–30,000 m² | 0.4 |
-| 5 | Synthetic circle of `syntheticBoundaryRadiusM` | always | 0.1 |
+| Stage | Result                                                                                                                | Accepted when                                                                   | Confidence                                                      |
+| ----- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 1     | Parcel at the point plus every adjacent parcel (shared edge) on which ≥ 10 lot vehicles stand; grows parcel by parcel | a vehicle lot exists, the parcel at the point is ≤ 30,000 m²                    | 0.75 when the parcels hold ≥ 80 % of the lot vehicles, else 0.6 |
+| 2     | Outline of the vehicle lot                                                                                            | no usable parcel at the point, ≥ 20 lot vehicles                                | 0.55                                                            |
+| 3     | OSM dealer area — only when OSM is already cached                                                                     | contains the point, or matches name/address within `boundaryNearPointDistanceM` | 0.45–0.65                                                       |
+| 4     | Parcel at the point                                                                                                   | no vehicle lot seen, 300–30,000 m²                                              | 0.4                                                             |
+| 5     | Synthetic circle of `syntheticBoundaryRadiusM`                                                                        | always                                                                          | 0.1                                                             |
 
 **Vehicle lot.** Vehicles within 80 m of the point are clustered by single
 linkage with gaps of at most 12 m: a parking row links across an aisle, a lot
@@ -285,11 +285,11 @@ adjacent parcel(s) hold 67 of 69 lot vehicles (97%)".
 `npm run benchmark:boundary`, 17 public sites, 10 November 2026. Each site ran
 like an analysis: context image, detection, boundary; OSM not cached.
 
-| | mean IoU, all | tuning (13) | hold-out (4) | mean area bias |
-| --- | --- | --- | --- | --- |
-| Cascade v1 (reference hidden, OSM partly reachable) | 0.298 | 0.290 | 0.323 | 0.86 |
-| Parcel or circle only (v2 without vehicles) | 0.322 | 0.322 | 0.323 | 0.91 |
-| **Cascade v2** | **0.446** | **0.474** | **0.358** | 1.02 |
+|                                                     | mean IoU, all | tuning (13) | hold-out (4) | mean area bias |
+| --------------------------------------------------- | ------------- | ----------- | ------------ | -------------- |
+| Cascade v1 (reference hidden, OSM partly reachable) | 0.298         | 0.290       | 0.323        | 0.86           |
+| Parcel or circle only (v2 without vehicles)         | 0.322         | 0.322       | 0.323        | 0.91           |
+| **Cascade v2**                                      | **0.446**     | **0.474**   | **0.358**    | 1.02           |
 
 Winning stage: 11 sites parcels with vehicles, 4 vehicle outlines, 2 circles.
 Vehicle parcels lifted the sites where the lot spans several plots the most
@@ -335,13 +335,13 @@ fully held. `synthetic-calibration.test.ts` recomputes this offline on
 every test run and pins the default, and checks the formula against the
 octagon that is actually drawn.
 
-| Corner radius | Sites fully held |
-| --- | --- |
-| 100 m (default until November 2026) | 6 of 17 (35 %) |
-| 120 m | 10 of 17 (59 %) |
-| 150 m | 14 of 17 (82 %) |
-| **160 m (default)** | **16 of 17 (94 %)** |
-| 240 m | 17 of 17 |
+| Corner radius                       | Sites fully held    |
+| ----------------------------------- | ------------------- |
+| 100 m (default until November 2026) | 6 of 17 (35 %)      |
+| 120 m                               | 10 of 17 (59 %)     |
+| 150 m                               | 14 of 17 (82 %)     |
+| **160 m (default)**                 | **16 of 17 (94 %)** |
+| 240 m                               | 17 of 17            |
 
 Radius needed per site (m, sorted): 57, 72, 76, 79, 81, 95, 103, 110, 110,
 119, 128, 141, 148, 150, 155, 159, 230. The one site above 160 m is a
@@ -351,14 +351,14 @@ Radius needed per site (m, sorted): 57, 72, 76, 79, 81, 95, 103, 110, 110,
 above included eight showroom roofs, which are small and easy to hold. On
 the 76 lots of version 2:
 
-| Corner radius | Sites fully held |
-| --- | --- |
-| 100 m | 34 of 76 (45 %) |
-| 120 m | 44 of 76 (58 %) |
-| 150 m | 61 of 76 (80 %) |
+| Corner radius       | Sites fully held    |
+| ------------------- | ------------------- |
+| 100 m               | 34 of 76 (45 %)     |
+| 120 m               | 44 of 76 (58 %)     |
+| 150 m               | 61 of 76 (80 %)     |
 | **160 m (default)** | **66 of 76 (87 %)** |
-| 190 m | 70 of 76 (92 %) |
-| 240 m | 76 of 76 |
+| 190 m               | 70 of 76 (92 %)     |
+| 240 m               | 76 of 76            |
 
 The default therefore misses the 90 % target by three points; 190 m would
 reach it. It has not been changed: a 190 m octagon is 41 % larger again
@@ -394,17 +394,17 @@ where listed here.
 
 ### What changed and why
 
-| # | Change | Where | Failure it addresses |
-| --- | --- | --- | --- |
-| P1 | **Complete cadastre.** Parcel queries page with `startIndex` (up to 4 × 250 features). A page that adds nothing new means the service ignores paging (Niedersachsen does); then a second query with 100 m radius is merged in. `completeRadiusM` records how far the answer is complete; a capped answer without the parcel at the point flags `cadastreIncomplete`. | `alkis.service.ts` `fetchParcelRings`, `fetchParcelsNear` | 27 of 57 cached NRW answers were capped at 250 parcels; in 7 the parcel at the point was missing and the cascade fell back to the outline or the circle. |
-| P2 | **Street test by length.** A parcel is street-like only when 2·area/perimeter < 20 m *and* its minimum bounding rectangle is longer than 150 m (or 2·area/perimeter < 10 m). | `cascade.ts` `isStreetLike` | The old elongation test rejected L-shaped and deep yards (39 × 97 m with 64 dealer cars). |
-| P3 | **Empty-parcel test.** An adjacent parcel joins only with at least 3 (5 above 10,000 m² unbuilt since v4) lot vehicles per 1,000 m² of its *unbuilt* area (parcel minus building footprints, at least 20 % of the parcel). | `vehicleParcelStage`, `unbuiltAreaSqm` | A 12,000 m² meadow joined because ten cars stood at its edge (confidence 0.75). A plain density rule was rejected: it drops showroom parcels, which are mostly roof. |
-| P3b | **Small lots.** The join threshold is 10 vehicles or 30 % of the lot, whichever is smaller (at least 3). | `vehicleParcelStage` | A small dealer's yard never holds ten cars; the result was the building parcel alone. |
-| P4 | **Named review reasons and calibrated outside rule.** `boundaryReviewReasons` returns why a result needs review (`synthetic`, `lowConfidence`, `pointOutside`, `vehiclesOutside`, `cadastreIncomplete`, `noLotAtPoint`, `winterImagery`, `legacyEngine`); the detail dialog shows them. With a known lot size, vehicles outside count only as ≥ 10 *and* ≥ 15 % of the lot; vehicles on street-like parcels never count. The outline's confidence drops from 0.55 to 0.45. Winter imagery (November–February) sends a result to review. | `shared/boundary-review.ts`, `finalizeCascadeResult`, `analyze.service.ts` | 44 of 61 portfolio results were flagged by the same two signals; the outline scored a mean IoU of 0.23 at confidence 0.55. |
-| P5 | **Anchor reach.** A cluster belongs to the lot within 40 m of the point (was 25 m), or within 25 m of the edge of the building the point lies in. Detected vehicles without any lot at the point flag `noLotAtPoint`. | `vehicleLot`, `runCascade` | A point on a 50–80 m showroom roof reached the cars on one side only, or none. |
-| P6 | **Parking decks and footprint timing.** A roof with ≥ 15 detections at ≤ 60 m² each is a parking deck and is not masked. The analysis waits up to 5 s for official footprints after detection (`OFFICIAL_BUILDINGS_WAIT_MS`) instead of skipping them when they arrive late. | `roof-mask.ts`, `roof-mask.service.ts`, `analyze.service.ts` | A dealer's rotunda deck (≈ 100 cars) was masked whole; whether footprints were used depended on timing. |
-| P7 | **Bounded lot extension.** After the parcel growth, clusters up to 160 m from the point join the lot if they continue it or stand on its parcels, and growth runs once more. The result is taken when it adds at most 25 % area; a larger jump is offered as an alternative. A lot that touches the image edge (≥ 3 vehicles within 15 m of it) triggers one wider capture (190 m instead of 125 m). | `extendLot`, `vehicleParcelStage`, `lotReachesImageEdge` | A 122-car car park 113 m from the point was cut off. An unbounded extension was rejected: it chained into neighbouring businesses (7,070 → 51,678 m²). |
-| P8 | **Outline with buildings.** The vehicle outline adds every building of which half the footprint or half the outline lies within 20 m of the lot vehicles, fills holes, removes street-like parcels and drops parts without lot vehicles. | `vehicleHullStage`, `completeOutline` | The outline ringed the showroom without including it (IoU 0.03) and followed kerbside cars into the road. |
+| #   | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Where                                                                      | Failure it addresses                                                                                                                                                 |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1  | **Complete cadastre.** Parcel queries page with `startIndex` (up to 4 × 250 features). A page that adds nothing new means the service ignores paging (Niedersachsen does); then a second query with 100 m radius is merged in. `completeRadiusM` records how far the answer is complete; a capped answer without the parcel at the point flags `cadastreIncomplete`.                                                                                                                                                                    | `alkis.service.ts` `fetchParcelRings`, `fetchParcelsNear`                  | 27 of 57 cached NRW answers were capped at 250 parcels; in 7 the parcel at the point was missing and the cascade fell back to the outline or the circle.             |
+| P2  | **Street test by length.** A parcel is street-like only when 2·area/perimeter < 20 m _and_ its minimum bounding rectangle is longer than 150 m (or 2·area/perimeter < 10 m).                                                                                                                                                                                                                                                                                                                                                            | `cascade.ts` `isStreetLike`                                                | The old elongation test rejected L-shaped and deep yards (39 × 97 m with 64 dealer cars).                                                                            |
+| P3  | **Empty-parcel test.** An adjacent parcel joins only with at least 3 (5 above 10,000 m² unbuilt since v4) lot vehicles per 1,000 m² of its _unbuilt_ area (parcel minus building footprints, at least 20 % of the parcel).                                                                                                                                                                                                                                                                                                              | `vehicleParcelStage`, `unbuiltAreaSqm`                                     | A 12,000 m² meadow joined because ten cars stood at its edge (confidence 0.75). A plain density rule was rejected: it drops showroom parcels, which are mostly roof. |
+| P3b | **Small lots.** The join threshold is 10 vehicles or 30 % of the lot, whichever is smaller (at least 3).                                                                                                                                                                                                                                                                                                                                                                                                                                | `vehicleParcelStage`                                                       | A small dealer's yard never holds ten cars; the result was the building parcel alone.                                                                                |
+| P4  | **Named review reasons and calibrated outside rule.** `boundaryReviewReasons` returns why a result needs review (`synthetic`, `lowConfidence`, `pointOutside`, `vehiclesOutside`, `cadastreIncomplete`, `noLotAtPoint`, `winterImagery`, `legacyEngine`); the detail dialog shows them. With a known lot size, vehicles outside count only as ≥ 10 _and_ ≥ 15 % of the lot; vehicles on street-like parcels never count. The outline's confidence drops from 0.55 to 0.45. Winter imagery (November–February) sends a result to review. | `shared/boundary-review.ts`, `finalizeCascadeResult`, `analyze.service.ts` | 44 of 61 portfolio results were flagged by the same two signals; the outline scored a mean IoU of 0.23 at confidence 0.55.                                           |
+| P5  | **Anchor reach.** A cluster belongs to the lot within 40 m of the point (was 25 m), or within 25 m of the edge of the building the point lies in. Detected vehicles without any lot at the point flag `noLotAtPoint`.                                                                                                                                                                                                                                                                                                                   | `vehicleLot`, `runCascade`                                                 | A point on a 50–80 m showroom roof reached the cars on one side only, or none.                                                                                       |
+| P6  | **Parking decks and footprint timing.** A roof with ≥ 15 detections at ≤ 60 m² each is a parking deck and is not masked. The analysis waits up to 5 s for official footprints after detection (`OFFICIAL_BUILDINGS_WAIT_MS`) instead of skipping them when they arrive late.                                                                                                                                                                                                                                                            | `roof-mask.ts`, `roof-mask.service.ts`, `analyze.service.ts`               | A dealer's rotunda deck (≈ 100 cars) was masked whole; whether footprints were used depended on timing.                                                              |
+| P7  | **Bounded lot extension.** After the parcel growth, clusters up to 160 m from the point join the lot if they continue it or stand on its parcels, and growth runs once more. The result is taken when it adds at most 25 % area; a larger jump is offered as an alternative. A lot that touches the image edge (≥ 3 vehicles within 15 m of it) triggers one wider capture (190 m instead of 125 m).                                                                                                                                    | `extendLot`, `vehicleParcelStage`, `lotReachesImageEdge`                   | A 122-car car park 113 m from the point was cut off. An unbounded extension was rejected: it chained into neighbouring businesses (7,070 → 51,678 m²).               |
+| P8  | **Outline with buildings.** The vehicle outline adds every building of which half the footprint or half the outline lies within 20 m of the lot vehicles, fills holes, removes street-like parcels and drops parts without lot vehicles.                                                                                                                                                                                                                                                                                                | `vehicleHullStage`, `completeOutline`                                      | The outline ringed the showroom without including it (IoU 0.03) and followed kerbside cars into the road.                                                            |
 
 ### Data sources
 
@@ -429,12 +429,12 @@ Replay of the frozen inputs of the audit's 15 sites
 because eight sites come from a customer portfolio). The seven public
 fixtures have a reference; imagery as in the app (`auto`).
 
-| | v2 | v3 |
-| --- | --- | --- |
-| mean IoU, 7 fixtures | 0.367 | **0.539** |
-| Kassel / Hannover / Dortmund / Dresden | 0.59 / 0.47 / 0.03 / 0.81 | 0.76 / 0.90 / 0.52 / 0.94 |
-| München / Nürnberg (no cadastre, no footprints) | 0.11 / 0.09 | unchanged |
-| portfolio results that changed visibly | — | 6 of 8 (Bergisch Gladbach, Hennef, Troisdorf, Rheine improved; Düsseldorf and Hamburg unchanged, extension offered as an alternative) |
+|                                                 | v2                        | v3                                                                                                                                    |
+| ----------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| mean IoU, 7 fixtures                            | 0.367                     | **0.539**                                                                                                                             |
+| Kassel / Hannover / Dortmund / Dresden          | 0.59 / 0.47 / 0.03 / 0.81 | 0.76 / 0.90 / 0.52 / 0.94                                                                                                             |
+| München / Nürnberg (no cadastre, no footprints) | 0.11 / 0.09               | unchanged                                                                                                                             |
+| portfolio results that changed visibly          | —                         | 6 of 8 (Bergisch Gladbach, Hennef, Troisdorf, Rheine improved; Düsseldorf and Hamburg unchanged, extension offered as an alternative) |
 
 Public benchmark, all 17 fixtures, 13 November 2026, imagery `auto`, roof
 mask on (`npm run benchmark:boundary`): v3 scores **0.451** mean IoU
@@ -479,17 +479,17 @@ states (13 November 2026, imagery `auto`) judged 16 boundaries plausible,
 as were 9 of the 16 plausible ones. It found patterns the first audit had
 not shown; v4 addresses three of them.
 
-| Change | Where | Failure it addresses |
-| --- | --- | --- |
-| **Field strips.** A street-like parcel with at least two parallel (≤ 15°) street-like neighbours is a field strip, not a street. A point on a field strip declines stage 1, so the vehicle outline (with buildings) is used. Field strips are not removed from outlines; they still never join a parcel union, and their vehicles, like kerbside ones, do not count as outside vehicles. | `isFieldStrip`, `streetParcels`, `vehicleParcelStage`, `completeOutline` | A dealership across five 10–15 m strips (Sachsen-Anhalt) became one strip running 150 m into the field; the neighbouring strips with 21 cars counted as streets. |
-| **Point off the lot.** When the parcel at the point holds under 25 % and the result under 50 % of the lot vehicles that are not on a street, the result is kept but flagged `anchorOffLot`, and the parcels grown from the parcel holding most of the lot are offered as an alternative. | `anchorOffLot` in `cascade.ts` | The point lay on a warehouse holding 3 of 18 lot vehicles, or in a row of houses on a main road; the only review reason was "low confidence". |
-| **Stale imagery.** Imagery four or more years old sends the result to review (`staleImagery`, `STALE_IMAGERY_REVIEW_YEARS`). | `analyze.service.ts` | Sachsen-Anhalt fell back to 2020 Esri imagery showing a construction site. |
-| **Empty-parcel test for large areas:** 5 instead of 3 lot vehicles per 1,000 m² when a parcel's unbuilt area exceeds 10,000 m². | `CASCADE_LIMITS.parcelMinVehiclesPer1000SqmLarge`, `largeUnbuiltSqm` | In the 50-site run a 13,900 m² sand lot with 49 scattered detections (3.5 per 1,000 m²) joined a Berlin dealership at confidence 0.75; real yards stand at 20–70. Rejected alternatives: a global 5 cut a dealer's own yard where the lot reached only part of its rows; counting every vehicle on the parcel let dense inner-city street parking join (Hannover 0.90 → 0.34). |
-| **Building at the point in the outline:** the building the point lies in, with the buildings attached to it (≤ 1 m), joins the vehicle outline (up to 30,000 m²). | `completeOutline`, `buildingComplex` | The point is the dealership's address or POI; its building is the showroom. Bayern fixtures: Munich 0.13 → 0.53, Nuremberg 0.06 → 0.61 IoU (with LoD2 footprints); no other fixture changes. |
-| **Building footprints for Bayern** from the open LoD2 model, read by 2 km tile. | `bavaria-lod2.service.ts` | Bayern had no footprints, so outlines left showrooms out (C-shapes, split parts). Now all 14 audited Bayern sites get 45–409 footprints. |
-| **Traffic areas for Bayern** from the free ALKIS land-use map (WMS `geoservices.bayern.de/od/wms/alkis/v1/tn`, layer `by_alkis_tn_verkehr`, CC BY 4.0), rendered at 1 m per pixel where no parcels exist; the outline is cut back there and kerbside cars on it do not count as outside vehicles. | `bavaria-landuse.service.ts`, `CascadeInput.isStreetAt` | Without parcels the outline ran across roads (Bayern). The layer also contains public squares and rail, which are not dealership land either. |
-| **Minimum area in stage 1:** a parcel at the point under 300 m² with nothing joined declines stage 1. | `vehicleParcelStage` | A 128 m² town-centre plot was returned as the lot. |
-| Bounding-box pre-check for parcel adjacency. | `isAdjacent` | Field-strip detection compares parcels pairwise; with the pre-check the cascade is faster than v3 on the replayed sites. |
+| Change                                                                                                                                                                                                                                                                                                                                                                                   | Where                                                                    | Failure it addresses                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Field strips.** A street-like parcel with at least two parallel (≤ 15°) street-like neighbours is a field strip, not a street. A point on a field strip declines stage 1, so the vehicle outline (with buildings) is used. Field strips are not removed from outlines; they still never join a parcel union, and their vehicles, like kerbside ones, do not count as outside vehicles. | `isFieldStrip`, `streetParcels`, `vehicleParcelStage`, `completeOutline` | A dealership across five 10–15 m strips (Sachsen-Anhalt) became one strip running 150 m into the field; the neighbouring strips with 21 cars counted as streets.                                                                                                                                                                                                               |
+| **Point off the lot.** When the parcel at the point holds under 25 % and the result under 50 % of the lot vehicles that are not on a street, the result is kept but flagged `anchorOffLot`, and the parcels grown from the parcel holding most of the lot are offered as an alternative.                                                                                                 | `anchorOffLot` in `cascade.ts`                                           | The point lay on a warehouse holding 3 of 18 lot vehicles, or in a row of houses on a main road; the only review reason was "low confidence".                                                                                                                                                                                                                                  |
+| **Stale imagery.** Imagery four or more years old sends the result to review (`staleImagery`, `STALE_IMAGERY_REVIEW_YEARS`).                                                                                                                                                                                                                                                             | `analyze.service.ts`                                                     | Sachsen-Anhalt fell back to 2020 Esri imagery showing a construction site.                                                                                                                                                                                                                                                                                                     |
+| **Empty-parcel test for large areas:** 5 instead of 3 lot vehicles per 1,000 m² when a parcel's unbuilt area exceeds 10,000 m².                                                                                                                                                                                                                                                          | `CASCADE_LIMITS.parcelMinVehiclesPer1000SqmLarge`, `largeUnbuiltSqm`     | In the 50-site run a 13,900 m² sand lot with 49 scattered detections (3.5 per 1,000 m²) joined a Berlin dealership at confidence 0.75; real yards stand at 20–70. Rejected alternatives: a global 5 cut a dealer's own yard where the lot reached only part of its rows; counting every vehicle on the parcel let dense inner-city street parking join (Hannover 0.90 → 0.34). |
+| **Building at the point in the outline:** the building the point lies in, with the buildings attached to it (≤ 1 m), joins the vehicle outline (up to 30,000 m²).                                                                                                                                                                                                                        | `completeOutline`, `buildingComplex`                                     | The point is the dealership's address or POI; its building is the showroom. Bayern fixtures: Munich 0.13 → 0.53, Nuremberg 0.06 → 0.61 IoU (with LoD2 footprints); no other fixture changes.                                                                                                                                                                                   |
+| **Building footprints for Bayern** from the open LoD2 model, read by 2 km tile.                                                                                                                                                                                                                                                                                                          | `bavaria-lod2.service.ts`                                                | Bayern had no footprints, so outlines left showrooms out (C-shapes, split parts). Now all 14 audited Bayern sites get 45–409 footprints.                                                                                                                                                                                                                                       |
+| **Traffic areas for Bayern** from the free ALKIS land-use map (WMS `geoservices.bayern.de/od/wms/alkis/v1/tn`, layer `by_alkis_tn_verkehr`, CC BY 4.0), rendered at 1 m per pixel where no parcels exist; the outline is cut back there and kerbside cars on it do not count as outside vehicles.                                                                                        | `bavaria-landuse.service.ts`, `CascadeInput.isStreetAt`                  | Without parcels the outline ran across roads (Bayern). The layer also contains public squares and rail, which are not dealership land either.                                                                                                                                                                                                                                  |
+| **Minimum area in stage 1:** a parcel at the point under 300 m² with nothing joined declines stage 1.                                                                                                                                                                                                                                                                                    | `vehicleParcelStage`                                                     | A 128 m² town-centre plot was returned as the lot.                                                                                                                                                                                                                                                                                                                             |
+| Bounding-box pre-check for parcel adjacency.                                                                                                                                                                                                                                                                                                                                             | `isAdjacent`                                                             | Field-strip detection compares parcels pairwise; with the pre-check the cascade is faster than v3 on the replayed sites.                                                                                                                                                                                                                                                       |
 
 Replayed on the frozen inputs of all 107 sites so far (15 + 25 + 50 audit
 sites, 17 public fixtures), v4 against v3: the German fixtures move from
@@ -556,12 +556,12 @@ captured live on 13 November 2026, imagery `auto`) traced this to three
 stage-1 rules, each of which v8 relaxes. The stage order and acceptance
 rules are unchanged.
 
-| Change | Where | Failure it addresses |
-| --- | --- | --- |
-| **Small dense parcels.** An adjacent parcel also joins with fewer than 10 lot vehicles when it holds at least 5 and at least 8 per 1,000 m² of its unbuilt area. | `parcelDenseMinVehicles`, `parcelDenseVehiclesPer1000Sqm` | A 970 m² corner of a yard with five cars was cut out as a notch; the user's manual correction of that site included it. Half a forecourt (26 and 5 cars on two plots) was missing at another site. With 3 vehicles, an apartment block whose courtyard held three cars joined; 5 keeps it out. |
-| **Parking strips.** A parcel that is street-like only because it is narrow (bounding length ≤ 150 m) joins when at least 15 lot vehicles stand per 1,000 m² of it. It is a leaf: nothing grows on from it, so a strip cannot lead the lot along a road. Field strips qualify too. The minimum area of stage 1 counts only the parcel at the point and parcels joined by their vehicles. | `isShortStrip`, `stripMinVehiclesPer1000Sqm` | A 607 m² L-shaped corner with 26 cars counted as a street, so the result was the 538 m² building plot (Dresden). Display rows along a ramp or a highway sat on strips of their own. Measured on the whole strip, not its unbuilt area: a driveway with a building and six cars at its edge otherwise reached the threshold. |
-| **Enclosed parcels.** A parcel of which at least 75 % of the outline borders the parcels already chosen joins whatever stands on it, up to half the lot's area. Long streets never join. | `enclosedMinShare`, `enclosedMaxShareOfLot`, `borderShare` | Workshop buildings and narrow plots inside a dealer block were left out as holes or slots. 50 % was tried and rejected: it took in a residential house, a meadow and a belt of trees beside three lots. |
-| **No holes.** Interior rings of the parcel union are dropped. | `withoutHoles` | Slivers and plots left out for their size between the chosen parcels. |
+| Change                                                                                                                                                                                                                                                                                                                                                                                  | Where                                                      | Failure it addresses                                                                                                                                                                                                                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Small dense parcels.** An adjacent parcel also joins with fewer than 10 lot vehicles when it holds at least 5 and at least 8 per 1,000 m² of its unbuilt area.                                                                                                                                                                                                                        | `parcelDenseMinVehicles`, `parcelDenseVehiclesPer1000Sqm`  | A 970 m² corner of a yard with five cars was cut out as a notch; the user's manual correction of that site included it. Half a forecourt (26 and 5 cars on two plots) was missing at another site. With 3 vehicles, an apartment block whose courtyard held three cars joined; 5 keeps it out.                              |
+| **Parking strips.** A parcel that is street-like only because it is narrow (bounding length ≤ 150 m) joins when at least 15 lot vehicles stand per 1,000 m² of it. It is a leaf: nothing grows on from it, so a strip cannot lead the lot along a road. Field strips qualify too. The minimum area of stage 1 counts only the parcel at the point and parcels joined by their vehicles. | `isShortStrip`, `stripMinVehiclesPer1000Sqm`               | A 607 m² L-shaped corner with 26 cars counted as a street, so the result was the 538 m² building plot (Dresden). Display rows along a ramp or a highway sat on strips of their own. Measured on the whole strip, not its unbuilt area: a driveway with a building and six cars at its edge otherwise reached the threshold. |
+| **Enclosed parcels.** A parcel of which at least 75 % of the outline borders the parcels already chosen joins whatever stands on it, up to half the lot's area. Long streets never join.                                                                                                                                                                                                | `enclosedMinShare`, `enclosedMaxShareOfLot`, `borderShare` | Workshop buildings and narrow plots inside a dealer block were left out as holes or slots. 50 % was tried and rejected: it took in a residential house, a meadow and a belt of trees beside three lots.                                                                                                                     |
+| **No holes.** Interior rings of the parcel union are dropped.                                                                                                                                                                                                                                                                                                                           | `withoutHoles`                                             | Slivers and plots left out for their size between the chosen parcels.                                                                                                                                                                                                                                                       |
 
 The trace names what joined, for example "parcel at the point + 4 adjacent
 parcel(s) (1 parking strip(s), 2 enclosed)".
@@ -570,12 +570,12 @@ parcel(s) (1 parking strip(s), 2 enclosed)".
 
 All on frozen inputs, v7 against v8, so the difference is the rules alone.
 
-| | v7 | v8 |
-| --- | --- | --- |
-| 88-site check: results that change | — | 24 (all stage 1, all larger: +1 % to +128 %) |
-| Manually corrected site (IoU against the correction) | 0.72 | **0.86** |
-| 17 public fixtures, mean IoU | 0.509 | 0.512 |
-| Results flagged for review, 88 sites | 38 | 35 |
+|                                                      | v7    | v8                                           |
+| ---------------------------------------------------- | ----- | -------------------------------------------- |
+| 88-site check: results that change                   | —     | 24 (all stage 1, all larger: +1 % to +128 %) |
+| Manually corrected site (IoU against the correction) | 0.72  | **0.86**                                     |
+| 17 public fixtures, mean IoU                         | 0.509 | 0.512                                        |
+| Results flagged for review, 88 sites                 | 38    | 35                                           |
 
 Judged by eye on the aerial image, the larger changes are improvements:
 the whole forecourt instead of half of it (2,185 → 4,980 m²), the corner
@@ -616,12 +616,12 @@ unchanged.
 
 ### New sources
 
-| Source | What it adds | Where | Coverage |
-| --- | --- | --- | --- |
-| **Parcel address** (`lagebeztxt` of the simplified ALKIS product `ave:Flurstueck`) | Street and house number of each parcel. Parcels with the same address are one property. | `alkis.service.ts` `parseParcelFeatures`, `boundary/parcel-address.ts` | NRW, Rheinland-Pfalz, Thüringen, Sachsen, Niedersachsen, Sachsen-Anhalt, Hamburg, Hessen, Brandenburg |
-| **Actual land use** (`tntxt` of the same product) | Share of each parcel that is traffic area, industry and trade, mixed use, housing or open land. | `alkis.service.ts` `parseLandUse`, `classifyLandUse` | as above, without Hessen and Brandenburg |
-| **Vegetation on the aerial image** | Grass and trees on the image the vehicles are detected on, as a 1 m raster. Costs no request. | `boundary/vegetation.ts`, `analyze.service.ts` | everywhere, in the growing season |
-| **Bayern parcel map** (WMS `geoservices.bayern.de/od/wms/alkis/v1/parzellarkarte`, layer `by_alkis_parzellarkarte_farbe`, CC BY 4.0) | Parcels for Bayern, read back from the rendered map at 0.25 m per pixel, with land use from the fill colour. | `bavaria-parcels.service.ts` | Bayern |
+| Source                                                                                                                               | What it adds                                                                                                 | Where                                                                  | Coverage                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Parcel address** (`lagebeztxt` of the simplified ALKIS product `ave:Flurstueck`)                                                   | Street and house number of each parcel. Parcels with the same address are one property.                      | `alkis.service.ts` `parseParcelFeatures`, `boundary/parcel-address.ts` | NRW, Rheinland-Pfalz, Thüringen, Sachsen, Niedersachsen, Sachsen-Anhalt, Hamburg, Hessen, Brandenburg |
+| **Actual land use** (`tntxt` of the same product)                                                                                    | Share of each parcel that is traffic area, industry and trade, mixed use, housing or open land.              | `alkis.service.ts` `parseLandUse`, `classifyLandUse`                   | as above, without Hessen and Brandenburg                                                              |
+| **Vegetation on the aerial image**                                                                                                   | Grass and trees on the image the vehicles are detected on, as a 1 m raster. Costs no request.                | `boundary/vegetation.ts`, `analyze.service.ts`                         | everywhere, in the growing season                                                                     |
+| **Bayern parcel map** (WMS `geoservices.bayern.de/od/wms/alkis/v1/parzellarkarte`, layer `by_alkis_parzellarkarte_farbe`, CC BY 4.0) | Parcels for Bayern, read back from the rendered map at 0.25 m per pixel, with land use from the fill colour. | `bavaria-parcels.service.ts`                                           | Bayern                                                                                                |
 
 The first two come with the parcels the app already requested: the three
 states on `ave:Flurstueck` returned them all along and the parser dropped
@@ -634,14 +634,14 @@ field with the parcel.
 
 ### What changed and why
 
-| Change | Where | Failure it addresses |
-| --- | --- | --- |
-| **Streets by land use.** Where land use is published, a parcel is a street when at least half of it is traffic area and it has no house number; the shape test only applies where land use is unknown. Field strips need no special case there. | `streetByUse`, `isStreetParcel` | The shape test calls every plot under about 20 × 20 m street-like: on the 58 replayed sites with land use, 3,090 parcels were street-like by shape but not traffic area, and 214 traffic parcels were not street-like. Small yard plots joined only as full "parking strips"; wide road, rail and verge parcels joined as lot (9,102 → 3,463 m² at one site, where a 5,651 m² road parcel with 19 parked cars had joined). One dealer's yard is registered as "Weg" under its own house number, hence the house-number exception. |
-| **Same address.** A neighbouring parcel that shares a street and house number with the parcel at the point, or with the dealership's address, joins without cars on it: up to 5,000 m², beyond that only while it is no larger than the parcels chosen so far, and not when it is housing, open land or mostly vegetation. | `vehicleParcelStage`, `sharesAddress` | 17 of 74 replayed sites with addresses had parcels of the dealer's own address left out: rear yards, the second half of a forecourt, workshop plots with few cars outside. |
-| **Point moved to the address.** When the point lies on no parcel, on a street, or on a parcel with another house number and fewer than three vehicles, and a parcel within 150 m carries the dealership's address, the stages start from that parcel. A point on a parcel without a house number, or with vehicles on it, stays. | `addressAnchor`, `runCascade` | A geocoded point on the road or on the neighbour's plot gave the circle or the neighbour's parcel. |
-| **Housing and open land.** A parcel that is mostly housing or open land by the cadastre, or mostly vegetation on the image, joins only by the dense rule (5 cars and 8 per 1,000 m²), and as an enclosed plot only up to 200 m². A parcel that is mostly vegetation does not join by its address either. | `isForeignUse`, `greenShare` | v8 took in a neighbour's house or a meadow the lot enclosed, and a meadow with a row of cars at its edge joined when it held ten of them. |
-| **Vegetation trimmed (removed in v12).** Vegetation of at least 600 m² at the edge of the parcel union, more than 10 m wide and with no detected vehicle within 8 m, was cut off. Islands inside the lot, rows of trees, the lawn along a forecourt and building footprints stayed. | `trimVegetation` (removed) | The parcel at the point is often larger than the lot: a wood, a meadow or an embankment on the same plot. See "Cascade v12" for why the cut was removed. |
-| **Parcels in Bayern.** Stage 1 runs on the parcels read from the parcel map; their traffic areas are streets. The land-use raster of v6 is only used when the map fails. | `bavariaParcelsNear`, `boundary.service.ts` | Bayern had only the vehicle outline (stage 2). |
+| Change                                                                                                                                                                                                                                                                                                                           | Where                                       | Failure it addresses                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Streets by land use.** Where land use is published, a parcel is a street when at least half of it is traffic area and it has no house number; the shape test only applies where land use is unknown. Field strips need no special case there.                                                                                  | `streetByUse`, `isStreetParcel`             | The shape test calls every plot under about 20 × 20 m street-like: on the 58 replayed sites with land use, 3,090 parcels were street-like by shape but not traffic area, and 214 traffic parcels were not street-like. Small yard plots joined only as full "parking strips"; wide road, rail and verge parcels joined as lot (9,102 → 3,463 m² at one site, where a 5,651 m² road parcel with 19 parked cars had joined). One dealer's yard is registered as "Weg" under its own house number, hence the house-number exception. |
+| **Same address.** A neighbouring parcel that shares a street and house number with the parcel at the point, or with the dealership's address, joins without cars on it: up to 5,000 m², beyond that only while it is no larger than the parcels chosen so far, and not when it is housing, open land or mostly vegetation.       | `vehicleParcelStage`, `sharesAddress`       | 17 of 74 replayed sites with addresses had parcels of the dealer's own address left out: rear yards, the second half of a forecourt, workshop plots with few cars outside.                                                                                                                                                                                                                                                                                                                                                        |
+| **Point moved to the address.** When the point lies on no parcel, on a street, or on a parcel with another house number and fewer than three vehicles, and a parcel within 150 m carries the dealership's address, the stages start from that parcel. A point on a parcel without a house number, or with vehicles on it, stays. | `addressAnchor`, `runCascade`               | A geocoded point on the road or on the neighbour's plot gave the circle or the neighbour's parcel.                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **Housing and open land.** A parcel that is mostly housing or open land by the cadastre, or mostly vegetation on the image, joins only by the dense rule (5 cars and 8 per 1,000 m²), and as an enclosed plot only up to 200 m². A parcel that is mostly vegetation does not join by its address either.                         | `isForeignUse`, `greenShare`                | v8 took in a neighbour's house or a meadow the lot enclosed, and a meadow with a row of cars at its edge joined when it held ten of them.                                                                                                                                                                                                                                                                                                                                                                                         |
+| **Vegetation trimmed (removed in v12).** Vegetation of at least 600 m² at the edge of the parcel union, more than 10 m wide and with no detected vehicle within 8 m, was cut off. Islands inside the lot, rows of trees, the lawn along a forecourt and building footprints stayed.                                              | `trimVegetation` (removed)                  | The parcel at the point is often larger than the lot: a wood, a meadow or an embankment on the same plot. See "Cascade v12" for why the cut was removed.                                                                                                                                                                                                                                                                                                                                                                          |
+| **Parcels in Bayern.** Stage 1 runs on the parcels read from the parcel map; their traffic areas are streets. The land-use raster of v6 is only used when the map fails.                                                                                                                                                         | `bavariaParcelsNear`, `boundary.service.ts` | Bayern had only the vehicle outline (stage 2).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 The trace names what joined and what was removed, for example "parcel at
 the point + 4 adjacent parcel(s) (2 by address, 1 enclosed) hold 61 of 64
@@ -656,28 +656,28 @@ new sources. Imagery `auto`, 13 November 2026.
 fixtures, with their parcels requested again (74 sites now carry addresses,
 58 of them land use) and a vegetation raster read from the context image.
 
-| | v8 | v9 |
-| --- | --- | --- |
-| Results that change | — | 34 (13 larger by more than 5 %, 7 smaller, 14 within 5 %) |
-| Sites where a parcel joins by its address | — | 16 |
-| Circle replaced by parcels | — | 2 |
-| Vehicle outline replaced by parcels | — | 2 |
-| Point moved to the dealership's address | — | 2 |
-| Vegetation trimmed | — | 3 |
-| Results flagged for review | 41 | 40 |
-| Mean IoU, 17 public fixtures and 1 manual correction | 0.531 | 0.529 |
+|                                                      | v8    | v9                                                        |
+| ---------------------------------------------------- | ----- | --------------------------------------------------------- |
+| Results that change                                  | —     | 34 (13 larger by more than 5 %, 7 smaller, 14 within 5 %) |
+| Sites where a parcel joins by its address            | —     | 16                                                        |
+| Circle replaced by parcels                           | —     | 2                                                         |
+| Vehicle outline replaced by parcels                  | —     | 2                                                         |
+| Point moved to the dealership's address              | —     | 2                                                         |
+| Vegetation trimmed                                   | —     | 3                                                         |
+| Results flagged for review                           | 41    | 40                                                        |
+| Mean IoU, 17 public fixtures and 1 manual correction | 0.531 | 0.529                                                     |
 
 **Fresh set (73 sites):** dealers of the public 500-dealer sample that no
 earlier version was tuned or checked on, 26 of them in Bayern, captured
 live with name and address as the app does.
 
-| | v8 | v9 |
-| --- | --- | --- |
-| Results that change | — | 44 |
+|                                            | v8      | v9                                    |
+| ------------------------------------------ | ------- | ------------------------------------- |
+| Results that change                        | —       | 44                                    |
 | Bayern: parcel-based result (stage 1 or 4) | 0 of 26 | 26 of 26 (v8: 21 outlines, 5 circles) |
-| Sites where a parcel joins by its address | — | 10 |
-| Vegetation trimmed | — | 5 |
-| Results flagged for review | 48 | 34 |
+| Sites where a parcel joins by its address  | —       | 10                                    |
+| Vegetation trimmed                         | —       | 5                                     |
+| Results flagged for review                 | 48      | 34                                    |
 
 Judged by eye on the aerial image (about 45 of the changed sites):
 
@@ -763,12 +763,12 @@ one rule for the third.
 
 ### New sources
 
-| State | Source | What it adds |
-| --- | --- | --- |
-| Mecklenburg-Vorpommern | Simplified ALKIS `ave:Flurstueck` (`geodaten-mv.de/dienste/alkis_wfs_einfach`), EPSG:25833 | Address and land use. The search box is sent and the answer read in UTM zone 33 (`utm.ts`). |
-| Schleswig-Holstein | Simplified ALKIS (`service.gdi-sh.de/WFS_SH_ALKIS_vereinf_OpenGBD`), stored query `ave-by-bbox`, EPSG:25832 | Address. Plain GetFeature on `ave:Flurstueck` is rejected; the stored query returns every layer, of which only the `Flurstueck` members are read (`onlyFeatureMembers`). |
-| Baden-Württemberg | ALKIS WFS `nora:` (`owsproxy.lgl-bw.de/owsproxy/wfs/WFS_LGL-BW_ALKIS`): address points `v_al_lagebezeichnung`, land use `v_al_tatsaechliche_nutzung` | Address (the house numbers whose points lie in the parcel) and land use (shares sampled on a 14 × 14 grid over the parcel). Parcels stay on INSPIRE (`bw-parcel-attributes.ts`). |
-| Saarland | INSPIRE `cp:CadastralParcel` (`geoportal.saarland.de/gdi-sl/inspirewfs_Flurstuecke_Grundstuecke_ALKIS`) | Parcels at all. The service moved; the old name answers "no service". Geometry only. |
+| State                  | Source                                                                                                                                               | What it adds                                                                                                                                                                     |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mecklenburg-Vorpommern | Simplified ALKIS `ave:Flurstueck` (`geodaten-mv.de/dienste/alkis_wfs_einfach`), EPSG:25833                                                           | Address and land use. The search box is sent and the answer read in UTM zone 33 (`utm.ts`).                                                                                      |
+| Schleswig-Holstein     | Simplified ALKIS (`service.gdi-sh.de/WFS_SH_ALKIS_vereinf_OpenGBD`), stored query `ave-by-bbox`, EPSG:25832                                          | Address. Plain GetFeature on `ave:Flurstueck` is rejected; the stored query returns every layer, of which only the `Flurstueck` members are read (`onlyFeatureMembers`).         |
+| Baden-Württemberg      | ALKIS WFS `nora:` (`owsproxy.lgl-bw.de/owsproxy/wfs/WFS_LGL-BW_ALKIS`): address points `v_al_lagebezeichnung`, land use `v_al_tatsaechliche_nutzung` | Address (the house numbers whose points lie in the parcel) and land use (shares sampled on a 14 × 14 grid over the parcel). Parcels stay on INSPIRE (`bw-parcel-attributes.ts`). |
+| Saarland               | INSPIRE `cp:CadastralParcel` (`geoportal.saarland.de/gdi-sl/inspirewfs_Flurstuecke_Grundstuecke_ALKIS`)                                              | Parcels at all. The service moved; the old name answers "no service". Geometry only.                                                                                             |
 
 All four were probed live on 14 November 2026. The INSPIRE services of SH
 and MV stay as fallbacks. Addresses are now published for 12 states and
@@ -777,8 +777,8 @@ from the parcel map.
 
 ### What changed
 
-| Change | Where | Failure it addresses |
-| --- | --- | --- |
+| Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Where                                    | Failure it addresses                                                                                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Lot across the street.** A parcel directly across a street parcel the lot borders (adjacent to the street, not to the lot) joins as a second part when at least 10 lot vehicles stand on it at 15 per 1,000 m² or more, or when it carries the dealership's address and at least 3 lot vehicles. Housing, open land, green parcels and streets never join this way; the lot may grow on from the joined parcel by the usual rules. The choice is made on the lot within 80 m and reused for the lot beyond. A result with such a part keeps the partial confidence, so it is offered for review. | `vehicleParcelStage` (`acrossTheStreet`) | v9 stopped at every road: a dealer with a storage lot opposite got the showroom plot and a review flag (seven of the twenty Bayern sites viewed for v9). |
 
 The trace names the part, for example "parcel at the point + 2 adjacent
@@ -788,13 +788,13 @@ parcel(s) (1 across the street) hold 184 of 201 lot vehicles (92%)".
 
 Frozen inputs, v9 against v10 on the same parcels (the across rule alone):
 
-| | v9 | v10 |
-| --- | --- | --- |
-| replay set, 105 sites: results changed | — | 6 |
-| … review flags | 40 | 41 |
-| … mean IoU, 17 fixtures + 1 manual | 0.529 | 0.529 |
-| fresh set, 73 sites: results changed | — | 2 |
-| … review flags | 34 | 34 |
+|                                        | v9    | v10   |
+| -------------------------------------- | ----- | ----- |
+| replay set, 105 sites: results changed | —     | 6     |
+| … review flags                         | 40    | 41    |
+| … mean IoU, 17 fixtures + 1 manual     | 0.529 | 0.529 |
+| fresh set, 73 sites: results changed   | —     | 2     |
+| … review flags                         | 34    | 34    |
 
 By eye, the eight changed sites: a dense storage lot or car lot across the
 street joined at five (P190, P224, P276, P391, P465); two are unclear (a
@@ -840,12 +840,12 @@ woodland.
 
 ### What changed
 
-| Change | Where | Failure it addresses |
-| --- | --- | --- |
-| **Point check.** When no vehicle lot formed at the point (no result, or only the stage 4 parcel), the point is called off the site if no building lies within 50 m, fewer than 3 vehicles stand within 60 m, and the ground is woodland or open land: at least 75 % vegetation in a 60 m disc on the aerial image (`greenShare`, roofs excluded), or at least 80 % open land on the parcel in the cadastre. With neither image nor land use the check says nothing and the result stays as before. | `pointSiteCheck` | A lot drawn into a forest or a field. |
-| **No woodland parcel.** An off-site point does not get its stage 4 parcel. The parcel stays an alternative for review. | `runCascade` | A forest parcel offered as the lot. |
-| **Nearest lot.** The nearest vehicle lot (at least 20 vehicles) within 250 m is outlined as stage 1 or 2 would from one of its vehicles. Its confidence is capped at 0.3, so it is always reviewed, and the trace gives the distance. | `nearestLot` | The point a few rows off a real lot. |
-| **Small marker.** Without such a lot the caller draws a 25 m marker instead of the 160 m octagon. | `boundary.service.ts` (`OFF_SITE_MARKER_RADIUS_M`) | A 7 ha "lot" nobody can tell from a real one. |
+| Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Where                                              | Failure it addresses                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | --------------------------------------------- |
+| **Point check.** When no vehicle lot formed at the point (no result, or only the stage 4 parcel), the point is called off the site if no building lies within 50 m, fewer than 3 vehicles stand within 60 m, and the ground is woodland or open land: at least 75 % vegetation in a 60 m disc on the aerial image (`greenShare`, roofs excluded), or at least 80 % open land on the parcel in the cadastre. With neither image nor land use the check says nothing and the result stays as before. | `pointSiteCheck`                                   | A lot drawn into a forest or a field.         |
+| **No woodland parcel.** An off-site point does not get its stage 4 parcel. The parcel stays an alternative for review.                                                                                                                                                                                                                                                                                                                                                                             | `runCascade`                                       | A forest parcel offered as the lot.           |
+| **Nearest lot.** The nearest vehicle lot (at least 20 vehicles) within 250 m is outlined as stage 1 or 2 would from one of its vehicles. Its confidence is capped at 0.3, so it is always reviewed, and the trace gives the distance.                                                                                                                                                                                                                                                              | `nearestLot`                                       | The point a few rows off a real lot.          |
+| **Small marker.** Without such a lot the caller draws a 25 m marker instead of the 160 m octagon.                                                                                                                                                                                                                                                                                                                                                                                                  | `boundary.service.ts` (`OFF_SITE_MARKER_RADIUS_M`) | A 7 ha "lot" nobody can tell from a real one. |
 
 Every off-site result carries the review flag `pointOffSite` ("the point
 lies in woodland or open land with no building or vehicles – correct the
@@ -856,12 +856,12 @@ belong to a neighbour, so the user confirms or corrects the position.
 
 Frozen inputs, v10 against v11:
 
-| | v10 | v11 |
-| --- | --- | --- |
-| replay set, 105 sites: results changed | — | 0 |
-| fresh set, 73 sites: results changed | — | 0 |
-| refetched SH/MV/BW/Saarland set, 17 sites: results changed | — | 0 |
-| the reported forest point (live capture) | 72,408 m² octagon | 1,768 m² marker, `pointOffSite` |
+|                                                            | v10               | v11                             |
+| ---------------------------------------------------------- | ----------------- | ------------------------------- |
+| replay set, 105 sites: results changed                     | —                 | 0                               |
+| fresh set, 73 sites: results changed                       | —                 | 0                               |
+| refetched SH/MV/BW/Saarland set, 17 sites: results changed | —                 | 0                               |
+| the reported forest point (live capture)                   | 72,408 m² octagon | 1,768 m² marker, `pointOffSite` |
 
 None of the 195 frozen sites trips the check: every real dealership point
 has a building within 50 m or vehicles around it. The nearest-lot path has
@@ -891,7 +891,7 @@ of vegetation without vehicles trimmed off".
 The neighbouring parcel (2,814 m²) is a car park on its eastern quarter and
 a meadow on the rest. Eighteen lot vehicles stand on it, so it joined whole.
 The vegetation trimming of v9 then removed the part of the meadow that lay
-more than 8 m from any vehicle, on a 1 m raster, and vectorised the *whole*
+more than 8 m from any vehicle, on a 1 m raster, and vectorised the _whole_
 result from that raster. Two things followed:
 
 - the cut ran through the grass at a fixed distance from the cars, along no
@@ -904,12 +904,12 @@ shows the meadow and the car park of that parcel as two land-use areas.
 
 ### What changed
 
-| Change | Where | Effect |
-| --- | --- | --- |
-| **No raster trimming.** The stage 1 outline is the union of the chosen parcels with holes filled, nothing else. | `vehicleParcelStage` (`trimVegetation`, its three limits and its tests removed) | A parcel result always lies on cadastral lines. The vegetation raster still decides *whether* a parcel joins (`greenShare`), never its shape. |
-| **Open-land sections in Bayern.** Where the parcel map draws a land-use boundary inside a parcel, each patch of open land of at least 100 m² becomes a unit of its own, provided at least 100 m² of other use remains. Smaller lawns stay with their parcel. | `bavaria-parcels.service.ts` (`splitOpenSections`, `MIN_SECTION_SQM`) | A lot takes the yard of a plot without its meadow, along the cadastre's own line. |
-| **Land-use lines read as ground.** The mid-grey line between two land uses (178, 178, 178) was classified as building; it now takes the use beside it. | `classifyMapPixel` (`useLine`) | Building share and land-use shares of Bayern parcels are no longer skewed by these lines. |
-| **Farmland is open land in Bayern.** The pale yellow of farmland (255, 247, 219) was "other"; it is now "open". | `classifyMapPixel` | A field joins only when dense with vehicles, and a point in a field with no building or vehicles near it is off the site (v11) although bare soil is not vegetation on the image. |
+| Change                                                                                                                                                                                                                                                       | Where                                                                           | Effect                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **No raster trimming.** The stage 1 outline is the union of the chosen parcels with holes filled, nothing else.                                                                                                                                              | `vehicleParcelStage` (`trimVegetation`, its three limits and its tests removed) | A parcel result always lies on cadastral lines. The vegetation raster still decides _whether_ a parcel joins (`greenShare`), never its shape.                                     |
+| **Open-land sections in Bayern.** Where the parcel map draws a land-use boundary inside a parcel, each patch of open land of at least 100 m² becomes a unit of its own, provided at least 100 m² of other use remains. Smaller lawns stay with their parcel. | `bavaria-parcels.service.ts` (`splitOpenSections`, `MIN_SECTION_SQM`)           | A lot takes the yard of a plot without its meadow, along the cadastre's own line.                                                                                                 |
+| **Land-use lines read as ground.** The mid-grey line between two land uses (178, 178, 178) was classified as building; it now takes the use beside it.                                                                                                       | `classifyMapPixel` (`useLine`)                                                  | Building share and land-use shares of Bayern parcels are no longer skewed by these lines.                                                                                         |
+| **Farmland is open land in Bayern.** The pale yellow of farmland (255, 247, 219) was "other"; it is now "open".                                                                                                                                              | `classifyMapPixel`                                                              | A field joins only when dense with vehicles, and a point in a field with no building or vehicles near it is off the site (v11) although bare soil is not vegetation on the image. |
 
 ### Measured
 
@@ -919,14 +919,14 @@ the open dealer directory (three per leading postcode digit, six for 8 and
 9, so Bayern is over-represented). v11 ran on the parcels its reader
 produced, v12 on the new ones.
 
-| | v11 | v12 |
-| --- | --- | --- |
-| Sites | 54 | 54 |
-| Results that change | — | 4 |
-| Results with a raster-trimmed outline | 3 | 0 |
-| Results flagged for review | 17 | 17 |
-| Mean IoU, 17 public fixtures | 0.510 | 0.510 |
-| Winning stage | 51 parcels, 3 outlines | unchanged |
+|                                       | v11                    | v12       |
+| ------------------------------------- | ---------------------- | --------- |
+| Sites                                 | 54                     | 54        |
+| Results that change                   | —                      | 4         |
+| Results with a raster-trimmed outline | 3                      | 0         |
+| Results flagged for review            | 17                     | 17        |
+| Mean IoU, 17 public fixtures          | 0.510                  | 0.510     |
+| Winning stage                         | 51 parcels, 3 outlines | unchanged |
 
 The four changed sites, judged by eye on the aerial image:
 
@@ -955,9 +955,9 @@ outlines beyond the 17 OSM fixtures. The frozen inputs of the earlier checks
 - Outside Bayern a meadow, wood or garden on a chosen parcel is now part of
   the result again, as before v9: the simplified ALKIS services publish land
   use per parcel as shares, not as areas. The area is then too large; the
-  vehicle count is not affected, since no vehicles stand there. Sub-parcel
-  land use (`ave:NutzungFlurstueck`) would give the same cut as in Bayern and
-  is not read yet.
+  vehicle count is not affected, since no vehicles stand there. Since v15
+  the land-use sections (`ave:NutzungFlurstueck`) give the same cut as in
+  Bayern in seven states (see "Cascade v15").
 - A section is cut only where the cadastre registers open land. A lawn the
   cadastre counts as trade land stays in; a paved yard it still lists as
   farmland is a unit of its own and joins only when dense with vehicles.
@@ -987,20 +987,20 @@ Two faults, one behind the other.
    address parcel never fired.
 2. **A road could be the parcel at the point.** The geocoded point lay on
    the carriageway. The main road is one parcel of 22,012 m², registered
-   as 100 % traffic. Roads never *join* a lot, but nothing stopped a road
-   from being the parcel the lot *starts* from. Every car parked along the
+   as 100 % traffic. Roads never _join_ a lot, but nothing stopped a road
+   from being the parcel the lot _starts_ from. Every car parked along the
    road stood "on the parcel at the point", so the lot was the whole street
    within reach, and the plots on both sides joined from it. Stage 4 offered
    the road parcel as "ALKIS parcel" as well.
 
 ### What changed
 
-| Change | Where | Effect |
-| --- | --- | --- |
-| **Addresses are read part by part.** The text is split at commas: a part without a number (a name, a town) is skipped, a part that starts with a number continues the street before it, a postcode ends it. | `addressKeys` (`parcel-address.ts`) | "Name, Street 12, 12345 Town" yields `street|12`. Parcel addresses ("Kölner Straße 260, 262, 264") read as before. |
-| **A road is never the parcel at the point.** A road is a parcel the cadastre lists as at least half traffic area without a house number; where no land use is published, a parcel that is narrow, longer than 150 m and not a field strip. | `isRoadParcel` | Used by the address move, stage 1, the vehicle lot of stage 2 and stage 4. |
+| Change                                                                                                                                                                                                                                                       | Where                                | Effect                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ | -------------------------------------------------------------------------------------------- |
+| **Addresses are read part by part.** The text is split at commas: a part without a number (a name, a town) is skipped, a part that starts with a number continues the street before it, a postcode ends it.                                                  | `addressKeys` (`parcel-address.ts`)  | "Name, Street 12, 12345 Town" yields `street                                                 | 12`. Parcel addresses ("Kölner Straße 260, 262, 264") read as before. |
+| **A road is never the parcel at the point.** A road is a parcel the cadastre lists as at least half traffic area without a house number; where no land use is published, a parcel that is narrow, longer than 150 m and not a field strip.                   | `isRoadParcel`                       | Used by the address move, stage 1, the vehicle lot of stage 2 and stage 4.                   |
 | **Stage 1 starts beside the road.** For a point on a road the lot is formed without the road as its ground, and the start parcel is the plot within 40 m of the point that holds most of that lot (at least three vehicles). No such plot: stage 1 declines. | `plotBesideRoad`, `roadAnchorReachM` | The trace reads "the point lies on a road parcel; the plot beside it (16 lot vehicles) + …". |
-| **Stage 4 declines a road.** | `parcelStage` | A road parcel is not offered as the site, chosen or as an alternative. |
+| **Stage 4 declines a road.**                                                                                                                                                                                                                                 | `parcelStage`                        | A road parcel is not offered as the site, chosen or as an alternative.                       |
 
 ### Measured
 
@@ -1009,12 +1009,12 @@ All on frozen inputs, v12 against v13, 15 November 2026.
 **The reported site** (parcels fetched live, the vehicles of the stored
 analysis, no building footprints or vegetation raster):
 
-| | v12 | v13 |
-| --- | --- | --- |
-| Start parcel | the road, 22,012 m² | "Street 263", 661 m², 3 m from the point |
-| Result | 25,464 m², road plus 7 plots, confidence 0.6 | 3,480 m², 7 plots, no road, confidence 0.75 |
-| Lot vehicles | 97, of which 43 on the road | 82, of which 76 inside |
-| Same site without its address | — | 2,821 m², started from the plot beside the road with 16 lot vehicles |
+|                               | v12                                          | v13                                                                  |
+| ----------------------------- | -------------------------------------------- | -------------------------------------------------------------------- |
+| Start parcel                  | the road, 22,012 m²                          | "Street 263", 661 m², 3 m from the point                             |
+| Result                        | 25,464 m², road plus 7 plots, confidence 0.6 | 3,480 m², 7 plots, no road, confidence 0.75                          |
+| Lot vehicles                  | 97, of which 43 on the road                  | 82, of which 76 inside                                               |
+| Same site without its address | —                                            | 2,821 m², started from the plot beside the road with 16 lot vehicles |
 
 Judged by eye on the DOP20 image: the v13 outline is the building at the
 address and the two car parks behind it; the yard across the road that v12
@@ -1032,13 +1032,13 @@ number, points on plots): identical.
 drawn, 79 in states with a vector cadastre; parcels only, no vehicle
 detection, addresses in the search's format):
 
-| | v12 | v13 |
-| --- | --- | --- |
-| Addresses that yield a street-and-number key | 1 | 78 |
-| Point on a road parcel | 1 | 1 |
-| Road parcel returned as the site (stage 4) | 1 | 0 |
-| Point moved to the address parcel | 0 | 3 |
-| Results that change | — | 3 |
+|                                              | v12 | v13 |
+| -------------------------------------------- | --- | --- |
+| Addresses that yield a street-and-number key | 1   | 78  |
+| Point on a road parcel                       | 1   | 1   |
+| Road parcel returned as the site (stage 4)   | 1   | 0   |
+| Point moved to the address parcel            | 0   | 3   |
+| Results that change                          | —   | 3   |
 
 The three changed sites are the three moves: one from the road (4,535 m² of
 "Uhlandstraße" → the 3,314 m² address plot), two from a plot with another
@@ -1106,27 +1106,27 @@ references are returned again unchanged.
 
 `scripts/build-public-boundary-fixtures.mjs`, run on 19 November 2026:
 
-| Rule | Value |
-| --- | --- |
-| Query | `way["shop"="car"]["name"]` without a `building` or `building:part` tag |
-| Roof test | at most 60 % of the outline under OSM building footprints, measured on a 2 m lattice (`roofShare`, stored per sample) |
-| Area | 1,500–60,000 m² (was 3,000; small dealers are the weakest sites and were excluded only because a small area was almost always a roof) |
-| Shape | at least 8 corners, no sliver (unchanged) |
-| Spacing | references closer than 400 m share imagery and parcels; the richer one is kept |
-| Per region | up to 6, richest outlines first (Austria: 2) |
-| Regions | all 16 German states, two to four cities each, and Vienna/Linz |
+| Rule       | Value                                                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Query      | `way["shop"="car"]["name"]` without a `building` or `building:part` tag                                                               |
+| Roof test  | at most 60 % of the outline under OSM building footprints, measured on a 2 m lattice (`roofShare`, stored per sample)                 |
+| Area       | 1,500–60,000 m² (was 3,000; small dealers are the weakest sites and were excluded only because a small area was almost always a roof) |
+| Shape      | at least 8 corners, no sliver (unchanged)                                                                                             |
+| Spacing    | references closer than 400 m share imagery and parcels; the richer one is kept                                                        |
+| Per region | up to 6, richest outlines first (Austria: 2)                                                                                          |
+| Regions    | all 16 German states, two to four cities each, and Vienna/Linz                                                                        |
 
 Of 189 candidate ways in the 46 city boxes, 76 were taken; one was rejected
 by the roof test. `public-fixtures.test.ts` checks on every test run that
 no reference in the committed file is mostly roof and that hold-out states
 do not appear among the tuning states.
 
-| | |
-| --- | --- |
-| Sites | 76: Baden-Württemberg 6, Bayern 6, Berlin 6, Brandenburg 3, Bremen 3, Hamburg 6, Hessen 4, Mecklenburg-Vorpommern 6, Niedersachsen 6, NRW 6, Rheinland-Pfalz 3, Saarland 3, Sachsen 6, Sachsen-Anhalt 6, Schleswig-Holstein 1, Thüringen 3, Austria 2 |
-| Hold-out | 18: all of Schleswig-Holstein, Sachsen-Anhalt, Thüringen, Baden-Württemberg and Austria |
-| Reference area | 1,545 to 57,755 m², median 10,290 m²; 8 under 3,000 m² |
-| Roof share | 0.01 to 0.58, median 0.29 |
+|                |                                                                                                                                                                                                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sites          | 76: Baden-Württemberg 6, Bayern 6, Berlin 6, Brandenburg 3, Bremen 3, Hamburg 6, Hessen 4, Mecklenburg-Vorpommern 6, Niedersachsen 6, NRW 6, Rheinland-Pfalz 3, Saarland 3, Sachsen 6, Sachsen-Anhalt 6, Schleswig-Holstein 1, Thüringen 3, Austria 2 |
+| Hold-out       | 18: all of Schleswig-Holstein, Sachsen-Anhalt, Thüringen, Baden-Württemberg and Austria                                                                                                                                                               |
+| Reference area | 1,545 to 57,755 m², median 10,290 m²; 8 under 3,000 m²                                                                                                                                                                                                |
+| Roof share     | 0.01 to 0.58, median 0.29                                                                                                                                                                                                                             |
 
 The benchmark runner now captures what an analysis sees: it passes the
 vegetation raster of the context image to the boundary (it did not before),
@@ -1142,28 +1142,28 @@ minutes), then replayed. These are the first figures against lots only.
 They are those of cascade v14, described in the next section; v13 on the
 same inputs is in its "Measured" table and differs in the second decimal.
 
-| | all (76) | hold-out (18) |
-| --- | --- | --- |
-| Mean IoU | 0.667 | 0.654 |
-| Median IoU | 0.72 | 0.75 |
-| Mean missing share | 0.159 | 0.227 |
-| Mean excess share | 0.856 | 1.818 |
-| Winning stage | 68 parcels, 6 outlines, 2 circles | |
-| Reference vehicles inside the result | 13,120 of 15,525 (85 %) | |
-| Result vehicles outside the reference | 2,459 of 15,579 (16 %) | |
-| Buildings cut by the outline | 2 on 2 of 74 sites | |
+|                                       | all (76)                          | hold-out (18) |
+| ------------------------------------- | --------------------------------- | ------------- |
+| Mean IoU                              | 0.667                             | 0.654         |
+| Median IoU                            | 0.72                              | 0.75          |
+| Mean missing share                    | 0.159                             | 0.227         |
+| Mean excess share                     | 0.856                             | 1.818         |
+| Winning stage                         | 68 parcels, 6 outlines, 2 circles |               |
+| Reference vehicles inside the result  | 13,120 of 15,525 (85 %)           |               |
+| Result vehicles outside the reference | 2,459 of 15,579 (16 %)            |               |
+| Buildings cut by the outline          | 2 on 2 of 74 sites                |               |
 
 The mean excess is carried by ten sites with more than 100 %; the median
 excess is 0.06 and the median missing share 0.05. Per site, with 25 % as
 the line for "missing" and "too much":
 
-| | Sites | neither | cut off only | too much only | both |
-| --- | --- | --- | --- | --- | --- |
-| All | 76 | 37 | 15 | 22 | 2 |
-| Parcels with vehicles (stage 1) | 68 | 37 | 10 | 20 | 1 |
-| Vehicle outline (stage 2) | 6 | 0 | 5 | 0 | 1 |
-| Circle (stage 5) | 2 | 0 | 0 | 2 | 0 |
-| Reference under 3,000 m² | 8 | 2 | 1 | 5 | 0 |
+|                                 | Sites | neither | cut off only | too much only | both |
+| ------------------------------- | ----- | ------- | ------------ | ------------- | ---- |
+| All                             | 76    | 37      | 15           | 22            | 2    |
+| Parcels with vehicles (stage 1) | 68    | 37      | 10           | 20            | 1    |
+| Vehicle outline (stage 2)       | 6     | 0       | 5            | 0             | 1    |
+| Circle (stage 5)                | 2     | 0       | 0            | 2             | 0    |
+| Reference under 3,000 m²        | 8     | 2       | 1            | 5             | 0    |
 
 Read plainly: half the sites are right to within a quarter either way; the
 engine takes too much more often than it cuts off; the vehicle outline
@@ -1201,12 +1201,12 @@ building joined only when the rows stand around it.
 
 ### What changed
 
-| Change | Where | Effect |
-| --- | --- | --- |
+| Change                                                                                                                                                                                                                                           | Where                                                                                         | Effect                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Buildings on the chosen parcels are whole.** A footprint of 25 to 20,000 m² with at least half its area on the chosen parcels is added along its own outline; holes the union leaves are filled. Nothing is added beyond `boundaryMaxAreaSqm`. | `withWholeBuildings`, `completeBuildings`; `wholeBuildingShare` 0.5, `wholeBuildingMinSqm` 25 | A parcel result is cadastral parcel lines plus the outlines of the buildings standing across them — both cadastral where the state publishes footprints. The neighbouring plot stays out. The trace reads "… 1 building(s) across the parcel line kept whole". |
-| **The building at the point is whole** whatever its share on the parcels. | same, `always` | The point is the dealership's address or POI; its building is the showroom as a rule. |
-| **Stage 4 likewise.** | `parcelStage` | The parcel at the point is returned with the buildings across its line. |
-| **A vehicle outline takes a building whole or not at all.** Where the outline runs through a building that did not join by the existing rule, it takes the building when it covers at least half of it and stops at its wall otherwise. | `completeOutline` | No outline through a roof. Buildings the outline surrounds are filled as before. |
+| **The building at the point is whole** whatever its share on the parcels.                                                                                                                                                                        | same, `always`                                                                                | The point is the dealership's address or POI; its building is the showroom as a rule.                                                                                                                                                                          |
+| **Stage 4 likewise.**                                                                                                                                                                                                                            | `parcelStage`                                                                                 | The parcel at the point is returned with the buildings across its line.                                                                                                                                                                                        |
+| **A vehicle outline takes a building whole or not at all.** Where the outline runs through a building that did not join by the existing rule, it takes the building when it covers at least half of it and stops at its wall otherwise.          | `completeOutline`                                                                             | No outline through a roof. Buildings the outline surrounds are filled as before.                                                                                                                                                                               |
 
 The vehicle counts do not change: vehicles on roofs are masked before the
 boundary sees them. The area grows by the part of each building beyond the
@@ -1217,17 +1217,17 @@ parcel line.
 Frozen inputs of all 76 sites of reference set v2 (captured 19 November
 2026), v13 against v14 on identical inputs:
 
-| | v13 | v14 |
-| --- | --- | --- |
-| Sites | 76 | 76 |
-| Results that change | — | 11 |
-| Buildings cut by the outline (circles not counted) | 11 on 10 sites | 2 on 2 sites |
-| Mean IoU, all / hold-out | 0.663 / 0.652 | 0.667 / 0.654 |
-| Mean missing share | 0.165 | 0.159 |
-| Mean excess share | 0.852 | 0.856 |
-| Reference vehicles inside | 13,120 of 15,525 | unchanged |
-| Result vehicles outside the reference | 2,459 of 15,579 | unchanged |
-| Winning stage | 68 parcels, 6 outlines, 2 circles | unchanged |
+|                                                    | v13                               | v14           |
+| -------------------------------------------------- | --------------------------------- | ------------- |
+| Sites                                              | 76                                | 76            |
+| Results that change                                | —                                 | 11            |
+| Buildings cut by the outline (circles not counted) | 11 on 10 sites                    | 2 on 2 sites  |
+| Mean IoU, all / hold-out                           | 0.663 / 0.652                     | 0.667 / 0.654 |
+| Mean missing share                                 | 0.165                             | 0.159         |
+| Mean excess share                                  | 0.852                             | 0.856         |
+| Reference vehicles inside                          | 13,120 of 15,525                  | unchanged     |
+| Result vehicles outside the reference              | 2,459 of 15,579                   | unchanged     |
+| Winning stage                                      | 68 parcels, 6 outlines, 2 circles | unchanged     |
 
 The eleven changed sites: six gain under 100 m² (a corner of a building),
 and five gain more. Against the references: a Bayern site whose hall stands
@@ -1271,6 +1271,109 @@ same footprints the rule uses.
 - The outline of stage 2 is a 1 m raster: the wall it stops at, or the
   building it takes, is traced to about a metre.
 
+## Cascade v15 (November 2026, land-use sections outside Bayern)
+
+`CASCADE_VERSION` 15. Since v12 a parcel result is whole cadastral units,
+and outside Bayern a unit was a whole parcel: a meadow, wood or pond on the
+dealer's plot was part of the result (see "Limitations of v12"). Bayern had
+the finer cut because its parcel map draws land-use lines inside a parcel.
+
+### Data source
+
+The simplified ALKIS product of the AdV publishes the actual land use of
+each parcel as sections with their own geometry (`ave:NutzungFlurstueck`:
+`nutzart`, `bez`, `flstkennz`, a `gml:MultiSurface`). The sections tile the
+parcel along the cadastre's lines. Probed live with GetFeature on
+19 November 2026, on the same hosts and in the same CRS as the parcels:
+
+| State                  | Service                                              | Licence                 |
+| ---------------------- | ---------------------------------------------------- | ----------------------- |
+| NRW                    | `wfs_nw_alkis_vereinfacht`                           | dl-de/zero-2-0          |
+| Sachsen                | `geodienste.sachsen.de/aaa/public_alkis/vereinf/wfs` | free with attribution   |
+| Niedersachsen          | `alkis_wfs_einfach` (LGLN)                           | CC BY 4.0               |
+| Hamburg                | `WFS_HH_ALKIS_vereinfacht`                           | attribution LGV Hamburg |
+| Hessen                 | `gds.hessen.de/.../alkis/vereinf/wfs`                | free (§ 24 HVGG)        |
+| Brandenburg            | `alkis_vereinf_wfs`                                  | dl-de/by-2-0            |
+| Mecklenburg-Vorpommern | `alkis_wfs_einfach`, EPSG:25833                      | as for the parcels      |
+
+Sachsen-Anhalt and Schleswig-Holstein list the type in their capabilities
+but reject the request ("not available for the WFS", "iiOperationParsing
+Failed"); Thüringen, Rheinland-Pfalz, Berlin, Bremen, Saarland and
+Baden-Württemberg do not publish it. Those states keep whole parcels.
+
+### What changed
+
+| Change                                                                                                                                                                                                                                                                                                           | Where                                                   | Effect                                                                                                                                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Sections read with the parcels.** In the seven states above `ave:NutzungFlurstueck` is fetched in the same search box, in parallel with the parcels, paged and completed near the point like them.                                                                                                             | `fetchLandUseSections`, `AlkisEndpoint.landUseSections` | One to four more requests per site to a host already used. A failed request leaves the parcels whole, keeps the answer for a day only and adds "land-use sections unavailable" to the trace. |
+| **Each section belongs to the parcel holding a point inside it.** A parcel whose sections do not add up to its area within 3 % stays whole.                                                                                                                                                                      | `splitParcelsByLandUse` (`AREA_TOLERANCE`)              | A capped answer or a section from another parcel cannot reshape a parcel.                                                                                                                    |
+| **Open-land sections are units of their own**, with the same rule as in Bayern: adjacent open sections form one patch, a patch of at least 100 m² is cut off when at least 100 m² of other use remains, and smaller lawns stay. The rest keeps the parcel's address; the patch has none and the land use "open". | `cutParcel`, `MIN_SECTION_SQM`                          | The open land joins only when dense with vehicles, as every open parcel. A lot takes the yard without its meadow, along the cadastre's own line.                                             |
+| **No cut around an enclosed patch.** Where the rest would surround the meadow (a ring with a hole), the parcel stays whole.                                                                                                                                                                                      | `exteriorsWithoutHoles`                                 | Parcels carry no holes, and the cascade fills holes in a result anyway.                                                                                                                      |
+| **Land use for Hessen and Brandenburg.** Their parcels carry no `tntxt`; the shares now come from the sections.                                                                                                                                                                                                  | `splitParcelsByLandUse` (`filled`)                      | The rules since v9 that read land use (streets by use, foreign use, open land) now apply in these two states too.                                                                            |
+
+The cadastre cache key moved to `alkis:v6`, so cached parcels are fetched
+again with their sections.
+
+### Measured
+
+The 76 frozen sites of reference set v2 (captured 19 November 2026) were
+completed with the sections fetched live the same day, 38 sites in the seven
+states (8,727 sections on 5,936 parcels). 143 parcels were cut, and 1,075
+parcels in Hessen and Brandenburg took their land use from the sections. To
+tell the two effects apart, the cut was also run without the land-use fill.
+
+|                                       | v14                               | v15, land use only | v15             |
+| ------------------------------------- | --------------------------------- | ------------------ | --------------- |
+| Results that change                   | —                                 | 3                  | 5               |
+| Mean IoU, all / hold-out              | 0.667 / 0.654                     | 0.668 / 0.654      | 0.670 / 0.654   |
+| Mean missing share                    | 0.159                             | 0.158              | 0.158           |
+| Mean excess share                     | 0.856                             | 0.856              | 0.863           |
+| Buildings cut by the outline          | 2 on 2 sites                      | unchanged          | unchanged       |
+| Reference vehicles inside             | 13,120 of 15,525                  | 13,129             | 13,129          |
+| Result vehicles outside the reference | 2,459 of 15,579                   | 2,459 of 15,588    | 2,522 of 15,651 |
+| Winning stage                         | 68 parcels, 6 outlines, 2 circles | unchanged          | unchanged       |
+
+The five changed sites, each checked on the aerial image (state DOP, Esri
+World Imagery for Hamburg):
+
+- Hamburg: a pond on the dealer's plot is cut off along the land-use line
+  (17,098 → 14,776 m², IoU 0.775 → 0.894); all 314 reference vehicles
+  stay inside.
+- Brandenburg: a car-park strip of the dealer, previously read as a
+  parking strip without land use, joins (2,456 → 2,763 m², IoU 0.862 →
+  0.944, 9 more reference vehicles inside).
+- Brandenburg and Hessen: two parcels with land use no longer join as
+  enclosed or by address (−70 m² and −155 m²; IoU unchanged).
+- Mecklenburg-Vorpommern: the score gets worse (14,785 → 17,324 m², IoU
+  0.211 → 0.180, 63 more vehicles outside the reference) and the result
+  gets better. A plot with the dealer's address was two thirds wood and
+  refused as foreign use; its paved part, a full car park beside the
+  showroom, now joins by the address and the wood is cut off. The OSM
+  reference there covers the showroom only (3,534 m²); the result already
+  held 188 vehicles outside it before.
+
+The other 33 sites are identical: most cut parcels are not part of a lot.
+
+**Not an independent result.** The rule is the Bayern rule of v12 and was
+not tuned on these sites, but none of the 18 hold-out sites lies in one of
+the seven states, so the hold-out figures cannot move. Five changes are too
+few for a figure; the judgement rests on the images.
+
+### Limitations of v15
+
+- Only in seven states. Sachsen-Anhalt, Schleswig-Holstein, Thüringen,
+  Rheinland-Pfalz, Berlin, Bremen, Saarland and Baden-Württemberg keep
+  whole parcels, with the meadow inside.
+- The cut is where the cadastre registers open land, as in Bayern: a lawn
+  the cadastre counts as trade land stays in; a paved yard it still lists
+  as farmland or wood is a unit of its own and joins only when dense with
+  vehicles.
+- A meadow enclosed by the yard is not cut off (no holes in parcels).
+- Each parcel needs its complete set of sections; in a dense town a capped
+  answer can leave parcels far from the point whole.
+- The sections are as current as the cadastre (`aktualit`), which can lag
+  behind a site that was paved or extended recently.
+
 ## Earlier engines (removed)
 
 Version 0.2 ranked candidates from ALKIS, OSM, Nominatim and Overture; 0.2.x
@@ -1284,24 +1387,27 @@ describe what they found.
 `alkis.service.ts` queries one open WFS per state. Each was probed with
 GetCapabilities and a live GetFeature at a known point before it was added:
 
-| States | Service type | Notes |
-| --- | --- | --- |
-| NRW, Rheinland-Pfalz | AdV simplified `ave:Flurstueck`, EPSG:4326 | Address and land use per parcel. |
-| Thüringen | AdV simplified `ave:Flurstueck`, EPSG:4326 | Filters only on a UTM 32 box (EPSG:25832); the search box is converted (`toUtm32`). Address and land use. |
+| States                                          | Service type                                                                         | Notes                                                                                                                                         |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| NRW, Rheinland-Pfalz                            | AdV simplified `ave:Flurstueck`, EPSG:4326                                           | Address and land use per parcel.                                                                                                              |
+| Thüringen                                       | AdV simplified `ave:Flurstueck`, EPSG:4326                                           | Filters only on a UTM 32 box (EPSG:25832); the search box is converted (`toUtm32`). Address and land use.                                     |
 | Sachsen, Niedersachsen, Sachsen-Anhalt, Hamburg | AdV simplified `ave:Flurstueck`, EPSG:4258; INSPIRE `cp:CadastralParcel` as fallback | Address and land use. Sachsen answers EPSG:4326 with an HTML page. Hamburg always reports `numberReturned="0"`; a full page counts as capped. |
-| Hessen, Brandenburg | AdV simplified `ave:Flurstueck`, EPSG:4258; INSPIRE as fallback | Address only (no `tntxt`). |
-| Mecklenburg-Vorpommern | AdV simplified `ave:Flurstueck`, EPSG:25833 (UTM 33); INSPIRE as fallback | Address and land use. Box and geometry converted (`utm.ts`). |
-| Schleswig-Holstein | AdV simplified, stored query `ave-by-bbox`, EPSG:25832; INSPIRE as fallback | Address only. Only the `Flurstueck` members of the all-layer answer are read. |
-| Baden-Württemberg | INSPIRE `cp:CadastralParcel`, EPSG:4258, plus `nora:` address points and land use | Address and land use attached from the separate layers (`bw-parcel-attributes.ts`). |
-| Saarland | INSPIRE `cp:CadastralParcel`, EPSG:4258 | Geometry only. Reports `numberReturned="0"` like Hessen. |
-| Bremen (city and Bremerhaven) | AdV `adv:AX_Flurstueck` (simple features), EPSG:4258 | Served by LGLN Niedersachsen. Geometry only. |
-| Berlin | `alkis_flurstuecke:flurstuecke`, EPSG:4326 | Geometry only. |
-| Bayern | Parcel map (WMS, raster), read back into polygons | No vector parcels are open. Land use from the fill colour; no addresses. See "Cascade v9". |
+| Hessen, Brandenburg                             | AdV simplified `ave:Flurstueck`, EPSG:4258; INSPIRE as fallback                      | Address on the parcel (no `tntxt`); land use from the sections since v15.                                                                     |
+| Mecklenburg-Vorpommern                          | AdV simplified `ave:Flurstueck`, EPSG:25833 (UTM 33); INSPIRE as fallback            | Address and land use. Box and geometry converted (`utm.ts`).                                                                                  |
+| Schleswig-Holstein                              | AdV simplified, stored query `ave-by-bbox`, EPSG:25832; INSPIRE as fallback          | Address only. Only the `Flurstueck` members of the all-layer answer are read.                                                                 |
+| Baden-Württemberg                               | INSPIRE `cp:CadastralParcel`, EPSG:4258, plus `nora:` address points and land use    | Address and land use attached from the separate layers (`bw-parcel-attributes.ts`).                                                           |
+| Saarland                                        | INSPIRE `cp:CadastralParcel`, EPSG:4258                                              | Geometry only. Reports `numberReturned="0"` like Hessen.                                                                                      |
+| Bremen (city and Bremerhaven)                   | AdV `adv:AX_Flurstueck` (simple features), EPSG:4258                                 | Served by LGLN Niedersachsen. Geometry only.                                                                                                  |
+| Berlin                                          | `alkis_flurstuecke:flurstuecke`, EPSG:4326                                           | Geometry only.                                                                                                                                |
+| Bayern                                          | Parcel map (WMS, raster), read back into polygons                                    | No vector parcels are open. Land use from the fill colour; no addresses. See "Cascade v9".                                                    |
 
 All 16 states have parcels since v10 (Saarland's service had moved). In
 **Bayern** the INSPIRE and AdV vector services answer 401/403 without a
 login and parcels are charged per parcel (see "Cascade v3 → Data
 sources"); since v9 the open parcel map stands in for them.
+
+Land-use sections (`ave:NutzungFlurstueck`, v15) are read in NRW, Sachsen,
+Niedersachsen, Hamburg, Hessen, Brandenburg and Mecklenburg-Vorpommern.
 
 Paging: NRW honours `startIndex`; Niedersachsen answers every page with the
 first (probed 13 November 2026), so capped answers there are completed with
@@ -1343,9 +1449,10 @@ first.
   coverage"; in Bayern read from a rendered map); in Austria the answer is
   the outline of the detected vehicles, a cached OSM dealer area or the
   circle.
-- Parcel addresses are available in twelve states and land use in nine
-  (Bayern: land use only); in Berlin and Bremen the v8 rules apply
-  unchanged, plus the vegetation test.
+- Parcel addresses are available in twelve states and land use in eleven
+  (Bayern: land use only; Hessen and Brandenburg from the land-use
+  sections since v15); in Berlin and Bremen the v8 rules apply unchanged,
+  plus the vegetation test.
 - Imagery vintage is provider-dependent and often unknown, so a recently
   rebuilt or extended site may be scored against years-old imagery.
 - OSM reference polygons are mapper-dependent: an IoU of 1.0 against them

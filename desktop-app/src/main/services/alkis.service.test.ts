@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   classifyLandUse,
+  fetchLandUseSections,
   fetchParcelRings,
+  parseLandUseSections,
   parseLandUse,
   parseParcelFeatures,
   fetchParcelsNear,
@@ -426,5 +428,63 @@ describe("services in UTM and with several layers (v10)", () => {
 
   it("looks up Saarland parcels, before Rheinland-Pfalz", () => {
     expect(statesForPoint(49.234, 6.99)[0]).toBe("Saarland");
+  });
+});
+
+describe("land-use sections (ave:NutzungFlurstueck, cascade v15)", () => {
+  /** Hamburg writes prefixed elements and its own spelling of the uses. */
+  const HAMBURG_SECTIONS = `<wfs:FeatureCollection numberMatched="unknown" numberReturned="0">
+<wfs:member><ave:NutzungFlurstueck gml:id="AVE_1">
+<ave:nutzart>Industrie Und Gewerbeflaeche</ave:nutzart><ave:bez>Logistik und Transport</ave:bez>
+<ave:flstkennz>020421___02913______</ave:flstkennz>
+<ave:geometrie><gml:MultiSurface><gml:surfaceMember><gml:Polygon><gml:exterior><gml:LinearRing>
+<gml:posList>53.6 10.0 53.6 10.001 53.601 10.001 53.6 10.0</gml:posList>
+</gml:LinearRing></gml:exterior></gml:Polygon></gml:surfaceMember></gml:MultiSurface></ave:geometrie>
+</ave:NutzungFlurstueck></wfs:member>
+<wfs:member><ave:NutzungFlurstueck gml:id="AVE_2">
+<ave:nutzart>Wald</ave:nutzart>
+<ave:geometrie><gml:MultiSurface>
+<gml:surfaceMember><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>53.601 10.0 53.601 10.001 53.602 10.001 53.601 10.0</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></gml:surfaceMember>
+<gml:surfaceMember><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>53.603 10.0 53.603 10.001 53.604 10.001 53.603 10.0</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></gml:surfaceMember>
+</gml:MultiSurface></ave:geometrie>
+</ave:NutzungFlurstueck></wfs:member>
+<wfs:member><ave:NutzungFlurstueck gml:id="AVE_3"><ave:geometrie/></ave:NutzungFlurstueck></wfs:member>
+</wfs:FeatureCollection>`;
+
+  it("reads one section per polygon with its land-use class", () => {
+    const sections = parseLandUseSections(HAMBURG_SECTIONS);
+    expect(sections.map((s) => s.use)).toEqual(["commercial", "open", "open"]);
+    expect(sections[0].ring[0]).toEqual([10, 53.6]);
+  });
+
+  const endpoint = {
+    url: "https://example.test/wfs",
+    typeName: "ave:Flurstueck",
+    crs: 4258,
+    landUseSections: true as const,
+  };
+
+  it("asks the same service for ave:NutzungFlurstueck", async () => {
+    const asked: string[] = [];
+    const result = await fetchLandUseSections(
+      endpoint,
+      53.6,
+      10,
+      250,
+      async (source) => {
+        asked.push(source.typeName);
+        return HAMBURG_SECTIONS;
+      },
+    );
+    expect(asked).toEqual(["ave:NutzungFlurstueck"]);
+    if (result === "error") throw new Error("unexpected");
+    expect(result.sections).toHaveLength(3);
+    expect(result.truncated).toBe(false);
+  });
+
+  it("reports a failed first page as an error, so parcels stay whole", async () => {
+    expect(
+      await fetchLandUseSections(endpoint, 53.6, 10, 250, async () => "error"),
+    ).toBe("error");
   });
 });

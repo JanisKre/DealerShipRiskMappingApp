@@ -48,8 +48,12 @@ import type { OsmEvidence } from "./osm-overpass";
  * parcels, and the building at the point, is in the result whole; a vehicle
  * outline takes a building whole or not at all
  * (docs/boundary-model.md, "Cascade v14").
+ * 15: outside Bayern the open land the cadastre registers inside a parcel
+ * (`ave:NutzungFlurstueck`, seven states) is a unit of its own, and Hessen
+ * and Brandenburg parcels get their land use from those sections
+ * (parcel-sections.ts; docs/boundary-model.md, "Cascade v15").
  */
-export const CASCADE_VERSION = 14;
+export const CASCADE_VERSION = 15;
 
 export type CascadeStage = 1 | 2 | 3 | 4 | 5;
 

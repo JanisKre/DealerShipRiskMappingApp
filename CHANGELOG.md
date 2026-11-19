@@ -7,6 +7,20 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Lot boundary cuts open land off a parcel outside Bayern too (cascade
+  v15).** In NRW, Sachsen, Niedersachsen, Hamburg, Hessen, Brandenburg and
+  Mecklenburg-Vorpommern the cadastre's land-use sections
+  (`ave:NutzungFlurstueck`) are read with the parcels. A meadow, wood or
+  pond of at least 100 m² on a plot is a unit of its own, along the
+  cadastre's line, and joins only when dense with vehicles; Hessen and
+  Brandenburg parcels get their land use from the sections. On the 76
+  frozen reference sites five results change, each checked on the aerial
+  image (a pond and a wood cut off, a car park joined); stages unchanged.
+  If the sections service fails, parcels stay whole and the trace says
+  so. See `docs/boundary-model.md`, "Cascade v15".
+
 ### Fixed
 
 - **Hail score no longer depends on the date of the analysis

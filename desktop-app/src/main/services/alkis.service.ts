@@ -7,6 +7,7 @@ import { checkRing, type LonLat } from "./boundary-geometry";
 import { createCircuitBreaker } from "./boundary/circuit-breaker";
 import { fromUtm, toUtm } from "./utm";
 import { withBwAttributesStatus } from "./bw-parcel-attributes";
+import { splitParcelsByLandUse, type LandUseSection } from "./parcel-sections";
 
 /** Lifetime of an incomplete cadastre answer (see fetchParcelsNear). */
 export const DEGRADED_CADASTRE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -114,6 +115,13 @@ export interface AlkisEndpoint {
   /** Element name of a parcel member, where the answer holds other layers. */
   featureElement?: string;
   /**
+   * The service also publishes `ave:NutzungFlurstueck`, the land-use
+   * sections of each parcel (same host, search box and CRS). Probed live
+   * on 19 November 2026; Sachsen-Anhalt and Schleswig-Holstein list the
+   * type in their capabilities but reject it.
+   */
+  landUseSections?: true;
+  /**
    * Queried when this endpoint fails. The simplified ALKIS services
    * (`ave:Flurstueck`) carry each parcel's address and land use; the INSPIRE
    * service they replaced stays as the fallback, with geometry only.
@@ -138,11 +146,13 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
   NRW: {
     url: "https://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht",
     typeName: "ave:Flurstueck",
+    landUseSections: true,
     crs: 4326,
   },
   Sachsen: {
     url: "https://geodienste.sachsen.de/aaa/public_alkis/vereinf/wfs",
     typeName: "ave:Flurstueck",
+    landUseSections: true,
     crs: 4258,
     fallback: {
       url: "https://geodienste.sachsen.de/aaa/public_inspire/alkis/cp/dls/wfs",
@@ -153,6 +163,7 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
   Niedersachsen: {
     url: "https://opendata.lgln.niedersachsen.de/doorman/noauth/alkis_wfs_einfach",
     typeName: "ave:Flurstueck",
+    landUseSections: true,
     crs: 4258,
     fallback: {
       url: "https://www.inspire.niedersachsen.de/doorman/noauth/alkis-dls-cp",
@@ -190,6 +201,7 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
   Brandenburg: {
     url: "https://isk.geobasis-bb.de/ows/alkis_vereinf_wfs",
     typeName: "ave:Flurstueck",
+    landUseSections: true,
     crs: 4258,
     fallback: {
       url: "https://inspire.brandenburg.de/services/cp_alkis_wfs",
@@ -205,6 +217,7 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
   Hessen: {
     url: "https://www.gds.hessen.de/wfs2/aaa-suite/cgi-bin/alkis/vereinf/wfs",
     typeName: "ave:Flurstueck",
+    landUseSections: true,
     crs: 4258,
     fallback: {
       url: "https://inspire-hessen.de/ows/services/org.2.07247d95-adc7-4c7d-9c7a-ed17af855317_wfs",
@@ -235,6 +248,7 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
   Hamburg: {
     url: "https://geodienste.hamburg.de/WFS_HH_ALKIS_vereinfacht",
     typeName: "ave:Flurstueck",
+    landUseSections: true,
     crs: 4258,
     fallback: {
       url: "https://geodienste.hamburg.de/HH_WFS_INSPIRE_Flurstuecke",
@@ -251,6 +265,7 @@ const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
   "Mecklenburg-Vorpommern": {
     url: "https://www.geodaten-mv.de/dienste/alkis_wfs_einfach",
     typeName: "ave:Flurstueck",
+    landUseSections: true,
     crs: 25833,
     utmZone: 33,
     fallback: {
@@ -606,6 +621,127 @@ export interface ParcelLookup {
    * answer" — `reachable` alone collapses all but the first into one boolean.
    */
   status: SourceStatus;
+  /**
+   * Whether the land-use sections (`ave:NutzungFlurstueck`) were applied:
+   * "read" when the service answered, "failed" when it did not (parcels
+   * then stay whole). Absent where the state publishes none.
+   */
+  landUseSections?: "read" | "failed";
+}
+
+/**
+ * Land-use sections of `ave:NutzungFlurstueck` (`nutzart`, one feature per
+ * section, possibly several polygons each).
+ */
+export function parseLandUseSections(xml: string): LandUseSection[] {
+  const sections: LandUseSection[] = [];
+  for (const member of xml.matchAll(MEMBER_RE)) {
+    const body = member[1];
+    const name = xmlField(body, "nutzart");
+    if (!name) continue;
+    const use = classifyLandUse(name);
+    for (const ring of parseExteriorRings(body)) sections.push({ ring, use });
+  }
+  return sections;
+}
+
+/**
+ * The land-use sections in the search box, paged like the parcels. A capped
+ * answer is not an error: parcels whose sections are incomplete stay whole
+ * (parcel-sections.ts checks the areas).
+ */
+export async function fetchLandUseSections(
+  endpoint: AlkisEndpoint,
+  lat: number,
+  lon: number,
+  radiusM: number,
+  fetchPage: typeof fetchAlkisXml = fetchAlkisXml,
+): Promise<{ sections: LandUseSection[]; truncated: boolean } | "error"> {
+  const source: AlkisEndpoint = {
+    url: endpoint.url,
+    typeName: "ave:NutzungFlurstueck",
+    crs: endpoint.crs,
+    ...(endpoint.utmZone ? { utmZone: endpoint.utmZone } : {}),
+  };
+  const seen = new Set<string>();
+  const sections: LandUseSection[] = [];
+  let truncated = false;
+  for (let page = 0; page < PARCEL_MAX_PAGES; page += 1) {
+    const xml = await fetchPage(
+      source,
+      lat,
+      lon,
+      radiusM,
+      page * PARCEL_REQUEST_LIMIT,
+    );
+    if (xml === "error") {
+      if (page === 0) return "error";
+      return { sections, truncated: true };
+    }
+    if (!xml) break;
+    const before = sections.length;
+    for (const section of parseLandUseSections(xml)) {
+      const ring = source.utmZone
+        ? ringsFromUtm(section.ring, source.utmZone)
+        : section.ring;
+      const key = ringKey(ring);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      sections.push({ ring, use: section.use });
+    }
+    const { matched, returned } = parseWfsCounts(xml);
+    truncated =
+      matched != null && returned != null && returned > 0
+        ? matched > page * PARCEL_REQUEST_LIMIT + returned
+        : memberCount(xml) >= PARCEL_REQUEST_LIMIT;
+    if (!truncated || sections.length === before) break;
+  }
+  return { sections, truncated };
+}
+
+/**
+ * The sections near the point, as `fetchParcelsNear` applies them: a capped
+ * answer is completed near the point with the smaller box, like the parcels.
+ */
+async function landUseSectionsNear(
+  endpoint: AlkisEndpoint,
+  lat: number,
+  lon: number,
+  radiusM: number,
+): Promise<LandUseSection[] | "error"> {
+  const wide = await fetchLandUseSections(endpoint, lat, lon, radiusM);
+  if (wide === "error" || !wide.truncated) {
+    return wide === "error" ? "error" : wide.sections;
+  }
+  if (radiusM <= PARCEL_FALLBACK_RADIUS_M) return wide.sections;
+  const near = await fetchLandUseSections(
+    endpoint,
+    lat,
+    lon,
+    PARCEL_FALLBACK_RADIUS_M,
+  );
+  if (near === "error") return wide.sections;
+  const seen = new Set(wide.sections.map((section) => ringKey(section.ring)));
+  return [
+    ...wide.sections,
+    ...near.sections.filter((section) => !seen.has(ringKey(section.ring))),
+  ];
+}
+
+/**
+ * The land-use sections near a point in `state`, as the parcel lookup reads
+ * them; null where the state publishes none. For the boundary benchmark,
+ * which completes frozen inputs with them.
+ */
+export async function landUseSectionsFor(
+  state: string,
+  lat: number,
+  lon: number,
+  radiusM: number = PARCEL_SEARCH_RADIUS_M,
+): Promise<LandUseSection[] | "error" | null> {
+  const endpoint = ALKIS_ENDPOINTS[state];
+  if (!endpoint?.landUseSections) return null;
+  return landUseSectionsNear(endpoint, lat, lon, radiusM);
 }
 
 /**
@@ -661,7 +797,7 @@ export async function fetchParcelsNear(
 
     // Four decimals (~11 m) on purpose: neighbouring locations in the same
     // business park then share one cached cadastre response.
-    const key = `alkis:v5:${state}:${radiusM}:${lat.toFixed(4)},${lon.toFixed(4)}`;
+    const key = `alkis:v6:${state}:${radiusM}:${lat.toFixed(4)},${lon.toFixed(4)}`;
     const hit = cacheGet<ParcelLookup>(key);
     if (hit) {
       answeredAtLeastOnce = true;
@@ -678,6 +814,12 @@ export async function fetchParcelsNear(
       continue;
     }
 
+    // Started with the parcels: the same host, another layer.
+    const sectionsPromise = endpoint.landUseSections
+      ? landUseSectionsNear(endpoint, lat, lon, radiusM).catch(
+          () => "error" as const,
+        )
+      : null;
     let source = endpoint;
     let fetched = await fetchParcelRings(source, lat, lon, radiusM);
     if (fetched === "error" && endpoint.fallback) {
@@ -733,6 +875,19 @@ export async function fetchParcelsNear(
       parcels = enriched.parcels;
       attributesFailed = enriched.layerFailed;
     }
+    // Land-use sections cut open land off a parcel along the cadastre's
+    // lines (cascade v15); without them the parcels stay whole.
+    let landUseSections: ParcelLookup["landUseSections"];
+    if (sectionsPromise) {
+      const sections = await sectionsPromise;
+      if (sections === "error") {
+        landUseSections = "failed";
+        attributesFailed = true;
+      } else {
+        landUseSections = "read";
+        parcels = splitParcelsByLandUse(parcels, sections).parcels;
+      }
+    }
     const result: ParcelLookup = {
       parcels,
       state,
@@ -746,6 +901,7 @@ export async function fetchParcelsNear(
           : truncated
             ? "partial"
             : "success",
+      ...(landUseSections ? { landUseSections } : {}),
     };
     // A degraded answer (INSPIRE fallback without address and land use, a
     // capped answer, a failed BW attribute layer) is kept for a day only:

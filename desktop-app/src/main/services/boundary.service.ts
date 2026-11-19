@@ -154,6 +154,11 @@ export async function detectBoundary(
         : "cadastre answer capped near the point",
     );
   }
+  if (parcelLookup?.landUseSections === "failed") {
+    trace.push(
+      "land-use sections unavailable — parcels kept whole, open land not cut off",
+    );
+  }
 
   const result = finalizeCascadeResult(
     chosen.result,
