@@ -60,6 +60,23 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **One look and one voice for messages.** Every toast goes through
+  `notify` and looks like the app's inline notices (card surface, coloured
+  icon, outline action button, close button inside); titles are short and
+  say what happened, details and the technical reason sit underneath,
+  failures stay longer than confirmations, and the same message replaces
+  itself instead of stacking. Inline notices on the map, dashboard,
+  parameters and import share one `Alert` component. Re-analysing a
+  location from the map and confirming a boundary in its popup now answer
+  with a toast; a failed autosave tells its reason once. See
+  `docs/ui-feedback.md`.
+- **Map pins and clusters in the app's style.** Pins carry a card-coloured
+  rim, the zone in a readable colour and the focus ring when selected; new
+  business is a "+" badge (the blue/violet outline is gone). Cluster badges
+  are card badges whose ring shows the highest hail zone inside. Tooltips,
+  the location popup and the storm's drag handle use the app's tokens and
+  follow dark mode.
+
 - **The own aerial imagery source falls back to the automatic choice.**
   "Own source" no longer replaces every other source everywhere: where it
   has no image (one sample tile at the site, or at the map centre, is a

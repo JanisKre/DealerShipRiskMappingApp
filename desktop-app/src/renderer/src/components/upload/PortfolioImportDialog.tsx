@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import {
   Check,
   FilePlus2,
@@ -119,13 +119,13 @@ export function usePortfolioImport(onImported?: () => void): {
           }
         : await csvSource(file);
       if (!source) {
-        toast.error(t("portfolioImport.notText"));
+        notify.error(t("portfolioImport.notText"));
         return;
       }
       const result = await parseSource(source);
       if (result.rows.length === 0) {
         setImportReport(result.report);
-        toast.warning(t("ui.noRowsFound"));
+        notify.warning(t("ui.noRowsFound"));
         return;
       }
       setPending({ fileName: file.name, result, source, overrides: {} });
@@ -133,18 +133,12 @@ export function usePortfolioImport(onImported?: () => void): {
       const message = error instanceof Error ? error.message : String(error);
       // The technical reason stays available, below a plain explanation;
       // a file that is no workbook gets just that sentence (UW-17).
-      toast.error(
-        isBrokenWorkbookError(message)
-          ? t("portfolioImport.notExcel")
-          : t("portfolioImport.parseFailedTitle"),
-        isBrokenWorkbookError(message)
-          ? undefined
-          : {
-              description: t("portfolioImport.parseFailed", {
-                error: message,
-              }),
-            },
-      );
+      if (isBrokenWorkbookError(message))
+        notify.error(t("portfolioImport.notExcel"));
+      else
+        notify.error(t("portfolioImport.parseFailedTitle"), {
+          description: `${t("portfolioImport.parseFailedHint")} ${t("portfolioImport.parseFailed", { error: message })}`,
+        });
     }
   }
 
@@ -155,11 +149,7 @@ export function usePortfolioImport(onImported?: () => void): {
       const result = await parseSource(pending.source, overrides);
       setPending({ ...pending, result, overrides });
     } catch (error) {
-      toast.error(
-        t("portfolioImport.parseFailed", {
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      );
+      notify.error(t("portfolioImport.parseFailedTitle"), { cause: error });
     }
   }
 
@@ -316,9 +306,9 @@ function ImportForm({
         ...(assumptionsEditable ? { parameters: assumptions } : {}),
       });
       if (skipped > 0)
-        toast.info(t("start.duplicatesSkipped", { count: skipped }));
+        notify.info(t("start.duplicatesSkipped", { count: skipped }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      notify.failed(error, t("common.importFailed"));
     }
   }
 

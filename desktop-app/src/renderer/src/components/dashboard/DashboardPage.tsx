@@ -1,4 +1,3 @@
-import { toastExported } from "@renderer/lib/exportToast";
 import { exportLocale } from "@renderer/lib/format";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,9 +23,10 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import type { AccumulationCluster, AnalyzedDealership } from "@shared/types";
 import { EmptyState } from "@renderer/components/common/EmptyState";
+import { Alert, AlertTitle } from "@renderer/components/ui/alert";
 import { Button } from "@renderer/components/ui/button";
 import { HintButton } from "@renderer/components/ui/hint-button";
 import { AI_SETTINGS_PATH } from "@renderer/components/ai/LlmSetupNotice";
@@ -151,7 +151,8 @@ export function DashboardPage(): React.JSX.Element {
     // Without an AI provider a prefilled prompt leads nowhere: the
     // dashboard is built by the model.
     if (llmReady === false) {
-      toast.info(t("a2ui.needsAi"), {
+      notify.info(t("a2ui.needsAi"), {
+        description: t("a2ui.needsAiHint"),
         action: {
           label: t("aiSetup.openSettings"),
           onClick: () => navigate(AI_SETTINGS_PATH),
@@ -254,11 +255,13 @@ export function DashboardPage(): React.JSX.Element {
   /** Stores a rearranged AI dashboard; null means the move is not allowed. */
   function arrangeSurface(next: A2uiSurface | null): void {
     if (!next) {
-      toast.info(t("a2ui.moveRefused"));
+      notify.info(t("a2ui.moveRefused"), {
+        description: t("a2ui.moveRefusedHint"),
+      });
       return;
     }
     if (next === aiDashboard?.surface) return;
-    void arrange(next).catch(() => toast.error(t("a2ui.arrangeFailed")));
+    void arrange(next).catch(() => notify.error(t("a2ui.arrangeFailed")));
   }
 
   /**
@@ -434,13 +437,11 @@ export function DashboardPage(): React.JSX.Element {
               />
               <PortfolioFilterBar dealerships={dealerships} />
               {building && (
-                <p
-                  role="status"
-                  className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm"
-                >
-                  <Loader2 className="size-4 animate-spin text-primary" />
-                  {aiDashboard ? t("a2ui.updating") : t("a2ui.building")}
-                </p>
+                <Alert variant="info" busy>
+                  <AlertTitle>
+                    {aiDashboard ? t("a2ui.updating") : t("a2ui.building")}
+                  </AlertTitle>
+                </Alert>
               )}
               {aiDashboard ? (
                 <section
@@ -801,9 +802,9 @@ function Actions({
         format,
         exportLocale(),
       );
-      if (path) toastExported(t, "ui.reportExported", path);
+      if (path) notify.exported("ui.reportExported", path);
     } catch (err) {
-      toast.error(t("ui.exportFailed", { error: (err as Error).message }));
+      notify.error(t("ui.exportFailed"), { cause: err });
     }
   }
 
@@ -813,9 +814,9 @@ function Actions({
         useAppStore.getState().currentSession(),
         exportLocale(),
       );
-      if (path) toastExported(t, "ui.viewExported", path);
+      if (path) notify.exported("ui.viewExported", path);
     } catch (err) {
-      toast.error(t("ui.exportFailed", { error: (err as Error).message }));
+      notify.error(t("ui.exportFailed"), { cause: err });
     }
   }
 
@@ -825,9 +826,9 @@ function Actions({
         useAppStore.getState().currentSession(),
         exportLocale(),
       );
-      if (path) toastExported(t, "ui.portfolioExported", path);
+      if (path) notify.exported("ui.portfolioExported", path);
     } catch (err) {
-      toast.error(t("ui.exportFailed", { error: (err as Error).message }));
+      notify.error(t("ui.exportFailed"), { cause: err });
     }
   }
 

@@ -45,18 +45,22 @@ export function MarkerContextMenu({
 
   return (
     <div
-      className="fixed z-[2000] min-w-40 max-w-64 overflow-hidden rounded-md border bg-popover py-1 text-popover-foreground shadow-lg"
+      // The look of the app's DropdownMenu (ui/dropdown-menu.tsx).
+      role="menu"
+      aria-label={state.dealership.name}
+      className="fixed z-[2000] min-w-40 max-w-64 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0"
       ref={menuRef}
       style={{ left: state.x, top: state.y }}
     >
       <p
-        className="truncate px-3 py-1 text-xs font-medium text-muted-foreground"
+        className="truncate px-2 py-1.5 text-xs font-medium text-muted-foreground"
         title={state.dealership.name}
       >
         {state.dealership.name}
       </p>
       <button
         type="button"
+        role="menuitem"
         className={MENU_ITEM_CLASS}
         onClick={() => {
           onDetails(state.dealership.id);
@@ -68,6 +72,7 @@ export function MarkerContextMenu({
       </button>
       <button
         type="button"
+        role="menuitem"
         className={MENU_ITEM_CLASS}
         onClick={() => {
           onReanalyze(state.dealership.id);
@@ -79,6 +84,7 @@ export function MarkerContextMenu({
       </button>
       <button
         type="button"
+        role="menuitem"
         className={cn(
           MENU_ITEM_CLASS,
           "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10",
@@ -96,4 +102,4 @@ export function MarkerContextMenu({
 }
 
 const MENU_ITEM_CLASS =
-  "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:outline-none";
+  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground";

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { Copy, Loader2, NotebookPen, ScanSearch, Sparkles } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { DEALERSHIP_NOTES_MAX_LENGTH } from "@shared/constants";
@@ -45,22 +45,13 @@ function useAppendNote(d: AnalyzedDealership): (text: string) => void {
   return (text) => {
     const next = [d.notes?.trim(), text].filter(Boolean).join("\n\n");
     if (next.length > DEALERSHIP_NOTES_MAX_LENGTH) {
-      toast.error(t("aiInsight.notesFull"));
+      notify.error(t("aiInsight.notesFull"));
       return;
     }
     void updateNotes(d.id, next)
-      .then(() => toast.success(t("aiInsight.addedToNotes")))
-      .catch((error: unknown) => toast.error(errorText(error)));
+      .then(() => notify.success(t("aiInsight.addedToNotes")))
+      .catch((error: unknown) => notify.failed(error, t("common.saveFailed")));
   };
-}
-
-async function copyText(text: string, done: string): Promise<void> {
-  try {
-    await window.api.writeClipboardText(text);
-    toast.success(done);
-  } catch (error) {
-    toast.error(errorText(error));
-  }
 }
 
 // --- Weakest assumptions ("Advocatus Diaboli") --------------------------------
@@ -220,7 +211,7 @@ export function EvidenceMemoSection({
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => void copyText(text, t("aiInsight.copied"))}
+                  onClick={() => void notify.copy(text, t("aiInsight.copied"))}
                 >
                   <Copy /> {t("aiInsight.copy")}
                 </Button>

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import i18n from "@renderer/i18n";
 import { AppShell } from "@renderer/components/layout/AppShell";
 import { WorkspacePage } from "@renderer/components/workspace/WorkspacePage";
@@ -30,6 +31,7 @@ function page(element: React.JSX.Element): React.JSX.Element {
 }
 
 export function App(): React.JSX.Element {
+  const { t } = useTranslation();
   // Apply the language from persisted settings at startup.
   useEffect(() => {
     window.api
@@ -64,8 +66,7 @@ export function App(): React.JSX.Element {
       <Toaster
         position="top-center"
         offset={{ top: 64 }}
-        richColors
-        closeButton
+        closeLabel={t("common.close")}
       />
     </HashRouter>
   );

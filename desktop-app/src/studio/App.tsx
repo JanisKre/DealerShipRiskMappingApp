@@ -209,7 +209,12 @@ export function App(): React.JSX.Element {
         </main>
       </div>
       {/* Top centre: never over "Kachel fertig" or the save state at the bottom. */}
-      <Toaster position="top-center" offset={56} theme="dark" />
+      <Toaster
+        position="top-center"
+        offset={56}
+        theme="dark"
+        closeLabel={t("common.close")}
+      />
       <ConfirmHost />
     </TooltipProvider>
   );

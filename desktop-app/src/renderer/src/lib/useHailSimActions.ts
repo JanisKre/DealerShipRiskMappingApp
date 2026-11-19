@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { toast } from "sonner";
+import { errorReason, notify } from "@renderer/lib/notify";
 import {
   MAX_FOOTPRINT_BYTES,
   summarizeEvent,
@@ -42,16 +42,6 @@ function simulationDetail(
     cells,
     evidence: simulationEvidence(source),
   };
-}
-
-/** Message of an error thrown in the main process, without Electron's prefix. */
-function mainMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message.replace(
-        /^Error invoking remote method '[^']+': (Error: )?/,
-        "",
-      )
-    : "";
 }
 
 /** Known import errors of the main process, in the UI's language. */
@@ -109,14 +99,14 @@ export function useHailSimActions(): {
       try {
         const loaded = await window.api.hailEventsGet(id);
         if (!loaded) {
-          toast.error(t("hailReplay.eventGone"));
+          notify.error(t("hailReplay.eventGone"));
           await refresh();
           return;
         }
         showStorm(loaded, autoplay);
       } catch (error) {
         console.warn("Loading hail event failed", error);
-        toast.error(t("hailReplay.eventFailed"));
+        notify.error(t("hailReplay.eventFailed"));
       } finally {
         s.setDetailLoading(false);
       }
@@ -257,14 +247,12 @@ export function useHailSimActions(): {
         const summary = await window.api.hailEventsLoadHistoric(day);
         await refresh();
         if (summary.cells === 0) {
-          toast.info(t("hailReplay.historicNone", { day }));
+          notify.info(t("hailReplay.historicNone", { day }));
         }
         s.setSpeed("fast");
         await open(summary.id, true);
       } catch (error) {
-        toast.error(t("hailReplay.historicFailed"), {
-          description: mainMessage(error),
-        });
+        notify.error(t("hailReplay.historicFailed"), { cause: error });
       } finally {
         s.setHistoricLoading(false);
       }
@@ -283,12 +271,10 @@ export function useHailSimActions(): {
         source,
         cells: detail.cells,
       });
-      toast.success(t("hailReplay.saved", { name: saved.name }));
+      notify.success(t("hailReplay.saved", { name: saved.name }));
       await refresh();
     } catch (error) {
-      toast.error(t("hailReplay.saveFailed"), {
-        description: mainMessage(error),
-      });
+      notify.error(t("hailReplay.saveFailed"), { cause: error });
     }
   }, [refresh, store, t]);
 
@@ -305,7 +291,7 @@ export function useHailSimActions(): {
   const importFile = useCallback(
     async (file: File): Promise<void> => {
       if (file.size > MAX_FOOTPRINT_BYTES) {
-        toast.error(t("hailReplay.importTooLarge"));
+        notify.error(t("hailReplay.importTooLarge"));
         return;
       }
       try {
@@ -313,12 +299,12 @@ export function useHailSimActions(): {
           file.name.replace(/\.(geo)?json$/i, ""),
           await file.text(),
         );
-        toast.success(t("hailReplay.imported", { name: summary.name }));
+        notify.success(t("hailReplay.imported", { name: summary.name }));
         await refresh();
         await open(summary.id, true);
       } catch (error) {
-        toast.error(t("hailReplay.importFailed"), {
-          description: importErrorText(mainMessage(error), t),
+        notify.error(t("hailReplay.importFailed"), {
+          description: importErrorText(errorReason(error), t),
         });
       }
     },

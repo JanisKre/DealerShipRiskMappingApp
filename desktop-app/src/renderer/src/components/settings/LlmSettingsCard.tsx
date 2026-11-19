@@ -15,7 +15,7 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
-import { toast } from "sonner";
+import { errorReason, notify } from "@renderer/lib/notify";
 import type { LlmConnectionTest, LocalRuntimeStatus } from "@shared/ipc-schema";
 import {
   DEFAULT_LOCAL_BASE_URL,
@@ -63,16 +63,9 @@ const DEFAULT_BASE_URLS: Record<LlmProvider, string> = {
 
 type ModelOption = { id: string; label?: string };
 
-/** Strips Electron's "Error invoking remote method '…': Error: " prefix. */
+/** The error's reason, or a general sentence when it carries none. */
 function ipcErrorMessage(error: unknown): string {
-  const message =
-    error instanceof Error && error.message
-      ? error.message
-      : i18n.t("common.operationFailed");
-  return message.replace(
-    /^Error invoking remote method '[^']+': (Error: )?/,
-    "",
-  );
+  return errorReason(error) || i18n.t("common.operationFailed");
 }
 
 /** Preset whose base URL is configured (an empty URL means Ollama). */
@@ -176,11 +169,11 @@ export function LlmSettingsCard({
         llm: { provider, model, ...llm, ...partial },
       });
       onSettingsChange(next);
-      toast.success(t("common.saved"));
+      notify.success(t("common.saved"));
       return true;
     } catch (err) {
       console.error("Saving LLM settings failed:", err);
-      toast.error(ipcErrorMessage(err));
+      notify.failed(err, t("common.saveFailed"));
       return false;
     }
   }
@@ -192,10 +185,10 @@ export function LlmSettingsCard({
       setApiKey("");
       setAccessRejected(false);
       onSettingsChange(await window.api.getSettings());
-      toast.success(t("common.saved"));
+      notify.success(t("common.saved"));
     } catch (err) {
       console.error("Saving LLM API key failed:", err);
-      toast.error(ipcErrorMessage(err));
+      notify.failed(err, t("common.saveFailed"));
     }
   }
 

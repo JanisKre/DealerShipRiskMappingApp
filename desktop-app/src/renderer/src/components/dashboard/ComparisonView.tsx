@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Loader2, Save } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import type { AnalyzedDealership, Session } from "@shared/types";
 import { diffPortfolios, portfolioDiffFacts } from "@shared/portfolio-diff";
 import { AiExplanation } from "@renderer/components/ai/AiExplanation";
@@ -78,14 +78,12 @@ export function useSaveSnapshot(onSaved?: () => void): {
     setSaving(true);
     try {
       const name = await saveComparisonSnapshot(t, i18n.language);
-      toast.success(t("ui.snapshotSaved", { name }));
+      notify.success(t("ui.snapshotSaved", { name }), {
+        description: t("ui.snapshotSavedHint"),
+      });
       onSaved?.();
     } catch (err) {
-      toast.error(
-        t("ui.snapshotFailed", {
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
+      notify.error(t("ui.snapshotFailed"), { cause: err });
     } finally {
       setSaving(false);
     }

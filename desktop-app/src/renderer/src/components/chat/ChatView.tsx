@@ -1,10 +1,10 @@
-import { fileNameOf } from "@renderer/lib/exportToast";
 import { exportLocale } from "@renderer/lib/format";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Database, MessageSquare, Plus, X } from "lucide-react";
-import { toast } from "sonner";
+import { fileNameOf, notify } from "@renderer/lib/notify";
+import { AI_SETTINGS_PATH } from "@renderer/components/ai/LlmSetupNotice";
 import { RISK_MODEL_VERSION } from "@shared/constants";
 import { defaultDashboardSurface } from "@shared/a2ui";
 import { emptySelection } from "@shared/a2ui-data";
@@ -251,7 +251,13 @@ export function ChatView({
       return true;
     }
     if (llmReady === false) {
-      toast.info(t("chat.needsAi"));
+      notify.info(t("chat.needsAi"), {
+        description: t("chat.needsAiHint"),
+        action: {
+          label: t("aiSetup.openSettings"),
+          onClick: () => void navigate(AI_SETTINGS_PATH),
+        },
+      });
       return false;
     }
     // Wording alone was not clear: with a dashboard on screen (or when the

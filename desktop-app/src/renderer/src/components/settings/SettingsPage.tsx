@@ -11,7 +11,7 @@ import {
   Sparkles,
   Sun,
 } from "lucide-react";
-import { toast } from "sonner";
+import { errorReason, notify } from "@renderer/lib/notify";
 import type { Settings } from "@shared/types";
 import i18n from "@renderer/i18n";
 import { useTheme, type Theme } from "@renderer/components/theme/ThemeProvider";
@@ -48,12 +48,6 @@ import { ImagerySourceCard } from "./ImagerySourceCard";
 import { LlmSettingsCard } from "./LlmSettingsCard";
 import { NatCatSettingsCard } from "./NatCatSettingsCard";
 import { SettingRow } from "./SettingRow";
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error && error.message
-    ? error.message
-    : i18n.t("common.operationFailed");
-}
 
 /** The settings are split into three tabs instead of one long page. */
 const SECTIONS = ["general", "ai", "data"] as const;
@@ -100,7 +94,10 @@ export function SettingsPage(): React.JSX.Element {
         }
       })
       .catch((err: unknown) => {
-        if (!cancelled) setSettingsError(errorMessage(err));
+        if (!cancelled)
+          setSettingsError(
+            errorReason(err) || i18n.t("common.operationFailed"),
+          );
       });
     return () => {
       cancelled = true;
@@ -141,7 +138,7 @@ export function SettingsPage(): React.JSX.Element {
   function notifySaved(): void {
     // i18n.t, not the render's `t`: after a language switch this render
     // still holds the old language.
-    toast.success(i18n.t("common.saved"));
+    notify.success(i18n.t("common.saved"));
   }
 
   async function update(partial: Partial<Settings>): Promise<void> {
@@ -153,7 +150,7 @@ export function SettingsPage(): React.JSX.Element {
       notifySaved();
     } catch (err) {
       console.error("Saving settings failed:", err);
-      toast.error(errorMessage(err));
+      notify.failed(err, i18n.t("common.saveFailed"));
     }
   }
 

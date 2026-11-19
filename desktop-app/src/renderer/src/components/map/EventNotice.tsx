@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { Copy, Mail } from "lucide-react";
 import type { HailEventHit } from "@shared/hail-events";
 import { noticeFacts, noticeSites } from "@shared/event-notice";
@@ -61,16 +61,7 @@ export function EventNotice({
         <Button
           variant="outline"
           size="sm"
-          onClick={() =>
-            void window.api
-              .writeClipboardText(list)
-              .then(() => toast.success(t("eventNotice.copied")))
-              .catch((error: unknown) =>
-                toast.error(
-                  error instanceof Error ? error.message : String(error),
-                ),
-              )
-          }
+          onClick={() => void notify.copy(list, t("eventNotice.copied"))}
         >
           <Copy /> {t("eventNotice.copyList")}
         </Button>

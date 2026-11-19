@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { Pencil } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { Button } from "@renderer/components/ui/button";
@@ -92,7 +92,7 @@ function ManualVehicleCountEditor({
         .getState()
         .dealerships.find((x) => x.id === d.id)?.risk?.exposureEur;
       if (before != null && after != null && before !== after) {
-        toast.info(
+        notify.info(
           t("dashboard.detailDialog.exposureChanged", {
             from: eur(before),
             to: eur(after),

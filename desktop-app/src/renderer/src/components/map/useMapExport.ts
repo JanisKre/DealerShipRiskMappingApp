@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { TFunction } from "i18next";
-import { toast } from "sonner";
-import { toastExported } from "@renderer/lib/exportToast";
+import { notify } from "@renderer/lib/notify";
 import { exportLocale } from "@renderer/lib/format";
 
 /** Exports the map as PNG or copies it to the clipboard. */
@@ -31,12 +30,12 @@ export function useMapExport(t: TFunction): {
       }
       const result = await window.api.captureMap(rect, mode, exportLocale());
       if (mode === "clipboard" && result.ok)
-        toast.success(t("map.page.mapCopied"));
+        notify.success(t("map.page.mapCopied"));
       else if (mode === "save" && result.path)
-        toastExported(t, "map.page.mapSaved", result.path);
+        notify.exported("map.page.mapSaved", result.path);
     } catch (error) {
       console.warn("Map capture failed:", error);
-      toast.error(
+      notify.error(
         t(
           mode === "clipboard"
             ? "map.page.mapCopyFailed"

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { Copy } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import {
@@ -41,12 +41,7 @@ export function QuestionnaireSection({
   const text = questionnaireText(t, d.name, questions);
 
   async function copy(value: string): Promise<void> {
-    try {
-      await window.api.writeClipboardText(value);
-      toast.success(t("questionnaire.copied"));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    }
+    await notify.copy(value, t("questionnaire.copied"));
   }
 
   return (

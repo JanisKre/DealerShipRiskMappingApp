@@ -2,14 +2,13 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ChevronRight,
-  Info,
   Loader2,
   RotateCcw,
   Save,
   Trash2,
   TriangleAlert,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import type { AnalyzedDealership, RiskParameters } from "@shared/types";
 import { ealCoverage, hasEalBasis } from "@shared/estimates";
 import {
@@ -29,6 +28,11 @@ import { meanHailSeverityEur } from "@shared/risk-math";
 import { eur } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
 import { PageErrorBoundary } from "@renderer/components/common/PageErrorBoundary";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@renderer/components/ui/alert";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Card } from "@renderer/components/ui/card";
@@ -895,7 +899,7 @@ function TemplateControls({
     if (!next) return;
     const previous = parameters;
     await updateParameters(next);
-    toast.success(
+    notify.success(
       t("parameters.templates.applied", {
         name:
           id === DEFAULT_TEMPLATE_ID ? t("parameters.templates.defaults") : id,
@@ -912,11 +916,11 @@ function TemplateControls({
     if (!name.trim()) return;
     try {
       await save(name, parameters);
-      toast.success(t("parameters.templates.saved", { name: name.trim() }));
+      notify.success(t("parameters.templates.saved", { name: name.trim() }));
       setSaveOpen(false);
       setName("");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      notify.failed(error, t("common.saveFailed"));
     }
   }
   return (
@@ -1128,7 +1132,7 @@ function ParametersContent(): React.JSX.Element {
   ).filter((key) => parameters[key] !== DEFAULT_RISK_PARAMETERS[key]).length;
   function requestReset(): void {
     if (changedFromDefaults === 0) {
-      toast.info(t("parameters.resetNothing"));
+      notify.info(t("parameters.resetNothing"));
       return;
     }
     setConfirmReset(true);
@@ -1137,7 +1141,7 @@ function ParametersContent(): React.JSX.Element {
     setConfirmReset(false);
     const previous = parameters;
     await resetParameters();
-    toast.success(t("parameters.resetDone"), {
+    notify.success(t("parameters.resetDone"), {
       action: {
         label: t("parameters.resetUndo"),
         onClick: () => void updateParameters(previous),
@@ -1189,18 +1193,13 @@ function ParametersContent(): React.JSX.Element {
           </Button>
         </div>
       </div>
-      <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
-        <Info className="mt-0.5 size-4 shrink-0 text-primary" />
-        <div className="space-y-1">
-          <p className="font-medium">{t("parameters.startHereTitle")}</p>
-          <p className="text-muted-foreground">
-            {t("parameters.startHereDescription")}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {t("parameters.fractionHint")}
-          </p>
-        </div>
-      </div>
+      <Alert variant="info">
+        <AlertTitle>{t("parameters.startHereTitle")}</AlertTitle>
+        <AlertDescription>
+          {t("parameters.startHereDescription")}
+        </AlertDescription>
+        <AlertDescription>{t("parameters.fractionHint")}</AlertDescription>
+      </Alert>
       <div className="space-y-4">
         {GROUPS.map((group) => {
           const recommendedFields = group.fields.filter(

@@ -9,7 +9,7 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import type { UpdateStatus } from "@shared/ipc-schema";
 import type { Settings } from "@shared/types";
 import { Badge } from "@renderer/components/ui/badge";
@@ -32,12 +32,6 @@ import {
 } from "@renderer/components/ui/dialog";
 import { Progress } from "@renderer/components/ui/progress";
 import { Switch } from "@renderer/components/ui/switch";
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error && error.message
-    ? error.message
-    : "The operation could not be completed.";
-}
 
 /** Live update status: initial value from main, then pushed changes. */
 export function useUpdateStatus(): UpdateStatus | null {
@@ -83,7 +77,7 @@ export function AppSupportCard({
     try {
       await action();
     } catch (error) {
-      toast.error(errorMessage(error));
+      notify.failed(error);
     }
   }
 
@@ -91,9 +85,9 @@ export function AppSupportCard({
     setExporting(true);
     try {
       const { path } = await window.api.exportDiagnostics();
-      if (path) toast.success(t("settings.support.diagnosticsSaved", { path }));
+      if (path) notify.exported("settings.support.diagnosticsSaved", path);
     } catch (error) {
-      toast.error(errorMessage(error));
+      notify.failed(error, t("ui.exportFailed"));
     } finally {
       setExporting(false);
     }
@@ -106,7 +100,7 @@ export function AppSupportCard({
       // The app restarts; nothing else to do here.
     } catch (error) {
       setResetting(false);
-      toast.error(errorMessage(error));
+      notify.failed(error);
     }
   }
 

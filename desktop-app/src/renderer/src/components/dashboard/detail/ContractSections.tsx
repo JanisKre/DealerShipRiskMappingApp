@@ -4,7 +4,7 @@ import {
 } from "@renderer/components/parameters/parameterInput";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { StickyNote } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { DEALERSHIP_NOTES_MAX_LENGTH } from "@shared/constants";
@@ -175,7 +175,7 @@ export function NotesSection({
     try {
       await updateNotes(d.id, draftRef.current);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      notify.failed(error, t("common.saveFailed"));
     } finally {
       setSaving(false);
     }

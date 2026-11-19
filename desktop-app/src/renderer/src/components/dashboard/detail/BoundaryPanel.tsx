@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { Check, Pencil, RotateCcw, TriangleAlert } from "lucide-react";
 import area from "@turf/area";
 import type {
@@ -119,7 +119,7 @@ export function BoundaryPanel({
     try {
       await work();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      notify.failed(error);
     } finally {
       setBusy(false);
     }
@@ -149,7 +149,7 @@ export function BoundaryPanel({
         confirmedAt: new Date().toISOString(),
       });
       await saveBoundaryEdit(d.id);
-      toast.success(
+      notify.success(
         t("dashboard.detailDialog.boundaryAdopted", {
           label: candidateLabel(t, candidate),
         }),

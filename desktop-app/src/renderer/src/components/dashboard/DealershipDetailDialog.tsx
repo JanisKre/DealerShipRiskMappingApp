@@ -1,7 +1,6 @@
-import { toastExported } from "@renderer/lib/exportToast";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
@@ -323,13 +322,9 @@ function DetailBody({
           .map((item) => item.title.slice(0, 300))
           .slice(0, 12),
       });
-      if (path) toastExported(t, "dashboard.detailDialog.reportSaved", path);
+      if (path) notify.exported("dashboard.detailDialog.reportSaved", path);
     } catch (err) {
-      toast.error(
-        t("dashboard.detailDialog.reportFailed", {
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
+      notify.error(t("dashboard.detailDialog.reportFailed"), { cause: err });
     } finally {
       setExporting(false);
     }

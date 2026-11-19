@@ -16,7 +16,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import type { AnalyzedDealership } from "@shared/types";
 import {
   dealershipHailZone,
@@ -208,14 +208,14 @@ export function LocationsPanel({
     setConfirmingDelete(false);
     setSelectedIds(new Set());
     setSelectMode(false);
-    toast.success(t("map.locationsPanel.deleteSelectedToast", { count }));
+    notify.success(t("map.locationsPanel.deleteSelectedToast", { count }));
   }
 
   function markSelectedInsured(insured: boolean): void {
     const count = selectedIds.size;
     setInsuredForDealerships([...selectedIds], insured);
     setSelectedIds(new Set());
-    toast.success(
+    notify.success(
       t(
         insured
           ? "map.locationsPanel.markInsuredToast"

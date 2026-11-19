@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Copy, Loader2, RotateCcw } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import type { ChatMessage } from "@shared/types";
 import { stripLocationLinks } from "@renderer/lib/chatAssist";
 import { cn } from "@renderer/lib/utils";
@@ -33,15 +33,8 @@ export function MessageBubble({
   const isUser = role === "user";
 
   async function copy(): Promise<void> {
-    try {
-      // Through the main process: navigator.clipboard is unavailable because
-      // the app denies all renderer permission requests.
-      // The displayed answer carries in-app location links; copy plain text.
-      await window.api.writeClipboardText(stripLocationLinks(content));
-      toast.success(t("chat.copied"));
-    } catch {
-      toast.error(t("chat.copyFailed"));
-    }
+    // The displayed answer carries in-app location links; copy plain text.
+    await notify.copy(stripLocationLinks(content), t("chat.copied"));
   }
 
   if (isUser) {

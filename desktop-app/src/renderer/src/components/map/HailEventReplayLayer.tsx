@@ -222,9 +222,10 @@ export function HailEventReplayLayer(): null {
       className: "",
       iconSize: [30, 30],
       iconAnchor: [15, 15],
+      // Styled as a round card button (.map-handle in globals.css).
       html:
-        '<div style="width:30px;height:30px;border-radius:9999px;background:#fff;border:2px solid #b91c1c;box-shadow:0 1px 4px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:grab">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></div>',
+        '<div class="map-handle">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></div>',
     });
     const marker = L.marker([lat0, lon0], {
       icon,

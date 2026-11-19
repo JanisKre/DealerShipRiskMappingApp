@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { Check, Eye, Loader2, Pencil, RefreshCw, Sparkles } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { Button } from "@renderer/components/ui/button";
@@ -110,7 +110,7 @@ export function ReviewStrip({
       if (next) onNavigate(next);
       else run.onFinish();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      notify.failed(err, t("common.saveFailed"));
     } finally {
       setBusy(false);
     }

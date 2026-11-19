@@ -11,7 +11,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { Button } from "@renderer/components/ui/button";
 import { HintButton } from "@renderer/components/ui/hint-button";
 import { Input } from "@renderer/components/ui/input";
@@ -31,10 +31,6 @@ import {
   type SessionSummary,
 } from "@renderer/lib/portfolioSessions";
 import { Badge } from "@renderer/components/ui/badge";
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
 
 /**
  * The portfolio title, merged with everything else portfolio-scoped: start
@@ -99,9 +95,7 @@ export function PortfolioSwitcher({
       setOpen(false);
       navigate("/");
     } catch (err) {
-      toast.error(
-        t("shell.portfolioSwitcher.newFailed", { error: errorMessage(err) }),
-      );
+      notify.error(t("shell.portfolioSwitcher.newFailed"), { cause: err });
     } finally {
       setBusy(false);
     }
@@ -118,11 +112,7 @@ export function PortfolioSwitcher({
       setOpen(false);
       navigate("/");
     } catch (err) {
-      toast.error(
-        t("shell.portfolioSwitcher.switchFailed", {
-          error: errorMessage(err),
-        }),
-      );
+      notify.error(t("shell.portfolioSwitcher.switchFailed"), { cause: err });
     } finally {
       setBusy(false);
     }
@@ -134,9 +124,7 @@ export function PortfolioSwitcher({
       const session = await window.api.importPortfolioFile(exportLocale());
       if (session) setPendingImport(session);
     } catch (err) {
-      toast.error(
-        t("shell.portfolioSwitcher.importFailed", { error: errorMessage(err) }),
-      );
+      notify.error(t("shell.portfolioSwitcher.importFailed"), { cause: err });
     } finally {
       setBusy(false);
     }
@@ -151,11 +139,9 @@ export function PortfolioSwitcher({
       setOpen(false);
       navigate("/");
     } catch (err) {
-      toast.error(
-        t("shell.portfolioSwitcher.importOpenFailed", {
-          error: errorMessage(err),
-        }),
-      );
+      notify.error(t("shell.portfolioSwitcher.importOpenFailed"), {
+        cause: err,
+      });
     } finally {
       setBusy(false);
     }
@@ -166,25 +152,23 @@ export function PortfolioSwitcher({
     setBusy(true);
     try {
       const result = await mergeSession(pendingImport);
-      toast.success(
+      notify.success(
         t("shell.portfolioSwitcher.mergeDone", {
           added: result.addedIds.length,
           updated: result.updatedIds.length,
         }),
       );
       if (result.conflictNames.length > 0)
-        toast.warning(
+        notify.warning(
           t("shell.portfolioSwitcher.mergeConflicts", {
             count: result.conflictNames.length,
-            names: result.conflictNames.slice(0, 5).join(", "),
           }),
+          { description: result.conflictNames.slice(0, 5).join(", ") },
         );
       setPendingImport(null);
       setOpen(false);
     } catch (err) {
-      toast.error(
-        t("shell.portfolioSwitcher.mergeFailed", { error: errorMessage(err) }),
-      );
+      notify.error(t("shell.portfolioSwitcher.mergeFailed"), { cause: err });
     } finally {
       setBusy(false);
     }
@@ -205,11 +189,7 @@ export function PortfolioSwitcher({
       await renameSavedSession(id, trimmed);
       await loadList();
     } catch (err) {
-      toast.error(
-        t("shell.portfolioSwitcher.renameFailed", {
-          error: errorMessage(err),
-        }),
-      );
+      notify.error(t("shell.portfolioSwitcher.renameFailed"), { cause: err });
     }
   }
 
@@ -222,7 +202,7 @@ export function PortfolioSwitcher({
       const name = portfolioName(deleted?.name ?? "", t);
       // Deleting the open portfolio switches to another one: say so.
       if (wasOpen)
-        toast.success(
+        notify.success(
           openedName
             ? t("shell.portfolioSwitcher.deletedOpenSwitched", {
                 name,
@@ -232,11 +212,7 @@ export function PortfolioSwitcher({
         );
       await loadList();
     } catch (err) {
-      toast.error(
-        t("shell.portfolioSwitcher.deleteFailed", {
-          error: errorMessage(err),
-        }),
-      );
+      notify.error(t("shell.portfolioSwitcher.deleteFailed"), { cause: err });
     }
   }
 

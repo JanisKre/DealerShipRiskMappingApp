@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { Car, History, Loader2, MapPin } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { DETECTION_ZOOM } from "@shared/constants";
@@ -76,7 +76,7 @@ export function ImageryHistorySection({
     try {
       await countVehicleTimeline(d.id);
     } catch (error) {
-      toast.error(t("dashboard.detailDialog.imageryHistory.countFailed"), {
+      notify.error(t("dashboard.detailDialog.imageryHistory.countFailed"), {
         description: error instanceof Error ? error.message : undefined,
       });
     } finally {

@@ -1,14 +1,15 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import {
-  ClipboardCheck,
-  RefreshCw,
-  ScanEye,
-  TriangleAlert,
-} from "lucide-react";
+import { ClipboardCheck, RefreshCw, ScanEye } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { ealCoverage } from "@shared/estimates";
 import { isAreaEstimatedDetection } from "@shared/risk-math";
+import {
+  Alert,
+  AlertActions,
+  AlertDescription,
+  AlertTitle,
+} from "@renderer/components/ui/alert";
 import { Button } from "@renderer/components/ui/button";
 import { useModelAvailable } from "@renderer/lib/useModelAvailable";
 import { useAppStore } from "@renderer/store/appStore";
@@ -41,33 +42,27 @@ export function DataCompletenessBanner({
   const missing = analyzed - withBasis;
   if (analyzed === 0 || (missing === 0 && !openReviews)) return null;
   return (
-    <div
-      role="status"
-      className="flex flex-wrap items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm"
-    >
-      <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="font-medium">
-          {missing > 0
-            ? t("dashboard.completeness.provisional", {
-                count: missing,
-                total: analyzed,
-              })
-            : t("dashboard.completeness.reviewsOpen", {
-                count: openReviews ?? 0,
-              })}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {missing > 0
-            ? t("dashboard.completeness.provisionalHint")
-            : t("dashboard.completeness.reviewsOpenHint")}
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
+    <Alert variant="warning">
+      <AlertTitle>
+        {missing > 0
+          ? t("dashboard.completeness.provisional", {
+              count: missing,
+              total: analyzed,
+            })
+          : t("dashboard.completeness.reviewsOpen", {
+              count: openReviews ?? 0,
+            })}
+      </AlertTitle>
+      <AlertDescription>
+        {missing > 0
+          ? t("dashboard.completeness.provisionalHint")
+          : t("dashboard.completeness.reviewsOpenHint")}
+      </AlertDescription>
+      <AlertActions>
         {estimatedIds.length > 0 &&
           (modelAvailable ? (
             <Button
-              size="sm"
+              size="xs"
               disabled={analyzing}
               onClick={() => void reanalyze(estimatedIds)}
             >
@@ -78,7 +73,7 @@ export function DataCompletenessBanner({
             </Button>
           ) : (
             <Button
-              size="sm"
+              size="xs"
               variant="outline"
               onClick={() => navigate("/settings?section=data")}
             >
@@ -87,12 +82,12 @@ export function DataCompletenessBanner({
             </Button>
           ))}
         {(openReviews ?? 0) > 0 && (
-          <Button size="sm" variant="outline" onClick={onReview}>
+          <Button size="xs" variant="outline" onClick={onReview}>
             <ClipboardCheck />
             {t("review.startCount", { count: openReviews })}
           </Button>
         )}
-      </div>
-    </div>
+      </AlertActions>
+    </Alert>
   );
 }

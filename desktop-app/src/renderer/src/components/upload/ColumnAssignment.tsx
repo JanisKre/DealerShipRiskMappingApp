@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { ChevronDown, Loader2, Sparkles } from "lucide-react";
 import {
   IMPORT_FIELDS,
@@ -98,19 +98,15 @@ export function ColumnAssignment({
         Object.entries(suggestion) as Array<[ImportField, string]>
       ).filter(([f, c]) => draft[f] == null && fieldOf(c) == null);
       if (fresh.length === 0) {
-        toast.info(t("portfolioImport.assign.noSuggestion"));
+        notify.info(t("portfolioImport.assign.noSuggestion"));
         return;
       }
       setDraft((current) => ({ ...current, ...Object.fromEntries(fresh) }));
-      toast.success(
+      notify.success(
         t("portfolioImport.assign.suggested", { count: fresh.length }),
       );
     } catch (error) {
-      toast.error(
-        t("portfolioImport.assign.suggestFailed", {
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      );
+      notify.error(t("portfolioImport.assign.suggestFailed"), { cause: error });
     } finally {
       setSuggesting(false);
     }

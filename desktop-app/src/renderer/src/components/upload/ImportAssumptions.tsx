@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Check, ScanEye, TriangleAlert } from "lucide-react";
+import { Check, ScanEye } from "lucide-react";
 import type { RiskParameters } from "@shared/types";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@renderer/components/ui/alert";
 import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
 import { Label } from "@renderer/components/ui/label";
@@ -108,30 +113,24 @@ export function ImportAssumptions({
       </legend>
 
       {modelAvailable === false ? (
-        <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-2.5 text-xs">
-          <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warning" />
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <p>
-              <span className="font-medium">
-                {t("importAssumptions.modelMissing")}
-              </span>{" "}
-              {t("importAssumptions.modelMissingHint")}
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              onClick={() => {
-                onLeave();
-                navigate("/settings?section=data");
-              }}
-            >
-              <ScanEye className="size-3" />
-              {t("map.page.setupDetection")}
-            </Button>
-          </div>
-        </div>
+        <Alert variant="warning">
+          <AlertTitle>{t("importAssumptions.modelMissing")}</AlertTitle>
+          <AlertDescription>
+            {t("importAssumptions.modelMissingHint")}
+          </AlertDescription>
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            onClick={() => {
+              onLeave();
+              navigate("/settings?section=data");
+            }}
+          >
+            <ScanEye />
+            {t("map.page.setupDetection")}
+          </Button>
+        </Alert>
       ) : modelAvailable ? (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Check className="size-3.5 text-success" />

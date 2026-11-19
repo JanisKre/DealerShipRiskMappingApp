@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { useAppStore } from "@renderer/store/appStore";
 import type { ReviewRun } from "./detail/ReviewStrip";
 import {
@@ -59,7 +59,7 @@ export function useReviewRun({
     const state = useAppStore.getState();
     const fixed = buildReviewQueue(t, state.dealerships, state.parameters);
     if (fixed.length === 0) {
-      toast.success(t("review.empty"));
+      notify.info(t("review.empty"));
       return;
     }
     const queue = plan ? mergeReviewOrder(fixed, plan.order) : fixed;
@@ -88,11 +88,11 @@ export function useReviewRun({
       });
       start(plan);
     } catch (err) {
-      toast.error(
-        t("review.aiOrderFailed", {
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
+      // Not a failure of the review: it runs, in the fixed order.
+      console.warn("AI review order failed:", err);
+      notify.warning(t("review.aiOrderFailed"), {
+        description: t("review.aiOrderFallback"),
+      });
       start();
     } finally {
       setPlanning(false);
@@ -120,7 +120,7 @@ export function useReviewRun({
               setIds(null);
               setNotes(undefined);
               closeDialog();
-              toast.success(t("review.finished"));
+              notify.success(t("review.finished"));
             },
             onPause: (id: string) => {
               usePausedReview.getState().pause(ids, id, notes);

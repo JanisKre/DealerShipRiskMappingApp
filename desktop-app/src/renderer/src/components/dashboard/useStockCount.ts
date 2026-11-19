@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { notify } from "@renderer/lib/notify";
 import { useAppStore } from "@renderer/store/appStore";
 import { stockCountCandidates } from "./stockCount";
 
@@ -16,6 +17,7 @@ export function useStockCount(): {
   start: () => void;
 } {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [running, setRunning] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
   const stopRef = useRef(false);
@@ -37,17 +39,22 @@ export function useStockCount(): {
   async function run(): Promise<void> {
     const status = await window.api.modelStatus().catch(() => null);
     if (!status?.available) {
-      toast.error(t("dashboard.stockCount.needsModel"));
+      notify.info(t("dashboard.stockCount.needsModel"), {
+        action: {
+          label: t("map.page.setupDetection"),
+          onClick: () => void navigate("/settings?section=data"),
+        },
+      });
       return;
     }
     const ids = stockCountCandidates(useAppStore.getState().dealerships);
     if (ids.length === 0) {
-      toast.success(t("dashboard.stockCount.nothing"));
+      notify.info(t("dashboard.stockCount.nothing"));
       return;
     }
     stopRef.current = false;
     setRunning(true);
-    const toastId = toast.loading(
+    const toastId = notify.progress(
       t("dashboard.stockCount.progress", { done: 0, total: ids.length }),
       {
         action: {
@@ -64,15 +71,23 @@ export function useStockCount(): {
         .countVehicleTimelines(
           ids,
           (done, total) =>
-            toast.loading(t("dashboard.stockCount.progress", { done, total }), {
-              id: toastId,
-            }),
+            notify.progress(
+              t("dashboard.stockCount.progress", { done, total }),
+              {
+                id: toastId,
+              },
+            ),
           () => stopRef.current,
         );
-      toast.success(
+      notify.success(
         t("dashboard.stockCount.done", { count: counted, failed }),
-        { id: toastId, action: undefined },
+        { id: toastId, description: t("dashboard.stockCount.doneHint") },
       );
+    } catch (error) {
+      notify.error(t("dashboard.stockCount.failed"), {
+        id: toastId,
+        cause: error,
+      });
     } finally {
       setRunning(false);
     }

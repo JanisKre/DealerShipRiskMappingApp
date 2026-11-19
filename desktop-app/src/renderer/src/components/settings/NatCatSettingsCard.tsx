@@ -10,7 +10,7 @@ import {
   RotateCcw,
   XCircle,
 } from "lucide-react";
-import { toast } from "sonner";
+import { errorReason, notify } from "@renderer/lib/notify";
 import type { NatCatConnectorTest } from "@shared/ipc-schema";
 import {
   NAT_CAT_CATALOG,
@@ -48,15 +48,6 @@ import {
 } from "@renderer/components/ui/select";
 import { cn } from "@renderer/lib/utils";
 
-/** Strips Electron's "Error invoking remote method '…': Error: " prefix. */
-function ipcErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.replace(
-    /^Error invoking remote method '[^']+': (Error: )?/,
-    "",
-  );
-}
-
 function isApiProvider(id: string): id is NatCatApiProvider {
   return (NAT_CAT_API_PROVIDERS as readonly string[]).includes(id);
 }
@@ -92,10 +83,10 @@ export function NatCatSettingsCard({
         },
       });
       onSettingsChange(next);
-      toast.success(t("common.saved"));
+      notify.success(t("common.saved"));
     } catch (err) {
       console.error("Saving NatCat settings failed:", err);
-      toast.error(ipcErrorMessage(err));
+      notify.failed(err, t("common.saveFailed"));
     }
   }
 
@@ -185,7 +176,7 @@ export function NatCatSettingsCard({
                     try {
                       await window.api.setNatCatApiKey(provider, apiKey);
                     } catch (err) {
-                      toast.error(ipcErrorMessage(err));
+                      notify.failed(err, t("common.saveFailed"));
                       return;
                     }
                   }
@@ -318,7 +309,7 @@ function CatalogRow({
       setTest({
         ok: false,
         perils: [],
-        message: ipcErrorMessage(err),
+        message: errorReason(err),
         latencyMs: 0,
       });
     } finally {

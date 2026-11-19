@@ -2,7 +2,7 @@ import { useDismissedHint } from "@renderer/lib/dismissedHints";
 import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import { ArrowRight, Loader2, MapPinned } from "lucide-react";
@@ -302,6 +302,30 @@ export function MapPage(): React.JSX.Element {
     return () => window.removeEventListener("keydown", onKeyDown);
   });
 
+  /** Confirms a boundary from the popup and says so. */
+  async function confirmWithFeedback(id: string): Promise<void> {
+    await confirmBoundary(id);
+    const name = withCoords.find((d) => d.id === id)?.name ?? "";
+    notify.success(t("map.page.boundaryConfirmed", { name }));
+  }
+
+  /**
+   * Re-analyses one location from the context menu: one toast follows the
+   * run, since the pin alone only fades while it works.
+   */
+  async function reanalyzeWithFeedback(id: string): Promise<void> {
+    const name = dealerships.find((d) => d.id === id)?.name ?? "";
+    const toastId = notify.progress(t("map.page.reanalyzing", { name }));
+    await reanalyzeDealership(id);
+    const error = useAppStore.getState().analysisErrors[id];
+    if (error)
+      notify.error(t("map.page.reanalyzeFailed", { name }), {
+        id: toastId,
+        cause: error,
+      });
+    else notify.success(t("map.page.reanalyzed", { name }), { id: toastId });
+  }
+
   /** Selects (and flies to) the next location whose boundary needs a check. */
   function reviewNextBoundary(): void {
     if (boundaryReviewIds.length === 0) return;
@@ -487,7 +511,7 @@ export function MapPage(): React.JSX.Element {
             select(id);
             openDetailDialog(id);
           }}
-          onConfirmBoundary={(id) => void confirmBoundary(id)}
+          onConfirmBoundary={(id) => void confirmWithFeedback(id)}
           onContextMenu={(d, point) =>
             setContextMenu({ dealership: d, x: point.x, y: point.y })
           }
@@ -585,7 +609,7 @@ export function MapPage(): React.JSX.Element {
             select(id);
             openDetailDialog(id);
           }}
-          onReanalyze={reanalyzeDealership}
+          onReanalyze={(id) => void reanalyzeWithFeedback(id)}
           onDelete={(id) =>
             setPendingDelete(dealerships.find((d) => d.id === id) ?? null)
           }
@@ -602,7 +626,7 @@ export function MapPage(): React.JSX.Element {
         onConfirm={() => {
           if (pendingDelete) {
             removeDealership(pendingDelete.id);
-            toast.success(
+            notify.success(
               t("map.locationsPanel.deleteSelectedToast", { count: 1 }),
             );
           }

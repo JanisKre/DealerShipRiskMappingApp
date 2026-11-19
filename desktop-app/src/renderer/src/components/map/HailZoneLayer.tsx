@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import L from "leaflet";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { hailZoneColor } from "@renderer/lib/riskColor";
 import { useMapStore } from "@renderer/store/mapStore";
 import { useMap } from "./leaflet-react";
@@ -33,7 +33,7 @@ export function HailZoneLayer(): null {
     pane.style.zIndex = PANE_Z_INDEX;
 
     const toastTimer = setTimeout(
-      () => toast.loading(t("map.hailZones.loading"), { id: TOAST_ID }),
+      () => notify.progress(t("map.hailZones.loading"), { id: TOAST_ID }),
       TOAST_DELAY_MS,
     );
 
@@ -79,18 +79,20 @@ export function HailZoneLayer(): null {
       .catch((error: unknown) => {
         if (cancelled) return;
         console.error("Hail zone overlay failed", error);
-        toast.error(t("map.hailZones.loadFailed"));
+        notify.error(t("map.hailZones.loadFailed"), {
+          description: t("map.hailZones.loadFailedHint"),
+        });
         setLayers({ hailZones: false });
       })
       .finally(() => {
         clearTimeout(toastTimer);
-        toast.dismiss(TOAST_ID);
+        notify.dismiss(TOAST_ID);
       });
 
     return () => {
       cancelled = true;
       clearTimeout(toastTimer);
-      toast.dismiss(TOAST_ID);
+      notify.dismiss(TOAST_ID);
       group?.remove();
       if (attribution) map.attributionControl?.removeAttribution(attribution);
     };

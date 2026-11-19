@@ -9,8 +9,21 @@ import { isHttpWebsiteUrl, websiteLabel } from "@shared/website";
 import { escapeHtml } from "@renderer/lib/escapeHtml";
 import { eur } from "@renderer/lib/format";
 import { hailZoneColor, hailZoneTextColor } from "@renderer/lib/riskColor";
+
+/** Small inline icons for the popup (lucide's paths, 24 grid). */
+const ICON_WARNING =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+const ICON_CHECK =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const ICON_INFO =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+
+/** A point in the popup that needs a check, as a small warning notice. */
+function noticeHtml(text: string): string {
+  return `<div class="popup-notice">${ICON_WARNING}<span>${escapeHtml(text)}</span></div>`;
+}
 import { useMap } from "./leaflet-react";
-import { riskMarkerIcon } from "./markerIcons";
+import { clusterIcon, riskMarkerIcon } from "./markerIcons";
 import { businessType } from "@renderer/store/appStore";
 
 interface Props {
@@ -70,25 +83,18 @@ function popupHtml(
   const vehicles = vehicleLabel(d, t);
   const zone = dealershipHailZone(d)?.zone;
   const color = zone != null ? hailZoneColor(zone) : "#6b7280";
-
-  const boundaryWarningHtml =
+  const needsConfirm =
+    d.boundary?.source !== "synthetic" && d.boundary?.reviewRequired === true;
+  const noticesHtml = [
     d.boundary?.source === "synthetic"
-      ? `<div class="popup-row" style="color:var(--warning-foreground)">
-           <span>⚠ ${t("ui.fallbackBoundaryReview")}</span>
-         </div>`
-      : d.boundary?.reviewRequired
-        ? `<div class="popup-row" style="color:var(--warning-foreground)">
-             <span>${t("ui.boundaryReviewNeeded")}</span>
-           </div>
-           <button class="popup-details-btn popup-confirm-boundary-btn" data-id="${d.id}">${t("ui.confirmBoundary")}</button>`
-        : "";
-
-  const modelWarningHtml =
+      ? noticeHtml(t("ui.fallbackBoundaryReview"))
+      : needsConfirm
+        ? noticeHtml(t("ui.boundaryReviewNeeded"))
+        : "",
     d.detection?.model === "stub-area-heuristic"
-      ? `<div class="popup-row" style="color:var(--warning-foreground)">
-           <span>${t("ui.vehicleCountEstimated")}</span>
-         </div>`
-      : "";
+      ? noticeHtml(t("ui.vehicleCountEstimated"))
+      : "",
+  ].join("");
 
   // Opened via the main process' window-open handler (http/https only).
   const websiteHtml =
@@ -106,7 +112,7 @@ function popupHtml(
         <span>${t("ui.hailRisk")}</span>
         ${
           zone != null
-            ? `<span style="background:${color};color:${hailZoneTextColor(zone)};font-weight:600;border-radius:4px;padding:0 6px">${t("dashboard.hailZoneLabel", { zone })}</span>`
+            ? `<span class="popup-zone" style="background:${color};color:${hailZoneTextColor(zone)}">${t("dashboard.hailZoneLabel", { zone })}</span>`
             : `<span>${t("ui.analyzing")}</span>`
         }
       </div>
@@ -118,11 +124,20 @@ function popupHtml(
         <span>${t("common.vehicles")}</span><span>${vehicles}</span>
       </div>
       ${websiteHtml}
-      ${boundaryWarningHtml}
-      ${modelWarningHtml}
-      <button class="popup-details-btn" data-id="${d.id}">${t("ui.viewDetails")}</button>
+      ${noticesHtml}
+      <div class="popup-actions">
+        ${
+          needsConfirm
+            ? `<button type="button" class="popup-btn popup-btn-primary popup-confirm-boundary-btn" data-id="${d.id}">${ICON_CHECK}${t("ui.confirmBoundary")}</button>`
+            : ""
+        }
+        <button type="button" class="popup-btn popup-details-btn" data-id="${d.id}">${ICON_INFO}${t("ui.viewDetails")}</button>
+      </div>
     </div>`;
 }
+
+/** A location marker with what the cluster badge reads from it. */
+type ZonedMarker = L.Marker & { _dealershipId?: string; _hailZone?: number };
 
 interface MarkerEntry {
   marker: L.Marker;
@@ -199,14 +214,19 @@ export function ClusteredMarkers({
         const count = cluster.getChildCount();
         // A round badge with the number only: wide "30 Standorte" pills
         // overlapped each other once a portfolio had hundreds of locations.
-        const size = count < 10 ? 32 : count < 100 ? 38 : 46;
-        const label = `${count} ${t("dashboard.locations")}`;
-        return L.divIcon({
-          className: "",
-          iconSize: [size, size],
-          iconAnchor: [size / 2, size / 2],
-          html: `<div class="cluster-icon" style="width:${size}px;height:${size}px" role="img" aria-label="${escapeHtml(label)}"><span>${count}</span></div>`,
-        });
+        // Its ring shows the worst hail zone inside, so a group of zone-6
+        // sites does not look like a group of zone-1 ones.
+        const zones = cluster
+          .getAllChildMarkers()
+          .map((m) => (m as ZonedMarker)._hailZone)
+          .filter((z): z is number => z != null);
+        const maxZone = zones.length > 0 ? Math.max(...zones) : null;
+        const label = escapeHtml(
+          maxZone != null
+            ? `${count} ${t("dashboard.locations")}, ${t("map.page.clusterMaxZone", { zone: maxZone })}`
+            : `${count} ${t("dashboard.locations")}`,
+        );
+        return clusterIcon(count, maxZone, label);
       },
     });
     map.addLayer(group);
@@ -268,9 +288,10 @@ export function ClusteredMarkers({
         title: d.name,
         riseOnHover: true,
         zIndexOffset: isSelected ? 1000 : 0,
-      }) as L.Marker & { _dealershipId?: string };
+      }) as ZonedMarker;
 
       marker._dealershipId = d.id;
+      marker._hailZone = zone;
 
       // Near the top edge the tooltip opens below the pin instead of being
       // clipped by the map. Registered before bindTooltip so it runs before
@@ -311,7 +332,7 @@ export function ClusteredMarkers({
       marker.on("popupopen", (e) => {
         const root = e.popup.getElement() as HTMLElement | null;
         const detailsBtn = root?.querySelector(
-          ".popup-details-btn:not(.popup-confirm-boundary-btn)",
+          ".popup-details-btn",
         ) as HTMLButtonElement | null;
         if (detailsBtn) {
           detailsBtn.onclick = () => {

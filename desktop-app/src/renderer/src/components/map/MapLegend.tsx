@@ -456,7 +456,7 @@ function LegendRow({
   );
 }
 
-/** Mini pin: the outline color marks the business type (blue = existing, violet = new). */
+/** Mini pin as on the map: new business carries the "+" badge. */
 function BusinessLegendRow({
   hollow,
   label,
@@ -466,7 +466,6 @@ function BusinessLegendRow({
   label: string;
   muted?: boolean;
 }>): React.JSX.Element {
-  const color = hollow ? "#a21caf" : "#1d4ed8";
   return (
     <div
       className={cn(
@@ -474,15 +473,17 @@ function BusinessLegendRow({
         muted && "text-muted-foreground opacity-60",
       )}
     >
-      <span
-        aria-hidden
-        className="mx-0.5 size-2.5 shrink-0 -rotate-45"
-        style={{
-          borderRadius: "50% 50% 50% 0",
-          backgroundColor: "#9ca3af",
-          border: `2px solid ${color}`,
-        }}
-      />
+      <span aria-hidden className="relative mx-0.5 inline-flex shrink-0">
+        <span
+          className="size-2.5 -rotate-45 border-2 border-card bg-muted-foreground shadow-sm"
+          style={{ borderRadius: "50% 50% 50% 0" }}
+        />
+        {hollow && (
+          <span className="absolute -right-1.5 -top-1.5 flex size-2.5 items-center justify-center rounded-full border border-card bg-primary text-[7px] font-bold leading-none text-primary-foreground">
+            +
+          </span>
+        )}
+      </span>
       {label}
     </div>
   );

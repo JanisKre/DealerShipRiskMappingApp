@@ -28,6 +28,8 @@ It is not a conformance report (ACR/VPAT); one needs a manual audit first.
   inputs (vehicle count, website, scenario sentence) are `role="alert"`
   (WCAG 4.1.3). The chat is a `role="log"` that announces an answer once it
   is complete (`aria-busy` while tokens stream in).
+  Notices are the shared `Alert` component, which sets the role from its
+  tone; see [ui-feedback.md](ui-feedback.md).
 - Charts use Recharts' accessibility layer (keyboard focus and arrow keys
   between data points).
 - Text colours meet 4.5:1 in light and dark themes (`--muted-foreground` was

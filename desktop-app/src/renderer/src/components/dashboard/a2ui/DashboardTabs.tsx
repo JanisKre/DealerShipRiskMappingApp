@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -47,12 +47,13 @@ export function DashboardTabsRoot({
 }: Readonly<{ children: React.ReactNode }>): React.JSX.Element {
   const active = useDashboardStore((s) => s.active);
   const open = useDashboardStore((s) => s.open);
+  const { t } = useTranslation();
   return (
     <Tabs
       value={active?.id ?? STANDARD}
       onValueChange={(value) => {
         void open(value === STANDARD ? null : value).catch((err: unknown) =>
-          toast.error(err instanceof Error ? err.message : String(err)),
+          notify.failed(err, t("common.loadFailed")),
         );
       }}
       className="contents"
@@ -122,7 +123,7 @@ export function DashboardTabs({
       await rename(active.id, draft);
       setRenaming(false);
     } catch {
-      toast.error(t("a2ui.renameFigure"));
+      notify.error(t("a2ui.renameFigure"));
     }
   }
 

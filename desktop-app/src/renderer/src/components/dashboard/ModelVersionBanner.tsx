@@ -1,8 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { Loader2, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { RISK_MODEL_VERSION } from "@shared/constants";
 import type { AnalyzedDealership } from "@shared/types";
+import { Alert, AlertActions, AlertTitle } from "@renderer/components/ui/alert";
 import { Button } from "@renderer/components/ui/button";
 import { useAppStore } from "@renderer/store/appStore";
 
@@ -25,28 +26,29 @@ export function ModelVersionBanner({
     // result instead of relying on a rejection.
     await updateParameters({});
     const remaining = countOutdated(useAppStore.getState().dealerships);
-    if (remaining === 0) toast.success(t("dashboard.modelVersion.done"));
-    else toast.error(t("dashboard.modelVersion.failed", { count: remaining }));
+    if (remaining === 0) notify.success(t("dashboard.modelVersion.done"));
+    else notify.error(t("dashboard.modelVersion.failed", { count: remaining }));
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
-      <span className="min-w-0 flex-1">
+    <Alert variant="warning">
+      <AlertTitle>
         {t("dashboard.modelVersion.outdated", {
           count: outdated,
           version: RISK_MODEL_VERSION,
         })}
-      </span>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => void recalculate()}
-        disabled={updating}
-      >
-        {updating ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-        {t("dashboard.modelVersion.recalculate")}
-      </Button>
-    </div>
+      </AlertTitle>
+      <AlertActions>
+        <Button
+          size="xs"
+          onClick={() => void recalculate()}
+          disabled={updating}
+        >
+          {updating ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+          {t("dashboard.modelVersion.recalculate")}
+        </Button>
+      </AlertActions>
+    </Alert>
   );
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { useUpdateStatus } from "./AppSupportCard";
 
 /**
@@ -20,7 +20,7 @@ export function UpdateNotifier(): null {
     const key = `${status.state}:${status.latestVersion}`;
     if (announced.current.has(key)) return;
     announced.current.add(key);
-    toast.info(
+    notify.info(
       status.state === "ready"
         ? t("settings.support.update.ready", { version: status.latestVersion })
         : t("settings.support.update.toast", { version: status.latestVersion }),

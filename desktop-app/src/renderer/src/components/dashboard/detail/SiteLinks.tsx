@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import {
   Check,
   Clock,
@@ -125,7 +125,7 @@ export function WebsiteRow({
       }
       setEditing(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      notify.failed(error, t("common.saveFailed"));
     } finally {
       setSaving(false);
     }

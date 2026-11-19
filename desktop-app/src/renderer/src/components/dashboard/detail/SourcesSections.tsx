@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18next, { type TFunction } from "i18next";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import { RefreshCw } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { sourceLabel } from "@shared/natcat-catalog";
@@ -189,7 +189,7 @@ export function NatCatSection({
     try {
       await refreshNatCat(d.id);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      notify.failed(error, t("common.loadFailed"));
     } finally {
       setRefreshing(false);
     }

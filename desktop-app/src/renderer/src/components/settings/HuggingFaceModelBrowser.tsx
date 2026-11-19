@@ -25,6 +25,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@renderer/components/ui/toggle-group";
+import { errorReason } from "@renderer/lib/notify";
 import { cn } from "@renderer/lib/utils";
 
 /** Default pick for most machines: good quality at about 4.5 bits/weight. */
@@ -41,14 +42,6 @@ function formatBytes(bytes: number | undefined, locale: string): string {
 function formatCount(n: number | undefined, locale: string): string {
   if (n == null) return "–";
   return new Intl.NumberFormat(locale, { notation: "compact" }).format(n);
-}
-
-function ipcErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.replace(
-    /^Error invoking remote method '[^']+': (Error: )?/,
-    "",
-  );
 }
 
 type PullState =
@@ -90,7 +83,7 @@ export function HuggingFaceModelBrowser({
     try {
       setResults(await window.api.searchHfModels(query.trim(), nextSort));
     } catch (err) {
-      setSearchError(ipcErrorMessage(err));
+      setSearchError(errorReason(err));
     } finally {
       setSearching(false);
     }
@@ -108,7 +101,7 @@ export function HuggingFaceModelBrowser({
       const info = await window.api.hfModelFiles(repoId);
       setFiles((prev) => ({ ...prev, [repoId]: info }));
     } catch (err) {
-      setFilesError(ipcErrorMessage(err));
+      setFilesError(errorReason(err));
     }
   }
 

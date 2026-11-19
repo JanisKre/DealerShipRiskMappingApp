@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, FileDown, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import type { Settings } from "@shared/types";
 import {
   DEFAULT_GATEWAY_SETTINGS,
@@ -50,19 +50,6 @@ import {
 
 type UpdateSettings = (partial: Partial<Settings>) => Promise<void>;
 type CardProps = Readonly<{ settings: Settings; onUpdate: UpdateSettings }>;
-
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-async function copy(text: string, done: string): Promise<void> {
-  try {
-    await window.api.writeClipboardText(text);
-    toast.success(done);
-  } catch (error) {
-    toast.error(errorText(error));
-  }
-}
 
 /** A switch with its label and hint, used by all three cards. */
 function SwitchRow({
@@ -133,7 +120,7 @@ export function AgentGatewayCard({
   function savePort(): void {
     const value = Number(port);
     if (!Number.isInteger(value) || value < 1024 || value > 65535) {
-      toast.error(t("agentGateway.portInvalid"));
+      notify.error(t("agentGateway.portInvalid"));
       setPort(String(gateway.port));
       return;
     }
@@ -243,7 +230,9 @@ export function AgentGatewayCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => void copy(token, t("agentGateway.copied"))}
+                onClick={() =>
+                  void notify.copy(token, t("agentGateway.copied"))
+                }
               >
                 <Copy /> {t("agentGateway.copyToken")}
               </Button>
@@ -255,9 +244,11 @@ export function AgentGatewayCard({
                     .rotateGatewayToken()
                     .then((next) => {
                       setStatus(next);
-                      toast.success(t("agentGateway.tokenRotated"));
+                      notify.success(t("agentGateway.tokenRotated"), {
+                        description: t("agentGateway.tokenRotatedHint"),
+                      });
                     })
-                    .catch((error: unknown) => toast.error(errorText(error)))
+                    .catch((error: unknown) => notify.failed(error))
                 }
               >
                 <RefreshCw /> {t("agentGateway.rotateToken")}
@@ -291,7 +282,7 @@ export function AgentGatewayCard({
                     size="sm"
                     className="shrink-0"
                     onClick={() =>
-                      void copy(snippet.text, t("agentGateway.copied"))
+                      void notify.copy(snippet.text, t("agentGateway.copied"))
                     }
                   >
                     <Copy /> {t("aiInsight.copy")}
@@ -363,7 +354,7 @@ export function McpServersCard({
       const result = await window.api.mcpServerTools(id);
       setTools((current) => ({ ...current, [id]: result }));
     } catch (error) {
-      toast.error(t("mcpServers.testFailed", { error: errorText(error) }));
+      notify.error(t("mcpServers.testFailed"), { cause: error });
     } finally {
       setTesting(null);
     }
@@ -376,7 +367,7 @@ export function McpServersCard({
       // Re-save so the settings reload with the new `hasToken` flag.
       await save(servers);
     } catch (error) {
-      toast.error(errorText(error));
+      notify.failed(error, t("common.saveFailed"));
     }
   }
 
@@ -561,9 +552,9 @@ export function AiLogCard({
   async function exportLog(): Promise<void> {
     try {
       const { path } = await window.api.exportAiLog();
-      if (path) toast.success(t("aiLog.exported"));
+      if (path) notify.exported("aiLog.exported", path);
     } catch (error) {
-      toast.error(errorText(error));
+      notify.failed(error, t("ui.exportFailed"));
     }
   }
 
@@ -573,7 +564,7 @@ export function AiLogCard({
       setConfirmClear(false);
       load();
     } catch (error) {
-      toast.error(errorText(error));
+      notify.failed(error);
     }
   }
 

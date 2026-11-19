@@ -7,7 +7,6 @@ import {
   Check,
   ClipboardCheck,
   Filter,
-  Info,
   Loader2,
   Pencil,
   RefreshCw,
@@ -16,27 +15,29 @@ import {
   ScanEye,
   ScanSearch,
   Square,
-  TriangleAlert,
   Undo2,
   X,
 } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { usePausedReview } from "@renderer/components/dashboard/reviewRunStore";
+import {
+  Alert,
+  AlertActions,
+  AlertDescription,
+  AlertTitle,
+} from "@renderer/components/ui/alert";
 import { Button } from "@renderer/components/ui/button";
 import { HintButton } from "@renderer/components/ui/hint-button";
 import { Progress } from "@renderer/components/ui/progress";
-import { cn } from "@renderer/lib/utils";
 import { unanalyzedInputs, useAppStore } from "@renderer/store/appStore";
 import { useMapStore } from "@renderer/store/mapStore";
 import type { DetectionEditDraft } from "./DetectionOverlay";
 
 /**
- * Shared look of the status notices at the top of the map: opaque (they
- * stack over imagery and each other) and compact. Body text stays muted;
- * a warning only colours the icon and the border.
+ * The status notices at the top of the map are the app's `Alert`, floating
+ * over the imagery: this only limits their width.
  */
-export const NOTICE_CLASS =
-  "flex w-full max-w-[28rem] items-start gap-2.5 rounded-lg border bg-card px-3 py-2 text-sm shadow-lg";
+const MAP_NOTICE = "max-w-[28rem]";
 
 export function DismissButton({
   label,
@@ -47,7 +48,7 @@ export function DismissButton({
       type="button"
       variant="ghost"
       size="icon"
-      className="-mr-1.5 -mt-0.5 size-6 text-muted-foreground"
+      className="-mr-1.5 -mt-1 size-6 text-muted-foreground"
       onClick={onClick}
       aria-label={label}
     >
@@ -93,22 +94,19 @@ export function DetectionReviewNotice({
 }>): React.JSX.Element {
   const { t } = useTranslation();
   return (
-    <div className={NOTICE_CLASS}>
-      <ScanSearch className="mt-0.5 size-4 shrink-0 text-primary" />
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="truncate font-medium" title={dealership.name}>
-          {dealership.name}
-        </div>
-        <p className="text-xs leading-snug text-muted-foreground">
-          {t("map.page.detectionReviewSummary", {
-            machine: dealership.detection?.vehicleCount ?? 0,
-            added: draft.manualVehiclePoints.length,
-            removed: draft.manualVehicleRemovedPoints.length,
-            total: draft.manualVehicleCount,
-          })}
-        </p>
-      </div>
-    </div>
+    <Alert floating variant="info" icon={ScanSearch} className={MAP_NOTICE}>
+      <AlertTitle className="truncate" title={dealership.name}>
+        {dealership.name}
+      </AlertTitle>
+      <AlertDescription>
+        {t("map.page.detectionReviewSummary", {
+          machine: dealership.detection?.vehicleCount ?? 0,
+          added: draft.manualVehiclePoints.length,
+          removed: draft.manualVehicleRemovedPoints.length,
+          total: draft.manualVehicleCount,
+        })}
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -132,61 +130,61 @@ export function BoundaryEditNotices(): React.JSX.Element {
         const hasDefault = dealership.boundaryBeforeManualEdit != null;
         const busy = detectionUpdateIds.includes(id);
         return (
-          <div key={`edit-${id}`} className={NOTICE_CLASS}>
-            <Save className="mt-0.5 size-4 shrink-0 text-primary" />
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="line-clamp-2 break-words font-medium">
-                {t("map.page.boundaryEditedPrompt", {
-                  name: dealership.name,
-                })}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => void saveBoundaryEdit(id)}
-                  disabled={busy}
-                >
-                  {busy ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : (
-                    <Save className="size-3" />
-                  )}
-                  {t("map.page.saveBoundaryEdit")}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={() => void undoBoundaryEdit(id)}
-                  disabled={!hasHistory || busy}
-                  title={t("map.page.undoBoundaryEditShortcut")}
-                  aria-keyshortcuts="Control+Z Meta+Z"
-                >
-                  <Undo2 className="size-3" />
-                  {t("map.page.undoBoundaryEdit")}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs"
-                  onClick={() => void revertBoundaryToDefault(id)}
-                  disabled={!hasDefault || busy}
-                >
-                  <RotateCcw className="size-3" />
-                  {t("map.page.revertBoundaryDefault")}
-                </Button>
-              </div>
-              {detectionUpdateErrors[id] && (
-                <p className="text-xs text-destructive">
-                  {detectionUpdateErrors[id]}
-                </p>
-              )}
-            </div>
-          </div>
+          <Alert
+            key={`edit-${id}`}
+            floating
+            variant="info"
+            icon={Save}
+            className={MAP_NOTICE}
+          >
+            <AlertTitle className="line-clamp-2 break-words">
+              {t("map.page.boundaryEditedPrompt", {
+                name: dealership.name,
+              })}
+            </AlertTitle>
+            <AlertActions>
+              <Button
+                type="button"
+                size="xs"
+                onClick={() => void saveBoundaryEdit(id)}
+                disabled={busy}
+              >
+                {busy ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Save className="size-3" />
+                )}
+                {t("map.page.saveBoundaryEdit")}
+              </Button>
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                onClick={() => void undoBoundaryEdit(id)}
+                disabled={!hasHistory || busy}
+                title={t("map.page.undoBoundaryEditShortcut")}
+                aria-keyshortcuts="Control+Z Meta+Z"
+              >
+                <Undo2 className="size-3" />
+                {t("map.page.undoBoundaryEdit")}
+              </Button>
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                onClick={() => void revertBoundaryToDefault(id)}
+                disabled={!hasDefault || busy}
+              >
+                <RotateCcw className="size-3" />
+                {t("map.page.revertBoundaryDefault")}
+              </Button>
+            </AlertActions>
+            {detectionUpdateErrors[id] && (
+              <p role="alert" className="text-xs text-destructive">
+                {detectionUpdateErrors[id]}
+              </p>
+            )}
+          </Alert>
         );
       })}
     </>
@@ -219,58 +217,64 @@ export function AnalysisProgressNotice(): React.JSX.Element | null {
   if (!analyzing || !progress || progress.total <= 0) return null;
   const analyzingNames = analyzingIds.map(nameOf);
   return (
-    <div className={NOTICE_CLASS}>
-      <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />
-      <div className="min-w-0 flex-1 space-y-1.5">
-        {/* Announced politely to screen readers as the count moves. */}
-        <div
-          role="status"
-          className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5"
+    <Alert
+      floating
+      variant="info"
+      busy
+      // Only the count below is announced, not the whole notice per tick.
+      announce={false}
+      className={MAP_NOTICE}
+      aside={
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          className="shrink-0"
+          onClick={cancelAnalysis}
+          disabled={cancelRequested}
         >
-          <span className="min-w-0 font-medium tabular-nums">
-            {t("map.page.analyzingProgress", {
-              done: progress.done,
-              total: progress.total,
-            })}
-          </span>
-          <span className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">
-            {remainingLabel(t, progress)}
-          </span>
-        </div>
-        {analyzingNames.length > 0 && (
-          <p className="truncate text-xs text-muted-foreground">
-            {analyzingNames.join(" · ")}
-          </p>
-        )}
-        <Progress
-          value={(progress.done / progress.total) * 100}
-          className="h-1"
-          aria-label={t("map.page.analyzingProgress", {
+          {cancelRequested ? (
+            <Loader2 className="size-3 animate-spin" />
+          ) : (
+            <Square className="size-3" />
+          )}
+          {t(
+            cancelRequested
+              ? "map.page.cancellingAnalysis"
+              : "map.page.cancelAnalysis",
+          )}
+        </Button>
+      }
+    >
+      {/* Announced politely to screen readers as the count moves. */}
+      <div
+        role="status"
+        className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5"
+      >
+        <span className="min-w-0 font-medium tabular-nums">
+          {t("map.page.analyzingProgress", {
             done: progress.done,
             total: progress.total,
           })}
-        />
+        </span>
+        <span className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+          {remainingLabel(t, progress)}
+        </span>
       </div>
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        className="h-7 shrink-0 text-xs"
-        onClick={cancelAnalysis}
-        disabled={cancelRequested}
-      >
-        {cancelRequested ? (
-          <Loader2 className="size-3 animate-spin" />
-        ) : (
-          <Square className="size-3" />
-        )}
-        {t(
-          cancelRequested
-            ? "map.page.cancellingAnalysis"
-            : "map.page.cancelAnalysis",
-        )}
-      </Button>
-    </div>
+      {analyzingNames.length > 0 && (
+        <AlertDescription className="truncate">
+          {analyzingNames.join(" · ")}
+        </AlertDescription>
+      )}
+      <Progress
+        value={(progress.done / progress.total) * 100}
+        className="h-1"
+        aria-label={t("map.page.analyzingProgress", {
+          done: progress.done,
+          total: progress.total,
+        })}
+      />
+    </Alert>
   );
 }
 
@@ -295,28 +299,30 @@ export function AnalysisErrorNotice({
   if (analyzing || dismissed || failedIds.length === 0) return null;
   return (
     // An error that appears after a run must be announced (WCAG 4.1.3).
-    <div role="alert" className={cn(NOTICE_CLASS, "border-destructive/40")}>
-      <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="font-medium">
-          {t("map.page.analysisErrors", { count: failedIds.length })}
-        </div>
-        <p className="line-clamp-2 break-words text-xs text-muted-foreground">
-          {failedIds.map(nameOf).join(" · ")}
-        </p>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-7 text-xs"
-          onClick={() => void retryFailedAnalyses()}
-        >
-          <RefreshCw className="size-3" />
-          {t("map.page.retryAnalysis")}
-        </Button>
-      </div>
-      <DismissButton label={t("map.page.dismissHint")} onClick={onDismiss} />
-    </div>
+    <Alert
+      floating
+      variant="destructive"
+      className={MAP_NOTICE}
+      aside={
+        <DismissButton label={t("map.page.dismissHint")} onClick={onDismiss} />
+      }
+    >
+      <AlertTitle>
+        {t("map.page.analysisErrors", { count: failedIds.length })}
+      </AlertTitle>
+      <AlertDescription className="line-clamp-2 break-words">
+        {failedIds.map(nameOf).join(" · ")}
+      </AlertDescription>
+      <Button
+        type="button"
+        size="xs"
+        variant="outline"
+        onClick={() => void retryFailedAnalyses()}
+      >
+        <RefreshCw className="size-3" />
+        {t("map.page.retryAnalysis")}
+      </Button>
+    </Alert>
   );
 }
 
@@ -337,39 +343,28 @@ export function ResumeAnalysisNotice({
   if (analyzing || dismissed || unanalyzedCount === 0 || errorCount > 0)
     return null;
   return (
-    <div role="status" className={NOTICE_CLASS}>
-      <RefreshCw className="mt-0.5 size-4 shrink-0 text-primary" />
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="font-medium">
-          {t("map.page.resumeTitle", { count: unanalyzedCount })}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {t("map.page.resumeDetail")}
-        </p>
-        <div className="flex gap-1.5">
-          <Button
-            type="button"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => void resumeAnalysis()}
-          >
-            {t("map.page.resumeAction")}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-7 text-xs"
-            onClick={() => {
-              discardPendingAnalysis();
-              onDismiss();
-            }}
-          >
-            {t("map.page.resumeDiscard")}
-          </Button>
-        </div>
-      </div>
-    </div>
+    <Alert floating variant="info" icon={RefreshCw} className={MAP_NOTICE}>
+      <AlertTitle>
+        {t("map.page.resumeTitle", { count: unanalyzedCount })}
+      </AlertTitle>
+      <AlertDescription>{t("map.page.resumeDetail")}</AlertDescription>
+      <AlertActions>
+        <Button type="button" size="xs" onClick={() => void resumeAnalysis()}>
+          {t("map.page.resumeAction")}
+        </Button>
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          onClick={() => {
+            discardPendingAnalysis();
+            onDismiss();
+          }}
+        >
+          {t("map.page.resumeDiscard")}
+        </Button>
+      </AlertActions>
+    </Alert>
   );
 }
 
@@ -382,35 +377,35 @@ export function PausedReviewNotice(): React.JSX.Element | null {
   const editCount = useAppStore((s) => s.boundaryEditIds.length);
   if (!pausedReviewId || editing || editCount > 0) return null;
   return (
-    <div className={NOTICE_CLASS}>
-      <ClipboardCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="font-medium">{t("review.pausedTitle")}</div>
-        <p className="text-xs leading-snug text-muted-foreground">
-          {t("review.pausedHint")}
-        </p>
-      </div>
-      <div className="flex shrink-0 flex-col gap-1">
-        <Button
-          type="button"
-          size="sm"
-          className="h-7 text-xs"
-          onClick={() => navigate("/dashboard")}
-        >
-          <ArrowRight className="size-3" />
-          {t("review.resume")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-7 text-xs"
-          onClick={() => usePausedReview.getState().clear()}
-        >
-          {t("review.endRun")}
-        </Button>
-      </div>
-    </div>
+    <Alert
+      floating
+      variant="info"
+      icon={ClipboardCheck}
+      className={MAP_NOTICE}
+      aside={
+        <div className="flex shrink-0 flex-col gap-1">
+          <Button
+            type="button"
+            size="xs"
+            onClick={() => navigate("/dashboard")}
+          >
+            <ArrowRight className="size-3" />
+            {t("review.resume")}
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            onClick={() => usePausedReview.getState().clear()}
+          >
+            {t("review.endRun")}
+          </Button>
+        </div>
+      }
+    >
+      <AlertTitle>{t("review.pausedTitle")}</AlertTitle>
+      <AlertDescription>{t("review.pausedHint")}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -422,24 +417,26 @@ export function BoundaryEditingNotice(): React.JSX.Element | null {
   const editCount = useAppStore((s) => s.boundaryEditIds.length);
   if (!editing || editCount > 0) return null;
   return (
-    <div className={NOTICE_CLASS}>
-      <Pencil className="mt-0.5 size-4 shrink-0 text-primary" />
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="font-medium">{t("map.page.editingTitle")}</div>
-        <p className="text-xs leading-snug text-muted-foreground">
-          {t("map.page.editingHint")}
-        </p>
-      </div>
-      <Button
-        type="button"
-        size="sm"
-        className="h-7 shrink-0 text-xs"
-        onClick={() => setEditing(false)}
-      >
-        <Check className="size-3" />
-        {t("map.page.editingDone")}
-      </Button>
-    </div>
+    <Alert
+      floating
+      variant="info"
+      icon={Pencil}
+      className={MAP_NOTICE}
+      aside={
+        <Button
+          type="button"
+          size="xs"
+          className="shrink-0"
+          onClick={() => setEditing(false)}
+        >
+          <Check className="size-3" />
+          {t("map.page.editingDone")}
+        </Button>
+      }
+    >
+      <AlertTitle>{t("map.page.editingTitle")}</AlertTitle>
+      <AlertDescription>{t("map.page.editingHint")}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -472,105 +469,92 @@ export function BoundaryReviewHint({
 }>): React.JSX.Element {
   const { t } = useTranslation();
   return (
-    <div className={cn(NOTICE_CLASS, "border-warning/40")}>
-      <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <div className="font-medium">
-          {t("map.page.boundaryWarning", { count })}
-        </div>
-        {fallbackCount > 0 && (
-          <p className="text-xs leading-snug text-muted-foreground">
-            {t("map.page.fallbackBoundaries", { count: fallbackCount })}
-          </p>
-        )}
-        {target ? (
-          <>
-            <p
-              className="line-clamp-3 break-words text-xs leading-snug text-muted-foreground"
-              title={target.name}
+    <Alert
+      floating
+      variant="warning"
+      className={MAP_NOTICE}
+      aside={
+        <DismissButton label={t("map.page.dismissHint")} onClick={onDismiss} />
+      }
+    >
+      <AlertTitle>{t("map.page.boundaryWarning", { count })}</AlertTitle>
+      {fallbackCount > 0 && (
+        <AlertDescription>
+          {t("map.page.fallbackBoundaries", { count: fallbackCount })}
+        </AlertDescription>
+      )}
+      {target ? (
+        <>
+          <AlertDescription
+            className="line-clamp-3 break-words"
+            title={target.name}
+          >
+            {t("map.page.boundaryReviewQuestion", {
+              name: target.name,
+              position,
+              count,
+            })}
+          </AlertDescription>
+          <AlertActions>
+            <Button
+              type="button"
+              size="xs"
+              onClick={() => onConfirm(target.id)}
             >
-              {t("map.page.boundaryReviewQuestion", {
-                name: target.name,
-                position,
-                count,
-              })}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              <Button
-                type="button"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => onConfirm(target.id)}
-              >
-                <Check className="size-3" />
-                {t("map.page.boundaryConfirm")}
-                <kbd className="ml-0.5 rounded border border-current/30 px-1 font-mono text-[10px] leading-none opacity-70">
-                  ↵
-                </kbd>
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={() => onCorrect(target)}
-              >
-                <Pencil className="size-3" />
-                {t("map.page.boundaryCorrect")}
-                <kbd className="ml-0.5 rounded border border-current/30 px-1 font-mono text-[10px] leading-none opacity-70">
-                  E
-                </kbd>
-              </Button>
-              {count > 1 && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs"
-                  onClick={onNext}
-                >
-                  {t("map.page.boundaryNext")}
-                  <ArrowRight className="size-3" />
-                  <kbd className="ml-0.5 rounded border border-current/30 px-1 font-mono text-[10px] leading-none opacity-70">
-                    N
-                  </kbd>
-                </Button>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="text-xs leading-snug text-muted-foreground">
-              {t("map.page.boundaryWarningHint")}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              <Button
-                type="button"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={onNext}
-              >
-                {t("map.page.boundaryStartReview")}
+              <Check className="size-3" />
+              {t("map.page.boundaryConfirm")}
+              <kbd className="ml-0.5 rounded border border-current/30 px-1 font-mono text-[10px] leading-none opacity-70">
+                ↵
+              </kbd>
+            </Button>
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              onClick={() => onCorrect(target)}
+            >
+              <Pencil className="size-3" />
+              {t("map.page.boundaryCorrect")}
+              <kbd className="ml-0.5 rounded border border-current/30 px-1 font-mono text-[10px] leading-none opacity-70">
+                E
+              </kbd>
+            </Button>
+            {count > 1 && (
+              <Button type="button" size="xs" variant="ghost" onClick={onNext}>
+                {t("map.page.boundaryNext")}
                 <ArrowRight className="size-3" />
+                <kbd className="ml-0.5 rounded border border-current/30 px-1 font-mono text-[10px] leading-none opacity-70">
+                  N
+                </kbd>
               </Button>
-              {fallbackCount > 0 && !fallbackFilterActive && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={onShowFallback}
-                >
-                  <Filter className="size-3" />
-                  {t("map.page.showFallbackBoundaries")}
-                </Button>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-      <DismissButton label={t("map.page.dismissHint")} onClick={onDismiss} />
-    </div>
+            )}
+          </AlertActions>
+        </>
+      ) : (
+        <>
+          <AlertDescription>
+            {t("map.page.boundaryWarningHint")}
+          </AlertDescription>
+          <AlertActions>
+            <Button type="button" size="xs" onClick={onNext}>
+              {t("map.page.boundaryStartReview")}
+              <ArrowRight className="size-3" />
+            </Button>
+            {fallbackCount > 0 && !fallbackFilterActive && (
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                onClick={onShowFallback}
+              >
+                <Filter className="size-3" />
+                {t("map.page.showFallbackBoundaries")}
+              </Button>
+            )}
+          </AlertActions>
+        </>
+      )}
+    </Alert>
   );
 }
 
@@ -592,44 +576,41 @@ export function DetectionModelHint({
   const { t } = useTranslation();
   const navigate = useNavigate();
   return (
-    <div className={cn(NOTICE_CLASS, "border-warning/40")}>
-      <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="font-medium">
-          {t("map.page.detectionWarning", { count, total })}
-        </div>
-        <p className="text-xs leading-snug text-muted-foreground">
-          {t(
-            modelAvailable
-              ? "map.page.detectionWarningReady"
-              : "map.page.detectionWarningHint",
-          )}
-        </p>
-        {modelAvailable ? (
-          <Button
-            type="button"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={onReanalyze}
-          >
-            <RefreshCw className="size-3" />
-            {t("map.page.reanalyzeEstimated", { count })}
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs"
-            onClick={() => navigate("/settings?section=data")}
-          >
-            <ScanEye className="size-3" />
-            {t("map.page.setupDetection")}
-          </Button>
+    <Alert
+      floating
+      variant="warning"
+      className={MAP_NOTICE}
+      aside={
+        <DismissButton label={t("map.page.dismissHint")} onClick={onDismiss} />
+      }
+    >
+      <AlertTitle>
+        {t("map.page.detectionWarning", { count, total })}
+      </AlertTitle>
+      <AlertDescription>
+        {t(
+          modelAvailable
+            ? "map.page.detectionWarningReady"
+            : "map.page.detectionWarningHint",
         )}
-      </div>
-      <DismissButton label={t("map.page.dismissHint")} onClick={onDismiss} />
-    </div>
+      </AlertDescription>
+      {modelAvailable ? (
+        <Button type="button" size="xs" onClick={onReanalyze}>
+          <RefreshCw className="size-3" />
+          {t("map.page.reanalyzeEstimated", { count })}
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          onClick={() => navigate("/settings?section=data")}
+        >
+          <ScanEye className="size-3" />
+          {t("map.page.setupDetection")}
+        </Button>
+      )}
+    </Alert>
   );
 }
 
@@ -640,12 +621,17 @@ export function NoClustersHint({
 }: Readonly<{ radiusKm: number; onDismiss: () => void }>): React.JSX.Element {
   const { t } = useTranslation();
   return (
-    <div className={NOTICE_CLASS}>
-      <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-      <p className="min-w-0 flex-1 text-xs leading-snug text-muted-foreground">
+    <Alert
+      floating
+      variant="neutral"
+      className={MAP_NOTICE}
+      aside={
+        <DismissButton label={t("map.page.dismissHint")} onClick={onDismiss} />
+      }
+    >
+      <AlertDescription>
         {t("map.page.noClustersInfo", { radius: radiusKm })}
-      </p>
-      <DismissButton label={t("map.page.dismissHint")} onClick={onDismiss} />
-    </div>
+      </AlertDescription>
+    </Alert>
   );
 }

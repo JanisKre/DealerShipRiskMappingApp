@@ -141,7 +141,7 @@ test("storms generated on the portfolio play and reach its locations", async () 
     .getByRole("button", { name: "Als Szenario speichern" })
     .click();
   await expect(
-    page.getByText(/„Unwetter auf Portfolio #\d+“ gespeichert\./),
+    page.getByText(/„Unwetter auf Portfolio #\d+“ gespeichert$/),
   ).toBeVisible();
   await page.getByRole("radio", { name: "Echte & gespeicherte" }).click();
   await expect(
@@ -184,7 +184,9 @@ test("an imported storm reaches the locations on its path and can be dragged off
     mimeType: "application/geo+json",
     buffer: Buffer.from(footprint()),
   });
-  await expect(page.getByText("„Teststurm“ importiert.")).toBeVisible();
+  await expect(
+    page.getByText("„Teststurm“ importiert", { exact: true }),
+  ).toBeVisible();
   await openDetails();
 
   // West and east lie on the path, north does not.

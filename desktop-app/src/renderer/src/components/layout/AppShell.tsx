@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@renderer/store/appStore";
 import { eur, num } from "@renderer/lib/format";
-import { toast } from "sonner";
+import { errorReason, notify } from "@renderer/lib/notify";
+import { Badge } from "@renderer/components/ui/badge";
 import { WIDE_WINDOW_PX, useMapStore } from "@renderer/store/mapStore";
 import { PageErrorBoundary } from "@renderer/components/common/PageErrorBoundary";
 import { CommandPalette } from "@renderer/components/command/CommandPalette";
@@ -134,7 +135,7 @@ function BoundaryImpactToast(): null {
             value: eur(eal),
           }),
     ].filter(Boolean);
-    toast.success(t("shell.boundaryImpact.title", { name: impact.name }), {
+    notify.success(t("shell.boundaryImpact.title", { name: impact.name }), {
       description: parts.join(" · "),
     });
     // Once per saved change.
@@ -228,6 +229,16 @@ export function AppShell(): React.JSX.Element {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const lastSavedAt = useAppStore((s) => s.lastSavedAt);
   const saveError = useAppStore((s) => s.saveError);
+  // The header badge only says that saving failed; the reason is told once.
+  useEffect(() => {
+    if (saveError)
+      notify.error(t("shell.saveFailed"), {
+        id: "save-failed",
+        description: errorReason(saveError),
+      });
+    else notify.dismiss("save-failed");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveError]);
   const locationsPanelOpen = useMapStore((s) => s.locationsPanelOpen);
   const chatPanelOpen = useMapStore((s) => s.chatPanelOpen);
   const toggleLocationsPanel = useMapStore((s) => s.toggleLocationsPanel);
@@ -357,23 +368,20 @@ export function AppShell(): React.JSX.Element {
           </h1>
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {!online && (
-              <span
-                role="status"
-                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-warning/40 px-2 py-0.5 text-xs text-muted-foreground"
-              >
-                <WifiOff className="size-3.5 text-warning-foreground" />
+              <Badge variant="warning" role="status" className="shrink-0 gap-1">
+                <WifiOff className="size-3.5" />
                 {t("shell.offline")}
-              </span>
+              </Badge>
             )}
             {saveError ? (
-              <span
+              <Badge
+                variant="destructive"
                 role="alert"
-                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-destructive/40 px-2 py-0.5 text-xs text-destructive"
-                title={saveError}
+                className="shrink-0 gap-1"
               >
                 <TriangleAlert className="size-3.5" />
                 {t("shell.saveFailed")}
-              </span>
+              </Badge>
             ) : (
               lastSavedAt && (
                 <span

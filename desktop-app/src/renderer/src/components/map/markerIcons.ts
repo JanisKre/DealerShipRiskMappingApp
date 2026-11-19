@@ -1,22 +1,22 @@
 import L from "leaflet";
-import { hailZoneColor } from "@renderer/lib/riskColor";
+import { hailZoneColor, hailZoneTextColor } from "@renderer/lib/riskColor";
+
+/** Grey of a location whose hail zone is not known yet. */
+const PENDING_COLOR = "#6b7280";
 
 /**
- * Returns a risk-colored teardrop marker icon.
- * `zone` null/undefined -> gray pending pin.
- * `selected` -> additional pulse ring (CSS class `marker-selected`).
- * The pin is colored by hail zone (1..6), which is also printed in it.
- * `business` -> existing business is a filled pin, new business a white pin
- * with a thick risk-colored outline and a "+" badge (CSS class
- * `marker-new-business`), so the two read apart without giving up the risk
- * color.
+ * A location pin: a teardrop in the hail-zone colour (1..6) with the zone
+ * printed in it, readable on every zone colour. `zone` null/undefined is a
+ * grey pending pin. `selected` adds the app's focus ring and a pulse; new
+ * business carries a "+" badge. Styles: `.risk-marker` in globals.css.
  */
 export function riskMarkerIcon(
   zone: number | undefined | null,
   selected = false,
   business: "existing" | "new" = "existing",
 ): L.DivIcon {
-  const color = zone != null ? hailZoneColor(zone) : "#6b7280";
+  const color = zone != null ? hailZoneColor(zone) : PENDING_COLOR;
+  const text = zone != null ? hailZoneTextColor(zone) : "#ffffff";
   const label =
     zone != null ? `<span class="marker-label">Z${zone}</span>` : "";
   const badge =
@@ -35,6 +35,30 @@ export function riskMarkerIcon(
     iconAnchor: [14, 36],
     popupAnchor: [0, -36],
     tooltipAnchor: [14, -18],
-    html: `<div class="${classes}" style="--marker-color:${color}">${label}${badge}</div>`,
+    html: `<div class="${classes}" style="--marker-color:${color};--marker-text:${text}">${label}${badge}</div>`,
+  });
+}
+
+/** Diameter of a cluster badge for `count` locations. */
+export function clusterSize(count: number): number {
+  return count < 10 ? 32 : count < 100 ? 38 : 46;
+}
+
+/**
+ * A group of locations: a round card badge with the count; the ring shows
+ * the highest hail zone inside (grey while none is known).
+ */
+export function clusterIcon(
+  count: number,
+  maxZone: number | null,
+  label: string,
+): L.DivIcon {
+  const size = clusterSize(count);
+  const color = maxZone != null ? hailZoneColor(maxZone) : PENDING_COLOR;
+  return L.divIcon({
+    className: "",
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    html: `<div class="cluster-icon" style="width:${size}px;height:${size}px;--cluster-color:${color}" role="img" aria-label="${label}"><span>${count}</span></div>`,
   });
 }

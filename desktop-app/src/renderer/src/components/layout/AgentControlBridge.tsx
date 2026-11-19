@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { notify } from "@renderer/lib/notify";
 import {
   AgentCommandRequestSchema,
   type AgentCommand,
@@ -43,7 +43,7 @@ export function AgentControlBridge(): null {
                     count: result.started ?? 0,
                   })
                 : t("agentControl.stoppedAnalysis");
-      toast.info(text, { description: t("agentControl.source") });
+      notify.info(text, { description: t("agentControl.source") });
     }
 
     return window.api.onAgentCommand((raw) => {
