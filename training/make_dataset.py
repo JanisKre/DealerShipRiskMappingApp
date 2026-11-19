@@ -29,6 +29,12 @@ draws a fresh random split (scores are then not comparable with older models).
 the --val-share is reached, spread over the federal states. Train from the start
 weights afterwards: models trained before have seen the moved sites.
 
+Test split: sites listed in data/test_sites.txt (select_sites.py --extend
+--test-share) go to images/test once finished, never to train or val, and no
+pseudo-labels are taken from them. Training picks its best checkpoint on val,
+and thresholds are chosen on val; test is only for the final comparison
+(evaluate.py --split test, compare_models.py).
+
 Pseudo-labels (`--pseudo`): tiles of unfinished sites labelled by autolabel.py
 go into train only: `sure` boxes plus the questions you or Claude answered.
 Open questions are greyed out in the image copy, so the model learns neither
@@ -61,6 +67,7 @@ from common import (
     RAW,
     TARGET_GSD_M,
     TILE_PX,
+    test_sites,
     corrected_labels,
     is_negative_site,
     label_path,
@@ -186,7 +193,9 @@ def main() -> None:
     args = ap.parse_args()
 
     reviewed = reviewed_sites()
-    sites = sorted(reviewed)
+    held_out = test_sites()
+    test = sorted(reviewed & held_out)
+    sites = sorted(reviewed - held_out)
     if len(sites) < 5:
         raise SystemExit(f"only {len(sites)} sites fully ticked — finish at least 5 (better 40+) first ('Kachel fertig' on every tile of a site in the studio, or label.py)")
 
@@ -204,7 +213,8 @@ def main() -> None:
 
     shutil.rmtree(DATASET, ignore_errors=True)
     for img in own:
-        split = "val" if site_of(img) in val_sites else "train"
+        site = site_of(img)
+        split = "test" if site in held_out else "val" if site in val_sites else "train"
         # Your corrections: X-AnyLabeling JSON → YOLO-OBB (edge-cut boxes kept, clipped to the tile).
         write_obb_labels(DATASET / "labels" / split / f"{img.stem}.txt", corrected_labels(img))
         (DATASET / "images" / split).mkdir(parents=True, exist_ok=True)
@@ -219,18 +229,19 @@ def main() -> None:
         if gsd is not None and gsd <= SHARP_GSD_M and degrade_rng.random() < args.degrade:
             add_degraded(img, degrade_rng)
             degraded += 1
-    pseudo_tiles, pseudo_boxes = add_pseudo(val_sites, reviewed) if args.pseudo else (0, 0)
+    pseudo_tiles, pseudo_boxes = add_pseudo(val_sites | held_out, reviewed) if args.pseudo else (0, 0)
 
     if args.classes == "vehicle":
         merge_classes(DATASET / "labels")
     yaml = DATASET_YAML
     names = "\n".join(f"  {i}: {n}" for i, n in TRAIN_CLASSES[args.classes].items())
-    yaml.write_text(f"path: {DATASET}\ntrain: images/train\nval: images/val\nnames:\n{names}\n")
+    test_line = "test: images/test\n" if test else ""
+    yaml.write_text(f"path: {DATASET}\ntrain: images/train\nval: images/val\n{test_line}names:\n{names}\n")
     (DATASET / "val_sites.txt").write_text("\n".join(sorted(val_sites)) + "\n")
     n_train = len(list((DATASET / "images" / "train").glob("*.jpg")))
     n_val_tiles = len(list((DATASET / "images" / "val").glob("*.jpg")))
     boxes = sum(len(p.read_text().splitlines()) for p in (DATASET / "labels").rglob("*.txt"))
-    print(f"{len(sites)} sites → {len(sites) - n_val} train / {n_val} val")
+    print(f"{len(sites) + len(test)} sites → {len(sites) - n_val} train / {n_val} val / {len(test)} test ({len(held_out) - len(test)} test sites not finished yet)")
     print(f"tiles: {n_train} train ({len(public)} public, {degraded} degraded copies, {pseudo_tiles} pseudo-labelled), {n_val_tiles} val, {boxes} vehicles → {yaml}")
     if pseudo_tiles:
         print(f"pseudo-labels: {pseudo_boxes} vehicles from autolabel.py, train only")

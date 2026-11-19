@@ -196,6 +196,7 @@ tests` (sandboxed, no torch, no network) and `npm test` in `desktop-app/`
 | 6. Baseline | `python evaluate.py --weights yolo11s-obb.pt --dota` | Pretrained model, unchanged |
 | 7. Train | `caffeinate -i python train.py` | `runs/dealer-obb/weights/best.pt` |
 | 8. Evaluate | `python evaluate.py` | mAP50 and per-site count MAE, bias, within-10 %, also per native resolution and false detections on negatives |
+| 8a. Compare | `caffeinate -i python compare_models.py` | Our models against public ones (DOTA YOLO11/YOLO26 in three sizes, YOLOE zero-shot), threshold picked on val, scored on test |
 | 8b. App benchmark | `npm run benchmark:detection` in `desktop-app/` (see below) | Count MAE, bias and within-10 % per threshold through the app's own inference |
 | 9. Install | `python export.py --install --default-conf 0.45` | ONNX and manifest in the app's `userData/models`; the replaced model is kept in `backup-<time>/` |
 
@@ -236,6 +237,38 @@ builds the file from an OSM dealer export (columns `ID`, `Dealership Name`,
 
 Use 60–100 dealerships from several federal states. Hold out at least 15
 sites; `make_dataset.py --val-share 0.2` does this per site.
+
+### More sites and a test split
+
+`select_sites.py --extend` keeps `data/sites.csv` (tiles and labels keep
+their names) and appends new sites at least 400 m from every existing one;
+`--test-share` holds a share of the new ones out as **test sites** in
+`data/test_sites.txt`:
+
+```bash
+python select_sites.py car_dealerships_germany_500.csv --extend --count 120 --test-share 0.5
+python fetch_tiles.py data/sites.csv      # loads only the missing tiles
+```
+
+Once finished, test sites go to `data/dataset/images/test`, never to train
+or val, and no pseudo-labels come from them. Training picks its checkpoint
+on val and thresholds are chosen on val, so test is the only score no
+decision has looked at. Score on it at the end of a round, not after each
+experiment:
+
+```bash
+python evaluate.py --split test --sweep
+python compare_models.py                  # every model: tuned on val, scored on test
+```
+
+`evaluate.py` reports a 95 % interval for every count metric (bootstrap over
+sites) and precision and recall at probIoU 0.5: a site count can be right
+when misses and false detections cancel out; these two cannot. With 20 sites
+the MAE interval is about ±40 %; at 60 test sites it is about 40 % narrower.
+
+Label test sites with the same care as val, and check every box on the tile
+check: the suggestions come from our own model, and confirming them without
+looking would bias the test set towards it.
 
 **Pre-labels:** The DOTA model with `--imgsz 448 --conf 0.15` (the default)
 has high precision on dealership lots. It finds only about half of the

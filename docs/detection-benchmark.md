@@ -157,6 +157,66 @@ dealership sites at 0.10 m/px, compared with the corrected labels per site.
   sweep before `--default-conf` is set; without it the global default
   applies.
 
+## Comparison with public models and a test split (2026-11-19)
+
+**Question.** How does our dealer model compare with public aerial vehicle
+detectors under the same conditions, and how sure are the numbers?
+
+**Method.** `training/compare_models.py` runs every model through
+`training/evaluate.py` on the same tiles. It reports count MAE, bias and
+the share of sites within 10 %, each with a 95 % bootstrap interval over
+sites. It also reports precision and recall at probIoU 0.5, because a site
+count can come out right when misses and false detections cancel. Public
+models get every input size they could reasonably use (448/640/1024 for
+DOTA) and thresholds down to 0.02. We count only their vehicle classes:
+DOTA "small/large vehicle", VisDrone "car/van/truck/bus", and the YOLOE
+prompt "car, van, truck". Each model's input size and threshold are picked
+by MAE on val and scored on the test split.
+
+**Test split.** On 2026-11-19, 120 new sites were added from the 500-dealer
+list (JanisKre/dealership_dataset, OSM, ODbL). Each new site is at least
+400 m from every existing site. 60 of them (half per state, seed 7) are
+test sites in `training/data/test_sites.txt`: they never go into train or
+val, and no threshold or checkpoint is chosen on them. The other 60 are
+for training. No model has seen any of the 120.
+
+**Results on the 20 val sites so far** (3,093 vehicles; tuned and scored on
+the same sites, which flatters every model, and the public ones more
+because they had more settings to choose from):
+
+| Model | Source | Size | Conf | MAE (95 %) | Bias | Within 10 % | Precision | Recall |
+|---|---|---|---|---|---|---|---|---|
+| round-02 (shipped) | ours, DLR 3K lineage | 640 | 0.30 | 4.9 (3.2–6.7) | −0.7 % | 100 % | 94.7 % | 94.1 % |
+| scratch-01 | ours, own labels only | 640 | 0.30 | 5.8 (3.5–8.2) | −0.8 % | 85 % | 93.8 % | 93.0 % |
+| round-01 | ours | 640 | 0.35 | 6.5 (4.2–9.1) | −3.0 % | 80 % | 94.8 % | 92.0 % |
+| dealer-obb | ours | 640 | 0.45 | 8.6 (5.2–12.7) | −3.0 % | 70 % | 93.4 % | 90.6 % |
+| YOLO26x-OBB | Ultralytics, DOTA v1 | 448 | 0.02 | 16.9 (8.7–29.0) | −4.5 % | 60 % | 88.7 % | 84.7 % |
+| YOLO26m-OBB | Ultralytics, DOTA v1 | 448 | 0.02 | 21.9 (11.8–33.8) | −5.9 % | 55 % | 88.3 % | 83.2 % |
+| YOLO26s-OBB | Ultralytics, DOTA v1 | 448 | 0.05 | 23.4 (8.7–43.0) | −13.6 % | 65 % | 91.8 % | 79.4 % |
+| YOLO11x-OBB | Ultralytics, DOTA v1 | 640 | 0.02 | 24.2 (13.2–37.9) | −3.6 % | 60 % | 87.4 % | 84.2 % |
+| YOLO11m-OBB | Ultralytics, DOTA v1 | 448 | 0.10 | 26.1 (9.9–48.6) | −14.3 % | 65 % | 93.2 % | 80.0 % |
+| YOLO11s-OBB | Ultralytics, DOTA v1 | 448 | 0.05 | 32.6 (14.6–55.1) | −12.1 % | 45 % | 90.5 % | 79.6 % |
+| YOLO26s VisDrone | app default before dealer models | 640 | 0.20 | 36.5 (23.8–50.5) | −15.8 % | 30 % | 80.3 % | 67.6 % |
+| YOLOE-11L zero-shot | Ultralytics, text prompt | 1024 | 0.02 | 90.1 (67.0–116.3) | −42.9 % | 0 % | 51.0 % | 29.1 % |
+
+Even tuned on the very sites it is scored on, the best public model has
+about three times our MAE and roughly 10 points less recall. With 20 sites
+the intervals are wide (round-02 3.2–6.7, scratch-01 3.5–8.2), so these
+data cannot rank round-02 above scratch-01. round-02 also trained on 9 of
+the 20 sites.
+
+**Limitations.**
+- The labels began as suggestions, first from DOTA YOLO11s-OBB and later
+  from our own models, and were corrected by one person. Where a box is
+  ambiguous, the labels may lean towards those models.
+- Only German state orthophotos at 0.10–0.20 m, and only dealership lots.
+- On Hugging Face we found few public nadir vehicle detectors that can be
+  loaded without running a third-party pickle. Those checkpoints are not
+  part of this comparison yet.
+
+**Next.** Once the 60 test sites are labelled, run `compare_models.py`
+again: it then tunes on val and reports on test.
+
 ## Shipped model (2026-11-19, round 02)
 
 **What ships.** From v0.6.0, release installers contain `dealer_vehicles`

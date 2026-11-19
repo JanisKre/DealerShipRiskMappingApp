@@ -53,6 +53,13 @@ WORK = DATA if SANDBOX else ROOT
 RUNS = WORK / "runs"
 EXPORT = WORK / "export"
 DATASET_YAML = WORK / "dataset.yaml"
+# Test sites: never trained on, never used to pick a threshold or a checkpoint.
+# Kept outside data/dataset so rebuilding the dataset cannot move them.
+TEST_SITES = DATA / "test_sites.txt"
+
+
+def test_sites() -> set[str]:
+    return set(TEST_SITES.read_text().split()) if TEST_SITES.exists() else set()
 
 
 def base_weight_dirs() -> list[Path]:
