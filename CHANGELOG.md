@@ -9,10 +9,6 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **One workflow from import to dashboard (UX review, November 2026).**
-  The header shows the four steps Prepare → Import → Review → Evaluate
-  with their state (model missing, analysis running, open boundaries,
-  provisional EAL), each a click to where it is done.
 - **Assumptions before the first analysis.** The import dialog ends with
   the detection status (without a model there is no hail EAL), a parameter
   template and the four values that set exposure and review notes

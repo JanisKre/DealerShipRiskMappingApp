@@ -23,7 +23,6 @@ import {
   SETTINGS_ITEM,
 } from "@renderer/components/layout/navigation";
 import { PortfolioSwitcher } from "@renderer/components/layout/PortfolioSwitcher";
-import { WorkflowSteps } from "@renderer/components/layout/WorkflowSteps";
 import { ThemeToggle } from "@renderer/components/theme/ThemeToggle";
 import { HintButton } from "@renderer/components/ui/hint-button";
 import { Separator } from "@renderer/components/ui/separator";
@@ -354,11 +353,7 @@ export function AppShell(): React.JSX.Element {
           <h1 className="hidden truncate text-sm leading-tight font-semibold sm:block">
             {t(activeTitleKey)}
           </h1>
-          {/* Where the portfolio stands; only where the header has room. */}
-          <div className="ml-auto hidden min-w-0 xl:flex">
-            <WorkflowSteps />
-          </div>
-          <div className="ml-auto flex shrink-0 items-center gap-2 xl:ml-4">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             {!online && (
               <span
                 role="status"

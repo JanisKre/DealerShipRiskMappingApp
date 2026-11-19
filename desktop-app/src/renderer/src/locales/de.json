@@ -2345,18 +2345,5 @@
     "invalid": "Bitte einen Wert zwischen {{min}} und {{max}} eingeben.",
     "more": "Alle weiteren Parameter (Hagel-EAL, PML, Schwellen) stehen auf der Seite „Parameter“ und lassen sich jederzeit ändern.",
     "keepsParameters": "Die Standorte kommen in ein bestehendes Portfolio und werden mit dessen Parametern bewertet."
-  },
-  "workflow": {
-    "label": "Arbeitsschritte des Portfolios",
-    "steps": {
-      "prepare": "Vorbereiten",
-      "import": "Importieren",
-      "review": "Prüfen",
-      "evaluate": "Auswerten"
-    },
-    "modelMissing": "Modell fehlt",
-    "openCount_one": "{{count}} offen",
-    "openCount_other": "{{count}} offen",
-    "provisional": "vorläufig"
   }
 }

@@ -2345,18 +2345,5 @@
     "invalid": "Enter a value between {{min}} and {{max}}.",
     "more": "All other parameters (hail EAL, PML, thresholds) are on the Parameters page and can be changed at any time.",
     "keepsParameters": "The locations go into an existing portfolio and are scored with its parameters."
-  },
-  "workflow": {
-    "label": "Portfolio workflow",
-    "steps": {
-      "prepare": "Prepare",
-      "import": "Import",
-      "review": "Review",
-      "evaluate": "Evaluate"
-    },
-    "modelMissing": "model missing",
-    "openCount_one": "{{count}} open",
-    "openCount_other": "{{count}} open",
-    "provisional": "provisional"
   }
 }

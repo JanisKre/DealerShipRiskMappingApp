@@ -2345,18 +2345,5 @@
     "invalid": "Saisis une valeur entre {{min}} et {{max}}.",
     "more": "Tous les autres paramètres (EAL grêle, PML, seuils) se trouvent sur la page « Paramètres » et restent modifiables.",
     "keepsParameters": "Les sites rejoignent un portefeuille existant et sont évalués avec ses paramètres."
-  },
-  "workflow": {
-    "label": "Étapes du portefeuille",
-    "steps": {
-      "prepare": "Préparer",
-      "import": "Importer",
-      "review": "Contrôler",
-      "evaluate": "Évaluer"
-    },
-    "modelMissing": "modèle manquant",
-    "openCount_one": "{{count}} ouvert",
-    "openCount_other": "{{count}} ouverts",
-    "provisional": "provisoire"
   }
 }
