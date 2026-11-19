@@ -158,6 +158,8 @@ export function buildAttention(
   parameters: RiskParameters,
   openSite: () => void,
   openSettings: () => void,
+  /** Opens the image history; the site tab otherwise. */
+  openImageryHistory: () => void = openSite,
 ): Attention[] {
   const items: Attention[] = [];
   if (d.boundary?.reviewRequired) {
@@ -202,7 +204,7 @@ export function buildAttention(
       detail: t("dashboard.detailDialog.attentionImageryDetail"),
       action: {
         label: t("dashboard.detailDialog.attentionImageryAction"),
-        run: openSite,
+        run: openImageryHistory,
       },
     });
   }

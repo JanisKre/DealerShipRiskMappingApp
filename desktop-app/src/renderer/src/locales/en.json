@@ -835,7 +835,7 @@
       "attentionImageryTitle_one": "Aerial image is {{count}} year old",
       "attentionImageryTitle_other": "Aerial image is {{count}} years old",
       "attentionImageryDetail": "The lot may look different today. In the image history you can count the vehicles on other image versions.",
-      "attentionImageryAction": "Image history",
+      "attentionImageryAction": "View image history",
       "tabOverview": "Risk",
       "tabSite": "Site & vehicles",
       "tabContract": "Contract & notes",
@@ -1763,6 +1763,7 @@
     "action": {
       "correctBoundary": "check or correct the boundary on the map",
       "reanalyze": "re-analyse on the newest available aerial image",
+      "compareImagery": "compare in the image history whether the site has changed (no newer aerial image is available)",
       "readUnderwriting": "read the underwriting notices in the dialog"
     },
     "reanalyze": "Re-analyse",

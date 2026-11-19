@@ -107,20 +107,40 @@ export function nextInReview(
 /**
  * The fixed next step per review reason, each backed by a control the
  * review strip already has: correct the boundary on the map, re-analyse on
- * the newest imagery the automatic selection finds, or read the underwriting
- * notices in the dialog.
+ * the newest imagery the automatic selection finds (or, when the counted
+ * image already is that, compare it in the image history), or read the
+ * underwriting notices in the dialog.
  */
-export type ReviewAction = "correctBoundary" | "reanalyze" | "readUnderwriting";
+export type ReviewAction =
+  "correctBoundary" | "reanalyze" | "compareImagery" | "readUnderwriting";
 
-const REASON_ACTION: Record<ReviewReason, ReviewAction> = {
-  boundary: "correctBoundary",
-  imagery: "reanalyze",
-  underwriting: "readUnderwriting",
-};
+/** Selections where the automatic choice already took the newest image. */
+const NEWEST_AVAILABLE: ReadonlySet<string> = new Set([
+  "newest",
+  "sharper-within-tolerance",
+  "only-option",
+]);
+
+/**
+ * True when the automatic selection counted on the newest usable image it
+ * found: a re-analysis would pick the same image again.
+ */
+export function countedOnNewestImagery(d: AnalyzedDealership): boolean {
+  const selection = d.detection?.imagery;
+  return selection?.mode === "auto" && NEWEST_AVAILABLE.has(selection.reason);
+}
 
 /** Recommended actions for the reasons, in reason order, each once. */
-export function recommendedActions(reasons: ReviewReason[]): ReviewAction[] {
-  return [...new Set(reasons.map((r) => REASON_ACTION[r]))];
+export function recommendedActions(
+  reasons: ReviewReason[],
+  d?: AnalyzedDealership,
+): ReviewAction[] {
+  const actionFor = (reason: ReviewReason): ReviewAction => {
+    if (reason === "boundary") return "correctBoundary";
+    if (reason === "underwriting") return "readUnderwriting";
+    return d && countedOnNewestImagery(d) ? "compareImagery" : "reanalyze";
+  };
+  return [...new Set(reasons.map(actionFor))];
 }
 
 function vehicleSourceOf(

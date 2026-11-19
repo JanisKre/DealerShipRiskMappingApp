@@ -835,7 +835,7 @@
       "attentionImageryTitle_one": "Luftbild ist {{count}} Jahr alt",
       "attentionImageryTitle_other": "Luftbild ist {{count}} Jahre alt",
       "attentionImageryDetail": "Auf dem Gelände kann es heute anders aussehen. In der Bildhistorie lassen sich die Fahrzeuge auf anderen Bildständen zählen.",
-      "attentionImageryAction": "Bildhistorie",
+      "attentionImageryAction": "Bildhistorie ansehen",
       "tabOverview": "Risiko",
       "tabSite": "Gelände & Fahrzeuge",
       "tabContract": "Vertrag & Notizen",
@@ -1763,6 +1763,7 @@
     "action": {
       "correctBoundary": "Grenze auf der Karte prüfen oder korrigieren",
       "reanalyze": "auf dem neuesten verfügbaren Luftbild neu analysieren",
+      "compareImagery": "in der Bildhistorie vergleichen, ob sich das Gelände verändert hat (ein neueres Luftbild gibt es nicht)",
       "readUnderwriting": "Underwriting-Hinweise im Dialog lesen"
     },
     "reanalyze": "Neu analysieren",

@@ -242,9 +242,26 @@ function DetailBody({
       : "overview";
   const reviewTabRef = useRef(reviewTab);
   reviewTabRef.current = reviewTab;
+  // An old image is checked in the image history, so a review opens it.
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyRef = useRef<HTMLDivElement>(null);
+  const reviewImageryRef = useRef(false);
+  reviewImageryRef.current = reviewOpen && reasons.includes("imagery");
   useEffect(() => {
     if (inReview) setTab(reviewTabRef.current);
+    setHistoryOpen(reviewImageryRef.current);
   }, [d.id, inReview]);
+  function showImageryHistory(): void {
+    setTab("site");
+    setHistoryOpen(true);
+    // After the site tab and the opened section are rendered.
+    requestAnimationFrame(() =>
+      historyRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      }),
+    );
+  }
 
   // ←/→ step through the locations (or the review queue). Ignored while
   // typing, so notes and inputs keep their arrow keys.
@@ -280,6 +297,7 @@ function DetailBody({
       onClose();
       navigate("/settings?section=data");
     },
+    showImageryHistory,
   );
   async function exportReport(): Promise<void> {
     setExporting(true);
@@ -596,11 +614,15 @@ function DetailBody({
             <VehiclePanel d={d} />
             <DetectionImageryNote detection={d.detection} />
             <div className="space-y-2">
-              <Disclosure
-                title={t("dashboard.detailDialog.imageryHistoryToggle")}
-              >
-                <ImageryHistorySection d={d} onClose={onClose} />
-              </Disclosure>
+              <div ref={historyRef} className="scroll-mt-12">
+                <Disclosure
+                  title={t("dashboard.detailDialog.imageryHistoryToggle")}
+                  open={historyOpen}
+                  onOpenChange={setHistoryOpen}
+                >
+                  <ImageryHistorySection d={d} onClose={onClose} />
+                </Disclosure>
+              </div>
               <SiteCheckSection d={d} />
             </div>
           </TabsContent>

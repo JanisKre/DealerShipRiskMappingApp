@@ -835,7 +835,7 @@
       "attentionImageryTitle_one": "L’image aérienne a {{count}} an",
       "attentionImageryTitle_other": "L’image aérienne a {{count}} ans",
       "attentionImageryDetail": "Le terrain peut être différent aujourd’hui. L’historique d’images permet de compter les véhicules sur d’autres versions.",
-      "attentionImageryAction": "Historique",
+      "attentionImageryAction": "Voir l’historique",
       "tabOverview": "Risque",
       "tabSite": "Site & véhicules",
       "tabContract": "Contrat & notes",
@@ -1763,6 +1763,7 @@
     "action": {
       "correctBoundary": "vérifier ou corriger la limite sur la carte",
       "reanalyze": "réanalyser sur l’image aérienne la plus récente disponible",
+      "compareImagery": "comparer dans l’historique d’images si le site a changé (aucune image aérienne plus récente n’est disponible)",
       "readUnderwriting": "lire les remarques de souscription dans la fenêtre"
     },
     "reanalyze": "Réanalyser",

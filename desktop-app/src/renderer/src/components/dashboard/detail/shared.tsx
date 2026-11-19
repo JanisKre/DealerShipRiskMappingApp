@@ -44,23 +44,32 @@ export function Disclosure({
   title,
   summary,
   defaultOpen = false,
+  open: openProp,
+  onOpenChange,
   children,
 }: Readonly<{
   title: string;
   /** The current value or state, shown while closed and open. */
   summary?: React.ReactNode;
   defaultOpen?: boolean;
+  /** Controlled open state, for a caller that opens it from elsewhere. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: React.ReactNode;
 }>): React.JSX.Element {
-  const [open, setOpen] = useState(defaultOpen);
-  const [mounted, setMounted] = useState(defaultOpen);
+  const [ownOpen, setOwnOpen] = useState(defaultOpen);
+  const open = openProp ?? ownOpen;
+  const [mountedOnce, setMounted] = useState(defaultOpen);
+  const mounted = mountedOnce || open;
   return (
     <details
       className="group rounded-md border text-sm"
       open={open}
       onToggle={(event) => {
         const next = event.currentTarget.open;
-        setOpen(next);
+        if (next === open) return;
+        setOwnOpen(next);
+        onOpenChange?.(next);
         if (next) setMounted(true);
       }}
     >

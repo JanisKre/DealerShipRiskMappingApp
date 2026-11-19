@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Check, Loader2, Pencil, RefreshCw, Sparkles } from "lucide-react";
+import { Check, Eye, Loader2, Pencil, RefreshCw, Sparkles } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
 import { Button } from "@renderer/components/ui/button";
 import { Progress } from "@renderer/components/ui/progress";
@@ -33,6 +33,8 @@ export interface ReviewNotice {
   key: string;
   title: string;
   detail?: string;
+  /** Where the point is looked at (the image history for an old image). */
+  action?: { label: string; run: () => void };
 }
 
 /** Inputs, text areas and editable fields keep their own keys. */
@@ -79,7 +81,7 @@ export function ReviewStrip({
   const reanalyzing = useAppStore((s) => s.analyzingIds.includes(d.id));
   const [busy, setBusy] = useState(false);
   const reasons = reviewReasons(t, d, dealerships, parameters);
-  const actions = recommendedActions(reasons);
+  const actions = recommendedActions(reasons, d);
   const aiNote = run.notes?.[d.id];
   const byId = new Map(dealerships.map((x) => [x.id, x]));
   const open = (id: string): boolean => {
@@ -203,6 +205,25 @@ export function ReviewStrip({
 
       {/* The actions on their own row, the one that moves on last. */}
       <div className="flex flex-wrap items-center justify-end gap-1.5">
+        {/* Looking comes before deciding; the boundary has its own
+            preview right below and "Grenze korrigieren" here. */}
+        {!done &&
+          reasons.map((reason) => {
+            const action = reason !== "boundary" && noticeFor(reason)?.action;
+            if (!action) return null;
+            return (
+              <Button
+                key={reason}
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1.5 px-2 text-xs"
+                onClick={action.run}
+              >
+                <Eye className="size-3.5" />
+                {action.label}
+              </Button>
+            );
+          })}
         {actions.includes("reanalyze") && !done && (
           <Button
             size="sm"

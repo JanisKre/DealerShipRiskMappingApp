@@ -137,6 +137,29 @@ describe("review recommendations", () => {
     expect(recommendedActions([])).toEqual([]);
   });
 
+  it("does not suggest re-analysing when the newest image was counted", () => {
+    const counted = (mode: string, reason: string): AnalyzedDealership =>
+      site("i", {
+        detection: {
+          vehicleCount: 3,
+          imagery: { mode, reason },
+        } as unknown as AnalyzedDealership["detection"],
+      });
+    expect(recommendedActions(["imagery"], counted("auto", "newest"))).toEqual([
+      "compareImagery",
+    ]);
+    expect(
+      recommendedActions(["imagery"], counted("auto", "only-option")),
+    ).toEqual(["compareImagery"]);
+    // A fixed provider or a pinned version: a newer image may exist.
+    expect(
+      recommendedActions(["imagery"], counted("esri", "fixed-provider")),
+    ).toEqual(["reanalyze"]);
+    expect(
+      recommendedActions(["imagery"], counted("auto", "pinned-version")),
+    ).toEqual(["reanalyze"]);
+  });
+
   it("gives the AI order only reasons, ranks and provenance", () => {
     const flagged = site("b", { boundary, notes: "geheime Notiz" });
     const items = reviewPlanItems(

@@ -85,6 +85,11 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Review of an old aerial image: the review strip offers "View image
+  history", which opens the history on the site tab (it is already open in
+  a review for an old image). When the counted image already is the newest
+  usable one, the strip recommends comparing in the history instead of a
+  re-analysis that would pick the same image again.
 - The analysis progress showed location ids instead of names, and its text
   ran into the stop button.
 - The detection-model hint said no model was installed after one had been
