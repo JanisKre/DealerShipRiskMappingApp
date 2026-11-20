@@ -232,4 +232,17 @@ describe("export locale", () => {
     });
     expect(parsed.session.snapshotOf).toBe("live");
   });
+
+  it("does not put a language into a settings update that names none", () => {
+    const request = ipcRequest["settings:set"];
+    expect(
+      request.parse({ settings: { satelliteProvider: "esri" } }).settings,
+    ).toEqual({ satelliteProvider: "esri" });
+    expect(request.parse({ settings: { language: "fr" } }).settings).toEqual({
+      language: "fr",
+    });
+    expect(request.safeParse({ settings: { language: "es" } }).success).toBe(
+      false,
+    );
+  });
 });

@@ -35,6 +35,7 @@ import {
   CONTEXT_CAPTURE_RADIUS_M,
   WIDE_CONTEXT_CAPTURE_RADIUS_M,
 } from "./tiles.service";
+import { timelineRadiusM } from "./vehicle-timeline.service";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import type {
   BoundaryResult,
@@ -504,4 +505,49 @@ function vehicleCentres(detection: DetectionResult): LonLat[] | null {
   return detection.boxes.flatMap((box) =>
     box.lon == null || box.lat == null ? [] : [[box.lon, box.lat] as LonLat],
   );
+}
+
+/**
+ * Counts the vehicles inside a boundary the way the analysis does: one
+ * detection on the context image around the site, roofs masked, then the
+ * boundary as a spatial filter. Used when a boundary is saved or replaced.
+ *
+ * A count on a capture of the boundary's own bounding box (another tiling
+ * of the same image) differed from the analysed one for the very same
+ * outline; and like the analysis it never waits for public Overpass, which
+ * made every save take a minute when the servers did not answer.
+ */
+export async function recountVehicles(
+  lat: number,
+  lon: number,
+  boundary?: BoundaryResult,
+  parameters?: RiskParameters,
+): Promise<DetectionResult> {
+  const osmDeadline =
+    Date.now() + (hasCustomOverpass() ? OSM_WAIT_OWN_SERVER_MS : OSM_WAIT_MS);
+  void fetchOfficialBuildings(lat, lon);
+  const image = await aerialImageForContext(
+    lat,
+    lon,
+    undefined,
+    timelineRadiusM(lat, lon, boundary),
+  );
+  const detected = await detectVehiclesInContext(image, parameters);
+  const masked = await maskRoofDetections(
+    detected,
+    lat,
+    lon,
+    osmDeadline,
+    Date.now() + OFFICIAL_BUILDINGS_WAIT_MS,
+  );
+  const counted = boundary
+    ? (filterDetectionToBoundary(masked, boundary) ??
+      (await maskRoofDetections(
+        await detectVehicles(image, boundary, parameters),
+        lat,
+        lon,
+        osmDeadline,
+      )))
+    : masked;
+  return attachImageryProvenance(counted, image.imagery);
 }

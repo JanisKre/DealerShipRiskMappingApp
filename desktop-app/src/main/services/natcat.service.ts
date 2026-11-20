@@ -77,11 +77,18 @@ export async function testNatCatConnector(
       TEST_LOCATION.lat,
       TEST_LOCATION.lon,
     );
-    return {
-      ok: true,
-      perils: assessment.hazards.map((h) => h.peril),
-      latencyMs: Date.now() - started,
-    };
+    const perils = assessment.hazards.map((h) => h.peril);
+    // The app reads hail only: an endpoint that answers without a hail
+    // value would test green and then never be used.
+    if (!perils.includes("hail")) {
+      return {
+        ok: false,
+        perils,
+        message: `The endpoint answered without a hail value (${perils.join(", ") || "no perils"}).`,
+        latencyMs: Date.now() - started,
+      };
+    }
+    return { ok: true, perils, latencyMs: Date.now() - started };
   } catch (error) {
     return {
       ok: false,

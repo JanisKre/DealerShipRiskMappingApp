@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseCsvWithReport, postcodesLostLeadingZero } from "./csv.service";
+import {
+  cellToString,
+  parseCsvWithReport,
+  postcodesLostLeadingZero,
+} from "./csv.service";
 
 describe("portfolio import report", () => {
   it("reports mappings, duplicates, and invalid numeric cells", () => {
@@ -309,5 +313,151 @@ describe("postcodes that lost their leading zero", () => {
       "Name;Straße;PLZ;Ort\nAutohaus A;Hauptstr. 1;1067;Dresden\nAutohaus B;Ring 2;80331;München\n",
     );
     expect(result.rows[0].address).toBe("Hauptstr. 1, 01067 Dresden");
+  });
+});
+
+describe("findings of the November test run", () => {
+  it("keeps branches with one name at different coordinates", () => {
+    const result = parseCsvWithReport(
+      [
+        "Name;lat;lon",
+        "BMW Niederlassung;51.05;13.74",
+        "BMW Niederlassung;52.52;13.40",
+        "BMW Niederlassung;48.14;11.58",
+        "BMW Niederlassung;48.14;11.58",
+      ].join("\n"),
+    );
+    expect(result.rows).toHaveLength(3);
+    expect(result.report.duplicateRows).toBe(1);
+  });
+
+  it("adds postcode and city to an address column that lacks them", () => {
+    const result = parseCsvWithReport(
+      [
+        "Name;Adresse;PLZ;Ort",
+        "Autohaus X;Hauptstraße 1;1067;Dresden",
+        "Autohaus Y;Hauptstraße 1;80331;München",
+        "Autohaus Z;Ring 2, 80331 München;80331;München",
+        "Autohaus W;;04109;Leipzig",
+      ].join("\n"),
+    );
+    expect(result.rows.map((row) => row.address)).toEqual([
+      "Hauptstraße 1, 01067 Dresden",
+      "Hauptstraße 1, 80331 München",
+      "Ring 2, 80331 München",
+      "04109 Leipzig",
+    ]);
+    expect(result.report.columnMapping.address).toBe("Adresse + PLZ + Ort");
+    expect(
+      result.report.columns?.find((column) => column.name === "PLZ")?.field,
+    ).toBe("postalCode");
+  });
+
+  it("reads a file with classic Mac line endings", () => {
+    const result = parseCsvWithReport(
+      "Name;Adresse\rAutohaus A;Weg 1, 01067 Dresden\rAutohaus B;Weg 2, 01067 Dresden\r",
+    );
+    expect(result.rows.map((row) => row.name)).toEqual([
+      "Autohaus A",
+      "Autohaus B",
+    ]);
+  });
+
+  it("keeps the first row of a file without a header", () => {
+    const file = [
+      "Autohaus A;Weg 1, 01067 Dresden;51.05;13.74",
+      "Autohaus B;Weg 2, 04109 Leipzig;51.34;12.37",
+    ].join("\n");
+    const result = parseCsvWithReport(file);
+    expect(result.rows.map((row) => row.name)).toEqual([
+      "Autohaus A",
+      "Autohaus B",
+    ]);
+    expect(result.rowNumbers).toEqual([1, 2]);
+    expect(result.report.columns?.map((column) => column.name)).toEqual([
+      "A",
+      "B",
+      "C",
+      "D",
+    ]);
+    expect(result.report.warnings.join(" ")).toContain("No header row");
+    // The lettered columns can be assigned by hand.
+    const assigned = parseCsvWithReport(file, {
+      address: "B",
+      lat: "C",
+      lon: "D",
+    });
+    expect(assigned.rows[0]).toMatchObject({
+      address: "Weg 1, 01067 Dresden",
+      lat: 51.05,
+      lon: 13.74,
+    });
+  });
+
+  it("still reads an unknown header without digits as a header", () => {
+    const result = parseCsvWithReport(
+      "Händlerbetrieb;Sitz\nAutohaus A;Weg 1, 01067 Dresden",
+    );
+    expect(result.rows.map((row) => row.name)).toEqual(["Autohaus A"]);
+    expect(result.report.warnings.join(" ")).not.toContain("No header row");
+  });
+
+  it("tells two columns with one name apart", () => {
+    const file = "Name;Adresse;Wert;Wert\nAutohaus A;Weg 1, Dresden;100;200";
+    const plain = parseCsvWithReport(file);
+    expect(plain.report.columns?.map((column) => column.name)).toEqual([
+      "Name",
+      "Adresse",
+      "Wert",
+      "Wert (2)",
+    ]);
+    const assigned = parseCsvWithReport(file, { productLimitEur: "Wert (2)" });
+    expect(assigned.rows[0]).toMatchObject({
+      assetValue: 100,
+      productLimitEur: 200,
+    });
+  });
+
+  it("recognises French column names and oui/non", () => {
+    const result = parseCsvWithReport(
+      [
+        "Nom;Rue;Code postal;Ville;Valeur;Franchise;Site web;Partenaire;Groupe;Assuré",
+        "Garage Dupont;Rue de la Gare 1;67000;Strasbourg;500000;1000;https://example.org;Agence Est;Groupe Un;oui",
+        "Garage Martin;Rue du Port 2;68100;Mulhouse;250000;500;;Agence Est;;non",
+      ].join("\n"),
+    );
+    expect(result.rows[0]).toMatchObject({
+      name: "Garage Dupont",
+      address: "Rue de la Gare 1, 67000 Strasbourg",
+      assetValue: 500000,
+      deductibleEur: 1000,
+      salesPartner: "Agence Est",
+      group: "Groupe Un",
+      insured: true,
+    });
+    expect(result.rows[1].insured).toBe(false);
+  });
+
+  it("reads rich text, dates, errors and exact numbers from sheet cells", () => {
+    expect(
+      cellToString({ richText: [{ text: "Auto" }, { text: "haus Rich" }] }),
+    ).toBe("Autohaus Rich");
+    expect(cellToString(new Date("2026-03-01T00:00:00.000Z"))).toBe(
+      "2026-03-01",
+    );
+    expect(cellToString({ formula: "1/0", result: { error: "#DIV/0!" } })).toBe(
+      "#DIV/0!",
+    );
+    expect(cellToString({ formula: "A1*2", result: 42 })).toBe("42");
+    expect(
+      cellToString({
+        text: { richText: [{ text: "Home" }, { text: "page" }] },
+        hyperlink: "https://example.org",
+      }),
+    ).toBe("Homepage");
+    // 99.999 is not ninety-nine thousand.
+    expect(cellToString(99.999)).toBe("99.9990");
+    expect(cellToString(1234.5)).toBe("1234.5");
+    expect(cellToString(250000)).toBe("250000");
   });
 });

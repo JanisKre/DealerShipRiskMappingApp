@@ -228,6 +228,11 @@ function rebuildBoundary(
     source: "manual",
     role: "operationalLot",
     provider: "manual",
+    // The outline is the user's now: the label ("parcel at the point + 4
+    // neighbouring parcels") and the evidence of the automatic result
+    // described another shape with a confidence of its own.
+    label: undefined,
+    evidence: undefined,
     polygon,
     areaSqm,
     confidence: 1,

@@ -107,9 +107,11 @@ function isRendererUrl(
   try {
     if (rendererUrl)
       return new URL(rawUrl).origin === new URL(rendererUrl).origin;
-    return (
-      new URL(rawUrl).toString() === pathToFileURL(rendererFilePath).toString()
-    );
+    // The router keeps its route in the hash ("index.html#/settings"): a
+    // reload of the app's own page from any route is the app's page.
+    const target = new URL(rawUrl);
+    target.hash = "";
+    return target.toString() === pathToFileURL(rendererFilePath).toString();
   } catch {
     return false;
   }

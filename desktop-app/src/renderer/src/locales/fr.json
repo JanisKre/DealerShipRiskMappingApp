@@ -25,12 +25,13 @@
       "deleteFailed": "Impossible de supprimer le portefeuille",
       "importFile": "Importer un fichier de portefeuille…",
       "importFailed": "Impossible de lire le fichier de portefeuille",
+      "importInvalid": "Le fichier n’est pas un fichier de portefeuille lisible (endommagé, vide ou d’un autre format). Rien n’a été modifié.",
       "importFound_one": "« {{name}} » : {{count}} site, dont {{edited}} avec limite ou nombre de véhicules modifié manuellement.",
       "importFound_other": "« {{name}} » : {{count}} sites, dont {{edited}} avec limite ou nombre de véhicules modifié manuellement.",
       "importMerge": "Fusionner dans ce portefeuille",
       "importMergeHint": "Ajoute les nouveaux sites et reprend les limites modifiées ; vos propres modifications ne sont jamais écrasées.",
       "importOpenNew": "Ouvrir comme nouveau portefeuille",
-      "mergeDone": "Fusionné : {{added}} sites ajoutés, {{updated}} limites reprises",
+      "mergeDone": "Fusionné – sites ajoutés : {{added}}, limites reprises : {{updated}}",
       "mergeConflicts_one": "{{count}} site a été modifié des deux côtés et reste inchangé ici",
       "mergeConflicts_other": "{{count}} sites ont été modifiés des deux côtés et restent inchangés ici",
       "mergeFailed": "Impossible de fusionner le portefeuille",
@@ -853,6 +854,10 @@
         "cascadeVehicleHull": "contour des véhicules détectés",
         "cascadeOsmDealerArea": "zone de concession issue d’OpenStreetMap",
         "cascadeParcel": "parcelle au point",
+        "cascadeSiteParcels": "parcelles cadastrales du site (modèle de site)",
+        "cascadeParcelsNoLot": "parcelles cadastrales au point, aucun parc de véhicules détecté",
+        "anchor": "point d’ancrage : {{source}}",
+        "anchorOfficial": "coordonnée officielle du bâtiment ({{register}})",
         "boundaryConfirmed": "Limite confirmée visuellement le {{date}}, pas un levé cadastral",
         "vehicleDetectorSource": "Détection des véhicules (modèle de détection local)",
         "vehicleDetectorMethod": "Véhicules détectés sur l’image aérienne ({{resolution}} m par pixel)"
@@ -893,6 +898,7 @@
       "natCatHazard": "{{peril}} : zone {{zone}} ({{unit}})",
       "natCatAttribute": "{{name}} : {{value}}",
       "deductibleLabel": "Franchise (EUR)",
+      "amountInvalid": "Montant illisible – la valeur précédente est conservée. Exemple : 2 000 000",
       "imageryHistory": {
         "title": "Historique des images (Esri Wayback)",
         "captured": "Prise de vue",
@@ -950,6 +956,7 @@
       "limitationsToggle_one": "{{count}} limite",
       "limitationsToggle_other": "{{count}} limites",
       "natCatNone": "Aucune source externe de données grêle n’est configurée ; la zone de grêle provient de la table des codes postaux.",
+      "natCatNoneEstimated": "Aucune source externe de données de grêle configurée ; la zone de grêle est estimée à partir de données météo (pas d’entrée de code postal pour ce site).",
       "notesSaving": "Enregistrement …",
       "candidate": {
         "vehicleParcels": "Parcelles du site",
@@ -1570,7 +1577,9 @@
     "streaming": "Réponse en cours…",
     "explain": {
       "stop": "Annuler",
-      "disclaimer": "Explication par l’IA des valeurs calculées par l’application ci-dessus. Les valeurs elles-mêmes ne proviennent pas de l’IA."
+      "disclaimer": "Explication par l’IA des valeurs calculées par l’application ci-dessus. Les valeurs elles-mêmes ne proviennent pas de l’IA.",
+      "removed_one": "{{count}} phrase contenant un chiffre qui ne vient pas de l’application a été omise.",
+      "removed_other": "{{count}} phrases contenant des chiffres qui ne viennent pas de l’application ont été omises."
     }
   },
   "risk": {
@@ -1682,6 +1691,8 @@
     "noRowsFound": "Aucune ligne importable trouvée",
     "website": "Site web",
     "reportExported": "Rapport exporté : {{name}}",
+    "exportWholePortfolio_one": "L’export contient tout le portefeuille ({{count}} site) ; le filtre du tableau de bord ne s’applique pas au fichier.",
+    "exportWholePortfolio_other": "L’export contient tout le portefeuille ({{count}} sites) ; le filtre du tableau de bord ne s’applique pas au fichier.",
     "portfolioExported": "Portefeuille exporté : {{name}}",
     "viewExported": "Vue exportée : {{name}}",
     "exportFailed": "Échec de l'export",
@@ -1846,7 +1857,8 @@
     },
     "notExcel": "Le fichier n’est pas un classeur Excel valide (.xlsx)",
     "notText": "Le fichier n’est pas un fichier CSV ou texte",
-    "encodingWindows1252": "Encodage : Windows-1252 détecté (CSV Excel) – les accents sont lus correctement."
+    "encodingWindows1252": "Encodage : Windows-1252 détecté (CSV Excel) – les accents sont lus correctement.",
+    "noHeader": "Aucune ligne d’en-tête reconnue : la première ligne est lue comme un site ; les colonnes s’appellent A, B, C … et peuvent être attribuées ci-dessous."
   },
   "places": {
     "inPortfolio": "Dans le portefeuille : {{portfolio}}",
@@ -1907,6 +1919,7 @@
     "lookups": {
       "running": "Recherche des justificatifs …",
       "used": "Justificatifs consultés :",
+      "external": "Source externe (serveur MCP connecté) :",
       "failed": "échec",
       "tool": {
         "evidence": "Origine des valeurs",

@@ -111,3 +111,30 @@ export function nameForPlace(
   if (!qualifier || normalise(qualifier) === normalise(base)) return base;
   return `${base} (${qualifier})`;
 }
+
+/**
+ * A typed coordinate pair ("51.0504, 13.7373", "51,0504 13,7373",
+ * "51.0504/13.7373"): latitude first, both with decimals, inside the valid
+ * ranges. A place search answers such input with unrelated places, so the
+ * add field offers the point itself instead.
+ */
+export function parseCoordinatePair(
+  text: string,
+): { lat: number; lon: number } | null {
+  // With decimal points a comma separates the two; with decimal commas
+  // only a space, a semicolon or a slash can.
+  const match =
+    /^\s*(-?\d{1,2}\.\d+)\s*[,;/\s]\s*(-?\d{1,3}\.\d+)\s*$/u.exec(text) ??
+    /^\s*(-?\d{1,2},\d+)\s*[;/\s]\s*(-?\d{1,3},\d+)\s*$/u.exec(text);
+  if (!match) return null;
+  const lat = Number(match[1].replace(",", "."));
+  const lon = Number(match[2].replace(",", "."));
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  return { lat, lon };
+}
+
+/** Label of a location added by its coordinates. */
+export function coordinateLabel(point: { lat: number; lon: number }): string {
+  return `${point.lat.toFixed(5)} / ${point.lon.toFixed(5)}`;
+}

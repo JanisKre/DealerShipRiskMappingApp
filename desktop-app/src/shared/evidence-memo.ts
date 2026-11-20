@@ -4,7 +4,7 @@ import { DEFAULT_RISK_PARAMETERS } from "./parameters";
 import { lastAnalyzedOn } from "./change-report";
 import { hasEalBasis } from "./estimates";
 import { challengeAssumptions, challengeFacts } from "./assumption-challenge";
-import { checkNumbers } from "./number-check";
+import { checkNumbers, containsNumberWordFigure } from "./number-check";
 import { dealershipHailZone, displayedHailVehicleSource } from "./risk-math";
 
 /**
@@ -168,10 +168,63 @@ export const EvidenceMemoSchema = z.object({
 });
 export type EvidenceMemo = z.infer<typeof EvidenceMemoSchema>;
 
-/** Every number a fact value contains (dates contribute year, month, day). */
+const DATE_FACTS: ReadonlySet<MemoFactKey> = new Set([
+  "imageDate",
+  "analyzedOn",
+]);
+
+/**
+ * The numbers a sentence may state because of this fact. A number fact is
+ * its value. A date contributes its year only: day and month count when
+ * the date is written out (see `withoutFactLiterals`), not as loose
+ * numbers ("14 %" is not supported by an analysis on the 14th). Texts such
+ * as the model version or a source name contribute nothing.
+ */
 function factNumbers(fact: MemoFact): number[] {
   if (typeof fact.value === "number") return [fact.value];
-  return (fact.value.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
+  if (!DATE_FACTS.has(fact.key)) return [];
+  const year = /^(\d{4})-\d{2}-\d{2}/.exec(fact.value)?.[1];
+  return year ? [Number(year)] : [];
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * The sentence without the facts it quotes literally: a date fact written
+ * as a date (ISO, "14.11.2026", "14. November 2026") and text facts such
+ * as the model version. Returns the ids of the facts found that way.
+ */
+function withoutFactLiterals(
+  text: string,
+  facts: MemoFact[],
+): { text: string; quoted: Set<string> } {
+  const quoted = new Set<string>();
+  let rest = text;
+  for (const fact of facts) {
+    if (typeof fact.value !== "string") continue;
+    const patterns: RegExp[] = [new RegExp(escapeRegExp(fact.value), "gi")];
+    const date = DATE_FACTS.has(fact.key)
+      ? /^(\d{4})-(\d{2})-(\d{2})/.exec(fact.value)
+      : null;
+    if (date) {
+      const [, year, month, day] = date;
+      const d = String(Number(day));
+      const m = String(Number(month));
+      patterns.push(
+        new RegExp(`\\b0?${d}\\.\\s?0?${m}\\.\\s?${year}\\b`, "g"),
+        new RegExp(`\\b0?${d}\\.?\\s+\\p{L}+\\.?\\s+${year}\\b`, "gu"),
+        new RegExp(`\\b\\p{L}+\\s+0?${d},\\s+${year}\\b`, "gu"),
+      );
+    }
+    for (const pattern of patterns) {
+      if (!pattern.test(rest)) continue;
+      quoted.add(fact.id);
+      rest = rest.replace(pattern, " ");
+    }
+  }
+  return { text: rest, quoted };
 }
 
 /**
@@ -186,22 +239,39 @@ export function verifyMemo(
   const known = new Set(facts.map((f) => f.id));
   // The ends of the hail zone scale are not a claim about this location.
   const allowed = [...facts.flatMap(factNumbers), ...HAIL_ZONE_SCALE];
+  // No fact is a share: a number written with "%" must be the one fact
+  // that is a percentage, and a value below one is never its percentage.
+  const options = {
+    shares: false,
+    percentAllowed: facts
+      .filter((f) => f.key === "boundaryConfidencePct")
+      .flatMap(factNumbers),
+  };
   const memo: EvidenceMemo = { sentences: [], removed: [] };
   for (const sentence of answer.sentences) {
     const text = sentence.text.trim().slice(0, MEMO_SENTENCE_MAX_CHARS);
     if (!text) continue;
-    const check = checkNumbers(text, allowed);
-    if (!check.ok) {
-      memo.removed.push({ text, unsupported: check.unsupported });
+    const { text: bare, quoted } = withoutFactLiterals(text, facts);
+    const check = checkNumbers(bare, allowed, options);
+    // "zwanzigtausend Euro": a figure in words has no fact behind it.
+    const wordFigure = containsNumberWordFigure(bare);
+    if (!check.ok || wordFigure) {
+      memo.removed.push({
+        text,
+        unsupported: check.ok ? ["…"] : check.unsupported,
+      });
       continue;
     }
     if (memo.sentences.length >= MEMO_MAX_SENTENCES) continue;
-    const cited = new Set(sentence.facts.filter((id) => known.has(id)));
+    const cited = new Set([
+      ...sentence.facts.filter((id) => known.has(id)),
+      ...quoted,
+    ]);
     for (const fact of facts) {
       if (factNumbers(fact).length === 0) continue;
       if (
-        checkNumbers(text, factNumbers(fact)).unsupported.length <
-        checkNumbers(text, []).unsupported.length
+        checkNumbers(bare, factNumbers(fact), options).unsupported.length <
+        checkNumbers(bare, [], options).unsupported.length
       )
         cited.add(fact.id);
     }

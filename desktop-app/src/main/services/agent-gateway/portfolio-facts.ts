@@ -1,3 +1,4 @@
+import { postcodeAndTown } from "@shared/address-parts";
 import type { AnalyzedDealership, Session } from "@shared/types";
 import { lastAnalyzedOn } from "@shared/change-report";
 import { ealCoverage, ealSortValue, hasEalBasis } from "@shared/estimates";
@@ -50,8 +51,7 @@ export interface LocationRow {
 }
 
 function placeOf(address: string | undefined): string | null {
-  const match = address?.match(/\b(\d{5})\s+([^,]+)/);
-  return match ? `${match[1]} ${match[2].trim()}` : null;
+  return postcodeAndTown(address) ?? null;
 }
 
 export function locationRow(d: AnalyzedDealership): LocationRow {

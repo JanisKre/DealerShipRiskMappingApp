@@ -118,3 +118,61 @@ describe("verifyMemo", () => {
     expect(memo.removed.map((r) => r.unsupported)).toEqual([["2.500"], ["15"]]);
   });
 });
+
+describe("verifyMemo: invented figures (November test run)", () => {
+  const dated: AnalyzedDealership = {
+    ...d,
+    risk: {
+      ...d.risk!,
+      modelVersion: "screening-0.5.3",
+      computedAt: "2026-11-14T00:00:00Z",
+      ealBreakdown: {
+        ...d.risk!.ealBreakdown!,
+        hailDetail: {
+          ...d.risk!.ealBreakdown!.hailDetail!,
+          zone: 6,
+          frequency: 0.12,
+        },
+      },
+    },
+  };
+  const facts = memoFacts(dated);
+  const check = (text: string): boolean =>
+    verifyMemo({ sentences: [{ text, facts: [] }] }, facts).sentences.length ===
+    1;
+
+  it("removes figures that only resemble a digit group of a fact", () => {
+    expect(check("Ein Prämienzuschlag von 14 % ist angemessen.")).toBe(false);
+    expect(
+      check("Rund 12 Prozent der Fahrzeuge werden jedes Jahr beschädigt."),
+    ).toBe(false);
+    expect(check("Das Risiko steigt jährlich um 6 %.")).toBe(false);
+    expect(check("Im Jahr 2026 wurden 11 Hagelschäden gemeldet.")).toBe(false);
+    expect(
+      check("Der Großschaden liegt bei zwanzigtausend Euro je Fahrzeug."),
+    ).toBe(false);
+    expect(check("Version 50 des Modells nennt 3 Zonen.")).toBe(false);
+  });
+
+  it("keeps the facts, also a date and the model version written out", () => {
+    expect(check("Auf dem Gelände stehen 120 Fahrzeuge in Hagelzone 6.")).toBe(
+      true,
+    );
+    expect(check("Die Hagel-EAL beträgt 4.812 EUR.")).toBe(true);
+    const memo = verifyMemo(
+      {
+        sentences: [
+          {
+            text: "Analysiert am 14.11.2026 mit dem Modell screening-0.5.3.",
+            facts: [],
+          },
+        ],
+      },
+      facts,
+    );
+    expect(memo.sentences).toHaveLength(1);
+    expect(
+      memo.sentences[0].facts.map((id) => facts.find((f) => f.id === id)?.key),
+    ).toEqual(expect.arrayContaining(["analyzedOn", "modelVersion"]));
+  });
+});

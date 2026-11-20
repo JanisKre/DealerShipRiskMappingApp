@@ -133,7 +133,16 @@ export interface AppState {
     d: AnalyzedDealership[],
     boundaryEdits?: Record<string, BoundaryEditState>,
   ) => void;
-  setParameters: (parameters?: Partial<RiskParameters> | null) => void;
+  /**
+   * Sets the parameters. With `revision` (a stored session's
+   * `parametersRevision`, undefined on an old one) retired defaults are
+   * migrated when the session predates the retune; without the argument
+   * the values are taken as chosen now.
+   */
+  setParameters: (
+    parameters?: Partial<RiskParameters> | null,
+    stored?: { revision: number | undefined },
+  ) => void;
   updateParameters: (patch: Partial<RiskParameters>) => Promise<void>;
   resetParameters: () => Promise<void>;
   upsertDealership: (d: AnalyzedDealership) => void;

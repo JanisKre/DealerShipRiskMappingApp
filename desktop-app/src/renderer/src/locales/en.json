@@ -25,12 +25,13 @@
       "deleteFailed": "Could not delete the portfolio",
       "importFile": "Import portfolio file…",
       "importFailed": "Could not read the portfolio file",
+      "importInvalid": "The file is not a readable portfolio file (damaged, empty or another format). Nothing was changed.",
       "importFound_one": "“{{name}}”: {{count}} location, {{edited}} with manually edited boundaries or vehicle counts.",
       "importFound_other": "“{{name}}”: {{count}} locations, {{edited}} with manually edited boundaries or vehicle counts.",
       "importMerge": "Merge into this portfolio",
       "importMergeHint": "Adds new locations and takes over edited boundaries; your own edits are never overwritten.",
       "importOpenNew": "Open as new portfolio",
-      "mergeDone": "Merged: {{added}} locations added, {{updated}} boundaries taken over",
+      "mergeDone": "Merged – locations added: {{added}}, boundaries taken over: {{updated}}",
       "mergeConflicts_one": "{{count}} location was edited on both sides and kept as it was here",
       "mergeConflicts_other": "{{count}} locations were edited on both sides and kept as they were here",
       "mergeFailed": "Could not merge the portfolio",
@@ -853,6 +854,10 @@
         "cascadeVehicleHull": "outline of the detected vehicles",
         "cascadeOsmDealerArea": "dealer area from OpenStreetMap",
         "cascadeParcel": "parcel at the point",
+        "cascadeSiteParcels": "cadastral parcels of the site (site model)",
+        "cascadeParcelsNoLot": "cadastral parcels at the point, no vehicle lot seen",
+        "anchor": "anchor point: {{source}}",
+        "anchorOfficial": "official house coordinate ({{register}})",
         "boundaryConfirmed": "Boundary visually confirmed on {{date}}, not a cadastral survey",
         "vehicleDetectorSource": "Vehicle detection (local detection model)",
         "vehicleDetectorMethod": "Vehicles detected in the aerial image ({{resolution}} m per pixel)"
@@ -893,6 +898,7 @@
       "natCatHazard": "{{peril}}: zone {{zone}} ({{unit}})",
       "natCatAttribute": "{{name}}: {{value}}",
       "deductibleLabel": "Deductible (EUR)",
+      "amountInvalid": "Not a readable amount – the previous value is kept. Example: 2,000,000",
       "imageryHistory": {
         "title": "Imagery history (Esri Wayback)",
         "captured": "Captured",
@@ -950,6 +956,7 @@
       "limitationsToggle_one": "{{count}} limitation",
       "limitationsToggle_other": "{{count}} limitations",
       "natCatNone": "No external hail data source is set up; the hail zone comes from the postcode table.",
+      "natCatNoneEstimated": "No external hail data source configured; the hail zone is estimated from weather data (no postcode entry for this location).",
       "notesSaving": "Saving …",
       "candidate": {
         "vehicleParcels": "Parcels of the site",
@@ -1570,7 +1577,9 @@
     "streaming": "Responding…",
     "explain": {
       "stop": "Cancel",
-      "disclaimer": "AI explanation of the values the app computed above. The values themselves do not come from the AI."
+      "disclaimer": "AI explanation of the values the app computed above. The values themselves do not come from the AI.",
+      "removed_one": "{{count}} sentence with a figure that does not come from the app was left out.",
+      "removed_other": "{{count}} sentences with figures that do not come from the app were left out."
     }
   },
   "risk": {
@@ -1682,6 +1691,8 @@
     "noRowsFound": "No importable rows found",
     "website": "Website",
     "reportExported": "Report exported: {{name}}",
+    "exportWholePortfolio_one": "The export holds the whole portfolio ({{count}} location); the dashboard filter does not apply to the file.",
+    "exportWholePortfolio_other": "The export holds the whole portfolio ({{count}} locations); the dashboard filter does not apply to the file.",
     "portfolioExported": "Portfolio exported: {{name}}",
     "viewExported": "View exported: {{name}}",
     "exportFailed": "Export failed",
@@ -1846,7 +1857,8 @@
     },
     "notExcel": "The file is not a valid Excel workbook (.xlsx)",
     "notText": "The file is not a CSV or text file",
-    "encodingWindows1252": "Character encoding: Windows-1252 detected (Excel CSV) – accented characters are read correctly."
+    "encodingWindows1252": "Character encoding: Windows-1252 detected (Excel CSV) – accented characters are read correctly.",
+    "noHeader": "No header row recognised: the first row is read as a location; the columns are named A, B, C … and can be assigned below."
   },
   "places": {
     "inPortfolio": "In portfolio: {{portfolio}}",
@@ -1907,6 +1919,7 @@
     "lookups": {
       "running": "Looking up evidence …",
       "used": "Evidence looked up:",
+      "external": "External source (connected MCP server):",
       "failed": "failed",
       "tool": {
         "evidence": "Where the figures come from",

@@ -1,3 +1,4 @@
+import { num } from "@renderer/lib/format";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -198,9 +199,9 @@ export function ImageryHistorySection({
             <p className="text-xs">
               {t("dashboard.detailDialog.imageryHistory.countSummary", {
                 count: vehicleTimeline.counts.length,
-                median: vehicleTimeline.median,
-                min: vehicleTimeline.min,
-                max: vehicleTimeline.max,
+                median: num(vehicleTimeline.median, 1),
+                min: num(vehicleTimeline.min),
+                max: num(vehicleTimeline.max),
               })}
             </p>
           )}

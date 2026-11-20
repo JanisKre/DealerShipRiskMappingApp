@@ -1,3 +1,4 @@
+import { useHailReplayStore } from "@renderer/store/hailReplayStore";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import L from "leaflet";
@@ -70,9 +71,22 @@ function zoneScaleHtml(zone: number): string {
 }
 
 /** Builds the HTML content for an imperative Leaflet popup. */
+/**
+ * Text in place of the hail zone while there is none: "being analysed"
+ * only for a location that is, otherwise "not analysed yet" (a stopped or
+ * failed row is not in progress).
+ */
+function noZoneText(
+  analysing: boolean,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  return analysing ? t("ui.analyzing") : t("map.locationsPanel.notAnalyzed");
+}
+
 function popupHtml(
   d: AnalyzedDealership,
   t: (key: string, opts?: Record<string, unknown>) => string,
+  analysing = false,
 ): string {
   const eal =
     d.risk == null
@@ -113,7 +127,7 @@ function popupHtml(
         ${
           zone != null
             ? `<span class="popup-zone" style="background:${color};color:${hailZoneTextColor(zone)}">${t("dashboard.hailZoneLabel", { zone })}</span>`
-            : `<span>${t("ui.analyzing")}</span>`
+            : `<span>${noZoneText(analysing, t)}</span>`
         }
       </div>
       ${zone != null ? zoneScaleHtml(zone) : ""}
@@ -150,12 +164,15 @@ interface MarkerEntry {
 function tooltipHtml(
   d: AnalyzedDealership,
   t: (key: string, opts?: Record<string, unknown>) => string,
+  analysing = false,
 ): string {
   const zone = zoneOf(d);
   return (
     [
       `<strong>${escapeHtml(d.name)}</strong>`,
-      zone != null ? t("dashboard.hailZoneLabel", { zone }) : t("ui.analyzing"),
+      zone != null
+        ? t("dashboard.hailZoneLabel", { zone })
+        : noZoneText(analysing, t),
       zone != null ? zoneScaleHtml(zone) : null,
       d.detection ? `${t("common.vehicles")}: ${vehicleLabel(d, t)}` : null,
       d.boundary?.reviewRequired ? t("ui.boundaryReviewNeeded") : null,
@@ -281,7 +298,7 @@ export function ClusteredMarkers({
 
       const zone = zoneOf(d);
       const marker = L.marker([d.lat, d.lon], {
-        icon: riskMarkerIcon(zone, isSelected, businessType(d)),
+        icon: riskMarkerIcon(zone, isSelected, businessType(d), d.name),
         opacity: pending ? 0.6 : 1,
         alt: `${d.name}${zone != null ? ` – ${t("dashboard.hailZoneLabel", { zone })}` : ""}`,
         keyboard: true,
@@ -304,19 +321,35 @@ export function ClusteredMarkers({
         tooltip.options.offset = below ? [0, 6] : [0, -34];
       });
       // Tooltip and popup HTML are built when they open, not for every pin.
-      marker.bindTooltip(() => tooltipHtml(d, t), {
+      const analysing = pendingIds.has(d.id);
+      marker.bindTooltip(() => tooltipHtml(d, t, analysing), {
         direction: "top",
         offset: [0, -34],
         opacity: 0.95,
       });
 
       // Rich popup.
-      marker.bindPopup(() => popupHtml(d, t), {
+      marker.bindPopup(() => popupHtml(d, t, analysing), {
         maxWidth: 240,
         className: "drm-popup-wrapper",
       });
 
-      marker.on("click", () => callbacks.current.onSelect(d.id));
+      marker.on("click", (e) => {
+        // While a start point is picked or a track is drawn, a click on a
+        // pin is a click on the map at that place: it used to select the
+        // location and zoom away with the mode still active.
+        if (useHailReplayStore.getState().mapMode) {
+          marker.closePopup();
+          map.fire("click", {
+            latlng: e.latlng,
+            layerPoint: map.latLngToLayerPoint(e.latlng),
+            containerPoint: map.latLngToContainerPoint(e.latlng),
+            originalEvent: e.originalEvent,
+          });
+          return;
+        }
+        callbacks.current.onSelect(d.id);
+      });
       marker.on("contextmenu", (e) => {
         const orig = e.originalEvent;
         orig.preventDefault();

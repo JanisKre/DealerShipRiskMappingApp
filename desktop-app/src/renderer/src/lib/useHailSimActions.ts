@@ -55,7 +55,9 @@ const IMPORT_ERRORS: [RegExp, string][] = [
 
 function importErrorText(message: string, t: TFunction): string {
   const known = IMPORT_ERRORS.find(([pattern]) => pattern.test(message));
-  return known ? t(known[1]) : message;
+  if (known) return t(known[1]);
+  // A schema message (JSON with "code"/"path") is for the log, not the user.
+  return /^\s*[[{]/.test(message) ? t("hailReplay.importNotGeojson") : message;
 }
 
 /**
@@ -295,9 +297,17 @@ export function useHailSimActions(): {
         return;
       }
       try {
+        const content = await file.text();
+        // An empty file failed in the request check and showed its raw text.
+        if (!content.trim()) {
+          notify.error(t("hailReplay.importFailed"), {
+            description: t("hailReplay.importInvalidJson"),
+          });
+          return;
+        }
         const summary = await window.api.hailEventsImport(
           file.name.replace(/\.(geo)?json$/i, ""),
-          await file.text(),
+          content,
         );
         notify.success(t("hailReplay.imported", { name: summary.name }));
         await refresh();

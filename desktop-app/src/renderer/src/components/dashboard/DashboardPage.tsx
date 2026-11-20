@@ -803,6 +803,19 @@ function Actions({
   const snapshot = useSaveSnapshot();
   const stockCount = useStockCount();
 
+  /**
+   * Exports always hold the whole portfolio. With a filter on the
+   * dashboard that has to be said, or the file seems to contradict the
+   * page it was exported from.
+   */
+  function noteWholePortfolio(): void {
+    const state = useAppStore.getState();
+    if (Object.values(state.filters).some((v) => v != null))
+      notify.info(
+        t("ui.exportWholePortfolio", { count: state.dealerships.length }),
+      );
+  }
+
   async function exportReport(format: "csv" | "pdf" | "excel"): Promise<void> {
     try {
       const { path } = await window.api.exportReport(
@@ -810,7 +823,10 @@ function Actions({
         format,
         exportLocale(),
       );
-      if (path) notify.exported("ui.reportExported", path);
+      if (path) {
+        notify.exported("ui.reportExported", path);
+        noteWholePortfolio();
+      }
     } catch (err) {
       notify.error(t("ui.exportFailed"), { cause: err });
     }
@@ -822,7 +838,10 @@ function Actions({
         useAppStore.getState().currentSession(),
         exportLocale(),
       );
-      if (path) notify.exported("ui.viewExported", path);
+      if (path) {
+        notify.exported("ui.viewExported", path);
+        noteWholePortfolio();
+      }
     } catch (err) {
       notify.error(t("ui.exportFailed"), { cause: err });
     }

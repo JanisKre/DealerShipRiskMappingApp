@@ -33,7 +33,8 @@ export function parseCsvWithReport(
   overrides?: ColumnOverrides,
 ): ImportResult {
   // Blank lines stay (rowsFromMatrix skips them) so row numbers match the file.
-  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/);
+  // "\r\n", "\n" and a lone "\r" (CSV saved for classic Mac) end a line.
+  const lines = content.replace(/^\uFEFF/, "").split(/\r\n|\r|\n/);
   if (lines.every((l) => l.trim().length === 0)) return emptyResult("csv");
 
   const delimiter = chooseDelimiter(lines);
@@ -139,12 +140,32 @@ const HEADER_ALIASES = {
     "standort",
     "standortname",
     "bezeichnung",
+    "nom",
+    "raisonsociale",
+    "concessionnaire",
+    "concession",
+    "societe",
+    "entreprise",
   ],
   addr: ["address", "adresse", "anschrift", "location"],
-  street: ["street", "strasse", "streetname"],
-  houseNumber: ["housenumber", "hausnummer", "hausnr", "streetnumber"],
-  postalCode: ["postalcode", "postcode", "zip", "zipcode", "plz"],
-  city: ["city", "ort", "stadt", "town", "gemeinde"],
+  street: ["street", "strasse", "streetname", "rue", "voie"],
+  houseNumber: [
+    "housenumber",
+    "hausnummer",
+    "hausnr",
+    "streetnumber",
+    "numeroderue",
+  ],
+  postalCode: [
+    "postalcode",
+    "postcode",
+    "zip",
+    "zipcode",
+    "plz",
+    "codepostal",
+    "cp",
+  ],
+  city: ["city", "ort", "stadt", "town", "gemeinde", "ville", "commune"],
   lat: ["lat", "latitude", "breite", "breitengrad"],
   lon: ["lon", "lng", "longitude", "laenge", "laengengrad"],
   val: [
@@ -166,6 +187,10 @@ const HEADER_ALIASES = {
     "versicherungssumme",
     "versicherungssummeeur",
     "valeur",
+    "valeureur",
+    "valeurassuree",
+    "valeurdustock",
+    "sommeassuree",
   ],
   insured: [
     "insured",
@@ -182,10 +207,28 @@ const HEADER_ALIASES = {
     "bestandneugeschaeft",
     "kundenstatus",
     "vertragsstatus",
+    "assure",
+    "statut",
+    "typedaffaire",
   ],
-  partner: ["salespartner", "partner", "vertriebspartner", "agent"],
-  subPortfolio: ["subportfolio", "portfolio", "teilportfolio", "segment"],
-  group: ["group", "gruppe", "konzern"],
+  partner: [
+    "salespartner",
+    "partner",
+    "vertriebspartner",
+    "agent",
+    "partenaire",
+    "partenairecommercial",
+    "courtier",
+  ],
+  subPortfolio: [
+    "subportfolio",
+    "portfolio",
+    "teilportfolio",
+    "segment",
+    "sousportefeuille",
+    "portefeuille",
+  ],
+  group: ["group", "gruppe", "konzern", "groupe"],
   limit: [
     "limit",
     "productlimit",
@@ -210,6 +253,10 @@ const HEADER_ALIASES = {
     "hoechsthaftung",
     "hoechstgrenze",
     "jahreshoechstentschaedigung",
+    "plafond",
+    "plafonddindemnisation",
+    "limitedindemnisation",
+    "indemnitemaximale",
   ],
   deductible: [
     "deductible",
@@ -221,8 +268,19 @@ const HEADER_ALIASES = {
     "selbstbeteiligungeur",
     "sb",
     "sbeur",
+    "franchise",
+    "franchiseeur",
   ],
-  website: ["website", "webseite", "homepage", "internetseite", "web", "url"],
+  website: [
+    "website",
+    "webseite",
+    "homepage",
+    "internetseite",
+    "web",
+    "url",
+    "siteweb",
+    "siteinternet",
+  ],
 } satisfies Record<string, string[]>;
 
 /** Alias list behind each import field. */
@@ -274,6 +332,30 @@ export function findHeaderRow(matrix: string[][]): number {
   return best;
 }
 
+/** Spreadsheet-style column name: A … Z, AA, AB … */
+function columnLetter(index: number): string {
+  let name = "";
+  for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26))
+    name = String.fromCharCode(65 + ((n - 1) % 26)) + name;
+  return name;
+}
+
+/** Repeated (or empty) column names get a number: "Wert", "Wert (2)". */
+function uniqueColumnNames(names: string[]): string[] {
+  const seen = new Map<string, number>();
+  const taken = new Set(names);
+  return names.map((name) => {
+    const count = (seen.get(name) ?? 0) + 1;
+    seen.set(name, count);
+    if (count === 1) return name;
+    let candidate = `${name} (${count})`;
+    for (let n = count + 1; taken.has(candidate); n++)
+      candidate = `${name} (${n})`;
+    taken.add(candidate);
+    return candidate;
+  });
+}
+
 /** Number of distinct fields a row names as column headers. */
 function knownFields(row: string[]): number {
   return new Set(
@@ -313,9 +395,24 @@ function rowsFromMatrix(
 ): ImportResult {
   if (matrix.length === 0) return emptyResult(format);
   // Title or note lines above the column names are skipped.
-  const headerRow = findHeaderRow(matrix);
-  const rawHeader = matrix[headerRow].map((h) => h.trim());
-  const header = rawHeader.map(normaliseHeader);
+  const foundHeaderRow = findHeaderRow(matrix);
+  // A first row that names no field but holds values (digits) is data: the
+  // file has no header. Its columns are then called A, B, C … so they can
+  // be assigned by hand, and the row is kept as a location.
+  const headerless =
+    knownFields(matrix[foundHeaderRow]) === 0 &&
+    matrix[foundHeaderRow].some((cell) => /\d/.test(cell ?? ""));
+  const headerRow = headerless ? -1 : foundHeaderRow;
+  const columnCount = Math.max(0, ...matrix.map((row) => row.length));
+  const headerCells = headerless
+    ? Array.from({ length: columnCount }, () => "")
+    : matrix[foundHeaderRow].map((h) => h.trim());
+  const header = headerCells.map(normaliseHeader);
+  // Unique column names: two columns called "Wert" (or one merged header
+  // cell over three columns) could not be told apart in an assignment.
+  const rawHeader = uniqueColumnNames(
+    headerless ? headerCells.map((_, i) => columnLetter(i)) : headerCells,
+  );
   // Columns assigned by hand feed only their field; the recognised headers
   // fill the remaining fields.
   const overridden = new Map<ImportField, number>();
@@ -364,26 +461,40 @@ function rowsFromMatrix(
       : [],
   );
   const composeAddress = (cols: string[]): string | undefined => {
-    if (addrIdx >= 0) return cols[addrIdx]?.trim() || undefined;
     const raw = (i: number): string => (i >= 0 ? (cols[i]?.trim() ?? "") : "");
     const cell = (i: number): string =>
       i === postalCodeIdx && padPostcodes && /^\d{4}$/.test(raw(i))
         ? `0${raw(i)}`
         : raw(i);
-    const street = [cell(streetIdx), cell(houseNumberIdx)]
-      .filter(Boolean)
-      .join(" ");
-    const place = [cell(postalCodeIdx), cell(cityIdx)]
-      .filter(Boolean)
-      .join(" ");
-    return [street, place].filter(Boolean).join(", ") || undefined;
+    const place = (parts: string[]): string => parts.filter(Boolean).join(" ");
+    const full = raw(addrIdx);
+    if (full) {
+      // "Adresse" next to "PLZ" and "Ort": the address cell often holds the
+      // street only. Postcode and city are added unless it names them.
+      const contains = (part: string): boolean =>
+        normalise(full).includes(normalise(part));
+      const missing = place(
+        [cell(postalCodeIdx), cell(cityIdx)].filter(
+          (part) => part && !contains(part),
+        ),
+      );
+      return missing ? `${full}, ${missing}` : full;
+    }
+    // No address cell (no such column, or empty in this row): the parts.
+    const street = place([cell(streetIdx), cell(houseNumberIdx)]);
+    return (
+      [street, place([cell(postalCodeIdx), cell(cityIdx)])]
+        .filter(Boolean)
+        .join(", ") || undefined
+    );
   };
-  const addressColumns =
-    addrIdx >= 0
-      ? [addrIdx]
-      : [streetIdx, houseNumberIdx, postalCodeIdx, cityIdx].filter(
-          (i) => i >= 0,
-        );
+  const addressColumns = [
+    addrIdx,
+    streetIdx,
+    houseNumberIdx,
+    postalCodeIdx,
+    cityIdx,
+  ].filter((i) => i >= 0);
   const valIdx = idx("assetValue");
   // Existing vs. new business ("Bestand"/"Neugeschäft", yes/no, …).
   const insuredIdx = idx("insured");
@@ -416,10 +527,6 @@ function rowsFromMatrix(
     if (index >= 0 && !fieldByColumn.has(index))
       fieldByColumn.set(index, field);
   }
-  // A split address is used only without an address column.
-  if (addrIdx >= 0)
-    for (const i of [streetIdx, houseNumberIdx, postalCodeIdx, cityIdx])
-      if (fieldByColumn.get(i) !== "address") fieldByColumn.delete(i);
   const columns: ImportColumn[] = rawHeader.map((name, i) => ({
     name: name.slice(0, 200),
     hint: columnHint(
@@ -492,7 +599,14 @@ function rowsFromMatrix(
     const validLat = lat != null && lat >= -90 && lat <= 90 ? lat : undefined;
     const validLon = lon != null && lon >= -180 && lon <= 180 ? lon : undefined;
 
-    const key = `${normalise(name)}|${normalise(address ?? "")}`;
+    // Same name and same address is one location listed twice. Without an
+    // address the coordinates tell the branches of a chain apart.
+    const place = address
+      ? normalise(address)
+      : validLat != null && validLon != null
+        ? `@${validLat.toFixed(4)},${validLon.toFixed(4)}`
+        : "";
+    const key = `${normalise(name)}|${place}`;
     if (seen.has(key)) {
       duplicateRows++;
       issues.push({
@@ -538,6 +652,10 @@ function rowsFromMatrix(
           `${missingCoordinates} row(s) require address geocoding because coordinates are incomplete.`,
         ]
       : [];
+  if (headerless)
+    warnings.push(
+      "No header row recognised: the first row is read as a location and the columns are named A, B, C.",
+    );
   return {
     rows,
     rowNumbers,
@@ -583,17 +701,53 @@ function websiteFields(
   return website ? { website, websiteSource: "import" } : {};
 }
 
-function cellToString(v: unknown): string {
+/**
+ * Text of an exceljs cell value: plain values, rich text (a partly bold
+ * cell), formula results, hyperlinks, dates and error values.
+ */
+export function cellToString(v: unknown): string {
   if (v == null) return "";
+  if (typeof v === "number") return numberCellText(v);
+  if (v instanceof Date) {
+    if (Number.isNaN(v.getTime())) return "";
+    // A date-only cell is midnight UTC; a time of day is kept.
+    const iso = v.toISOString();
+    return iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso;
+  }
   if (typeof v === "object") {
-    // exceljs rich text / hyperlink / formula result
-    const o = v as { text?: string; result?: unknown; hyperlink?: string };
+    const o = v as {
+      text?: unknown;
+      richText?: Array<{ text?: unknown }>;
+      result?: unknown;
+      error?: unknown;
+      hyperlink?: unknown;
+      formula?: unknown;
+      sharedFormula?: unknown;
+    };
+    if (Array.isArray(o.richText))
+      return o.richText
+        .map((part) => (typeof part?.text === "string" ? part.text : ""))
+        .join("");
     if (typeof o.text === "string") return o.text;
-    if (o.result != null) return String(o.result);
+    // A hyperlink whose label is itself rich text.
+    if (o.text != null) return cellToString(o.text);
+    if (o.result != null) return cellToString(o.result);
+    if (typeof o.error === "string") return o.error;
     if (typeof o.hyperlink === "string") return o.hyperlink;
     return "";
   }
   return String(v);
+}
+
+/**
+ * A numeric cell as text the number readers take literally. "99.999" as
+ * text would be read as 99 999 (a dot before exactly three digits is a
+ * thousands separator in a typed amount); a number from the sheet is
+ * exact, so it gets a fourth decimal that rules the separator reading out.
+ */
+function numberCellText(value: number): string {
+  const text = String(value);
+  return /^-?\d{1,3}\.\d{3}$/.test(text) ? `${text}0` : text;
 }
 
 function splitLine(line: string, delimiter: string): string[] {
@@ -754,14 +908,19 @@ const ID_HEADERS = new Set([
 ]);
 
 function normaliseHeader(value: string): string {
-  return value
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .replace(/[^a-z0-9]/g, "");
+  return (
+    value
+      .trim()
+      .toLocaleLowerCase()
+      .replace(/ä/g, "ae")
+      .replace(/ö/g, "oe")
+      .replace(/ü/g, "ue")
+      .replace(/ß/g, "ss")
+      // "Société", "Numéro de rue": the letter without its accent.
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/[^a-z0-9]/g, "")
+  );
 }
 
 function emptyResult(format: ImportReport["format"]): ImportResult {
@@ -801,6 +960,12 @@ const EXISTING_BUSINESS_VALUES = new Set([
   "bestandsvertrag",
   "aktiv",
   "active",
+  "oui",
+  "vrai",
+  "assure",
+  "existant",
+  "portefeuille",
+  "actif",
 ]);
 const NEW_BUSINESS_VALUES = new Set([
   "no",
@@ -821,6 +986,13 @@ const NEW_BUSINESS_VALUES = new Set([
   "angebot",
   "anfrage",
   "nichtversichert",
+  "non",
+  "faux",
+  "nouveau",
+  "nouvelleaffaire",
+  "affairenouvelle",
+  "prospect",
+  "nonassure",
 ]);
 
 /**

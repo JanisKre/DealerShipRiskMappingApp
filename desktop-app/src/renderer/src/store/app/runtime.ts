@@ -122,7 +122,9 @@ export function applyLoadedSession(
     pendingAnalysis: session.pendingAnalysis ?? [],
   });
   get().setDealerships(session.dealerships, session.boundaryEdits);
-  get().setParameters(session.parameters);
+  get().setParameters(session.parameters, {
+    revision: session.parametersRevision,
+  });
   get().markSaved();
 }
 

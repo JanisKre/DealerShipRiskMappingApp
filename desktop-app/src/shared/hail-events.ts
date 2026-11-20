@@ -39,17 +39,24 @@ export const BboxSchema = z.tuple([
 ]);
 export type Bbox = z.infer<typeof BboxSchema>;
 
+/** Earliest and latest time a hail event step may carry (1950 … 2100). */
+export const HAIL_EVENT_TIME_MIN_MS = Date.UTC(1950, 0, 1);
+export const HAIL_EVENT_TIME_MAX_MS = Date.UTC(2100, 0, 1);
+
 /** One cell outline at one time step. */
 export const HailEventCellSchema = z.object({
-  /** Unix ms of the radar step (or of the imported feature). */
-  t: z.number(),
+  /**
+   * Unix ms of the radar step (or of the imported feature). Bounded: a
+   * value outside the range of a date cannot be shown and broke the page.
+   */
+  t: z.number().min(HAIL_EVENT_TIME_MIN_MS).max(HAIL_EVENT_TIME_MAX_MS),
   /** Track the cell belongs to, numbered 0… within the event. */
   track: z.number().int().nonnegative(),
   c: RadarHailClassSchema,
   /** Maximum reflectivity (dBZ); 0 for imported footprints. */
   d: z.number(),
   /** Centroid [lon, lat]. */
-  p: z.tuple([z.number(), z.number()]),
+  p: z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]),
   b: BboxSchema,
   /** Outlines as flat [lon, lat, lon, lat, …] arrays. */
   r: z.array(z.array(z.number())),

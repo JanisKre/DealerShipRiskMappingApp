@@ -92,15 +92,21 @@ export function withPdfSafeText(doc: jsPDF): jsPDF {
       safe(value),
       ...rest,
     )) as jsPDF["text"];
-  doc.splitTextToSize = ((value: string, ...rest: unknown[]) =>
+  // jspdf-autotable hands these three a string or the lines of a cell
+  // (string[]); an array read as one string lost every line that starts
+  // outside the character set ("≈80" became "?").
+  doc.splitTextToSize = ((value: TextArg, ...rest: unknown[]) =>
     (split as (...args: unknown[]) => string[])(
-      pdfSafeText(value),
+      safe(value),
       ...rest,
     )) as jsPDF["splitTextToSize"];
-  doc.getTextWidth = (value: string) => width(pdfSafeText(value));
-  doc.getStringUnitWidth = ((value: string, ...rest: unknown[]) =>
+  doc.getTextWidth = ((value: TextArg) =>
+    (width as (value: TextArg) => number)(
+      safe(value),
+    )) as jsPDF["getTextWidth"];
+  doc.getStringUnitWidth = ((value: TextArg, ...rest: unknown[]) =>
     (stringWidth as (...args: unknown[]) => number)(
-      pdfSafeText(value),
+      safe(value),
       ...rest,
     )) as jsPDF["getStringUnitWidth"];
   return doc;

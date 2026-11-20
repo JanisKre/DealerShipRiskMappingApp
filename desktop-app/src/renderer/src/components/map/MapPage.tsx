@@ -520,6 +520,7 @@ export function MapPage(): React.JSX.Element {
         {/* View persistence, keyboard navigation */}
         <ViewPersistence
           dealerships={withCoords}
+          keyboardOrder={portfolioFiltered}
           selectedId={selectedId}
           lastAddedIds={lastAddedIds}
           onSelect={select}

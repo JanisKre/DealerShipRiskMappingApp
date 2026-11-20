@@ -70,7 +70,9 @@ export function NoEalBadge({
  */
 export function estimatedShareSuffix(t: TFunction, share: number): string {
   if (share <= 0) return "";
+  // A share that rounds to 0 % next to "≈" would contradict itself.
+  const percent = Math.round(share * 100);
   return t("dashboard.estimatedShare", {
-    share: Math.round(share * 100),
+    share: percent < 1 ? "<\u00a01" : percent,
   });
 }

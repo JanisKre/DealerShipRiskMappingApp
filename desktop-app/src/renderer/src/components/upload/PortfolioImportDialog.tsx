@@ -331,6 +331,8 @@ function ImportForm({
           {pending.source.kind === "csv" &&
             pending.source.encoding === "windows-1252" &&
             ` ${t("portfolioImport.encodingWindows1252")}`}
+          {report.warnings.some((w) => w.startsWith("No header row")) &&
+            ` ${t("portfolioImport.noHeader")}`}
         </DialogDescription>
       </DialogHeader>
 
@@ -544,7 +546,11 @@ function ImportPreviewTable({
   const toCheck = rows.filter(
     (row) => row.include && row.placement === "address" && !checks[row.row.id],
   );
-  const allIncluded = rows.length > 0 && rows.every((row) => row.include);
+  // Rows that cannot be placed can never be ticked: they do not count,
+  // or the header box would never read "all" and could not untick.
+  const selectable = rows.filter((row) => row.placement !== "missing");
+  const allIncluded =
+    selectable.length > 0 && selectable.every((row) => row.include);
 
   async function checkAddresses(): Promise<void> {
     cancelRef.current = false;

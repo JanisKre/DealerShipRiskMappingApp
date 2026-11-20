@@ -36,6 +36,20 @@ function make(
 }
 
 describe("mergePortfolios", () => {
+  it("adds a location the file lists twice only once", () => {
+    const result = mergePortfolios(
+      [make("a")],
+      [
+        make("b", { lat: 52, lon: 11 }),
+        // The same id again, and the same place under another id.
+        make("b", { lat: 52, lon: 11 }),
+        make("c", { name: "Dealer b", lat: 52, lon: 11 }),
+      ],
+    );
+    expect(result.dealerships.map((d) => d.id)).toEqual(["a", "b"]);
+    expect(result.addedIds).toEqual(["b"]);
+  });
+
   it("adds locations that are not in the current portfolio", () => {
     const result = mergePortfolios(
       [make("a")],

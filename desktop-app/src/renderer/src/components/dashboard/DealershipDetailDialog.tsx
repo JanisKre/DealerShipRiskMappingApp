@@ -65,7 +65,7 @@ import {
   SiteCheckSection,
 } from "./AiInsightSections";
 import {
-  isTypingTarget,
+  ownsArrowKeys,
   ReviewStrip,
   type ReviewRun,
 } from "./detail/ReviewStrip";
@@ -281,7 +281,8 @@ function DetailBody({
     function onKey(event: KeyboardEvent): void {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-      if (isTypingTarget(event.target)) return;
+      // A control that used the key (tabs, toggle group) keeps it.
+      if (event.defaultPrevented || ownsArrowKeys(event.target)) return;
       event.preventDefault();
       stepRef.current(event.key === "ArrowRight" ? 1 : -1);
     }
@@ -290,12 +291,14 @@ function DetailBody({
   }, []);
 
   function showOnMap(editBoundary = false): void {
+    // Close first: the dashboard clears the selection when its dialog
+    // closes, and the map would open with nothing selected.
+    onClose();
     select(d.id);
     if (editBoundary) {
       useMapStore.getState().setLayers({ boundaries: true });
       useMapStore.getState().setEditing(true);
     }
-    onClose();
     navigate("/");
   }
 

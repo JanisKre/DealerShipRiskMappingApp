@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, Loader2 } from "lucide-react";
 import type { ModelDownloadChunk } from "@shared/ipc-schema";
@@ -16,8 +16,11 @@ import { Progress } from "@renderer/components/ui/progress";
 type Phase =
   "ready" | "idle" | "downloading" | "done" | "error" | "unavailable";
 
-function mb(bytes: number): string {
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+function mb(bytes: number, locale: string): string {
+  return `${(bytes / 1024 / 1024).toLocaleString(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })} MB`;
 }
 
 /**
@@ -35,7 +38,9 @@ export function ModelInstallWizard({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }> = {}): React.JSX.Element | null {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  /** Aborts the running download (returned by `downloadModel`). */
+  const cancelDownload = useRef<(() => void) | null>(null);
   const controlled = controlledOpen !== undefined;
   const [autoOpen, setAutoOpen] = useState(false);
   const open = controlled ? controlledOpen : autoOpen;
@@ -75,19 +80,37 @@ export function ModelInstallWizard({
   function startDownload(): void {
     setPhase("downloading");
     setError(null);
-    window.api.downloadModel((chunk: ModelDownloadChunk) => {
-      if (chunk.type === "progress") {
-        setProgress({ received: chunk.receivedBytes, total: chunk.totalBytes });
-      } else if (chunk.type === "done") {
-        setPhase("done");
-      } else if (chunk.type === "unavailable") {
-        setPhase("unavailable");
-      } else if (chunk.type === "error") {
-        setPhase("error");
-        setError(chunk.message);
-      }
-    });
+    setProgress({ received: 0, total: null });
+    cancelDownload.current = window.api.downloadModel(
+      (chunk: ModelDownloadChunk) => {
+        if (chunk.type !== "progress") cancelDownload.current = null;
+        if (chunk.type === "progress") {
+          setProgress({
+            received: chunk.receivedBytes,
+            total: chunk.totalBytes,
+          });
+        } else if (chunk.type === "done") {
+          setPhase("done");
+        } else if (chunk.type === "unavailable") {
+          setPhase("unavailable");
+        } else if (chunk.type === "error") {
+          setPhase("error");
+          setError(chunk.message);
+        }
+      },
+    );
   }
+
+  /** Stops the download; the wizard offers it again. */
+  function cancel(): void {
+    cancelDownload.current?.();
+    cancelDownload.current = null;
+    setPhase("idle");
+    setProgress({ received: 0, total: null });
+  }
+
+  // A download must not outlive the wizard unnoticed.
+  useEffect(() => () => cancelDownload.current?.(), []);
 
   async function dismissForever(): Promise<void> {
     await window.api.setSettings({
@@ -111,7 +134,11 @@ export function ModelInstallWizard({
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o && phase !== "downloading") setOpen(false);
+        if (o) return;
+        // Closing (Escape, the X) stops a running download instead of
+        // locking the window until it has finished.
+        if (phase === "downloading") cancel();
+        setOpen(false);
       }}
     >
       <DialogContent className="sm:max-w-md">
@@ -144,8 +171,9 @@ export function ModelInstallWizard({
           <div className="space-y-2">
             <Progress value={pct} />
             <p className="text-xs text-muted-foreground">
-              {mb(progress.received)}
-              {progress.total != null && ` / ${mb(progress.total)}`}
+              {mb(progress.received, i18n.language)}
+              {progress.total != null &&
+                ` / ${mb(progress.total, i18n.language)}`}
             </p>
           </div>
         )}
@@ -188,10 +216,15 @@ export function ModelInstallWizard({
             </Button>
           )}
           {phase === "downloading" && (
-            <Button size="sm" disabled>
-              <Loader2 className="size-4 animate-spin" />
-              {t("model.downloading")}
-            </Button>
+            <>
+              <Button size="sm" variant="outline" onClick={cancel}>
+                {t("common.cancel")}
+              </Button>
+              <Button size="sm" disabled>
+                <Loader2 className="size-4 animate-spin" />
+                {t("model.downloading")}
+              </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>

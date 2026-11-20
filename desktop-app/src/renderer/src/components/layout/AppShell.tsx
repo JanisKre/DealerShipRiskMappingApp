@@ -1,5 +1,9 @@
 import { crossedIntoNarrow } from "@renderer/lib/narrowWindow";
-import { pickActiveSession } from "@renderer/lib/portfolioSessions";
+import {
+  lastOpenSessionId,
+  pickActiveSession,
+  rememberOpenSession,
+} from "@renderer/lib/portfolioSessions";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
@@ -195,7 +199,13 @@ function SessionLoader(): null {
       .then(async (sessions) => {
         // The most recent live portfolio; a saved state ("Stand") is a
         // comparison point and never becomes the active portfolio (UW-09).
-        const latest = pickActiveSession(sessions);
+        // Saving another portfolio (a rename from the list is enough) must
+        // not change which one opens: the one that was open last wins.
+        const latest = pickActiveSession(
+          sessions,
+          undefined,
+          lastOpenSessionId(),
+        );
         if (!latest) return;
         const session = await window.api.loadSession(latest.id);
         if (!cancelled && session) {
@@ -203,7 +213,9 @@ function SessionLoader(): null {
           useAppStore.setState({
             sessionSnapshotOf: session.snapshotOf ?? null,
           });
-          setParameters(session.parameters);
+          setParameters(session.parameters, {
+            revision: session.parametersRevision,
+          });
           setDealerships(session.dealerships, session.boundaryEdits);
           useAppStore.setState({
             pendingAnalysis: session.pendingAnalysis ?? [],
@@ -218,6 +230,10 @@ function SessionLoader(): null {
       cancelled = true;
     };
   }, [setDealerships, setParameters, setSession]);
+
+  // Remember the open portfolio whenever it changes.
+  const sessionId = useAppStore((s) => s.sessionId);
+  useEffect(() => rememberOpenSession(sessionId), [sessionId]);
 
   return null;
 }

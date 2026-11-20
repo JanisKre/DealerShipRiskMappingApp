@@ -57,6 +57,10 @@ export async function fetchHazardApiAssessment(
       endpoint,
       {
         method: "POST",
+        // The request carries the API key and the coordinates: it goes to
+        // the configured HTTPS address only, never on to wherever a
+        // redirect points (another host, or plain HTTP).
+        redirect: "error",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -76,6 +80,12 @@ export async function fetchHazardApiAssessment(
   } catch (error) {
     if (error instanceof HttpRequestError && error.timedOut) {
       throw new Error(`${label} request timed out`, { cause: error });
+    }
+    if (/redirect/i.test(error instanceof Error ? error.message : "")) {
+      throw new Error(
+        `${label} endpoint answered with a redirect; enter the final HTTPS address`,
+        { cause: error },
+      );
     }
     throw error;
   }

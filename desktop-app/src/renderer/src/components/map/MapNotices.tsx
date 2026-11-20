@@ -339,7 +339,6 @@ export function ResumeAnalysisNotice({
   const errorCount = useAppStore((s) => Object.keys(s.analysisErrors).length);
   const unanalyzedCount = useAppStore((s) => unanalyzedInputs(s).length);
   const resumeAnalysis = useAppStore((s) => s.resumeAnalysis);
-  const discardPendingAnalysis = useAppStore((s) => s.discardPendingAnalysis);
   if (analyzing || dismissed || unanalyzedCount === 0 || errorCount > 0)
     return null;
   return (
@@ -356,10 +355,9 @@ export function ResumeAnalysisNotice({
           type="button"
           size="xs"
           variant="ghost"
-          onClick={() => {
-            discardPendingAnalysis();
-            onDismiss();
-          }}
+          // "Later" only closes the notice. Rows without coordinates exist
+          // in the pending queue alone; clearing it deleted them.
+          onClick={onDismiss}
         >
           {t("map.page.resumeDiscard")}
         </Button>

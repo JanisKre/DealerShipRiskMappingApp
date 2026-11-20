@@ -434,11 +434,32 @@ export function Polygon({
     interactive,
   );
   useEffect(() => {
-    layer?.setLatLngs(positions);
+    if (!layer) return;
+    const before = JSON.stringify(layer.getLatLngs());
+    layer.setLatLngs(positions);
+    // In Geoman's edit mode the vertex handles are separate markers. When
+    // the outline is changed from outside (undo, reset) they stayed where
+    // they had been dragged, and touching one moved the corner back there:
+    // rebuild them. An edit made with the handles arrives here with the
+    // outline already in place and needs nothing.
+    const pm = (layer as unknown as { pm?: EditableLayerPm }).pm;
+    if (pm?.enabled?.() && JSON.stringify(layer.getLatLngs()) !== before) {
+      const options = pm.options;
+      pm.disable();
+      pm.enable(options);
+    }
   }, [layer, positions]);
   usePathStyle(layer, pathOptions);
   useEventHandlers(layer, eventHandlers);
   return <LayerChildren layer={layer}>{children}</LayerChildren>;
+}
+
+/** The part of Geoman's per-layer API the polygon uses. */
+interface EditableLayerPm {
+  enabled?: () => boolean;
+  disable: () => void;
+  enable: (options?: unknown) => void;
+  options?: unknown;
 }
 
 export function Polyline({

@@ -1,6 +1,7 @@
 import {
   DEFAULT_RISK_PARAMETERS,
   normalizeRiskParameters,
+  sessionParameters,
 } from "@shared/parameters";
 import { boundaryNeedsReview } from "@shared/boundary-review";
 import { type AppState, type StoreSet } from "./types";
@@ -12,19 +13,31 @@ export function parameterActions(
   get: () => AppState,
 ): Pick<AppState, "setParameters" | "updateParameters" | "resetParameters"> {
   return {
-    setParameters: (parameters) =>
-      set({ parameters: normalizeRiskParameters(parameters) }),
+    setParameters: (parameters, stored) =>
+      set({
+        parameters: stored
+          ? sessionParameters({
+              parameters,
+              parametersRevision: stored.revision,
+            })
+          : normalizeRiskParameters(parameters, { keepRetiredDefaults: true }),
+      }),
 
     updateParameters: async (patch) => {
-      const parameters = normalizeRiskParameters({
-        ...get().parameters,
-        ...patch,
-      });
+      // A value typed now is a choice: 100 m for the circle radius must not
+      // jump back to the retuned default because it once was the default.
+      const parameters = normalizeRiskParameters(
+        { ...get().parameters, ...patch },
+        { keepRetiredDefaults: true },
+      );
       set({ parameters, parametersUpdating: true });
       const generation = portfolioGeneration();
       try {
+        // Only analysed locations are rescored: a location without a
+        // result has neither boundary nor count, and a risk made from
+        // nothing would count it as analysed.
         const current = get().dealerships.filter(
-          (d) => d.lat != null && d.lon != null,
+          (d) => d.risk != null && d.lat != null && d.lon != null,
         );
         const updates = await rescoreWithConcurrency(current, parameters, 4);
         // Another portfolio was opened meanwhile: it has its own parameters.

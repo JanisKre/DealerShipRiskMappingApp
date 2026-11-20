@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { containsFigure } from "./a2ui";
 
 /**
  * Optional AI look at the aerial image of a lot (a vision model): is hail
@@ -44,13 +45,14 @@ export const SiteFindingsSchema = z.object({
 });
 export type SiteFindings = z.infer<typeof SiteFindingsSchema>;
 
-/** Amounts and percentages have no place in an observation. */
-const FIGURE_PATTERN =
-  /\d\s*(%|€|eur\b|euro\b|prozent\b|percent\b|pour\s?cent\b)/i;
-
+/**
+ * Amounts, percentages and counts have no place in an observation: the
+ * prompt asks for what is seen, without numbers. A note with any figure
+ * (also "EUR 5.000", "rund 200000", "etwa 40 Fahrzeuge") is dropped.
+ */
 export function cleanNote(note: string): string {
   const text = note.replace(/\s+/g, " ").trim();
-  if (!text || FIGURE_PATTERN.test(text)) return "";
+  if (!text || containsFigure(text) || /\d{2,}/.test(text)) return "";
   return text.slice(0, SITE_CHECK_NOTE_MAX_CHARS);
 }
 

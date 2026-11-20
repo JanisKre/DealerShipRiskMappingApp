@@ -29,14 +29,40 @@ export function isSnapshot(
 
 /**
  * The portfolio to open at start-up or after deleting the active one: the
- * most recent live portfolio (the list is sorted most recent first). A
- * saved state is never picked, even when it is the newest entry (UW-09).
+ * one that was open last (`preferredId`) when it still exists, otherwise
+ * the most recent live portfolio (the list is sorted most recent first).
+ * A saved state is never picked, even when it is the newest entry or was
+ * named as preferred (UW-09).
  */
 export function pickActiveSession<T extends SessionSummary>(
   sessions: readonly T[],
   excludeId?: string,
+  preferredId?: string | null,
 ): T | undefined {
-  return sessions.find((s) => !isSnapshot(s, sessions) && s.id !== excludeId);
+  const live = sessions.filter(
+    (s) => !isSnapshot(s, sessions) && s.id !== excludeId,
+  );
+  return live.find((s) => s.id === preferredId) ?? live[0];
+}
+
+const LAST_OPEN_KEY = "drm-last-open-portfolio";
+
+/** Id of the portfolio that was open when the window last showed one. */
+export function lastOpenSessionId(): string | null {
+  try {
+    return globalThis.localStorage?.getItem(LAST_OPEN_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Remembers the open portfolio for the next start. */
+export function rememberOpenSession(id: string | null): void {
+  try {
+    if (id) globalThis.localStorage?.setItem(LAST_OPEN_KEY, id);
+  } catch {
+    // Without storage the most recently saved portfolio opens, as before.
+  }
 }
 
 /** Live portfolios first, then saved states, each most recent first. */

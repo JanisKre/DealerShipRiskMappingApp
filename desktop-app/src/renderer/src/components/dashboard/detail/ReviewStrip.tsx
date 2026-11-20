@@ -47,6 +47,22 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 /**
+ * Whether ←/→ belong to the focused control: a text field, or a widget
+ * that moves with the arrow keys itself (tab list, toggle group, slider,
+ * menu, list). Paging the dialog from there would take a keyboard user to
+ * another location instead of the next tab.
+ */
+export function ownsArrowKeys(target: EventTarget | null): boolean {
+  if (isTypingTarget(target)) return true;
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.closest(
+      '[role="tablist"],[role="radiogroup"],[role="group"],[role="slider"],[role="menu"],[role="listbox"],[role="toolbar"]',
+    ) != null
+  );
+}
+
+/**
  * Review run: where the underwriter stands in the queue, why this location
  * is in it, and one action that records the check and moves on. When the
  * boundary is the open point, that action confirms it as well. Enter

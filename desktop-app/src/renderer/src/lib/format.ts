@@ -71,3 +71,22 @@ export function pct(
     maximumFractionDigits,
   }).format(n);
 }
+
+/**
+ * A stored date ("2026-09-24" or an ISO timestamp) in the UI language
+ * ("24.09.2026"). Text that is no date is returned as it is.
+ */
+export function isoDate(value: string | undefined | null): string {
+  if (!value) return "–";
+  const date = new Date(
+    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value,
+  );
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString(uiLocale(), {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+}

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_RISK_PARAMETERS, normalizeRiskParameters } from "./parameters";
+import {
+  DEFAULT_RISK_PARAMETERS,
+  PARAMETERS_REVISION,
+  normalizeRiskParameters,
+  sessionParameters,
+} from "./parameters";
 import { RiskParametersSchema } from "./types";
 
 describe("risk parameter normalization", () => {
@@ -87,5 +92,25 @@ describe("risk parameter normalization", () => {
     expect(parsed).not.toHaveProperty("hailDamageFraction");
     expect(parsed).not.toHaveProperty("alertExtremeScore");
     expect(parsed).not.toHaveProperty("windScoreMaxKmh");
+  });
+
+  it("keeps a value typed now that equals a retired default", () => {
+    expect(
+      normalizeRiskParameters(
+        { syntheticBoundaryRadiusM: 100 },
+        { keepRetiredDefaults: true },
+      ).syntheticBoundaryRadiusM,
+    ).toBe(100);
+  });
+
+  it("migrates a stored session once: only without the current revision", () => {
+    const parameters = { syntheticBoundaryRadiusM: 100 };
+    expect(sessionParameters({ parameters }).syntheticBoundaryRadiusM).toBe(
+      160,
+    );
+    expect(
+      sessionParameters({ parameters, parametersRevision: PARAMETERS_REVISION })
+        .syntheticBoundaryRadiusM,
+    ).toBe(100);
   });
 });

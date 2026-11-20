@@ -1253,25 +1253,39 @@ describe("map focus", () => {
 
 describe("rescoring keeps the postcode hail zone", () => {
   it("passes the stored hail zone to scoreRisk on a parameter change", async () => {
+    const risk = {
+      overallScore: 60,
+      perils: [],
+      eal: 1,
+      computedAt: "2026-10-09T00:00:00.000Z",
+    } as unknown as AnalyzedDealership["risk"];
     const dealership: AnalyzedDealership = {
       ...firstInput,
       lat: 51,
       lon: 7,
       hailZone: 4,
+      risk,
     };
     useAppStore.setState({ dealerships: [dealership], sessionId: null });
-    api.scoreRisk.mockResolvedValue({
-      overallScore: 60,
-      perils: [],
-      eal: 1,
-      computedAt: "2026-10-09T00:00:00.000Z",
-    });
+    api.scoreRisk.mockResolvedValue(risk);
     api.saveSession.mockResolvedValue({ ok: true });
 
     await useAppStore.getState().updateParameters({});
 
     expect(api.scoreRisk).toHaveBeenCalledTimes(1);
     expect(api.scoreRisk.mock.calls[0].at(-1)).toBe(4);
+  });
+
+  it("leaves a location without a result pending on a parameter change", async () => {
+    const pending: AnalyzedDealership = { ...firstInput, lat: 51, lon: 7 };
+    useAppStore.setState({ dealerships: [pending], sessionId: null });
+    api.scoreRisk.mockClear();
+    api.saveSession.mockResolvedValue({ ok: true });
+
+    await useAppStore.getState().updateParameters({});
+
+    expect(api.scoreRisk).not.toHaveBeenCalled();
+    expect(useAppStore.getState().dealerships[0].risk).toBeUndefined();
   });
 });
 

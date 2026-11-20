@@ -61,6 +61,9 @@ export function VehiclePanel({
   );
 }
 
+/** Far above any real stock; larger input is a typing slip. */
+const MAX_MANUAL_VEHICLE_COUNT = 1_000_000;
+
 function ManualVehicleCountEditor({
   d,
   onDone,
@@ -78,7 +81,11 @@ function ManualVehicleCountEditor({
   const [saving, setSaving] = useState(false);
 
   const parsed = draft.trim() === "" ? null : Number(draft);
-  const valid = parsed === null || (Number.isInteger(parsed) && parsed >= 0);
+  const valid =
+    parsed === null ||
+    (Number.isSafeInteger(parsed) &&
+      parsed >= 0 &&
+      parsed <= MAX_MANUAL_VEHICLE_COUNT);
 
   async function save(value: number | null): Promise<void> {
     if (!valid) return;
@@ -107,6 +114,8 @@ function ManualVehicleCountEditor({
         );
       }
       onDone();
+    } catch (error) {
+      notify.error(t("common.saveFailed"), { cause: error });
     } finally {
       setSaving(false);
     }

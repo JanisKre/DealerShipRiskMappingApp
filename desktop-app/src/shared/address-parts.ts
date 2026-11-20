@@ -39,3 +39,40 @@ export function isPoBox(address: string | undefined): boolean {
     address ?? "",
   );
 }
+
+const STREET_WORD =
+  /(stra(ss|ß)e|str\.?|weg|allee|platz|ring|damm|gasse|ufer|chaussee|markt|steig|pfad|hof)$/iu;
+const TOWN_PREFIX = /^(bad|sankt|st\.?|neu|alt|gro(ss|ß)|klein|hohen)$/iu;
+
+/**
+ * "01237 Dresden" from an address line: the postcode and the town, never a
+ * street. Used wherever a location is described to an AI provider or an
+ * agent, which must not receive street addresses.
+ *
+ * The last five-digit group followed by a word is the postcode ("Weg 12345
+ * Nord, 01067 Dresden"). The town ends at a comma, a semicolon, a dash or a
+ * line break. When a number still follows ("01067 Dresden Geheimweg 5") a
+ * street was written after the town without a separator: the town then
+ * ends before the street word, or after its first word.
+ */
+export function postcodeAndTown(
+  address: string | undefined,
+): string | undefined {
+  if (!address) return undefined;
+  const match = [
+    ...address.matchAll(/(?<!\d)(\d{5})\s+(\p{L}[^,;\n\r]*)/gu),
+  ].at(-1);
+  if (!match) return undefined;
+  let town = match[2].split(/\s[-–—]\s/u)[0].trim();
+  const digitAt = town.search(/\d/u);
+  if (digitAt >= 0) {
+    const words = town.slice(0, digitAt).trim().split(/\s+/u).filter(Boolean);
+    const streetAt = words.findIndex((word) => STREET_WORD.test(word));
+    town = (
+      streetAt >= 0
+        ? words.slice(0, streetAt)
+        : words.slice(0, TOWN_PREFIX.test(words[0] ?? "") ? 2 : 1)
+    ).join(" ");
+  }
+  return town ? `${match[1]} ${town}` : match[1];
+}

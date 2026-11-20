@@ -38,6 +38,14 @@ describe("site check", () => {
 
   it("discards notes with amounts or percentages and unusable images", () => {
     expect(cleanNote("Etwa 40 % der Fahrzeuge unter Dach")).toBe("");
+    expect(
+      cleanNote(
+        "Etwa 40 Fahrzeuge stehen unter Netzen, der Schaden läge bei EUR 5.000 je Fahrzeug, also rund 200000 insgesamt.",
+      ),
+    ).toBe("");
+    expect(cleanNote("Netze über den östlichen Reihen")).toBe(
+      "Netze über den östlichen Reihen",
+    );
     expect(cleanNote("Schaden ca. 5000 EUR")).toBe("");
     expect(cleanNote("Zwei Hallen im Norden")).toBe("Zwei Hallen im Norden");
     const unusable = cleanSiteFindings(

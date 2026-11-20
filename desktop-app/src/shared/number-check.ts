@@ -11,6 +11,26 @@ export interface FoundNumber {
   candidates: number[];
   /** Decimals written, per candidate reading. */
   decimals: number[];
+  /** Unit written next to the number, when it is a share or an amount. */
+  unit?: "percent" | "currency";
+}
+
+const PERCENT_AFTER = /^\s*(%|prozent\b|percent\b|pour\s?cent\b)/i;
+const CURRENCY_AFTER =
+  /^\s*(€|\$|eur(?:o|os)?\b|usd\b|chf\b|mio\b|mill?ion(?:en|s)?\b|mrd\b|milliarden?\b|tsd\b|tausend\b|thousand\b)/i;
+const CURRENCY_BEFORE = /(€|\$|\beur|\beuro|\busd|\bchf)\s*$/i;
+
+function unitAround(
+  text: string,
+  start: number,
+  end: number,
+): FoundNumber["unit"] {
+  const after = text.slice(end, end + 16);
+  if (PERCENT_AFTER.test(after)) return "percent";
+  if (CURRENCY_AFTER.test(after)) return "currency";
+  return CURRENCY_BEFORE.test(text.slice(Math.max(0, start - 8), start))
+    ? "currency"
+    : undefined;
 }
 
 const NUMBER_PATTERN = /\d(?:[\d.,'\u00a0\u202f\u2009 ]*\d)?/g;
@@ -59,13 +79,17 @@ export function extractNumbers(text: string): FoundNumber[] {
     const pieces = /[\u00a0\u202f\u2009 ]/.test(match[0])
       ? splitLooseGroups(match[0])
       : [match[0]];
-    for (const raw of pieces) {
+    const start = match.index ?? 0;
+    const unit = unitAround(withoutMarkers, start, start + match[0].length);
+    for (const [index, raw] of pieces.entries()) {
       const options = readings(raw).filter((r) => Number.isFinite(r.value));
       if (options.length === 0) continue;
       found.push({
         raw,
         candidates: options.map((o) => o.value),
         decimals: options.map((o) => o.decimals),
+        // The unit stands after the last piece ("5 2024 €" is rare enough).
+        ...(unit && index === pieces.length - 1 ? { unit } : {}),
       });
     }
   }
@@ -93,12 +117,15 @@ function roundTo(value: number, decimals: number): number {
 export function isSupportedNumber(
   found: FoundNumber,
   allowed: readonly number[],
+  options: { shares?: boolean } = {},
 ): boolean {
+  const shares = options.shares ?? true;
   return found.candidates.some((candidate, i) =>
     allowed.some((value) => {
       const decimals = found.decimals[i] ?? 0;
       if (Math.abs(roundTo(value, decimals) - candidate) < 1e-9) return true;
       return (
+        shares &&
         value > 0 &&
         value <= 1 &&
         Math.abs(roundTo(value * 100, decimals) - candidate) < 1e-9
@@ -113,12 +140,94 @@ export interface NumberCheck {
   unsupported: string[];
 }
 
+export interface NumberCheckOptions {
+  /**
+   * Whether a value of at most 1 may be written as its percentage
+   * (0.35 → "35"). Off where no allowed value is a share: a frequency of
+   * 0.12 per year is not "12 %".
+   */
+  shares?: boolean;
+  /**
+   * When set, a number written with a percent unit must be one of these
+   * (and nothing else): "6 %" is not supported by a hail zone of 6.
+   */
+  percentAllowed?: readonly number[];
+  /** Bare whole numbers up to twelve count as wording ("the 3 largest"). */
+  smallCounts?: boolean;
+}
+
 export function checkNumbers(
   text: string,
   allowed: readonly number[],
+  options: NumberCheckOptions = {},
 ): NumberCheck {
+  const shares = options.shares ?? true;
+  const supported = (found: FoundNumber): boolean => {
+    if (options.percentAllowed && found.unit === "percent")
+      return isSupportedNumber(found, options.percentAllowed, {
+        shares: false,
+      });
+    if (
+      options.smallCounts &&
+      !found.unit &&
+      found.candidates.some((n) => Number.isInteger(n) && n >= 0 && n <= 12)
+    )
+      return true;
+    return isSupportedNumber(found, allowed, { shares });
+  };
   const unsupported = extractNumbers(text)
-    .filter((found) => !isSupportedNumber(found, allowed))
+    .filter((found) => !supported(found))
     .map((found) => found.raw);
   return { ok: unsupported.length === 0, unsupported };
+}
+
+/** Dates as three plain numbers, so "14.11.2026" is not read as one figure. */
+function spellOutDates(text: string): string {
+  return text
+    .replace(/\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b/g, "$3 / $2 / $1")
+    .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, "$1 / $2 / $3");
+}
+
+/** A number word with a unit: "zwanzigtausend Euro", "three hundred percent". */
+const NUMBER_WORD_FIGURE =
+  /\b[\p{L}-]*(tausend|hundert|million|milliard|thousand|hundred|mille)[\p{L}-]*\s+(euros?\b|eur\b|€|prozent\b|percent\b|pour\s?cent\b)/iu;
+
+export function containsNumberWordFigure(text: string): boolean {
+  return NUMBER_WORD_FIGURE.test(text);
+}
+
+/**
+ * For free AI text written about facts the app computed: keeps the
+ * sentences whose figures all occur in `source` (the facts given to the
+ * model) and drops the others. A sentence is a line or a part of one ending
+ * in ".", "!" or "?"; bare numbers up to twelve count as wording.
+ */
+export function keepSupportedSentences(
+  text: string,
+  source: string,
+): { text: string; removed: number } {
+  const allowed = extractNumbers(spellOutDates(source)).flatMap(
+    (found) => found.candidates,
+  );
+  let removed = 0;
+  const lines = text.split("\n").map((line) => {
+    if (!/\d/.test(line) && !containsNumberWordFigure(line)) return line;
+    const kept = line
+      .split(/(?<=[.!?])\s+(?=[\p{Lu}"„«(])/u)
+      .filter((sentence) => {
+        const ok =
+          !containsNumberWordFigure(sentence) &&
+          checkNumbers(spellOutDates(sentence), allowed, {
+            shares: false,
+            smallCounts: true,
+          }).ok;
+        if (!ok) removed++;
+        return ok;
+      });
+    return kept.length > 0 ? kept.join(" ") : null;
+  });
+  return {
+    text: lines.filter((line): line is string => line !== null).join("\n"),
+    removed,
+  };
 }

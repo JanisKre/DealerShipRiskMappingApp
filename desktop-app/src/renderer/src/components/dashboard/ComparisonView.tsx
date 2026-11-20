@@ -264,7 +264,9 @@ function Delta({
   value: number;
   fmt: (n: number) => string;
 }): React.JSX.Element {
-  if (value === 0) return <span className="text-muted-foreground">0</span>;
+  // A difference that rounds to nothing (0.40 €) is no red "+0 €".
+  if (Math.abs(value) < 0.5)
+    return <span className="text-muted-foreground">0</span>;
   const up = value > 0;
   return (
     <span className={up ? "text-destructive" : "text-success"}>

@@ -892,6 +892,11 @@ export const SessionSchema = z.object({
   /** Optional for backwards compatibility with older saved sessions. */
   parameters: RiskParametersSchema.optional(),
   /**
+   * Revision of the parameter defaults the session was saved under (see
+   * `PARAMETERS_REVISION`); absent on sessions from before the retune.
+   */
+  parametersRevision: z.number().int().nonnegative().max(1000).optional(),
+  /**
    * Inputs of a batch analysis that had not finished when the session was
    * last saved (app closed or crashed mid-import); offered for resuming.
    */
@@ -929,12 +934,24 @@ export const LlmSettingsSchema = z.object({
 });
 export type LlmSettings = z.infer<typeof LlmSettingsSchema>;
 
-const HttpsUrlSchema = z
-  .string()
-  .url()
-  .refine((value) => new URL(value).protocol === "https:", {
-    message: "Endpoint must use HTTPS",
-  });
+/** An HTTPS address without embedded credentials ("user:pw@host"). */
+function httpsUrlProblem(value: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return "Endpoint must be a valid URL";
+  }
+  if (url.protocol !== "https:") return "Endpoint must use HTTPS";
+  if (url.username || url.password)
+    return "Endpoint must not contain embedded credentials";
+  return null;
+}
+
+const HttpsUrlSchema = z.string().superRefine((value, ctx) => {
+  const problem = httpsUrlProblem(value);
+  if (problem) ctx.addIssue({ code: "custom", message: problem });
+});
 
 /** A connected hazard API; the key lives in safeStorage, not here. */
 export const NatCatConnectorSchema = z.object({

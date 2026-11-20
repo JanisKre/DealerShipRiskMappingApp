@@ -36,6 +36,7 @@ export function WorkspacePage(): React.JSX.Element {
   const locationsPanelOpen = useMapStore((s) => s.locationsPanelOpen);
   const chatPanelOpen = useMapStore((s) => s.chatPanelOpen);
   const detailDialogId = useMapStore((s) => s.detailDialogId);
+  const locationsOrder = useMapStore((s) => s.locationsOrder);
   const closeDetailDialog = useMapStore((s) => s.closeDetailDialog);
   const openDetailDialog = useMapStore((s) => s.openDetailDialog);
   const selectDealership = useAppStore((s) => s.select);
@@ -122,7 +123,11 @@ export function WorkspacePage(): React.JSX.Element {
               useMapStore.getState().toggleLocationsPanel();
           }}
         >
-          <AddressDock />
+          {/* A collapsed dock is 0 px wide but still mounted: without
+              `inert` its controls stayed in the tab order, invisible. */}
+          <div className="h-full" inert={!locationsPanelOpen}>
+            <AddressDock />
+          </div>
         </ResizablePanel>
 
         {/* Above the sidebar rail, which otherwise covers it once the dock
@@ -168,13 +173,17 @@ export function WorkspacePage(): React.JSX.Element {
               useMapStore.getState().toggleChatPanel();
           }}
         >
-          <ChatPanel />
+          <div className="h-full" inert={!chatPanelOpen}>
+            <ChatPanel />
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
 
       <DealershipDetailDialog
         dealership={detailDealership}
         open={detailDealership !== null}
+        // The arrows follow the list beside the map, not the stored order.
+        order={locationsOrder}
         onOpenChange={(o) => {
           if (!o) closeDetailDialog();
         }}

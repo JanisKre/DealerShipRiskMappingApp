@@ -14,6 +14,13 @@ import { useLlmStream } from "@renderer/lib/useLlmStream";
 import { useAppStore } from "@renderer/store/appStore";
 import { useConversationStore } from "@renderer/store/conversationStore";
 
+/** One tool call on an external MCP server. */
+export interface ExternalLookup {
+  server: string;
+  tool: string;
+  ok: boolean;
+}
+
 export interface UseChat {
   messages: ChatMessage[];
   activeId: string | null;
@@ -24,6 +31,8 @@ export interface UseChat {
   lookingUp: boolean;
   /** Lookups behind the latest answer; null when none ran. */
   lookups: LookupRun["done"] | null;
+  /** Tools of connected MCP servers used for the latest answer. */
+  externalLookups: ExternalLookup[];
   error: string | null;
   send: (question: string) => void;
   /** Asks the last question again, replacing the answer after it. */
@@ -49,14 +58,46 @@ export function useChat(): UseChat {
   const committedRef = useRef(true);
   const [lookingUp, setLookingUp] = useState(false);
   const [lookups, setLookups] = useState<LookupRun["done"] | null>(null);
+  const [externalLookups, setExternalLookups] = useState<ExternalLookup[]>([]);
   /** Bumped by stop/new requests so a finished lookup does not start a stale answer. */
   const requestRef = useRef(0);
+  /**
+   * Conversation the running answer belongs to; `id` is null until an
+   * unsaved conversation gets its id with the first save.
+   */
+  const answerFor = useRef<{ id: string | null } | null>(null);
+
+  // Another conversation was opened (or a new one started) while an answer
+  // was on its way: stop it. It was written into whichever conversation was
+  // on screen when it ended. The lookup line belongs to the old one too.
+  useEffect(() => {
+    const running = answerFor.current;
+    if (running && running.id === null) {
+      // The conversation was saved for the first time: same conversation.
+      running.id = activeId;
+    } else if (running && running.id !== activeId) {
+      answerFor.current = null;
+      committedRef.current = true;
+      requestRef.current++;
+      setLookingUp(false);
+      cancel();
+    }
+    setLookups(null);
+    setExternalLookups([]);
+    // `cancel` is stable for the lifetime of the hook.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
 
   // Commit the finished (or stopped) stream answer exactly once + persist it.
   useEffect(() => {
     if (!streaming && text && !committedRef.current) {
       committedRef.current = true;
       const store = useConversationStore.getState();
+      // Only into the conversation the question was asked in.
+      const running = answerFor.current;
+      answerFor.current = null;
+      if (running && running.id !== null && running.id !== store.activeId)
+        return;
       store.appendMessage({ role: "assistant", content: text });
       void store.persistActive();
     }
@@ -90,9 +131,12 @@ export function useChat(): UseChat {
    */
   async function lookUpExternal(question: string): Promise<string | undefined> {
     try {
-      const { results } = await window.api.mcpChatLookup(
+      const { results, used } = await window.api.mcpChatLookup(
         question.slice(0, 2_000),
       );
+      // Shown above the answer: text from a connected server is an
+      // external source, as the settings promise.
+      setExternalLookups(used);
       return results || undefined;
     } catch {
       return undefined;
@@ -102,7 +146,9 @@ export function useChat(): UseChat {
   /** Streams an answer to the conversation as it stands in the store. */
   async function stream(): Promise<void> {
     const request = ++requestRef.current;
+    answerFor.current = { id: useConversationStore.getState().activeId };
     setLookups(null);
+    setExternalLookups([]);
     const question = [...useConversationStore.getState().messages]
       .reverse()
       .find((m) => m.role === "user")?.content;
@@ -180,6 +226,7 @@ export function useChat(): UseChat {
     streaming: busy,
     lookingUp,
     lookups,
+    externalLookups,
     error,
     send,
     regenerate,

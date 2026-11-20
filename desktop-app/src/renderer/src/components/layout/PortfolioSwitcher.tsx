@@ -11,7 +11,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { notify } from "@renderer/lib/notify";
+import { errorReason, notify } from "@renderer/lib/notify";
 import { Button } from "@renderer/components/ui/button";
 import { HintButton } from "@renderer/components/ui/hint-button";
 import { Input } from "@renderer/components/ui/input";
@@ -31,6 +31,7 @@ import {
   type SessionSummary,
 } from "@renderer/lib/portfolioSessions";
 import { Badge } from "@renderer/components/ui/badge";
+import { PORTFOLIO_FILE_INVALID } from "@shared/constants";
 
 /**
  * The portfolio title, merged with everything else portfolio-scoped: start
@@ -124,7 +125,14 @@ export function PortfolioSwitcher({
       const session = await window.api.importPortfolioFile(exportLocale());
       if (session) setPendingImport(session);
     } catch (err) {
-      notify.error(t("shell.portfolioSwitcher.importFailed"), { cause: err });
+      // A file that is no portfolio gets its own sentence instead of the
+      // parser's text.
+      if (errorReason(err).includes(PORTFOLIO_FILE_INVALID))
+        notify.error(t("shell.portfolioSwitcher.importFailed"), {
+          description: t("shell.portfolioSwitcher.importInvalid"),
+        });
+      else
+        notify.error(t("shell.portfolioSwitcher.importFailed"), { cause: err });
     } finally {
       setBusy(false);
     }

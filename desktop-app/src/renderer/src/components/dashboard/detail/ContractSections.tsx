@@ -31,6 +31,15 @@ export function PortfolioMetaSection({
   const { t } = useTranslation();
   const updateMeta = useAppStore((s) => s.updateDealershipMeta);
 
+  // Amount fields whose last input could not be read; the stored value stays.
+  const [invalidAmounts, setInvalidAmounts] = useState<
+    Partial<Record<"productLimitEur" | "deductibleEur", boolean>>
+  >({});
+  useEffect(() => setInvalidAmounts({}), [d.id]);
+
+  // The inputs are uncontrolled; the key ties each one to its location, so
+  // paging in the dialog never shows (or writes back) the previous
+  // location's text.
   const textField = (
     label: string,
     key: "salesPartner" | "subPortfolio" | "group",
@@ -38,8 +47,12 @@ export function PortfolioMetaSection({
     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
       {label}
       <Input
+        key={`${key}-${d.id}-${d[key] ?? ""}`}
         defaultValue={d[key] ?? ""}
-        onBlur={(e) => updateMeta(d.id, { [key]: e.target.value || undefined })}
+        onBlur={(e) => {
+          const next = e.target.value.trim() || undefined;
+          if (next !== (d[key] ?? undefined)) updateMeta(d.id, { [key]: next });
+        }}
       />
     </label>
   );
@@ -56,21 +69,39 @@ export function PortfolioMetaSection({
       </Label>
       <Input
         id={`${key}-${d.id}`}
-        // Remount when the stored value changes (e.g. after an import).
-        key={`${key}-${d[key] ?? ""}`}
+        // Remount for another location and when the stored value changes
+        // (e.g. after an import).
+        key={`${key}-${d.id}-${d[key] ?? ""}`}
         type="text"
         inputMode="decimal"
+        aria-invalid={invalidAmounts[key] ? true : undefined}
+        aria-describedby={
+          invalidAmounts[key] ? `${key}-${d.id}-error` : undefined
+        }
         defaultValue={
           d[key] != null ? formatParameterValue(d[key], uiLocale()) : ""
         }
         onBlur={(e) => {
           const raw = e.target.value.replace(/€/g, "").trim();
-          const n = raw ? parseLocaleNumber(raw, uiLocale()) : Number.NaN;
-          updateMeta(d.id, {
-            [key]: raw && !Number.isNaN(n) && n >= 0 ? n : undefined,
-          });
+          // An emptied field removes the amount; anything unreadable keeps
+          // the stored one and is marked instead of deleting it silently.
+          const n = raw ? parseLocaleNumber(raw, uiLocale()) : undefined;
+          const invalid =
+            n !== undefined && (!Number.isFinite(n) || n < 0 || n > 1e12);
+          setInvalidAmounts((current) => ({ ...current, [key]: invalid }));
+          if (invalid || n === d[key]) return;
+          updateMeta(d.id, { [key]: n });
         }}
       />
+      {invalidAmounts[key] && (
+        <p
+          id={`${key}-${d.id}-error`}
+          role="alert"
+          className="text-xs text-destructive"
+        >
+          {t("dashboard.detailDialog.amountInvalid")}
+        </p>
+      )}
     </div>
   );
 

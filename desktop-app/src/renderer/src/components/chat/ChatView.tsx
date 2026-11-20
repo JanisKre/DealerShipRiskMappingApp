@@ -92,6 +92,7 @@ export function ChatView({
     streaming,
     lookingUp,
     lookups,
+    externalLookups,
     error,
     send,
     regenerate,
@@ -476,6 +477,20 @@ export function ChatView({
                       .map(
                         (l) =>
                           `${t(`chat.lookups.tool.${l.tool}`)} – ${l.name}${l.ok ? "" : ` (${t("chat.lookups.failed")})`}`,
+                      )
+                      .join(" · ")}
+                  </span>
+                </p>
+              )}
+              {externalLookups.length > 0 && (
+                <p className="flex items-start gap-1.5 px-1 text-xs text-muted-foreground">
+                  <Database className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    {t("chat.lookups.external")}{" "}
+                    {externalLookups
+                      .map(
+                        (l) =>
+                          `${l.server} – ${l.tool}${l.ok ? "" : ` (${t("chat.lookups.failed")})`}`,
                       )
                       .join(" · ")}
                   </span>

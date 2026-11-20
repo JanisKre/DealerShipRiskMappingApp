@@ -84,6 +84,15 @@ describe("A2UI messages", () => {
     expect(containsFigure("Hagel-EAL 120.000 €")).toBe(true);
     expect(containsFigure("Anteil 35 %")).toBe(true);
     expect(containsFigure("Top 10 Standorte")).toBe(false);
+    for (const text of [
+      "Schaden 2,5 Millionen Euro",
+      "EAL rund 480.000 Euro",
+      "Erwarteter Schaden: EUR 900.000",
+      "35 Prozent mehr als im Vorjahr",
+      "Schaden 3 Mio.",
+    ])
+      expect(containsFigure(text), text).toBe(true);
+    expect(containsFigure("Standorte ab Zone 4")).toBe(false);
     const result = applyAgentMessage(create(valid, "EAL 2 Mio"), null);
     expect(result.ok).toBe(false);
   });

@@ -19,13 +19,15 @@ export function useMapExport(t: TFunction): {
       let rect:
         { x: number; y: number; width: number; height: number } | undefined;
       if (el) {
+        // `capturePage` takes the rectangle in CSS pixels and scales it
+        // itself; multiplied by the device pixel ratio it cut a strip
+        // beside the map on a HiDPI display.
         const r = el.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
         rect = {
-          x: Math.round(r.left * dpr),
-          y: Math.round(r.top * dpr),
-          width: Math.round(r.width * dpr),
-          height: Math.round(r.height * dpr),
+          x: Math.round(r.left),
+          y: Math.round(r.top),
+          width: Math.round(r.width),
+          height: Math.round(r.height),
         };
       }
       const result = await window.api.captureMap(rect, mode, exportLocale());

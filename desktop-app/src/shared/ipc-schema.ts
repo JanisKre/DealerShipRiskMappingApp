@@ -282,16 +282,35 @@ export const CLIPBOARD_TEXT_MAX_CHARS = 100_000;
 /** UI language passed to exports so files and dialogs match the app. */
 export const ExportLocaleSchema = z.enum(["de", "en", "fr"]);
 
+/**
+ * A settings update names only the fields it changes. `partial()` alone
+ * keeps the default of `language`, so an update without a language would
+ * carry "de" and reset the stored language on every other save.
+ */
+export const SettingsUpdateSchema = SettingsSchema.partial().extend({
+  language: SettingsSchema.shape.language.unwrap().optional(),
+});
+
+/** Coordinates in a request: a point on the globe, nothing else. */
+const LatitudeSchema = z.number().min(-90).max(90);
+const LongitudeSchema = z.number().min(-180).max(180);
+
+/** Largest import the main process parses (about 20 MB of text). */
+export const IMPORT_TEXT_MAX_CHARS = 20_000_000;
+export const IMPORT_BASE64_MAX_CHARS = 28_000_000;
+
 export const ipcRequest = {
   /** Only paths the main process remembered from a save dialog are shown. */
   "file:showExported": z.object({ path: z.string().min(1).max(4096) }),
   "csv:parse": z.object({
-    content: z.string(),
+    // Bounded: the file is parsed in the main process, and tens of
+    // megabytes of rows blocked it for half a minute.
+    content: z.string().max(IMPORT_TEXT_MAX_CHARS),
     /** Columns assigned by hand in the import dialog. */
     overrides: ColumnOverridesSchema.optional(),
   }),
   "xlsx:parse": z.object({
-    base64: z.string(),
+    base64: z.string().max(IMPORT_BASE64_MAX_CHARS),
     overrides: ColumnOverridesSchema.optional(),
   }),
   "geocode:search": z.object({
@@ -315,8 +334,8 @@ export const ipcRequest = {
       .optional(),
   }),
   "boundary:detect": z.object({
-    lat: z.number(),
-    lon: z.number(),
+    lat: LatitudeSchema,
+    lon: LongitudeSchema,
     name: z.string().optional(),
     address: z.string().optional(),
     // Without this the renderer's own detections silently ran on
@@ -326,8 +345,8 @@ export const ipcRequest = {
     parameters: RiskParametersSchema.optional(),
   }),
   "osm:details": z.object({
-    lat: z.number(),
-    lon: z.number(),
+    lat: LatitudeSchema,
+    lon: LongitudeSchema,
     name: z.string().optional(),
     address: z.string().optional(),
   }),
@@ -358,11 +377,11 @@ export const ipcRequest = {
   "hailEvents:suggestDays": CandidateDaysRequestSchema,
   "detect:vehicles": DetectVehiclesRequestSchema,
   "detect:vehiclesTimeline": DetectVehiclesRequestSchema,
-  "weather:fetch": z.object({ lat: z.number(), lon: z.number() }),
+  "weather:fetch": z.object({ lat: LatitudeSchema, lon: z.number() }),
   "risk:score": z.object({
-    lat: z.number(),
-    lon: z.number(),
-    assetValue: z.number().optional(),
+    lat: LatitudeSchema,
+    lon: LongitudeSchema,
+    assetValue: z.number().nonnegative().optional(),
     detection: DetectionResultSchema.optional(),
     boundary: BoundaryResultSchema.optional(),
     parameters: RiskParametersSchema.optional(),
@@ -457,7 +476,7 @@ export const ipcRequest = {
     repoId: z.string().regex(HF_REPO_ID_PATTERN),
   }),
   "settings:get": z.void(),
-  "settings:set": z.object({ settings: SettingsSchema.partial() }),
+  "settings:set": z.object({ settings: SettingsUpdateSchema }),
   "settings:setLlmApiKey": z.object({
     provider: LlmProviderSchema,
     apiKey: z.string(),
@@ -572,7 +591,7 @@ export const ipcResponse = {
   "csv:parse": ImportResultSchema,
   "xlsx:parse": ImportResultSchema,
   "geocode:search": z.array(
-    z.object({ label: z.string(), lat: z.number(), lon: z.number() }),
+    z.object({ label: z.string(), lat: LatitudeSchema, lon: z.number() }),
   ),
   "places:autocomplete": z.object({
     suggestions: z.array(PlaceSuggestionSchema),

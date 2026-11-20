@@ -1,5 +1,6 @@
 import { pickActiveSession } from "@renderer/lib/portfolioSessions";
 import { mergePortfolios } from "@shared/portfolio-merge";
+import { PARAMETERS_REVISION } from "@shared/parameters";
 import { type AppState, type StoreSet } from "./types";
 import {
   hasPortfolioToSave,
@@ -139,6 +140,7 @@ export function sessionActions(
         updatedAt: now,
         dealerships: s.dealerships,
         parameters: s.parameters,
+        parametersRevision: PARAMETERS_REVISION,
         ...(s.pendingAnalysis.length > 0
           ? { pendingAnalysis: s.pendingAnalysis }
           : {}),
@@ -159,9 +161,15 @@ export function sessionActions(
           });
       }
       resetToBlankPortfolio(set, get);
-      set({ sessionName: session.name });
+      // A file without a name keeps the name of a new portfolio.
+      if (session.name.trim()) set({ sessionName: session.name.trim() });
       get().setDealerships(session.dealerships, session.boundaryEdits);
-      get().setParameters(session.parameters);
+      get().setParameters(session.parameters, {
+        revision: session.parametersRevision,
+      });
+      // Rows the other side had not located yet come along and are offered
+      // for resuming, as after a restart.
+      set({ pendingAnalysis: session.pendingAnalysis ?? [] });
       await get().saveSession();
     },
 

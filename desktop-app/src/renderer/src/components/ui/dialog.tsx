@@ -27,14 +27,31 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
+>(({ className, children, onCloseAutoFocus, ...props }, ref) => {
   const { t } = useTranslation();
+  // Most dialogs here are opened by state, without a Radix trigger; on
+  // close the focus then fell to <body> and a keyboard user started again
+  // at the top of the page. Remember what had the focus when the content
+  // mounted (a layout effect runs before the dialog takes the focus) and
+  // give it back.
+  const opener = React.useRef<HTMLElement | null>(null);
+  React.useLayoutEffect(() => {
+    const active = document.activeElement;
+    opener.current =
+      active instanceof HTMLElement && active !== document.body ? active : null;
+  }, []);
 
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          if (event.defaultPrevented || !opener.current?.isConnected) return;
+          event.preventDefault();
+          opener.current.focus();
+        }}
         className={cn(
           "fixed left-1/2 top-1/2 z-[3000] grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto border bg-background p-5 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:w-full sm:rounded-lg sm:p-6",
           className,

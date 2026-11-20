@@ -61,15 +61,24 @@ export function ChangeReportPanel({
     [dealerships],
   );
 
-  // A report describes one portfolio: another one starts without it, and
-  // leaving the page stops a running check.
+  // A report describes one set of locations: another portfolio or another
+  // filter starts without it (its rows would name locations that are not
+  // shown any more), and leaving the page stops a running check.
   const sessionId = useAppStore((s) => s.sessionId);
+  const locationKey = useMemo(
+    () =>
+      dealerships
+        .map((d) => d.id)
+        .sort()
+        .join("|"),
+    [dealerships],
+  );
   useEffect(() => {
     setReport(null);
     return () => {
       cancelled.current = true;
     };
-  }, [sessionId]);
+  }, [sessionId, locationKey]);
 
   async function run(): Promise<void> {
     const sites = dealerships.filter(

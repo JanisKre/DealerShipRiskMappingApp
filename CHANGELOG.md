@@ -174,6 +174,59 @@ the project follows [Semantic Versioning](https://semver.org/).
   reasoning, is asked for once more with more room (each attempt is in the
   AI record book). A Claude refusal is reported as one instead of an empty
   answer. Checked against the real API for every AI feature.
+- **Findings of the functional test run of 20 November** (six test
+  roles went through every feature of the built app; about 115 findings,
+  the two critical and the major ones are fixed, and many of the small
+  ones):
+  - **Detail dialog.** Paging to another location no longer leaves the
+    previous location's sales partner, sub-portfolio and group in the
+    fields (tabbing through them wrote them into the other location). An
+    unreadable limit or deductible keeps the stored value and is marked.
+    Arrow keys stay with the tabs and the business-type toggle. Dialogs
+    return the focus to what opened them.
+  - **Settings.** Saving any setting no longer resets the language to
+    German. The circle radius accepts 100 m (retired defaults are migrated
+    once per stored portfolio, not on every edit). The model download can
+    be cancelled. The hazard API key is not sent on to a redirect target;
+    endpoints with credentials are refused; a connection test without a
+    hail value is not green. Reloading the app page works from any route.
+  - **Dashboard and exports.** "Recalculate" and parameter changes leave
+    locations without a result pending. The accumulation filter works
+    under another filter. PDF tables keep estimated figures ("≈80" was
+    printed as "?"). Exports say that they hold the whole portfolio while
+    a filter is on. The location report names the boundary source in
+    words, the business type as in the app, and prints no derivation
+    without a vehicle count.
+  - **Import and portfolio files.** Branches with one name at different
+    coordinates are kept; an address column is completed by postcode and
+    city columns; files without a header keep their first row (columns A,
+    B, C …); repeated column names can be told apart; classic Mac line
+    endings, French column names, rich-text, date and error cells and
+    exact numbers from XLSX are read. A damaged portfolio file gives a
+    readable message; rows not located yet survive the round trip; a file
+    that lists a location twice adds it once. The portfolio that was open
+    last opens after a restart.
+  - **Analysis.** A saved boundary is recounted on the analysis' own
+    capture (the same outline gave another count before) and no longer
+    waits a minute for public Overpass. Vertex handles follow undo and
+    reset. "Later" on the resume notice no longer deletes rows without
+    coordinates. "Correct boundary" from the dashboard opens the map on
+    the location.
+  - **Map.** Importing a hail event with a time outside the date range no
+    longer breaks the page. Map export crops the map on HiDPI displays.
+    Arrow keys follow the filtered list; the pin context menu stays inside
+    the window and takes the keyboard; pins carry the location name for
+    screen readers; the list uses the accumulation radius parameter.
+  - **Optional AI.** A streaming answer stays with its conversation;
+    external MCP lookups are named above the answer; the connection test
+    needs model text. Figure checks are stricter: dashboard labels, review
+    notes and aerial notes reject amounts written as "Euro", "Prozent" or
+    "EUR 900.000"; the memo no longer accepts a number because it equals a
+    date part or a frequency read as a percentage; streamed explanations
+    leave out sentences with figures the app did not hand over. Postcode
+    and town for AI providers and agents never include a street.
+
+
 - Own aerial imagery source: a tile template with `{time}` no longer takes
   the map page down ("This page could not be displayed"); the placeholder
   stays empty on the map, as it does for a capture.

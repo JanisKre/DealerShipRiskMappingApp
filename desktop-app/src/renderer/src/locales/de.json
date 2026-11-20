@@ -25,12 +25,13 @@
       "deleteFailed": "Portfolio konnte nicht gelöscht werden",
       "importFile": "Portfolio-Datei importieren …",
       "importFailed": "Die Portfolio-Datei konnte nicht gelesen werden",
+      "importInvalid": "Die Datei ist keine lesbare Portfolio-Datei (beschädigt, leer oder ein anderes Format). Es wurde nichts geändert.",
       "importFound_one": "„{{name}}“: {{count}} Standort, davon {{edited}} mit manuell bearbeiteter Grenze oder Fahrzeugzahl.",
       "importFound_other": "„{{name}}“: {{count}} Standorte, davon {{edited}} mit manuell bearbeiteter Grenze oder Fahrzeugzahl.",
       "importMerge": "In dieses Portfolio zusammenführen",
       "importMergeHint": "Fügt neue Standorte hinzu und übernimmt bearbeitete Grenzen; eigene Bearbeitungen werden nie überschrieben.",
       "importOpenNew": "Als neues Portfolio öffnen",
-      "mergeDone": "Zusammengeführt: {{added}} Standorte hinzugefügt, {{updated}} Grenzen übernommen",
+      "mergeDone": "Zusammengeführt – Standorte hinzugefügt: {{added}}, Grenzen übernommen: {{updated}}",
       "mergeConflicts_one": "{{count}} Standort wurde auf beiden Seiten bearbeitet und bleibt hier unverändert",
       "mergeConflicts_other": "{{count}} Standorte wurden auf beiden Seiten bearbeitet und bleiben hier unverändert",
       "mergeFailed": "Das Portfolio konnte nicht zusammengeführt werden",
@@ -853,6 +854,10 @@
         "cascadeVehicleHull": "Umriss der erkannten Fahrzeuge",
         "cascadeOsmDealerArea": "Händlerfläche aus OpenStreetMap",
         "cascadeParcel": "Flurstück am Punkt",
+        "cascadeSiteParcels": "Flurstücke des Betriebsgeländes (Standortmodell)",
+        "cascadeParcelsNoLot": "Flurstücke am Punkt, kein Fahrzeugbestand erkannt",
+        "anchor": "Ankerpunkt: {{source}}",
+        "anchorOfficial": "amtliche Hauskoordinate ({{register}})",
         "boundaryConfirmed": "Grenze am {{date}} visuell bestätigt, keine Katastervermessung",
         "vehicleDetectorSource": "Fahrzeugerkennung (lokales Erkennungsmodell)",
         "vehicleDetectorMethod": "Fahrzeuge im Luftbild erkannt ({{resolution}} m pro Pixel)"
@@ -893,6 +898,7 @@
       "natCatHazard": "{{peril}}: Zone {{zone}} ({{unit}})",
       "natCatAttribute": "{{name}}: {{value}}",
       "deductibleLabel": "Selbstbehalt (EUR)",
+      "amountInvalid": "Kein lesbarer Betrag – der bisherige Wert bleibt. Beispiel: 2.000.000",
       "imageryHistory": {
         "title": "Bildhistorie (Esri Wayback)",
         "captured": "Aufnahme",
@@ -950,6 +956,7 @@
       "limitationsToggle_one": "{{count}} Einschränkung",
       "limitationsToggle_other": "{{count}} Einschränkungen",
       "natCatNone": "Keine externe Hagel-Datenquelle eingerichtet; die Hagelzone stammt aus der PLZ-Tabelle.",
+      "natCatNoneEstimated": "Keine externe Hagel-Datenquelle eingerichtet; die Hagelzone ist aus Wetterdaten geschätzt (keine PLZ-Zuordnung für diesen Standort).",
       "notesSaving": "Wird gespeichert …",
       "candidate": {
         "vehicleParcels": "Flurstücke des Standorts",
@@ -1570,7 +1577,9 @@
     "streaming": "Antwortet…",
     "explain": {
       "stop": "Abbrechen",
-      "disclaimer": "KI-Erklärung zu den von der App berechneten Werten oben. Die Werte selbst stammen nicht von der KI."
+      "disclaimer": "KI-Erklärung zu den von der App berechneten Werten oben. Die Werte selbst stammen nicht von der KI.",
+      "removed_one": "{{count}} Satz mit einer Zahl, die nicht aus der App stammt, wurde weggelassen.",
+      "removed_other": "{{count}} Sätze mit Zahlen, die nicht aus der App stammen, wurden weggelassen."
     }
   },
   "risk": {
@@ -1682,6 +1691,8 @@
     "noRowsFound": "Keine importierbaren Zeilen gefunden",
     "website": "Website",
     "reportExported": "Bericht exportiert: {{name}}",
+    "exportWholePortfolio_one": "Der Export enthält das gesamte Portfolio ({{count}} Standort); der Filter des Dashboards gilt für die Datei nicht.",
+    "exportWholePortfolio_other": "Der Export enthält das gesamte Portfolio ({{count}} Standorte); der Filter des Dashboards gilt für die Datei nicht.",
     "portfolioExported": "Portfolio exportiert: {{name}}",
     "viewExported": "Ansicht exportiert: {{name}}",
     "exportFailed": "Export fehlgeschlagen",
@@ -1846,7 +1857,8 @@
     },
     "notExcel": "Die Datei ist keine gültige Excel-Datei (.xlsx)",
     "notText": "Die Datei ist keine CSV- oder Textdatei",
-    "encodingWindows1252": "Zeichenkodierung: Windows-1252 erkannt (Excel-CSV) – Umlaute werden korrekt gelesen."
+    "encodingWindows1252": "Zeichenkodierung: Windows-1252 erkannt (Excel-CSV) – Umlaute werden korrekt gelesen.",
+    "noHeader": "Keine Kopfzeile erkannt: Die erste Zeile wird als Standort gelesen, die Spalten heißen A, B, C … und lassen sich unten zuordnen."
   },
   "places": {
     "inPortfolio": "Im Portfolio: {{portfolio}}",
@@ -1907,6 +1919,7 @@
     "lookups": {
       "running": "Belege werden abgerufen …",
       "used": "Abgerufene Belege:",
+      "external": "Externe Quelle (verbundener MCP-Server):",
       "failed": "fehlgeschlagen",
       "tool": {
         "evidence": "Herkunft der Werte",

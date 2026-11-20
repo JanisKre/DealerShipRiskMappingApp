@@ -15,7 +15,10 @@ import {
   type ModelDownloadChunk,
   type OllamaPullChunk,
 } from "@shared/ipc-schema";
-import { analyzeDealership } from "../services/analyze.service";
+import {
+  analyzeDealership,
+  recountVehicles,
+} from "../services/analyze.service";
 import {
   explainStream,
   draftScenario,
@@ -54,13 +57,7 @@ import {
   refreshDealerDirectory,
 } from "../services/dealer-directory.service";
 import { detectBoundary } from "../services/boundary.service";
-import {
-  attachImageryProvenance,
-  detectVehicles,
-  isModelAvailable,
-  modelsDir,
-} from "../services/detection.service";
-import { maskRoofDetections } from "../services/detection/roof-mask.service";
+import { isModelAvailable, modelsDir } from "../services/detection.service";
 import {
   downloadModel,
   MODEL_DOWNLOAD_URL,
@@ -126,10 +123,7 @@ import {
   setNatCatApiKey,
   setSettings,
 } from "../services/settings.service";
-import {
-  aerialImageForBoundary,
-  prefetchContextImagery,
-} from "../services/tiles.service";
+import { prefetchContextImagery } from "../services/tiles.service";
 import { configureCustomOverpass } from "../services/boundary/overpass-client";
 import { fetchWeather } from "../services/weather.service";
 import { selectImageryForView } from "../services/imagery-source.service";
@@ -207,17 +201,9 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.osmDetails, ({ lat, lon, name, address }) =>
     getOsmDetails(lat, lon, name, address),
   );
-  handle(IPC.detectVehicles, async ({ lat, lon, boundary, parameters }) => {
-    const image = await aerialImageForBoundary(lat, lon, boundary);
-    return attachImageryProvenance(
-      await maskRoofDetections(
-        await detectVehicles(image, boundary, parameters),
-        lat,
-        lon,
-      ),
-      image.imagery,
-    );
-  });
+  handle(IPC.detectVehicles, ({ lat, lon, boundary, parameters }) =>
+    recountVehicles(lat, lon, boundary, parameters),
+  );
   handle(IPC.detectVehiclesTimeline, ({ lat, lon, boundary, parameters }) =>
     countVehiclesOverTime(lat, lon, boundary, parameters),
   );
@@ -575,7 +561,19 @@ function registerLlmStreaming(): void {
   ipcMain.on(IPC.llmStream, (event, raw: unknown) => {
     if (!isTrustedSender(event)) return;
     const parsedEnvelope = LlmStreamEnvelopeSchema.safeParse(raw);
-    if (!parsedEnvelope.success) return;
+    if (!parsedEnvelope.success) {
+      // A request the schema refuses (too long, say) still gets an answer:
+      // without one the window waited on a spinner that never ended.
+      const streamId = (raw as { streamId?: unknown } | null)?.streamId;
+      if (typeof streamId === "string" && /^[\w-]{1,64}$/.test(streamId)) {
+        event.sender.send(`${IPC.llmStream}:${streamId}`, {
+          type: "error",
+          message:
+            "The request could not be sent: it is too long or incomplete.",
+        } satisfies LlmStreamChunk);
+      }
+      return;
+    }
     const { streamId, req: parsed } = parsedEnvelope.data;
     const channel = `${IPC.llmStream}:${streamId}`;
     const controller = new AbortController();

@@ -255,7 +255,8 @@ function CorridorCard(): React.JSX.Element | null {
           <p className="text-[11px] leading-snug text-muted-foreground">
             {t("hailReplay.corridorNote", {
               model: impact.modelVersion,
-              multiplier: num(multiplier),
+              // "× 1,5", not "× 2": the factor is set in half steps.
+              multiplier: num(multiplier, 2),
             })}
           </p>
         </div>
@@ -631,7 +632,7 @@ function EventCard(): React.JSX.Element | null {
 
           <div className="space-y-1">
             <Label htmlFor="hail-radius" className="text-xs">
-              {t("hailReplay.radius", { km: num(s.radiusKm) })}
+              {t("hailReplay.radius", { km: num(s.radiusKm, 1) })}
             </Label>
             <Slider
               id="hail-radius"

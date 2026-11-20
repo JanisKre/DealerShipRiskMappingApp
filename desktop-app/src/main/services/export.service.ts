@@ -8,6 +8,7 @@ import { autoTable } from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import type { AnalyzedDealership, Session } from "@shared/types";
 import { SessionSchema } from "@shared/types";
+import { PORTFOLIO_FILE_INVALID } from "@shared/constants";
 import {
   ELEVATED_HAIL_ZONE,
   computeAccumulationClusters,
@@ -15,7 +16,7 @@ import {
   effectiveVehicleCount,
   estimateHailZoneFromScore,
 } from "@shared/risk-math";
-import { normalizeRiskParameters } from "@shared/parameters";
+import { sessionParameters } from "@shared/parameters";
 import { ealCoverage, estimatedExposure, hasEalBasis } from "@shared/estimates";
 import {
   exportLabels,
@@ -29,7 +30,7 @@ import {
  * locations). Locations without coordinates or in single-member clusters remain empty.
  */
 function clusterAssignment(session: Session): Map<string, string> {
-  const parameters = normalizeRiskParameters(session.parameters);
+  const parameters = sessionParameters(session);
   const withCoords = session.dealerships.filter(
     (d) => d.lat != null && d.lon != null,
   );
@@ -76,7 +77,25 @@ export async function importPortfolioFile(
   });
   if (canceled || filePaths.length === 0) return null;
   const raw = await readFile(filePaths[0], "utf-8");
-  return SessionSchema.parse(JSON.parse(raw));
+  let session: Session;
+  try {
+    session = SessionSchema.parse(JSON.parse(raw));
+  } catch (error) {
+    // The details (a JSON position, a schema path) go to the log; the
+    // window shows a readable sentence for this code.
+    console.warn("Portfolio file could not be read:", error);
+    throw new Error(PORTFOLIO_FILE_INVALID, { cause: error });
+  }
+  // A file is foreign input: each location once, and only where it can be
+  // on a map. (Stored portfolios are not filtered, they open as saved.)
+  const seen = new Set<string>();
+  const dealerships = session.dealerships.filter((d) => {
+    if (Math.abs(d.lat) > 90 || Math.abs(d.lon) > 180) return false;
+    if (seen.has(d.id)) return false;
+    seen.add(d.id);
+    return true;
+  });
+  return { ...session, name: session.name.trim().slice(0, 200), dealerships };
 }
 
 /**
@@ -226,7 +245,7 @@ function summaryLines(
 }
 
 function methodLines(session: Session, locale: ExportLocale): string[] {
-  const parameters = normalizeRiskParameters(session.parameters);
+  const parameters = sessionParameters(session);
   return exportLabels(locale).method(methodFacts(session, parameters, locale));
 }
 
@@ -278,7 +297,7 @@ async function writePdf(
   doc.setTextColor(90);
   doc.text(`${L.portfolio}: ${session.name || "—"}`, 40, 66);
   doc.text(
-    `${L.created}: ${new Date().toLocaleString(L.intl)} · ${L.method(methodFacts(session, normalizeRiskParameters(session.parameters), locale))[0]}`,
+    `${L.created}: ${new Date().toLocaleString(L.intl)} · ${L.method(methodFacts(session, sessionParameters(session), locale))[0]}`,
     40,
     82,
     { maxWidth: 760 },
@@ -670,7 +689,7 @@ function buildReadonlyHtml(
   const L = exportLabels(locale);
   const c = L.columns;
   const f = formatters(locale);
-  const parameters = normalizeRiskParameters(session.parameters);
+  const parameters = sessionParameters(session);
   const clusterMap = clusterAssignment(session);
   const withCoords = session.dealerships.filter(
     (d) => d.lat != null && d.lon != null,

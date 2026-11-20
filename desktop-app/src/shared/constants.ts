@@ -168,3 +168,9 @@ export function buildTileUrl(
   }
   return buildEsriTileUrl(z, y, x);
 }
+
+/**
+ * Error code of `portfolio:import` for a file that is not a portfolio
+ * (damaged, empty, another format). The window shows its own sentence.
+ */
+export const PORTFOLIO_FILE_INVALID = "PORTFOLIO_FILE_INVALID";

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Info, RefreshCw, Trash2 } from "lucide-react";
 import type { AnalyzedDealership } from "@shared/types";
@@ -26,6 +26,26 @@ export function MarkerContextMenu({
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
+  // Near the right or bottom edge the menu opened outside the window and no
+  // entry could be reached: keep it inside once its size is known.
+  const [position, setPosition] = useState({ left: state.x, top: state.y });
+  useLayoutEffect(() => {
+    const box = menuRef.current?.getBoundingClientRect();
+    const margin = 8;
+    setPosition({
+      left: Math.max(
+        margin,
+        Math.min(state.x, window.innerWidth - (box?.width ?? 0) - margin),
+      ),
+      top: Math.max(
+        margin,
+        Math.min(state.y, window.innerHeight - (box?.height ?? 0) - margin),
+      ),
+    });
+    // Keyboard: the menu takes the focus, so arrow keys no longer reach the
+    // map behind it.
+    menuRef.current?.querySelector<HTMLElement>("button")?.focus();
+  }, [state.x, state.y]);
   useEffect(() => {
     function onDocMouseDown(e: MouseEvent): void {
       // A press inside the menu belongs to its buttons.
@@ -34,6 +54,17 @@ export function MarkerContextMenu({
     }
     function onKeyDown(e: KeyboardEvent): void {
       if (e.key === "Escape") onClose();
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      // Up and down move between the entries.
+      const items = [
+        ...(menuRef.current?.querySelectorAll<HTMLElement>("button") ?? []),
+      ];
+      if (items.length === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const at = items.indexOf(document.activeElement as HTMLElement);
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      items[(at + step + items.length) % items.length].focus();
     }
     document.addEventListener("mousedown", onDocMouseDown);
     document.addEventListener("keydown", onKeyDown);
@@ -50,7 +81,7 @@ export function MarkerContextMenu({
       aria-label={state.dealership.name}
       className="fixed z-[2000] min-w-40 max-w-64 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0"
       ref={menuRef}
-      style={{ left: state.x, top: state.y }}
+      style={position}
     >
       <p
         className="truncate px-2 py-1.5 text-xs font-medium text-muted-foreground"

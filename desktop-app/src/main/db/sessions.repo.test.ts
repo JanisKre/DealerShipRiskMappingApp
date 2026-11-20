@@ -157,4 +157,11 @@ describe("saved states (UW-09)", () => {
     expect(list.find((s) => s.id === "snap")?.snapshotOf).toBe("s1");
     expect(list.find((s) => s.id === "s1")).not.toHaveProperty("snapshotOf");
   });
+
+  it("keeps the parameter revision a session was saved under", () => {
+    saveSession(session({ id: "rev", parametersRevision: 1 }));
+    saveSession(session({ id: "old" }));
+    expect(loadSession("rev")?.parametersRevision).toBe(1);
+    expect(loadSession("old")?.parametersRevision).toBeUndefined();
+  });
 });

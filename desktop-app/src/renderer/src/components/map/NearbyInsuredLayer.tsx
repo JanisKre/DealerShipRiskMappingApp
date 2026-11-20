@@ -2,7 +2,7 @@ import { Circle, CircleMarker, Tooltip } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
 import type { AnalyzedDealership } from "@shared/types";
 import { nearbyInsured } from "@shared/risk-math";
-import { eur } from "@renderer/lib/format";
+import { eur, num } from "@renderer/lib/format";
 
 /**
  * Accumulation layer for a single location (underwriting view): draws the
@@ -57,7 +57,7 @@ export function NearbyInsuredLayer({
               <strong>{d.name}</strong>
               <div>
                 {t("dashboard.detailDialog.insuredLabel")} ·{" "}
-                {distanceKm.toFixed(1)} km
+                {num(distanceKm, 1)} km
               </div>
               <div>
                 {t("dashboard.detailDialog.exposureLabel")}:{" "}

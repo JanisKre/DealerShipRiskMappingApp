@@ -88,6 +88,12 @@ interface MapState {
   chatPanelOpen: boolean;
   /** ID of the location whose detail dialog is open in the workspace (`null` = closed). */
   detailDialogId: string | null;
+  /**
+   * Ids of the locations list as shown (sorted, searched, filtered), so the
+   * detail dialog pages in the order the list has. Not persisted.
+   */
+  locationsOrder: string[];
+  setLocationsOrder: (ids: string[]) => void;
 
   setLayers: (layers: Partial<MapLayers>) => void;
   toggleLayer: (key: keyof MapLayers) => void;
@@ -216,6 +222,8 @@ export const useMapStore = create<MapState>()(
       toggleLocationsPanel: () =>
         set((s) => ({ locationsPanelOpen: !s.locationsPanelOpen })),
       toggleChatPanel: () => set((s) => ({ chatPanelOpen: !s.chatPanelOpen })),
+      locationsOrder: [],
+      setLocationsOrder: (locationsOrder) => set({ locationsOrder }),
       openDetailDialog: (id) => set({ detailDialogId: id }),
       closeDetailDialog: () => set({ detailDialogId: null }),
     }),

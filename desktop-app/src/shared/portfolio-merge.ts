@@ -56,9 +56,17 @@ export function mergePortfolios(
   const conflictNames: string[] = [];
   let unchangedCount = 0;
 
+  // New locations of this merge, so a file that lists one twice adds it
+  // once (two locations with one id cannot be told apart afterwards).
+  const addedIds = new Set<string>();
+  const addedPositions = new Set<string>();
   for (const inc of incoming) {
     const match = byId.get(inc.id) ?? byPosition.get(positionKey(inc));
     if (!match) {
+      if (addedIds.has(inc.id) || addedPositions.has(positionKey(inc)))
+        continue;
+      addedIds.add(inc.id);
+      addedPositions.add(positionKey(inc));
       added.push(inc);
       continue;
     }

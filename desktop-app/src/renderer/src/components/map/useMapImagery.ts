@@ -1,3 +1,4 @@
+import { isoDate } from "@renderer/lib/format";
 import { useEffect, useState } from "react";
 import type { TFunction } from "i18next";
 import type { AnalyzedDealership } from "@shared/types";
@@ -144,7 +145,7 @@ export function useMapImagery({
           {
             id: `wayback:${pinnedWayback.release}`,
             kind: "esri-wayback",
-            label: `Esri Wayback ${pinnedWayback.publishedAt}`,
+            label: `Esri Wayback ${isoDate(pinnedWayback.publishedAt)}`,
             capturedAt: null,
             dateSource: "none",
             resolutionM: null,

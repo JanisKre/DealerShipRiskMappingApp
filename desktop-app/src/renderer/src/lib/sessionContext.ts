@@ -1,3 +1,4 @@
+import { postcodeAndTown } from "@shared/address-parts";
 import { ealCoverage, estimatedExposure, hasEalBasis } from "@shared/estimates";
 import type { AnalyzedDealership, RiskParameters } from "@shared/types";
 import { LLM_CONTEXT_MAX_CHARS } from "@shared/ipc-schema";
@@ -23,12 +24,6 @@ export interface SessionContextOptions {
 }
 
 const round = (value: number): number => Math.round(value);
-
-/** "01237 Dresden" from a German address line; never the street. */
-function postcodeAndTown(address: string | undefined): string | undefined {
-  const match = address?.match(/\b(\d{5})\s+([^,]+)/);
-  return match ? `${match[1]} ${match[2].trim()}` : undefined;
-}
 
 function status(d: AnalyzedDealership): string {
   if (d.insured === true) return "insured";

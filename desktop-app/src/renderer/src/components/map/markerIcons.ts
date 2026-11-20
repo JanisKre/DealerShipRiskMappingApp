@@ -1,4 +1,5 @@
 import L from "leaflet";
+import { escapeHtml } from "@renderer/lib/escapeHtml";
 import { hailZoneColor, hailZoneTextColor } from "@renderer/lib/riskColor";
 
 /** Grey of a location whose hail zone is not known yet. */
@@ -8,12 +9,14 @@ const PENDING_COLOR = "#6b7280";
  * A location pin: a teardrop in the hail-zone colour (1..6) with the zone
  * printed in it, readable on every zone colour. `zone` null/undefined is a
  * grey pending pin. `selected` adds the app's focus ring and a pulse; new
- * business carries a "+" badge. Styles: `.risk-marker` in globals.css.
+ * business carries a "+" badge. `name` is the location name as
+ * screen-reader text inside the pin. Styles: `.risk-marker` in globals.css.
  */
 export function riskMarkerIcon(
   zone: number | undefined | null,
   selected = false,
   business: "existing" | "new" = "existing",
+  name?: string,
 ): L.DivIcon {
   const color = zone != null ? hailZoneColor(zone) : PENDING_COLOR;
   const text = zone != null ? hailZoneTextColor(zone) : "#ffffff";
@@ -35,7 +38,12 @@ export function riskMarkerIcon(
     iconAnchor: [14, 36],
     popupAnchor: [0, -36],
     tooltipAnchor: [14, -18],
-    html: `<div class="${classes}" style="--marker-color:${color};--marker-text:${text}">${label}${badge}</div>`,
+    // The pin shows only the zone ("Z3"); the location name follows as
+    // text for screen readers, after the visible text, so the accessible
+    // name still starts with what is on screen.
+    html: `<div class="${classes}" style="--marker-color:${color};--marker-text:${text}">${label}${badge}${
+      name ? `<span class="sr-only"> ${escapeHtml(name)}</span>` : ""
+    }</div>`,
   });
 }
 

@@ -228,13 +228,18 @@ function HailSourceSelect({
             </SelectItem>
             {connected.map((p) => (
               <SelectItem key={p} value={p}>
-                {sourceLabel(p)}
+                {p === "custom-api"
+                  ? t("settings.natCat.catalog.customName")
+                  : sourceLabel(p)}
               </SelectItem>
             ))}
             {/* Keep a saved choice visible after its connector was removed. */}
             {value !== "screening" && !connected.includes(value) && (
               <SelectItem value={value} disabled>
-                {sourceLabel(value)} ({t("settings.natCat.notConnected")})
+                {value === "custom-api"
+                  ? t("settings.natCat.catalog.customName")
+                  : sourceLabel(value)}{" "}
+                ({t("settings.natCat.notConnected")})
               </SelectItem>
             )}
           </SelectContent>

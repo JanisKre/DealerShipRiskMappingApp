@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import type { RiskEvidence } from "@shared/types";
 import type { RadarHailClass } from "@shared/radar-hail";
 import {
+  HAIL_EVENT_TIME_MAX_MS,
+  HAIL_EVENT_TIME_MIN_MS,
   HailEventCellSchema,
   isStoredEventId,
   summarizeEvent,
@@ -262,8 +264,18 @@ function importedTime(props: Record<string, unknown>): number | null {
   for (const key of ["time", "datetime", "timestamp", "start", "date"]) {
     const v = props[key];
     if (typeof v === "string" || typeof v === "number") {
-      const t = typeof v === "number" ? v : Date.parse(v);
-      if (Number.isFinite(t)) return t;
+      // A number is Unix time in milliseconds, or in seconds when it is too
+      // small for that. Anything outside the supported years (nanosecond
+      // stamps, a row number) is no time: such an event crashed the page.
+      const raw = typeof v === "number" ? v : Date.parse(v);
+      const t =
+        typeof v === "number" && Math.abs(raw) < 1e11 ? raw * 1000 : raw;
+      if (
+        Number.isFinite(t) &&
+        t >= HAIL_EVENT_TIME_MIN_MS &&
+        t <= HAIL_EVENT_TIME_MAX_MS
+      )
+        return t;
     }
   }
   return null;

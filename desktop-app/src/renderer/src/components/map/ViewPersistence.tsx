@@ -7,6 +7,11 @@ import { useMapStore } from "@renderer/store/mapStore";
 
 interface Props {
   dealerships: AnalyzedDealership[];
+  /**
+   * The locations the arrow keys step through: the list as filtered. The
+   * view itself (fit, fly-to) works on every location.
+   */
+  keyboardOrder?: AnalyzedDealership[];
   selectedId: string | null;
   lastAddedIds: string[];
   onSelect: (id: string) => void;
@@ -23,6 +28,7 @@ interface Props {
  */
 export function ViewPersistence({
   dealerships,
+  keyboardOrder,
   selectedId,
   lastAddedIds,
   onSelect,
@@ -136,21 +142,21 @@ export function ViewPersistence({
     const container = map.getContainer();
     const handleKey = (e: KeyboardEvent): void => {
       if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-      if (dealerships.length === 0) return;
-      const idx = selectedId
-        ? dealerships.findIndex((d) => d.id === selectedId)
-        : -1;
+      // A filtered-out location is not a stop: the keys follow the list.
+      const order = keyboardOrder ?? dealerships;
+      if (order.length === 0) return;
+      const idx = selectedId ? order.findIndex((d) => d.id === selectedId) : -1;
       const next =
         e.key === "ArrowDown"
-          ? (idx + 1) % dealerships.length
-          : (idx - 1 + dealerships.length) % dealerships.length;
-      onSelect(dealerships[next].id);
+          ? (idx + 1) % order.length
+          : (idx - 1 + order.length) % order.length;
+      onSelect(order[next].id);
       e.preventDefault();
     };
     container.addEventListener("keydown", handleKey);
     return () => container.removeEventListener("keydown", handleKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, dealerships, selectedId]);
+  }, [map, dealerships, keyboardOrder, selectedId]);
 
   return null;
 }

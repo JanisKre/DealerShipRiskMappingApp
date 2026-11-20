@@ -40,7 +40,7 @@ export function MessageBubble({
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-3 py-2 text-sm text-primary-foreground">
+        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-primary px-3 py-2 text-sm text-primary-foreground">
           {content}
         </div>
       </div>
@@ -49,7 +49,9 @@ export function MessageBubble({
 
   const finished = !pending && content !== "";
   return (
-    <div className="group/message text-sm">
+    // A long unbroken word (a URL, a path) wraps instead of being cut off
+    // at the panel edge.
+    <div className="group/message min-w-0 break-words text-sm [overflow-wrap:anywhere]">
       {content === "" && pending ? (
         <span
           role="status"

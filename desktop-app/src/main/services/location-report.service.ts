@@ -50,6 +50,14 @@ const LABELS = {
     boundaryReview: "Prüfung empfohlen",
     boundaryConfirmed: "bestätigt",
     manual: "manuell gezeichnet",
+    boundarySources: {
+      alkis: "ALKIS-Kataster",
+      osm: "OpenStreetMap",
+      overture: "Overture Maps",
+      aerial: "Luftbild (Fahrzeug-Umriss)",
+      fused: "mehrere Quellen zusammengeführt",
+      synthetic: "geschätzte Grenze (Kreis)",
+    } as Record<string, string>,
     business: "Geschäftsart",
     existing: "Bestandsgeschäft",
     fresh: "Neugeschäft",
@@ -100,6 +108,14 @@ const LABELS = {
     boundaryReview: "review recommended",
     boundaryConfirmed: "confirmed",
     manual: "drawn manually",
+    boundarySources: {
+      alkis: "ALKIS cadastre",
+      osm: "OpenStreetMap",
+      overture: "Overture Maps",
+      aerial: "aerial image (vehicle outline)",
+      fused: "several sources combined",
+      synthetic: "estimated boundary (circle)",
+    } as Record<string, string>,
     business: "Business",
     existing: "Existing business",
     fresh: "New business",
@@ -150,6 +166,14 @@ const LABELS = {
     boundaryReview: "vérification recommandée",
     boundaryConfirmed: "confirmée",
     manual: "tracée manuellement",
+    boundarySources: {
+      alkis: "cadastre ALKIS",
+      osm: "OpenStreetMap",
+      overture: "Overture Maps",
+      aerial: "image aérienne (contour des véhicules)",
+      fused: "plusieurs sources combinées",
+      synthetic: "limite estimée (cercle)",
+    } as Record<string, string>,
     business: "Affaire",
     existing: "Portefeuille existant",
     fresh: "Affaire nouvelle",
@@ -211,10 +235,12 @@ export async function exportLocationReport(
   if (canceled || !filePath) return null;
 
   const [image, history] = await Promise.all([
-    renderAerialImage(dealership).catch((err: unknown) => {
-      console.warn("Location report: aerial image failed:", err);
-      return null;
-    }),
+    renderAerialImage(dealership, INTL_LOCALE[input.locale]).catch(
+      (err: unknown) => {
+        console.warn("Location report: aerial image failed:", err);
+        return null;
+      },
+    ),
     getHailHistory(dealership.lat, dealership.lon).catch((err: unknown) => {
       console.warn("Location report: hail history failed:", err);
       return null;
@@ -297,6 +323,7 @@ interface ReportImage {
 
 async function renderAerialImage(
   d: AnalyzedDealership,
+  intl: string,
 ): Promise<ReportImage | null> {
   const bbox = reportBbox(d);
   const capture = await aerialImageForBbox(bbox, Math.min(DETECTION_ZOOM, 19));
@@ -352,7 +379,7 @@ async function renderAerialImage(
     width: meta.width ?? outWidth,
     height: meta.height ?? Math.round((height / width) * outWidth),
     caption: chosen
-      ? `${chosen.label}${chosen.capturedAt ? ` (${chosen.capturedAt.slice(0, 10)})` : ""} · ${chosen.attribution}`
+      ? `${chosen.label}${chosen.capturedAt ? ` (${captureDate(chosen.capturedAt, intl)})` : ""} · ${chosen.attribution}`
       : "Esri World Imagery",
   };
 }
@@ -496,7 +523,7 @@ export function buildLocationReportPdf(
       L.boundary,
       boundary
         ? [
-            boundarySourceText(boundary.provider ?? boundary.source, L),
+            boundarySourceText(boundary.source, L),
             `${L.confidence} ${pct(boundary.confidence)}`,
             boundaryState,
           ]
@@ -506,7 +533,8 @@ export function buildLocationReportPdf(
     ],
     [
       L.business,
-      d.insured === true ? L.existing : d.insured === false ? L.fresh : "-",
+      // As in the app: a location not marked as existing is new business.
+      d.insured === true ? L.existing : L.fresh,
     ],
   ];
   if (d.productLimitEur != null)
@@ -556,7 +584,12 @@ export function buildLocationReportPdf(
     y += lines.length * lineHeight + 2;
   };
 
-  const detail = d.risk?.ealBreakdown?.hailDetail;
+  // Without a vehicle count there is no EAL to derive: "0 vehicles × … =
+  // 0 EUR" below "no vehicle count" would read as a computed zero.
+  const detail =
+    siteProvenance(d).ealStatus === "noCount"
+      ? undefined
+      : d.risk?.ealBreakdown?.hailDetail;
   if (detail) {
     section(L.derivation);
     paragraph(
@@ -652,11 +685,28 @@ export function addressWithoutName(d: AnalyzedDealership): string | undefined {
     : d.address;
 }
 
+/** Capture date in the report's language ("07.04.2024"), not as ISO text. */
+function captureDate(capturedAt: string, intl: string): string {
+  const date = new Date(capturedAt);
+  return Number.isNaN(date.getTime())
+    ? capturedAt.slice(0, 10)
+    : date.toLocaleDateString(intl, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+}
+
 function boundarySourceText(
   source: string,
   labels: (typeof LABELS)[ReportLocale],
 ): string {
-  return source === "manual" ? labels.manual : source;
+  // The source in words, as in the app; never the engine's internal
+  // provider code ("alkis-vehicle-parcels").
+  return source === "manual"
+    ? labels.manual
+    : (labels.boundarySources[source] ?? source);
 }
 
 /**

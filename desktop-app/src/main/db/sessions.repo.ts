@@ -74,6 +74,12 @@ export function loadSession(id: string): Session | null {
     ...(!Array.isArray(stored) && stored.parameters
       ? { parameters: stored.parameters }
       : {}),
+    ...(!Array.isArray(stored) &&
+    typeof stored.parametersRevision === "number" &&
+    Number.isInteger(stored.parametersRevision) &&
+    stored.parametersRevision >= 0
+      ? { parametersRevision: stored.parametersRevision }
+      : {}),
     ...(!Array.isArray(stored) && stored.boundaryEdits
       ? { boundaryEdits: validBoundaryEdits(stored.boundaryEdits) }
       : {}),
@@ -91,6 +97,7 @@ export function loadSession(id: string): Session | null {
 interface StoredEnvelope {
   dealerships?: AnalyzedDealership[];
   parameters?: RiskParameters;
+  parametersRevision?: unknown;
   boundaryEdits?: unknown;
   pendingAnalysis?: unknown;
   snapshotOf?: unknown;
@@ -144,6 +151,11 @@ export function saveSession(session: Session): void {
       data: JSON.stringify({
         dealerships: session.dealerships,
         parameters: session.parameters,
+        // Which defaults the parameters were saved under (see
+        // PARAMETERS_REVISION): without it they are migrated on load.
+        ...(session.parametersRevision != null
+          ? { parametersRevision: session.parametersRevision }
+          : {}),
         ...(session.boundaryEdits &&
         Object.keys(session.boundaryEdits).length > 0
           ? { boundaryEdits: session.boundaryEdits }

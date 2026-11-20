@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import type { AnalyzedDealership } from "@shared/types";
+import type {
+  AccumulationCluster,
+  AnalyzedDealership,
+  RiskParameters,
+} from "@shared/types";
 import {
   computeAccumulationClusters,
   dealershipHailZone,
@@ -114,11 +118,7 @@ export function PortfolioFilterBar({
   const clusterName = useMemo(() => {
     if (!filters.clusterId) return null;
     const located = dealerships.filter((d) => d.lat != null && d.lon != null);
-    const cluster = computeAccumulationClusters(
-      located,
-      parameters.accumulationRadiusKm,
-      parameters,
-    ).find((c) => c.clusterId === filters.clusterId);
+    const cluster = resolveFilterCluster(dealerships, filters, parameters);
     if (!cluster) return null;
     const largest = cluster.memberIds
       .map((id) => located.find((d) => d.id === id))
@@ -130,7 +130,7 @@ export function PortfolioFilterBar({
     return cluster.count > 1
       ? `${largest.name} ${t("dashboard.accumulations.more", { count: cluster.count - 1 })}`
       : largest.name;
-  }, [dealerships, filters.clusterId, parameters, t]);
+  }, [dealerships, filters, parameters, t]);
   const counts = useOptionCounts(dealerships);
   const showZone = counts.zones.length > 1 || filters.hailZone != null;
   const showStatus =
@@ -389,6 +389,27 @@ function FilterSelect({
 }
 
 /** Applies the active metadata filters to a dealership list (without cluster). */
+/**
+ * The accumulation behind `filters.clusterId`. A cluster id names its
+ * members, and the dashboard tile builds its accumulations from the
+ * filtered list while the map builds them from the whole portfolio: look
+ * in the list under the other filters first, then in the whole portfolio.
+ */
+export function resolveFilterCluster(
+  dealerships: AnalyzedDealership[],
+  filters: PortfolioFilters,
+  parameters: RiskParameters,
+): AccumulationCluster | undefined {
+  if (!filters.clusterId) return undefined;
+  const find = (list: AnalyzedDealership[]): AccumulationCluster | undefined =>
+    computeAccumulationClusters(
+      list.filter((d) => d.lat != null && d.lon != null),
+      parameters.accumulationRadiusKm,
+      parameters,
+    ).find((c) => c.clusterId === filters.clusterId);
+  return find(applyMetaFilters(dealerships, filters)) ?? find(dealerships);
+}
+
 export function applyMetaFilters(
   dealerships: AnalyzedDealership[],
   filters: PortfolioFilters,

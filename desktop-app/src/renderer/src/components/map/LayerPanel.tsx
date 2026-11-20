@@ -1,3 +1,4 @@
+import { isoDate } from "@renderer/lib/format";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -248,7 +249,7 @@ function ImageryVersionSelect({
         detail: pinnedCandidate
           ? imageryCandidateSummary(pinnedCandidate, t, i18n.language)
           : t("map.layerPanel.imageryVersionPublished", {
-              date: pinned.publishedAt,
+              date: isoDate(pinned.publishedAt),
             }),
       }
     : countedActive
@@ -339,7 +340,7 @@ function ImageryVersionSelect({
               <SelectItem value={String(pinned.release)} className="text-xs">
                 <ImageryOption
                   title={t("map.layerPanel.imageryVersionPublished", {
-                    date: pinned.publishedAt,
+                    date: isoDate(pinned.publishedAt),
                   })}
                 />
               </SelectItem>
@@ -353,7 +354,7 @@ function ImageryVersionSelect({
                 <ImageryOption
                   title={imageryCandidateSummary(c, t, i18n.language)}
                   detail={t("map.layerPanel.imageryVersionPublished", {
-                    date: c.wayback!.publishedAt,
+                    date: isoDate(c.wayback!.publishedAt),
                   })}
                 />
               </SelectItem>

@@ -1,3 +1,4 @@
+import { useMapStore } from "@renderer/store/mapStore";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -23,7 +24,7 @@ import {
   haversineKm,
   nearbyInsured,
 } from "@shared/risk-math";
-import { ACCUMULATION_RADIUS_KM, SAMPLE_DATASETS_URL } from "@shared/constants";
+import { SAMPLE_DATASETS_URL } from "@shared/constants";
 import { Button } from "@renderer/components/ui/button";
 import { Checkbox } from "@renderer/components/ui/checkbox";
 import {
@@ -71,7 +72,13 @@ import {
 } from "./PlaceSourceTag";
 import { allRowsSelected, frozenOrder } from "./mapSelection";
 import type { PlaceSuggestion } from "@shared/ipc-schema";
-import { nameForPlace } from "@renderer/lib/placeName";
+import {
+  coordinateLabel,
+  nameForPlace,
+  parseCoordinatePair,
+} from "@renderer/lib/placeName";
+
+const ADD_ADDRESS_BUTTON_ID = "locations-add-address";
 
 interface Props {
   /** All locations with coordinates (full registry, independent of map text filters). */
@@ -127,6 +134,11 @@ export function LocationsPanel({
 }: Readonly<Props & { variant?: "float" | "dock" }>): React.JSX.Element {
   const { t } = useTranslation();
   const batchRunning = useAppStore((s) => s.analyzing);
+  // The same radius as the ring on the map (the parameter), not a fixed
+  // 10 km: list and map disagreed once the parameter was changed.
+  const accumulationRadiusKm = useAppStore(
+    (s) => s.parameters.accumulationRadiusKm,
+  );
   // Local instead of in mapStore: a pure UI flap for the row list, decoupled
   // from `locationsPanelOpen` (which only controls whether the entire dock panel in
   // WorkspacePage is collapsed to width 0 via the resizer). Otherwise a click
@@ -256,7 +268,7 @@ export function LocationsPanel({
         d,
         distanceKm,
         sameGroup: !isSubject && !!subject?.group && d.group === subject.group,
-        inRadius: distanceKm != null && distanceKm <= ACCUMULATION_RADIUS_KM,
+        inRadius: distanceKm != null && distanceKm <= accumulationRadiusKm,
       };
     });
     const by: Record<SortKey, (a: Row, b: Row) => number> = {
@@ -265,10 +277,11 @@ export function LocationsPanel({
       zone: (a, b) =>
         (dealershipHailZone(b.d)?.zone ?? 0) -
         (dealershipHailZone(a.d)?.zone ?? 0),
+      // The reference location itself is at distance 0 (first row);
+      // comparing it as "unknown" put it at an arbitrary place.
       nearby: (a, b) =>
-        a.distanceKm != null && b.distanceKm != null
-          ? a.distanceKm - b.distanceKm
-          : 0,
+        (a.d.id === subject?.id ? 0 : (a.distanceKm ?? Infinity)) -
+        (b.d.id === subject?.id ? 0 : (b.distanceKm ?? Infinity)),
     };
     const order = sort === "nearby" && !subject ? "eal" : sort;
     const sorted = built.sort(
@@ -289,7 +302,23 @@ export function LocationsPanel({
     frozenRef.current = batchRunning ? { key, ids } : null;
     const byId = new Map(sorted.map((row) => [row.d.id, row]));
     return ids.map((id) => byId.get(id)).filter((r): r is Row => r != null);
-  }, [filtered, subject, selectedId, query, sort, batchRunning]);
+  }, [
+    filtered,
+    subject,
+    selectedId,
+    query,
+    sort,
+    batchRunning,
+    accumulationRadiusKm,
+  ]);
+
+  // The detail dialog pages through the locations in this order.
+  const rowOrder = useMemo(() => rows.map((row) => row.d.id).join("|"), [rows]);
+  useEffect(() => {
+    useMapStore
+      .getState()
+      .setLocationsOrder(rowOrder ? rowOrder.split("|") : []);
+  }, [rowOrder]);
 
   // A site selected elsewhere (map, chat) is scrolled into view once: the
   // page of rows grows to include it, then the row is brought into view.
@@ -320,9 +349,9 @@ export function LocationsPanel({
   const neighborCount = useMemo(
     () =>
       subject
-        ? nearbyInsured(subject, dealerships, ACCUMULATION_RADIUS_KM).length
+        ? nearbyInsured(subject, dealerships, accumulationRadiusKm).length
         : 0,
-    [subject, dealerships],
+    [subject, dealerships, accumulationRadiusKm],
   );
 
   return (
@@ -413,6 +442,7 @@ export function LocationsPanel({
               type="button"
               size="icon"
               variant="ghost"
+              id={ADD_ADDRESS_BUTTON_ID}
               className={cn("size-6 shrink-0", adding && "bg-accent")}
               onClick={() => setAdding((v) => !v)}
               aria-label={t("map.locationsPanel.addAddress")}
@@ -426,7 +456,13 @@ export function LocationsPanel({
         {/* Add address */}
         {adding && (
           <div className="shrink-0 border-t px-2.5 py-2">
-            <AddLocationField onDone={() => setAdding(false)} />
+            <AddLocationField
+              onDone={() => {
+                setAdding(false);
+                // Back to the button that opened the field, not to <body>.
+                document.getElementById(ADD_ADDRESS_BUTTON_ID)?.focus();
+              }}
+            />
           </div>
         )}
 
@@ -561,7 +597,7 @@ export function LocationsPanel({
             ) : (
               subject && (
                 <div className="shrink-0 border-t px-2.5 py-1.5 text-xs text-muted-foreground">
-                  {neighborSummaryText(t, neighborCount)}
+                  {neighborSummaryText(t, neighborCount, accumulationRadiusKm)}
                 </div>
               )
             )}
@@ -612,7 +648,11 @@ export function LocationsPanel({
                               })
                             : analyzingIds.includes(input.id)
                               ? t("map.locationsPanel.unlocatedSearching")
-                              : t("map.locationsPanel.unlocatedWaiting")}
+                              : batchRunning
+                                ? t("map.locationsPanel.unlocatedWaiting")
+                                : // Stopped or interrupted: nothing is
+                                  // "about to" happen to this row.
+                                  t("map.locationsPanel.notAnalyzed")}
                         </div>
                       </div>
                       {error && (
@@ -750,8 +790,11 @@ export function DeleteSelectedDialog({
 }
 
 /** Neighbor summary text (avoids nested ternaries in JSX). */
-function neighborSummaryText(t: TFunction, count: number): string {
-  const radius = ACCUMULATION_RADIUS_KM;
+function neighborSummaryText(
+  t: TFunction,
+  count: number,
+  radius: number,
+): string {
   if (count === 0)
     return t("map.locationsPanel.neighborSummary.none", { radius });
   if (count === 1)
@@ -1009,6 +1052,17 @@ function AddLocationField({
       setOnlineUnavailable(false);
       return;
     }
+    // Typed coordinates are the point itself; a place search would answer
+    // them with unrelated places.
+    const point = parseCoordinatePair(trimmed);
+    if (point) {
+      setSuggestions([{ label: coordinateLabel(point), ...point }]);
+      setOnlineUnavailable(false);
+      setError(false);
+      setActive(0);
+      setAnsweredFor(trimmed);
+      return;
+    }
     let cancelled = false;
     const timer = setTimeout(async () => {
       setLoading(true);
@@ -1045,15 +1099,27 @@ function AddLocationField({
   }, [trimmed]);
 
   function pick(s: Suggestion): void {
-    void useAppStore.getState().addAndAnalyze([
-      {
-        id: crypto.randomUUID(),
-        name: nameForPlace(s, useAppStore.getState().dealerships),
-        address: s.label,
-        lat: s.lat,
-        lon: s.lon,
-      },
-    ]);
+    const typedPoint = parseCoordinatePair(trimmed) != null;
+    void useAppStore
+      .getState()
+      .addAndAnalyze([
+        {
+          id: crypto.randomUUID(),
+          name: nameForPlace(s, useAppStore.getState().dealerships),
+          // Coordinates are no address to look a parcel up by.
+          address: typedPoint ? undefined : s.label,
+          lat: s.lat,
+          lon: s.lon,
+        },
+      ])
+      .then((skipped) => {
+        // Already in the portfolio: say so instead of doing nothing.
+        if (skipped > 0)
+          notify.info(t("start.duplicatesSkipped", { count: skipped }));
+      })
+      .catch((err: unknown) => {
+        console.error("Adding the location failed:", err);
+      });
     setValue("");
     setSuggestions([]);
     onDone();

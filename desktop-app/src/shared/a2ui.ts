@@ -31,7 +31,8 @@ export const A2UI_MAX_DEPTH = 5;
  * title would present an invented number as a result. Plain counts in
  * wording ("Top 10") stay allowed.
  */
-const FIGURE = /(\d[\d.,\s]*\s*(€|eur\b|%|mio\b|tsd\b|mrd\b))|€/i;
+const FIGURE =
+  /(\d[\d.,\s]*\s*(€|eur(?:o|os)?\b|%|prozent\b|percent\b|pour\s?cent\b|mio\b|mill?ion(?:en|s)?\b|mrd\b|milliarden?\b|billions?\b|tsd\b|tausend\b|thousand\b))|((?:\beur|\beuro|\busd|\bchf)\s*\d)|[€$£]/i;
 export function containsFigure(text: string): boolean {
   return FIGURE.test(text);
 }

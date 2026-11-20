@@ -8,7 +8,10 @@ import { sourceLabel } from "@shared/natcat-catalog";
 import { Button } from "@renderer/components/ui/button";
 import { useAppStore } from "@renderer/store/appStore";
 import { pct } from "@renderer/lib/format";
-import { estimateHailZoneFromScore } from "@shared/risk-math";
+import {
+  dealershipHailZone,
+  estimateHailZoneFromScore,
+} from "@shared/risk-math";
 import { Disclosure, formatIsoDate } from "./shared";
 import { boundaryRoleLabel } from "./boundaryText";
 
@@ -79,7 +82,27 @@ export function ModelConfidenceSummary({
 
 /** Localizes persisted provenance text while keeping unknown provider text intact. */
 function localizedRiskText(t: TFunction, text: string): string {
+  // The analysis appends where the point came from ("…; anchor: official
+  // house coordinate (ALKIS Sachsen)"): translate both parts.
+  const anchored = /^(.*); anchor: (.+)$/.exec(text);
+  if (anchored) {
+    const official = /^official house coordinate \((.+)\)$/.exec(anchored[2]);
+    return `${localizedRiskText(t, anchored[1])}; ${t(
+      "dashboard.detailDialog.riskText.anchor",
+      {
+        source: official
+          ? t("dashboard.detailDialog.riskText.anchorOfficial", {
+              register: official[1],
+            })
+          : anchored[2],
+      },
+    )}`;
+  }
   const exact: Record<string, string> = {
+    "cascade stage 1: cadastral parcels of the site (site model)":
+      "dashboard.detailDialog.riskText.cascadeSiteParcels",
+    "cascade stage 4: cadastral parcels at the point, no vehicle lot seen":
+      "dashboard.detailDialog.riskText.cascadeParcelsNoLot",
     "Hazard values are location-level proxies and should be validated before underwriting decisions":
       "dashboard.detailDialog.riskText.hazardProxy",
     "Not a catastrophe-model or engineering assessment":
@@ -215,7 +238,11 @@ export function NatCatSection({
   if (!assessment)
     return (
       <p className="text-xs text-muted-foreground">
-        {t("dashboard.detailDialog.natCatNone")}
+        {dealershipHailZone(d)?.source === "estimated"
+          ? // Outside the postcode table (abroad, unknown postcode) the
+            // zone is an estimate from weather data, not a table value.
+            t("dashboard.detailDialog.natCatNoneEstimated")
+          : t("dashboard.detailDialog.natCatNone")}
       </p>
     );
 

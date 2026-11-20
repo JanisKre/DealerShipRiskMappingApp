@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Badge } from "@renderer/components/ui/badge";
+import { portfolioName } from "@renderer/lib/portfolioName";
 import type { PlaceSuggestion } from "@shared/ipc-schema";
 
 const SOURCE_LABEL = { osm: "OSM", overture: "Overture" } as const;
@@ -39,10 +40,12 @@ export function PlacePortfolioBadge({
       <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">
         {more > 0
           ? t("places.inPortfolioMore", {
-              portfolio: first.sessionName,
+              portfolio: portfolioName(first.sessionName, t),
               count: more,
             })
-          : t("places.inPortfolio", { portfolio: first.sessionName })}
+          : t("places.inPortfolio", {
+              portfolio: portfolioName(first.sessionName, t),
+            })}
       </Badge>
       {first.notesExcerpt && (
         <span className="truncate text-xs text-muted-foreground">

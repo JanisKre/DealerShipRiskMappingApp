@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { keepSupportedSentences } from "@shared/number-check";
 import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles, Square } from "lucide-react";
 import type { LlmStreamRequest } from "@shared/ipc-schema";
@@ -34,6 +35,14 @@ export function AiExplanation({
 
   useEffect(() => reset(), [facts, reset]);
 
+  // The explanation may only quote figures the app handed over. Sentences
+  // with any other amount, percentage or count are left out, so the line
+  // "the values do not come from the AI" holds.
+  const checked = useMemo(
+    () => (text && facts ? keepSupportedSentences(text, facts) : null),
+    [text, facts],
+  );
+
   if (!ready || !facts) return null;
   return (
     <div className={className}>
@@ -54,9 +63,14 @@ export function AiExplanation({
         )}
       </div>
       {error && <LlmErrorMessage error={error} className="mt-2" />}
-      {text && (
+      {checked && (
         <div className="mt-2 rounded-md border bg-muted/40 p-3">
-          <Markdown text={text} />
+          {checked.text.trim() && <Markdown text={checked.text} />}
+          {!streaming && checked.removed > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {t("ai.explain.removed", { count: checked.removed })}
+            </p>
+          )}
           <p className="mt-2 text-xs text-muted-foreground">
             {t("ai.explain.disclaimer")}
           </p>

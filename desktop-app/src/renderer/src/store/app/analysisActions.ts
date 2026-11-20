@@ -338,13 +338,22 @@ export function analysisActions(
       // then analyses for a while; save right away so the rows are listed
       // (and survive closing the app) before the analysis finishes. On the
       // next start the "resume analysis" notice takes over.
-      const analysis = get().addAndAnalyze(classified);
+      // The number of skipped duplicates is known now; the caller reports
+      // it right after the import instead of when the analysis has ended
+      // (minutes to hours later).
+      const skipped = dedupeDealerships([...get().dealerships, ...classified])
+        .duplicates.length;
+      void get()
+        .addAndAnalyze(classified)
+        .catch((err: unknown) => {
+          console.error("Analysing the imported portfolio failed:", err);
+        });
       await get()
         .saveSession()
         .catch((err: unknown) => {
           console.error("Saving the imported portfolio failed:", err);
         });
-      return analysis;
+      return skipped;
     },
   };
 }

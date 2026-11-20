@@ -81,15 +81,41 @@ const RETIRED_DEFAULTS: Partial<RiskParameters> = {
   syntheticBoundaryRadiusM: 100,
 };
 
-/** Normalizes a partial/legacy session value without mutating the input. */
+/**
+ * Revision of the parameter defaults a session was saved under. A session
+ * without it predates the retuned defaults and is migrated once on load;
+ * one that carries the current revision keeps every value as stored (a
+ * circle radius of 100 m typed today is a choice, not the old default).
+ */
+export const PARAMETERS_REVISION = 1;
+
+/** Parameters of a stored session, migrated when it predates the retune. */
+export function sessionParameters(session: {
+  parameters?: Partial<RiskParameters> | null;
+  parametersRevision?: number;
+}): RiskParameters {
+  return normalizeRiskParameters(session.parameters, {
+    keepRetiredDefaults:
+      (session.parametersRevision ?? 0) >= PARAMETERS_REVISION,
+  });
+}
+
+/**
+ * Normalizes a partial/legacy session value without mutating the input.
+ * `keepRetiredDefaults` is for values the user sets now: they are never an
+ * old default to move.
+ */
 export function normalizeRiskParameters(
   value?: Partial<RiskParameters> | null,
+  options: { keepRetiredDefaults?: boolean } = {},
 ): RiskParameters {
   const migrated: Partial<RiskParameters> = { ...value };
-  for (const [key, retired] of Object.entries(RETIRED_DEFAULTS) as Array<
-    [keyof RiskParameters, unknown]
-  >) {
-    if (migrated[key] === retired) delete migrated[key];
+  if (!options.keepRetiredDefaults) {
+    for (const [key, retired] of Object.entries(RETIRED_DEFAULTS) as Array<
+      [keyof RiskParameters, unknown]
+    >) {
+      if (migrated[key] === retired) delete migrated[key];
+    }
   }
   return RiskParametersSchema.parse({
     ...DEFAULT_RISK_PARAMETERS,
