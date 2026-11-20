@@ -175,6 +175,13 @@ export interface LayerPanelProps {
   countedImagery: ImageryCandidate | null;
   /** What automatic selection yields at the map centre (null while loading). */
   autoImagery: ImageryCandidate | null;
+  /**
+   * The map is too narrow for the hail card and the open panel side by
+   * side: the panel folds away when the card appears.
+   */
+  narrowMap?: boolean;
+  /** Reports whether the panel is open (the hail card steps back then). */
+  onOpenChange?: (open: boolean) => void;
 }
 
 const AUTO_IMAGERY = "auto";
@@ -397,6 +404,8 @@ export function LayerPanel({
   imageryTimelineAvailable,
   countedImagery,
   autoImagery,
+  narrowMap = false,
+  onOpenChange,
 }: LayerPanelProps): React.JSX.Element {
   const { t } = useTranslation();
   const layers = useMapStore((s) => s.layers);
@@ -425,6 +434,23 @@ export function LayerPanel({
   useEffect(() => {
     if (detectionEditing) setOpen(true);
   }, [detectionEditing]);
+
+  // On a narrow map the hail card (top left) and the open panel (bottom
+  // right, opening upwards) overlap. When the card appears there, the panel
+  // folds away; opening it again is the user's choice, and the card steps
+  // back while it is open (MapPage).
+  const hailCardShown = hailPlaying || hailMapMode != null || hasCorridor;
+  const headerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!narrowMap || !hailCardShown) return;
+    setOpen(false);
+    // The click that started the storm came from inside the panel: keep
+    // the focus on its header instead of losing it to the page.
+    if (panelRef.current?.contains(document.activeElement))
+      headerRef.current?.focus();
+  }, [narrowMap, hailCardShown]);
+  useEffect(() => onOpenChange?.(open), [open, onOpenChange]);
   const bmLabels = basemapLabels(t);
   const pinnedWayback = useMapStore((s) => s.pinnedWayback);
   // The year the pinned image was taken, not when Esri published the
@@ -442,9 +468,13 @@ export function LayerPanel({
       : bmLabels[basemap];
 
   return (
-    <div className="pointer-events-auto flex max-h-full min-h-0 flex-col rounded-lg border bg-card shadow-lg">
+    <div
+      ref={panelRef}
+      className="pointer-events-auto flex max-h-full min-h-0 flex-col rounded-lg border bg-card shadow-lg"
+    >
       {/* Fixed header — collapses/expands the entire panel */}
       <button
+        ref={headerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"

@@ -246,6 +246,10 @@ the project follows [Semantic Versioning](https://semver.org/).
     (often a dealer website from OpenStreetMap) opens as `https:`; other
     schemes and addresses with credentials are not opened. The phone number
     in the place details is shown as text (a `tel:` link would do nothing).
+  - **Hail card on a narrow map.** Below 640 px of map width the hail card
+    and the open layer panel overlapped. The layer panel now folds away when
+    the card appears there; opened again, the card steps back until the
+    panel is closed. Wider maps are unchanged.
 
 
 - Own aerial imagery source: a tile template with `{time}` no longer takes

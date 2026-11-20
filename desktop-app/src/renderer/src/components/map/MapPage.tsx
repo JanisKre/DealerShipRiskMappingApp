@@ -1,4 +1,5 @@
 import { useDismissedHint } from "@renderer/lib/dismissedHints";
+import { cn } from "@renderer/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
@@ -72,6 +73,12 @@ import { useMapImagery } from "./useMapImagery";
 // became draggable — and snapping scanned all of them on every move.
 L.PM?.setOptIn(true);
 
+/**
+ * Narrower than this, the hail card (left, at least 18 rem from 4 rem) and
+ * the layer panel (15 rem, right) overlap.
+ */
+const NARROW_MAP_PX = 640;
+
 export function MapPage(): React.JSX.Element {
   const { t } = useTranslation();
   // Portfolio state
@@ -84,6 +91,19 @@ export function MapPage(): React.JSX.Element {
   const analyzingIds = useAppStore((s) => s.analyzingIds);
   const analyzing = useAppStore((s) => s.analyzing);
   const [resumeDismissed, setResumeDismissed] = useState(false);
+  // Width of the map area: below NARROW_MAP_PX the hail card and the open
+  // layer panel do not fit side by side.
+  const [mapArea, setMapArea] = useState<HTMLDivElement | null>(null);
+  const [narrowMap, setNarrowMap] = useState(false);
+  useEffect(() => {
+    if (!mapArea) return undefined;
+    const observer = new ResizeObserver(([entry]) =>
+      setNarrowMap(entry.contentRect.width < NARROW_MAP_PX),
+    );
+    observer.observe(mapArea);
+    return () => observer.disconnect();
+  }, [mapArea]);
+  const [layersOpen, setLayersOpen] = useState(false);
   const detectionUpdateIds = useAppStore((s) => s.detectionUpdateIds);
   const boundaryEditIds = useAppStore((s) => s.boundaryEditIds);
   const boundaryHistory = useAppStore((s) => s.boundaryHistory);
@@ -432,7 +452,7 @@ export function MapPage(): React.JSX.Element {
   }
 
   return (
-    <div className="relative h-full w-full">
+    <div ref={setMapArea} className="relative h-full w-full">
       <MapContainer
         center={center}
         zoom={10}
@@ -567,7 +587,13 @@ export function MapPage(): React.JSX.Element {
 
       {/* Hail simulation: the playing storm and its impact, right of the
           zoom control and clear of the layer panel on the right. */}
-      <div className="pointer-events-none absolute bottom-24 left-16 top-3 z-[1001] flex w-[min(30rem,calc(100%-21rem))] min-w-72 flex-col items-stretch gap-2 [&>*]:pointer-events-auto">
+      {/* On a narrow map it steps back while the layer panel is open. */}
+      <div
+        className={cn(
+          "pointer-events-none absolute bottom-24 left-16 top-3 z-[1001] flex w-[min(30rem,calc(100%-21rem))] min-w-72 flex-col items-stretch gap-2 [&>*]:pointer-events-auto",
+          narrowMap && layersOpen && "hidden",
+        )}
+      >
         <HailEventCard />
       </div>
 
@@ -598,6 +624,8 @@ export function MapPage(): React.JSX.Element {
             imageryTimelineAvailable={imagery.timelineAvailable}
             countedImagery={imagery.countedCandidate}
             autoImagery={imagery.autoImagery}
+            narrowMap={narrowMap}
+            onOpenChange={setLayersOpen}
           />
         </div>
       </div>
