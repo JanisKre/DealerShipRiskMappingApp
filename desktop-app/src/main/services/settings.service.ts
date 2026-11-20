@@ -54,6 +54,22 @@ export function setSettings(partial: Partial<Settings>): Settings {
       partial = { ...partial, wmsTileUrl: check.template };
     }
   }
+  // The AI endpoint: an http(s) address without embedded credentials, as
+  // the settings form requires. (A "user:pw@" address would sit in the
+  // settings file in clear text; the key belongs in the key store.)
+  const baseUrl = partial.llm?.baseUrl?.trim();
+  if (baseUrl) {
+    let url: URL | null;
+    try {
+      url = new URL(baseUrl);
+    } catch {
+      url = null;
+    }
+    if (!url || !["http:", "https:"].includes(url.protocol))
+      throw new Error("Invalid AI base URL (http or https address expected)");
+    if (url.username || url.password)
+      throw new Error("Invalid AI base URL (must not contain credentials)");
+  }
   // The Overpass server is queried by the main process: same rule.
   // An empty value clears it (an undefined key would not survive IPC).
   if (partial.overpassUrl !== undefined) {

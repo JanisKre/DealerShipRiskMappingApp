@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { RISK_MODEL_VERSION } from "@shared/constants";
 import { useTranslation } from "react-i18next";
 import {
   ChevronRight,
@@ -250,8 +251,6 @@ const GROUPS: ParameterGroup[] = [
         min: 0,
         max: 1,
         step: 0.01,
-        recommended: true,
-        tip: true,
       },
       {
         key: "pmlClusterRadiusKm",
@@ -514,6 +513,15 @@ function HailEalNotice({
     parameters.hailShareMedium +
     parameters.hailShareLarge;
   const mean = meanHailSeverityEur(parameters);
+  // S above the vehicle value is capped there: say so, or Σ p·S does not
+  // add up from the values in the table.
+  const capped =
+    parameters.vehicleValueCarEur > 0 &&
+    [
+      parameters.hailSeveritySmallEur,
+      parameters.hailSeverityMediumEur,
+      parameters.hailSeverityLargeEur,
+    ].some((s) => s > parameters.vehicleValueCarEur);
   const fallingZones = zonesWithFallingFrequency([
     parameters.hailFrequencyZone1,
     parameters.hailFrequencyZone2,
@@ -542,6 +550,13 @@ function HailEalNotice({
       <p className="text-xs text-muted-foreground">
         {t("parameters.hailEal.meanSeverity", { value: eur(mean) })}
       </p>
+      {capped && (
+        <WarningLine className="text-xs">
+          {t("parameters.hailEal.severityCapped", {
+            value: eur(parameters.vehicleValueCarEur),
+          })}
+        </WarningLine>
+      )}
       {Math.abs(shareSum - 1) > 0.001 && (
         <WarningLine className="text-xs">
           {t("parameters.hailEal.shareSum", {
@@ -594,23 +609,56 @@ function HailEalTables({
     riskFields.find((f) => f.key === key)!;
   const cell = (key: ParameterKey): React.JSX.Element => {
     const field = fieldOf(key);
+    const standard = DEFAULT_RISK_PARAMETERS[key];
+    const changed = bindings.parameters[key] !== standard;
     return (
-      <ParameterEditor
-        field={field}
-        label={bindings.label(field)}
-        unit=""
-        value={
-          bindings.draft[key] ??
-          displayValue(key, bindings.parameters[key], bindings.locale)
-        }
-        locale={bindings.locale}
-        onDraftChange={(value) => bindings.onDraftChange(key, value)}
-        onCommit={(raw) => bindings.onCommit(field, raw)}
-        onRevert={() => bindings.onRevert(field)}
-        disabled={bindings.disabled}
-        error={bindings.errors[key]}
-        compact
-      />
+      <div className="space-y-0.5">
+        <ParameterEditor
+          field={field}
+          label={bindings.label(field)}
+          unit=""
+          value={
+            bindings.draft[key] ??
+            displayValue(key, bindings.parameters[key], bindings.locale)
+          }
+          locale={bindings.locale}
+          onDraftChange={(value) => bindings.onDraftChange(key, value)}
+          onCommit={(raw) => bindings.onCommit(field, raw)}
+          onRevert={() => bindings.onRevert(field)}
+          disabled={bindings.disabled}
+          error={bindings.errors[key]}
+          compact
+        />
+        {/* Like every other field: what the standard is, and a way back to
+          it for this value alone. */}
+        {changed && (
+          <div className="flex items-center justify-end gap-0.5 text-[10px] text-muted-foreground">
+            <span>
+              {t("parameters.changedBadge", {
+                value: displayValue(key, standard, bindings.locale),
+              })}
+            </span>
+            <HintButton
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-5"
+              disabled={bindings.disabled}
+              aria-label={t("parameters.resetField", {
+                label: bindings.label(field),
+              })}
+              onClick={() =>
+                bindings.onCommit(
+                  field,
+                  displayValue(key, standard, bindings.locale),
+                )
+              }
+            >
+              <RotateCcw className="size-3" />
+            </HintButton>
+          </div>
+        )}
+      </div>
     );
   };
   const classes = [
@@ -886,16 +934,35 @@ function ImpactBar(): React.JSX.Element | null {
   const dealerships = useAppStore((s) => s.dealerships);
   const updating = useAppStore((s) => s.parametersUpdating);
   const totals = portfolioTotals(dealerships);
-  const [baseline] = useState(totals);
+  // Results of an older risk model are not what these values give; they are
+  // recalculated with the first change. A change against them would show
+  // the model update as the effect of the edit.
+  const stale = dealerships.some(
+    (d) => d.risk && d.risk.modelVersion !== RISK_MODEL_VERSION,
+  );
+  const [baseline, setBaseline] = useState({ totals, stale });
+  useEffect(() => {
+    if (baseline.stale && !stale && !updating)
+      setBaseline({ totals, stale: false });
+  }, [baseline.stale, stale, updating, totals]);
   if (totals.analyzed === 0) return null;
-  const ealDelta = signedPercent(totals.eal, baseline.eal);
-  const exposureDelta = signedPercent(totals.exposure, baseline.exposure);
+  const comparable = !baseline.stale && !stale;
+  const ealDelta = comparable
+    ? signedPercent(totals.eal, baseline.totals.eal)
+    : null;
+  const exposureDelta = comparable
+    ? signedPercent(totals.exposure, baseline.totals.exposure)
+    : null;
   return (
     <div
       role="status"
       className="sticky bottom-4 z-10 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl border bg-card/95 px-4 py-2.5 text-sm shadow-lg backdrop-blur"
     >
-      <span className="font-medium">{t("parameters.impact.title")}</span>
+      <span className="font-medium">
+        {stale
+          ? t("parameters.impact.titleStale")
+          : t("parameters.impact.title")}
+      </span>
       <span className="tabular-nums">
         {t("parameters.impact.eal")}{" "}
         <strong>{totals.counted > 0 ? eur(totals.eal) : "–"}</strong>

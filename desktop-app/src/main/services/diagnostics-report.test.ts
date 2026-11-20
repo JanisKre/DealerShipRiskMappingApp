@@ -5,6 +5,26 @@ import {
 } from "./diagnostics-report";
 
 describe("buildDiagnosticsReport", () => {
+  it("replaces the home folder by ~ in the log and the settings", () => {
+    const report = buildDiagnosticsReport({
+      generatedAt: new Date("2026-11-20T10:00:00.000Z"),
+      app: {
+        name: "Dealership Risk Mapping",
+        version: "0.6.0",
+        packaged: true,
+      },
+      runtime: {},
+      os: { platform: "darwin", arch: "arm64", release: "27", locale: "de" },
+      settings: { language: "de", overpassUrl: "http://127.0.0.1/x" },
+      data: {},
+      detectionModelInstalled: true,
+      log: "loading /Users/jane.doe/Library/App/models/a.onnx\nok\n",
+      homeDir: "/Users/jane.doe",
+    });
+    expect(report.log).toEqual(["loading ~/Library/App/models/a.onnx", "ok"]);
+    expect(JSON.stringify(report)).not.toContain("jane.doe");
+  });
+
   it("contains environment, settings and log lines with secrets masked", () => {
     const report = buildDiagnosticsReport({
       generatedAt: new Date("2026-11-13T10:00:00.000Z"),

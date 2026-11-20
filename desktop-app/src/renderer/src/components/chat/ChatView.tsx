@@ -201,7 +201,10 @@ export function ChatView({
         },
         crypto.randomUUID(),
       );
-      const dashboard = await dashboards.saveNew(surface, prompt);
+      // Saved without the request: the template does not follow it ("ab
+      // Zone 4" still shows every location), so it must not be quoted
+      // above the figures.
+      const dashboard = await dashboards.saveNew(surface, "");
       void navigate("/dashboard");
       return t("chat.actions.dashboardTemplate", { name: dashboard.name });
     }

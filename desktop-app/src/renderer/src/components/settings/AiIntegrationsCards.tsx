@@ -601,15 +601,15 @@ export function AiLogCard({
                     <TableRow
                       key={entry.id}
                       tabIndex={0}
-                      className="cursor-pointer"
+                      className="cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                       onClick={() =>
                         void window.api.getAiLogEntry(entry.id).then(setDetail)
                       }
                       onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                          void window.api
-                            .getAiLogEntry(entry.id)
-                            .then(setDetail);
+                        // Enter and Space open the entry, as for a button.
+                        if (e.key !== "Enter" && e.key !== " ") return;
+                        e.preventDefault();
+                        void window.api.getAiLogEntry(entry.id).then(setDetail);
                       }}
                     >
                       <TableCell className="whitespace-nowrap text-xs">

@@ -2,7 +2,7 @@ import { app, dialog, type BrowserWindow } from "electron";
 import { statSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { release } from "node:os";
+import { homedir, release } from "node:os";
 import { getDb } from "../db/database";
 import { isModelAvailable } from "./detection.service";
 import {
@@ -81,6 +81,7 @@ export async function exportDiagnostics(
     data: dataCounts(),
     detectionModelInstalled: isModelAvailable(),
     log: readRecentLog(DIAGNOSTICS_LOG_BYTES),
+    homeDir: homedir(),
   });
   await writeFile(filePath, JSON.stringify(report, null, 2), "utf-8");
   return filePath;

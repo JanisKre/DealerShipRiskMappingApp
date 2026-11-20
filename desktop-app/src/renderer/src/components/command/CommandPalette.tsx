@@ -1,4 +1,5 @@
 import { MapPin, Monitor, Moon, Sun } from "lucide-react";
+import { foldText } from "@shared/name-normalize";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -93,6 +94,8 @@ export function CommandPalette({
                   key={d.id}
                   // The id keeps two sites with the same name apart.
                   value={`${d.name} ${d.address ?? ""} ${d.id}`}
+                  // "koln" and "koeln" find "Köln".
+                  keywords={paletteKeywords(`${d.name} ${d.address ?? ""}`)}
                   onSelect={() =>
                     run(() => {
                       select(d.id);
@@ -115,4 +118,10 @@ export function CommandPalette({
       </CommandList>
     </CommandDialog>
   );
+}
+
+/** Spellings without accents and umlauts, for the palette search. */
+function paletteKeywords(text: string): string[] {
+  const plain = text.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+  return [plain, foldText(text)];
 }

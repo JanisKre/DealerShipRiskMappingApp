@@ -157,20 +157,19 @@
       },
       "pmlDamageFraction10": {
         "label": "Taux de dommage PML 10 ans",
-        "description": "Taux de dommage pour le PML à 10 ans."
+        "description": "Taux de dommage pour le PML à 10 ans. Utilisé uniquement dans le contexte du chat IA optionnel ; aucune vue de l’application n’affiche actuellement de valeur PML."
       },
       "pmlDamageFraction50": {
         "label": "Taux de dommage PML 50 ans",
-        "description": "Taux de dommage pour le PML à 50 ans."
+        "description": "Taux de dommage pour le PML à 50 ans. Utilisé uniquement dans le contexte du chat IA optionnel ; aucune vue de l’application n’affiche actuellement de valeur PML."
       },
       "pmlDamageFraction100": {
         "label": "Taux de dommage PML 100 ans",
-        "description": "Taux de dommage pour le PML à 100 ans.",
-        "tip": "L’hypothèse PML la plus importante pour un événement rare mais grave."
+        "description": "Taux de dommage pour le PML à 100 ans. Utilisé uniquement dans le contexte du chat IA optionnel ; aucune vue de l’application n’affiche actuellement de valeur PML."
       },
       "pmlClusterRadiusKm": {
         "label": "Rayon de cluster PML",
-        "description": "Rayon pour la plus forte exposition PML."
+        "description": "Rayon pour la plus forte exposition PML. Utilisé uniquement dans le contexte du chat IA optionnel ; aucune vue de l’application n’affiche actuellement de valeur PML."
       },
       "accumulationRadiusKm": {
         "label": "Rayon de cumul",
@@ -331,7 +330,8 @@
       "frequencyOrder_one": "λ en zone {{zones}} est inférieur à celui de la zone précédente – à vérifier.",
       "frequencyOrder_other": "λ dans les zones {{zones}} est inférieur à celui de la zone précédente – à vérifier.",
       "frequencyHigh_one": "λ en zone {{zones}} dépasse 1 événement par an – peu plausible pour un taux de zone, réservé aux tests de stress.",
-      "frequencyHigh_other": "λ en zones {{zones}} dépasse 1 événement par an – peu plausible pour un taux de zone, réservé aux tests de stress."
+      "frequencyHigh_other": "λ en zones {{zones}} dépasse 1 événement par an – peu plausible pour un taux de zone, réservé aux tests de stress.",
+      "severityCapped": "Les sévérités supérieures à la valeur du véhicule sont plafonnées à {{value}} – Σ p·S ci-dessus utilise la valeur plafonnée."
     },
     "resetUndo": "Annuler",
     "resetNothing": "Toutes les valeurs correspondent déjà aux valeurs par défaut",
@@ -354,7 +354,8 @@
       "title": "Avec ces valeurs :",
       "eal": "EAL grêle",
       "exposure": "Exposition",
-      "coverage": "{{counted}} sites sur {{analyzed}} avec un nombre de véhicules · variation depuis l’ouverture de la page entre parenthèses"
+      "coverage": "{{counted}} sites sur {{analyzed}} avec un nombre de véhicules · variation depuis l’ouverture de la page entre parenthèses",
+      "titleStale": "Résultats enregistrés (ancien modèle de risque, recalculés à la prochaine modification) :"
     },
     "templates": {
       "apply": "Appliquer un modèle…",
@@ -436,7 +437,11 @@
         "test": "Tester la connexion",
         "disconnect": "Déconnecter",
         "testOk": "Connecté – réponse en {{ms}} ms avec : {{perils}}",
-        "testFailed": "Échec du test : {{error}}"
+        "testFailed": "Échec du test : {{error}}",
+        "invalidUrl": "Ce n’est pas une adresse valide. Exemple : https://api.example.com/hazard",
+        "httpsOnly": "Le point d’accès doit commencer par https://.",
+        "noCredentials": "L’adresse ne doit contenir ni nom d’utilisateur ni mot de passe ; la clé va dans le champ « Clé API ».",
+        "saveBeforeTest": "Enregistrez d’abord – le test vérifie l’adresse enregistrée."
       }
     },
     "satelliteSource": {
@@ -536,7 +541,8 @@
       },
       "reload": "Recharger la liste",
       "enterManually": "Saisir l’ID du modèle manuellement",
-      "backToList": "Retour à la liste"
+      "backToList": "Retour à la liste",
+      "notAModelServer": "L’adresse répond, mais pas avec une liste de modèles. Se termine-t-elle par /v1 ?"
     },
     "test": {
       "button": "Tester la connexion",
@@ -1580,7 +1586,8 @@
       "disclaimer": "Explication par l’IA des valeurs calculées par l’application ci-dessus. Les valeurs elles-mêmes ne proviennent pas de l’IA.",
       "removed_one": "{{count}} phrase contenant un chiffre qui ne vient pas de l’application a été omise.",
       "removed_other": "{{count}} phrases contenant des chiffres qui ne viennent pas de l’application ont été omises."
-    }
+    },
+    "emptyAnswer": "Le modèle n’a écrit aucune réponse. Réessayez ou choisissez un autre modèle."
   },
   "risk": {
     "LOW": "Faible",
@@ -2087,7 +2094,9 @@
     "selectionCount_one": "{{count}} sur {{total}} sites",
     "selectionCount_other": "{{count}} sur {{total}} sites",
     "emptyShort": "Aucun site dans cette sélection",
-    "builtFromChanged": "Créé à partir de « {{first}} » · dernier : « {{last}} »"
+    "builtFromChanged": "Créé à partir de « {{first}} » · dernier : « {{last}} »",
+    "builtFromTemplate": "Modèle standard de l’application (créé sans IA)",
+    "provenanceTemplate": "La mise en page et les valeurs proviennent de l’application ; chaque valeur est calculée à partir du portefeuille (estimation de présélection, EAL grêle avec valeurs provisoires). Le filtre de portefeuille ci-dessus s’applique ici aussi."
   },
   "radarHail": {
     "title": "Cellules de grêle radar (DWD)",

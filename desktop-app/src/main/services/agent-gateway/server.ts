@@ -65,8 +65,12 @@ function readBody(req: IncomingMessage): Promise<Buffer | null> {
     req.on("data", (chunk: Buffer) => {
       size += chunk.length;
       if (size > GATEWAY_MAX_BODY_BYTES) {
+        // Too large: answer 413 now and let the rest of the body run off
+        // unread, so the client receives the answer instead of a reset
+        // connection. A body that never ends is cut.
         resolve(null);
-        req.destroy();
+        chunks.length = 0;
+        if (size > GATEWAY_MAX_BODY_BYTES * 8) req.destroy();
         return;
       }
       chunks.push(chunk);

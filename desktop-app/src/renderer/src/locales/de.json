@@ -157,20 +157,19 @@
       },
       "pmlDamageFraction10": {
         "label": "PML-Schadenquote 10 Jahre",
-        "description": "Schadenquote für das 10-Jahres-PML."
+        "description": "Schadenquote für das 10-Jahres-PML. Wird nur im Kontext des optionalen KI-Chats verwendet; keine Ansicht der App zeigt derzeit einen PML-Wert."
       },
       "pmlDamageFraction50": {
         "label": "PML-Schadenquote 50 Jahre",
-        "description": "Schadenquote für das 50-Jahres-PML."
+        "description": "Schadenquote für das 50-Jahres-PML. Wird nur im Kontext des optionalen KI-Chats verwendet; keine Ansicht der App zeigt derzeit einen PML-Wert."
       },
       "pmlDamageFraction100": {
         "label": "PML-Schadenquote 100 Jahre",
-        "description": "Schadenquote für das 100-Jahres-PML.",
-        "tip": "Die wichtigste PML-Annahme für ein seltenes, aber schweres Ereignis."
+        "description": "Schadenquote für das 100-Jahres-PML. Wird nur im Kontext des optionalen KI-Chats verwendet; keine Ansicht der App zeigt derzeit einen PML-Wert."
       },
       "pmlClusterRadiusKm": {
         "label": "PML-Cluster-Radius",
-        "description": "Radius für das größte PML-Exposure."
+        "description": "Radius für das größte PML-Exposure. Wird nur im Kontext des optionalen KI-Chats verwendet; keine Ansicht der App zeigt derzeit einen PML-Wert."
       },
       "accumulationRadiusKm": {
         "label": "Kumulationsradius",
@@ -331,7 +330,8 @@
       "frequencyOrder_one": "λ in Zone {{zones}} ist kleiner als in der Zone darunter – bitte prüfen.",
       "frequencyOrder_other": "λ in den Zonen {{zones}} ist kleiner als in der jeweils niedrigeren Zone – bitte prüfen.",
       "frequencyHigh_one": "λ in Zone {{zones}} liegt über 1 Ereignis pro Jahr – für eine Zonenrate unplausibel, nur für Stresstests gedacht.",
-      "frequencyHigh_other": "λ in den Zonen {{zones}} liegt über 1 Ereignis pro Jahr – für eine Zonenrate unplausibel, nur für Stresstests gedacht."
+      "frequencyHigh_other": "λ in den Zonen {{zones}} liegt über 1 Ereignis pro Jahr – für eine Zonenrate unplausibel, nur für Stresstests gedacht.",
+      "severityCapped": "Schadenhöhen über dem Fahrzeugwert werden auf {{value}} begrenzt – Σ p·S oben rechnet mit dem begrenzten Wert."
     },
     "resetUndo": "Rückgängig",
     "resetNothing": "Alle Werte entsprechen bereits den Standardwerten",
@@ -354,7 +354,8 @@
       "title": "Mit diesen Werten:",
       "eal": "Hagel-EAL",
       "exposure": "Exposure",
-      "coverage": "{{counted}} von {{analyzed}} Standorten mit Fahrzeugzahl · Änderung seit Öffnen der Seite in Klammern"
+      "coverage": "{{counted}} von {{analyzed}} Standorten mit Fahrzeugzahl · Änderung seit Öffnen der Seite in Klammern",
+      "titleStale": "Gespeicherte Ergebnisse (älteres Risikomodell, werden mit der nächsten Änderung neu berechnet):"
     },
     "templates": {
       "apply": "Vorlage anwenden…",
@@ -436,7 +437,11 @@
         "test": "Verbindung testen",
         "disconnect": "Trennen",
         "testOk": "Verbunden – Antwort in {{ms}} ms mit: {{perils}}",
-        "testFailed": "Test fehlgeschlagen: {{error}}"
+        "testFailed": "Test fehlgeschlagen: {{error}}",
+        "invalidUrl": "Das ist keine gültige Adresse. Beispiel: https://api.example.com/hazard",
+        "httpsOnly": "Der Endpunkt muss mit https:// beginnen.",
+        "noCredentials": "Die Adresse darf keinen Benutzernamen oder kein Passwort enthalten; der Schlüssel gehört in das Feld „API-Key“.",
+        "saveBeforeTest": "Erst speichern – der Test prüft die gespeicherte Adresse."
       }
     },
     "satelliteSource": {
@@ -536,7 +541,8 @@
       },
       "reload": "Modellliste neu laden",
       "enterManually": "Modell-ID manuell eingeben",
-      "backToList": "Zurück zur Liste"
+      "backToList": "Zurück zur Liste",
+      "notAModelServer": "Die Adresse antwortet, aber nicht mit einer Modellliste. Endet sie auf /v1?"
     },
     "test": {
       "button": "Verbindung testen",
@@ -1580,7 +1586,8 @@
       "disclaimer": "KI-Erklärung zu den von der App berechneten Werten oben. Die Werte selbst stammen nicht von der KI.",
       "removed_one": "{{count}} Satz mit einer Zahl, die nicht aus der App stammt, wurde weggelassen.",
       "removed_other": "{{count}} Sätze mit Zahlen, die nicht aus der App stammen, wurden weggelassen."
-    }
+    },
+    "emptyAnswer": "Das Modell hat keine Antwort geschrieben. Bitte noch einmal versuchen oder ein anderes Modell wählen."
   },
   "risk": {
     "LOW": "Niedrig",
@@ -2087,7 +2094,9 @@
     "selectionCount_one": "{{count}} von {{total}} Standorten",
     "selectionCount_other": "{{count}} von {{total}} Standorten",
     "emptyShort": "Keine Standorte in dieser Auswahl",
-    "builtFromChanged": "Erstellt aus „{{first}}“ · zuletzt: „{{last}}“"
+    "builtFromChanged": "Erstellt aus „{{first}}“ · zuletzt: „{{last}}“",
+    "builtFromTemplate": "Standardvorlage der App (ohne KI erstellt)",
+    "provenanceTemplate": "Aufbau und Werte stammen von der App; alle Werte sind aus dem Portfolio berechnet (Screening-Schätzung, Hagel-EAL mit Platzhalterwerten). Der Portfolio-Filter oben gilt auch hier."
   },
   "radarHail": {
     "title": "Radar-Hagelzellen (DWD)",

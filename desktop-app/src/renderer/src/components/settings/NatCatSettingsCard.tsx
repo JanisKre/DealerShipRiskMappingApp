@@ -279,6 +279,11 @@ function CatalogRow({
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [test, setTest] = useState<NatCatConnectorTest | null>(null);
+  const [endpointError, setEndpointError] = useState<string | null>(null);
+  const endpointId = useId();
+  const keyId = useId();
+  /** The field differs from the saved address: the test would check the saved one. */
+  const endpointEdited = draftEndpoint.trim() !== (endpoint ?? "");
   const provider = isApiProvider(entry.id) ? entry.id : null;
   const isApi = provider !== null;
   const isConnected = Boolean(endpoint);
@@ -295,6 +300,13 @@ function CatalogRow({
 
   async function submit(): Promise<void> {
     if (!provider) return;
+    // Checked here, before the key is stored: the main process refused a
+    // bad address only after the key was saved, with its schema text.
+    const problem = endpointProblem(draftEndpoint.trim());
+    setEndpointError(
+      problem ? t(`settings.natCat.connector.${problem}`) : null,
+    );
+    if (problem) return;
     setSaving(true);
     setTest(null);
     try {
@@ -403,20 +415,31 @@ function CatalogRow({
             {t("settings.natCat.connector.contract")}
           </p>
           <div className="space-y-1">
-            <label className="text-xs font-medium">
+            <label htmlFor={endpointId} className="text-xs font-medium">
               {t("settings.natCat.connector.endpoint")}
             </label>
             <Input
+              id={endpointId}
               value={draftEndpoint}
               placeholder="https://…"
-              onChange={(e) => setDraftEndpoint(e.target.value)}
+              aria-invalid={endpointError ? true : undefined}
+              onChange={(e) => {
+                setDraftEndpoint(e.target.value);
+                setEndpointError(null);
+              }}
             />
+            {endpointError && (
+              <p role="alert" className="text-xs text-destructive">
+                {endpointError}
+              </p>
+            )}
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium">
+            <label htmlFor={keyId} className="text-xs font-medium">
               {t("settings.natCat.connector.key")}
             </label>
             <Input
+              id={keyId}
               type="password"
               value={draftKey}
               placeholder={
@@ -446,7 +469,13 @@ function CatalogRow({
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={testing}
+                  // The test checks the saved address; save an edit first.
+                  disabled={testing || endpointEdited}
+                  title={
+                    endpointEdited
+                      ? t("settings.natCat.connector.saveBeforeTest")
+                      : undefined
+                  }
                   onClick={() => void runTest()}
                 >
                   {testing ? <Loader2 className="animate-spin" /> : <PlugZap />}
@@ -485,4 +514,19 @@ function CatalogRow({
       )}
     </li>
   );
+}
+
+/** Why an endpoint cannot be used, as a text key; null when it can. */
+function endpointProblem(
+  value: string,
+): "invalidUrl" | "httpsOnly" | "noCredentials" | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return "invalidUrl";
+  }
+  if (url.protocol !== "https:") return "httpsOnly";
+  if (url.username || url.password) return "noCredentials";
+  return null;
 }

@@ -291,6 +291,9 @@ export const SettingsUpdateSchema = SettingsSchema.partial().extend({
   language: SettingsSchema.shape.language.unwrap().optional(),
 });
 
+/** Longest API key accepted for the key store (real keys are far shorter). */
+const API_KEY_MAX_CHARS = 4_000;
+
 /** Coordinates in a request: a point on the globe, nothing else. */
 const LatitudeSchema = z.number().min(-90).max(90);
 const LongitudeSchema = z.number().min(-180).max(180);
@@ -479,11 +482,11 @@ export const ipcRequest = {
   "settings:set": z.object({ settings: SettingsUpdateSchema }),
   "settings:setLlmApiKey": z.object({
     provider: LlmProviderSchema,
-    apiKey: z.string(),
+    apiKey: z.string().max(API_KEY_MAX_CHARS),
   }),
   "settings:setNatCatApiKey": z.object({
     provider: NatCatApiProviderSchema,
-    apiKey: z.string().min(1),
+    apiKey: z.string().min(1).max(API_KEY_MAX_CHARS),
   }),
   "settings:deleteNatCatApiKey": z.object({
     provider: NatCatApiProviderSchema,

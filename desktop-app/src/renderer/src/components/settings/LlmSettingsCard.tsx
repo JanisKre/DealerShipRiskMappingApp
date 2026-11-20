@@ -21,6 +21,7 @@ import {
   DEFAULT_LOCAL_BASE_URL,
   isLlmConfigured,
   isLlmSetupError,
+  LLM_NOT_CONFIGURED,
   LOCAL_RUNTIMES,
   type LocalRuntime,
 } from "@shared/llm-config";
@@ -213,12 +214,21 @@ export function LlmSettingsCard({
       setAccessRejected(setupError);
       if (setupError)
         setModelsHint(
-          t(
-            provider === "custom"
-              ? "settings.models.needBaseUrl"
-              : "settings.models.needKey",
-          ),
+          // Nothing entered yet, or the endpoint refused the access: two
+          // different things to do.
+          message.includes(LLM_NOT_CONFIGURED)
+            ? t(
+                provider === "custom"
+                  ? "settings.models.needBaseUrl"
+                  : "settings.models.needKey",
+              )
+            : t("aiSetup.rejectedDescription"),
         );
+      else if (
+        /Unexpected token|not valid JSON|Unexpected end of JSON/i.test(message)
+      )
+        // A web page instead of a model list.
+        setModelsError(t("settings.models.notAModelServer"));
       else setModelsError(message);
     } finally {
       if (request === modelsRequest.current) setModelsLoading(false);

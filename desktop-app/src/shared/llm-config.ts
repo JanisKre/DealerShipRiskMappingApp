@@ -8,6 +8,12 @@ import type { LlmSettings } from "./types";
 export const LLM_NOT_CONFIGURED = "LLM_NOT_CONFIGURED";
 
 /**
+ * Error code of a stream that ended without any text (the provider
+ * answered, the model wrote nothing). The window shows its own sentence.
+ */
+export const LLM_EMPTY_ANSWER = "LLM_EMPTY_ANSWER";
+
+/**
  * OpenAI-compatible local runtimes offered as presets for the `local`
  * provider. All of them serve `/v1/models` and `/v1/chat/completions`.
  */

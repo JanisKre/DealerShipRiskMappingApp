@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { ChatView } from "@renderer/components/chat/ChatView";
+import { useLlmReady } from "@renderer/lib/useLlmReady";
 import { useAppStore } from "@renderer/store/appStore";
 import { parseDashboardCommand } from "./dashboardTiles";
 
@@ -24,6 +25,7 @@ export function DashboardAssistant({
 }>): React.JSX.Element {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const llmReady = useLlmReady();
   return (
     <ChatView
       dashboardPage
@@ -38,13 +40,17 @@ export function DashboardAssistant({
         useAppStore.getState().select(id);
         void navigate("/");
       }}
+      // These need the AI: without a provider they are not offered under
+      // "these commands also work without AI".
       extraPrompts={
-        onDashboardCommand
-          ? [
-              t("chat.prompts.buildDashboard"),
-              t("dashboard.examplePromptTable"),
-            ]
-          : [t("chat.prompts.editDashboard")]
+        llmReady === false
+          ? []
+          : onDashboardCommand
+            ? [
+                t("chat.prompts.buildDashboard"),
+                t("dashboard.examplePromptTable"),
+              ]
+            : [t("chat.prompts.editDashboard")]
       }
     />
   );

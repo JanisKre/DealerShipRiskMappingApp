@@ -1,3 +1,4 @@
+import { containsFigure } from "./a2ui";
 import { z } from "zod";
 import type { HailstormScenario } from "./types";
 
@@ -68,7 +69,12 @@ export function normaliseScenarioDraft(
       Math.max(SCENARIO_MIN_WIDTH_KM, Math.round(width)),
     ),
     intensityLevel: intensity ?? "HIGH",
-    name: answer.name?.trim().slice(0, 80) || fallbackName,
+    // A name with an amount or a share ("… mit 3 Mio. € Schaden") would
+    // stand above the app's own figures: such a name is not used.
+    name:
+      answer.name && !containsFigure(answer.name)
+        ? answer.name.trim().slice(0, 80) || fallbackName
+        : fallbackName,
   });
 }
 

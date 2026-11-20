@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LlmStreamChunk, LlmStreamRequest } from "@shared/ipc-schema";
+import { LLM_EMPTY_ANSWER } from "@shared/llm-config";
 
 interface StreamState {
   text: string;
@@ -51,7 +52,11 @@ export function useLlmStream(): StreamState & {
           case "filter":
             return { ...s, matchedIds: chunk.matchedIds };
           case "done":
-            return { ...s, streaming: false };
+            // Finished without a single character (and without query
+            // hits): say so, instead of a spinner that just disappears.
+            return s.text === "" && s.matchedIds == null
+              ? { ...s, streaming: false, error: LLM_EMPTY_ANSWER }
+              : { ...s, streaming: false };
           case "error":
             return { ...s, streaming: false, error: chunk.message };
           default:

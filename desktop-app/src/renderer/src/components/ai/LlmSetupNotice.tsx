@@ -1,7 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { KeyRound, Settings } from "lucide-react";
-import { LLM_NOT_CONFIGURED, isLlmSetupError } from "@shared/llm-config";
+import {
+  LLM_EMPTY_ANSWER,
+  LLM_NOT_CONFIGURED,
+  isLlmSetupError,
+} from "@shared/llm-config";
+import { errorReason } from "@renderer/lib/notify";
 import { Button } from "@renderer/components/ui/button";
 import { cn } from "@renderer/lib/utils";
 
@@ -77,9 +82,18 @@ export function LlmErrorMessage({
       />
     );
   }
+  // The technical wrapper of a failed request ("Error invoking remote
+  // method '…': Error: ") is for the log; the reason is what is shown.
+  const reason = error.includes(LLM_EMPTY_ANSWER)
+    ? t("ai.emptyAnswer")
+    : errorReason(error);
   return (
     <p role="alert" className={cn("text-xs text-destructive", className)}>
-      {format ? format(error) : t("ui.error", { error })}
+      {error.includes(LLM_EMPTY_ANSWER)
+        ? reason
+        : format
+          ? format(reason)
+          : t("ui.error", { error: reason })}
     </p>
   );
 }

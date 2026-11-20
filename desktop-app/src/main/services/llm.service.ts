@@ -730,10 +730,9 @@ export async function testLlmConnection(): Promise<LlmConnectionTest> {
       [{ role: "user", content: "Reply with: ok" }],
       controller.signal,
     )) {
-      if (token) {
-        received = true;
-        break;
-      }
+      // The answer is a word; reading it to the end files the test in
+      // the record book as answered instead of "aborted".
+      if (token) received = true;
     }
     // HTTP 200 with a web page or an empty body is a server, not a model:
     // the test passes only when text came back.

@@ -486,7 +486,9 @@ export function DashboardPage(): React.JSX.Element {
                     }
                   />
                   <p className="text-xs text-muted-foreground">
-                    {t("a2ui.provenance")}
+                    {aiDashboard.prompt.trim()
+                      ? t("a2ui.provenance")
+                      : t("a2ui.provenanceTemplate")}
                   </p>
                 </section>
               ) : visibleTiles.length === 0 ? (
@@ -580,6 +582,8 @@ export function DashboardPage(): React.JSX.Element {
 /** "Erstellt aus „…“", plus the latest change when there was one. */
 function requestLine(t: TFunction, prompt: string): string {
   const requests = prompt.split("\n").filter((line) => line.trim());
+  // The app's own starter template, built without an AI request.
+  if (requests.length === 0) return t("a2ui.builtFromTemplate");
   const first = requests[0] ?? "";
   const last = requests[requests.length - 1] ?? "";
   return requests.length > 1

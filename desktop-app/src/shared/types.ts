@@ -173,9 +173,10 @@ export type DealershipChange = z.infer<typeof DealershipChangeSchema>;
 export const WebsiteSourceSchema = z.enum(WEBSITE_SOURCES);
 
 export const DealershipInputSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1),
-  address: z.string().optional(),
+  // Bounded: a 200 000-character name or id reached the services before.
+  id: z.string().min(1).max(200),
+  name: z.string().min(1).max(2_000),
+  address: z.string().max(2_000).optional(),
   lat: z.number().min(-90).max(90).optional(),
   lon: z.number().min(-180).max(180).optional(),
   assetValue: z.number().nonnegative().optional(),
@@ -736,8 +737,9 @@ export const HAIL_RISK_TIERS = [
 export type HailRiskTier = (typeof HAIL_RISK_TIERS)[number];
 
 export const AnalyzedDealershipSchema = DealershipInputSchema.extend({
-  lat: z.number(),
-  lon: z.number(),
+  // A located site is a point on the globe; lat 999 was stored before.
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
   boundary: BoundaryResultSchema.optional(),
   /** Original boundary kept so a manual edit can be reverted after restart. */
   boundaryBeforeManualEdit: BoundaryResultSchema.optional(),
@@ -884,10 +886,10 @@ export const RiskParametersSchema = z.object({
 export type RiskParameters = z.infer<typeof RiskParametersSchema>;
 
 export const SessionSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  id: z.string().min(1).max(200),
+  name: z.string().max(1_000),
+  createdAt: z.string().max(40),
+  updatedAt: z.string().max(40),
   dealerships: z.array(AnalyzedDealershipSchema),
   /** Optional for backwards compatibility with older saved sessions. */
   parameters: RiskParametersSchema.optional(),
@@ -1225,10 +1227,14 @@ export const NlQueryFilterSchema: z.ZodType<NlQueryFilter> = z.lazy(() =>
   ]),
 );
 
+/** Longest single chat message (question or answer) that is stored or sent. */
+export const CHAT_MESSAGE_MAX_CHARS = 200_000;
+
 // Chat message (for portfolio chat with history)
 export const ChatMessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
-  content: z.string(),
+  /** Bounded: a pasted file of megabytes is not a chat message. */
+  content: z.string().max(CHAT_MESSAGE_MAX_CHARS),
   /**
    * "app": the app wrote this reply itself after running a command (built a
    * dashboard, opened a location …), not the chat model.
@@ -1240,11 +1246,11 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 // Persisted chat conversation (multi-thread history).
 // Structure analogous to Session; `messages` stored as a JSON blob in SQLite.
 export const ConversationSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  messages: z.array(ChatMessageSchema),
+  id: z.string().min(1).max(100),
+  name: z.string().max(300),
+  createdAt: z.string().max(40),
+  updatedAt: z.string().max(40),
+  messages: z.array(ChatMessageSchema).max(5_000),
 });
 export type Conversation = z.infer<typeof ConversationSchema>;
 

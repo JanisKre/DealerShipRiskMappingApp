@@ -157,20 +157,19 @@
       },
       "pmlDamageFraction10": {
         "label": "PML damage share, 10 years",
-        "description": "Damage share for the 10-year PML."
+        "description": "Damage share for the 10-year PML. Used only in the context of the optional AI chat; no view of the app shows a PML value at present."
       },
       "pmlDamageFraction50": {
         "label": "PML damage share, 50 years",
-        "description": "Damage share for the 50-year PML."
+        "description": "Damage share for the 50-year PML. Used only in the context of the optional AI chat; no view of the app shows a PML value at present."
       },
       "pmlDamageFraction100": {
         "label": "PML damage share, 100 years",
-        "description": "Damage share for the 100-year PML.",
-        "tip": "The key PML assumption for an infrequent but severe event."
+        "description": "Damage share for the 100-year PML. Used only in the context of the optional AI chat; no view of the app shows a PML value at present."
       },
       "pmlClusterRadiusKm": {
         "label": "PML cluster radius",
-        "description": "Radius used for the largest PML exposure."
+        "description": "Radius used for the largest PML exposure. Used only in the context of the optional AI chat; no view of the app shows a PML value at present."
       },
       "accumulationRadiusKm": {
         "label": "Accumulation radius",
@@ -331,7 +330,8 @@
       "frequencyOrder_one": "λ in zone {{zones}} is lower than in the zone below – please check.",
       "frequencyOrder_other": "λ in zones {{zones}} is lower than in the zone below each – please check.",
       "frequencyHigh_one": "λ in zone {{zones}} is above 1 event per year – implausible for a zone rate, meant for stress tests only.",
-      "frequencyHigh_other": "λ in zones {{zones}} is above 1 event per year – implausible for a zone rate, meant for stress tests only."
+      "frequencyHigh_other": "λ in zones {{zones}} is above 1 event per year – implausible for a zone rate, meant for stress tests only.",
+      "severityCapped": "Severities above the vehicle value are capped at {{value}} – Σ p·S above uses the capped value."
     },
     "resetUndo": "Undo",
     "resetNothing": "All values already match the defaults",
@@ -354,7 +354,8 @@
       "title": "With these values:",
       "eal": "Hail EAL",
       "exposure": "Exposure",
-      "coverage": "{{counted}} of {{analyzed}} locations with a vehicle count · change since opening the page in brackets"
+      "coverage": "{{counted}} of {{analyzed}} locations with a vehicle count · change since opening the page in brackets",
+      "titleStale": "Stored results (older risk model, recalculated with the next change):"
     },
     "templates": {
       "apply": "Apply template…",
@@ -436,7 +437,11 @@
         "test": "Test connection",
         "disconnect": "Disconnect",
         "testOk": "Connected – answered in {{ms}} ms with: {{perils}}",
-        "testFailed": "Test failed: {{error}}"
+        "testFailed": "Test failed: {{error}}",
+        "invalidUrl": "This is not a valid address. Example: https://api.example.com/hazard",
+        "httpsOnly": "The endpoint must start with https://.",
+        "noCredentials": "The address must not contain a user name or password; the key belongs in the \"API key\" field.",
+        "saveBeforeTest": "Save first – the test checks the saved address."
       }
     },
     "satelliteSource": {
@@ -536,7 +541,8 @@
       },
       "reload": "Reload model list",
       "enterManually": "Enter model ID manually",
-      "backToList": "Back to the list"
+      "backToList": "Back to the list",
+      "notAModelServer": "The address answers, but not with a list of models. Does it end in /v1?"
     },
     "test": {
       "button": "Test connection",
@@ -1580,7 +1586,8 @@
       "disclaimer": "AI explanation of the values the app computed above. The values themselves do not come from the AI.",
       "removed_one": "{{count}} sentence with a figure that does not come from the app was left out.",
       "removed_other": "{{count}} sentences with figures that do not come from the app were left out."
-    }
+    },
+    "emptyAnswer": "The model wrote no answer. Please try again or choose another model."
   },
   "risk": {
     "LOW": "Low",
@@ -2087,7 +2094,9 @@
     "selectionCount_one": "{{count}} of {{total}} locations",
     "selectionCount_other": "{{count}} of {{total}} locations",
     "emptyShort": "No locations in this selection",
-    "builtFromChanged": "Built from “{{first}}” · latest: “{{last}}”"
+    "builtFromChanged": "Built from “{{first}}” · latest: “{{last}}”",
+    "builtFromTemplate": "The app’s standard template (built without AI)",
+    "provenanceTemplate": "Layout and values come from the app; every value is computed from the portfolio (screening estimate, hail EAL with placeholder values). The portfolio filter above applies here too."
   },
   "radarHail": {
     "title": "Radar hail cells (DWD)",

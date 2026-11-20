@@ -433,6 +433,9 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
 
   handle(IPC.mcpServerTools, ({ serverId }) => listMcpServerTools(serverId));
   handle(IPC.mcpSetServerToken, ({ serverId, token }) => {
+    // A token belongs to a server the user connected.
+    if (!(getSettings().mcpServers ?? []).some((s) => s.id === serverId))
+      throw new Error("Unknown MCP server");
     setMcpServerToken(serverId, token);
     return { ok: true };
   });

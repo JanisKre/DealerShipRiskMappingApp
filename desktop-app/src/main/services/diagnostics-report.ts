@@ -15,6 +15,11 @@ export interface DiagnosticsInput {
   data: Record<string, number | null>;
   detectionModelInstalled: boolean;
   log: string;
+  /**
+   * The user's home folder; replaced by "~" everywhere in the report, so
+   * paths in the log do not carry the account name.
+   */
+  homeDir?: string;
 }
 
 export interface DiagnosticsReport {
@@ -27,6 +32,15 @@ export interface DiagnosticsReport {
   data: DiagnosticsInput["data"];
   detectionModelInstalled: boolean;
   log: string[];
+}
+
+/** Replaces the home folder by "~" in every string of a JSON-like value. */
+function withoutHome<T>(value: T, homeDir: string | undefined): T {
+  if (!homeDir || homeDir.length < 2) return value;
+  const text = JSON.stringify(value);
+  return JSON.parse(
+    text.split(JSON.stringify(homeDir).slice(1, -1)).join("~"),
+  ) as T;
 }
 
 /** Applies `redactSecrets` to every string inside a JSON-like value. */
@@ -55,10 +69,10 @@ export function buildDiagnosticsReport(
     os: input.os,
     // Settings hold only key *presence* flags, but custom endpoint URLs could
     // still carry credentials: run them through the same masking as the log.
-    settings: redactStrings(input.settings),
+    settings: withoutHome(redactStrings(input.settings), input.homeDir),
     data: input.data,
     detectionModelInstalled: input.detectionModelInstalled,
-    log: redactSecrets(input.log)
+    log: withoutHome(redactSecrets(input.log), input.homeDir)
       .split("\n")
       .filter((line) => line.length > 0),
   };
