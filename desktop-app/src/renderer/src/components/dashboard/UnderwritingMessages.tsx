@@ -7,8 +7,13 @@ import {
   nearbyInsured,
   productLimitBreach,
 } from "@shared/risk-math";
+import {
+  marginalAccumulation,
+  zoneCapacities,
+  type CapacityStatus,
+} from "@shared/capacity";
 import { useAppStore } from "@renderer/store/appStore";
-import { eur, num } from "@renderer/lib/format";
+import { eur, num, pct } from "@renderer/lib/format";
 import { AlertTriangle, Info, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -141,6 +146,92 @@ function accumulationMessage(
   };
 }
 
+const CAPACITY_SEVERITY: Record<CapacityStatus, Severity> = {
+  free: "ok",
+  partial: "warning",
+  exhausted: "danger",
+};
+
+/**
+ * Capacity message: how much of the capacity per accumulation the chain of
+ * neighbours uses with and without the subject, and the subject's hail zone
+ * against its zone capacity when one is set. Left out for a site that stands
+ * alone, uses less than half of the capacity and has no zone capacity.
+ */
+function capacityMessage(
+  t: TFunction,
+  subject: AnalyzedDealership,
+  all: AnalyzedDealership[],
+  parameters: RiskParameters,
+): UwMessage | null {
+  if (!subject.risk) return null;
+  const m = marginalAccumulation(subject, all, parameters);
+  const zone = dealershipHailZone(subject)?.zone;
+  const others = all.filter((d) => d.id !== subject.id);
+  const zoneRow = zone
+    ? zoneCapacities([subject, ...others], parameters)[zone - 1]
+    : undefined;
+  const zoneUse = zoneRow?.use ?? null;
+  if (!m && !zoneUse) return null;
+  if (m && m.count < 2 && m.status === "free" && !zoneUse) return null;
+
+  const parts: string[] = [];
+  if (m && m.count >= 2) {
+    parts.push(
+      t("underwriting.capacity.detail", {
+        sites: m.count,
+        radius: parameters.accumulationRadiusKm,
+        with: eur(m.withEur),
+        capacity: eur(m.capacityEur),
+        shareWith: pct(m.utilisationWith),
+        without: eur(m.withoutEur),
+        shareWithout: pct(m.utilisationWithout),
+        added: eur(m.addedEur),
+      }),
+      m.shareOfRemaining == null
+        ? t("underwriting.capacity.noRemainder")
+        : t("underwriting.capacity.shareOfRemainder", {
+            share: pct(m.shareOfRemaining),
+            remaining: eur(m.remainingWithoutEur),
+          }),
+    );
+    if (m.joins >= 2)
+      parts.push(t("underwriting.capacity.bridge", { joins: m.joins }));
+  } else if (m) {
+    parts.push(
+      t("underwriting.capacity.alone", {
+        radius: parameters.accumulationRadiusKm,
+        with: eur(m.withEur),
+        capacity: eur(m.capacityEur),
+        shareWith: pct(m.utilisationWith),
+      }),
+    );
+  }
+  if (zoneUse && zone) {
+    parts.push(
+      t("underwriting.capacity.zone", {
+        zone,
+        used: eur(zoneUse.usedEur),
+        capacity: eur(zoneUse.capacityEur),
+        share: pct(zoneUse.utilisation),
+        subject: eur(subject.risk.exposureEur ?? 0),
+      }),
+    );
+  }
+
+  const worst: CapacityStatus =
+    m?.status === "exhausted" || zoneUse?.status === "exhausted"
+      ? "exhausted"
+      : m?.status === "partial" || zoneUse?.status === "partial"
+        ? "partial"
+        : "free";
+  return {
+    severity: CAPACITY_SEVERITY[worst],
+    title: t(`underwriting.capacity.title.${worst}`),
+    detail: parts.join(" "),
+  };
+}
+
 /** Group-wide view across all locations of the network; null without a group. */
 function groupMessage(
   t: TFunction,
@@ -180,8 +271,8 @@ function groupMessage(
 /**
  * Computes the underwriting system messages for a subject: hail risk,
  * product limit/coverage cap, accumulation (insured neighbors within the
- * radius), and — for group dealerships — the overall view across all
- * locations of the network.
+ * radius), the capacity per accumulation and hail zone, and — for group
+ * dealerships — the overall view across all locations of the network.
  */
 export function buildUnderwritingMessages(
   t: TFunction,
@@ -193,6 +284,7 @@ export function buildUnderwritingMessages(
     hailMessage(t, subject),
     limitMessage(t, subject, parameters),
     accumulationMessage(t, subject, all, parameters),
+    capacityMessage(t, subject, all, parameters),
     groupMessage(t, subject, all, parameters),
   ].filter((m): m is UwMessage => m !== null);
 }

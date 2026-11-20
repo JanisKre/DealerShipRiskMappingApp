@@ -9,6 +9,27 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **As-if history.** A new dashboard tile applies the real storm days stored
+  in the app (historic days from the DWD radar climatology, the radar
+  archive, imports with a time) to today's portfolio: loss per year as a
+  chart, the worst day and year, and per day the locations reached, with a
+  jump to the replay on the map. Only loaded days are evaluated, so the tile
+  proposes days worth loading (hail days at the DWD stations nearest to the
+  locations, ranked by the exposure near them) and loads them one by one or
+  five at a time. Years without a loaded day are shown as not checked; no
+  annual mean, return period or PML is derived. A stress test with the
+  scenario damage rates: the hail EAL is unchanged. See
+  `docs/risk-model.md`, "As-if history".
+- **Capacity per accumulation and hail zone.** "Largest accumulations" shows
+  how much of the capacity per accumulation (the reinsurance threshold) each
+  accumulation uses and what is left. Parameters → "Portfolio, PML &
+  scenarios" has a capacity per hail zone (0 = none); where one is set the
+  zone tile lists exposure against it. The site detail says what one
+  location adds to its accumulation: exposure with and without it, its share
+  of the capacity that was still free, and whether it links two
+  accumulations. Capacities are limits set by the underwriter; scores and
+  EAL are unchanged. See `docs/risk-model.md`, "Capacity per accumulation
+  and hail zone".
 - **Operate the app from Claude over MCP.** Settings → AI → "Access for
   other AI tools" has a new switch, "Allow operating the app" (off by
   default, needs the MCP server). With it, the MCP server adds six tools:

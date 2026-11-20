@@ -68,6 +68,12 @@ import {
   HailEventSummarySchema,
   MAX_FOOTPRINT_BYTES,
 } from "./hail-events";
+import {
+  AsIfHistorySchema,
+  AsIfRequestSchema,
+  CandidateDaysRequestSchema,
+  CandidateDaysSchema,
+} from "./as-if-history";
 
 /** Id of a connected MCP server (see McpServerConfigSchema). */
 const McpServerIdSchema = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -348,6 +354,8 @@ export const ipcRequest = {
     source: z.enum(["simulation", "drawn"]),
     cells: z.array(HailEventCellSchema).min(1).max(MAX_EVENT_CELLS),
   }),
+  "hailEvents:asIf": AsIfRequestSchema,
+  "hailEvents:suggestDays": CandidateDaysRequestSchema,
   "detect:vehicles": DetectVehiclesRequestSchema,
   "detect:vehiclesTimeline": DetectVehiclesRequestSchema,
   "weather:fetch": z.object({ lat: z.number(), lon: z.number() }),
@@ -581,6 +589,8 @@ export const ipcResponse = {
   "hailEvents:delete": z.boolean(),
   "hailEvents:loadHistoric": HailEventSummarySchema,
   "hailEvents:save": HailEventSummarySchema,
+  "hailEvents:asIf": AsIfHistorySchema,
+  "hailEvents:suggestDays": CandidateDaysSchema,
   "detect:vehicles": DetectionResultSchema,
   "detect:vehiclesTimeline": VehicleTimelineSchema,
   "weather:fetch": z.record(z.string(), z.number()),

@@ -178,8 +178,32 @@
       },
       "accumulationReinsureThresholdEur": {
         "label": "Rückversicherungs-Schwelle",
-        "description": "Ab diesem Exposure einer Kumulation wird Rückversicherung empfohlen.",
+        "description": "Ab diesem Exposure einer Kumulation wird Rückversicherung empfohlen. Gilt zugleich als Kapazität je Kumulation: Das Dashboard zeigt, wie viel davon belegt ist.",
         "tip": "Dient als organisatorischer Schwellenwert für die Rückversicherungswarnung."
+      },
+      "capacityZone1Eur": {
+        "label": "Kapazität Hagelzone 1",
+        "description": "Höchstes Exposure, das in Hagelzone 1 gezeichnet werden soll. 0 = keine Kapazität gesetzt."
+      },
+      "capacityZone2Eur": {
+        "label": "Kapazität Hagelzone 2",
+        "description": "Höchstes Exposure, das in Hagelzone 2 gezeichnet werden soll. 0 = keine Kapazität gesetzt."
+      },
+      "capacityZone3Eur": {
+        "label": "Kapazität Hagelzone 3",
+        "description": "Höchstes Exposure, das in Hagelzone 3 gezeichnet werden soll. 0 = keine Kapazität gesetzt."
+      },
+      "capacityZone4Eur": {
+        "label": "Kapazität Hagelzone 4",
+        "description": "Höchstes Exposure, das in Hagelzone 4 gezeichnet werden soll. 0 = keine Kapazität gesetzt."
+      },
+      "capacityZone5Eur": {
+        "label": "Kapazität Hagelzone 5",
+        "description": "Höchstes Exposure, das in Hagelzone 5 gezeichnet werden soll. 0 = keine Kapazität gesetzt."
+      },
+      "capacityZone6Eur": {
+        "label": "Kapazität Hagelzone 6",
+        "description": "Höchstes Exposure, das in Hagelzone 6 gezeichnet werden soll. 0 = keine Kapazität gesetzt."
       },
       "scenarioDamageLow": {
         "label": "Szenarioquote Niedrig",
@@ -758,6 +782,7 @@
       "summary": "Portfolio-KPIs",
       "insights": "Prüfhinweise",
       "clusters": "Größte Kumulationen",
+      "asIf": "As-if-Historie",
       "table": "Standorttabelle",
       "zones": "Hagelzonen-Verteilung",
       "topLocations": "Top-Standorte nach Hagel-EAL",
@@ -1048,7 +1073,50 @@
       "expand": "Standorte von „{{name}}“ zeigen",
       "collapse": "Standorte von „{{name}}“ ausblenden",
       "partial": "teilweise analysiert ({{analyzed}}/{{total}})",
-      "extent": "Ausdehnung ≈ {{km}} km"
+      "extent": "Ausdehnung ≈ {{km}} km",
+      "capacity": "Kapazität",
+      "capacityUsed": "{{share}} der Kapazität belegt",
+      "capacityFree": "frei {{amount}}",
+      "capacityOver": "{{amount}} über der Kapazität",
+      "capacityProspect": "davon Neugeschäft {{amount}}"
+    },
+    "asIf": {
+      "title": "As-if-Historie",
+      "description_one": "{{count}} echter Sturmtag geprüft; an {{hitDays}} wurde mindestens ein Standort getroffen. Das heutige Exposure von {{sites}} Standorten wird darauf angewendet.",
+      "description_other": "{{count}} echte Sturmtage geprüft; an {{hitDays}} wurde mindestens ein Standort getroffen. Das heutige Exposure von {{sites}} Standorten wird darauf angewendet.",
+      "empty": "Noch kein echter Sturmtag geladen. Lade unten einen Tag oder lass dir Tage vorschlagen; danach zeigt die Kachel, welche Standorte er getroffen hätte.",
+      "computing": "Wird berechnet …",
+      "failed": "Die As-if-Historie konnte nicht berechnet werden.",
+      "worstDay": "Schlechtester Tag",
+      "worstYear": "Schlechtestes Jahr (geladene Tage)",
+      "total_one": "Summe über {{count}} geprüften Tag",
+      "total_other": "Summe über {{count}} geprüfte Tage",
+      "noLoss": "kein Schaden",
+      "loss": "Stresstest-Schaden",
+      "yearDays_one": "{{count}} Tag geprüft, {{hitDays}} mit Treffer",
+      "yearDays_other": "{{count}} Tage geprüft, {{hitDays}} mit Treffer",
+      "yearWorst": "Größter Tag: {{day}} ({{loss}})",
+      "yearUnchecked": "Kein Tag geladen: nicht geprüft",
+      "coverageNote": "Nur geladene Tage sind geprüft. Ein Jahr ohne geladenen Tag ist nicht geprüft, das heißt nicht schadenfrei; ein Jahresmittel lässt sich daraus nicht ableiten. Blass gedruckte Jahre: kein Tag geladen.",
+      "day": "Sturmtag",
+      "source": "Quelle",
+      "exposureReached": "Getroffenes Exposure",
+      "showOnMap": "Sturmtag {{day}} auf der Karte abspielen",
+      "loadTitle": "Weitere Sturmtage laden",
+      "suggest": "Tage vorschlagen",
+      "suggesting": "Liest die Hageltage der DWD-Stationen in der Nähe der Standorte …",
+      "suggestFailed": "Die Vorschläge konnten nicht geladen werden",
+      "loadHint": "Ein Tag sind 10–35 MB vom DWD (Radarklimatologie RADKLIM, ab 2001) und dauert meist ein bis zwei Minuten. Es gibt kein Verzeichnis aller Hageltage: Geprüft wird nur, was geladen ist.",
+      "loading": "Lädt {{day}} vom DWD (Tag {{index}} von {{total}}) …",
+      "cancel": "Nach diesem Tag abbrechen",
+      "loadFailed": "{{day}} konnte nicht geladen werden",
+      "noStations": "Keine DWD-Station mit Hagelbeobachtungen ab 2001 im Umkreis von 30 km um die Standorte. Trage bekannte Sturmtage oben als Datum ein.",
+      "candidatesBasis_one": "Hageltage von {{count}} DWD-Station (nächste Station je Standort, ≤ 30 km; {{covered}} von {{total}} Standorten abgedeckt), Aufzeichnungen {{first}}–{{last}}. Sortiert nach dem Exposure der Standorte, deren Station Hagel meldete. Die meisten Stationen beobachten seit etwa 2011 keinen Hagel mehr; spätere Sturmtage oben als Datum eintragen.",
+      "candidatesBasis_other": "Hageltage von {{count}} DWD-Stationen (nächste Station je Standort, ≤ 30 km; {{covered}} von {{total}} Standorten abgedeckt), Aufzeichnungen {{first}}–{{last}}. Sortiert nach dem Exposure der Standorte, deren Station Hagel meldete. Die meisten Stationen beobachten seit etwa 2011 keinen Hagel mehr; spätere Sturmtage oben als Datum eintragen.",
+      "candidateSites": "Standorte mit Hagel an der Station",
+      "loaded": "geladen",
+      "loadDay": "{{day}} laden",
+      "loadBatch": "Die nächsten {{days}} Tage laden"
     },
     "zones": {
       "title": "Hagelzonen-Verteilung",
@@ -1059,7 +1127,10 @@
       "tooltipEstimated_other": "davon {{count}} mit geschätzter Zone",
       "unknown_one": "{{count}} Standort ohne Risikoergebnis ist nicht enthalten.",
       "unknown_other": "{{count}} Standorte ohne Risikoergebnis sind nicht enthalten.",
-      "byExposure": "Exposure"
+      "byExposure": "Exposure",
+      "capacityTitle": "Kapazität je Hagelzone",
+      "capacityRow": "{{used}} von {{capacity}}",
+      "capacityUsed": "Hagelzone {{zone}}: {{share}} der Kapazität belegt"
     },
     "topLocations": {
       "title": "Top-Standorte nach Hagel-EAL",
@@ -1139,12 +1210,17 @@
       },
       "accumulations": {
         "what": "Gruppen von Standorten, die ein einzelnes Hagelereignis gemeinsam treffen könnte – sortiert nach Exposure.",
-        "how": "Zwei Standorte gehören zusammen, wenn sie höchstens {{radius}} km voneinander entfernt sind; über Nachbarn entstehen Ketten (Single Linkage), eine Kumulation kann daher deutlich größer als {{radius}} km sein (Ausdehnung je Zeile). Schadenszenario = Exposure der Kumulation × {{scenario}} Schadenquote. „≈ … geschätzt“ = Anteil des Exposures aus Flächenschätzung oder Ersatzgrenze.",
+        "how": "Zwei Standorte gehören zusammen, wenn sie höchstens {{radius}} km voneinander entfernt sind; über Nachbarn entstehen Ketten (Single Linkage), eine Kumulation kann daher deutlich größer als {{radius}} km sein (Ausdehnung je Zeile). Schadenszenario = Exposure der Kumulation × {{scenario}} Schadenquote. „≈ … geschätzt“ = Anteil des Exposures aus Flächenschätzung oder Ersatzgrenze. Kapazität = Exposure der Kumulation im Verhältnis zur Rückversicherungs-Schwelle ({{capacity}}); Bestands- und Neugeschäft zählen beide.",
         "limits": "Der Radius ist eine Annahme zur typischen Größe einer Hagelzelle; Zugbahnen und Wetterlagen werden nicht modelliert. Das Schadenszenario ist kein PML aus einem Katastrophenmodell."
+      },
+      "asIf": {
+        "what": "Die echten Sturmtage, die in der App gespeichert sind (historische Tage aus der DWD-Radarklimatologie, das Radar-Archiv, Importe mit Zeitangabe), angewendet auf die angezeigten Standorte: Was hätte ein solcher Tag das heutige Portfolio gekostet?",
+        "how": "Ein Standort gilt als getroffen, wenn ein Zellumriss näher als {{radius}} km an ihm vorbeizieht (Reichweite wie in der Kartenwiedergabe). Schaden = heutiges Exposure × Schadensatz der stärksten Hagelklasse des Tages (Großhagel {{high}}, Hagel {{medium}}, Gemisch {{low}}; Szenarioquoten unter „Parameter“). Je Standort und Tag zählt ein Schaden; die Tage werden je Jahr summiert.",
+        "limits": "Nur geladene Tage sind geprüft; ein offenes Verzeichnis aller Hageltage gibt es nicht. Die Tage sind ausgewählt, keine Zufallsstichprobe: kein Jahresmittel, keine Wiederkehrperiode. Historische Tage sind ein Niederschlags-Indikator für Hagel, kein beobachteter Hagel. Bestand und Werte von damals sind nicht bekannt. Stresstest: nicht Teil der Hagel-EAL und kein PML aus einem Katastrophenmodell."
       },
       "zones": {
         "what": "Verteilung der Standorte bzw. des Exposures auf die Hagelzonen 1 (gering) bis 6 (sehr hoch).",
-        "how": "Zone aus der PLZ-Hagelzonentabelle; fehlt die PLZ, wird sie aus dem wetterbasierten Hagel-Score geschätzt (im Tooltip ausgewiesen).",
+        "how": "Zone aus der PLZ-Hagelzonentabelle; fehlt die PLZ, wird sie aus dem wetterbasierten Hagel-Score geschätzt (im Tooltip ausgewiesen). Ist unter „Parameter“ eine Kapazität je Hagelzone gesetzt, zeigt die Kachel darunter, wie viel davon das Exposure der Zone belegt.",
         "limits": "Hagelzonen beschreiben die regionale Gefährdung, nicht den Zustand des einzelnen Standorts."
       },
       "topLocations": {
@@ -1531,6 +1607,19 @@
       "nearbyTitle": "Kumulrisiko in der Nähe",
       "detail_one": "{{count}} versicherter Standort innerhalb von {{radius}} km, kumuliertes Exposure {{exposure}}. {{reinsureText}} Pricing: {{pricing}}.",
       "detail_other": "{{count}} versicherte Standorte innerhalb von {{radius}} km, kumuliertes Exposure {{exposure}}. {{reinsureText}} Pricing: {{pricing}}."
+    },
+    "capacity": {
+      "title": {
+        "free": "Kapazität ausreichend",
+        "partial": "Kapazität zur Hälfte oder mehr belegt",
+        "exhausted": "Kapazität ausgeschöpft"
+      },
+      "detail": "Kumulation mit {{sites}} Standorten (verkettet über Nachbarn ≤ {{radius}} km): {{with}} von {{capacity}} belegt ({{shareWith}}). Ohne diesen Standort sind es {{without}} ({{shareWithout}}); er fügt {{added}} hinzu.",
+      "shareOfRemainder": "Das sind {{share}} der zuvor freien Kapazität von {{remaining}}.",
+      "noRemainder": "Die Kapazität war schon ohne ihn ausgeschöpft.",
+      "bridge": "Er verbindet {{joins}} sonst getrennte Kumulationen.",
+      "alone": "Kein Nachbar im Umkreis von {{radius}} km: Der Standort allein belegt {{with}} von {{capacity}} ({{shareWith}}).",
+      "zone": "Hagelzone {{zone}}: {{used}} von {{capacity}} belegt ({{share}}), davon dieser Standort {{subject}}."
     },
     "reinsure": {
       "yes": "Rückversichern: ja.",

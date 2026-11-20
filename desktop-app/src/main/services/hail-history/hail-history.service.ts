@@ -315,3 +315,124 @@ export async function getHailHistory(
     evidence: hailHistoryEvidence(),
   });
 }
+
+// --- Hail dates near a portfolio (days worth loading) --------------------
+
+/** Stations read at most for one portfolio (two small archives each). */
+export const MAX_PORTFOLIO_STATIONS = 60;
+const STATION_FETCH_CONCURRENCY = 4;
+
+export interface PortfolioHailDates {
+  /** One entry per location with a usable station. */
+  assignments: Array<{ stationId: string; exposureEur: number }>;
+  /** Hail dates (YYYY-MM-DD) per station that was read. */
+  datesByStation: Map<string, string[]>;
+  stationsUsed: number;
+  sitesCovered: number;
+  /** Observed years of the stations read; null without any. */
+  firstYear: number | null;
+  lastYear: number | null;
+}
+
+/**
+ * Each location's nearest station with an archive whose record reaches
+ * `fromYear` or later. Pure: no network.
+ */
+export function assignStations(
+  sites: ReadonlyArray<{ lat: number; lon: number; exposureEur: number }>,
+  stations: DwdStation[],
+  hasArchive: (stationId: string) => boolean,
+  fromYear: number,
+): Array<{ stationId: string; exposureEur: number } | null> {
+  const usable = stations.filter(
+    (s) => Number(s.to.slice(0, 4)) >= fromYear && hasArchive(s.id),
+  );
+  return sites.map((site) => {
+    const nearest = nearestStations(usable, site.lat, site.lon)[0];
+    return nearest
+      ? { stationId: nearest.id, exposureEur: site.exposureEur }
+      : null;
+  });
+}
+
+/**
+ * Hail dates of the stations nearest to the locations: per location the
+ * nearest station within {@link HAIL_HISTORY_RADIUS_KM} whose record reaches
+ * `fromYear`. At most {@link MAX_PORTFOLIO_STATIONS} stations are read, the
+ * ones serving the most exposure first; locations of the others count as
+ * not covered. Station summaries come from the 7-day cache where present.
+ */
+export async function hailDatesNearPortfolio(
+  sites: ReadonlyArray<{ lat: number; lon: number; exposureEur: number }>,
+  fromYear: number,
+): Promise<PortfolioHailDates> {
+  const [stations, historical, recent] = await Promise.all([
+    loadStations(),
+    loadListing("historical"),
+    loadListing("recent").catch(() => ({}) as Record<string, string>),
+  ]);
+  const assigned = assignStations(
+    sites,
+    stations,
+    (id) => historical[id] != null || recent[id] != null,
+    fromYear,
+  );
+  const exposureByStation = new Map<string, number>();
+  for (const a of assigned) {
+    if (!a) continue;
+    exposureByStation.set(
+      a.stationId,
+      (exposureByStation.get(a.stationId) ?? 0) + a.exposureEur,
+    );
+  }
+  const chosen = [...exposureByStation.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, MAX_PORTFOLIO_STATIONS)
+    .map(([id]) => id);
+  const stationById = new Map(stations.map((s) => [s.id, s]));
+
+  const datesByStation = new Map<string, string[]>();
+  let firstYear: number | null = null;
+  let lastYear: number | null = null;
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < chosen.length) {
+      const id = chosen[next++];
+      const station = stationById.get(id);
+      if (!station) continue;
+      try {
+        const summary = await stationSummary(
+          { ...station, distanceKm: 0 },
+          historical[id],
+          recent[id],
+        );
+        if (!summary || summary.lastYear < fromYear) continue;
+        datesByStation.set(id, summary.hailDates ?? []);
+        const from = Math.max(summary.firstYear, fromYear);
+        firstYear = firstYear == null ? from : Math.min(firstYear, from);
+        lastYear =
+          lastYear == null
+            ? summary.lastYear
+            : Math.max(lastYear, summary.lastYear);
+      } catch (err) {
+        console.warn(`DWD hail dates for station ${id} failed:`, err);
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: STATION_FETCH_CONCURRENCY }, () => worker()),
+  );
+
+  const assignments = assigned.filter(
+    (a): a is { stationId: string; exposureEur: number } =>
+      a != null && datesByStation.has(a.stationId),
+  );
+  return {
+    assignments,
+    datesByStation,
+    stationsUsed: datesByStation.size,
+    sitesCovered: assignments.length,
+    firstYear,
+    lastYear,
+  };
+}

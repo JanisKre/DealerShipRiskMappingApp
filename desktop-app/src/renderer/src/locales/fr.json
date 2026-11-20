@@ -178,8 +178,32 @@
       },
       "accumulationReinsureThresholdEur": {
         "label": "Seuil de réassurance",
-        "description": "Au-delà de cette exposition d’un cumul, la réassurance est recommandée.",
+        "description": "Au-delà de cette exposition d’un cumul, la réassurance est recommandée. Sert aussi de capacité par cumul : le tableau de bord indique la part utilisée.",
         "tip": "Seuil organisationnel pour l’alerte de réassurance."
+      },
+      "capacityZone1Eur": {
+        "label": "Capacité zone de grêle 1",
+        "description": "Exposition maximale à souscrire en zone de grêle 1. 0 = aucune capacité définie."
+      },
+      "capacityZone2Eur": {
+        "label": "Capacité zone de grêle 2",
+        "description": "Exposition maximale à souscrire en zone de grêle 2. 0 = aucune capacité définie."
+      },
+      "capacityZone3Eur": {
+        "label": "Capacité zone de grêle 3",
+        "description": "Exposition maximale à souscrire en zone de grêle 3. 0 = aucune capacité définie."
+      },
+      "capacityZone4Eur": {
+        "label": "Capacité zone de grêle 4",
+        "description": "Exposition maximale à souscrire en zone de grêle 4. 0 = aucune capacité définie."
+      },
+      "capacityZone5Eur": {
+        "label": "Capacité zone de grêle 5",
+        "description": "Exposition maximale à souscrire en zone de grêle 5. 0 = aucune capacité définie."
+      },
+      "capacityZone6Eur": {
+        "label": "Capacité zone de grêle 6",
+        "description": "Exposition maximale à souscrire en zone de grêle 6. 0 = aucune capacité définie."
       },
       "scenarioDamageLow": {
         "label": "Taux scénario faible",
@@ -758,6 +782,7 @@
       "summary": "Indicateurs du portefeuille",
       "insights": "Points à vérifier",
       "clusters": "Plus grands cumuls",
+      "asIf": "Historique as-if",
       "table": "Tableau des sites",
       "zones": "Répartition par zone de grêle",
       "topLocations": "Principaux sites par EAL grêle",
@@ -1048,7 +1073,50 @@
       "expand": "Afficher les sites de « {{name}} »",
       "collapse": "Masquer les sites de « {{name}} »",
       "partial": "partiellement analysé ({{analyzed}}/{{total}})",
-      "extent": "étendue ≈ {{km}} km"
+      "extent": "étendue ≈ {{km}} km",
+      "capacity": "Capacité",
+      "capacityUsed": "{{share}} de la capacité utilisée",
+      "capacityFree": "{{amount}} libres",
+      "capacityOver": "{{amount}} au-delà de la capacité",
+      "capacityProspect": "dont affaires nouvelles {{amount}}"
+    },
+    "asIf": {
+      "title": "Historique as-if",
+      "description_one": "{{count}} jour d’orage réel vérifié ; {{hitDays}} ont touché au moins un site. L’exposition actuelle de {{sites}} sites y est appliquée.",
+      "description_other": "{{count}} jours d’orage réels vérifiés ; {{hitDays}} ont touché au moins un site. L’exposition actuelle de {{sites}} sites y est appliquée.",
+      "empty": "Aucun jour d’orage réel n’est encore chargé. Chargez un jour ci-dessous ou faites-vous proposer des jours ; la tuile montre ensuite quels sites il aurait touchés.",
+      "computing": "Calcul en cours …",
+      "failed": "L’historique as-if n’a pas pu être calculé.",
+      "worstDay": "Pire jour",
+      "worstYear": "Pire année (jours chargés)",
+      "total_one": "Total sur {{count}} jour vérifié",
+      "total_other": "Total sur {{count}} jours vérifiés",
+      "noLoss": "aucun sinistre",
+      "loss": "Sinistre du test de stress",
+      "yearDays_one": "{{count}} jour vérifié, {{hitDays}} avec impact",
+      "yearDays_other": "{{count}} jours vérifiés, {{hitDays}} avec impact",
+      "yearWorst": "Jour le plus lourd : {{day}} ({{loss}})",
+      "yearUnchecked": "Aucun jour chargé : non vérifié",
+      "coverageNote": "Seuls les jours chargés sont vérifiés. Une année sans jour chargé n’est pas vérifiée, ce qui ne veut pas dire sans sinistre ; aucune moyenne annuelle ne peut en être tirée. Années imprimées en clair : aucun jour chargé.",
+      "day": "Jour d’orage",
+      "source": "Source",
+      "exposureReached": "Exposition touchée",
+      "showOnMap": "Rejouer le jour d’orage {{day}} sur la carte",
+      "loadTitle": "Charger d’autres jours d’orage",
+      "suggest": "Proposer des jours",
+      "suggesting": "Lecture des jours de grêle des stations DWD proches des sites …",
+      "suggestFailed": "Les propositions n’ont pas pu être chargées",
+      "loadHint": "Un jour représente 10 à 35 Mo du DWD (climatologie radar RADKLIM, depuis 2001) et prend en général une à deux minutes. Il n’existe pas de catalogue de tous les jours de grêle : seul ce qui est chargé est vérifié.",
+      "loading": "Chargement du {{day}} depuis le DWD (jour {{index}} sur {{total}}) …",
+      "cancel": "Arrêter après ce jour",
+      "loadFailed": "Le {{day}} n’a pas pu être chargé",
+      "noStations": "Aucune station DWD avec des observations de grêle depuis 2001 dans un rayon de 30 km autour des sites. Saisissez ci-dessus les jours d’orage connus par leur date.",
+      "candidatesBasis_one": "Jours de grêle de {{count}} station DWD (station la plus proche de chaque site, ≤ 30 km ; {{covered}} sites sur {{total}} couverts), relevés {{first}}–{{last}}. Triés selon l’exposition des sites dont la station a signalé de la grêle. La plupart des stations n’observent plus la grêle depuis 2011 environ ; saisissez ci-dessus les jours d’orage plus récents par leur date.",
+      "candidatesBasis_other": "Jours de grêle de {{count}} stations DWD (station la plus proche de chaque site, ≤ 30 km ; {{covered}} sites sur {{total}} couverts), relevés {{first}}–{{last}}. Triés selon l’exposition des sites dont la station a signalé de la grêle. La plupart des stations n’observent plus la grêle depuis 2011 environ ; saisissez ci-dessus les jours d’orage plus récents par leur date.",
+      "candidateSites": "Sites avec grêle à la station",
+      "loaded": "chargé",
+      "loadDay": "Charger le {{day}}",
+      "loadBatch": "Charger les {{days}} prochains jours"
     },
     "zones": {
       "title": "Répartition par zone de grêle",
@@ -1059,7 +1127,10 @@
       "tooltipEstimated_other": "dont {{count}} avec une zone estimée",
       "unknown_one": "{{count}} site sans résultat de risque n’est pas inclus.",
       "unknown_other": "{{count}} sites sans résultat de risque ne sont pas inclus.",
-      "byExposure": "Exposition"
+      "byExposure": "Exposition",
+      "capacityTitle": "Capacité par zone de grêle",
+      "capacityRow": "{{used}} sur {{capacity}}",
+      "capacityUsed": "Zone de grêle {{zone}} : {{share}} de la capacité utilisée"
     },
     "topLocations": {
       "title": "Principaux sites par EAL grêle",
@@ -1139,12 +1210,17 @@
       },
       "accumulations": {
         "what": "Groupes de sites qu’un même événement de grêle pourrait toucher ensemble – triés par exposition.",
-        "how": "Deux sites sont regroupés s’ils sont distants d’au plus {{radius}} km ; les voisins forment des chaînes (single linkage), un cumul peut donc dépasser largement {{radius}} km (étendue par ligne). Scénario de dommage = exposition du cumul × taux de dommage de {{scenario}}. « ≈ … estimés » = part de l’exposition issue d’une estimation de surface ou d’une limite de repli.",
+        "how": "Deux sites sont regroupés s’ils sont distants d’au plus {{radius}} km ; les voisins forment des chaînes (single linkage), un cumul peut donc dépasser largement {{radius}} km (étendue par ligne). Scénario de dommage = exposition du cumul × taux de dommage de {{scenario}}. « ≈ … estimés » = part de l’exposition issue d’une estimation de surface ou d’une limite de repli. Capacité = exposition du cumul rapportée au seuil de réassurance ({{capacity}}) ; le portefeuille existant et les affaires nouvelles comptent tous deux.",
         "limits": "Le rayon est une hypothèse sur la taille typique d’une cellule de grêle ; les trajectoires et les situations météo ne sont pas modélisées. Le scénario de dommage n’est pas un PML issu d’un modèle catastrophe."
+      },
+      "asIf": {
+        "what": "Les jours d’orage réels enregistrés dans l’application (jours historiques de la climatologie radar du DWD, archive radar, imports avec horodatage) appliqués aux sites affichés : qu’aurait coûté un tel jour au portefeuille actuel ?",
+        "how": "Un site est considéré comme touché lorsqu’un contour de cellule passe à moins de {{radius}} km (portée de la relecture sur la carte). Sinistre = exposition actuelle × taux de dommage de la classe de grêle la plus forte du jour (grosse grêle {{high}}, grêle {{medium}}, mélange {{low}} ; taux de scénario sous « Paramètres »). Un sinistre compte par site et par jour ; les jours sont additionnés par année.",
+        "limits": "Seuls les jours chargés sont vérifiés ; il n’existe pas de catalogue ouvert de tous les jours de grêle. Les jours sont choisis, ce n’est pas un échantillon aléatoire : ni moyenne annuelle, ni période de retour. Les jours historiques sont un indicateur de grêle tiré des précipitations, pas de la grêle observée. Le stock et les valeurs de l’époque ne sont pas connus. Test de stress : ne fait pas partie de l’EAL grêle et n’est pas un PML issu d’un modèle catastrophe."
       },
       "zones": {
         "what": "Répartition des sites ou de l’exposition entre les zones de grêle 1 (faible) à 6 (très élevée).",
-        "how": "Zone issue de la table des zones de grêle par code postal ; sans code postal, elle est estimée à partir du score grêle météo (indiqué dans l’infobulle).",
+        "how": "Zone issue de la table des zones de grêle par code postal ; sans code postal, elle est estimée à partir du score grêle météo (indiqué dans l’infobulle). Si une capacité par zone de grêle est définie sous « Paramètres », la tuile indique en dessous la part utilisée par l’exposition de la zone.",
         "limits": "Les zones de grêle décrivent l’aléa régional, pas l’état du site individuel."
       },
       "topLocations": {
@@ -1531,6 +1607,19 @@
       "nearbyTitle": "Risque de cumul à proximité",
       "detail_one": "{{count}} site assuré dans un rayon de {{radius}} km, exposition cumulée {{exposure}}. {{reinsureText}} Tarification : {{pricing}}.",
       "detail_other": "{{count}} sites assurés dans un rayon de {{radius}} km, exposition cumulée {{exposure}}. {{reinsureText}} Tarification : {{pricing}}."
+    },
+    "capacity": {
+      "title": {
+        "free": "Capacité disponible",
+        "partial": "Capacité utilisée à moitié ou plus",
+        "exhausted": "Capacité épuisée"
+      },
+      "detail": "Cumul de {{sites}} sites (chaînés par voisins ≤ {{radius}} km) : {{with}} sur {{capacity}} utilisés ({{shareWith}}). Sans ce site : {{without}} ({{shareWithout}}) ; il ajoute {{added}}.",
+      "shareOfRemainder": "Soit {{share}} des {{remaining}} encore libres.",
+      "noRemainder": "La capacité était déjà épuisée sans lui.",
+      "bridge": "Il relie {{joins}} cumuls autrement séparés.",
+      "alone": "Aucun voisin dans un rayon de {{radius}} km : le site utilise à lui seul {{with}} sur {{capacity}} ({{shareWith}}).",
+      "zone": "Zone de grêle {{zone}} : {{used}} sur {{capacity}} utilisés ({{share}}), dont ce site {{subject}}."
     },
     "reinsure": {
       "yes": "Réassurer : oui.",

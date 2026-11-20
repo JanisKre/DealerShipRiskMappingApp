@@ -1,12 +1,15 @@
 export type DashboardTileId =
   | "summary"
   | "clusters"
+  | "asIf"
   | "zones"
   | "topLocations"
   | "insights"
   | "changes"
   | "table";
 
+// The as-if history is empty until storm days are loaded, so it comes
+// after the tiles that are filled by the analysis alone.
 export const DEFAULT_TILE_ORDER: DashboardTileId[] = [
   "summary",
   "clusters",
@@ -14,12 +17,14 @@ export const DEFAULT_TILE_ORDER: DashboardTileId[] = [
   "topLocations",
   "insights",
   "changes",
+  "asIf",
   "table",
 ];
 
 const WIDE_TILES: ReadonlySet<DashboardTileId> = new Set([
   "summary",
   "clusters",
+  "asIf",
   "table",
 ]);
 
@@ -73,6 +78,7 @@ export const TILE_DEFINITIONS: Array<{
   { id: "topLocations", labelKey: "dashboard.tiles.topLocations" },
   { id: "insights", labelKey: "dashboard.tiles.insights" },
   { id: "changes", labelKey: "dashboard.tiles.changes" },
+  { id: "asIf", labelKey: "dashboard.tiles.asIf" },
   { id: "table", labelKey: "dashboard.tiles.table" },
 ];
 
@@ -176,6 +182,19 @@ const TILE_ALIASES: Array<{ id: DashboardTileId; words: string[] }> = [
   {
     id: "clusters",
     words: ["cluster", "kumul", "akkumulation", "accumulation", "cumul"],
+  },
+  {
+    id: "asIf",
+    words: [
+      "as-if",
+      "as if",
+      "asif",
+      "historie",
+      "sturmtag",
+      "unwettertag",
+      "storm day",
+      "jour d'orage",
+    ],
   },
   {
     id: "zones",

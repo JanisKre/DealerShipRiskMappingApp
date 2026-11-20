@@ -39,6 +39,7 @@ describe("tile layout storage", () => {
       "topLocations",
       "insights",
       "changes",
+      "asIf",
     ]);
   });
 
@@ -68,6 +69,14 @@ describe("parseDashboardCommand", () => {
     expect(parseDashboardCommand("Kumulationen hinzufügen")).toEqual({
       action: "show",
       ids: ["clusters"],
+    });
+    expect(parseDashboardCommand("Zeige die As-if-Historie")).toEqual({
+      action: "show",
+      ids: ["asIf"],
+    });
+    expect(parseDashboardCommand("Hide the as-if history")).toEqual({
+      action: "hide",
+      ids: ["asIf"],
     });
     expect(parseDashboardCommand("Zeige die Hagelzonen-Verteilung")).toEqual({
       action: "show",

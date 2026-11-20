@@ -89,6 +89,10 @@ import {
   loadHistoricDay,
   saveScenario,
 } from "../services/hail-history/hail-events.service";
+import {
+  asIfHistory,
+  suggestHistoricDays,
+} from "../services/hail-history/as-if-history.service";
 import { placesAutocomplete } from "../services/places.service";
 import {
   parseCsvWithReport,
@@ -227,6 +231,8 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   );
   handle(IPC.hailEventsDelete, ({ id }) => deleteImportedEvent(id));
   handle(IPC.hailEventsLoadHistoric, ({ day }) => loadHistoricDay(day));
+  handle(IPC.hailEventsAsIf, (request) => asIfHistory(request));
+  handle(IPC.hailEventsSuggestDays, ({ sites }) => suggestHistoricDays(sites));
   handle(IPC.hailEventsSave, ({ name, source, cells }) =>
     saveScenario(name, source, cells),
   );

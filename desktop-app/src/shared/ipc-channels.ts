@@ -30,6 +30,10 @@ export const IPC = {
   hailEventsLoadHistoric: "hailEvents:loadHistoric",
   // Generated or drawn storm saved as a scenario
   hailEventsSave: "hailEvents:save",
+  // Stored real storm days applied to the portfolio (stress test)
+  hailEventsAsIf: "hailEvents:asIf",
+  // Days worth loading for the as-if history (DWD station hail days)
+  hailEventsSuggestDays: "hailEvents:suggestDays",
 
   // Vehicle detection
   detectVehicles: "detect:vehicles",

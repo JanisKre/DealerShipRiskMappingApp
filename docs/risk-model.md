@@ -336,6 +336,42 @@ missing or differ.
   drawn and what is counted agree. Limitation: every affected site gets the
   same intensity; the corridor is a stress test, not a hail footprint.
 
+### Capacity per accumulation and hail zone
+
+A capacity is an organisational limit the underwriter sets; it is not a
+result of the risk model and changes no score and no EAL. Code:
+`shared/capacity.ts`.
+
+- **Capacity per accumulation** is `accumulationReinsureThresholdEur`, the
+  exposure from which the review notes already recommend reinsurance. The
+  "Largest accumulations" table shows per accumulation the share used
+  (exposure ÷ capacity), what is left or by how much it is exceeded, and the
+  part that is new business when both business types occur.
+- **Capacity per hail zone** is `capacityZone1Eur` … `capacityZone6Eur`
+  (default 0 = none set). Where one is set, the zone tile lists exposure
+  against capacity. The zone is the one the EAL was computed with.
+- **Counted against a capacity** is the exposure of every location in the
+  accumulation or zone: existing business and new business, including rows
+  without a business type. Bound and new are reported separately; they are
+  not weighted differently.
+- **Status**: below 50 % free, 50 % to under 100 % partly used, 100 % or
+  more exhausted — the same cut points as the pricing hint.
+- **What one location adds** (detail dialog): the accumulation is the chain
+  of neighbours within `accumulationRadiusKm`, as on the dashboard. "Without
+  the location" is the largest accumulation that remains among the other
+  members when it is taken out; when the location is the link between two
+  groups this is less than the sum of the others, and the note says how
+  many groups it joins. Added = with − without; the share of the remainder
+  is added ÷ (capacity − without). The note appears from 50 % use, or when
+  the location's hail zone has a capacity that is at least half used.
+
+Limitations: capacities are exposure limits, not loss limits; deductibles,
+maximum indemnities and reinsurance already in place are not netted. The
+accumulation is the same radius convention as elsewhere (an assumption on
+the size of a hail cell), so the capacity inherits its limits. Exposure that
+is estimated (area estimate, fallback boundary) counts in full. Deterministic
+tests: `shared/capacity.test.ts`.
+
 ## Portfolio terms and business type
 
 Portfolio uploads (CSV/TSV/XLSX) may carry per-location policy terms and a
@@ -603,6 +639,58 @@ Deterministic tests: `shared/hail-events.test.ts`, `shared/hail-sim.test.ts`,
 `hail-events.service.test.ts` (a synthetic KONRAD3D hail day through
 parsing, archive, tracks, events and impact) and `radklim.service.test.ts`
 (grid, file format, cores, tar streaming).
+
+### As-if history (stress test)
+
+The dashboard tile "As-if history" applies every **real** storm day stored
+in the app to the locations shown: historic days from RADKLIM, the events of
+the radar archive, and imported footprints that carry a time. Generated and
+drawn storms and footprints without a time are left out. Code:
+`shared/as-if-history.ts` (aggregation, ranking of days),
+`main/services/hail-history/as-if-history.service.ts` (reading the stored
+events) and `components/dashboard/AsIfHistoryPanel.tsx`.
+
+- **Impact** is the one of the replay: a location is reached when a cell
+  outline passes within the reach chosen on the map (default 1 km); loss =
+  today's exposure × damage rate of the worst class (`scenarioDamageHigh`,
+  `scenarioDamageMedium`, `scenarioDamageLow`). The figure for a day equals
+  the one the event card shows for that event.
+- **One loss per location and day.** Events are grouped by the UTC day they
+  start on. When several events of a day reach a location (the same storm in
+  two sources, or two storms), it keeps the worst class.
+- **Per year** the days are summed; the tile shows the worst day, the worst
+  year and the sum over all evaluated days. A day that reached nothing still
+  counts as evaluated.
+- **Days worth loading.** There is no open catalogue of hail days (see
+  above), and a RADKLIM day is a download of 10–35 MB, so the history covers
+  only days that were loaded. "Propose days" ranks candidates: for each
+  location the nearest DWD station within 30 km whose record reaches 2001 or
+  later (at most 60 stations per portfolio, the ones serving the most
+  exposure first); a day's rank is the exposure of the locations whose
+  station observed hail that day. Proposed days are loaded one by one or
+  five at a time; any other day can be entered by date.
+
+Limitations, shown in the tile and carried as evidence with the result:
+
+- Only loaded days are evaluated. A year without a loaded day is **not
+  checked**, which is not the same as loss-free; the chart prints such years
+  pale.
+- The loaded days are chosen, not a random sample: **no mean annual loss, no
+  return period and no PML** follow from them.
+- Today's locations, stock and values are applied to past days.
+- RADKLIM days are a precipitation proxy for hail; the station ranking ends
+  around 2011 at most stations, so later storm days have to be entered by
+  date; a station observation up to 30 km away is not a hit.
+- The as-if history never enters the hail EAL and changes no score.
+
+Check (20 November 2026, two lots in Dresden and one in Mannheim): the
+stations proposed ten days between 2007 and 2010; of the six that were
+loaded, 14 May 2007 reached both Dresden lots (class hail) and five reached
+none.
+
+Deterministic tests: `shared/as-if-history.test.ts`,
+`as-if-history.service.test.ts` (stored days and the radar fixture through
+the database) and `hail-history.service.test.ts` (station assignment).
 
 ## Lot boundary and vehicle detection
 

@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import type { AnalyzedDealership } from "@shared/types";
 import { dealershipHailZone } from "@shared/risk-math";
+import { zoneCapacities } from "@shared/capacity";
 import {
   Card,
   CardContent,
@@ -20,12 +21,14 @@ import {
   CardTitle,
 } from "@renderer/components/ui/card";
 import { ChartContainer } from "@renderer/components/ui/chart";
+import { Progress } from "@renderer/components/ui/progress";
 import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@renderer/components/ui/toggle-group";
 import { eur, eurCompact, num, pct } from "@renderer/lib/format";
 import { hailZoneColor } from "@renderer/lib/riskColor";
+import { useAppStore } from "@renderer/store/appStore";
 import { TileInfo } from "./TileInfo";
 
 type Metric = "count" | "exposure";
@@ -48,6 +51,12 @@ export function HailZoneDistribution({
 }: Readonly<{ dealerships: AnalyzedDealership[] }>): React.JSX.Element {
   const { t } = useTranslation();
   const [metric, setMetric] = useState<Metric>("count");
+  const parameters = useAppStore((s) => s.parameters);
+  // Only zones with a capacity set; without any the tile stays as it was.
+  const capacities = useMemo(
+    () => zoneCapacities(dealerships, parameters).filter((row) => row.use),
+    [dealerships, parameters],
+  );
 
   const { rows, totalExposure, unknown } = useMemo(() => {
     const rows: ZoneRow[] = [1, 2, 3, 4, 5, 6].map((zone) => ({
@@ -175,6 +184,52 @@ export function HailZoneDistribution({
           <p className="mt-2 text-xs text-muted-foreground">
             {t("dashboard.zones.unknown", { count: unknown })}
           </p>
+        )}
+        {capacities.length > 0 && (
+          <div className="mt-3 space-y-2 border-t pt-3">
+            <div className="text-xs font-medium">
+              {t("dashboard.zones.capacityTitle")}
+            </div>
+            <ul className="space-y-2">
+              {capacities.map(({ zone, use }) => {
+                if (!use) return null;
+                const over = use.status === "exhausted";
+                return (
+                  <li key={zone} className="space-y-1 text-xs">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span>
+                        {t("dashboard.hailZoneLabel", { zone })}
+                        <span className="text-muted-foreground">
+                          {" · "}
+                          {t("dashboard.zones.capacityRow", {
+                            used: eurCompact(use.usedEur),
+                            capacity: eurCompact(use.capacityEur),
+                          })}
+                        </span>
+                      </span>
+                      <span
+                        className={`font-medium tabular-nums ${over ? "text-destructive" : ""}`}
+                      >
+                        {pct(use.utilisation)}
+                      </span>
+                    </div>
+                    <Progress
+                      value={Math.min(100, use.utilisation * 100)}
+                      aria-label={t("dashboard.zones.capacityUsed", {
+                        zone,
+                        share: pct(use.utilisation),
+                      })}
+                      className={
+                        over
+                          ? "[&>[data-slot=progress-indicator]]:bg-destructive"
+                          : undefined
+                      }
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -833,6 +833,16 @@ export const RiskParametersSchema = z.object({
   pmlClusterRadiusKm: z.number().positive(),
   accumulationRadiusKm: z.number().positive(),
   accumulationReinsureThresholdEur: z.number().nonnegative(),
+  /**
+   * Capacity per hail zone (EUR exposure); 0 = none set. With Zod defaults,
+   * so portfolios saved before these fields still load.
+   */
+  capacityZone1Eur: z.number().nonnegative().default(0),
+  capacityZone2Eur: z.number().nonnegative().default(0),
+  capacityZone3Eur: z.number().nonnegative().default(0),
+  capacityZone4Eur: z.number().nonnegative().default(0),
+  capacityZone5Eur: z.number().nonnegative().default(0),
+  capacityZone6Eur: z.number().nonnegative().default(0),
   scenarioDamageLow: z.number().min(0).max(1),
   scenarioDamageMedium: z.number().min(0).max(1),
   scenarioDamageHigh: z.number().min(0).max(1),

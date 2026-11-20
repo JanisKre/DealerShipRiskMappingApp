@@ -452,6 +452,25 @@ function readImport(id: string): ImportedEvent | null {
   }
 }
 
+/** Ids of the stored events, newest first, without reading their cells. */
+export function storedEventIds(): string[] {
+  return (
+    getDb()
+      .prepare("SELECT id FROM hail_event_imports ORDER BY created_at DESC")
+      .all() as Array<{ id: string }>
+  ).map((row) => row.id);
+}
+
+/** A stored event with its cells; null when it is gone or damaged. */
+export function storedEvent(id: string): ImportedEvent | null {
+  return readImport(id);
+}
+
+/** Radar events of the local archive, newest first. */
+export function radarEventSummaries(): HailEventSummary[] {
+  return radarEventsMemo();
+}
+
 /** Stores an event; the same id replaces the earlier one. */
 export function storeEvent(event: ImportedEvent): HailEventSummary {
   getDb()

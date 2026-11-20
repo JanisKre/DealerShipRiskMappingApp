@@ -156,6 +156,18 @@ const api = {
   ): Promise<IpcResponse["hailEvents:save"]> =>
     ipcRenderer.invoke(IPC.hailEventsSave, request),
 
+  hailEventsAsIf: (
+    request: IpcRequest["hailEvents:asIf"],
+  ): Promise<IpcResponse["hailEvents:asIf"]> =>
+    ipcRenderer.invoke(IPC.hailEventsAsIf, request),
+
+  hailEventsSuggestDays: (
+    sites: IpcRequest["hailEvents:suggestDays"]["sites"],
+  ): Promise<IpcResponse["hailEvents:suggestDays"]> =>
+    ipcRenderer.invoke(IPC.hailEventsSuggestDays, {
+      sites,
+    } satisfies IpcRequest["hailEvents:suggestDays"]),
+
   fetchWeather: (
     lat: number,
     lon: number,

@@ -1,6 +1,7 @@
 import { deflateRawSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import {
+  assignStations,
   hailHistoryEvidence,
   nearestStations,
   parseArchiveListing,
@@ -104,6 +105,34 @@ describe("DWD station list", () => {
     expect(near.map((s) => s.id)).toEqual(["01048"]);
     expect(near[0].distanceKm).toBeGreaterThan(8);
     expect(near[0].distanceKm).toBeLessThan(10);
+  });
+});
+
+describe("stations for a portfolio", () => {
+  const stations = parseStationList(STATIONS);
+  const dresden = { lat: 51.05, lon: 13.74, exposureEur: 5_000_000 };
+
+  it("gives each location its nearest station that reaches the period", () => {
+    const assigned = assignStations(
+      [dresden, { lat: 47.84, lon: 8.85, exposureEur: 1 }],
+      stations,
+      () => true,
+      2001,
+    );
+    // Aach ended in 1986: no station for the second location.
+    expect(assigned).toEqual([
+      { stationId: "01048", exposureEur: 5_000_000 },
+      null,
+    ]);
+  });
+
+  it("skips stations without an archive or whose record ends too early", () => {
+    expect(
+      assignStations([dresden], stations, (id) => id !== "01048", 2001),
+    ).toEqual([null]);
+    expect(assignStations([dresden], stations, () => true, 2012)).toEqual([
+      null,
+    ]);
   });
 });
 

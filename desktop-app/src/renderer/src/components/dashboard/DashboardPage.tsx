@@ -52,6 +52,7 @@ import {
 import { DashboardAssistant } from "@renderer/components/dashboard/DashboardAssistant";
 import { DealershipDetailDialog } from "@renderer/components/dashboard/DealershipDetailDialog";
 import { DealershipTable } from "@renderer/components/dashboard/DealershipTable";
+import { AsIfHistoryPanel } from "@renderer/components/dashboard/AsIfHistoryPanel";
 import { HailZoneDistribution } from "@renderer/components/dashboard/HailZoneDistribution";
 import { InsightsPanel } from "@renderer/components/dashboard/InsightsPanel";
 import { ChangeReportPanel } from "@renderer/components/dashboard/ChangeReportPanel";
@@ -608,6 +609,13 @@ function renderTile(
           dealerships={props.filtered}
           onSelect={props.onSelect}
           onShowOnMap={props.onShowAccumulation}
+        />
+      );
+    case "asIf":
+      return (
+        <AsIfHistoryPanel
+          dealerships={props.filtered}
+          onSelect={props.onSelect}
         />
       );
     case "zones":

@@ -12,8 +12,10 @@ import {
   effectiveVehicleCount,
   haversineKm,
 } from "@shared/risk-math";
+import { capacityUse, type CapacityUse } from "@shared/capacity";
 import { Button } from "@renderer/components/ui/button";
 import { HintButton } from "@renderer/components/ui/hint-button";
+import { Progress } from "@renderer/components/ui/progress";
 import {
   Card,
   CardContent,
@@ -29,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@renderer/components/ui/table";
-import { eur, num, pct } from "@renderer/lib/format";
+import { eur, eurCompact, num, pct } from "@renderer/lib/format";
 import { useAppStore } from "@renderer/store/appStore";
 import { HailZoneBadge } from "./HailZoneBadge";
 import { EstimateMark, NoEalBadge, estimatedShareSuffix } from "./EstimateMark";
@@ -54,6 +56,52 @@ export function clusterExtentKm(members: AnalyzedDealership[]): number {
       max = Math.max(max, haversineKm(a.lat, a.lon, b.lat, b.lon));
     }
   return max;
+}
+
+/**
+ * Share of the capacity per accumulation that is used, with what is left
+ * (or by how much it is exceeded) and, where the business type is known for
+ * both, the part that is new business.
+ */
+export function CapacityCell({
+  use,
+}: Readonly<{ use: CapacityUse }>): React.JSX.Element {
+  const { t } = useTranslation();
+  const over = use.status === "exhausted";
+  return (
+    <div className="ml-auto w-24 space-y-1">
+      <div
+        className={`font-medium tabular-nums ${over ? "text-destructive" : ""}`}
+      >
+        {pct(use.utilisation)}
+      </div>
+      <Progress
+        value={Math.min(100, use.utilisation * 100)}
+        aria-label={t("dashboard.accumulations.capacityUsed", {
+          share: pct(use.utilisation),
+        })}
+        className={
+          over ? "[&>[data-slot=progress-indicator]]:bg-destructive" : undefined
+        }
+      />
+      <div className="text-xs font-normal text-muted-foreground">
+        {use.remainingEur >= 0
+          ? t("dashboard.accumulations.capacityFree", {
+              amount: eurCompact(use.remainingEur),
+            })
+          : t("dashboard.accumulations.capacityOver", {
+              amount: eurCompact(-use.remainingEur),
+            })}
+        {use.boundEur > 0 && use.prospectEur > 0 && (
+          <span className="block">
+            {t("dashboard.accumulations.capacityProspect", {
+              amount: eurCompact(use.prospectEur),
+            })}
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /** Accumulations shown before "show all". */
@@ -111,6 +159,7 @@ export function AccumulationClusterTable({
   );
 
   const radius = parameters.accumulationRadiusKm;
+  const capacityEur = parameters.accumulationReinsureThresholdEur;
   const visible = showAll ? clusters : clusters.slice(0, INITIAL_ROWS);
 
   function members(c: AccumulationCluster): AnalyzedDealership[] {
@@ -140,6 +189,7 @@ export function AccumulationClusterTable({
             values={{
               radius,
               scenario: pct(parameters.scenarioDamageMedium),
+              capacity: eur(capacityEur),
             }}
           />
         </CardTitle>
@@ -187,6 +237,11 @@ export function AccumulationClusterTable({
                 <TableHead className="text-right">
                   {t("dashboard.totalExposure")}
                 </TableHead>
+                {capacityEur > 0 && (
+                  <TableHead className="text-right">
+                    {t("dashboard.accumulations.capacity")}
+                  </TableHead>
+                )}
                 <TableHead className="text-right">
                   {t("dashboard.hailEal")}
                 </TableHead>
@@ -217,6 +272,7 @@ export function AccumulationClusterTable({
                   analyzedCount === 0 ? "–" : text;
                 const estimated = estimatedExposure(list);
                 const coverage = ealCoverage(list);
+                const use = capacityUse(list, capacityEur);
                 const label = list[0]?.name ?? c.clusterId;
                 return (
                   <Fragment key={c.clusterId}>
@@ -296,6 +352,15 @@ export function AccumulationClusterTable({
                             </span>
                           )}
                       </TableCell>
+                      {capacityEur > 0 && (
+                        <TableCell className="text-right">
+                          {use && analyzedCount > 0 ? (
+                            <CapacityCell use={use} />
+                          ) : (
+                            "–"
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right tabular-nums">
                         {analyzedCount > 0 && coverage.withBasis === 0 ? (
                           <NoEalBadge />
@@ -376,6 +441,7 @@ export function AccumulationClusterTable({
                                 "–"
                               )}
                             </TableCell>
+                            {capacityEur > 0 && <TableCell />}
                             <TableCell className="text-right tabular-nums">
                               {!d.risk ? (
                                 "–"
