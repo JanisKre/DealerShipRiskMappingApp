@@ -1353,9 +1353,9 @@
       "imageryAttribution": "Mention de source",
       "imagerySelection": "Sélection",
       "imageryReasons": {
-        "newest": "source disponible la plus récente",
+        "newest": "source la plus récente assez nette pour compter les véhicules (0,25 m ou plus fin)",
         "sharper-within-tolerance": "plus nette, au plus 6 mois plus ancienne que la plus récente",
-        "only-option": "seule source datée",
+        "only-option": "seule source datée assez nette pour compter les véhicules",
         "no-dated-source": "aucune source datée – Esri par défaut",
         "no-sharp-source": "aucune source assez nette – Esri par défaut",
         "fixed-provider": "fixée dans les réglages",
@@ -1772,7 +1772,8 @@
       "added": "nouveau",
       "removed": "supprimé"
     },
-    "showInFolder": "Afficher dans le dossier"
+    "showInFolder": "Afficher dans le dossier",
+    "compareZoneChange": "Zone de grêle {{from}} → {{to}}"
   },
   "aiSetup": {
     "missingTitle": "Assistant IA pas encore configuré",
@@ -1961,7 +1962,7 @@
     "action": {
       "correctBoundary": "vérifier ou corriger la limite sur la carte",
       "reanalyze": "réanalyser sur l’image aérienne la plus récente disponible",
-      "compareImagery": "comparer dans l’historique d’images si le site a changé (aucune image aérienne plus récente n’est disponible)",
+      "compareImagery": "comparer dans l’historique d’images si le site a changé (aucune image aérienne plus récente assez nette pour le comptage n’est disponible)",
       "readUnderwriting": "lire les remarques de souscription dans la fenêtre"
     },
     "reanalyze": "Réanalyser",

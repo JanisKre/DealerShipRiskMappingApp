@@ -252,8 +252,10 @@ export function SummaryCards({
                 {s.value}
               </div>
               {s.hint && (
+                // Two lines instead of one: the part that matters (how
+                // many locations a figure covers) came last and was cut.
                 <div
-                  className="mt-0.5 truncate text-xs text-muted-foreground"
+                  className="mt-0.5 line-clamp-2 text-xs text-muted-foreground"
                   title={s.hint}
                 >
                   {s.hint}

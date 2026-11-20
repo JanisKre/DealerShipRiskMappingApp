@@ -1353,9 +1353,9 @@
       "imageryAttribution": "Quellenvermerk",
       "imagerySelection": "Auswahl",
       "imageryReasons": {
-        "newest": "neueste verfügbare Quelle",
+        "newest": "neueste Quelle, die scharf genug für die Fahrzeugzählung ist (0,25 m oder feiner)",
         "sharper-within-tolerance": "schärfer, höchstens 6 Monate älter als die neueste",
-        "only-option": "einzige datierte Quelle",
+        "only-option": "einzige datierte Quelle, die scharf genug für die Fahrzeugzählung ist",
         "no-dated-source": "keine datierte Quelle – Esri als Rückfall",
         "no-sharp-source": "keine ausreichend scharfe Quelle – Esri als Rückfall",
         "fixed-provider": "in den Einstellungen fest gewählt",
@@ -1772,7 +1772,8 @@
       "added": "neu",
       "removed": "entfernt"
     },
-    "showInFolder": "Im Ordner zeigen"
+    "showInFolder": "Im Ordner zeigen",
+    "compareZoneChange": "Hagelzone {{from}} → {{to}}"
   },
   "aiSetup": {
     "missingTitle": "KI-Assistent noch nicht eingerichtet",
@@ -1961,7 +1962,7 @@
     "action": {
       "correctBoundary": "Grenze auf der Karte prüfen oder korrigieren",
       "reanalyze": "auf dem neuesten verfügbaren Luftbild neu analysieren",
-      "compareImagery": "in der Bildhistorie vergleichen, ob sich das Gelände verändert hat (ein neueres Luftbild gibt es nicht)",
+      "compareImagery": "in der Bildhistorie vergleichen, ob sich das Gelände verändert hat (ein neueres Luftbild, das scharf genug für die Zählung ist, gibt es nicht)",
       "readUnderwriting": "Underwriting-Hinweise im Dialog lesen"
     },
     "reanalyze": "Neu analysieren",

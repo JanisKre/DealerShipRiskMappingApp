@@ -120,6 +120,7 @@ export function applyLoadedSession(
     nlQueryMatchedIds: null,
     filters: EMPTY_FILTERS,
     pendingAnalysis: session.pendingAnalysis ?? [],
+    ...restoredPendingErrors(session),
   });
   get().setDealerships(session.dealerships, session.boundaryEdits);
   get().setParameters(session.parameters, {
@@ -316,4 +317,24 @@ export async function rescoreWithConcurrency(
     ),
   );
   return updates;
+}
+
+/**
+ * Failed queued inputs as they were before the app closed: the error and
+ * the input, so the list says "not found" instead of "queued" and the
+ * resume notice does not count them as interrupted.
+ */
+export function restoredPendingErrors(session: {
+  pendingAnalysis?: DealershipInput[];
+  pendingErrors?: Record<string, string>;
+}): {
+  analysisErrors: Record<string, string>;
+  failedInputs: Record<string, DealershipInput>;
+} {
+  const errors = session.pendingErrors ?? {};
+  const failed = (session.pendingAnalysis ?? []).filter((i) => errors[i.id]);
+  return {
+    analysisErrors: Object.fromEntries(failed.map((i) => [i.id, errors[i.id]])),
+    failedInputs: Object.fromEntries(failed.map((i) => [i.id, i])),
+  };
 }

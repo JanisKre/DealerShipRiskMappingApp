@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { notify } from "@renderer/lib/notify";
 import { useNavigate } from "react-router-dom";
@@ -84,6 +85,7 @@ import { HailOverview } from "./detail/HailSections";
 import { BoundaryPanel } from "./detail/BoundaryPanel";
 import { VehiclePanel } from "./detail/VehiclePanel";
 import {
+  localizedRiskText,
   ModelConfidenceSummary,
   NatCatSection,
 } from "./detail/SourcesSections";
@@ -324,6 +326,11 @@ function DetailBody({
         reviewNotes: attention
           .map((item) => item.title.slice(0, 300))
           .slice(0, 12),
+        // "Sources and limitations" in the report's language: the same
+        // translations as the dialog's sources tab.
+        sourceLines: reportSourceLines(d).map((line) =>
+          localizedReportLine(t, line).slice(0, 600),
+        ),
       });
       if (path) notify.exported("dashboard.detailDialog.reportSaved", path);
     } catch (err) {
@@ -677,4 +684,55 @@ function DetailBody({
       />
     </>
   );
+}
+
+/**
+ * The report's sources and limitations: the same lines the main process
+ * would print (`evidenceLines` in location-report.service.ts), each kept as
+ * source, method and fallback so the parts can be translated.
+ */
+function reportSourceLines(
+  d: AnalyzedDealership,
+): Array<{ source?: string; text: string; fallback?: boolean }> {
+  const records = [
+    ...(d.risk?.evidence ?? []),
+    ...(d.boundary?.evidence ? [d.boundary.evidence] : []),
+    ...(d.detection?.evidence ? [d.detection.evidence] : []),
+  ];
+  const lines: Array<{ source?: string; text: string; fallback?: boolean }> =
+    [];
+  const seen = new Set<string>();
+  const add = (line: {
+    source?: string;
+    text: string;
+    fallback?: boolean;
+  }): void => {
+    const key = `${line.source ?? ""}|${line.text}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    lines.push(line);
+  };
+  for (const e of records)
+    add({ source: e.source, text: e.method, fallback: e.fallbackUsed });
+  for (const reason of d.boundary?.quality?.reasons ?? [])
+    add({ text: reason });
+  for (const limitation of [
+    ...records.flatMap((e) => e.limitations),
+    ...(d.risk?.limitations ?? []),
+  ])
+    add({ text: limitation });
+  return lines.slice(0, 16);
+}
+
+function localizedReportLine(
+  t: TFunction,
+  line: { source?: string; text: string; fallback?: boolean },
+): string {
+  const text = localizedRiskText(t, line.text);
+  const body = line.source
+    ? `${localizedRiskText(t, line.source)}: ${text}`
+    : text;
+  return line.fallback
+    ? `${body}${t("dashboard.detailDialog.evidenceFallbackSuffix")}`
+    : body;
 }

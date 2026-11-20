@@ -1,4 +1,5 @@
 import { crossedIntoNarrow } from "@renderer/lib/narrowWindow";
+import { restoredPendingErrors } from "@renderer/store/app/runtime";
 import {
   lastOpenSessionId,
   pickActiveSession,
@@ -219,6 +220,7 @@ function SessionLoader(): null {
           setDealerships(session.dealerships, session.boundaryEdits);
           useAppStore.setState({
             pendingAnalysis: session.pendingAnalysis ?? [],
+            ...restoredPendingErrors(session),
           });
           useAppStore.getState().markSaved();
         }

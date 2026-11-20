@@ -467,6 +467,11 @@ export const ipcRequest = {
     locale: z.enum(["de", "en", "fr"]),
     /** Localized titles of the open review points. */
     reviewNotes: z.array(z.string().min(1).max(300)).max(12),
+    /**
+     * The sources and limitations in the UI language, as the detail dialog
+     * shows them; without it the report prints the stored English lines.
+     */
+    sourceLines: z.array(z.string().min(1).max(600)).max(16).optional(),
   }),
   "llm:testConnection": z.void(),
   "llm:listModels": z.void(),

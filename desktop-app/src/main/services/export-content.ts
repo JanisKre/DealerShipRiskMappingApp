@@ -45,6 +45,21 @@ const LABELS = {
     csvSeparator: ";",
     reportTitle: "Hagel-Risikobericht",
     viewTitle: "Hagel-Risikoübersicht (schreibgeschützt)",
+    snapshot: "Ansicht zum Zeitpunkt des Exports",
+    footer: "Dealership Risk Mapping – statischer Export, keine Live-Daten.",
+    clusterScore: "Hagel-Score",
+    sourceNames: {
+      postcode: "PLZ-Tabelle",
+      provider: "Hagel-Datenquelle",
+      estimated: "geschätzt",
+      alkis: "ALKIS-Kataster",
+      osm: "OpenStreetMap",
+      overture: "Overture Maps",
+      aerial: "Luftbild (Fahrzeug-Umriss)",
+      fused: "mehrere Quellen",
+      synthetic: "geschätzte Grenze (Kreis)",
+      manual: "manuell gezeichnet",
+    } as Record<string, string>,
     portfolio: "Portfolio",
     created: "Erstellt",
     locations: "Standorte",
@@ -136,6 +151,21 @@ const LABELS = {
     csvSeparator: ",",
     reportTitle: "Hail Risk Report",
     viewTitle: "Hail Risk View (read-only)",
+    snapshot: "View at the time of export",
+    footer: "Dealership Risk Mapping – static export, no live data.",
+    clusterScore: "Hail score",
+    sourceNames: {
+      postcode: "postcode table",
+      provider: "hail data source",
+      estimated: "estimated",
+      alkis: "ALKIS cadastre",
+      osm: "OpenStreetMap",
+      overture: "Overture Maps",
+      aerial: "aerial image (vehicle outline)",
+      fused: "several sources",
+      synthetic: "estimated boundary (circle)",
+      manual: "drawn manually",
+    } as Record<string, string>,
     portfolio: "Portfolio",
     created: "Created",
     locations: "Locations",
@@ -229,6 +259,22 @@ const LABELS = {
     csvSeparator: ";",
     reportTitle: "Rapport de risque grêle",
     viewTitle: "Vue du risque grêle (lecture seule)",
+    snapshot: "Vue au moment de l’export",
+    footer:
+      "Dealership Risk Mapping – export statique, pas de données en direct.",
+    clusterScore: "Score grêle",
+    sourceNames: {
+      postcode: "table des codes postaux",
+      provider: "source de données de grêle",
+      estimated: "estimée",
+      alkis: "cadastre ALKIS",
+      osm: "OpenStreetMap",
+      overture: "Overture Maps",
+      aerial: "image aérienne (contour des véhicules)",
+      fused: "plusieurs sources",
+      synthetic: "limite estimée (cercle)",
+      manual: "tracée manuellement",
+    } as Record<string, string>,
     portfolio: "Portefeuille",
     created: "Créé le",
     locations: "Sites",
@@ -319,8 +365,64 @@ const LABELS = {
 
 export type ExportLabels = (typeof LABELS)[ExportLocale];
 
-export function exportLabels(locale: ExportLocale = "en"): ExportLabels {
-  return LABELS[locale];
+/**
+ * Column headings for people (PDF, HTML, Excel). The English CSV keeps its
+ * machine-readable keys for scripts; everywhere else English gets words.
+ */
+const EN_HEADINGS: Record<keyof (typeof LABELS)["en"]["columns"], string> = {
+  name: "Name",
+  address: "Address",
+  lat: "Latitude",
+  lon: "Longitude",
+  assetValue: "Asset value (EUR)",
+  machineVehicles: "Vehicles detected",
+  manualVehicles: "Vehicles reviewed",
+  vehicles: "Vehicles",
+  vehicleSource: "Vehicle source",
+  hailZone: "Hail zone",
+  hailZoneSource: "Hail zone source",
+  exposure: "Exposure (EUR)",
+  exposureEstimated: "Exposure estimated",
+  eal: "Hail EAL (EUR/year)",
+  ealStatus: "Hail EAL status",
+  ealLow: "EAL range low (EUR)",
+  ealHigh: "EAL range high (EUR)",
+  boundarySource: "Boundary source",
+  boundaryConfidence: "Boundary confidence",
+  confidence: "Result confidence",
+  modelVersion: "Model version",
+  imageDate: "Image date",
+  analysedAt: "Analysed on",
+  boundaryReview: "Boundary review",
+  fallbackUsed: "Fallback source used",
+  insured: "Existing business",
+  salesPartner: "Sales partner",
+  subPortfolio: "Sub-portfolio",
+  group: "Group",
+  productLimit: "Product limit (EUR)",
+  deductible: "Deductible (EUR)",
+  clusterId: "Accumulation",
+};
+
+export function exportLabels(locale: ExportLocale = "en"): ExportLabels & {
+  headings: ExportLabels["columns"];
+} {
+  const labels = LABELS[locale];
+  return {
+    ...labels,
+    headings: (locale === "en"
+      ? EN_HEADINGS
+      : labels.columns) as ExportLabels["columns"],
+  };
+}
+
+/** A source code ("postcode", "osm") in words; unknown codes stay. */
+export function sourceName(
+  locale: ExportLocale,
+  code: string | null | undefined,
+): string {
+  if (!code) return "";
+  return LABELS[locale].sourceNames[code] ?? code;
 }
 
 export interface MethodFacts {

@@ -1353,9 +1353,9 @@
       "imageryAttribution": "Attribution",
       "imagerySelection": "Selection",
       "imageryReasons": {
-        "newest": "newest available source",
+        "newest": "newest source sharp enough for counting vehicles (0.25 m or finer)",
         "sharper-within-tolerance": "sharper, at most 6 months older than the newest",
-        "only-option": "only dated source",
+        "only-option": "only dated source sharp enough for counting vehicles",
         "no-dated-source": "no dated source – Esri as fallback",
         "no-sharp-source": "no sufficiently sharp source – Esri as fallback",
         "fixed-provider": "fixed in settings",
@@ -1772,7 +1772,8 @@
       "added": "new",
       "removed": "removed"
     },
-    "showInFolder": "Show in folder"
+    "showInFolder": "Show in folder",
+    "compareZoneChange": "Hail zone {{from}} → {{to}}"
   },
   "aiSetup": {
     "missingTitle": "AI assistant not set up yet",
@@ -1961,7 +1962,7 @@
     "action": {
       "correctBoundary": "check or correct the boundary on the map",
       "reanalyze": "re-analyse on the newest available aerial image",
-      "compareImagery": "compare in the image history whether the site has changed (no newer aerial image is available)",
+      "compareImagery": "compare in the image history whether the site has changed (no newer aerial image sharp enough for counting is available)",
       "readUnderwriting": "read the underwriting notices in the dialog"
     },
     "reanalyze": "Re-analyse",

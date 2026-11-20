@@ -221,6 +221,8 @@ export interface LocationReportInput {
   locale: ReportLocale;
   /** Localized titles of the open review points, from the renderer. */
   reviewNotes: string[];
+  /** Sources and limitations translated by the renderer (see the IPC schema). */
+  sourceLines?: string[];
 }
 
 export async function exportLocationReport(
@@ -652,7 +654,10 @@ export function buildLocationReportPdf(
   y += 4;
 
   section(L.sources);
-  for (const line of evidenceLines(d)) paragraph(`- ${line}`, 70, 7.5);
+  for (const line of input.sourceLines?.length
+    ? input.sourceLines
+    : evidenceLines(d))
+    paragraph(`- ${line}`, 70, 7.5);
 
   // Footer: disclaimer on every page (the sources can spill onto a second).
   const pages = doc.getNumberOfPages();

@@ -86,6 +86,9 @@ export function loadSession(id: string): Session | null {
     ...(!Array.isArray(stored) && stored.pendingAnalysis
       ? { pendingAnalysis: validPendingAnalysis(stored.pendingAnalysis) }
       : {}),
+    ...(!Array.isArray(stored) && stored.pendingErrors
+      ? { pendingErrors: validPendingErrors(stored.pendingErrors) }
+      : {}),
     ...(!Array.isArray(stored) &&
     typeof stored.snapshotOf === "string" &&
     stored.snapshotOf.length > 0
@@ -100,6 +103,7 @@ interface StoredEnvelope {
   parametersRevision?: unknown;
   boundaryEdits?: unknown;
   pendingAnalysis?: unknown;
+  pendingErrors?: unknown;
   snapshotOf?: unknown;
 }
 
@@ -165,6 +169,10 @@ export function saveSession(session: Session): void {
         ...(session.pendingAnalysis && session.pendingAnalysis.length > 0
           ? { pendingAnalysis: session.pendingAnalysis }
           : {}),
+        ...(session.pendingErrors &&
+        Object.keys(session.pendingErrors).length > 0
+          ? { pendingErrors: session.pendingErrors }
+          : {}),
         ...(session.snapshotOf ? { snapshotOf: session.snapshotOf } : {}),
       }),
     });
@@ -172,4 +180,14 @@ export function saveSession(session: Session): void {
 
 export function deleteSession(id: string): void {
   getDb().prepare("DELETE FROM sessions WHERE id = ?").run(id);
+}
+
+/** Stored reasons of failed queued inputs; anything else is dropped. */
+function validPendingErrors(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Record<string, string> = {};
+  for (const [id, message] of Object.entries(value))
+    if (typeof message === "string" && id.length <= 200)
+      out[id] = message.slice(0, 500);
+  return out;
 }

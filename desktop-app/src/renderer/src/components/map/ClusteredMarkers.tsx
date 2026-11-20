@@ -207,6 +207,16 @@ export function ClusteredMarkers({
   const selectedRef = useRef<L.LayerGroup | null>(null);
   /** Markers on the map by location id, with the state they were built from. */
   const entriesRef = useRef(new Map<string, MarkerEntry>());
+  /**
+   * Location whose pin was just clicked: selecting it replaces the marker,
+   * which closed the popup the click had opened. The new marker opens it.
+   */
+  const popupForRef = useRef<string | null>(null);
+  /** Current locations, read at click time (twins at one point). */
+  const dealershipsRef = useRef(dealerships);
+  dealershipsRef.current = dealerships;
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
   // Read at event time, so a new callback identity does not rebuild markers.
   const callbacks = useRef({
     onSelect,
@@ -332,6 +342,9 @@ export function ClusteredMarkers({
       marker.bindPopup(() => popupHtml(d, t, analysing), {
         maxWidth: 240,
         className: "drm-popup-wrapper",
+        // Room for the notices at the top of the map, which covered the
+        // popup of a pin near the upper edge.
+        autoPanPaddingTopLeft: L.point(16, 150),
       });
 
       marker.on("click", (e) => {
@@ -348,6 +361,22 @@ export function ClusteredMarkers({
           });
           return;
         }
+        // Two locations at one point: the selected pin lies on top of the
+        // other, so a click on it moves to the next one at that point.
+        if (selectedIdRef.current === d.id) {
+          const twins = dealershipsRef.current.filter(
+            (x) =>
+              Math.abs(x.lat - d.lat) < 1e-5 && Math.abs(x.lon - d.lon) < 1e-5,
+          );
+          if (twins.length > 1) {
+            const at = twins.findIndex((x) => x.id === d.id);
+            const next = twins[(at + 1) % twins.length];
+            popupForRef.current = next.id;
+            callbacks.current.onSelect(next.id);
+            return;
+          }
+        }
+        popupForRef.current = d.id;
         callbacks.current.onSelect(d.id);
       });
       marker.on("contextmenu", (e) => {
@@ -388,8 +417,13 @@ export function ClusteredMarkers({
 
       // The selected site sits outside the cluster: hidden inside a cluster
       // badge, a selection from the list or the chat showed nothing.
-      if (isSelected) selectedLayer.addLayer(marker);
-      else added.push(marker);
+      if (isSelected) {
+        selectedLayer.addLayer(marker);
+        if (popupForRef.current === d.id) {
+          popupForRef.current = null;
+          marker.openPopup();
+        }
+      } else added.push(marker);
       entries.set(d.id, {
         marker,
         dealership: d,

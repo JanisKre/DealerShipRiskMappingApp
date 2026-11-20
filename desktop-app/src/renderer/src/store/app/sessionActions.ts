@@ -144,6 +144,7 @@ export function sessionActions(
         ...(s.pendingAnalysis.length > 0
           ? { pendingAnalysis: s.pendingAnalysis }
           : {}),
+        ...pendingErrorsOf(s),
         ...(s.sessionSnapshotOf ? { snapshotOf: s.sessionSnapshotOf } : {}),
         ...boundaryEditsOf(s),
       };
@@ -224,4 +225,18 @@ export function sessionActions(
       setSavedSnapshot(snapshotOf(get()));
     },
   };
+}
+
+/** Errors of queued inputs, kept with the session (see `pendingErrors`). */
+function pendingErrorsOf(s: {
+  pendingAnalysis: { id: string }[];
+  analysisErrors: Record<string, string>;
+}): { pendingErrors?: Record<string, string> } {
+  const queued = new Set(s.pendingAnalysis.map((input) => input.id));
+  const entries = Object.entries(s.analysisErrors)
+    .filter(([id]) => queued.has(id))
+    .map(([id, message]) => [id, message.slice(0, 500)] as const);
+  return entries.length > 0
+    ? { pendingErrors: Object.fromEntries(entries) }
+    : {};
 }

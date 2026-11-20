@@ -22,6 +22,7 @@ import {
   exportLabels,
   methodFacts,
   siteProvenance,
+  sourceName,
   type ExportLocale,
 } from "./export-content";
 
@@ -276,9 +277,10 @@ function exposureText(d: AnalyzedDealership, locale: ExportLocale): string {
 function boundaryText(d: AnalyzedDealership, locale: ExportLocale): string {
   const p = siteProvenance(d);
   if (!p.boundarySource) return "—";
+  const source = sourceName(locale, p.boundarySource);
   return p.boundaryConfidence != null
-    ? `${p.boundarySource} · ${formatters(locale).pct(p.boundaryConfidence)}`
-    : p.boundarySource;
+    ? `${source} · ${formatters(locale).pct(p.boundaryConfidence)}`
+    : source;
 }
 
 async function writePdf(
@@ -313,7 +315,7 @@ async function writePdf(
     ),
   );
 
-  const c = L.columns;
+  const c = L.headings;
   const head = [
     [
       c.name,
@@ -375,7 +377,7 @@ async function writeExcel(
   locale: ExportLocale,
 ): Promise<void> {
   const L = exportLabels(locale);
-  const c = L.columns;
+  const c = L.headings;
   const wb = new ExcelJS.Workbook();
   wb.creator = "Dealership Risk Mapping";
   wb.created = new Date();
@@ -434,7 +436,7 @@ async function writeExcel(
       vehicles: d.detection ? effectiveVehicleCount(d.detection) : null,
       vehicleSource: L.vehicleSource[p.vehicleSource],
       hailZone: zone?.zone ?? null,
-      hailZoneSource: zone?.source ?? "",
+      hailZoneSource: sourceName(locale, zone?.source),
       exposure: d.risk?.exposureEur ?? null,
       exposureEstimated: d.risk ? (p.exposureEstimated ? L.yes : L.no) : "",
       // No vehicle count, no EAL: an empty cell, not 0 €.
@@ -442,7 +444,7 @@ async function writeExcel(
       ealStatus: L.ealStatus[p.ealStatus],
       ealLow: d.risk?.ealBreakdown?.hailDetail?.stockRange?.ealLow ?? null,
       ealHigh: d.risk?.ealBreakdown?.hailDetail?.stockRange?.ealHigh ?? null,
-      boundarySource: p.boundarySource ?? "",
+      boundarySource: sourceName(locale, p.boundarySource),
       boundaryConfidence: p.boundaryConfidence ?? null,
       confidence: p.confidence ?? null,
       modelVersion: p.modelVersion ?? "",
@@ -583,7 +585,9 @@ export function toCsv(session: Session, locale: ExportLocale = "en"): string {
           ? p.vehicleSource
           : cell(L.vehicleSource[p.vehicleSource]),
         zone?.zone ?? "",
-        zone?.source ?? "",
+        locale === "en"
+          ? (zone?.source ?? "")
+          : cell(sourceName(locale, zone?.source)),
         decimal(d.risk?.exposureEur),
         d.risk ? (p.exposureEstimated ? L.yes : L.no) : "",
         // No vehicle count, no EAL: empty, with the reason in ealStatus.
@@ -591,7 +595,9 @@ export function toCsv(session: Session, locale: ExportLocale = "en"): string {
         locale === "en" ? p.ealStatus : cell(L.ealStatus[p.ealStatus]),
         decimal(d.risk?.ealBreakdown?.hailDetail?.stockRange?.ealLow),
         decimal(d.risk?.ealBreakdown?.hailDetail?.stockRange?.ealHigh),
-        p.boundarySource ?? "",
+        locale === "en"
+          ? (p.boundarySource ?? "")
+          : cell(sourceName(locale, p.boundarySource)),
         decimal(p.boundaryConfidence),
         decimal(p.confidence),
         cell(p.modelVersion ?? ""),
@@ -687,7 +693,7 @@ function buildReadonlyHtml(
   locale: ExportLocale = "en",
 ): string {
   const L = exportLabels(locale);
-  const c = L.columns;
+  const c = L.headings;
   const f = formatters(locale);
   const parameters = sessionParameters(session);
   const clusterMap = clusterAssignment(session);
@@ -756,13 +762,13 @@ function buildReadonlyHtml(
   const clusterSection = clusters.length
     ? `<h2>${esc(L.clusters)} (${clusters.length})</h2>
     <table>
-      <thead><tr><th>${esc(c.clusterId)}</th><th class="num">${esc(L.locations)}</th><th class="num">${esc(c.vehicles)}</th><th class="num">${esc(c.exposure)}</th><th>${esc(c.hailZone)}</th><th class="num">Nat-Cat KPI</th><th>${esc(c.salesPartner)}</th></tr></thead>
+      <thead><tr><th>${esc(c.clusterId)}</th><th class="num">${esc(L.locations)}</th><th class="num">${esc(c.vehicles)}</th><th class="num">${esc(c.exposure)}</th><th>${esc(c.hailZone)}</th><th class="num">${esc(L.clusterScore)}</th><th>${esc(c.salesPartner)}</th></tr></thead>
       <tbody>${clusterRows}</tbody>
     </table>`
     : "";
 
   const snapshotSection = snapshotDataUri
-    ? `<h2>Snapshot</h2><img class="snapshot" src="${snapshotDataUri}" alt="Snapshot" />`
+    ? `<h2>${esc(L.snapshot)}</h2><img class="snapshot" src="${snapshotDataUri}" alt="${esc(L.snapshot)}" />`
     : "";
 
   const methodSection = `<h2>${esc(L.methodTitle)}</h2>
@@ -824,7 +830,7 @@ function buildReadonlyHtml(
 
     ${snapshotSection}
 
-    <footer>Dealership Risk Mapping — static export, no live data.</footer>
+    <footer>${esc(L.footer)}</footer>
   </div>
 </body>
 </html>`;

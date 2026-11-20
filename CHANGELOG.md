@@ -176,8 +176,7 @@ the project follows [Semantic Versioning](https://semver.org/).
   answer. Checked against the real API for every AI feature.
 - **Findings of the functional test run of 20 November** (six test
   roles went through every feature of the built app; about 115 findings,
-  the two critical and the major ones are fixed, and many of the small
-  ones):
+  all critical and major ones and nearly all small ones are fixed):
   - **Detail dialog.** Paging to another location no longer leaves the
     previous location's sales partner, sub-portfolio and group in the
     fields (tabbing through them wrote them into the other location). An
@@ -225,6 +224,24 @@ the project follows [Semantic Versioning](https://semver.org/).
     date part or a frequency read as a percentage; streamed explanations
     leave out sentences with figures the app did not hand over. Postcode
     and town for AI providers and agents never include a street.
+  - **Second pass (smaller findings).** AI: an answer without text says
+    so; AI errors are shown without the technical wrapper; the starter
+    dashboard built without AI says so and quotes no request; scenario
+    names with figures are not used; the gateway answers an oversized body
+    with 413. Parameters: hail values show their standard and can be reset
+    one by one; a severity above the vehicle value says it is capped; the
+    impact bar names results of an older model; the PML fields say that
+    only the optional AI chat uses them. Settings: the hazard API form
+    checks the address before the key is stored and tests only a saved
+    address; the diagnostics report replaces the home folder by "~"; the
+    command palette finds names without umlauts. Exports: readable English
+    headings in PDF, HTML and Excel, sources in words, no English leftovers
+    in the German HTML view; the location report lists its sources in the
+    app's language. Comparison: a hail-zone change is shown, a reopened
+    dialog starts empty. Map: the popup stays open after the first click
+    on a pin, a second location at the same point is reached by clicking
+    the selected pin again. A failed address stays "not found" after a
+    restart. Image selection texts name the sharpness limit.
 
 
 - Own aerial imagery source: a tile template with `{time}` no longer takes

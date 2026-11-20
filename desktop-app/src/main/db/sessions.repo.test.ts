@@ -158,6 +158,19 @@ describe("saved states (UW-09)", () => {
     expect(list.find((s) => s.id === "s1")).not.toHaveProperty("snapshotOf");
   });
 
+  it("keeps why queued inputs failed", () => {
+    saveSession(
+      session({
+        id: "failed",
+        pendingAnalysis: [{ id: "row-1", name: "Autohaus Nirgendwo" }],
+        pendingErrors: { "row-1": "Address could not be resolved" },
+      }),
+    );
+    expect(loadSession("failed")?.pendingErrors).toEqual({
+      "row-1": "Address could not be resolved",
+    });
+  });
+
   it("keeps the parameter revision a session was saved under", () => {
     saveSession(session({ id: "rev", parametersRevision: 1 }));
     saveSession(session({ id: "old" }));

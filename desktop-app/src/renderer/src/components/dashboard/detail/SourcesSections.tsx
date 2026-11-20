@@ -81,7 +81,7 @@ export function ModelConfidenceSummary({
 }
 
 /** Localizes persisted provenance text while keeping unknown provider text intact. */
-function localizedRiskText(t: TFunction, text: string): string {
+export function localizedRiskText(t: TFunction, text: string): string {
   // The analysis appends where the point came from ("…; anchor: official
   // house coordinate (ALKIS Sachsen)"): translate both parts.
   const anchored = /^(.*); anchor: (.+)$/.exec(text);

@@ -118,6 +118,9 @@ export function ComparisonView({
   }, [sessionId]);
   useEffect(() => {
     if (open) void loadSessions();
+    // A reopened dialog starts without a result: the select is empty again,
+    // and a result without its baseline named cannot be read.
+    else setBaseline(null);
   }, [open, loadSessions]);
   const snapshot = useSaveSnapshot(() => void loadSessions());
 
@@ -159,7 +162,7 @@ export function ComparisonView({
           </Button>
         </div>
         {sessions.length > 0 && (
-          <Select onValueChange={pick}>
+          <Select value={baseline?.id ?? ""} onValueChange={pick}>
             <SelectTrigger className="max-w-sm">
               <SelectValue placeholder={t("ui.selectBaseline")} />
             </SelectTrigger>
@@ -242,6 +245,18 @@ function DiffResult({
                     {t(`ui.compareStatus.${row.status}`)}
                   </Badge>
                 )}
+                {/* A change of the hail zone alone left "0 | 0" in a row
+                    counted as changed. */}
+                {row.status !== "added" &&
+                  row.status !== "removed" &&
+                  row.hailZone.from !== row.hailZone.to && (
+                    <Badge variant="outline" className="ml-2">
+                      {t("ui.compareZoneChange", {
+                        from: row.hailZone.from ?? "–",
+                        to: row.hailZone.to ?? "–",
+                      })}
+                    </Badge>
+                  )}
               </TableCell>
               <TableCell>
                 <Delta value={row.vehicles.delta} fmt={(n) => num(n)} />

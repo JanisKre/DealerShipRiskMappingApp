@@ -904,6 +904,11 @@ export const SessionSchema = z.object({
    */
   pendingAnalysis: z.array(DealershipInputSchema).max(50_000).optional(),
   /**
+   * Why queued inputs failed (address not found, …), by input id, so a
+   * failed row is shown as failed after a restart, not as "queued".
+   */
+  pendingErrors: z.record(z.string().max(200), z.string().max(500)).optional(),
+  /**
    * Manual boundary edits per location id: the undo steps (oldest first)
    * and whether the edit still waits for "Save & update car detection".
    * Kept with the session so both survive closing the app.

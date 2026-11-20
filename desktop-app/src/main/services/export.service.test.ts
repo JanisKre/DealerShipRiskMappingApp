@@ -214,6 +214,20 @@ describe("limitations and provenance in exports (UW-11, UW-03)", () => {
     expect(estimated).toContain(";52,52;13,29;");
     expect(estimated).toContain("Flächenschätzung (nicht in der EAL)");
     expect(estimated).toContain(";keine Fahrzeugzahl;");
+    // Sources in words, not as the internal codes.
+    expect(estimated).toContain(";geschätzte Grenze (Kreis);");
+    expect(estimated).not.toContain(";synthetic;");
+  });
+
+  it("gives English workbooks readable headings, the CSV keeps its keys", async () => {
+    const path = target("headings.xlsx");
+    expect(await exportReport(mixed, "excel", "en")).toBe(path);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path);
+    const header = wb.worksheets[0].getRow(1).values as unknown[];
+    expect(header).toContain("Hail zone");
+    expect(header).not.toContain("hailZone");
+    expect(toCsv(mixed).split("\n")[0]).toContain("hailZone");
   });
 
   it("puts the methodology and placeholder note into the workbook", async () => {
