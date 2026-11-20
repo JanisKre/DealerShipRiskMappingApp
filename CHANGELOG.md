@@ -242,6 +242,10 @@ the project follows [Semantic Versioning](https://semver.org/).
     on a pin, a second location at the same point is reached by clicking
     the selected pin again. A failed address stays "not found" after a
     restart. Image selection texts name the sharpness limit.
+  - **External links: https and mailto only.** A plain `http:` address
+    (often a dealer website from OpenStreetMap) opens as `https:`; other
+    schemes and addresses with credentials are not opened. The phone number
+    in the place details is shown as text (a `tel:` link would do nothing).
 
 
 - Own aerial imagery source: a tile template with `{time}` no longer takes

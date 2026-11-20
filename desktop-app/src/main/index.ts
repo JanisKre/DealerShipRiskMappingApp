@@ -7,6 +7,7 @@ import {
   nativeImage,
   session,
 } from "electron";
+import { externalUrl } from "./external-links";
 import { join } from "path";
 import { pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc";
@@ -90,15 +91,6 @@ app.on("child-process-gone", (_event, details) => {
   );
 });
 
-function isSafeExternalUrl(rawUrl: string): boolean {
-  try {
-    const url = new URL(rawUrl);
-    return ["http:", "https:", "mailto:"].includes(url.protocol);
-  } catch {
-    return false;
-  }
-}
-
 function isRendererUrl(
   rawUrl: string,
   rendererUrl: string | undefined,
@@ -170,8 +162,10 @@ function createWindow(): BrowserWindow {
     );
   });
 
+  // External links: https and mailto only (see external-links.ts).
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (isSafeExternalUrl(url)) void shell.openExternal(url);
+    const target = externalUrl(url);
+    if (target) void shell.openExternal(target);
     return { action: "deny" };
   });
 
@@ -181,7 +175,8 @@ function createWindow(): BrowserWindow {
   mainWindow.webContents.on("will-navigate", (event, url) => {
     if (isRendererUrl(url, rendererUrl, rendererFilePath)) return;
     event.preventDefault();
-    if (isSafeExternalUrl(url)) void shell.openExternal(url);
+    const target = externalUrl(url);
+    if (target) void shell.openExternal(target);
   });
 
   if (!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]) {

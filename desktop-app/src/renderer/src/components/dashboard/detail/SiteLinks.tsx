@@ -291,13 +291,12 @@ export function OsmDetailsSection({
       </h4>
       <div className="space-y-1">
         {details.phone && (
-          <a
-            href={`tel:${details.phone}`}
-            className="flex items-center gap-1.5 hover:underline"
-          >
+          // Plain text: the app opens only https and mailto links, so a
+          // tel: link would do nothing. The number can be selected.
+          <span className="flex items-center gap-1.5 select-text">
             <Phone className="size-3.5 shrink-0 text-muted-foreground" />
             {details.phone}
-          </a>
+          </span>
         )}
         {details.email && (
           <a
