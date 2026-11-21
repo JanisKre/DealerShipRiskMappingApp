@@ -106,7 +106,11 @@ the project follows [Semantic Versioning](https://semver.org/).
 - **CI on macOS and Windows.** Unit tests, build and the end-to-end suite
   also run on `macos-latest` and `windows-2022`, the platforms the app ships
   for. The Linux job and the release check run the unit tests once (with
-  coverage) instead of twice.
+  coverage) instead of twice. The first runs found two test faults: a
+  studio test that could not read CRLF files on Windows, and a drag helper
+  that dropped on the sticky tab bar in small windows. Mouse drags have no
+  effect on GitHub's macOS runners, so those checks skip there only and
+  still run on Linux.
 - **Detection benchmark on the app's own pipeline.** `npm run
   benchmark:detection` also stitches each site's validation tiles into one
   mosaic and counts it with the detector's window plan and NMS, against a
