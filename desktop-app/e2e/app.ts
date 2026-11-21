@@ -90,7 +90,12 @@ export async function dragOnto(
   await source.scrollIntoViewIfNeeded();
   const from = await source.boundingBox();
   if (!from) throw new Error("drag source is not visible");
-  const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+  // Near the top, not the middle: a part taller than a small window (the
+  // Windows runner's) has its middle below the visible area.
+  const start = {
+    x: from.x + from.width / 2,
+    y: from.y + Math.min(from.height / 2, 24),
+  };
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(start.x + 6, start.y + 6, { steps: 3 });
