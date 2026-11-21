@@ -14,6 +14,7 @@ import {
   getSettings,
 } from "../settings.service";
 import { WindowAppControl } from "./app-control";
+import { AnalysisTaskStore } from "./mcp-tasks";
 import { AgentGatewayServer } from "./server";
 
 /**
@@ -43,6 +44,9 @@ const appControl = new WindowAppControl((request) => {
   window.webContents.send(IPC.agentCommand, request);
   return true;
 });
+
+/** Kept here so a restart of the server (a changed setting) keeps the tasks. */
+const analysisTasks = new AnalysisTaskStore();
 
 /** The window's answer to a command (`agent:commandResult`). */
 export function answerAgentCommand(id: string, result: unknown): boolean {
@@ -96,6 +100,7 @@ export async function syncAgentGateway(restart = false): Promise<void> {
         portfolioChatStream(messages, context, signal),
       withFeature: withAiFeature,
       control: appControl,
+      tasks: analysisTasks,
     });
     await next.start();
     server = next;

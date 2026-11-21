@@ -70,6 +70,7 @@ export function readWindowState(deps: ControlDeps): WindowState {
       total: s.progress?.total ?? 0,
       waiting: s.analyzing ? 0 : s.pendingAnalysis.length,
       failed: Object.keys(s.analysisErrors).length,
+      startedAt: s.progress?.startedAt ?? 0,
     },
   };
 }

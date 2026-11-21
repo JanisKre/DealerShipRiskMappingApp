@@ -98,6 +98,22 @@ describe("remote control in the window", () => {
     expect(text).not.toContain(String(app.dealerships[0].lat));
   });
 
+  it("names the run, so one analysis can be told from the next", () => {
+    const { deps, app } = window();
+    expect(readWindowState(deps).analysis.startedAt).toBe(0);
+    app.analyzing = true;
+    app.progress = { done: 1, total: 3, startedAt: 1_700_000_000_000 };
+    expect(readWindowState(deps).analysis).toMatchObject({
+      running: true,
+      done: 1,
+      total: 3,
+      startedAt: 1_700_000_000_000,
+    });
+    // The last run stays named after it has ended.
+    app.analyzing = false;
+    expect(readWindowState(deps).analysis.startedAt).toBe(1_700_000_000_000);
+  });
+
   it("opens a saved portfolio and refuses an unknown one", async () => {
     const { deps, app } = window();
     const opened = await executeAgentCommand(

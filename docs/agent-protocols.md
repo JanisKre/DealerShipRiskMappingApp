@@ -55,8 +55,24 @@ app's control and stated in the settings.
 ### MCP server
 
 Streamable HTTP, stateless: one JSON response per `POST /mcp`, no
-server-initiated stream. Protocol versions `2025-11-25`, `2025-06-18`,
-`2025-03-26` and `2024-11-05`.
+server-initiated stream. Two eras of the protocol are served on the same
+route:
+
+- **Revision `2026-07-28`** (no handshake). A request that names its
+  protocol version in `params._meta` is answered by these rules:
+  `server/discover` describes the server, every result carries
+  `resultType`, list results carry `ttlMs` and `cacheScope`, an unknown
+  method is `404`, an unsupported version `400` with the supported ones. A
+  header (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`) that contradicts
+  the body is refused with `400`; a missing one is accepted, because the
+  server listens on this computer only and nothing in between routes on
+  headers.
+- **Earlier revisions** (`2025-11-25`, `2025-06-18`, `2025-03-26`,
+  `2024-11-05`) start with `initialize` and are served as before.
+
+The tool list and `server/discover` are marked as not cacheable (`ttlMs` 0):
+switching remote control on or off changes them and the server sends no
+notification.
 
 | Tool                | Returns                                                                                                             |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -86,14 +102,14 @@ Off by default; switched on with "Allow operating the app" in the same
 card (needs the MCP server). The server then lists six more tools and
 tells the host in its `instructions` to call `get_app_state` first:
 
-| Tool             | Does                                                                                      | Annotation              |
-| ---------------- | ----------------------------------------------------------------------------------------- | ----------------------- |
-| `get_app_state`  | Page, open portfolio (id, name, locations, saved), selected location, analysis progress   | read-only               |
-| `open_portfolio` | Opens a saved portfolio; the open one is saved first. Refused while an analysis runs      | changes the window      |
-| `show_location`  | Selects a location (id or exact name) on the map; with `details`, opens its detail dialog | changes the window      |
-| `open_view`      | Shows `map`, `dashboard`, `parameters` or `settings`                                      | changes the window      |
-| `start_analysis` | Analyses named locations, or `scope` `unanalysed` (default) or `all`; returns at once     | destructive, open world |
-| `stop_analysis`  | Stops the running analysis after the locations in progress                                | changes the window      |
+| Tool             | Does                                                                                                        | Annotation              |
+| ---------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `get_app_state`  | Page, open portfolio (id, name, locations, saved), selected location, analysis progress                     | read-only               |
+| `open_portfolio` | Opens a saved portfolio; the open one is saved first. Refused while an analysis runs                        | changes the window      |
+| `show_location`  | Selects a location (id or exact name) on the map; with `details`, opens its detail dialog                   | changes the window      |
+| `open_view`      | Shows `map`, `dashboard`, `parameters` or `settings`                                                        | changes the window      |
+| `start_analysis` | Analyses named locations, or `scope` `unanalysed` (default) or `all`; returns at once, or as a task (below) | destructive, open world |
+| `stop_analysis`  | Stops the running analysis after the locations in progress                                                  | changes the window      |
 
 How it works: the main process validates the arguments, sends a command
 (`agent:command`) to the window and waits up to 15 s for the answer
@@ -110,6 +126,44 @@ button.
 
 The read tools read saved portfolios; the window saves a few seconds after
 a change (`saved` in `get_app_state`).
+
+#### The analysis as a task
+
+An analysis takes from seconds to minutes per location. A host that speaks
+revision `2026-07-28` and declares the tasks extension
+(`io.modelcontextprotocol/tasks`) on its request gets a task from
+`start_analysis` instead of the immediate result:
+
+| Call           | Answer                                                                                                                                          |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tools/call`   | `resultType: "task"` with `taskId`, `status: "working"`, `ttlMs` (12 h) and `pollIntervalMs` (5 s)                                              |
+| `tasks/get`    | The task with its progress in `statusMessage` ("Analysing: 12 of 40 locations done."); once the run has ended, `completed` with the tool result |
+| `tasks/cancel` | Stops the run after the locations in progress, like `stop_analysis`; the task then ends as `cancelled`. What was analysed so far is kept        |
+| `tasks/update` | Acknowledged; the analysis never asks the host for input                                                                                        |
+
+Every other host (an earlier revision, or no declared extension) gets the
+immediate result and polls `get_app_state`, as before. A start the window
+refuses (an analysis already runs, nothing to analyse) is an ordinary tool
+error, never a task. The server advertises the extension in
+`server/discover` only while remote control is on.
+
+A task holds no work of its own. The analysis runs in the window; the task
+remembers the portfolio and the run it was created for
+(`analysis.startedAt` in the app state) and asks the window whenever the
+host polls (`agent-gateway/mcp-tasks.ts`). Consequences:
+
+- A task only ever stops its own run. If that run has ended and another
+  one was started in the app, `tasks/cancel` stops nothing.
+- If the app has moved on when the host polls (another portfolio, a newer
+  run), the task ends as `completed` and says that the final counts are no
+  longer on screen; the results are in `list_locations`.
+- `completed` means the run has ended, not that every location succeeded:
+  the result carries the counts (`analysis.done`, `total`, `failed`), and
+  the message says when the run was stopped in the app.
+- While the window does not answer, the task stays as it was.
+- Tasks are kept in memory: at most 32, for 12 hours, until the app quits.
+  An unknown or expired id is answered with "task not found" (`-32602`).
+- The server sends no task notifications; hosts poll.
 
 ### MCP App
 
@@ -163,7 +217,10 @@ record book as `gateway:ag-ui`.
   import files, edit boundaries, change settings or delete anything.
 - The protocol implementations are hand-written against the specifications
   and covered by unit tests; they have not been tested against every host.
-  MCP Apps and A2A 1.0 are recent; host support varies.
+  MCP Apps and A2A 1.0 are recent; host support varies. MCP revision
+  `2026-07-28` and the tasks extension are checked against the
+  specification text and with requests written for the tests, not yet
+  against a host that uses them.
 - The A2A agent understands three skills, not free-form questions.
 - The gateway exposes saved portfolios. Changes that are not saved yet are
   not visible to other tools.

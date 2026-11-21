@@ -87,6 +87,11 @@ export const AppStateSchema = z.object({
     /** Imported rows of an interrupted run that still wait. */
     waiting: z.number().int().nonnegative(),
     failed: z.number().int().nonnegative(),
+    /**
+     * Start of the running or last run (epoch ms); 0 when the open
+     * portfolio has had none. Tells one run from the next.
+     */
+    startedAt: z.number().int().nonnegative(),
   }),
 });
 export type AppState = z.infer<typeof AppStateSchema>;

@@ -14,10 +14,19 @@ import type { GatewayData } from "./gateway-data";
 import { MCP_APP_MIME_TYPE, PORTFOLIO_SUMMARY_UI_URI } from "./mcp-app";
 import {
   MCP_CONTROL_TOOLS,
+  MCP_PROTOCOL_VERSIONS,
   MCP_TOOLS,
+  answerMcpRequest,
   callMcpTool,
   handleMcpMessage,
+  type McpRequestHeaders,
 } from "./mcp-server";
+import {
+  AnalysisTaskStore,
+  MCP_TASKS_EXTENSION_ID,
+  TASKS_MAX,
+  TASK_TTL_MS,
+} from "./mcp-tasks";
 import { WindowAppControl, type AppControl } from "./app-control";
 import type {
   AgentCommand,
@@ -281,7 +290,14 @@ describe("MCP server", () => {
       },
       selectedLocation: null,
       detailsOpenFor: null,
-      analysis: { running: false, done: 0, total: 0, waiting: 0, failed: 0 },
+      analysis: {
+        running: false,
+        done: 0,
+        total: 0,
+        waiting: 0,
+        failed: 0,
+        startedAt: 0,
+      },
     };
     function recorder(result: AgentCommandResult = { ok: true, state }): {
       control: AppControl;
@@ -389,6 +405,461 @@ describe("MCP server", () => {
       expect(result.content[0].text).toContain("stop_analysis");
     });
   });
+
+  describe("revision 2026-07-28 (no handshake)", () => {
+    const META = { "io.modelcontextprotocol/protocolVersion": "2026-07-28" };
+    const modern = (
+      method: string,
+      params: Record<string, unknown> = {},
+      headers?: McpRequestHeaders,
+    ): ReturnType<typeof answerMcpRequest> =>
+      answerMcpRequest(
+        { jsonrpc: "2.0", id: 1, method, params: { ...params, _meta: META } },
+        data,
+        "0.5.0",
+        { headers },
+      );
+    const resultOf = (answer: {
+      body: unknown;
+    }): Record<string, unknown> | undefined =>
+      (answer.body as McpReply | null)?.result;
+    const errorOf = (answer: {
+      body: unknown;
+    }): { code: number; data?: Record<string, unknown> } | undefined =>
+      (answer.body as { error?: { code: number } } | null)?.error;
+
+    it("describes itself on server/discover", async () => {
+      const result = resultOf(await modern("server/discover"));
+      expect(result).toMatchObject({
+        resultType: "complete",
+        supportedVersions: [...MCP_PROTOCOL_VERSIONS],
+        capabilities: {
+          tools: {},
+          extensions: { "io.modelcontextprotocol/ui": {} },
+        },
+        _meta: {
+          "io.modelcontextprotocol/serverInfo": {
+            name: "dealership-risk-mapping",
+            version: "0.5.0",
+          },
+        },
+        ttlMs: 0,
+        cacheScope: "private",
+      });
+      expect(MCP_PROTOCOL_VERSIONS[0]).toBe("2026-07-28");
+      // No remote control, no tasks.
+      expect(
+        (result?.capabilities as { extensions: object }).extensions,
+      ).not.toHaveProperty(MCP_TASKS_EXTENSION_ID);
+    });
+
+    it("marks every result and gives lists a freshness", async () => {
+      const tools = resultOf(await modern("tools/list"));
+      expect(tools).toMatchObject({
+        resultType: "complete",
+        ttlMs: 0,
+        cacheScope: "private",
+      });
+      const called = resultOf(
+        await modern("tools/call", { name: "portfolio_summary" }),
+      );
+      expect(called?.resultType).toBe("complete");
+      expect(called).not.toHaveProperty("ttlMs");
+      expect(resultOf(await modern("resources/list"))?.ttlMs).toBeGreaterThan(
+        0,
+      );
+      // A host of an older revision gets the results as before.
+      const legacy = (await call("tools/list"))?.result;
+      expect(legacy).not.toHaveProperty("resultType");
+      expect(legacy).not.toHaveProperty("ttlMs");
+    });
+
+    it("refuses a revision it does not speak and names the ones it does", async () => {
+      const answer = await answerMcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/list",
+          params: {
+            _meta: { "io.modelcontextprotocol/protocolVersion": "2031-01-01" },
+          },
+        },
+        data,
+        "0.5.0",
+      );
+      expect(answer.status).toBe(400);
+      expect(errorOf(answer)).toMatchObject({
+        code: -32022,
+        data: {
+          supported: [...MCP_PROTOCOL_VERSIONS],
+          requested: "2031-01-01",
+        },
+      });
+    });
+
+    it("refuses headers that contradict the body and accepts matching or missing ones", async () => {
+      const call = { name: "portfolio_summary" };
+      for (const headers of [
+        { protocolVersion: "2025-11-25" },
+        { method: "tools/list" },
+        { name: "list_portfolios" },
+      ]) {
+        const answer = await modern("tools/call", call, headers);
+        expect(answer.status, JSON.stringify(headers)).toBe(400);
+        expect(errorOf(answer)?.code).toBe(-32020);
+      }
+      const matching = await modern("tools/call", call, {
+        protocolVersion: "2026-07-28",
+        method: "tools/call",
+        // "portfolio_summary" in the encoding for values outside ASCII.
+        name: `=?base64?${Buffer.from("portfolio_summary").toString("base64")}?=`,
+      });
+      expect(matching.status).toBe(200);
+      expect((await modern("tools/call", call, {})).status).toBe(200);
+    });
+
+    it("answers an unknown method with 404, a missing resource with invalid params", async () => {
+      const unknown = await modern("prompts/list");
+      expect(unknown.status).toBe(404);
+      expect(errorOf(unknown)?.code).toBe(-32601);
+      expect(
+        errorOf(await modern("resources/read", { uri: "ui://nope" }))?.code,
+      ).toBe(-32602);
+      // Older revisions: the error in a 200, and the old resource code.
+      const legacy = await answerMcpRequest(
+        { jsonrpc: "2.0", id: 1, method: "prompts/list" },
+        data,
+        "0.5.0",
+      );
+      expect(legacy.status).toBe(200);
+      expect(
+        (await call("resources/read", { uri: "ui://nope" }))?.error?.code,
+      ).toBe(-32002);
+    });
+  });
+
+  describe("analysis as a task", () => {
+    const TASKS = { extensions: { [MCP_TASKS_EXTENSION_ID]: {} } };
+    const meta = (declareTasks: boolean): Record<string, unknown> => ({
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": declareTasks ? TASKS : {},
+    });
+
+    /** A window with one portfolio whose analysis the test moves along. */
+    function appWindow(): {
+      control: AppControl;
+      commands: AgentCommand[];
+      analysis: AppState["analysis"];
+      portfolio: AppState["portfolio"];
+      answers: { value: boolean };
+    } {
+      const analysis: AppState["analysis"] = {
+        running: false,
+        done: 0,
+        total: 0,
+        waiting: 0,
+        failed: 0,
+        startedAt: 0,
+      };
+      const portfolio: AppState["portfolio"] = {
+        id: "p1",
+        name: "Bayern",
+        locations: 3,
+        analyzed: 0,
+        saved: true,
+      };
+      const commands: AgentCommand[] = [];
+      const answers = { value: true };
+      let clock = 1_000;
+      const state = (): AppState => ({
+        view: "map",
+        portfolio: { ...portfolio },
+        selectedLocation: null,
+        detailsOpenFor: null,
+        analysis: { ...analysis },
+      });
+      return {
+        commands,
+        analysis,
+        portfolio,
+        answers,
+        control: {
+          run: async (command) => {
+            commands.push(command);
+            if (!answers.value) return { ok: false, error: "noAnswer" };
+            if (command.type === "startAnalysis") {
+              if (analysis.running) {
+                return { ok: false, error: "analysisRunning" };
+              }
+              Object.assign(analysis, {
+                running: true,
+                done: 0,
+                total: 3,
+                startedAt: ++clock,
+              });
+              return { ok: true, state: state(), started: 3 };
+            }
+            if (command.type === "stopAnalysis") {
+              if (!analysis.running) {
+                return { ok: false, error: "noAnalysisRunning" };
+              }
+              analysis.running = false;
+            }
+            return { ok: true, state: state() };
+          },
+        },
+      };
+    }
+
+    function host(
+      control: AppControl,
+      tasks = new AnalysisTaskStore(),
+    ): (
+      method: string,
+      params?: Record<string, unknown>,
+      declareTasks?: boolean,
+    ) => ReturnType<typeof answerMcpRequest> {
+      return (method, params = {}, declareTasks = true) =>
+        answerMcpRequest(
+          {
+            jsonrpc: "2.0",
+            id: 1,
+            method,
+            params: { ...params, _meta: meta(declareTasks) },
+          },
+          data,
+          "0.5.0",
+          { control, tasks },
+        );
+    }
+    const result = (answer: { body: unknown }): Record<string, unknown> =>
+      (answer.body as { result: Record<string, unknown> }).result;
+    const start = { name: "start_analysis", arguments: {} };
+
+    it("advertises tasks only with remote control", async () => {
+      const { control } = appWindow();
+      const discovered = result(await host(control)("server/discover"));
+      expect(discovered.capabilities).toMatchObject({
+        extensions: TASKS.extensions,
+      });
+      // The handshake of older revisions has no such extension.
+      const init = await handleMcpMessage(
+        { jsonrpc: "2.0", id: 1, method: "initialize", params: {} },
+        data,
+        "0.5.0",
+        control,
+        new AnalysisTaskStore(),
+      );
+      expect(JSON.stringify(init)).not.toContain(MCP_TASKS_EXTENSION_ID);
+    });
+
+    it("returns a task to a host that declared the extension, and the plain result to any other", async () => {
+      const first = appWindow();
+      const task = result(await host(first.control)("tools/call", start));
+      expect(task).toMatchObject({
+        resultType: "task",
+        status: "working",
+        statusMessage: "Analysis of 3 locations started.",
+        ttlMs: TASK_TTL_MS,
+        pollIntervalMs: 5000,
+      });
+      expect(String(task.taskId)).toMatch(/^[0-9a-f-]{36}$/);
+      expect(Date.parse(String(task.createdAt))).not.toBeNaN();
+      expect(task).not.toHaveProperty("content");
+
+      const second = appWindow();
+      const plain = result(
+        await host(second.control)("tools/call", start, false),
+      );
+      expect(plain).toMatchObject({
+        resultType: "complete",
+        structuredContent: { started: 3 },
+      });
+      expect(plain).not.toHaveProperty("taskId");
+
+      // An older revision never gets one, whatever it declares.
+      const third = appWindow();
+      const legacy = await handleMcpMessage(
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            ...start,
+            _meta: {
+              "io.modelcontextprotocol/clientCapabilities": TASKS,
+            },
+          },
+        },
+        data,
+        "0.5.0",
+        third.control,
+        new AnalysisTaskStore(),
+      );
+      expect(JSON.stringify(legacy)).not.toContain("taskId");
+    });
+
+    it("reports a refused start as a tool error, not as a task", async () => {
+      const { control, analysis } = appWindow();
+      analysis.running = true;
+      const refused = result(await host(control)("tools/call", start));
+      expect(refused).toMatchObject({ resultType: "complete", isError: true });
+      const invalid = result(
+        await host(control)("tools/call", {
+          name: "start_analysis",
+          arguments: { locations: [] },
+        }),
+      );
+      expect(invalid.isError).toBe(true);
+    });
+
+    it("follows the analysis to its end and keeps the result", async () => {
+      const { control, analysis, portfolio } = appWindow();
+      const ask = host(control);
+      const { taskId } = result(await ask("tools/call", start));
+      analysis.done = 2;
+      expect(result(await ask("tasks/get", { taskId }))).toMatchObject({
+        resultType: "complete",
+        status: "working",
+        statusMessage: "Analysing: 2 of 3 locations done.",
+      });
+      Object.assign(analysis, { running: false, done: 3, failed: 1 });
+      portfolio.analyzed = 2;
+      const ended = result(await ask("tasks/get", { taskId }));
+      expect(ended).toMatchObject({
+        status: "completed",
+        statusMessage:
+          "The analysis has ended: 3 of 3 locations processed. 1 location has an analysis error.",
+        result: {
+          structuredContent: {
+            started: 3,
+            portfolio: { analyzed: 2 },
+            analysis: { done: 3, failed: 1 },
+          },
+        },
+      });
+      // What the app shows later no longer changes a finished task.
+      Object.assign(analysis, { running: true, done: 0, startedAt: 99_999 });
+      expect(result(await ask("tasks/get", { taskId }))).toEqual(ended);
+    });
+
+    it("says so when the analysis was stopped in the app", async () => {
+      const { control, analysis } = appWindow();
+      const ask = host(control);
+      const { taskId } = result(await ask("tools/call", start));
+      Object.assign(analysis, { running: false, done: 1 });
+      expect(result(await ask("tasks/get", { taskId }))).toMatchObject({
+        status: "completed",
+        statusMessage:
+          "The analysis was stopped in the app after 1 of 3 locations. 0 locations have an analysis error.",
+      });
+    });
+
+    it("keeps a task as it was while the window does not answer", async () => {
+      const { control, answers } = appWindow();
+      const ask = host(control);
+      const created = result(await ask("tools/call", start));
+      answers.value = false;
+      expect(
+        result(await ask("tasks/get", { taskId: created.taskId })),
+      ).toMatchObject({
+        status: "working",
+        statusMessage: created.statusMessage,
+        lastUpdatedAt: created.lastUpdatedAt,
+      });
+    });
+
+    it("stops its own run on tasks/cancel and ends as cancelled", async () => {
+      const { control, commands } = appWindow();
+      const ask = host(control);
+      const { taskId } = result(await ask("tools/call", start));
+      const ack = result(await ask("tasks/cancel", { taskId }));
+      expect(ack).toEqual({ resultType: "complete" });
+      expect(commands.at(-1)).toEqual({ type: "stopAnalysis" });
+      const after = result(await ask("tasks/get", { taskId }));
+      expect(after.status).toBe("cancelled");
+      expect(after).not.toHaveProperty("result");
+      // Cancelling again is acknowledged and stops nothing.
+      const sent = commands.length;
+      await ask("tasks/cancel", { taskId });
+      expect(commands.slice(sent)).toEqual([]);
+    });
+
+    it("never stops an analysis the task does not stand for", async () => {
+      const { control, commands, analysis, portfolio } = appWindow();
+      const ask = host(control);
+      const { taskId } = result(await ask("tools/call", start));
+      // The run ended unseen and the user started another one.
+      Object.assign(analysis, { running: true, done: 0, startedAt: 77_777 });
+      await ask("tasks/cancel", { taskId });
+      expect(commands.map((c) => c.type)).not.toContain("stopAnalysis");
+      expect(result(await ask("tasks/get", { taskId }))).toMatchObject({
+        status: "completed",
+        result: { structuredContent: { started: 3, portfolioId: "p1" } },
+      });
+
+      // The same after another portfolio was opened.
+      const other = result(await ask("tools/call", start, true));
+      expect(other).toMatchObject({ isError: true }); // still running
+      analysis.running = false;
+      const next = result(await ask("tools/call", start));
+      portfolio.id = "p2";
+      expect(
+        result(await ask("tasks/get", { taskId: next.taskId })).status,
+      ).toBe("completed");
+    });
+
+    it("knows no made-up, expired or foreign task", async () => {
+      let now = 0;
+      const tasks = new AnalysisTaskStore(() => now);
+      const { control, analysis } = appWindow();
+      const ask = host(control, tasks);
+      const error = (answer: { body: unknown }): number | undefined =>
+        (answer.body as { error?: { code: number } }).error?.code;
+      for (const method of ["tasks/get", "tasks/update", "tasks/cancel"]) {
+        expect(error(await ask(method, { taskId: "nope" })), method).toBe(
+          -32602,
+        );
+        expect(error(await ask(method, {})), method).toBe(-32602);
+      }
+      const { taskId } = result(await ask("tools/call", start));
+      expect(
+        result(await ask("tasks/update", { taskId, inputResponses: {} })),
+      ).toEqual({
+        resultType: "complete",
+      });
+      // A host that did not declare the extension is told what is missing.
+      const undeclared = await ask("tasks/get", { taskId }, false);
+      expect(undeclared.status).toBe(400);
+      expect(undeclared.body).toMatchObject({
+        error: { code: -32021, data: { requiredCapabilities: TASKS } },
+      });
+      // Without remote control there are no tasks at all.
+      const off = await answerMcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tasks/get",
+          params: { taskId, _meta: meta(true) },
+        },
+        data,
+        "0.5.0",
+        { control: null, tasks },
+      );
+      expect(off.status).toBe(404);
+      now = TASK_TTL_MS;
+      expect(error(await ask("tasks/get", { taskId }))).toBe(-32602);
+
+      // The store is bounded: the oldest task goes first.
+      analysis.running = false;
+      const state = (await control.run({ type: "getState" })) as {
+        state: AppState;
+      };
+      const firstId = tasks.create(1, state.state).taskId;
+      for (let i = 0; i < TASKS_MAX; i++) tasks.create(1, state.state);
+      expect(tasks.has(firstId)).toBe(false);
+    });
+  });
 });
 
 describe("window remote control", () => {
@@ -403,7 +874,14 @@ describe("window remote control", () => {
     },
     selectedLocation: null,
     detailsOpenFor: null,
-    analysis: { running: false, done: 0, total: 0, waiting: 0, failed: 0 },
+    analysis: {
+      running: false,
+      done: 0,
+      total: 0,
+      waiting: 0,
+      failed: 0,
+      startedAt: 0,
+    },
   };
 
   it("passes the window's answer on and ignores a second or made-up one", async () => {
@@ -801,6 +1279,48 @@ describe("gateway HTTP server", () => {
     });
     expect(denied.status).toBe(401);
     expect(controlled).toHaveLength(1);
+  });
+
+  it("speaks revision 2026-07-28 over HTTP: status per error, headers checked", async () => {
+    const url = await start();
+    const meta = { "io.modelcontextprotocol/protocolVersion": "2026-07-28" };
+    const post = (
+      method: string,
+      params: Record<string, unknown>,
+      headers: Record<string, string> = {},
+    ): Promise<Response> =>
+      fetch(`${url}/mcp`, {
+        method: "POST",
+        headers: { ...auth, ...headers },
+        body: rpc(method, { ...params, _meta: meta }),
+      });
+    const listed = await post(
+      "tools/list",
+      {},
+      { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" },
+    );
+    expect(listed.status).toBe(200);
+    expect(await listed.json()).toMatchObject({
+      result: { resultType: "complete", ttlMs: 0 },
+    });
+    const mismatch = await post(
+      "tools/call",
+      { name: "portfolio_summary" },
+      { "Mcp-Method": "tools/call", "Mcp-Name": "list_portfolios" },
+    );
+    expect(mismatch.status).toBe(400);
+    expect(await mismatch.json()).toMatchObject({ error: { code: -32020 } });
+    expect((await post("prompts/list", {})).status).toBe(404);
+    // Tasks need remote control, which is off here.
+    expect((await post("tasks/get", { taskId: "x" })).status).toBe(404);
+    // A browser page on this computer may send the new headers.
+    const preflight = await fetch(`${url}/mcp`, {
+      method: "OPTIONS",
+      headers: { Origin: "http://localhost:5173" },
+    });
+    expect(preflight.headers.get("access-control-allow-headers")).toContain(
+      "Mcp-Method",
+    );
   });
 
   it("refuses foreign origins and sends no CORS header to them", async () => {

@@ -342,6 +342,46 @@ test("MCP remote control is off by default and, switched on, operates the window
   expect(text).not.toContain("E2E-GEHEIM");
   expect(text).not.toContain("Hauptstraße");
 
+  // Revision 2026-07-28: no handshake, the version travels with the
+  // request. With remote control on, the server offers tasks; a start the
+  // window refuses (both locations have a result) is a tool error, not a
+  // task.
+  const modern = {
+    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+    "io.modelcontextprotocol/clientCapabilities": {
+      extensions: { "io.modelcontextprotocol/tasks": {} },
+    },
+  };
+  const discovered = await rpc(
+    "/mcp",
+    "server/discover",
+    { _meta: modern },
+    { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "server/discover" },
+  );
+  expect(discovered.json.result).toMatchObject({
+    resultType: "complete",
+    supportedVersions: expect.arrayContaining(["2026-07-28", "2025-11-25"]),
+    capabilities: { extensions: { "io.modelcontextprotocol/tasks": {} } },
+  });
+  const refused = await rpc("/mcp", "tools/call", {
+    name: "start_analysis",
+    arguments: {},
+    _meta: modern,
+  });
+  expect(refused.json.result).toMatchObject({
+    resultType: "complete",
+    isError: true,
+  });
+  expect(JSON.stringify(refused.json)).toContain("nothing to analyse");
+  const noTask = await rpc("/mcp", "tasks/get", {
+    taskId: "00000000-0000-4000-8000-000000000000",
+    _meta: modern,
+  });
+  expect(noTask.json.error).toMatchObject({ code: -32602 });
+  expect((await rpc("/mcp", "prompts/list", { _meta: modern })).status).toBe(
+    404,
+  );
+
   const stop = await tool("stop_analysis");
   expect(stop.isError).toBe(true);
   expect(stop.content[0].text).toContain("No analysis is running");

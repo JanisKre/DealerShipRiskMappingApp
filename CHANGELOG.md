@@ -30,6 +30,18 @@ the project follows [Semantic Versioning](https://semver.org/).
   accumulations. Capacities are limits set by the underwriter; scores and
   EAL are unchanged. See `docs/risk-model.md`, "Capacity per accumulation
   and hail zone".
+- **The analysis as an MCP task.** The MCP server now also speaks protocol
+  revision 2026-07-28 (no handshake: `server/discover`, the version with
+  every request) next to the earlier ones. With "Allow operating the app"
+  on, a host that declares the tasks extension gets a task from
+  `start_analysis`: `tasks/get` reports the progress ("Analysing: 12 of 40
+  locations done.") and, once the run has ended, the result; `tasks/cancel`
+  stops the run like the Stop button. Other hosts get the immediate answer
+  and poll `get_app_state`, as before. A task only stops the run it was
+  created for; tasks are kept in memory for 12 hours. `get_app_state` now
+  names the run (`analysis.startedAt`). Checked against the specification
+  and with unit and end-to-end tests, not yet against a host that uses
+  tasks. See `docs/agent-protocols.md`, "The analysis as a task".
 - **Operate the app from Claude over MCP.** Settings → AI → "Access for
   other AI tools" has a new switch, "Allow operating the app" (off by
   default, needs the MCP server). With it, the MCP server adds six tools:
@@ -321,7 +333,6 @@ the project follows [Semantic Versioning](https://semver.org/).
     and the open layer panel overlapped. The layer panel now folds away when
     the card appears there; opened again, the card steps back until the
     panel is closed. Wider maps are unchanged.
-
 
 - Own aerial imagery source: a tile template with `{time}` no longer takes
   the map page down ("This page could not be displayed"); the placeholder

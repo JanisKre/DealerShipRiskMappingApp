@@ -22,7 +22,8 @@ import {
 } from "./ag-ui";
 import { resolvePortfolio, type GatewayData } from "./gateway-data";
 import { RPC_PARSE_ERROR, rpcError } from "./json-rpc";
-import { handleMcpMessage } from "./mcp-server";
+import { answerMcpRequest } from "./mcp-server";
+import { AnalysisTaskStore } from "./mcp-tasks";
 import { portfolioContextText, portfolioSummary } from "./portfolio-facts";
 import type { ChatMessage } from "@shared/types";
 
@@ -50,6 +51,16 @@ export interface GatewayDeps {
   withFeature?: <T>(feature: string, fn: () => T) => T;
   /** Remote control of the app window; used only while `settings.control` is on. */
   control?: AppControl;
+  /**
+   * Tasks of analyses started over MCP. Passed in so they outlive a restart
+   * of the server (a changed setting); without it the server keeps its own.
+   */
+  tasks?: AnalysisTaskStore;
+}
+
+/** A header that was sent once; a repeated one is ambiguous and ignored. */
+function single(value: string | string[] | undefined): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
 function tokensEqual(a: string, b: string): boolean {
@@ -100,12 +111,14 @@ export class AgentGatewayServer {
   private port = 0;
   private requestCount = 0;
   private readonly a2a: A2aAgent;
+  private readonly tasks: AnalysisTaskStore;
 
   constructor(
     private readonly settings: AgentGatewaySettings,
     private readonly deps: GatewayDeps,
   ) {
     this.a2a = new A2aAgent(deps.data);
+    this.tasks = deps.tasks ?? new AnalysisTaskStore();
   }
 
   get boundPort(): number {
@@ -158,7 +171,7 @@ export class AgentGatewayServer {
             "Access-Control-Allow-Origin": origin,
             Vary: "Origin",
             "Access-Control-Allow-Headers":
-              "Authorization, Content-Type, Accept, A2A-Version, Mcp-Protocol-Version, Mcp-Session-Id",
+              "Authorization, Content-Type, Accept, A2A-Version, Mcp-Protocol-Version, Mcp-Method, Mcp-Name, Mcp-Session-Id",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           }
         : {};
@@ -228,17 +241,25 @@ export class AgentGatewayServer {
     }
 
     if (path === "/mcp") {
-      const response = await handleMcpMessage(
+      const answer = await answerMcpRequest(
         json,
         this.deps.data,
         this.deps.appVersion,
-        this.settings.control ? (this.deps.control ?? null) : null,
+        {
+          control: this.settings.control ? (this.deps.control ?? null) : null,
+          tasks: this.tasks,
+          headers: {
+            protocolVersion: single(req.headers["mcp-protocol-version"]),
+            method: single(req.headers["mcp-method"]),
+            name: single(req.headers["mcp-name"]),
+          },
+        },
       );
-      if (!response) {
-        res.writeHead(202, cors);
+      if (!answer.body) {
+        res.writeHead(answer.status, cors);
         return void res.end();
       }
-      return sendJson(res, 200, response, cors);
+      return sendJson(res, answer.status, answer.body, cors);
     }
     if (path === "/a2a") {
       const header = req.headers["a2a-version"];
