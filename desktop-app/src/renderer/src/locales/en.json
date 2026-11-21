@@ -1986,7 +1986,69 @@
       "source": "Data basis: Deutscher Wetterdienst (Climate Data Center, daily weather phenomena)."
     },
     "summary": "{{station}} ({{distance}} km) · {{from}}–{{to}} · avg. {{days}} hail days/year",
-    "summaryLoading": "loading …"
+    "summaryLoading": "loading …",
+    "loading": "Loading observations of the German Weather Service …",
+    "stationPicker": "Choose weather station",
+    "figure": {
+      "perYear": "Hail days per year",
+      "perYearHint": "Mean {{from}}–{{to}}",
+      "yearsWithHail": "Years with hail",
+      "yearsWithHailHint_one": "{{count}} of {{total}} years",
+      "yearsWithHailHint_other": "{{count}} of {{total}} years",
+      "peak": "Highest",
+      "peakHint": "in {{year}} · show",
+      "last": "Latest hail day",
+      "season": "mostly {{months}}",
+      "seasonSpread": "spread over the year"
+    },
+    "days_one": "{{count}} hail day",
+    "days_other": "{{count}} hail days",
+    "viewLabel": "View",
+    "view": {
+      "years": "By year",
+      "months": "By month"
+    },
+    "rangeLabel": "Period",
+    "range": {
+      "all": "{{from}}–{{to}}",
+      "recent": "Last {{count}} years"
+    },
+    "clickHint": "Click a bar for the individual days",
+    "axisDays": "Hail days",
+    "axisDaysTotal": "Hail days in total",
+    "notObserved": "Not observed sufficiently",
+    "meanLabel": "Mean {{days}}",
+    "monthShare": "{{share}} of all hail days",
+    "legend": {
+      "days": "Hail days in the year",
+      "gap": "no observation",
+      "mean": "Mean"
+    },
+    "detail": {
+      "monthTitle": "{{month}}",
+      "noHail": "no hail observed",
+      "monthSummary_one": "{{count}} hail day in {{years}}",
+      "monthSummary_other": "{{count}} hail days in {{years}}",
+      "yearCount_one": "{{count}} year",
+      "yearCount_other": "{{count}} years",
+      "more": "+ {{count}} more",
+      "close": "Close details"
+    },
+    "notes": {
+      "ended_one": "Observation ends in {{year}} ({{count}} year ago) – more recent hail is not included.",
+      "ended_other": "Observation ends in {{year}} ({{count}} years ago) – more recent hail is not included.",
+      "far": "The station is {{distance}} km away – hail at the site can differ considerably.",
+      "short_one": "Only {{count}} observed year – the mean is uncertain.",
+      "short_other": "Only {{count}} observed years – the mean is uncertain.",
+      "gaps_one": "{{count}} year in the period without sufficient observation (grey).",
+      "gaps_other": "{{count}} years in the period without sufficient observation (grey).",
+      "context": "Context for the assessment only – not used in the hail EAL.",
+      "newer": "Station {{name}} has data up to {{year}}.",
+      "switch": "Show station"
+    },
+    "zeroDays": "No hail observed",
+    "stationMeta": "{{distance}} km · {{from}}–{{to}} · hail days/year: {{days}}",
+    "stationPickerHint": "{{count}} stations nearby – choose one to see its data"
   },
   "importPreview": {
     "title": "Preview",
@@ -2335,9 +2397,9 @@
     "description": "Where this location's result is most likely wrong, found by fixed rules. The figures themselves do not change.",
     "argue": "Write the counter-argument",
     "severity": {
-      "3": "decisive",
+      "1": "general",
       "2": "notable",
-      "1": "general"
+      "3": "decisive"
     },
     "effect": {
       "unavailable": "No usable EAL.",

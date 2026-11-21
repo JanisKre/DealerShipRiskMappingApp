@@ -93,6 +93,13 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Hail history open on demand again.** In the detail dialog's "Risk" tab
+  the hail history is a collapsible row: closed, it names the station whose
+  record ends latest, its distance, period and mean hail days per year.
+  Opened, the station list, the four key figures, the chart by year or by
+  month with the hail days behind each bar, and the notes on what limits a
+  station's record are back (removed on 19 November). Context only, as
+  before: it does not enter the hail EAL.
 - **Cache in its own file, a fraction of the disk space.** API answers and
   aerial imagery tiles move from `dealership-risk.db` into
   `dealership-risk-cache.db` (schema 5). Tiles are stored as bytes instead

@@ -1986,7 +1986,69 @@
       "source": "Datenbasis: Deutscher Wetterdienst (Climate Data Center, tägliche Wetterphänomene)."
     },
     "summary": "{{station}} ({{distance}} km) · {{from}}–{{to}} · Ø {{days}} Hageltage/Jahr",
-    "summaryLoading": "lädt …"
+    "summaryLoading": "lädt …",
+    "loading": "Lade Beobachtungen des Deutschen Wetterdienstes …",
+    "stationPicker": "Wetterstation wählen",
+    "figure": {
+      "perYear": "Hageltage pro Jahr",
+      "perYearHint": "Mittel {{from}}–{{to}}",
+      "yearsWithHail": "Jahre mit Hagel",
+      "yearsWithHailHint_one": "{{count}} von {{total}} Jahren",
+      "yearsWithHailHint_other": "{{count}} von {{total}} Jahren",
+      "peak": "Höchstwert",
+      "peakHint": "im Jahr {{year}} · anzeigen",
+      "last": "Letzter Hageltag",
+      "season": "meist {{months}}",
+      "seasonSpread": "über das Jahr verteilt"
+    },
+    "days_one": "{{count}} Hageltag",
+    "days_other": "{{count}} Hageltage",
+    "viewLabel": "Darstellung",
+    "view": {
+      "years": "Nach Jahr",
+      "months": "Nach Monat"
+    },
+    "rangeLabel": "Zeitraum",
+    "range": {
+      "all": "{{from}}–{{to}}",
+      "recent": "Letzte {{count}} Jahre"
+    },
+    "clickHint": "Balken anklicken für die einzelnen Tage",
+    "axisDays": "Hageltage",
+    "axisDaysTotal": "Hageltage gesamt",
+    "notObserved": "Nicht ausreichend beobachtet",
+    "meanLabel": "Ø {{days}}",
+    "monthShare": "{{share}} aller Hageltage",
+    "legend": {
+      "days": "Hageltage im Jahr",
+      "gap": "keine Beobachtung",
+      "mean": "Mittelwert"
+    },
+    "detail": {
+      "monthTitle": "{{month}}",
+      "noHail": "kein Hagel beobachtet",
+      "monthSummary_one": "{{count}} Hageltag in {{years}}",
+      "monthSummary_other": "{{count}} Hageltage in {{years}}",
+      "yearCount_one": "{{count}} Jahr",
+      "yearCount_other": "{{count}} Jahren",
+      "more": "+ {{count}} weitere",
+      "close": "Details schließen"
+    },
+    "notes": {
+      "ended_one": "Die Beobachtung endet {{year}} (vor {{count}} Jahr) – neuere Hagelereignisse sind nicht enthalten.",
+      "ended_other": "Die Beobachtung endet {{year}} (vor {{count}} Jahren) – neuere Hagelereignisse sind nicht enthalten.",
+      "far": "Die Station liegt {{distance}} km entfernt – am Standort kann es deutlich anders hageln.",
+      "short_one": "Nur {{count}} Beobachtungsjahr – der Mittelwert ist unsicher.",
+      "short_other": "Nur {{count}} Beobachtungsjahre – der Mittelwert ist unsicher.",
+      "gaps_one": "{{count}} Jahr im Zeitraum ohne ausreichende Beobachtung (grau).",
+      "gaps_other": "{{count}} Jahre im Zeitraum ohne ausreichende Beobachtung (grau).",
+      "context": "Nur Kontext für die Einschätzung – fließt nicht in die Hagel-EAL ein.",
+      "newer": "Neuere Daten bis {{year}} hat die Station {{name}}.",
+      "switch": "Station anzeigen"
+    },
+    "zeroDays": "Kein Hagel beobachtet",
+    "stationMeta": "{{distance}} km · {{from}}–{{to}} · Hageltage/Jahr: Ø {{days}}",
+    "stationPickerHint": "{{count}} Stationen in der Nähe – Station wählen, um ihre Daten zu sehen"
   },
   "importPreview": {
     "title": "Vorschau",
@@ -2335,9 +2397,9 @@
     "description": "Wo das Ergebnis dieses Standorts am ehesten falsch liegt, nach festen Regeln ermittelt. Die Werte selbst ändern sich dadurch nicht.",
     "argue": "Gegenargument formulieren",
     "severity": {
-      "3": "tragend",
+      "1": "allgemein",
       "2": "deutlich",
-      "1": "allgemein"
+      "3": "tragend"
     },
     "effect": {
       "unavailable": "Kein belastbarer EAL.",

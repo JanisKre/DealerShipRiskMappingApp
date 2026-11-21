@@ -1986,7 +1986,69 @@
       "source": "Source : Deutscher Wetterdienst (Climate Data Center, phénomènes météo quotidiens)."
     },
     "summary": "{{station}} ({{distance}} km) · {{from}}–{{to}} · Ø {{days}} jours de grêle/an",
-    "summaryLoading": "chargement …"
+    "summaryLoading": "chargement …",
+    "loading": "Chargement des observations du service météorologique allemand …",
+    "stationPicker": "Choisir la station météo",
+    "figure": {
+      "perYear": "Jours de grêle par an",
+      "perYearHint": "Moyenne {{from}}–{{to}}",
+      "yearsWithHail": "Années avec grêle",
+      "yearsWithHailHint_one": "{{count}} sur {{total}} ans",
+      "yearsWithHailHint_other": "{{count}} sur {{total}} ans",
+      "peak": "Maximum",
+      "peakHint": "en {{year}} · afficher",
+      "last": "Dernier jour de grêle",
+      "season": "surtout {{months}}",
+      "seasonSpread": "réparti sur l'année"
+    },
+    "days_one": "{{count}} jour de grêle",
+    "days_other": "{{count}} jours de grêle",
+    "viewLabel": "Affichage",
+    "view": {
+      "years": "Par année",
+      "months": "Par mois"
+    },
+    "rangeLabel": "Période",
+    "range": {
+      "all": "{{from}}–{{to}}",
+      "recent": "{{count}} dernières années"
+    },
+    "clickHint": "Cliquer sur une barre pour voir les jours",
+    "axisDays": "Jours de grêle",
+    "axisDaysTotal": "Jours de grêle au total",
+    "notObserved": "Observation insuffisante",
+    "meanLabel": "Moy. {{days}}",
+    "monthShare": "{{share}} de tous les jours de grêle",
+    "legend": {
+      "days": "Jours de grêle dans l'année",
+      "gap": "pas d'observation",
+      "mean": "Moyenne"
+    },
+    "detail": {
+      "monthTitle": "{{month}}",
+      "noHail": "pas de grêle observée",
+      "monthSummary_one": "{{count}} jour de grêle sur {{years}}",
+      "monthSummary_other": "{{count}} jours de grêle sur {{years}}",
+      "yearCount_one": "{{count}} an",
+      "yearCount_other": "{{count}} ans",
+      "more": "+ {{count}} autres",
+      "close": "Fermer les détails"
+    },
+    "notes": {
+      "ended_one": "L'observation s'arrête en {{year}} (il y a {{count}} an) – la grêle plus récente n'est pas incluse.",
+      "ended_other": "L'observation s'arrête en {{year}} (il y a {{count}} ans) – la grêle plus récente n'est pas incluse.",
+      "far": "La station est à {{distance}} km – la grêle sur le site peut être très différente.",
+      "short_one": "Seulement {{count}} année d'observation – la moyenne est incertaine.",
+      "short_other": "Seulement {{count}} années d'observation – la moyenne est incertaine.",
+      "gaps_one": "{{count}} année de la période sans observation suffisante (gris).",
+      "gaps_other": "{{count}} années de la période sans observation suffisante (gris).",
+      "context": "Contexte pour l'évaluation uniquement – non utilisé dans l'EAL grêle.",
+      "newer": "La station {{name}} a des données jusqu'en {{year}}.",
+      "switch": "Afficher la station"
+    },
+    "zeroDays": "Pas de grêle observée",
+    "stationMeta": "{{distance}} km · {{from}}–{{to}} · jours de grêle/an : {{days}}",
+    "stationPickerHint": "{{count}} stations à proximité – choisir une station pour voir ses données"
   },
   "importPreview": {
     "title": "Aperçu",
@@ -2335,9 +2397,9 @@
     "description": "Là où le résultat de ce site risque le plus d'être faux, selon des règles fixes. Les valeurs elles-mêmes ne changent pas.",
     "argue": "Rédiger le contre-argument",
     "severity": {
-      "3": "décisif",
+      "1": "général",
       "2": "notable",
-      "1": "général"
+      "3": "décisif"
     },
     "effect": {
       "unavailable": "Pas d'EAL exploitable.",
