@@ -1,13 +1,10 @@
 import { useMapStore } from "@renderer/store/mapStore";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import {
   CheckSquare,
   ChevronDown,
   ChevronRight,
-  Loader2,
-  MapPin,
   Paperclip,
   Plus,
   Search,
@@ -15,7 +12,6 @@ import {
   SlidersHorizontal,
   ShieldOff,
   Trash2,
-  Users,
 } from "lucide-react";
 import { notify } from "@renderer/lib/notify";
 import type { AnalyzedDealership } from "@shared/types";
@@ -26,15 +22,6 @@ import {
 } from "@shared/risk-math";
 import { SAMPLE_DATASETS_URL } from "@shared/constants";
 import { Button } from "@renderer/components/ui/button";
-import { Checkbox } from "@renderer/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@renderer/components/ui/dialog";
 import { HintButton } from "@renderer/components/ui/hint-button";
 import { Input } from "@renderer/components/ui/input";
 import {
@@ -45,38 +32,24 @@ import {
   SelectValue,
 } from "@renderer/components/ui/select";
 import { PortfolioFilterBar } from "@renderer/components/dashboard/PortfolioFilterBar";
-import { NoEalBadge } from "@renderer/components/dashboard/EstimateMark";
-import { ealSortValue, hasEalBasis } from "@shared/estimates";
+import { ealSortValue } from "@shared/estimates";
 import { useFilteredDealerships } from "@renderer/lib/useFilteredDealerships";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@renderer/components/ui/tooltip";
+import { TooltipProvider } from "@renderer/components/ui/tooltip";
 import { cn } from "@renderer/lib/utils";
-import { hailZoneColor } from "@renderer/lib/riskColor";
-import { eur, num } from "@renderer/lib/format";
 import {
   businessType,
   unlocatedInputs,
   useAppStore,
 } from "@renderer/store/appStore";
-import { searchBias } from "@renderer/lib/searchBias";
-import { Link } from "react-router-dom";
-import { useDealerDirectoryStore } from "@renderer/store/dealerDirectoryStore";
-import {
-  PlaceApproximateNote,
-  PlacePortfolioBadge,
-  PlaceSourceTag,
-} from "./PlaceSourceTag";
 import { allRowsSelected, frozenOrder } from "./mapSelection";
-import type { PlaceSuggestion } from "@shared/ipc-schema";
 import {
-  coordinateLabel,
-  nameForPlace,
-  parseCoordinatePair,
-} from "@renderer/lib/placeName";
+  FOCUS_RING,
+  LocationRow,
+  type Row,
+  neighborSummaryText,
+} from "./LocationRow";
+import { AddLocationField } from "./AddLocationField";
+import { DeleteSelectedDialog } from "./DeleteSelectedDialog";
 
 const ADD_ADDRESS_BUTTON_ID = "locations-add-address";
 
@@ -90,15 +63,6 @@ interface Props {
   onOpenDetails: (id: string) => void;
   /** Optional portfolio upload (CSV/Excel) directly from the header. */
   onUploadFile?: (file: File) => void | Promise<void>;
-}
-
-/** A row including derived relationship info relative to the selected subject. */
-interface Row {
-  d: AnalyzedDealership;
-  /** Distance to the subject in km — null if nothing is selected or the row itself is the subject. */
-  distanceKm: number | null;
-  sameGroup: boolean;
-  inRadius: boolean;
 }
 
 type SortKey = "eal" | "name" | "zone" | "nearby";
@@ -739,500 +703,5 @@ export function LocationsPanel({
         />
       </div>
     </TooltipProvider>
-  );
-}
-
-/** Confirmation dialog for permanently removing locations (list selection or one marker). */
-export function DeleteSelectedDialog({
-  open,
-  count,
-  name,
-  onOpenChange,
-  onConfirm,
-}: Readonly<{
-  open: boolean;
-  count: number;
-  /** Single location by name (map context menu) instead of a count. */
-  name?: string;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-}>): React.JSX.Element {
-  const { t } = useTranslation();
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {name
-              ? t("map.page.deleteConfirmTitle")
-              : t("map.locationsPanel.deleteSelectedConfirmTitle")}
-          </DialogTitle>
-          <DialogDescription>
-            {name
-              ? t("map.page.deleteConfirmDescription", { name })
-              : t("map.locationsPanel.deleteSelectedConfirmDescription", {
-                  count,
-                })}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t("common.cancel")}
-          </Button>
-          <Button variant="destructive" onClick={onConfirm}>
-            <Trash2 className="size-4" />
-            {t("map.page.delete")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/** Neighbor summary text (avoids nested ternaries in JSX). */
-function neighborSummaryText(
-  t: TFunction,
-  count: number,
-  radius: number,
-): string {
-  if (count === 0)
-    return t("map.locationsPanel.neighborSummary.none", { radius });
-  if (count === 1)
-    return t("map.locationsPanel.neighborSummary.one", { radius });
-  return t("map.locationsPanel.neighborSummary.other", { count, radius });
-}
-
-/** A clickable location row with a risk dot and relationship badges. */
-function LocationRow({
-  row,
-  selected,
-  analyzing,
-  batchRunning,
-  showBusiness,
-  onSelect,
-  onOpenDetails,
-  selectMode = false,
-  checked = false,
-  onToggleCheck,
-}: Readonly<{
-  row: Row;
-  selected: boolean;
-  /** The analysis of this location is running right now. */
-  analyzing: boolean;
-  /** A batch analysis is running (rows without a result are queued). */
-  batchRunning: boolean;
-  /** Business chips only help when the portfolio mixes both types. */
-  showBusiness: boolean;
-  onSelect: (id: string) => void;
-  onOpenDetails: (id: string) => void;
-  selectMode?: boolean;
-  checked?: boolean;
-  onToggleCheck?: (id: string) => void;
-}>): React.JSX.Element {
-  const { t } = useTranslation();
-  const { d, distanceKm, sameGroup, inRadius } = row;
-  const hailZone = dealershipHailZone(d)?.zone;
-  const dotColor = hailZone != null ? hailZoneColor(hailZone) : "#9ca3af";
-
-  return (
-    <li
-      data-row-id={d.id}
-      className={cn("flex items-stretch", selected && "bg-accent")}
-    >
-      {selectMode && (
-        <label className="flex shrink-0 items-center pl-2.5">
-          <Checkbox
-            checked={checked}
-            onCheckedChange={() => onToggleCheck?.(d.id)}
-            aria-label={t("map.locationsPanel.selectFor", { name: d.name })}
-          />
-        </label>
-      )}
-      {/* Selection button (fills the row) */}
-      <button
-        type="button"
-        className={cn(
-          // select-none: a click on the name must not highlight its text.
-          "flex min-w-0 flex-1 select-none items-start gap-2 px-2.5 py-2 text-left text-sm hover:bg-accent/60",
-          FOCUS_RING_INSET,
-        )}
-        onClick={() => (selectMode ? onToggleCheck?.(d.id) : onSelect(d.id))}
-        aria-pressed={selectMode ? checked : selected}
-      >
-        {/* Decorative: the zone is read out in the row text. */}
-        <span
-          aria-hidden
-          className="mt-1 size-2.5 shrink-0 rounded-full"
-          style={{ backgroundColor: dotColor }}
-        />
-        <div className="min-w-0 flex-1">
-          {/* Full width for the name; the figure sits on the second line. */}
-          <div className="truncate font-medium">{d.name}</div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
-            {analyzing ? (
-              <>
-                <PendingSpinner pending />
-                {t("map.locationsPanel.analyzing")}
-              </>
-            ) : !d.risk ? (
-              t(
-                batchRunning
-                  ? "map.locationsPanel.pending"
-                  : "map.locationsPanel.notAnalyzed",
-              )
-            ) : hasEalBasis(d) ? (
-              t("map.locationsPanel.ealValue", { value: eur(d.risk.eal) })
-            ) : (
-              <NoEalBadge className="px-1.5 py-0 text-[11px]" />
-            )}
-          </div>
-          <div className="mt-1 flex flex-wrap gap-1 empty:hidden">
-            {d.group && (
-              <Chip>
-                <Users className="size-3" />
-                {d.group}
-              </Chip>
-            )}
-            {showBusiness && d.insured && (
-              <Chip>
-                <ShieldCheck className="size-3" />
-                {t("map.locationsPanel.insuredChip")}
-              </Chip>
-            )}
-            {d.boundary?.source === "synthetic" && (
-              <Chip warning title={t("ui.fallbackBoundaryReview")}>
-                {t("ui.fallbackBoundary")}
-              </Chip>
-            )}
-            {distanceKm != null && (
-              <Chip>
-                {t("map.locationsPanel.distanceChip", {
-                  distance: num(distanceKm, 1),
-                })}
-              </Chip>
-            )}
-            {sameGroup && (
-              <Chip accent>{t("map.locationsPanel.sameGroupChip")}</Chip>
-            )}
-            {inRadius && (
-              <Chip accent>{t("map.locationsPanel.inRadiusChip")}</Chip>
-            )}
-          </div>
-        </div>
-      </button>
-      {/* Open details (separate button, not nested) — hidden while selecting */}
-      {!selectMode && (
-        <Tooltip delayDuration={150}>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                "shrink-0 px-1.5 text-muted-foreground hover:text-foreground",
-                FOCUS_RING_INSET,
-              )}
-              onClick={() => onOpenDetails(d.id)}
-              aria-label={t("map.locationsPanel.viewDetailsFor", {
-                name: d.name,
-              })}
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="left">
-            {t("map.locationsPanel.viewDetails")}
-          </TooltipContent>
-        </Tooltip>
-      )}
-    </li>
-  );
-}
-
-/** Right side of the row: spinner while the analysis is running. */
-function PendingSpinner({
-  pending,
-}: Readonly<{
-  pending: boolean;
-}>): React.JSX.Element | null {
-  const { t } = useTranslation();
-  if (!pending) return null;
-  return (
-    <Tooltip delayDuration={150}>
-      <TooltipTrigger asChild>
-        <Loader2 className="size-3.5 animate-spin" />
-      </TooltipTrigger>
-      <TooltipContent side="left">
-        {t("map.locationsPanel.analyzing")}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-/** Small info chip; `accent` highlights relationship matches. */
-function Chip({
-  children,
-  accent,
-  warning,
-  title,
-}: Readonly<{
-  children: React.ReactNode;
-  accent?: boolean;
-  warning?: boolean;
-  title?: string;
-}>): React.JSX.Element {
-  return (
-    <span
-      title={title}
-      className={cn(
-        "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium",
-        accent
-          ? "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200"
-          : warning
-            ? "bg-warning/15 text-warning-foreground"
-            : "bg-muted text-muted-foreground",
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
-/** Keyboard focus ring for raw buttons (spec: same as the `Button` ring). */
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50";
-/** Inset variant for full-width rows, whose outer edge the list clips. */
-const FOCUS_RING_INSET =
-  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50";
-
-const DEBOUNCE_MS = 300;
-const MIN_CHARS = 3;
-
-type Suggestion = PlaceSuggestion;
-
-/**
- * Compact address input field with Photon autocomplete (keyless, like in
- * the omnibox). Selecting a suggestion adds the location directly to the portfolio;
- * the auto-selection in `addAndAnalyze` makes the map fly to it. Arrow keys
- * move through the suggestions, Enter adds the highlighted one and Escape
- * closes the field.
- */
-function AddLocationField({
-  onDone,
-}: Readonly<{ onDone: () => void }>): React.JSX.Element {
-  const { t } = useTranslation();
-  const [value, setValue] = useState("");
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  /** Query the current suggestions (or the "no matches" note) belong to. */
-  const [answeredFor, setAnsweredFor] = useState<string | null>(null);
-  const [active, setActive] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  /** Photon unreachable for the current answer: local suggestions only. */
-  const [onlineUnavailable, setOnlineUnavailable] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const directoryStatus = useDealerDirectoryStore((s) => s.status);
-  const directoryUpdate = useDealerDirectoryStore((s) => s.update);
-  const loadDirectoryStatus = useDealerDirectoryStore((s) => s.loadStatus);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    if (directoryStatus === undefined) void loadDirectoryStatus();
-  }, [directoryStatus, loadDirectoryStatus]);
-
-  const trimmed = value.trim();
-
-  // Debounced autocomplete — discards stale responses.
-  useEffect(() => {
-    if (trimmed.length < MIN_CHARS) {
-      setSuggestions([]);
-      setAnsweredFor(null);
-      setError(false);
-      setOnlineUnavailable(false);
-      return;
-    }
-    // Typed coordinates are the point itself; a place search would answer
-    // them with unrelated places.
-    const point = parseCoordinatePair(trimmed);
-    if (point) {
-      setSuggestions([{ label: coordinateLabel(point), ...point }]);
-      setOnlineUnavailable(false);
-      setError(false);
-      setActive(0);
-      setAnsweredFor(trimmed);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      setError(false);
-      try {
-        const result = await window.api.placesAutocomplete(
-          trimmed,
-          searchBias(),
-        );
-        if (!cancelled) {
-          setSuggestions(result.suggestions);
-          setOnlineUnavailable(result.onlineUnavailable);
-          setActive(0);
-          setAnsweredFor(trimmed);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          // The raw IPC message ("Error invoking remote method …") is for
-          // the log, not for the user.
-          console.warn("Address autocomplete failed:", e);
-          setSuggestions([]);
-          setAnsweredFor(null);
-          setOnlineUnavailable(false);
-          setError(true);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }, DEBOUNCE_MS);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [trimmed]);
-
-  function pick(s: Suggestion): void {
-    const typedPoint = parseCoordinatePair(trimmed) != null;
-    void useAppStore
-      .getState()
-      .addAndAnalyze([
-        {
-          id: crypto.randomUUID(),
-          name: nameForPlace(s, useAppStore.getState().dealerships),
-          // Coordinates are no address to look a parcel up by.
-          address: typedPoint ? undefined : s.label,
-          lat: s.lat,
-          lon: s.lon,
-        },
-      ])
-      .then((skipped) => {
-        // Already in the portfolio: say so instead of doing nothing.
-        if (skipped > 0)
-          notify.info(t("start.duplicatesSkipped", { count: skipped }));
-      })
-      .catch((err: unknown) => {
-        console.error("Adding the location failed:", err);
-      });
-    setValue("");
-    setSuggestions([]);
-    onDone();
-  }
-
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onDone();
-    } else if (e.key === "ArrowDown" && suggestions.length > 0) {
-      e.preventDefault();
-      setActive((i) => (i + 1) % suggestions.length);
-    } else if (e.key === "ArrowUp" && suggestions.length > 0) {
-      e.preventDefault();
-      setActive((i) => (i - 1 + suggestions.length) % suggestions.length);
-    } else if (e.key === "Enter" && suggestions.length > 0) {
-      e.preventDefault();
-      pick(suggestions[Math.min(active, suggestions.length - 1)]);
-    }
-  }
-
-  const noMatches =
-    !loading &&
-    !error &&
-    !onlineUnavailable &&
-    answeredFor === trimmed &&
-    trimmed.length >= MIN_CHARS &&
-    suggestions.length === 0;
-
-  return (
-    <div>
-      <div className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 focus-within:ring-[3px] focus-within:ring-ring/50">
-        <MapPin className="size-4 shrink-0 text-muted-foreground" />
-        <Input
-          ref={inputRef}
-          value={value}
-          placeholder={t("map.locationsPanel.addressPlaceholder")}
-          className="h-auto border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={onKeyDown}
-          aria-label={t("map.locationsPanel.addAddress")}
-          aria-keyshortcuts="Escape"
-        />
-        {loading && (
-          <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
-        )}
-      </div>
-      {error && (
-        <p role="alert" className="mt-1 text-xs text-destructive">
-          {t("map.locationsPanel.searchFailed")}
-          <span className="block text-muted-foreground">
-            {t("map.locationsPanel.searchFailedHint")}
-          </span>
-        </p>
-      )}
-      {onlineUnavailable && answeredFor === trimmed && (
-        <p role="status" className="mt-1 text-xs text-muted-foreground">
-          {t(
-            suggestions.length > 0
-              ? "places.onlineUnavailable"
-              : "places.onlineUnavailableNoLocal",
-          )}
-        </p>
-      )}
-      {noMatches && (
-        <p role="status" className="mt-1 text-xs text-muted-foreground">
-          {t("ui.noMatches")}
-        </p>
-      )}
-      {directoryStatus === null && trimmed.length >= MIN_CHARS && (
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t("map.locationsPanel.directoryHintPrefix")}{" "}
-          <Link to="/settings" className="underline underline-offset-2">
-            {t("map.locationsPanel.directoryHintLink")}
-          </Link>
-        </p>
-      )}
-      {directoryUpdate?.updateAvailable && trimmed.length >= MIN_CHARS && (
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t("places.updateAvailable", {
-            release: directoryUpdate.latestRelease,
-          })}{" "}
-          <Link to="/settings" className="underline underline-offset-2">
-            {t("places.updateLink")}
-          </Link>
-        </p>
-      )}
-      {suggestions.length > 0 && (
-        <ul className="mt-1 max-h-48 overflow-auto rounded-md border bg-popover py-1">
-          {suggestions.map((s, i) => (
-            <li key={`${s.lat},${s.lon},${i}`}>
-              <button
-                type="button"
-                className={cn(
-                  "flex w-full items-start gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-accent",
-                  FOCUS_RING_INSET,
-                  i === active && "bg-accent",
-                )}
-                onClick={() => pick(s)}
-                onMouseEnter={() => setActive(i)}
-              >
-                <MapPin className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                <span className="flex min-w-0 flex-col">
-                  <span>{s.label}</span>
-                  <PlacePortfolioBadge portfolio={s.portfolio} />
-                  <PlaceApproximateNote approximate={s.approximate} />
-                </span>
-                <PlaceSourceTag source={s.source} sources={s.sources} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }

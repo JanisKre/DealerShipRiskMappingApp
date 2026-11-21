@@ -23,8 +23,8 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("sharp", () => ({ default: mocks.sharp }));
 vi.mock("./cache.service", () => ({
-  cacheGet: mocks.cacheGet,
-  cacheSet: mocks.cacheSet,
+  tileCacheGet: mocks.cacheGet,
+  tileCacheSet: mocks.cacheSet,
   cacheKeyFragment: (v: string) => v.length.toString(16),
   cached: (_k: string, _t: number, fetcher: () => Promise<unknown>) =>
     fetcher(),

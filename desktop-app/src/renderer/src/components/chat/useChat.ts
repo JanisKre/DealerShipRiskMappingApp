@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { LLM_CONTEXT_MAX_CHARS } from "@shared/ipc-schema";
 import { CHAT_TOOL_RESULTS_MAX_CHARS } from "@shared/chat-tools";
 import type { ChatMessage } from "@shared/types";
@@ -70,7 +70,7 @@ export function useChat(): UseChat {
   // Another conversation was opened (or a new one started) while an answer
   // was on its way: stop it. It was written into whichever conversation was
   // on screen when it ended. The lookup line belongs to the old one too.
-  useEffect(() => {
+  const conversationOpened = useEffectEvent(() => {
     const running = answerFor.current;
     if (running && running.id === null) {
       // The conversation was saved for the first time: same conversation.
@@ -84,8 +84,9 @@ export function useChat(): UseChat {
     }
     setLookups(null);
     setExternalLookups([]);
-    // `cancel` is stable for the lifetime of the hook.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    conversationOpened();
   }, [activeId]);
 
   // Commit the finished (or stopped) stream answer exactly once + persist it.

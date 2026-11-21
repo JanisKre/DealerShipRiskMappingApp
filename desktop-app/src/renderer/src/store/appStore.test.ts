@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AnalyzedDealership, DealershipInput } from "@shared/types";
+import type {
+  AnalyzedDealership,
+  DealershipInput,
+  Session,
+} from "@shared/types";
 import { DEFAULT_RISK_PARAMETERS } from "@shared/parameters";
 import {
   DEFAULT_PORTFOLIO_NAME,
@@ -12,10 +16,16 @@ import {
 } from "./appStore";
 import { DEALERSHIP_HISTORY_MAX } from "@shared/constants";
 import { applyMetaFilters } from "@renderer/components/dashboard/PortfolioFilterBar";
+import { changesSince } from "./app/sessionActions";
 
 const api = {
   analyzeDealership: vi.fn(),
   saveSession: vi.fn(),
+  saveSessionChanges: vi.fn(
+    async (): Promise<{ ok: true; revision: number } | { ok: false }> => ({
+      ok: false,
+    }),
+  ),
   loadSession: vi.fn(),
   deleteSession: vi.fn(),
   listSessions: vi.fn(
@@ -1732,5 +1742,66 @@ describe("saving only what changed", () => {
     });
     await useAppStore.getState().saveSessionIfChanged();
     expect(api.saveSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends only the locations that changed after a full save", async () => {
+    const one = { ...firstInput } as AnalyzedDealership;
+    const two = { ...secondInput } as AnalyzedDealership;
+    useAppStore.setState({ sessionId: "inc", dealerships: [one, two] });
+    api.saveSession.mockResolvedValue({ ok: true, revision: 3 });
+    await useAppStore.getState().saveSession();
+    expect(api.saveSession).toHaveBeenCalledTimes(1);
+
+    const changed = { ...two, notes: "Dach geprüft" };
+    useAppStore.setState({ dealerships: [one, changed] });
+    api.saveSessionChanges.mockResolvedValueOnce({ ok: true, revision: 4 });
+    await useAppStore.getState().saveSession();
+    expect(api.saveSession).toHaveBeenCalledTimes(1);
+    const [changes] = api.saveSessionChanges.mock.calls[0] as unknown as [
+      { baseRevision: number; order: string[]; upserts: { id: string }[] },
+    ];
+    expect(changes.baseRevision).toBe(3);
+    expect(changes.order).toEqual(["one", "two"]);
+    expect(changes.upserts.map((d) => d.id)).toEqual(["two"]);
+
+    // Refused (another save came in between): the whole portfolio follows.
+    useAppStore.setState({ dealerships: [one] });
+    api.saveSessionChanges.mockResolvedValueOnce({ ok: false });
+    api.saveSession.mockResolvedValue(undefined);
+    await useAppStore.getState().saveSession();
+    expect(api.saveSession).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("changesSince", () => {
+  const a = { id: "a", name: "A", lat: 1, lon: 1 } as AnalyzedDealership;
+  const b = { id: "b", name: "B", lat: 1, lon: 1 } as AnalyzedDealership;
+  const session = (dealerships: AnalyzedDealership[]): Session => ({
+    id: "s",
+    name: "S",
+    createdAt: "",
+    updatedAt: "",
+    dealerships,
+  });
+
+  it("lists added, changed and removed locations", () => {
+    const base = {
+      revision: 1,
+      sites: new Map([
+        ["a", a],
+        ["b", b],
+      ]),
+    };
+    const c = { ...a, id: "c" };
+    const changes = changesSince(base, session([{ ...a }, c]));
+    expect(changes?.upserts.map((d) => d.id)).toEqual(["a", "c"]);
+    expect(changes?.removed).toEqual(["b"]);
+    expect(changes?.session).not.toHaveProperty("dealerships");
+  });
+
+  it("asks for a full save when ids repeat", () => {
+    expect(
+      changesSince({ revision: 1, sites: new Map() }, session([a, { ...a }])),
+    ).toBeNull();
   });
 });

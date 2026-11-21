@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef } from "react";
 import L from "leaflet";
 import {
   replayFrame,
@@ -179,7 +179,7 @@ export function HailEventReplayLayer(): null {
 
   // Zoom to a newly loaded event (Germany-wide events show the whole day).
   const eventId = detail?.summary.id ?? null;
-  useEffect(() => {
+  const zoomToEvent = useEffectEvent(() => {
     if (!detail) return;
     const [w, s, e, n] = detail.summary.bbox;
     map.fitBounds(
@@ -199,8 +199,10 @@ export function HailEventReplayLayer(): null {
         maxZoom: 11,
       },
     );
-    // Only on a new event, not on every shift.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  // Only on a new event, not on every shift.
+  useEffect(() => {
+    zoomToEvent();
   }, [map, eventId]);
 
   // A handle in the middle of the event: drag it to move the whole storm
@@ -213,7 +215,7 @@ export function HailEventReplayLayer(): null {
     east: number;
     north: number;
   } | null>(null);
-  useEffect(() => {
+  const placeHandle = useEffectEvent((): (() => void) | undefined => {
     if (!detail) return undefined;
     const [w, s0, e, n] = detail.summary.bbox;
     const lat0 = (s0 + n) / 2;
@@ -262,9 +264,9 @@ export function HailEventReplayLayer(): null {
       marker.remove();
       handle.current = null;
     };
-    // A new handle per event; the shift moves it below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, eventId]);
+  });
+  // A new handle per event; the shift moves it below.
+  useEffect(() => placeHandle(), [map, eventId]);
 
   // Keep the handle on the moved event (e.g. after "reset").
   useEffect(() => {

@@ -13,7 +13,7 @@ For feature scope, see the [README](./README.md#what-it-does).
 | UI framework       | React 19                                                  |
 | UI components      | **shadcn/ui + Tailwind CSS 4** (Radix primitives)         |
 | State              | Zustand 5                                                 |
-| DB (local)         | better-sqlite3 + Drizzle ORM (in the `userData` path)     |
+| DB (local)         | better-sqlite3, two files in `userData`: data and cache   |
 | Maps               | Leaflet + own React bindings + Geoman (polygon editing)   |
 | ML inference       | onnxruntime-node (YOLOv26) in a `utilityProcess`           |
 | LLM                | provider-agnostic (Ollama/LM Studio/llama.cpp, OpenAI, Claude, custom endpoint) |
@@ -56,7 +56,7 @@ typed and Zod-validated over IPC.
 │  │   ├─ hail-history/      (DWD hail days, context only)   │
 │  │   ├─ llm.service        (chat, NL query, A2UI)          │
 │  │   └─ export.service     (CSV/PDF/Excel/.drm)            │
-│  ├─ db/         (Drizzle + better-sqlite3 repos)           │
+│  ├─ db/         (better-sqlite3: migrations, repos, cache) │
 │  └─ workers/    (ONNX inference, Overture dealer download) │
 └──────────────┬────────────────────────────────────────────┘
                │ direct HTTP calls (no CORS in Main!)
@@ -103,7 +103,24 @@ The move from web to desktop enables four concrete simplifications:
    geocoding answers 1 d, cadastre 30 d or 1 d when incomplete, live Esri
    tiles 7 d, other tiles 30 d within a 1.5 GB bound). Survives app restarts
    (the nginx cache was ephemeral) and enables partial offline operation.
-   Replaces the Express proxies.
+   Replaces the Express proxies. It lives in its own file,
+   `dealership-risk-cache.db` (`db/cache-database.ts`): answers as JSON,
+   tiles as bytes, incremental vacuum after pruning. An unreadable cache or
+   one of another schema version is rebuilt, never migrated, and the
+   portfolio database and its migration backups stay small.
+
+## Portfolio storage
+
+`dealership-risk.db` (`db/database.ts`) holds one row per portfolio in
+`sessions` (name, parameters, queue, the order of its locations, a
+`revision` counter) and one row per location in `session_sites`. The
+renderer remembers the revision and the location objects of its last save
+and then sends only the locations that changed (`sessions:saveChanges`);
+the main process refuses changes built on another revision or not adding
+up to the order, and the renderer saves the whole portfolio instead. A
+location whose JSON did not change is not rewritten. Migrations run in a
+transaction each, after a backup of the file; the last three backups are
+kept.
 3. **Swappable detector interface** — a `VehicleDetector` abstraction so the
    YOLOv26 ONNX model can later be swapped for YOLO-OBB + SAHI tiling without
    changing the calling code.
@@ -171,8 +188,15 @@ dealership-risk-desktop/
 - Outgoing HTTP goes through `fetchWithResilience` (`http.service.ts`), whose
   transport is Electron's `net.fetch` in the main and utility processes:
   system proxy and OS certificate store, HTTP(S) only, no cookies
+- The renderer is served from its own `app://bundle/` scheme
+  (`app-protocol.ts`), never `file://`: only files below `out/renderer` can
+  be read through it, and every answer carries the Content Security Policy
+  as a header (`frame-ancestors`, `form-action`), `nosniff` and COOP
+- A crashed renderer is reported with "Reload" or "Quit" instead of an empty
+  window
 - Electron fuses (`electron-builder.json`): no `RunAsNode`, `NODE_OPTIONS` or
-  `--inspect`; `app.asar` only, with integrity validation
+  `--inspect`; `app.asar` only, with integrity validation; no extra
+  privileges for `file://`
 - Updates (`update.service.ts`): GitHub "latest release" check; Windows
   downloads and installs through electron-updater (SHA-512 checked), unsigned
   macOS builds link to the release page

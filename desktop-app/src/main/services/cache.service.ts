@@ -1,40 +1,71 @@
 import { createHash } from "node:crypto";
-import { getDb } from "../db/database";
+import { getCacheDb } from "../db/cache-database";
 
 /**
- * Persistent key/value cache with TTL based on the SQLite DB.
- * Survives app restarts and enables partial offline operation.
+ * Persistent key/value cache with TTL in its own SQLite file
+ * (`cache-database.ts`). Survives app restarts and enables partial offline
+ * operation. JSON answers go to `api_cache`, imagery tiles as bytes to
+ * `tile_cache`.
  */
 export function cacheGet<T>(key: string): T | null {
   const row = readCache<T>(key);
 
   if (!row) return null;
   if (row.expires_at < Date.now()) {
-    getDb().prepare("DELETE FROM api_cache WHERE key = ?").run(key);
+    getCacheDb().prepare("DELETE FROM api_cache WHERE key = ?").run(key);
     return null;
   }
   return row.value;
 }
 
 export function cacheSet<T>(key: string, value: T, ttlMs: number): void {
-  getDb()
+  getCacheDb()
     .prepare(
       "INSERT OR REPLACE INTO api_cache (key, value, expires_at) VALUES (?, ?, ?)",
     )
     .run(key, JSON.stringify(value), Date.now() + ttlMs);
 }
 
+/** A cached imagery tile, or null when it is missing or expired. */
+export function tileCacheGet(key: string): Buffer | null {
+  const db = getCacheDb();
+  const row = db
+    .prepare("SELECT data, expires_at FROM tile_cache WHERE key = ?")
+    .get(key) as { data: Buffer; expires_at: number } | undefined;
+  if (!row) return null;
+  if (row.expires_at < Date.now()) {
+    db.prepare("DELETE FROM tile_cache WHERE key = ?").run(key);
+    return null;
+  }
+  return row.data;
+}
+
+export function tileCacheSet(key: string, data: Buffer, ttlMs: number): void {
+  getCacheDb()
+    .prepare(
+      "INSERT OR REPLACE INTO tile_cache (key, data, expires_at) VALUES (?, ?, ?)",
+    )
+    .run(key, data, Date.now() + ttlMs);
+}
+
+/** The two cache tables; never user input (it is part of the SQL). */
+export type CacheTable = "api_cache" | "tile_cache";
+
 /**
  * Deletes up to `limit` expired entries whose key starts with `prefix` and
- * returns how many were removed. Only for keys read through `cacheGet`,
- * which never serves an expired entry: `cached()` keeps stale values as an
- * offline fallback, so those must not be pruned.
+ * returns how many were removed. Only for keys read through `cacheGet` or
+ * `tileCacheGet`, which never serve an expired entry: `cached()` keeps stale
+ * values as an offline fallback, so those must not be pruned.
  */
-export function pruneExpired(prefix: string, limit = 500): number {
-  return getDb()
+export function pruneExpired(
+  table: CacheTable,
+  prefix: string,
+  limit = 500,
+): number {
+  return getCacheDb()
     .prepare(
-      `DELETE FROM api_cache WHERE key IN (
-         SELECT key FROM api_cache
+      `DELETE FROM ${table} WHERE key IN (
+         SELECT key FROM ${table}
           WHERE key >= ? AND key < ? AND expires_at < ? LIMIT ?)`,
     )
     .run(prefix, `${prefix}\uffff`, Date.now(), limit).changes;
@@ -46,23 +77,25 @@ export function pruneExpired(prefix: string, limit = 500): number {
  * many were removed; call again until it returns 0.
  */
 export function trimCacheToSize(
+  table: CacheTable,
   prefix: string,
   maxBytes: number,
   limit = 500,
 ): number {
-  const db = getDb();
+  const db = getCacheDb();
+  const column = table === "tile_cache" ? "data" : "value";
   const range = [prefix, `${prefix}\uffff`] as const;
   const { bytes } = db
     .prepare(
-      `SELECT COALESCE(SUM(length(value)), 0) AS bytes FROM api_cache
+      `SELECT COALESCE(SUM(length(${column})), 0) AS bytes FROM ${table}
         WHERE key >= ? AND key < ?`,
     )
     .get(...range) as { bytes: number };
   if (bytes <= maxBytes) return 0;
   return db
     .prepare(
-      `DELETE FROM api_cache WHERE key IN (
-         SELECT key FROM api_cache WHERE key >= ? AND key < ?
+      `DELETE FROM ${table} WHERE key IN (
+         SELECT key FROM ${table} WHERE key >= ? AND key < ?
           ORDER BY expires_at ASC LIMIT ?)`,
     )
     .run(...range, limit).changes;
@@ -98,7 +131,7 @@ interface CacheEntry<T> {
 }
 
 function readCache<T>(key: string): CacheEntry<T> | null {
-  const row = getDb()
+  const row = getCacheDb()
     .prepare("SELECT value, expires_at FROM api_cache WHERE key = ?")
     .get(key) as { value: string; expires_at: number } | undefined;
   if (!row) return null;
@@ -106,7 +139,7 @@ function readCache<T>(key: string): CacheEntry<T> | null {
     return { value: JSON.parse(row.value) as T, expires_at: row.expires_at };
   } catch {
     // Corrupt cache entries are disposable; the caller can fetch fresh data.
-    getDb().prepare("DELETE FROM api_cache WHERE key = ?").run(key);
+    getCacheDb().prepare("DELETE FROM api_cache WHERE key = ?").run(key);
     return null;
   }
 }

@@ -14,21 +14,26 @@ export default defineConfig({
     environment: "node",
     coverage: {
       provider: "v8",
-      reporter: ["text", "html", "lcov"],
+      reporter: ["text", "html", "lcov", "json-summary"],
       reportsDirectory: "coverage",
+      // Every source file counts, also those no test loads: without this the
+      // figure only described the files that already had tests.
+      include: ["src/**/*.{ts,tsx}"],
       exclude: [
         "src/**/*.d.ts",
+        "src/**/*.{test,spec}.{ts,tsx}",
         "src/renderer/src/components/ui/**",
         "src/renderer/src/main.tsx",
+        "src/studio/main.tsx",
       ],
-      // Raised with the boundary fusion work (measured 70.6/62.2/68.8/59.8).
-      // Headroom is deliberate: these are a ratchet against regression, not a
-      // target to sit exactly on.
+      // A ratchet against regression, set just below what was measured over
+      // all source files (see the CHANGELOG entry that set them): raise them
+      // when coverage rises, never lower them to make a change pass.
       thresholds: {
-        lines: 62,
-        functions: 55,
-        statements: 61,
-        branches: 50,
+        lines: 55,
+        functions: 42,
+        statements: 54,
+        branches: 46,
       },
     },
   },

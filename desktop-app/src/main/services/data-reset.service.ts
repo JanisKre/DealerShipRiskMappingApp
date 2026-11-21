@@ -7,14 +7,16 @@ import { join } from "node:path";
  * the next start removes the app's files before the database is opened.
  *
  * Removed: the database (portfolios, chats, dashboards, settings, encrypted
- * API keys, API cache, dealer directory) with its WAL files and migration
- * backups, the cached hail-zone outlines and the log files. Kept: the
+ * API keys, dealer directory) with its WAL files and migration backups, the
+ * cache database (API answers, imagery tiles), the cached hail-zone
+ * outlines and the log files. Kept: the
  * downloaded detection model (`models/`), which holds no user data.
  */
 
 export const RESET_MARKER_FILE = ".reset-pending";
 
 const DATABASE_FILE = "dealership-risk.db";
+const CACHE_FILE = "dealership-risk-cache.db";
 const REMOVED_DIRECTORIES = ["hail-zones", "logs"] as const;
 
 export function scheduleDataReset(userDataDir: string): void {
@@ -38,7 +40,11 @@ export function dataResetTargets(userDataDir: string): string[] {
       name === `${DATABASE_FILE}-wal` ||
       name === `${DATABASE_FILE}-shm` ||
       name === `${DATABASE_FILE}-journal` ||
-      name.startsWith(`${DATABASE_FILE}.backup-`),
+      name.startsWith(`${DATABASE_FILE}.backup-`) ||
+      name === CACHE_FILE ||
+      name === `${CACHE_FILE}-wal` ||
+      name === `${CACHE_FILE}-shm` ||
+      name === `${CACHE_FILE}-journal`,
   );
   const directories = REMOVED_DIRECTORIES.filter((name) =>
     entries.includes(name),

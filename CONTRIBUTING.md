@@ -36,8 +36,7 @@ npm run dev
 ```bash
 npm run typecheck   # node + web
 npm run lint        # 0 warnings allowed
-npm run test        # Vitest
-npm run test:coverage
+npm run test:coverage   # Vitest with the coverage ratchet
 npm run build
 npm run smoke       # starts the built app briefly where a display is available
 ```

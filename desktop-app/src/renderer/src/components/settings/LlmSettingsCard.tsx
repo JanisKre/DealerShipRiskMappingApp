@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "i18next";
 import {
@@ -146,7 +146,8 @@ export function LlmSettingsCard({
   }, [model]);
 
   // Access changed → the old list and test no longer apply; reload the list.
-  useEffect(() => {
+  // `loadModels` reads the saved settings; it is no reason to reload.
+  const accessChanged = useEffectEvent(() => {
     setModels(null);
     setModelsError(null);
     setModelsHint(null);
@@ -154,14 +155,18 @@ export function LlmSettingsCard({
     setManualEntry(false);
     setAccessRejected(false);
     if (listable) void loadModels();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadModels reads the saved settings
+  });
+  useEffect(() => {
+    accessChanged();
   }, [provider, llm?.baseUrl, llm?.hasApiKey, listable]);
 
-  // Local provider: find the running runtime.
-  useEffect(() => {
+  // Local provider: find the running runtime, once per provider switch.
+  const providerSwitched = useEffectEvent(() => {
     if (provider === "local") void detectLocal();
     else setLocalStatus(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per provider switch
+  });
+  useEffect(() => {
+    providerSwitched();
   }, [provider]);
 
   async function saveLlm(partial: Partial<LlmSettings>): Promise<boolean> {

@@ -14,11 +14,13 @@ vi.mock("./settings.service", () => ({
 import { HttpRequestError } from "./http.service";
 import { DRM_DASHBOARD_CATALOG_ID } from "@shared/a2ui";
 import {
-  CHAT_MAX_TOKENS,
   chatComplete,
   LLM_TRUNCATED,
   REASONING_HEADROOM_TOKENS,
   REASONING_RETRY_TOKENS,
+} from "./llm-client";
+import {
+  CHAT_MAX_TOKENS,
   classifyLlmError,
   classifyChatIntent,
   detectLocalRuntimes,

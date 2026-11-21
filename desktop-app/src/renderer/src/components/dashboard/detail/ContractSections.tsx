@@ -2,7 +2,7 @@ import {
   formatParameterValue,
   parseLocaleNumber,
 } from "@renderer/components/parameters/parameterInput";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { notify } from "@renderer/lib/notify";
 import { StickyNote } from "lucide-react";
@@ -212,12 +212,13 @@ export function NotesSection({
     }
   }
 
+  // `save` reads the latest draft through the ref; each keystroke restarts
+  // the wait.
+  const saveLater = useEffectEvent(() => void save());
   useEffect(() => {
     if (!dirty) return;
-    const timer = window.setTimeout(() => void save(), NOTES_AUTOSAVE_MS);
+    const timer = window.setTimeout(() => saveLater(), NOTES_AUTOSAVE_MS);
     return () => window.clearTimeout(timer);
-    // `save` reads the latest draft through the ref.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, dirty]);
 
   return (

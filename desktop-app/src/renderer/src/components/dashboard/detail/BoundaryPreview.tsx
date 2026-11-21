@@ -166,9 +166,9 @@ export function BoundaryPreview({
       [boundary?.polygon, ...(frame ?? [])].filter(
         (g): g is BoundaryGeometry => g != null,
       ),
-    // Refit only when the site's boundary or its suggestions change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [boundary, frame?.length],
+    // Refit only when the site's boundary or its suggestions change; the
+    // panel keeps `frame` the same array until then.
+    [boundary, frame],
   );
   // Coloured as on the map (settings: blue, green or by confidence).
   const colorMode = useMapStore((s) => s.detectionDisplay.color);

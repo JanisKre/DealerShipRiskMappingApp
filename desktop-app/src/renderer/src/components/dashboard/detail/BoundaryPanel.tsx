@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { notify } from "@renderer/lib/notify";
 import { Check, Pencil, RotateCcw, TriangleAlert } from "lucide-react";
@@ -99,6 +99,20 @@ export function BoundaryPanel({
   // Suggestion under the pointer: drawn dashed on the preview image.
   const [hovered, setHovered] = useState<BoundaryCandidate | null>(null);
   const boundary = d.boundary;
+  const others = useMemo(
+    () =>
+      (boundary?.candidates ?? []).filter(
+        (candidate) =>
+          boundary != null &&
+          !sameGeometry(candidate, boundary) &&
+          !weakerVehicleOutline(candidate, boundary),
+      ),
+    [boundary],
+  );
+  const frame = useMemo(
+    () => others.slice(0, 4).map((candidate) => candidate.polygon),
+    [others],
+  );
   if (!boundary) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -108,11 +122,6 @@ export function BoundaryPanel({
   }
   const confirmed =
     boundary.source === "manual" || boundary.confirmedAt != null;
-  const others = (boundary.candidates ?? []).filter(
-    (candidate) =>
-      !sameGeometry(candidate, boundary) &&
-      !weakerVehicleOutline(candidate, boundary),
-  );
 
   async function run(work: () => Promise<void>): Promise<void> {
     setBusy(true);
@@ -203,7 +212,7 @@ export function BoundaryPanel({
       <BoundaryPreview
         d={d}
         compare={(pending ?? hovered)?.polygon ?? null}
-        frame={others.slice(0, 4).map((candidate) => candidate.polygon)}
+        frame={frame}
       />
       <p className="text-muted-foreground">
         {candidateLabel(t, boundary)} · {num(boundary.areaSqm)} m² ·{" "}

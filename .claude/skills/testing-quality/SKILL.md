@@ -10,6 +10,9 @@ description: Extend the repository's unit, coverage, smoke, and regression verif
   or mocks for network and model behavior.
 - Run typecheck, lint, unit tests, coverage, and production build before handoff.
 - Preserve a coverage threshold that prevents regression without pretending
-  untested UI paths are covered.
+  untested UI paths are covered. Coverage counts every source file
+  (`coverage.include` in `vitest.config.ts`), also those no test loads; the
+  thresholds sit just below the measured figures. Raise them when coverage
+  rises, never lower them to make a change pass.
 - Add an Electron smoke/E2E test when a user-visible workflow cannot be
   meaningfully verified by unit tests.

@@ -1,13 +1,59 @@
-import { booleanPointInPolygon } from "@turf/boolean-point-in-polygon";
-import { point as turfPoint } from "@turf/helpers";
 import type { SourceStatus } from "@shared/types";
 import { cacheGet, cacheSet, TTL } from "./cache.service";
 import { fetchWithResilience } from "./http.service";
-import { checkRing, type LonLat } from "./boundary-geometry";
+import { checkRing } from "./boundary-geometry";
 import { createCircuitBreaker } from "./boundary/circuit-breaker";
-import { fromUtm, toUtm } from "./utm";
+import { toUtm } from "./utm";
 import { withBwAttributesStatus } from "./bw-parcel-attributes";
 import { splitParcelsByLandUse, type LandUseSection } from "./parcel-sections";
+import {
+  ALKIS_ENDPOINTS,
+  type AlkisEndpoint,
+  statesForPoint,
+} from "./alkis-endpoints";
+import {
+  type ParcelAttributes,
+  type ParcelFeature,
+  memberCount,
+  mergeRings,
+  onlyFeatureMembers,
+  parcelContainsPoint,
+  parseLandUseSections,
+  parseParcelFeatures,
+  parseWfsCounts,
+  ringKey,
+  ringsFromUtm,
+  toUtm32,
+} from "./alkis-parse";
+
+// Moved out of this module; still importable from here.
+export { type AlkisEndpoint, statesForPoint } from "./alkis-endpoints";
+export {
+  type ParcelAttributes,
+  type ParcelFeature,
+  type ParcelLandUse,
+  type ParcelUse,
+  classifyLandUse,
+  isTruncated,
+  mergeRings,
+  onlyFeatureMembers,
+  parcelContainsPoint,
+  parseExteriorRings,
+  parseLandUse,
+  parseLandUseSections,
+  parseParcelFeatures,
+  parsePolygons,
+  parseWfsCounts,
+  ringsFromUtm,
+  toUtm32,
+} from "./alkis-parse";
+
+/**
+ * Cadastral parcels (ALKIS) from the federal states' WFS services: the
+ * parcels around a point with their use, land-use sections, and parcel
+ * rings for the boundary cascade. Answers are cached; a degraded answer
+ * (fallback service, capped result) only for a day.
+ */
 
 /** Lifetime of an incomplete cadastre answer (see fetchParcelsNear). */
 export const DEGRADED_CADASTRE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -90,325 +136,6 @@ export const DEGRADED_CADASTRE_TTL_MS = 24 * 60 * 60 * 1000;
  *    unavailable above.
  */
 
-export interface AlkisEndpoint {
-  url: string;
-  typeName: string;
-  /** EPSG code for BBOX filter and response geometry (states require different CRS). */
-  crs: number;
-  /**
-   * Some services (Thüringen) ignore a geographic BBOX and only filter on
-   * their native UTM zone 32 grid; the response still comes in `crs`.
-   */
-  bboxUtm32?: true;
-  /**
-   * The service answers in UTM only (EPSG:25832 or 25833): the search box is
-   * sent and the geometry returned in that zone, then converted to
-   * geographic coordinates. `crs` is ignored.
-   */
-  utmZone?: 32 | 33;
-  /**
-   * Parcels are only served through this stored bbox query (parameters
-   * CRS, x1, y1, x2, y2; requires `utmZone`). Its answer holds every layer,
-   * so only `featureElement` members are read.
-   */
-  storedQuery?: string;
-  /** Element name of a parcel member, where the answer holds other layers. */
-  featureElement?: string;
-  /**
-   * The service also publishes `ave:NutzungFlurstueck`, the land-use
-   * sections of each parcel (same host, search box and CRS). Probed live
-   * on 19 November 2026; Sachsen-Anhalt and Schleswig-Holstein list the
-   * type in their capabilities but reject it.
-   */
-  landUseSections?: true;
-  /**
-   * Queried when this endpoint fails. The simplified ALKIS services
-   * (`ave:Flurstueck`) carry each parcel's address and land use; the INSPIRE
-   * service they replaced stays as the fallback, with geometry only.
-   */
-  fallback?: AlkisEndpoint;
-}
-
-/**
- * Since November 2026 the simplified ALKIS product of the AdV
- * (`ave:Flurstueck`) is preferred wherever a state serves it in geographic
- * coordinates: besides the geometry it carries the parcel's address
- * (`lagebeztxt`) and its actual land use (`tntxt`), which the boundary
- * cascade uses (docs/boundary-model.md, "Cascade v9"). Probed live on
- * 13 November 2026: address and land use in NRW, Rheinland-Pfalz, Thüringen,
- * Sachsen, Niedersachsen, Sachsen-Anhalt and Hamburg; address only in Hessen
- * and Brandenburg. Since cascade v10 (14 November 2026): Mecklenburg-
- * Vorpommern (land use too) and Schleswig-Holstein (address only) in UTM
- * (`utmZone`), Baden-Württemberg from separate layers
- * (bw-parcel-attributes.ts). Berlin and Bremen publish neither field.
- */
-const ALKIS_ENDPOINTS: Record<string, AlkisEndpoint> = {
-  NRW: {
-    url: "https://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht",
-    typeName: "ave:Flurstueck",
-    landUseSections: true,
-    crs: 4326,
-  },
-  Sachsen: {
-    url: "https://geodienste.sachsen.de/aaa/public_alkis/vereinf/wfs",
-    typeName: "ave:Flurstueck",
-    landUseSections: true,
-    crs: 4258,
-    fallback: {
-      url: "https://geodienste.sachsen.de/aaa/public_inspire/alkis/cp/dls/wfs",
-      typeName: "cp:CadastralParcel",
-      crs: 4258,
-    },
-  },
-  Niedersachsen: {
-    url: "https://opendata.lgln.niedersachsen.de/doorman/noauth/alkis_wfs_einfach",
-    typeName: "ave:Flurstueck",
-    landUseSections: true,
-    crs: 4258,
-    fallback: {
-      url: "https://www.inspire.niedersachsen.de/doorman/noauth/alkis-dls-cp",
-      typeName: "cp:CadastralParcel",
-      crs: 4258,
-    },
-  },
-  // The simplified product in SH rejects plain GetFeature on
-  // ave:Flurstueck; its bbox stored query works, in EPSG:25832 only, and
-  // returns addresses without land use (probed 14 November 2026).
-  "Schleswig-Holstein": {
-    url: "https://service.gdi-sh.de/WFS_SH_ALKIS_vereinf_OpenGBD",
-    typeName: "ave:Flurstueck",
-    crs: 25832,
-    utmZone: 32,
-    storedQuery:
-      "http://repository.gdi-de.org/query/adv/produkt/alkis-vereinfacht/2.0/ave-by-bbox",
-    featureElement: "Flurstueck",
-    fallback: {
-      url: "https://service.gdi-sh.de/SH_INSPIREDOWNLOAD_AI_CP_ALKIS",
-      typeName: "cp:CadastralParcel",
-      crs: 4258,
-    },
-  },
-  "Sachsen-Anhalt": {
-    url: "https://www.geodatenportal.sachsen-anhalt.de/wss/service/ST_LVermGeo_ALKIS_WFS_OpenData/guest",
-    typeName: "ave:Flurstueck",
-    crs: 4258,
-    fallback: {
-      url: "https://geodatenportal.sachsen-anhalt.de/ows_INSPIRE_LVermGeo_ALKIS_CP_WFS",
-      typeName: "cp:CadastralParcel",
-      crs: 4258,
-    },
-  },
-  Brandenburg: {
-    url: "https://isk.geobasis-bb.de/ows/alkis_vereinf_wfs",
-    typeName: "ave:Flurstueck",
-    landUseSections: true,
-    crs: 4258,
-    fallback: {
-      url: "https://inspire.brandenburg.de/services/cp_alkis_wfs",
-      typeName: "cp:CadastralParcel",
-      crs: 4258,
-    },
-  },
-  Berlin: {
-    url: "https://gdi.berlin.de/services/wfs/alkis_flurstuecke",
-    typeName: "alkis_flurstuecke:flurstuecke",
-    crs: 4326,
-  },
-  Hessen: {
-    url: "https://www.gds.hessen.de/wfs2/aaa-suite/cgi-bin/alkis/vereinf/wfs",
-    typeName: "ave:Flurstueck",
-    landUseSections: true,
-    crs: 4258,
-    fallback: {
-      url: "https://inspire-hessen.de/ows/services/org.2.07247d95-adc7-4c7d-9c7a-ed17af855317_wfs",
-      typeName: "cp:CadastralParcel",
-      crs: 4258,
-    },
-  },
-  // Its default response CRS is a projected EPSG:25832 (UTM 32N), which this
-  // module does not transform — but EPSG:4258 is offered as an alternate and
-  // the service honours `srsName`, so requesting that directly needs no
-  // projection math here at all.
-  "Baden-Württemberg": {
-    url: "https://owsproxy.lgl-bw.de/owsproxy/wfs/WFS_INSP_BW_Flst_ALKIS",
-    typeName: "cp:CadastralParcel",
-    crs: 4258,
-  },
-  // Saarland moved its INSPIRE parcel service; under the new name it
-  // answers with parcels (geometry only, numberReturned="0" like Hessen).
-  // Probed 14 November 2026.
-  Saarland: {
-    url: "https://geoportal.saarland.de/gdi-sl/inspirewfs_Flurstuecke_Grundstuecke_ALKIS",
-    typeName: "cp:CadastralParcel",
-    crs: 4258,
-  },
-  // Added November 2026 after probing GetCapabilities and a live GetFeature
-  // (docs/boundary-model.md, "Cadastre coverage"). Bayern (login required)
-  // is read from the parcel map instead (bavaria-parcels.service.ts).
-  Hamburg: {
-    url: "https://geodienste.hamburg.de/WFS_HH_ALKIS_vereinfacht",
-    typeName: "ave:Flurstueck",
-    landUseSections: true,
-    crs: 4258,
-    fallback: {
-      url: "https://geodienste.hamburg.de/HH_WFS_INSPIRE_Flurstuecke",
-      typeName: "cp:CadastralParcel",
-      crs: 4258,
-    },
-  },
-  Bremen: {
-    url: "https://opendata.lgln.niedersachsen.de/doorman/noauth/alkishb_wfs_sf",
-    typeName: "adv:AX_Flurstueck",
-    crs: 4258,
-  },
-  // EPSG:25833 only; address and land use (probed 14 November 2026).
-  "Mecklenburg-Vorpommern": {
-    url: "https://www.geodaten-mv.de/dienste/alkis_wfs_einfach",
-    typeName: "ave:Flurstueck",
-    landUseSections: true,
-    crs: 25833,
-    utmZone: 33,
-    fallback: {
-      url: "https://www.geodaten-mv.de/dienste/inspire_cp_alkis_download",
-      typeName: "cp:CadastralParcel",
-      crs: 4258,
-    },
-  },
-  Thüringen: {
-    url: "https://www.geoproxy.geoportal-th.de/geoproxy/services/adv_alkis_wfs",
-    typeName: "ave:Flurstueck",
-    crs: 4326,
-    bboxUtm32: true,
-  },
-  "Rheinland-Pfalz": {
-    url: "https://geo5.service24.rlp.de/wfs/alkis_rp.fcgi",
-    typeName: "ave:Flurstueck",
-    crs: 4326,
-  },
-};
-
-/** Rough state bounding boxes — only for the 7 states listed above, smallest (city-states) first. */
-interface StateBbox {
-  state: string;
-  minLat: number;
-  maxLat: number;
-  minLon: number;
-  maxLon: number;
-}
-
-const STATE_BBOXES: StateBbox[] = [
-  // City-states first: their boxes lie inside their neighbours' boxes.
-  {
-    state: "Hamburg",
-    minLat: 53.39,
-    maxLat: 53.75,
-    minLon: 9.73,
-    maxLon: 10.33,
-  },
-  // Bremen city and Bremerhaven.
-  { state: "Bremen", minLat: 53.01, maxLat: 53.23, minLon: 8.48, maxLon: 8.99 },
-  { state: "Bremen", minLat: 53.46, maxLat: 53.61, minLon: 8.48, maxLon: 8.65 },
-  {
-    state: "Berlin",
-    minLat: 52.33,
-    maxLat: 52.68,
-    minLon: 13.09,
-    maxLon: 13.76,
-  },
-  {
-    state: "Brandenburg",
-    minLat: 51.36,
-    maxLat: 53.56,
-    minLon: 11.27,
-    maxLon: 14.77,
-  },
-  {
-    state: "Sachsen-Anhalt",
-    minLat: 50.94,
-    maxLat: 53.06,
-    minLon: 10.56,
-    maxLon: 13.19,
-  },
-  {
-    state: "Sachsen",
-    minLat: 50.17,
-    maxLat: 51.68,
-    minLon: 11.87,
-    maxLon: 15.04,
-  },
-  {
-    state: "Schleswig-Holstein",
-    minLat: 53.36,
-    maxLat: 55.06,
-    minLon: 7.86,
-    maxLon: 11.32,
-  },
-  {
-    state: "Niedersachsen",
-    minLat: 51.29,
-    maxLat: 53.89,
-    minLon: 6.65,
-    maxLon: 11.6,
-  },
-  { state: "NRW", minLat: 50.32, maxLat: 52.53, minLon: 5.87, maxLon: 9.46 },
-  {
-    state: "Hessen",
-    minLat: 49.39,
-    maxLat: 51.66,
-    minLon: 7.77,
-    maxLon: 10.24,
-  },
-  {
-    state: "Baden-Württemberg",
-    minLat: 47.53,
-    maxLat: 49.79,
-    minLon: 7.51,
-    maxLon: 10.5,
-  },
-  {
-    state: "Mecklenburg-Vorpommern",
-    minLat: 53.11,
-    maxLat: 54.69,
-    minLon: 10.59,
-    maxLon: 14.41,
-  },
-  {
-    state: "Thüringen",
-    minLat: 50.2,
-    maxLat: 51.65,
-    minLon: 9.87,
-    maxLon: 12.65,
-  },
-  // Inside the Rheinland-Pfalz box, so before it.
-  {
-    state: "Saarland",
-    minLat: 49.11,
-    maxLat: 49.64,
-    minLon: 6.35,
-    maxLon: 7.41,
-  },
-  {
-    state: "Rheinland-Pfalz",
-    minLat: 48.97,
-    maxLat: 50.94,
-    minLon: 6.11,
-    maxLon: 8.51,
-  },
-];
-
-/** Candidate states for a coordinate, smallest (enclaves) first — bboxes deliberately overlap. */
-export function statesForPoint(lat: number, lon: number): string[] {
-  return STATE_BBOXES.filter(
-    (b) =>
-      lat >= b.minLat && lat <= b.maxLat && lon >= b.minLon && lon <= b.maxLon,
-  ).map((b) => b.state);
-}
-
-// --- Circuit breaker (in-memory, per state) --------------------------
-// Prevents a permanently unreachable state service from delaying every
-// analysis. A valid empty result (service reachable, no parcel at this
-// location) does NOT count as a failure — see boundary/circuit-breaker.ts.
-
 const breaker = createCircuitBreaker();
 
 /** Test seam: clears breaker state between cases. */
@@ -442,156 +169,6 @@ export const PARCEL_MAX_PAGES = 4;
  * first), so paging alone cannot complete them.
  */
 export const PARCEL_FALLBACK_RADIUS_M = 100;
-
-/**
- * Land-use classes the cascade tells apart, reduced from the ALKIS
- * "Tatsächliche Nutzung" catalogue:
- *
- * - `traffic`: road, path, rail, air and ship traffic
- * - `commercial`: industry and trade (where a dealership is registered)
- * - `mixed`: mixed use (a business with flats above, a village core)
- * - `residential`: housing
- * - `open`: farmland, woodland, water, parks, sports grounds, cemeteries
- * - `other`: everything else (squares, public buildings, dumps, unknown)
- */
-export type ParcelUse =
-  "traffic" | "commercial" | "mixed" | "residential" | "open" | "other";
-
-/** Share of a parcel's area per land-use class; the shares sum to 1. */
-export type ParcelLandUse = Partial<Record<ParcelUse, number>>;
-
-export interface ParcelFeature {
-  ring: LonLat[];
-  areaSqm: number;
-  state: string;
-  /**
-   * Address text of the cadastre ("Schmiedstraße 12"; a street name alone
-   * for plots without a house number), where the service publishes it.
-   */
-  address?: string;
-  /** Actual land use by share of area, where the service publishes it. */
-  landUse?: ParcelLandUse;
-}
-
-/** What a service says about a parcel besides its geometry. */
-export interface ParcelAttributes {
-  address?: string;
-  landUse?: ParcelLandUse;
-}
-
-const USE_KEYWORDS: Array<[ParcelUse, RegExp]> = [
-  // "Begleitfläche Straßenverkehr" (RLP) is the verge of a road.
-  ["traffic", /strassenverkehr|^weg$|bahnverkehr|flugverkehr|schiffsverkehr/],
-  ["mixed", /gemischte/],
-  ["residential", /wohn/],
-  // Rheinland-Pfalz names the function itself ("Handel", "Handwerk").
-  [
-    "commercial",
-    /industrie|gewerbe|handel|handwerk|dienstleistung|lager|werkstatt|tankstelle/,
-  ],
-  [
-    "open",
-    /landwirtschaft|acker|gruenland|garten|reb|obst|wald|gehoelz|heide|moor|sumpf|unland|vegetationslos|gewaesser|hafenbecken|friedhof|gruenanlage|sport|erholung|brachland|forst/,
-  ],
-];
-
-/** Lower case, umlauts spelled out (Thüringen writes "Strassenverkehr"). */
-function normaliseUse(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .trim();
-}
-
-/** The cascade's class of one ALKIS land-use name. */
-export function classifyLandUse(name: string): ParcelUse {
-  // "Industrie- und Gewerbefläche(funktion:Handel und Dienstleistung)" and
-  // "Fliessgewaesser/Kanal": the class is in the leading name.
-  const base = normaliseUse(name.split("(")[0].split("/")[0]);
-  for (const [use, pattern] of USE_KEYWORDS) {
-    if (pattern.test(base)) return use;
-  }
-  return "other";
-}
-
-/**
- * Parses `tntxt` of the simplified ALKIS schema: sections separated by "|",
- * each "name;area in m²" ("Straßenverkehr;249|Weg;115"). Returns shares of
- * the summed area, or undefined when nothing is readable.
- */
-export function parseLandUse(tntxt: string): ParcelLandUse | undefined {
-  const areas = new Map<ParcelUse, number>();
-  let total = 0;
-  for (const section of tntxt.split("|")) {
-    const cut = section.lastIndexOf(";");
-    if (cut < 0) continue;
-    const area = Number.parseFloat(section.slice(cut + 1).replace(",", "."));
-    if (!Number.isFinite(area) || area <= 0) continue;
-    const use = classifyLandUse(section.slice(0, cut));
-    areas.set(use, (areas.get(use) ?? 0) + area);
-    total += area;
-  }
-  if (total <= 0) return undefined;
-  const shares: ParcelLandUse = {};
-  for (const [use, area] of areas) shares[use] = area / total;
-  return shares;
-}
-
-function decodeXmlText(text: string): string {
-  return text
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, "&")
-    .trim();
-}
-
-const MEMBER_RE =
-  /<(?:[\w.-]+:)?(?:member|featureMember)>([\s\S]*?)<\/(?:[\w.-]+:)?(?:member|featureMember)>/g;
-
-function xmlField(body: string, name: string): string | undefined {
-  const hit = body.match(
-    new RegExp(`<(?:[\\w.-]+:)?${name}>([^<]*)</(?:[\\w.-]+:)?${name}>`),
-  );
-  const text = hit ? decodeXmlText(hit[1]) : "";
-  return text.length > 0 ? text : undefined;
-}
-
-/**
- * Exterior rings with the attributes of the feature they belong to. A
- * feature with several polygons yields several rings with the same
- * attributes. Responses without `member` elements fall back to the rings
- * alone.
- */
-export function parseParcelFeatures(
-  xml: string,
-): Array<{ ring: [number, number][] } & ParcelAttributes> {
-  const members = [...xml.matchAll(MEMBER_RE)];
-  if (members.length === 0) {
-    return parseExteriorRings(xml).map((ring) => ({ ring }));
-  }
-  const features: Array<{ ring: [number, number][] } & ParcelAttributes> = [];
-  for (const member of members) {
-    const body = member[1];
-    const lage = xmlField(body, "lagebeztxt");
-    // Sachsen writes "ohne Lage" for plots without an address.
-    const address = lage && !/^ohne lage$/i.test(lage) ? lage : undefined;
-    const tntxt = xmlField(body, "tntxt");
-    const landUse = tntxt ? parseLandUse(tntxt) : undefined;
-    for (const ring of parseExteriorRings(body)) {
-      features.push({
-        ring,
-        ...(address ? { address } : {}),
-        ...(landUse ? { landUse } : {}),
-      });
-    }
-  }
-  return features;
-}
 
 export interface ParcelLookup {
   parcels: ParcelFeature[];
@@ -627,22 +204,6 @@ export interface ParcelLookup {
    * then stay whole). Absent where the state publishes none.
    */
   landUseSections?: "read" | "failed";
-}
-
-/**
- * Land-use sections of `ave:NutzungFlurstueck` (`nutzart`, one feature per
- * section, possibly several polygons each).
- */
-export function parseLandUseSections(xml: string): LandUseSection[] {
-  const sections: LandUseSection[] = [];
-  for (const member of xml.matchAll(MEMBER_RE)) {
-    const body = member[1];
-    const name = xmlField(body, "nutzart");
-    if (!name) continue;
-    const use = classifyLandUse(name);
-    for (const ring of parseExteriorRings(body)) sections.push({ ring, use });
-  }
-  return sections;
 }
 
 /**
@@ -742,34 +303,6 @@ export async function landUseSectionsFor(
   const endpoint = ALKIS_ENDPOINTS[state];
   if (!endpoint?.landUseSections) return null;
   return landUseSectionsNear(endpoint, lat, lon, radiusM);
-}
-
-/**
- * Reads the WFS response envelope's feature counts.
- *
- * `numberMatched` may legitimately be "unknown" — several state services do
- * not count before streaming — in which case a full page is the only signal
- * that there may be more.
- */
-export function parseWfsCounts(xml: string): {
-  matched: number | null;
-  returned: number | null;
-} {
-  const matchedRaw = xml.match(/numberMatched="([^"]+)"/)?.[1];
-  const returnedRaw = xml.match(/numberReturned="([^"]+)"/)?.[1];
-  const toNumber = (value?: string): number | null => {
-    if (value == null) return null;
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) ? parsed : null;
-  };
-  return { matched: toNumber(matchedRaw), returned: toNumber(returnedRaw) };
-}
-
-export function isTruncated(xml: string, limit: number): boolean {
-  const { matched, returned } = parseWfsCounts(xml);
-  if (matched != null && returned != null) return matched > returned;
-  if (returned != null) return returned >= limit;
-  return false;
 }
 
 /** All cadastral parcels near a point, for multi-parcel site assembly. */
@@ -925,58 +458,6 @@ export async function fetchParcelsNear(
 }
 
 /**
- * Geographic (ETRS89) to UTM zone 32N (EPSG:25832), easting and northing in
- * metres. Krüger series to third order: millimetre accuracy within the zone,
- * far below what a search box needs.
- */
-export function toUtm32(lat: number, lon: number): [number, number] {
-  const a = 6_378_137;
-  const f = 1 / 298.257222101;
-  const k0 = 0.9996;
-  const n = f / (2 - f);
-  const bigA = (a / (1 + n)) * (1 + (n * n) / 4 + n ** 4 / 64);
-  const phi = (lat * Math.PI) / 180;
-  const dLam = ((lon - 9) * Math.PI) / 180;
-  const c = (2 * Math.sqrt(n)) / (1 + n);
-  const t = Math.sinh(
-    Math.atanh(Math.sin(phi)) - c * Math.atanh(c * Math.sin(phi)),
-  );
-  const xi = Math.atan(t / Math.cos(dLam));
-  const eta = Math.atanh(Math.sin(dLam) / Math.sqrt(1 + t * t));
-  const alpha = [
-    n / 2 - (2 * n * n) / 3 + (5 * n ** 3) / 16,
-    (13 * n * n) / 48 - (3 * n ** 3) / 5,
-    (61 * n ** 3) / 240,
-  ];
-  let e = eta;
-  let nn = xi;
-  alpha.forEach((al, j) => {
-    const k = 2 * (j + 1);
-    e += al * Math.cos(k * xi) * Math.sinh(k * eta);
-    nn += al * Math.sin(k * xi) * Math.cosh(k * eta);
-  });
-  return [500_000 + k0 * bigA * e, k0 * bigA * nn];
-}
-
-/** Stable identity of a ring, for deduplicating pages and merged queries. */
-function ringKey(ring: [number, number][]): string {
-  return ring
-    .slice(0, 3)
-    .map(([lo, la]) => `${lo.toFixed(7)},${la.toFixed(7)}`)
-    .concat(String(ring.length))
-    .join(";");
-}
-
-/** `base` plus the rings of `extra` it does not already hold. */
-export function mergeRings(
-  base: [number, number][][],
-  extra: [number, number][][],
-): [number, number][][] {
-  const seen = new Set(base.map(ringKey));
-  return [...base, ...extra.filter((ring) => !seen.has(ringKey(ring)))];
-}
-
-/**
  * All parcel rings in the search box, paged with `startIndex` up to
  * `PARCEL_MAX_PAGES`. A page that adds nothing new means the service ignores
  * `startIndex`; paging stops there and the answer stays truncated. A failed
@@ -1046,11 +527,6 @@ export async function fetchParcelRings(
   return { rings, truncated, attributes };
 }
 
-/** Features in a WFS page, counted by their `member` elements. */
-function memberCount(xml: string): number {
-  return (xml.match(/<(?:[\w.-]+:)?(?:member|featureMember)>/g) ?? []).length;
-}
-
 /** "error" = network/HTTP error (counts toward the circuit breaker); null = reachable, but no hit. */
 async function fetchAlkisXml(
   endpoint: AlkisEndpoint,
@@ -1102,134 +578,4 @@ async function fetchAlkisXml(
   } catch {
     return "error";
   }
-}
-
-/**
- * Keeps only the `element` features of an answer that holds several layers
- * (nested feature collections), each wrapped as one `wfs:member`, with the
- * answer's own counts. Other layers (buildings, land use, administrative
- * units) would otherwise be read as parcels.
- */
-export function onlyFeatureMembers(xml: string, element: string): string {
-  const pattern = new RegExp(
-    `<(?:[\\w.-]+:)?${element}\\s+gml:id=[\\s\\S]*?</(?:[\\w.-]+:)?${element}>`,
-    "g",
-  );
-  const head = /<wfs:FeatureCollection\b[^>]*>/.exec(xml)?.[0] ?? "";
-  const features = [...xml.matchAll(pattern)].map(
-    (m) => `<wfs:member>${m[0]}</wfs:member>`,
-  );
-  // The outer collection counts every layer; the parcels are what is left.
-  const count = String(features.length);
-  const opening = head
-    ? head
-        .replace(/numberReturned="[^"]*"/, `numberReturned="${count}"`)
-        .replace(/numberMatched="[^"]*"/, `numberMatched="${count}"`)
-    : "<wfs:FeatureCollection>";
-  return `${opening}${features.join("")}</wfs:FeatureCollection>`;
-}
-
-/** Rings read from a UTM answer ([north, east] after the axis flip) to [lon, lat]. */
-export function ringsFromUtm(
-  rings: [number, number][],
-  zone: number,
-): [number, number][] {
-  return rings.map(([north, east]) => fromUtm(east, north, zone));
-}
-
-/**
- * Extracts the exterior rings (`gml:exterior`) of all `gml:Polygon` and
- * `gml:PolygonPatch` elements in the GML. The latter appears wrapped in a
- * `gml:Surface`/`gml:patches` (e.g. Hesse's INSPIRE download service) rather
- * than a bare `gml:Polygon` — GML3.2's more general surface encoding of the
- * exact same exterior/interior ring structure, so no separate handling is
- * needed once the element name is matched too.
- *
- * Coordinates arrive as "lat lon lat lon …" (EPSG:4258/4326, both with
- * geographic axis order lat,lon) and are flipped to [lon, lat]
- * (GeoJSON convention). Works independently of the surrounding schema
- * (INSPIRE `cp:CadastralParcel`, NRW `ave:Flurstueck`, Berlin
- * `alkis_flurstuecke:flurstuecke`, …) — all use the same GML geometry.
- */
-export function parseExteriorRings(xml: string): [number, number][][] {
-  return parsePolygons(xml).map((polygon) => polygon.exterior);
-}
-
-/**
- * Polygons with their interior rings: courtyards of a building, parcels
- * enclosed by another. `parseExteriorRings` drops the holes.
- */
-export function parsePolygons(
-  xml: string,
-): Array<{ exterior: [number, number][]; interiors: [number, number][][] }> {
-  const polygons: Array<{
-    exterior: [number, number][];
-    interiors: [number, number][][];
-  }> = [];
-  const polygonRe =
-    /<(?:[\w.-]+:)?(?:PolygonPatch|Polygon)\b[\s\S]*?<\/(?:[\w.-]+:)?(?:PolygonPatch|Polygon)>/g;
-  for (const match of xml.matchAll(polygonRe)) {
-    const exterior = match[0].match(
-      /<(?:[\w.-]+:)?exterior>([\s\S]*?)<\/(?:[\w.-]+:)?exterior>/,
-    );
-    if (!exterior) continue;
-    const ring = ringFromGml(exterior[1]);
-    if (!ring) continue;
-    const interiors: [number, number][][] = [];
-    for (const interior of match[0].matchAll(
-      /<(?:[\w.-]+:)?interior>([\s\S]*?)<\/(?:[\w.-]+:)?interior>/g,
-    )) {
-      const hole = ringFromGml(interior[1]);
-      if (hole) interiors.push(hole);
-    }
-    polygons.push({ exterior: ring, interiors });
-  }
-  return polygons;
-}
-
-/**
- * One closed ring from a GML ring element. A LinearRing has one posList; a
- * Ring (e.g. Hamburg) is a chain of curve segments, each with its own
- * posList, joined end to start. Null for fewer than three points.
- */
-function ringFromGml(gml: string): [number, number][] | null {
-  const ring: [number, number][] = [];
-  for (const list of gml.matchAll(
-    /<(?:[\w.-]+:)?posList[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?posList>/g,
-  )) {
-    const nums = list[1].trim().split(/\s+/).map(Number);
-    for (let i = 0; i + 1 < nums.length; i += 2) {
-      const la = nums[i];
-      const lo = nums[i + 1];
-      if (!Number.isFinite(la) || !Number.isFinite(lo)) continue;
-      const prev = ring[ring.length - 1];
-      if (prev && prev[0] === lo && prev[1] === la) continue;
-      ring.push([lo, la]);
-    }
-  }
-  if (ring.length < 3) return null;
-  const first = ring[0];
-  const last = ring[ring.length - 1];
-  if (first[0] !== last[0] || first[1] !== last[1]) ring.push(first);
-  return ring;
-}
-
-/**
- * Whether the geocoded point actually falls inside one of the parcels.
- *
- * This is a real confidence signal and the two cases must not be conflated: a
- * parcel *containing* the point identifies the property, whereas the *nearest*
- * parcel is a guess that happens to be close. The services will not make this
- * distinction for us (their spatial filter is ignored — see the header), so it
- * is made here.
- */
-export function parcelContainsPoint(
-  parcels: ParcelFeature[],
-  lat: number,
-  lon: number,
-): boolean {
-  const pt = turfPoint([lon, lat]);
-  return parcels.some((parcel) =>
-    booleanPointInPolygon(pt, { type: "Polygon", coordinates: [parcel.ring] }),
-  );
 }

@@ -57,6 +57,7 @@ export const IPC = {
   listSessions: "sessions:list",
   loadSession: "sessions:load",
   saveSession: "sessions:save",
+  saveSessionChanges: "sessions:saveChanges",
   deleteSession: "sessions:delete",
 
   // Conversations / chat history (SQLite)

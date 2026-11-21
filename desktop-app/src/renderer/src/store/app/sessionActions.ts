@@ -12,6 +12,66 @@ import {
   rescoreWithConcurrency,
 } from "./runtime";
 import { boundaryEditsOf, errorMessage } from "./helpers";
+import type { IpcRequest } from "@shared/ipc-schema";
+import type { AnalyzedDealership, Session } from "@shared/types";
+
+/**
+ * What the main process holds of the open portfolio after the last save:
+ * its revision and the location objects as they were saved. The store
+ * replaces a location object whenever the location changes, so a different
+ * object is a changed location and only those are sent. The main process
+ * checks the revision and refuses changes that do not add up; the whole
+ * portfolio is saved then.
+ */
+let savedBase: {
+  sessionId: string;
+  revision: number;
+  sites: Map<string, AnalyzedDealership>;
+} | null = null;
+
+async function writeSession(session: Session): Promise<void> {
+  const base = savedBase;
+  const changes =
+    base && base.sessionId === session.id ? changesSince(base, session) : null;
+  if (changes) {
+    const result = await window.api.saveSessionChanges(changes);
+    if (result?.ok) {
+      rememberSaved(session, result.revision);
+      return;
+    }
+  }
+  const result = await window.api.saveSession(session);
+  rememberSaved(session, result?.revision);
+}
+
+function rememberSaved(session: Session, revision: number | undefined): void {
+  savedBase =
+    typeof revision === "number"
+      ? {
+          sessionId: session.id,
+          revision,
+          sites: new Map(session.dealerships.map((d) => [d.id, d])),
+        }
+      : null;
+}
+
+/** The changes since `base`, or null when only a full save fits. */
+export function changesSince(
+  base: { revision: number; sites: ReadonlyMap<string, AnalyzedDealership> },
+  session: Session,
+): IpcRequest["sessions:saveChanges"] | null {
+  const order = session.dealerships.map((d) => d.id);
+  const present = new Set(order);
+  if (present.size !== order.length) return null;
+  const { dealerships, ...meta } = session;
+  return {
+    session: meta,
+    baseRevision: base.revision,
+    order,
+    upserts: dealerships.filter((d) => base.sites.get(d.id) !== d),
+    removed: [...base.sites.keys()].filter((id) => !present.has(id)),
+  };
+}
 
 /** Opening, switching, renaming, merging and saving portfolios. */
 export function sessionActions(
@@ -201,7 +261,7 @@ export function sessionActions(
       const snapshot = snapshotOf(get());
       const session = get().currentSession();
       try {
-        await window.api.saveSession(session);
+        await writeSession(session);
       } catch (err) {
         // Shown in the header: a failed autosave must not look like a save.
         set({ saveError: errorMessage(err) });

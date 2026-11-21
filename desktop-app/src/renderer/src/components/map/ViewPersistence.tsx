@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { latLng, latLngBounds, type Map as LeafletMap } from "leaflet";
 import { useMap } from "./leaflet-react";
 import type { AnalyzedDealership } from "@shared/types";
@@ -42,7 +42,7 @@ export function ViewPersistence({
   const mountedRef = useRef(false);
 
   // One-time mount effect: restore the view or fit-all.
-  useEffect(() => {
+  const restoreView = useEffectEvent(() => {
     if (mountedRef.current) return;
     mountedRef.current = true;
 
@@ -60,16 +60,20 @@ export function ViewPersistence({
     } else {
       fitAll(map, dealerships);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    restoreView();
   }, []);
 
-  // Fly to the selected location.
-  useEffect(() => {
+  // Fly to the selected location (not again when the list changes).
+  const flyToSelected = useEffectEvent(() => {
     if (!selectedId) return;
     const d = dealerships.find((x) => x.id === selectedId);
     if (!d) return;
     map.setView([d.lat, d.lon], Math.max(map.getZoom(), 15));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    flyToSelected();
   }, [selectedId]);
 
   // Fit newly added locations into view. An import places its rows one by
@@ -92,16 +96,18 @@ export function ViewPersistence({
       container.removeEventListener("wheel", moved);
     };
   }, [map]);
-  useEffect(() => {
+  const fitAdded = useEffectEvent(() => {
     if (selectedId || presentAdded.length === 0 || userMovedRef.current) return;
     const pts = presentAdded.map((d) => [d.lat, d.lon] as [number, number]);
     if (pts.length === 1) map.setView(pts[0], 15);
     else map.fitBounds(pts, { padding: [50, 50], maxZoom: 15 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    fitAdded();
   }, [lastAddedIds, presentAdded.length]);
 
   // Fit a requested set of locations (e.g. an accumulation from the dashboard).
-  useEffect(() => {
+  const fitFocus = useEffectEvent(() => {
     if (!mapFocusIds) return;
     const ids = new Set(mapFocusIds);
     const pts = dealerships
@@ -121,7 +127,9 @@ export function ViewPersistence({
     } else if (pts.length === 1) map.setView(pts[0], 15);
     else if (pts.length > 1) map.fitBounds(pts, { padding: [60, 60] });
     clearMapFocus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    fitFocus();
   }, [mapFocusIds]);
 
   // Save the view on map interaction.
@@ -134,29 +142,29 @@ export function ViewPersistence({
     return () => {
       map.off("moveend", onMoveEnd);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map]);
+  }, [map, saveView]);
 
-  // Arrow-key navigation through the (filtered) locations.
+  // Arrow-key navigation through the (filtered) locations. The handler
+  // reads the current list and selection; the listener stays.
+  const handleKey = useEffectEvent((e: KeyboardEvent): void => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    // A filtered-out location is not a stop: the keys follow the list.
+    const order = keyboardOrder ?? dealerships;
+    if (order.length === 0) return;
+    const idx = selectedId ? order.findIndex((d) => d.id === selectedId) : -1;
+    const next =
+      e.key === "ArrowDown"
+        ? (idx + 1) % order.length
+        : (idx - 1 + order.length) % order.length;
+    onSelect(order[next].id);
+    e.preventDefault();
+  });
   useEffect(() => {
     const container = map.getContainer();
-    const handleKey = (e: KeyboardEvent): void => {
-      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-      // A filtered-out location is not a stop: the keys follow the list.
-      const order = keyboardOrder ?? dealerships;
-      if (order.length === 0) return;
-      const idx = selectedId ? order.findIndex((d) => d.id === selectedId) : -1;
-      const next =
-        e.key === "ArrowDown"
-          ? (idx + 1) % order.length
-          : (idx - 1 + order.length) % order.length;
-      onSelect(order[next].id);
-      e.preventDefault();
-    };
-    container.addEventListener("keydown", handleKey);
-    return () => container.removeEventListener("keydown", handleKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, dealerships, keyboardOrder, selectedId]);
+    const onKey = (e: KeyboardEvent): void => handleKey(e);
+    container.addEventListener("keydown", onKey);
+    return () => container.removeEventListener("keydown", onKey);
+  }, [map]);
 
   return null;
 }

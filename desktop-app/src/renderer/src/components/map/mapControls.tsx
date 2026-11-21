@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useEffectEvent } from "react";
 import { useMap, useMapEvents } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
 import { Minus, Plus } from "lucide-react";
@@ -37,7 +37,10 @@ export function MapViewReporter({
       east: b.getEast(),
     });
   }
-  useEffect(report, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const reportOnMount = useEffectEvent(report);
+  useEffect(() => {
+    reportOnMount();
+  }, []);
   return null;
 }
 

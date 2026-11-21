@@ -138,6 +138,7 @@ import {
   listSessions,
   loadSession,
   saveSession,
+  saveSessionChanges,
 } from "../db/sessions.repo";
 import {
   deleteConversation,
@@ -258,10 +259,11 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
 
   handle(IPC.listSessions, () => listSessions());
   handle(IPC.loadSession, ({ id }) => loadSession(id));
-  handle(IPC.saveSession, ({ session }) => {
-    saveSession(session);
-    return { ok: true };
-  });
+  handle(IPC.saveSession, ({ session }) => ({
+    ok: true,
+    ...saveSession(session),
+  }));
+  handle(IPC.saveSessionChanges, (changes) => saveSessionChanges(changes));
   handle(IPC.deleteSession, ({ id }) => {
     deleteSession(id);
     return { ok: true };

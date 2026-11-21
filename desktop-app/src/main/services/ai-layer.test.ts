@@ -21,7 +21,7 @@ import {
   explainSystemPrompt,
   writeEvidenceMemo,
 } from "./llm-agents.service";
-import { chatComplete, chatCompleteStream } from "./llm.service";
+import { chatComplete, chatCompleteStream } from "./llm-client";
 import {
   callMcpServerTool,
   listMcpServerTools,

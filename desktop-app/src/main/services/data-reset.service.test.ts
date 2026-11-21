@@ -25,6 +25,8 @@ function userData(): string {
     "dealership-risk.db-wal",
     "dealership-risk.db-shm",
     "dealership-risk.db.backup-2026-11-01T10-00-00-000Z",
+    "dealership-risk-cache.db",
+    "dealership-risk-cache.db-wal",
     "Preferences",
   ]) {
     writeFileSync(join(dir, file), "x");
@@ -60,6 +62,8 @@ describe("data reset", () => {
       "dealership-risk.db-wal",
       "dealership-risk.db-shm",
       "dealership-risk.db.backup-2026-11-01T10-00-00-000Z",
+      "dealership-risk-cache.db",
+      "dealership-risk-cache.db-wal",
       "hail-zones",
       "logs",
       RESET_MARKER_FILE,
@@ -77,6 +81,8 @@ describe("data reset", () => {
       path.slice(dir.length + 1),
     );
     expect(names.sort()).toEqual([
+      "dealership-risk-cache.db",
+      "dealership-risk-cache.db-wal",
       "dealership-risk.db",
       "dealership-risk.db-shm",
       "dealership-risk.db-wal",

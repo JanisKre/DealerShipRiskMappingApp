@@ -9,7 +9,12 @@ import {
 } from "electron";
 import { externalUrl } from "./external-links";
 import { join } from "path";
-import { pathToFileURL } from "url";
+import {
+  APP_ENTRY_URL,
+  APP_ORIGIN,
+  registerAppScheme,
+  serveRenderer,
+} from "./app-protocol";
 import { registerIpcHandlers } from "./ipc";
 import { saveBeforeClose } from "./close-flush";
 import { startRadarHailBackgroundSync } from "./services/hail-history/radar-hail.service";
@@ -18,7 +23,8 @@ import { warmUpDetector } from "./services/detection.service";
 import { pruneExpiredTiles } from "./services/tiles.service";
 import { configureCustomOverpass } from "./services/boundary/overpass-client";
 import { getSettings } from "./services/settings.service";
-import { closeDb, getDb } from "./db/database";
+import { closeDb, getDb, reclaimDatabaseSpace } from "./db/database";
+import { closeCacheDb } from "./db/cache-database";
 import { insertAiLogEntry } from "./db/ai-log.repo";
 import { configureAiLog } from "./services/ai-log.service";
 import {
@@ -50,6 +56,9 @@ const e2eUserData = process.env["DRM_E2E_USER_DATA"];
 if (!app.isPackaged && e2eUserData) {
   app.setPath("userData", e2eUserData);
 }
+
+// The renderer's own scheme must be known before the app is ready.
+registerAppScheme();
 
 // One instance per profile: two windows on the same database overwrote each
 // other's portfolio. A second start brings the running window to the front.
@@ -94,7 +103,6 @@ app.on("child-process-gone", (_event, details) => {
 function isRendererUrl(
   rawUrl: string,
   rendererUrl: string | undefined,
-  rendererFilePath: string,
 ): boolean {
   try {
     if (rendererUrl)
@@ -103,10 +111,51 @@ function isRendererUrl(
     // reload of the app's own page from any route is the app's page.
     const target = new URL(rawUrl);
     target.hash = "";
-    return target.toString() === pathToFileURL(rendererFilePath).toString();
+    return target.origin === APP_ORIGIN && target.toString() === APP_ENTRY_URL;
   } catch {
     return false;
   }
+}
+
+/**
+ * A crashed or hung renderer used to leave an empty window behind. The
+ * user is told and can reload the page; the portfolio comes back from the
+ * last save (autosave and the analysis checkpoints).
+ */
+function watchRenderer(window: BrowserWindow): void {
+  let asking = false;
+  const offerReload = async (
+    message: string,
+    detail: string,
+  ): Promise<void> => {
+    if (asking || window.isDestroyed()) return;
+    asking = true;
+    try {
+      const { response } = await dialog.showMessageBox(window, {
+        type: "error",
+        buttons: ["Reload", "Quit"],
+        defaultId: 0,
+        cancelId: 1,
+        message,
+        detail: `${detail}\n\nChanges since the last automatic save may be missing. Log: ${join(app.getPath("userData"), "logs", "main.log")}`,
+      });
+      if (window.isDestroyed()) return;
+      if (response === 0) window.webContents.reload();
+      else app.quit();
+    } finally {
+      asking = false;
+    }
+  };
+  window.webContents.on("render-process-gone", (_event, details) => {
+    if (details.reason === "clean-exit") return;
+    void offerReload(
+      "The window stopped working",
+      `Reason: ${details.reason} (exit code ${details.exitCode}).`,
+    );
+  });
+  window.on("unresponsive", () => {
+    console.warn("Renderer unresponsive");
+  });
 }
 
 /** Set once a quit started, so a window held for saving resumes it. */
@@ -128,7 +177,6 @@ const appIcon = nativeImage.createFromPath(
  * Node exclusively via the IPC channels exposed in the preload.
  */
 function createWindow(): BrowserWindow {
-  const rendererFilePath = join(__dirname, "../renderer/index.html");
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -147,6 +195,7 @@ function createWindow(): BrowserWindow {
   });
 
   mainWindow.on("ready-to-show", () => mainWindow.show());
+  watchRenderer(mainWindow);
   // Save pending changes before the window goes; a quit that was held for
   // this is resumed afterwards (macOS keeps the app open otherwise).
   saveBeforeClose(mainWindow, () => {
@@ -173,7 +222,7 @@ function createWindow(): BrowserWindow {
     ? process.env["ELECTRON_RENDERER_URL"]
     : undefined;
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    if (isRendererUrl(url, rendererUrl, rendererFilePath)) return;
+    if (isRendererUrl(url, rendererUrl)) return;
     event.preventDefault();
     const target = externalUrl(url);
     if (target) void shell.openExternal(target);
@@ -182,7 +231,7 @@ function createWindow(): BrowserWindow {
   if (!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
-    mainWindow.loadFile(rendererFilePath);
+    mainWindow.loadURL(APP_ENTRY_URL);
   }
 
   return mainWindow;
@@ -194,6 +243,7 @@ const STARTUP_CHECK_DELAY_MS = 15_000;
 const DETECTOR_WARM_UP_DELAY_MS = 1_500;
 
 app.whenReady().then(() => {
+  serveRenderer(join(__dirname, "../renderer"));
   // Chromium's network stack: system proxy and OS certificate store.
   setHttpTransport(
     electronNetTransport((input, init) => net.fetch(input, init)),
@@ -276,7 +326,10 @@ app.whenReady().then(() => {
   // Throttled to once a day and skipped until a directory was downloaded.
   setTimeout(() => void checkDealerDirectoryUpdate(), STARTUP_CHECK_DELAY_MS);
   // Housekeeping: expired imagery tiles only take up room in the database.
-  setTimeout(() => pruneExpiredTiles(), STARTUP_CHECK_DELAY_MS * 2);
+  setTimeout(() => {
+    pruneExpiredTiles();
+    reclaimDatabaseSpace();
+  }, STARTUP_CHECK_DELAY_MS * 2);
   // Load the vehicle model while the user is still looking at the map, so
   // the first analysis does not wait for the inference processes to start.
   setTimeout(() => warmUpDetector(), DETECTOR_WARM_UP_DELAY_MS);
@@ -302,4 +355,5 @@ app.on("before-quit", () => {
 app.on("will-quit", () => {
   void stopAgentGateway();
   closeDb();
+  closeCacheDb();
 });

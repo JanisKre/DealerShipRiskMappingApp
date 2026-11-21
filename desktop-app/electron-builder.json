@@ -25,7 +25,7 @@
     "enableEmbeddedAsarIntegrityValidation": true,
     "onlyLoadAppFromAsar": true,
     "loadBrowserProcessSpecificV8Snapshot": false,
-    "grantFileProtocolExtraPrivileges": true,
+    "grantFileProtocolExtraPrivileges": false,
     "resetAdHocDarwinSignature": true
   },
   "mac": {

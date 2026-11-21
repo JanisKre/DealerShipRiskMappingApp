@@ -1,4 +1,5 @@
 import { getDb } from "../db/database";
+import { storedSiteRows } from "../db/sessions.repo";
 import { distanceKm, similarBusinessNames } from "./place-query";
 
 /**
@@ -95,7 +96,12 @@ export function portfolioEntries(): PortfolioEntry[] {
   const rows = db
     .prepare("SELECT id, name, data FROM sessions ORDER BY updated_at DESC")
     .all() as Array<{ id: string; name: string; data: string }>;
-  const entries = rows.flatMap((row) => portfolioEntriesOf(row, row.data));
+  const entries = rows.flatMap((row) => {
+    const inline = portfolioEntriesOf(row, row.data);
+    if (inline.length > 0) return inline;
+    // Locations stored one per row (schema 6).
+    return portfolioEntriesOf(row, `[${storedSiteRows(row.id).join(",")}]`);
+  });
   cache = { fingerprint, entries };
   return entries;
 }

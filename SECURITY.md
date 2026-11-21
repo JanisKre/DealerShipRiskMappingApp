@@ -68,8 +68,11 @@ Hardening of the packaged app and its supply chain:
   refused, and requests carry no session cookies
 - Electron fuses are set at packaging time: `RunAsNode`, `NODE_OPTIONS` and
   `--inspect` are disabled, the app loads only from `app.asar`, whose
-  integrity is validated at start-up, and the cookie store is encrypted
-  (`file://` keeps its extra privileges because the UI is loaded from there)
+  integrity is validated at start-up, the cookie store is encrypted, and
+  `file://` has no extra privileges
+- The UI is served from the app's own `app://bundle/` scheme, which reads
+  only files below the built renderer folder and sends the Content Security
+  Policy as a response header (with `frame-ancestors 'none'`)
 - Updates come only from this repository's GitHub releases. On Windows,
   electron-updater verifies the installer's SHA-512 from the release's
   `latest.yml` before installing it; the builds are not code-signed yet, so

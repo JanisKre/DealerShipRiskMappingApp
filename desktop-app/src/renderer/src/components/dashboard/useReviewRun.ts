@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { notify } from "@renderer/lib/notify";
 import { useAppStore } from "@renderer/store/appStore";
@@ -100,14 +100,16 @@ export function useReviewRun({
   }
 
   // Back from a boundary correction on the map: continue where it paused.
-  useEffect(() => {
+  const resumePaused = useEffectEvent(() => {
     const paused = usePausedReview.getState().take();
     if (!paused) return;
     setIds(paused.ids);
     setNotes(paused.notes);
     openLocation(paused.id);
-    // Once on mount: the paused run is taken a single time.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  // Once on mount: the paused run is taken a single time.
+  useEffect(() => {
+    resumePaused();
   }, []);
 
   const review = useMemo<ReviewRun | undefined>(

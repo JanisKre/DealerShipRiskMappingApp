@@ -81,6 +81,55 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Cache in its own file, a fraction of the disk space.** API answers and
+  aerial imagery tiles move from `dealership-risk.db` into
+  `dealership-risk-cache.db` (schema 5). Tiles are stored as bytes instead
+  of base64 text (a quarter smaller), and the cache file gives freed pages
+  back after pruning. The portfolio database is compacted once, and the
+  cache is emptied inside the existing migration backups, which keep
+  their data. On a real profile copy: 427 MB database plus 940 MB backups
+  became an 11 MB database, 11 MB backups and a 168 MB cache. An unreadable
+  cache file, or one of another version, is rebuilt instead of stopping the
+  app. "Delete all data" and the diagnostics export include the new file.
+- **Saving writes only the locations that changed.** A portfolio is now one
+  row per location (`session_sites`, schema 6) instead of one JSON blob, and
+  autosave and the analysis checkpoints send only the locations changed
+  since the last save, with a revision check in the main process. When the
+  check fails (another save in between, ids that are not unique) the whole
+  portfolio is saved as before. Unchanged locations are not rewritten. With
+  500 locations a checkpoint used to move about 36 MB every time.
+- **Coverage counts every source file.** The figure used to cover only the
+  files that some test loaded (88.5 % of lines); with all 403 files it is
+  56.3 % lines, 43.8 % functions, 55.0 % statements and 47.3 % branches.
+  The ratchet now sits one point below those figures (55/42/54/46) instead
+  of well below a figure that left out 39,000 lines.
+- **CI on macOS and Windows.** Unit tests, build and the end-to-end suite
+  also run on `macos-latest` and `windows-2022`, the platforms the app ships
+  for. The Linux job and the release check run the unit tests once (with
+  coverage) instead of twice.
+- **Detection benchmark on the app's own pipeline.** `npm run
+  benchmark:detection` also stitches each site's validation tiles into one
+  mosaic and counts it with the detector's window plan and NMS, against a
+  ground truth that counts a seam-cut vehicle once; every MAE carries a
+  seeded 90 % bootstrap interval. For the shipped model the error barely
+  depends on the threshold (MAE 7.0–7.7, all intervals overlapping), the
+  bias is +3.4 % at the shipped 0.30 and about zero at 0.45–0.50. The
+  threshold stays; a change needs the test split. See
+  `docs/detection-benchmark.md`, "App pipeline on mosaics".
+- **Smaller modules.** The parameters page, the map's location list, the LLM
+  service and the cadastre service are split into modules of at most about
+  700 lines (fields, hail EAL tables, editor, impact bar and templates;
+  row, add field and delete dialog; the provider client; endpoints and WFS
+  parsing). No behaviour changes.
+- **No suppressed hook dependencies.** The 18 places that switched off
+  `react-hooks/exhaustive-deps` use `useEffectEvent` (or a memoised input)
+  instead, so the rule checks every effect again. The map's arrow-key
+  handler no longer re-subscribes on every list change.
+- **Install-script policy up to date.** `allowScripts` named versions that
+  are no longer installed; it now records the three install scripts the app
+  does not need (onnxruntime-node's GPU download, core-js, electron-
+  winstaller) as denied.
+
 - **One look and one voice for messages.** Every toast goes through
   `notify` and looks like the app's inline notices (card surface, coloured
   icon, outline action button, close button inside); titles are short and
@@ -161,6 +210,18 @@ the project follows [Semantic Versioning](https://semver.org/).
   image (a pond and a wood cut off, a car park joined); stages unchanged.
   If the sections service fails, parcels stay whole and the trace says
   so. See `docs/boundary-model.md`, "Cascade v15".
+
+### Security
+
+- **The UI loads from `app://` instead of `file://`.** The renderer is served
+  from the app's own scheme: only files below the built renderer folder can
+  be read through it, and every answer carries the Content Security Policy
+  as a header, where `frame-ancestors` takes effect, plus `nosniff`. The
+  `grantFileProtocolExtraPrivileges` fuse is off. The page's origin changes
+  once, so the theme, the dashboard tile layout and the last open portfolio
+  stored in browser storage start from their defaults after the update.
+- **A crashed window says so.** If the renderer process dies, the app
+  offers "Reload" or "Quit" instead of leaving an empty window.
 
 ### Fixed
 

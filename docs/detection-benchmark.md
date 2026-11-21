@@ -358,6 +358,58 @@ classification head. Whether one class counts better is decided by the
 app-pipeline benchmark of that round, not assumed; until then nothing
 changes for users.
 
+## App pipeline on mosaics (2026-11-21)
+
+Until now the sweep scored each 640 px validation tile on its own. The app
+does something else: it stitches the tiles of a site into one mosaic, cuts
+it into overlapping windows (`planCrops`, `windowStride`) and merges the
+windows with the mosaic NMS, so a vehicle on a seam is counted once. In the
+tile scoring that vehicle was a clipped label in two tiles and could be a
+detection in both. `npm run benchmark:detection` now scores both pipelines
+on the same sites:
+
+- **tiles**: as before, every tile alone.
+- **mosaic**: the n × n tiles of a site stitched together and run through
+  the detector's own window plan and NMS. Its ground truth counts a vehicle
+  cut by a seam once (`countMosaicLabels`: two clipped boxes in
+  neighbouring tiles that both reach the shared edge and overlap along it).
+
+Each MAE carries a 90 % percentile bootstrap interval over sites with a
+fixed seed (`bootstrapMaeInterval`), so a rerun gives the same interval.
+
+**Measurement.** round 02 (shipped), 20 validation sites, 0.10 m/px state
+orthophotos, 3 × 3 tiles per site.
+
+| Base confidence | tiles: MAE (90 %) | tiles: bias | mosaic: MAE (90 %) | mosaic: bias | mosaic: within 10 % |
+|---|---|---|---|---|---|
+| **0.30** (shipped) | 5.7 (4.2–7.3) | −2.0 % | 7.7 (5.5–9.9) | +3.4 % | 90 % |
+| 0.35 | 7.0 (5.2–9.1) | −3.4 % | 7.7 (5.8–9.7) | +2.5 % | 85 % |
+| 0.40 | 8.6 (6.5–10.8) | −4.8 % | 7.2 (5.5–9.0) | +1.3 % | 90 % |
+| 0.45 | 9.6 (7.3–12.0) | −5.9 % | 7.2 (5.7–8.8) | +0.2 % | 90 % |
+| 0.50 | 11.2 (8.9–13.4) | −7.0 % | 7.0 (5.5–8.7) | −0.3 % | 90 % |
+| 0.55 | 12.9 (10.7–15.3) | −8.1 % | 7.2 (5.5–8.9) | −1.5 % | 80 % |
+| 0.60 | 14.8 (12.4–17.2) | −9.3 % | 7.4 (5.5–9.4) | −2.4 % | 70 % |
+
+Ground truth: 3,093 labelled boxes on the tiles, 2,813 vehicles on the
+mosaics (280 vehicles, 9 %, were cut by a seam and labelled twice).
+
+**What it shows.**
+
+- On the app's pipeline the shipped 0.30 over-counts by about 3 %, and the
+  error barely depends on the threshold between 0.30 and 0.60: every
+  interval overlaps every other. The tile scoring suggested a clear optimum
+  at 0.30 because seam-cut vehicles counted twice in both labels and
+  detections.
+- The bias is closest to zero at 0.45–0.50. With these 20 sites that is
+  not a demonstrated gain (MAE 7.0–7.2 against 7.7, intervals overlapping),
+  so the shipped threshold stays; a change needs the test split
+  (`training/data/test_sites.txt`), not these validation sites.
+
+**Limitations.** round 02 trained on 9 of these 20 sites, so its errors
+here are optimistic. Boundary clip and roof mask are not applied (no
+boundary on training tiles). Only state orthophotos are measured; there is
+still no number for Esri or Wayback imagery.
+
 ## Benchmark runs
 
 | Date | Model | Imagery | Sites | Count MAE | Bias | Within 10 % |
@@ -370,3 +422,5 @@ changes for users.
 | 2026-11-19 | dealer_vehicles 2026-10-10, base conf 0.45, audited labels | State DOP tiles, 0.10 m/px | 20 | 11.2 | −5.8 % | 70 % |
 | 2026-11-19 | round 02, base conf 0.30 (shipped from v0.6.0) | State DOP tiles, 0.10 m/px | 20 | 5.7 | −2.0 % | 100 % |
 | 2026-11-19 | scratch-01, base conf 0.30 (no validation site in training) | State DOP tiles, 0.10 m/px | 20 | 6.5 | −2.2 % | 85 % |
+| 2026-11-21 | round 02, base conf 0.30, **mosaic (app pipeline)** | State DOP tiles, 0.10 m/px | 20 | 7.7 (5.5–9.9) | +3.4 % | 90 % |
+| 2026-11-21 | round 02, base conf 0.45, mosaic (app pipeline) | State DOP tiles, 0.10 m/px | 20 | 7.2 (5.7–8.8) | +0.2 % | 90 % |

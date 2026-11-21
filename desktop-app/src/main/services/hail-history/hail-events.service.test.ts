@@ -357,7 +357,8 @@ describe.skipIf(!Sqlite)("radar archive and replay (SQLite)", () => {
 
   it("migrates the schema-2 cache archive into the tables", () => {
     const db = new Sqlite!(":memory:");
-    migrateDatabase(db, 0);
+    // Schema 4: the cache still lived in this database.
+    migrateDatabase(db, 0, { toVersion: 4 });
     db.prepare(
       "INSERT INTO api_cache (key, value, expires_at) VALUES (?, ?, ?)",
     ).run(

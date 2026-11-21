@@ -7,9 +7,12 @@ telemetry. The maintainer does not receive any of your data.
 ## Data stored on your machine
 
 Dealership lists, analysis results, imagery captures, the API cache and
-settings are stored in the application's `userData` directory (SQLite
-database and files). API keys are encrypted with the operating system's
-keychain through Electron `safeStorage`.
+settings are stored in the application's `userData` directory:
+`dealership-risk.db` holds portfolios, chats, dashboards, settings and the
+dealer directory, `dealership-risk-cache.db` the API answers and aerial
+imagery tiles. API keys are encrypted with the operating system's keychain
+through Electron `safeStorage`. Before a database update the app keeps a
+copy of `dealership-risk.db` (the last three, without the cache).
 
 The API cache keeps geocoding answers for up to 30 days, keyed by the
 address (and, where it was sent, the dealership name). Deleting a portfolio
@@ -30,8 +33,9 @@ included, but the log names the locations of analyses you ran. Review the file
 before you pass it on.
 
 **Settings → General → App & support → Delete all data** removes the
-database (portfolios, chats, dashboards, settings, API keys, API cache,
-dealer directory) with its backups, cached map data, the log files and the
+database (portfolios, chats, dashboards, settings, API keys, dealer
+directory) with its backups, the cache database (API answers, imagery
+tiles), cached map data, the log files and the
 browser storage, then restarts the app. Only the downloaded vehicle detection
 model is kept, because it contains no user data. Deleting the `userData`
 directory by hand has the same effect.

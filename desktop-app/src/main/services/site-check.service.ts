@@ -13,7 +13,7 @@ import {
   type SiteCheckResult,
 } from "@shared/site-check";
 import { completeJson } from "./llm-agents.service";
-import { responseLanguageName, type LlmImage } from "./llm.service";
+import { responseLanguageName, type LlmImage } from "./llm-client";
 import { getSettings } from "./settings.service";
 import {
   aerialImageForBoundary,

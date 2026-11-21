@@ -404,6 +404,14 @@ export const ipcRequest = {
   "sessions:list": z.void(),
   "sessions:load": z.object({ id: z.string() }),
   "sessions:save": z.object({ session: SessionSchema }),
+  // Only the locations that changed since the save of `baseRevision`.
+  "sessions:saveChanges": z.object({
+    session: SessionSchema.omit({ dealerships: true }),
+    baseRevision: z.number().int().nonnegative(),
+    order: z.array(z.string().max(200)).max(50_000),
+    upserts: z.array(AnalyzedDealershipSchema).max(50_000),
+    removed: z.array(z.string().max(200)).max(50_000),
+  }),
   "sessions:delete": z.object({ id: z.string() }),
   "conversations:list": z.void(),
   "conversations:load": z.object({ id: z.string() }),
@@ -635,7 +643,14 @@ export const ipcResponse = {
     }),
   ),
   "sessions:load": SessionSchema.nullable(),
-  "sessions:save": z.object({ ok: z.boolean() }),
+  "sessions:save": z.object({
+    ok: z.boolean(),
+    revision: z.number().int().nonnegative(),
+  }),
+  "sessions:saveChanges": z.union([
+    z.object({ ok: z.literal(true), revision: z.number().int().nonnegative() }),
+    z.object({ ok: z.literal(false) }),
+  ]),
   "sessions:delete": z.object({ ok: z.boolean() }),
   "conversations:list": z.array(
     z.object({ id: z.string(), name: z.string(), updatedAt: z.string() }),

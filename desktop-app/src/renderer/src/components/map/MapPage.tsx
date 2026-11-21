@@ -1,6 +1,6 @@
 import { useDismissedHint } from "@renderer/lib/dismissedHints";
 import { cn } from "@renderer/lib/utils";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { MapContainer, TileLayer } from "./leaflet-react";
 import { useTranslation } from "react-i18next";
 import { notify } from "@renderer/lib/notify";
@@ -26,7 +26,7 @@ import { HailEventReplayLayer } from "./HailEventReplayLayer";
 import { HailEventCard } from "./HailEventCard";
 import { HailZoneLayer } from "./HailZoneLayer";
 import { LayerPanel } from "./LayerPanel";
-import { DeleteSelectedDialog } from "./LocationsPanel";
+import { DeleteSelectedDialog } from "./DeleteSelectedDialog";
 import { MapLegend } from "./MapLegend";
 import { legendPresence, type ViewBounds } from "@renderer/lib/legendPresence";
 import { NearbyInsuredLayer } from "./NearbyInsuredLayer";
@@ -288,12 +288,15 @@ export function MapPage(): React.JSX.Element {
   // However editing starts (detail dialog, layer panel, review notice), the
   // map frames the selected lot, so its handles are not a heap of dots.
   const selectedBoundary = selectedDealership?.boundary?.polygon;
-  useEffect(() => {
+  const frameSelectedLot = useEffectEvent(() => {
     if (!editing || !selectedBoundary) return;
     const bounds = geometryBounds(selectedBoundary);
     if (bounds) setFitRequest({ bounds });
-    // Only when editing starts or another site is selected meanwhile.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  // Only when editing starts or another site is selected meanwhile, not
+  // while its outline is being dragged.
+  useEffect(() => {
+    frameSelectedLot();
   }, [editing, selectedId]);
 
   // Keys of the review notice: ↵ confirms and moves on, E corrects, N skips.

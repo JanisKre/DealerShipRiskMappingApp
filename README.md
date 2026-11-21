@@ -86,8 +86,7 @@ SHA-256. Without it the app estimates vehicle counts from the lot area. See
 [docs/detection-benchmark.md](./docs/detection-benchmark.md#shipped-model-2026-11)
 and [training/](./training/README.md) for how the model is trained.
 
-The app is built with Electron, React, TypeScript, SQLite (better-sqlite3 and
-Drizzle), Leaflet and onnxruntime-node. See [ARCHITECTURE.md](./ARCHITECTURE.md)
+The app is built with Electron, React, TypeScript, SQLite (better-sqlite3), Leaflet and onnxruntime-node. See [ARCHITECTURE.md](./ARCHITECTURE.md)
 for the structure and the security model.
 
 ## Security

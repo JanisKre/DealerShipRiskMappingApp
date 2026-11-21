@@ -42,10 +42,10 @@ import type { AnalyzedDealership, RiskParameters } from "@shared/types";
 import {
   chatComplete,
   chatCompleteStream,
-  parseLLMJson,
   responseLanguageName,
   type LlmImage,
-} from "./llm.service";
+} from "./llm-client";
+import { parseLLMJson } from "./llm.service";
 
 /**
  * Optional AI layer over features that work without AI (docs/ai-features.md).

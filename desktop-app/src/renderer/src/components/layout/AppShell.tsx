@@ -5,7 +5,7 @@ import {
   pickActiveSession,
   rememberOpenSession,
 } from "@renderer/lib/portfolioSessions";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
@@ -119,7 +119,7 @@ function BoundaryImpactToast(): null {
   const { t } = useTranslation();
   const impact = useAppStore((s) => s.boundaryImpact);
   const at = impact?.at;
-  useEffect(() => {
+  const showImpact = useEffectEvent(() => {
     if (!impact) return;
     const { vehiclesBefore, vehiclesAfter, eal } = impact;
     const parts = [
@@ -143,8 +143,10 @@ function BoundaryImpactToast(): null {
     notify.success(t("shell.boundaryImpact.title", { name: impact.name }), {
       description: parts.join(" · "),
     });
-    // Once per saved change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  // Once per saved change.
+  useEffect(() => {
+    showImpact();
   }, [at]);
   return null;
 }
@@ -247,15 +249,18 @@ export function AppShell(): React.JSX.Element {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const lastSavedAt = useAppStore((s) => s.lastSavedAt);
   const saveError = useAppStore((s) => s.saveError);
-  // The header badge only says that saving failed; the reason is told once.
-  useEffect(() => {
+  // The header badge only says that saving failed; the reason is told once
+  // (not again when the language changes).
+  const tellSaveState = useEffectEvent(() => {
     if (saveError)
       notify.error(t("shell.saveFailed"), {
         id: "save-failed",
         description: errorReason(saveError),
       });
     else notify.dismiss("save-failed");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    tellSaveState();
   }, [saveError]);
   const locationsPanelOpen = useMapStore((s) => s.locationsPanelOpen);
   const chatPanelOpen = useMapStore((s) => s.chatPanelOpen);

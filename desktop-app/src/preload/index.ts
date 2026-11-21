@@ -239,6 +239,14 @@ const api = {
       session,
     } satisfies IpcRequest["sessions:save"]),
 
+  saveSessionChanges: (
+    changes: IpcRequest["sessions:saveChanges"],
+  ): Promise<IpcResponse["sessions:saveChanges"]> =>
+    ipcRenderer.invoke(
+      IPC.saveSessionChanges,
+      changes satisfies IpcRequest["sessions:saveChanges"],
+    ),
+
   deleteSession: (id: string): Promise<IpcResponse["sessions:delete"]> =>
     ipcRenderer.invoke(IPC.deleteSession, {
       id,

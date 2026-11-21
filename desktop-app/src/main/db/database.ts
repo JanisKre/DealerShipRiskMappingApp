@@ -3,13 +3,16 @@ import { app } from "electron";
 import { copyFileSync, existsSync, readdirSync, unlinkSync } from "node:fs";
 import { basename, dirname } from "node:path";
 import { join } from "path";
+import { getCacheDb } from "./cache-database";
 
 /**
  * Lokale SQLite-DB im userData-Pfad. Single-File, kein Server.
  * Tabellen werden über versionierte, transaktionale Migrationen erstellt.
  */
 let db: Database.Database | null = null;
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 6;
+/** First schema without the API and tile cache (now `cache-database.ts`). */
+const SCHEMA_WITHOUT_CACHE = 5;
 
 export function getDb(): Database.Database {
   if (db) return db;
@@ -39,26 +42,52 @@ export function getDb(): Database.Database {
     db = null;
     throw error;
   }
+  if (databaseAlreadyExists && currentVersion < SCHEMA_WITHOUT_CACHE) {
+    // The cache left this file: shrink it, and drop the cache from the
+    // migration backups too (they held up to several hundred MB of tiles
+    // each). Both are one-off and take about a second per file.
+    compactDatabase(db);
+    stripCacheFromBackups(dbPath);
+  }
 
   return db;
+}
+
+export interface MigrationOptions {
+  /** Last schema version to migrate to (tests); default: the current one. */
+  toVersion?: number;
+  /** Where migration 5 moves the cache; opened only if there is any. */
+  openCache?: () => Database.Database;
 }
 
 /** Runs the migrations after `fromVersion`, each in its own transaction. */
 export function migrateDatabase(
   database: Database.Database,
   fromVersion = Number(database.pragma("user_version", { simple: true })),
+  options: MigrationOptions = {},
 ): void {
-  for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {
+  const toVersion = options.toVersion ?? SCHEMA_VERSION;
+  const context: MigrationContext = {
+    openCache: options.openCache ?? getCacheDb,
+  };
+  for (let version = fromVersion + 1; version <= toVersion; version++) {
     const migrate = MIGRATIONS[version];
     if (!migrate) throw new Error(`Missing database migration ${version}`);
     database.transaction(() => {
-      migrate(database);
+      migrate(database, context);
       database.pragma(`user_version = ${version}`);
     })();
   }
 }
 
-type Migration = (database: Database.Database) => void;
+interface MigrationContext {
+  openCache: () => Database.Database;
+}
+
+type Migration = (
+  database: Database.Database,
+  context: MigrationContext,
+) => void;
 
 const MIGRATIONS: Record<number, Migration> = {
   1: (database) =>
@@ -189,7 +218,190 @@ const MIGRATIONS: Record<number, Migration> = {
       response       TEXT    NOT NULL
     );
   `),
+  // API answers and imagery tiles move to their own file (cache-database.ts):
+  // they made up 95 % of this database and of every migration backup.
+  5: (database, { openCache }) => {
+    moveApiCache(database, openCache);
+    database.exec("DROP TABLE IF EXISTS api_cache");
+  },
+  // One row per location instead of one JSON blob per portfolio, so a save
+  // writes only the locations that changed (sessions.repo.ts). `revision`
+  // counts saves; a save of changes names the revision it builds on.
+  6: (database) => {
+    database.exec(`
+    CREATE TABLE IF NOT EXISTS session_sites (
+      session_id TEXT NOT NULL REFERENCES sessions (id) ON DELETE CASCADE,
+      site_id    TEXT NOT NULL,
+      data       TEXT NOT NULL,          -- JSON: AnalyzedDealership
+      PRIMARY KEY (session_id, site_id)
+    );
+    ALTER TABLE sessions ADD COLUMN revision INTEGER NOT NULL DEFAULT 0;
+  `);
+    splitSessionSites(database);
+  },
 };
+
+/**
+ * Moves the locations of every saved portfolio into `session_sites`; their
+ * order stays in the portfolio row (`order`). A portfolio whose locations
+ * lack unique ids keeps them inline, which the loader still reads.
+ */
+export function splitSessionSites(database: Database.Database): number {
+  const sessions = database
+    .prepare("SELECT id, data FROM sessions")
+    .all() as Array<{ id: string; data: string }>;
+  const insert = database.prepare(
+    "INSERT INTO session_sites (session_id, site_id, data) VALUES (?, ?, ?)",
+  );
+  const update = database.prepare("UPDATE sessions SET data = ? WHERE id = ?");
+  let split = 0;
+  for (const session of sessions) {
+    let stored: unknown;
+    try {
+      stored = JSON.parse(session.data);
+    } catch {
+      continue;
+    }
+    const envelope: Record<string, unknown> | null = Array.isArray(stored)
+      ? { dealerships: stored }
+      : typeof stored === "object" && stored !== null
+        ? (stored as Record<string, unknown>)
+        : null;
+    const sites = envelope?.dealerships;
+    if (!envelope || !Array.isArray(sites)) continue;
+    const ids = sites.map((site) =>
+      typeof (site as { id?: unknown })?.id === "string"
+        ? (site as { id: string }).id
+        : null,
+    );
+    if (ids.some((id) => id == null) || new Set(ids).size !== ids.length) {
+      continue;
+    }
+    sites.forEach((site, i) =>
+      insert.run(session.id, ids[i], JSON.stringify(site)),
+    );
+    const { dealerships: _inline, ...rest } = envelope;
+    update.run(JSON.stringify({ ...rest, order: ids }), session.id);
+    split++;
+  }
+  return split;
+}
+
+/**
+ * Copies `api_cache` into the cache database: JSON answers as they are,
+ * imagery tiles (base64 text until now) as bytes. Expired tiles are left
+ * behind; expired answers are kept, `cached()` serves them when offline.
+ * Returns how many entries were copied.
+ */
+export function moveApiCache(
+  database: Database.Database,
+  openCache: () => Database.Database,
+): { entries: number; tiles: number } {
+  const moved = { entries: 0, tiles: 0 };
+  const table = database
+    .prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'api_cache'",
+    )
+    .get();
+  if (!table) return moved;
+  const { n } = database
+    .prepare("SELECT COUNT(*) AS n FROM api_cache")
+    .get() as { n: number };
+  if (n === 0) return moved;
+
+  const cache = openCache();
+  const insertEntry = cache.prepare(
+    "INSERT OR REPLACE INTO api_cache (key, value, expires_at) VALUES (?, ?, ?)",
+  );
+  const insertTile = cache.prepare(
+    "INSERT OR REPLACE INTO tile_cache (key, data, expires_at) VALUES (?, ?, ?)",
+  );
+  const rows = database
+    .prepare(
+      `SELECT key, value, expires_at FROM api_cache
+        WHERE key NOT LIKE 'tile:%' OR expires_at >= ?`,
+    )
+    .iterate(Date.now()) as IterableIterator<{
+    key: string;
+    value: string;
+    expires_at: number;
+  }>;
+  cache.transaction(() => {
+    for (const row of rows) {
+      if (!row.key.startsWith("tile:")) {
+        insertEntry.run(row.key, row.value, row.expires_at);
+        moved.entries++;
+        continue;
+      }
+      let base64: unknown;
+      try {
+        base64 = JSON.parse(row.value);
+      } catch {
+        continue;
+      }
+      if (typeof base64 !== "string" || base64.length === 0) continue;
+      insertTile.run(row.key, Buffer.from(base64, "base64"), row.expires_at);
+      moved.tiles++;
+    }
+  })();
+  return moved;
+}
+
+/**
+ * Rewrites the file without its free pages and switches it to incremental
+ * vacuum, so pages freed later can be given back without a full rewrite.
+ */
+export function compactDatabase(database: Database.Database): void {
+  try {
+    database.pragma("auto_vacuum = INCREMENTAL");
+    database.exec("VACUUM");
+  } catch (error) {
+    // Only disk space: the data is unaffected.
+    console.warn("Compacting the local database failed:", error);
+  }
+}
+
+/** Gives free pages back to the file system (housekeeping, cheap). */
+export function reclaimDatabaseSpace(): void {
+  try {
+    getDb().pragma("incremental_vacuum");
+  } catch (error) {
+    console.warn("Shrinking the local database failed:", error);
+  }
+}
+
+/**
+ * Empties the API cache inside the migration backups of `dbPath`. The
+ * table itself stays, so an old backup still migrates; only cached answers
+ * and tiles go, which are fetched again when needed.
+ */
+export function stripCacheFromBackups(dbPath: string): string[] {
+  const dir = dirname(dbPath);
+  const prefix = `${basename(dbPath)}.backup-`;
+  const stripped: string[] = [];
+  for (const name of readdirSync(dir).filter((n) => n.startsWith(prefix))) {
+    let backup: Database.Database | null = null;
+    try {
+      backup = new Database(join(dir, name));
+      const table = backup
+        .prepare(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'api_cache'",
+        )
+        .get();
+      if (!table) continue;
+      const hasRows = backup.prepare("SELECT 1 FROM api_cache LIMIT 1").get();
+      if (!hasRows) continue;
+      backup.exec("DELETE FROM api_cache");
+      backup.exec("VACUUM");
+      stripped.push(name);
+    } catch (error) {
+      console.warn("Could not shrink the database backup:", name, error);
+    } finally {
+      backup?.close();
+    }
+  }
+  return stripped;
+}
 
 interface LegacyHailCell {
   t: string;

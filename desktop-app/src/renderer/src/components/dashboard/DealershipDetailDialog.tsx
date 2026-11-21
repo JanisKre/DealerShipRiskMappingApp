@@ -42,7 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@renderer/components/ui/dropdown-menu";
 import { useMapStore } from "@renderer/store/mapStore";
-import { DeleteSelectedDialog } from "@renderer/components/map/LocationsPanel";
+import { DeleteSelectedDialog } from "@renderer/components/map/DeleteSelectedDialog";
 import { useAppStore } from "@renderer/store/appStore";
 import { eur, num } from "@renderer/lib/format";
 import { HailZoneBadge } from "./HailZoneBadge";

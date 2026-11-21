@@ -9,11 +9,12 @@ import {
   type ImagerySelection,
 } from "@shared/imagery-sources";
 import {
-  cacheGet,
-  cacheSet,
   pruneExpired,
+  tileCacheGet,
+  tileCacheSet,
   trimCacheToSize,
 } from "./cache.service";
+import { reclaimCacheSpace } from "../db/cache-database";
 import { fetchWithResilience } from "./http.service";
 import {
   ESRI_TILE_SOURCE,
@@ -53,7 +54,7 @@ const TILE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days — orthophotos rarely cha
 const LIVE_ESRI_TILE_TTL = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * Upper bound of the tile cache in the database (base64 text). Beyond it
+ * Upper bound of the tile cache in the cache database (tile bytes). Beyond it
  * the entries closest to expiry go first. Without a bound the cache grew
  * with every site analysed until it expired, 30 days later.
  */
@@ -75,7 +76,7 @@ const TILE_PRUNE_PAUSE_MS = 250;
 export function pruneExpiredTiles(): void {
   let removed: number;
   try {
-    removed = pruneExpired("tile:");
+    removed = pruneExpired("tile_cache", "tile:");
   } catch (error) {
     console.warn("Pruning expired imagery tiles failed:", error);
     return;
@@ -85,15 +86,26 @@ export function pruneExpiredTiles(): void {
     return;
   }
   // Expired ones are gone: keep the rest under the size bound.
+  let trimmed: number;
   try {
-    const trimmed = trimCacheToSize("tile:", TILE_CACHE_MAX_BYTES);
-    if (trimmed > 0) setTimeout(pruneExpiredTiles, TILE_PRUNE_PAUSE_MS).unref();
+    trimmed = trimCacheToSize("tile_cache", "tile:", TILE_CACHE_MAX_BYTES);
   } catch (error) {
     console.warn("Trimming the imagery tile cache failed:", error);
+    return;
+  }
+  if (trimmed > 0) {
+    setTimeout(pruneExpiredTiles, TILE_PRUNE_PAUSE_MS).unref();
+    return;
+  }
+  // Done: give the freed pages back, so the file shrinks with the cache.
+  try {
+    reclaimCacheSpace();
+  } catch (error) {
+    console.warn("Shrinking the cache file failed:", error);
   }
 }
 
-/** Loads a single tile as a raw RGB buffer (persistent cache as base64). */
+/** Loads a single tile as a raw RGB buffer (persistent cache as bytes). */
 async function loadTileRgb(
   z: number,
   y: number,
@@ -105,19 +117,16 @@ async function loadTileRgb(
   // without it, switching sources would keep serving tiles cached from the
   // previous one.
   const cacheKey = `tile:v${TILE_CACHE_VERSION}:${source.cacheId}:${time ?? "live"}:${z}/${y}/${x}`;
-  const cachedB64 = cacheGet<string>(cacheKey);
-  let bytes: Buffer | null = cachedB64
-    ? Buffer.from(cachedB64, "base64")
-    : null;
+  let bytes: Buffer | null = tileCacheGet(cacheKey);
 
   if (!bytes) {
     try {
       const res = await fetchWithResilience(source.url(z, y, x, time), {});
       if (res.ok) {
         bytes = Buffer.from(await res.arrayBuffer());
-        cacheSet(
+        tileCacheSet(
           cacheKey,
-          bytes.toString("base64"),
+          bytes,
           source.cacheId === "esri" ? LIVE_ESRI_TILE_TTL : TILE_TTL,
         );
       }

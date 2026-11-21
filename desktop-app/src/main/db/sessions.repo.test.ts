@@ -1,45 +1,34 @@
+import type BetterSqlite3 from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BoundaryResult, Session } from "@shared/types";
+import type {
+  AnalyzedDealership,
+  BoundaryResult,
+  Session,
+} from "@shared/types";
 
-/** In-memory stand-in for the sessions table (one row per id). */
-const rows = new Map<string, Record<string, string>>();
-
-vi.mock("../db/database", () => ({
-  getDb: () => ({
-    prepare: (sql: string) => ({
-      run: (row: Record<string, string>) => {
-        if (sql.startsWith("INSERT")) rows.set(row.id, row);
-      },
-      get: (id: string) => {
-        const row = rows.get(id);
-        return row
-          ? {
-              id: row.id,
-              name: row.name,
-              created_at: row.createdAt,
-              updated_at: row.updatedAt,
-              data: row.data,
-            }
-          : undefined;
-      },
-      // Mirrors the json_extract column of listSessions.
-      all: () =>
-        [...rows.values()].map((row) => ({
-          id: row.id,
-          name: row.name,
-          updatedAt: row.updatedAt,
-          snapshotOf:
-            (JSON.parse(row.data) as { snapshotOf?: string }).snapshotOf ??
-            null,
-        })),
-    }),
-  }),
+/** The repository runs against a real, migrated in-memory database. */
+let memoryDb: BetterSqlite3.Database | null = null;
+vi.mock("../db/database", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../db/database")>()),
+  getDb: () => memoryDb,
 }));
 
+const { default: Database } = await import("better-sqlite3");
+const { migrateDatabase } = await import("../db/database");
+
+function storedData(id: string): Record<string, unknown> {
+  const row = memoryDb!
+    .prepare("SELECT data FROM sessions WHERE id = ?")
+    .get(id) as { data: string };
+  return JSON.parse(row.data) as Record<string, unknown>;
+}
+
 const {
+  deleteSession,
   listSessions,
   loadSession,
   saveSession,
+  saveSessionChanges,
   validBoundaryEdits,
   validPendingAnalysis,
 } = await import("./sessions.repo");
@@ -70,7 +59,12 @@ const session = (extra: Partial<Session> = {}): Session => ({
   ...extra,
 });
 
-beforeEach(() => rows.clear());
+beforeEach(() => {
+  memoryDb?.close();
+  memoryDb = new Database(":memory:");
+  memoryDb.pragma("foreign_keys = ON");
+  migrateDatabase(memoryDb, 0);
+});
 
 describe("boundary edits in a saved session", () => {
   it("keeps undo steps and the unsaved flag across save and load", () => {
@@ -90,9 +84,7 @@ describe("boundary edits in a saved session", () => {
 
   it("stores nothing extra when there are no edits", () => {
     saveSession(session());
-    expect(JSON.parse(rows.get("s1")!.data)).not.toHaveProperty(
-      "boundaryEdits",
-    );
+    expect(storedData("s1")).not.toHaveProperty("boundaryEdits");
     expect(loadSession("s1")).not.toHaveProperty("boundaryEdits");
   });
 
@@ -120,9 +112,7 @@ describe("an analysis cut short", () => {
 
   it("stores no queue when nothing is pending", () => {
     saveSession(session({ pendingAnalysis: [] }));
-    expect(JSON.parse(rows.get("s1")!.data)).not.toHaveProperty(
-      "pendingAnalysis",
-    );
+    expect(storedData("s1")).not.toHaveProperty("pendingAnalysis");
     expect(loadSession("s1")).not.toHaveProperty("pendingAnalysis");
   });
 
@@ -136,13 +126,11 @@ describe("an analysis cut short", () => {
 
 describe("damaged session rows", () => {
   it("returns null instead of throwing for a row holding JSON null", () => {
-    rows.set("broken", {
-      id: "broken",
-      name: "Broken",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
-      data: "null",
-    });
+    memoryDb!
+      .prepare(
+        "INSERT INTO sessions (id, name, created_at, updated_at, data) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run("broken", "Broken", "2026-01-01", "2026-01-01", "null");
     expect(loadSession("broken")).toBeNull();
   });
 });
@@ -176,5 +164,168 @@ describe("saved states (UW-09)", () => {
     saveSession(session({ id: "old" }));
     expect(loadSession("rev")?.parametersRevision).toBe(1);
     expect(loadSession("old")?.parametersRevision).toBeUndefined();
+  });
+});
+
+describe("one row per location", () => {
+  const site = (
+    id: string,
+    extra: Partial<AnalyzedDealership> = {},
+  ): AnalyzedDealership => ({
+    id,
+    name: `Site ${id}`,
+    lat: 51,
+    lon: 7,
+    ...extra,
+  });
+  const siteRows = (): Array<{ site_id: string; data: string }> =>
+    memoryDb!
+      .prepare(
+        "SELECT site_id, data FROM session_sites WHERE session_id = 's1' ORDER BY site_id",
+      )
+      .all() as Array<{ site_id: string; data: string }>;
+  const meta = (s: Session): Omit<Session, "dealerships"> => {
+    const { dealerships: _sites, ...rest } = s;
+    return rest;
+  };
+
+  it("stores locations as rows and keeps their order", () => {
+    saveSession(session({ dealerships: [site("b"), site("a"), site("c")] }));
+    expect(siteRows().map((r) => r.site_id)).toEqual(["a", "b", "c"]);
+    expect(storedData("s1")).toMatchObject({ order: ["b", "a", "c"] });
+    expect(storedData("s1")).not.toHaveProperty("dealerships");
+    expect(loadSession("s1")?.dealerships.map((d) => d.id)).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
+  });
+
+  it("removes rows of deleted locations and of a deleted portfolio", () => {
+    saveSession(session({ dealerships: [site("a"), site("b")] }));
+    saveSession(session({ dealerships: [site("b")] }));
+    expect(siteRows().map((r) => r.site_id)).toEqual(["b"]);
+    deleteSession("s1");
+    expect(siteRows()).toEqual([]);
+  });
+
+  it("does not rewrite a location that did not change", () => {
+    saveSession(session({ dealerships: [site("a"), site("b")] }));
+    const before = memoryDb!.prepare("SELECT total_changes() AS n").get() as {
+      n: number;
+    };
+    saveSession(
+      session({ dealerships: [site("a"), site("b", { notes: "x" })] }),
+    );
+    const after = memoryDb!.prepare("SELECT total_changes() AS n").get() as {
+      n: number;
+    };
+    // The portfolio row and the one changed location.
+    expect(after.n - before.n).toBe(2);
+  });
+
+  it("applies changes on top of the revision they build on", () => {
+    const full = session({ dealerships: [site("a"), site("b")] });
+    const { revision } = saveSession(full);
+    const result = saveSessionChanges({
+      session: meta(full),
+      baseRevision: revision,
+      order: ["c", "a"],
+      upserts: [site("c"), site("a", { notes: "checked" })],
+      removed: ["b"],
+    });
+    expect(result).toEqual({ ok: true, revision: revision + 1 });
+    expect(loadSession("s1")?.dealerships).toEqual([
+      site("c"),
+      site("a", { notes: "checked" }),
+    ]);
+  });
+
+  it("refuses changes built on an older revision or not adding up", () => {
+    const full = session({ dealerships: [site("a"), site("b")] });
+    const { revision } = saveSession(full);
+    saveSession(full); // another save in between
+    expect(
+      saveSessionChanges({
+        session: meta(full),
+        baseRevision: revision,
+        order: ["a", "b"],
+        upserts: [],
+        removed: [],
+      }),
+    ).toEqual({ ok: false });
+    expect(
+      saveSessionChanges({
+        session: meta(full),
+        baseRevision: revision + 1,
+        // "b" is still stored but missing from the order.
+        order: ["a"],
+        upserts: [],
+        removed: [],
+      }),
+    ).toEqual({ ok: false });
+    expect(loadSession("s1")?.dealerships.map((d) => d.id)).toEqual(["a", "b"]);
+  });
+
+  it("keeps locations without unique ids inline", () => {
+    saveSession(
+      session({ dealerships: [site("a"), site("a", { notes: "2" })] }),
+    );
+    expect(siteRows()).toEqual([]);
+    expect(loadSession("s1")?.dealerships).toHaveLength(2);
+    expect(
+      saveSessionChanges({
+        session: meta(session()),
+        baseRevision: 1,
+        order: ["a"],
+        upserts: [],
+        removed: [],
+      }),
+    ).toEqual({ ok: false });
+  });
+});
+
+describe("migration of stored portfolios", () => {
+  it("moves inline locations into rows and keeps the rest", async () => {
+    const db = new Database(":memory:");
+    migrateDatabase(db, 0, { toVersion: 5 });
+    const insert = db.prepare(
+      "INSERT INTO sessions (id, name, created_at, updated_at, data) VALUES (?, ?, ?, ?, ?)",
+    );
+    insert.run(
+      "env",
+      "Envelope",
+      "2026-01-01",
+      "2026-01-01",
+      JSON.stringify({
+        dealerships: [
+          { id: "x", name: "X", lat: 1, lon: 2 },
+          { id: "y", name: "Y", lat: 1, lon: 2 },
+        ],
+        snapshotOf: "other",
+      }),
+    );
+    insert.run(
+      "old",
+      "Bare array",
+      "2026-01-01",
+      "2026-01-01",
+      JSON.stringify([{ id: "z", name: "Z", lat: 1, lon: 2 }]),
+    );
+    insert.run("bad", "Broken", "2026-01-01", "2026-01-01", "{oops");
+    migrateDatabase(db, 5);
+    memoryDb = db;
+
+    expect(loadSession("env")?.dealerships.map((d) => d.id)).toEqual([
+      "x",
+      "y",
+    ]);
+    expect(loadSession("env")?.snapshotOf).toBe("other");
+    expect(loadSession("old")?.dealerships.map((d) => d.id)).toEqual(["z"]);
+    expect(storedData("env")).toEqual({
+      snapshotOf: "other",
+      order: ["x", "y"],
+    });
+    expect(loadSession("bad")).toBeNull();
   });
 });
