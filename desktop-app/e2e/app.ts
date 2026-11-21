@@ -77,33 +77,55 @@ export const NO_MOUSE_DRAG_REASON =
   "mouse drags have no effect on GitHub's macOS runners (checked on Linux CI)";
 
 /**
+ * A point inside `locator` where the element itself is hit, not a sticky
+ * header or tab bar lying over it; searched from its middle outwards.
+ */
+async function hitPoint(locator: Locator): Promise<{ x: number; y: number }> {
+  const point = await locator.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const top = Math.max(r.top, 0);
+    const bottom = Math.min(r.bottom, window.innerHeight);
+    const mid = (top + bottom) / 2;
+    for (let d = 0; d <= (bottom - top) / 2; d += 8) {
+      for (const y of [mid - d, mid + d]) {
+        const hit = document.elementFromPoint(x, y);
+        if (hit && el.contains(hit)) return { x, y };
+      }
+    }
+    return null;
+  });
+  if (!point) throw new Error("element is covered or outside the window");
+  return point;
+}
+
+/**
  * Drags `source` onto `target` with the mouse, in small steps. Playwright's
  * `dragTo` jumps to the target in one move; in Electron the browser then
  * sometimes never starts the drag (no `dragstart`), about once in twelve
  * runs. A short first move picks the element up, the rest carries it over.
+ * Both ends are brought into view together where they fit, and each is
+ * grabbed or hit where nothing lies over it: in a small window (the Windows
+ * runner's) the target otherwise ended up under the sticky tab bar.
  */
 export async function dragOnto(
   page: Page,
   source: Locator,
   target: Locator,
 ): Promise<void> {
+  const [a, b] = [await source.boundingBox(), await target.boundingBox()];
+  if (a && b) {
+    await (a.y <= b.y ? source : target).evaluate((el) =>
+      el.scrollIntoView({ block: "start" }),
+    );
+  }
   await source.scrollIntoViewIfNeeded();
-  const from = await source.boundingBox();
-  if (!from) throw new Error("drag source is not visible");
-  // Near the top, not the middle: a part taller than a small window (the
-  // Windows runner's) has its middle below the visible area.
-  const start = {
-    x: from.x + from.width / 2,
-    y: from.y + Math.min(from.height / 2, 24),
-  };
+  const start = await hitPoint(source);
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(start.x + 6, start.y + 6, { steps: 3 });
   // Measured after the pick-up: the page may have scrolled or re-laid out.
-  const to = await target.boundingBox();
-  if (!to) throw new Error("drag target is not visible");
-  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, {
-    steps: 8,
-  });
+  const to = await hitPoint(target);
+  await page.mouse.move(to.x, to.y, { steps: 8 });
   await page.mouse.up();
 }
