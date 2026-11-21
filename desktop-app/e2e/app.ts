@@ -66,6 +66,17 @@ export async function dismissModelWizard(page: Page): Promise<void> {
 }
 
 /**
+ * GitHub's macOS runners deliver Playwright's mouse drags to Electron
+ * without effect (no HTML5 `dragstart`, no Leaflet marker drag), while the
+ * same tests pass on Linux CI and on a Mac with a display. Mouse-drag
+ * checks are skipped there only; keyboard paths are still tested.
+ */
+export const NO_MOUSE_DRAG =
+  process.platform === "darwin" && process.env.CI != null;
+export const NO_MOUSE_DRAG_REASON =
+  "mouse drags have no effect on GitHub's macOS runners (checked on Linux CI)";
+
+/**
  * Drags `source` onto `target` with the mouse, in small steps. Playwright's
  * `dragTo` jumps to the target in one move; in Electron the browser then
  * sometimes never starts the drag (no `dragstart`), about once in twelve

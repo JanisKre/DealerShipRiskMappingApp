@@ -49,10 +49,11 @@ function sourceFiles(dir: string): string[] {
 
 /** The keys of a `NAME = { "key": ... }` dict in training/studio.py. */
 function studioPyKeys(name: string): string[] {
+  // A Windows checkout may have CRLF line ends.
   const py = readFileSync(
     resolve(__dirname, "../../../../training/studio.py"),
     "utf8",
-  );
+  ).replace(/\r\n/g, "\n");
   const block = py.match(
     new RegExp(`^${name} = \\{\\n([\\s\\S]*?)\\n\\}`, "m"),
   );

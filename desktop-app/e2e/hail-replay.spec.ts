@@ -1,6 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { DrmApi } from "../src/preload";
-import { dismissModelWizard, launchApp, type LaunchedApp } from "./app";
+import {
+  dismissModelWizard,
+  launchApp,
+  NO_MOUSE_DRAG,
+  type LaunchedApp,
+} from "./app";
 
 /**
  * Hail scenarios end to end: a made-up portfolio near Dresden
@@ -207,6 +212,7 @@ test("an imported storm reaches the locations on its path and can be dragged off
 
   // Dragging the handle south takes the storm off both sites; the card says
   // how close it came, and "reset" brings it back.
+  if (NO_MOUSE_DRAG) return;
   const handle = page.locator(".leaflet-marker-draggable");
   const hb = (await handle.boundingBox())!;
   await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);

@@ -7,6 +7,8 @@ import {
   dragOnto,
   launchApp,
   type LaunchedApp,
+  NO_MOUSE_DRAG,
+  NO_MOUSE_DRAG_REASON,
 } from "./app";
 
 /**
@@ -318,6 +320,7 @@ test("the portfolio table searches, sorts and opens a location", async () => {
 });
 
 test("tiles of the overview move by drag and drop", async () => {
+  test.skip(NO_MOUSE_DRAG, NO_MOUSE_DRAG_REASON);
   await page.getByRole("tab", { name: "Übersicht" }).click();
   const tiles = page.locator("section[draggable=true]");
   const labels = (): Promise<string[]> =>
@@ -334,6 +337,7 @@ test("tiles of the overview move by drag and drop", async () => {
 
 // Last: it reloads the window, which closes the assistant.
 test("parts of an AI dashboard move by drag and drop and stay moved", async () => {
+  test.skip(NO_MOUSE_DRAG, NO_MOUSE_DRAG_REASON);
   await page.getByRole("tab", { name: "Standorte in Zone 2" }).click();
   const view = page.getByRole("region", { name: "Standorte in Zone 2" });
   const part = (id: string): ReturnType<Page["locator"]> =>
