@@ -349,6 +349,13 @@ test("parts of an AI dashboard move by drag and drop and stay moved", async () =
         els.map((el) => el.getAttribute("data-a2ui-part") ?? ""),
       );
   await expect.poll(order).toEqual(["kpis", "eal", "top", "table"]);
+  // The table and the key figure above it must be on screen together; the
+  // Windows runner's window is too small for that at full size.
+  const zoom = (factor: number): Promise<void> =>
+    launched.app.evaluate(({ BrowserWindow }, f) => {
+      BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(f);
+    }, factor);
+  await zoom(0.6);
 
   // Dropped on the key figure, the table takes the place of its whole row.
   await dragOnto(page, part("table"), part("eal"));
@@ -361,6 +368,7 @@ test("parts of an AI dashboard move by drag and drop and stay moved", async () =
   await page.getByRole("link", { name: "Dashboard" }).click();
   await page.getByRole("tab", { name: "Standorte in Zone 2" }).click();
   await expect.poll(order).toEqual(["top", "table", "kpis", "eal"]);
+  await zoom(1);
 });
 
 test("a key figure dragged out of a four-up row can be dragged back", async () => {
