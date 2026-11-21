@@ -229,6 +229,12 @@ the project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Source of the postcode hail zones named correctly.** The table comes
+  from the project's own zoning model (comprehensive-cover classes 1–6, as
+  of 2024, 8,183 postcodes), not from the GDV. The screening's name in
+  Settings, its reset hint, the evidence's data version, README,
+  `docs/risk-model.md` and the website say so; the zones and scores are
+  unchanged.
 - **AI answers cut off with Claude Opus 5.5 and other reasoning models.**
   These models think before they answer and the provider counts that
   against the answer's token limit, so the app's tight limits were used up

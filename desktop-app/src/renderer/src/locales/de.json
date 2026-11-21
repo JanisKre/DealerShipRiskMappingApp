@@ -391,8 +391,8 @@
       "statusDefault": "Standard: Screening",
       "statusLicensed": "Lizenzdaten aktiv",
       "reset": "Auf Standard zurücksetzen",
-      "resetHint": "Hagel wieder mit dem Screening bewerten (GDV-Hagelzonen, Open-Meteo). Angebundene Anbieter bleiben gespeichert.",
-      "intro": "Lege fest, woher der Hagel-Score kommt. Ohne Auswahl gilt das Screening: GDV-Hagelzone nach Postleitzahl, sonst eine Open-Meteo-Wetterschätzung. Die App bewertet ausschließlich Hagel.",
+      "resetHint": "Hagel wieder mit dem Screening bewerten (eigene PLZ-Hagelzonen, Open-Meteo). Angebundene Anbieter bleiben gespeichert.",
+      "intro": "Lege fest, woher der Hagel-Score kommt. Ohne Auswahl gilt das Screening: eigene Hagelzone nach Postleitzahl, sonst eine Open-Meteo-Wetterschätzung. Die App bewertet ausschließlich Hagel.",
       "screening": "Screening (Open-Meteo)",
       "screeningDefault": "Screening (Open-Meteo) – Standard",
       "notConnected": "nicht angebunden",
@@ -425,7 +425,7 @@
           "verisk": "Europa: Gewitter/Hagel für 22 Länder.",
           "custom": "Jeder andere Dienst, der das Hazard-API-Format der App liefert – z. B. ein eigener Übersetzungsdienst."
         },
-        "screeningName": "Screening: Open-Meteo + GDV-Hagelzonen"
+        "screeningName": "Screening: Open-Meteo + eigene PLZ-Hagelzonen"
       },
       "connector": {
         "edit": "Bearbeiten",

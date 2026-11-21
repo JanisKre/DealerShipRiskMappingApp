@@ -150,7 +150,9 @@ The hail score (0–100) comes from, in this order:
    a 92-day window before), clamped to 5–90 %. Only the hourly CAPE series
    is requested.
 
-Data sources: GDV/K-Kasko hail zones by postcode, Open-Meteo forecast API
+Data sources: hail zones by postcode from the project's own zoning model
+(comprehensive-cover classes 1–6, as of 2024, 8,183 postcodes; not an
+official or insurer table), Open-Meteo forecast API
 (CAPE), optionally a contracted hail provider. Limitations: the CAPE proxy
 reflects three recent summer seasons, not a hail climatology; hail zones describe
 regional hazard, not the individual site.

@@ -1,5 +1,6 @@
 /**
- * Postal code → hail zone, comprehensive/casco (1-6) — source: internal zoning model.
+ * Postal code → hail zone, comprehensive/casco (1-6) — source: the project's
+ * own zoning model (not an official or insurer table).
  * Zone 1 = very low ... Zone 6 = very high.
  * 8183 entries, as of 2024.
  */

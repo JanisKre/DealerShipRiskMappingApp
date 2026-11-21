@@ -84,7 +84,7 @@ export function riskEvidence(
 
 /** Version of the static postcode table in `shared/hail-zones.ts`. */
 export const HAIL_ZONE_TABLE_VERSION =
-  "postcode table, as of 2024 (8,183 postcodes)";
+  "own postcode zoning model, as of 2024 (8,183 postcodes)";
 export const HAIL_ZONE_REGIONAL =
   "Postcode hail zone describes regional hazard, not the individual site";
 export const HAIL_ZONE_ESTIMATED =

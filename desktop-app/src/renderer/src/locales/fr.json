@@ -391,8 +391,8 @@
       "statusDefault": "Par défaut : screening",
       "statusLicensed": "Données sous licence actives",
       "reset": "Rétablir le mode par défaut",
-      "resetHint": "Évaluer à nouveau la grêle avec le screening (zones de grêle GDV, Open-Meteo). Les fournisseurs connectés restent enregistrés.",
-      "intro": "Définissez la source du score grêle. Sans choix, le screening s’applique : zone de grêle GDV selon le code postal, sinon une estimation météo Open-Meteo. L’application évalue uniquement la grêle.",
+      "resetHint": "Évaluer à nouveau la grêle avec le screening (zones de grêle propres par code postal, Open-Meteo). Les fournisseurs connectés restent enregistrés.",
+      "intro": "Définissez la source du score grêle. Sans choix, le screening s’applique : zone de grêle propre selon le code postal, sinon une estimation météo Open-Meteo. L’application évalue uniquement la grêle.",
       "screening": "Screening (Open-Meteo)",
       "screeningDefault": "Screening (Open-Meteo) – par défaut",
       "notConnected": "non connecté",
@@ -425,7 +425,7 @@
           "verisk": "Europe : orages/grêle pour 22 pays.",
           "custom": "Tout autre service répondant au format hazard API de l’application – p. ex. votre propre service de traduction."
         },
-        "screeningName": "Screening : Open-Meteo + zones de grêle GDV"
+        "screeningName": "Screening : Open-Meteo + zones de grêle propres par code postal"
       },
       "connector": {
         "edit": "Modifier",

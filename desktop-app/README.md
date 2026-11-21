@@ -108,7 +108,7 @@ polygons; `npm run benchmark:boundary:replay` replays frozen inputs offline.
   Photon, official house coordinates in 8 states)
 - Lot boundaries from the source cascade (ALKIS parcels + detected vehicles)
   with confidence, review reasons and manual correction via Geoman
-- Hail risk scoring (GDV hail zones, Open-Meteo CAPE proxy, optional licensed
+- Hail risk scoring (own postcode hail zones, Open-Meteo CAPE proxy, optional licensed
   provider) with hail EAL breakdown, utilisation, exposure, PML, cluster
   heatmap
 - Real YOLOv26 ONNX vehicle detection (Esri aerial imagery tiles, sliding

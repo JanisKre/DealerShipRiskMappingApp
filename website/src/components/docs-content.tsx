@@ -477,8 +477,8 @@ const HAIL_MODEL: Localized<React.ReactNode> = {
     <>
       <p>
         The app assesses <strong>hail only</strong>. The hail score (0–100)
-        comes from, in this order: a licensed provider you configure, the GDV
-        hail zone of the postcode, or a weather-based proxy from Open-Meteo
+        comes from, in this order: a licensed provider you configure, the
+        app’s own hail zone of the postcode, or a weather-based proxy from Open-Meteo
         convective energy (CAPE).
       </p>
       <H2 id="expected-annual-loss">Expected annual loss</H2>
@@ -515,7 +515,7 @@ const HAIL_MODEL: Localized<React.ReactNode> = {
       <p>
         Die App bewertet <strong>ausschließlich Hagel</strong>. Der Hagel-Score
         (0–100) stammt in dieser Reihenfolge aus: einem lizenzierten Anbieter,
-        den du einrichtest, der GDV-Hagelzone der Postleitzahl oder einem
+        den du einrichtest, der eigenen Hagelzone der Postleitzahl oder einem
         wetterbasierten Proxy aus der konvektiven Energie (CAPE) von Open-Meteo.
       </p>
       <H2 id="expected-annual-loss">Erwarteter Jahresschaden</H2>
@@ -553,7 +553,8 @@ const HAIL_MODEL: Localized<React.ReactNode> = {
       <p>
         L’application évalue <strong>uniquement la grêle</strong>. Le score
         grêle (0–100) provient, dans cet ordre : d’un fournisseur sous licence
-        que vous configurez, de la zone de grêle GDV du code postal, ou d’un
+        que vous configurez, de la zone de grêle propre à l’application pour le
+        code postal, ou d’un
         proxy météorologique fondé sur l’énergie convective (CAPE) d’Open-Meteo.
       </p>
       <H2 id="expected-annual-loss">Perte annuelle attendue</H2>

@@ -38,8 +38,8 @@ vehicles on aerial imagery and scores the hail exposure.
   detected vehicles, OpenStreetMap or a fallback shape. Each boundary has a
   confidence and review reasons and can be corrected by hand.
 - Vehicles are counted with a YOLO model on aerial tiles.
-- The hail score is based on GDV hail zones, a licensed provider or an
-  Open-Meteo CAPE proxy. The app also estimates the expected annual loss and
+- The hail score is based on the app's own postcode hail zones, a licensed
+  provider or an Open-Meteo CAPE proxy. The app also estimates the expected annual loss and
   shows observed hail days from DWD.
 - Hail simulation: generate storms over Germany or aimed at the portfolio,
   draw a track, or replay historic storm days since 2001 (DWD radar

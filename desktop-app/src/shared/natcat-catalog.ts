@@ -12,7 +12,7 @@ import type { NatCatApiProvider } from "./types";
  */
 
 export type NatCatSourceKind =
-  /** Built in, always available (GDV hail zones + Open-Meteo screening). */
+  /** Built in, always available (own postcode hail zones + Open-Meteo screening). */
   | "builtin"
   /** Connectable through the app's hazard API contract. */
   | "api";
@@ -32,7 +32,7 @@ export const NAT_CAT_CATALOG: readonly NatCatCatalogEntry[] = [
   {
     id: "screening",
     name: "Open-Meteo Screening",
-    vendor: "Open-Meteo + GDV hail zones",
+    vendor: "Open-Meteo + own postcode hail zones",
     kind: "builtin",
     license: "free",
     noteKey: "screening",

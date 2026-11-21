@@ -391,8 +391,8 @@
       "statusDefault": "Default: screening",
       "statusLicensed": "Licensed data active",
       "reset": "Reset to default",
-      "resetHint": "Score hail with the screening again (GDV hail zones, Open-Meteo). Connected providers stay saved.",
-      "intro": "Choose where the hail score comes from. Without a choice, the screening applies: GDV hail zones by postcode, otherwise an Open-Meteo weather estimate. The app assesses hail only.",
+      "resetHint": "Score hail with the screening again (own postcode hail zones, Open-Meteo). Connected providers stay saved.",
+      "intro": "Choose where the hail score comes from. Without a choice, the screening applies: own hail zones by postcode, otherwise an Open-Meteo weather estimate. The app assesses hail only.",
       "screening": "Screening (Open-Meteo)",
       "screeningDefault": "Screening (Open-Meteo) – default",
       "notConnected": "not connected",
@@ -425,7 +425,7 @@
           "verisk": "Europe: severe thunderstorm/hail for 22 countries.",
           "custom": "Any other service that answers in the app's hazard API format – e.g. your own translation service."
         },
-        "screeningName": "Screening: Open-Meteo + GDV hail zones"
+        "screeningName": "Screening: Open-Meteo + own postcode hail zones"
       },
       "connector": {
         "edit": "Edit",
