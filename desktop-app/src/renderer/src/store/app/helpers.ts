@@ -48,6 +48,7 @@ export const EMPTY_FILTERS: PortfolioFilters = {
   boundarySource: null,
   hailZone: null,
   status: null,
+  protection: null,
 };
 
 /**

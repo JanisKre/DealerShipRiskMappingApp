@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type {
@@ -25,6 +25,23 @@ import {
   type LocationStatus,
   type PortfolioFilters,
 } from "@renderer/store/appStore";
+import {
+  ensureDecisionState,
+  useDecisionStore,
+} from "@renderer/store/decisionStore";
+import { protectionState, type ProtectionState } from "@shared/site-questions";
+
+const PROTECTION_STATES: ProtectionState[] = [
+  "seen",
+  "notSeen",
+  "unclear",
+  "unanswered",
+];
+
+/** Hail protection from the site questions, read with the measured thresholds. */
+function protectionOf(d: AnalyzedDealership): ProtectionState {
+  return protectionState(d.siteAnswers, useDecisionStore.getState().thresholds);
+}
 
 /** Zone filter value of a location ("none" while it has no zone yet). */
 function zoneKey(d: AnalyzedDealership): number | "none" {
@@ -133,6 +150,24 @@ export function PortfolioFilterBar({
   }, [dealerships, filters, parameters, t]);
   const counts = useOptionCounts(dealerships);
   const showZone = counts.zones.length > 1 || filters.hailZone != null;
+  useEffect(ensureDecisionState, []);
+  const thresholds = useDecisionStore((s) => s.thresholds);
+  const protectionCounts = useMemo(() => {
+    const out: Record<ProtectionState, number> = {
+      seen: 0,
+      notSeen: 0,
+      unclear: 0,
+      unanswered: 0,
+    };
+    for (const d of dealerships) {
+      out[protectionState(d.siteAnswers, thresholds)]++;
+    }
+    return out;
+  }, [dealerships, thresholds]);
+  // Only once some location has an answer: otherwise every one is "unanswered".
+  const showProtection =
+    protectionCounts.unanswered < dealerships.length ||
+    filters.protection != null;
   const showStatus =
     counts.status.pending > 0 ||
     counts.status.review > 0 ||
@@ -143,6 +178,7 @@ export function PortfolioFilterBar({
   );
 
   const active =
+    filters.protection != null ||
     filters.hailZone != null ||
     filters.status ||
     filters.business ||
@@ -163,7 +199,8 @@ export function PortfolioFilterBar({
     groups.length === 0 &&
     fallbackCount === 0 &&
     !showZone &&
-    !showStatus
+    !showStatus &&
+    !showProtection
   )
     return null;
 
@@ -231,6 +268,33 @@ export function PortfolioFilterBar({
                 {t("ui.filter.review", { count: counts.status.review })}
               </SelectItem>
             )}
+          </SelectContent>
+        </Select>
+      )}
+      {showProtection && (
+        <Select
+          value={filters.protection ?? ALL}
+          onValueChange={(v) =>
+            setFilters({
+              protection: v === ALL ? null : (v as ProtectionState),
+            })
+          }
+        >
+          <SelectTrigger
+            className={selectClass ?? TRIGGER}
+            aria-label={t("ui.filter.protectionLabel")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t("ui.filter.allProtection")}</SelectItem>
+            {PROTECTION_STATES.map((state) => (
+              <SelectItem key={state} value={state}>
+                {t(`ui.filter.protection.${state}`, {
+                  count: protectionCounts[state],
+                })}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       )}
@@ -424,6 +488,7 @@ export function applyMetaFilters(
         (filters.boundarySource === "fallback" &&
           d.boundary?.source === "synthetic")) &&
       (filters.hailZone == null || zoneKey(d) === filters.hailZone) &&
-      (!filters.status || statusMatches(d, filters.status)),
+      (!filters.status || statusMatches(d, filters.status)) &&
+      (!filters.protection || protectionOf(d) === filters.protection),
   );
 }

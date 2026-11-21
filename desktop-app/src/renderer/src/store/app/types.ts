@@ -10,6 +10,11 @@ import type {
   Session,
 } from "@shared/types";
 import { type PortfolioMergeResult } from "@shared/portfolio-merge";
+import type {
+  ProtectionState,
+  SiteAnswer,
+  SiteQuestionId,
+} from "@shared/site-questions";
 
 /** State and actions of the central renderer store (`appStore`). */
 
@@ -195,6 +200,18 @@ export interface AppState {
    */
   updateDealershipNotes: (id: string, notes: string) => Promise<void>;
   /**
+   * The underwriter's or the dealer's answer to a site question; `null`
+   * removes it. Saved right away.
+   */
+  setSiteAnswer: (
+    id: string,
+    question: SiteQuestionId,
+    value: string | null,
+    source: "underwriter" | "dealer",
+  ) => Promise<void>;
+  /** Stores the answers of a model run (one engine, one image) and saves. */
+  recordSiteAnswers: (id: string, answers: SiteAnswer[]) => Promise<void>;
+  /**
    * Stores a location's website and persists the session. `null` clears it
    * (back to automatic lookup). An OSM link never replaces a manual one.
    * Returns false when the URL isn't a usable http(s) website.
@@ -330,6 +347,8 @@ export interface PortfolioFilters {
   hailZone: number | "none" | null;
   /** Where a location stands: analysed, still to analyse, or to check. */
   status: LocationStatus | null;
+  /** Hail protection from the site questions (shared/site-questions.ts). */
+  protection: ProtectionState | null;
 }
 
 /** Processing state of a location, for filtering large portfolios. */

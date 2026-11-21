@@ -43,6 +43,14 @@ import {
   mcpChatLookup,
 } from "../services/mcp-client.service";
 import { boundaryOpinion, checkSite } from "../services/site-check.service";
+import {
+  answerSiteQuestions,
+  currentEngine,
+  engineTarget,
+  localDecisionModels,
+  testDecisionEngine,
+} from "../services/decision.service";
+import { isLocalEngine } from "@shared/decision-engines";
 import { scheduleDataReset } from "../services/data-reset.service";
 import { exportDiagnostics } from "../services/diagnostics.service";
 import {
@@ -118,6 +126,7 @@ import { scoreRisk } from "../services/risk.service";
 import {
   getSettings,
   deleteNatCatApiKey,
+  setDecisionApiKey,
   setLlmApiKey,
   setMcpServerToken,
   setNatCatApiKey,
@@ -312,7 +321,14 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
     importPortfolioFile(request?.locale),
   );
   handle(IPC.exportReport, async ({ session, format, locale }) => ({
-    path: rememberExport(await exportReport(session, format, locale)),
+    path: rememberExport(
+      await exportReport(
+        session,
+        format,
+        locale,
+        getSettings().decisions?.thresholds,
+      ),
+    ),
   }));
   handle(IPC.exportLocationReport, async (input) => ({
     path: rememberExport(await exportLocationReport(input)),
@@ -449,6 +465,39 @@ export function registerIpcHandlers(getMainWindow: MainWindowProvider): void {
   handle(IPC.llmBoundaryOpinion, ({ lat, lon, boundary }) =>
     boundaryOpinion(lat, lon, boundary),
   );
+  handle(IPC.decisionsAnswer, ({ lat, lon, boundary, engine }) =>
+    answerSiteQuestions(lat, lon, boundary, engine),
+  );
+  handle(IPC.decisionsTest, ({ engine }) => testDecisionEngine(engine));
+  handle(IPC.decisionsEngine, () => {
+    const settings = getSettings();
+    let engine: ReturnType<typeof currentEngine> | null;
+    try {
+      engine = currentEngine();
+    } catch {
+      engine = null;
+    }
+    if (!engine) return { engine: null, model: "", local: false };
+    let model = "";
+    try {
+      model = engineTarget(engine).model;
+    } catch {
+      // Not set up completely; the section says so when it runs.
+    }
+    return {
+      engine,
+      model,
+      local: isLocalEngine(engine, {
+        llmProvider: settings.llm?.provider ?? null,
+        systemoneBaseUrl: settings.decisions?.systemoneBaseUrl,
+      }),
+    };
+  });
+  handle(IPC.decisionsLocalModels, () => localDecisionModels());
+  handle(IPC.decisionsSetKey, ({ kind, key }) => {
+    setDecisionApiKey(kind, key);
+    return { ok: true };
+  });
   handle(IPC.llmEvidenceMemo, ({ dealership, parameters }) =>
     writeEvidenceMemo(dealership, parameters),
   );

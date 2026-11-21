@@ -7,6 +7,7 @@ import { jsPDF } from "jspdf";
 import { autoTable } from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import type { AnalyzedDealership, Session } from "@shared/types";
+import type { ThresholdTable } from "@shared/site-questions";
 import { SessionSchema } from "@shared/types";
 import { PORTFOLIO_FILE_INVALID } from "@shared/constants";
 import {
@@ -21,6 +22,8 @@ import { ealCoverage, estimatedExposure, hasEalBasis } from "@shared/estimates";
 import {
   exportLabels,
   methodFacts,
+  siteAnswerCells,
+  siteAnswerHeadings,
   siteProvenance,
   sourceName,
   type ExportLocale,
@@ -109,6 +112,8 @@ export async function exportReport(
   session: Session,
   format: "csv" | "pdf" | "excel",
   locale: ExportLocale = "en",
+  /** Measured thresholds of the site-question engines (settings). */
+  thresholds?: ThresholdTable,
 ): Promise<string | null> {
   const L = exportLabels(locale);
   const meta: Record<typeof format, { ext: string; name: string }> = {
@@ -125,11 +130,11 @@ export async function exportReport(
   if (canceled || !filePath) return null;
 
   if (format === "csv") {
-    await writeFile(filePath, toCsv(session, locale), "utf-8");
+    await writeFile(filePath, toCsv(session, locale, thresholds), "utf-8");
   } else if (format === "pdf") {
     await writePdf(session, filePath, locale);
   } else {
-    await writeExcel(session, filePath, locale);
+    await writeExcel(session, filePath, locale, thresholds);
   }
   return filePath;
 }
@@ -375,6 +380,7 @@ async function writeExcel(
   session: Session,
   filePath: string,
   locale: ExportLocale,
+  thresholds?: ThresholdTable,
 ): Promise<void> {
   const L = exportLabels(locale);
   const c = L.headings;
@@ -419,6 +425,11 @@ async function writeExcel(
     { header: c.productLimit, key: "productLimit", width: 18 },
     { header: c.deductible, key: "deductible", width: 16 },
     { header: c.clusterId, key: "clusterId", width: 16 },
+    ...siteAnswerHeadings(locale, false).map((header, i) => ({
+      header,
+      key: `site${i}`,
+      width: i === 0 ? 16 : 14,
+    })),
   ];
 
   const clusters = clusterAssignment(session);
@@ -460,6 +471,12 @@ async function writeExcel(
       productLimit: d.productLimitEur ?? null,
       deductible: d.deductibleEur ?? null,
       clusterId: clusters.get(d.id) ?? "",
+      ...Object.fromEntries(
+        siteAnswerCells(d, locale, false, thresholds).map((v, i) => [
+          `site${i}`,
+          v,
+        ]),
+      ),
     });
     // Color the hail zone cell
     if (zone != null) {
@@ -525,7 +542,11 @@ async function writeExcel(
  * machine-readable header and `,`; German and French use their headers,
  * `;`, decimal commas and a UTF-8 BOM so Excel opens them correctly.
  */
-export function toCsv(session: Session, locale: ExportLocale = "en"): string {
+export function toCsv(
+  session: Session,
+  locale: ExportLocale = "en",
+  thresholds?: ThresholdTable,
+): string {
   const L = exportLabels(locale);
   const c = L.columns;
   const sep = L.csvSeparator;
@@ -565,6 +586,7 @@ export function toCsv(session: Session, locale: ExportLocale = "en"): string {
     c.productLimit,
     c.deductible,
     c.clusterId,
+    ...siteAnswerHeadings(locale, true),
   ];
   const cell = (v: string): string => csv(v, sep);
   const lines = [header.map(cell).join(sep)];
@@ -616,6 +638,7 @@ export function toCsv(session: Session, locale: ExportLocale = "en"): string {
         decimal(d.productLimitEur),
         decimal(d.deductibleEur),
         clusters.get(d.id) ?? "",
+        ...siteAnswerCells(d, locale, true, thresholds).map(cell),
       ].join(sep),
     );
   }

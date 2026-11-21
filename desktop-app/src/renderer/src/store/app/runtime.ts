@@ -235,7 +235,16 @@ export async function runAnalysisQueue(
         if (!stillOpen()) return;
         // Deleted while it was analysed: leave it deleted.
         if (!removedIds.has(input.id)) {
-          get().upsertDealership(withChange(result, analyzedChange(result)));
+          // A retried location keeps its site answers.
+          const kept = get().dealerships.find((d) => d.id === input.id);
+          get().upsertDealership(
+            withChange(
+              kept?.siteAnswers
+                ? { ...result, siteAnswers: kept.siteAnswers }
+                : result,
+              analyzedChange(result),
+            ),
+          );
         }
         set((s) => ({
           pendingAnalysis: s.pendingAnalysis.filter((p) => p.id !== input.id),

@@ -10,6 +10,8 @@ import {
 import { ImagerySelectionSchema } from "./imagery-sources";
 import { ImportColumnSchema } from "./import-fields";
 import { isHttpWebsiteUrl, WEBSITE_SOURCES } from "./website";
+import { SiteAnswersSchema } from "./site-questions";
+import { DecisionSettingsSchema } from "./decision-engines";
 
 /**
  * Domain types + Zod schemas, shared between main and renderer.
@@ -749,6 +751,12 @@ export const AnalyzedDealershipSchema = DealershipInputSchema.extend({
   hailZone: HailZoneSchema.optional(),
   /** Risk tier derived from the hail zone (Very Low ... Very High). */
   hailRiskTier: z.enum(HAIL_RISK_TIERS).optional(),
+  /**
+   * Answers to the site questions (shared/site-questions.ts) from the
+   * underwriter, the dealer and image models. Observations: they change
+   * neither the count, the boundary nor the hail EAL.
+   */
+  siteAnswers: SiteAnswersSchema.optional(),
 });
 export type AnalyzedDealership = z.infer<typeof AnalyzedDealershipSchema>;
 
@@ -1092,6 +1100,8 @@ export const SettingsSchema = z.object({
     )
     .max(20)
     .optional(),
+  /** Engine for the site questions (shared/decision-engines.ts). */
+  decisions: DecisionSettingsSchema.optional(),
   /** External MCP servers whose read-only tools the chat may use. */
   mcpServers: z
     .array(McpServerConfigSchema)

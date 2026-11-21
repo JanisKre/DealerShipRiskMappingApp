@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { containsFigure } from "./a2ui";
+import type { SiteAnswer } from "./site-questions";
 
 /**
  * Optional AI look at the aerial image of a lot (a vision model): is hail
@@ -206,4 +207,28 @@ export function cleanBoundaryVerdict(
     verdict: verdict.success ? verdict.data : "unclear",
     note: cleanNote(answer.note),
   };
+}
+
+/**
+ * The findings of an aerial image check as site answers
+ * (shared/site-questions.ts), so they land in the checklist. The model
+ * answered in words: no probabilities.
+ */
+export function answersFromSiteCheck(check: SiteCheck): SiteAnswer[] {
+  const f = check.findings;
+  const base = {
+    source: "model" as const,
+    at: check.checkedAt,
+    engine: "llm" as const,
+    model: check.model.slice(0, 200),
+    imageCapturedAt: check.imageCapturedAt,
+    imageLabel: check.imageLabel.slice(0, 200),
+  };
+  const values: Array<[SiteAnswer["question"], string]> = [
+    ["hailNet", f.imageUsable ? f.hailNet : "unclear"],
+    ["canopy", f.imageUsable ? f.canopy : "unclear"],
+    ["parkingStructure", f.imageUsable ? f.parkingStructure : "unclear"],
+    ["openAirShare", f.imageUsable ? f.openAirShare : "unclear"],
+  ];
+  return values.map(([question, value]) => ({ ...base, question, value }));
 }

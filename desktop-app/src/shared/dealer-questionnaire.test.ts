@@ -103,4 +103,56 @@ describe("dealer questionnaire", () => {
         expect(locale.questionnaire.q[id]).toBeTruthy();
     }
   });
+  it("follows the site answers: unconfirmed protection, boundary, construction", () => {
+    const answered = site({
+      siteAnswers: [
+        {
+          question: "hailNet",
+          value: "yes",
+          source: "model",
+          at: "2026-11-20T00:00:00Z",
+          engine: "llm",
+          model: "x",
+        },
+        {
+          question: "boundaryFits",
+          value: "no",
+          source: "underwriter",
+          at: "2026-11-20T00:00:00Z",
+        },
+        {
+          question: "construction",
+          value: "yes",
+          source: "dealer",
+          at: "2026-11-20T00:00:00Z",
+        },
+      ],
+    });
+    const questions = buildQuestionnaire(answered, now);
+    expect(questions.find((q) => q.id === "hailProtection")?.why).toBe(
+      "modelSawProtection",
+    );
+    expect(questions.find((q) => q.id === "lotExtent")?.why).toBe(
+      "boundaryAnswer",
+    );
+    expect(questions.find((q) => q.id === "siteChanges")?.why).toBe(
+      "construction",
+    );
+    // Once a person confirmed the nets, they are a plain question again.
+    const confirmed = buildQuestionnaire(
+      site({
+        siteAnswers: [
+          ...(answered.siteAnswers ?? []),
+          {
+            question: "hailNet",
+            value: "yes",
+            source: "underwriter",
+            at: "2026-11-21T00:00:00Z",
+          },
+        ],
+      }),
+      now,
+    );
+    expect(confirmed[0]).toMatchObject({ id: "hailProtection", why: "always" });
+  });
 });

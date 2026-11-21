@@ -1762,7 +1762,15 @@
       "allStatus": "Jeder Analysestatus",
       "analyzed": "Analysiert ({{count}})",
       "pending": "Ausstehend ({{count}})",
-      "review": "Grenze prüfen ({{count}})"
+      "review": "Grenze prüfen ({{count}})",
+      "protectionLabel": "Hagelschutz",
+      "allProtection": "Jeder Hagelschutz",
+      "protection": {
+        "seen": "Hagelschutz erkennbar ({{count}})",
+        "notSeen": "Kein Hagelschutz ({{count}})",
+        "unclear": "Hagelschutz unklar ({{count}})",
+        "unanswered": "Hagelschutz nicht beantwortet ({{count}})"
+      }
     },
     "locationsPartlyAnalyzed": "{{analyzed}} von {{total}} analysiert · {{pending}} ausstehend",
     "fallbackBoundaryReview": "Geschätzte Grenze (Kreis) – prüfen oder bearbeiten für eine genaue Fahrzeugzählung",
@@ -2235,7 +2243,10 @@
       "estimatedStock": "Fahrzeugzahl geschätzt oder Bildstand untypisch",
       "highZone": "hohe Hagelzone",
       "boundary": "Grundstücksgrenze zu prüfen",
-      "oldImage": "Luftbild mehrere Jahre alt"
+      "oldImage": "Luftbild mehrere Jahre alt",
+      "modelSawProtection": "Bildmodell sieht Hagelschutz, noch nicht bestätigt",
+      "boundaryAnswer": "laut Standort-Fragen passt die Grenze nicht",
+      "construction": "laut Standort-Fragen Baustelle auf dem Gelände"
     },
     "answers": {
       "description": "Antwort des Händlers einfügen: Die KI ordnet die Textstellen den Fragen zu. Der eingefügte Text wird dafür an den KI-Anbieter gesendet.",
@@ -2624,5 +2635,142 @@
     "invalid": "Bitte einen Wert zwischen {{min}} und {{max}} eingeben.",
     "more": "Alle weiteren Parameter (Hagel-EAL, PML, Schwellen) stehen auf der Seite „Parameter“ und lassen sich jederzeit ändern.",
     "keepsParameters": "Die Standorte kommen in ein bestehendes Portfolio und werden mit dessen Parametern bewertet."
+  },
+  "siteQuestions": {
+    "title": "Standort-Fragen",
+    "summary": "{{answered}} von {{total}} beantwortet",
+    "description": "Feste Fragen zum Gelände, von Hand zu beantworten: vom Underwriter oder nach Angabe des Händlers. Ein Bildmodell kann dieselben Fragen am Luftbild beantworten. Angezeigt wird die Antwort des Underwriters, sonst die des Händlers, sonst die neueste des Bildmodells.",
+    "answersBy": "Angaben von",
+    "by": {
+      "underwriter": "Underwriter",
+      "dealer": "Händler (laut Auskunft)"
+    },
+    "q": {
+      "hailNet": "Sind Hagelnetze über Stellflächen gespannt?",
+      "canopy": "Stehen Fahrzeuge unter Carports oder Überdachungen?",
+      "parkingStructure": "Gibt es ein Parkhaus oder Parkdeck auf dem Gelände?",
+      "openAirShare": "Wie viele Fahrzeuge stehen im Freien?",
+      "boundaryFits": "Passt die Grundstücksgrenze zum Betriebsgelände?",
+      "construction": "Wird auf dem Gelände gebaut?",
+      "dealershipVisible": "Ist auf dem Luftbild ein Autohaus oder Fahrzeuglager zu erkennen?"
+    },
+    "short": {
+      "hailNet": "Hagelnetz",
+      "canopy": "Überdachung",
+      "parkingStructure": "Parkhaus",
+      "openAirShare": "Im Freien",
+      "boundaryFits": "Grenze passt",
+      "construction": "Baustelle",
+      "dealershipVisible": "Autohaus erkennbar"
+    },
+    "value": {
+      "yes": "ja",
+      "no": "nein",
+      "unclear": "unklar",
+      "few": "wenige",
+      "aboutHalf": "etwa die Hälfte",
+      "most": "die meisten",
+      "unanswered": "nicht beantwortet"
+    },
+    "noAnswer": "– keine Angabe –",
+    "answerFor": "Antwort auf: {{question}}",
+    "modelValue": "Bildmodell: {{value}}",
+    "unanswered": "Noch nicht beantwortet",
+    "source": {
+      "underwriter": "Underwriter, {{date}}",
+      "dealer": "laut Händler, {{date}}",
+      "model": "{{engine}} {{model}}, Luftbild {{date}}"
+    },
+    "engine": {
+      "openai": "OpenAI Decisions",
+      "google": "Gemini Decisions",
+      "systemone": "SystemOne-Server",
+      "ollama": "Lokales Modell (Ollama)",
+      "llm": "KI-Modell"
+    },
+    "choice": {
+      "auto": "Automatisch (folgt dem KI-Anbieter)",
+      "openai": "OpenAI Decisions API",
+      "google": "Gemini Decisions API",
+      "systemone": "SystemOne / Jev (TypeSafe, Clef, Laya)",
+      "ollama": "Open-Source-Modell in Ollama (lokal)",
+      "llm": "KI-Modell aus den Einstellungen (ohne Wahrscheinlichkeiten)"
+    },
+    "ask": "Mit {{engine}} prüfen",
+    "staysLocal": "Das Luftbild bleibt auf diesem Computer ({{model}}).",
+    "leavesComputer": "Das Luftbild wird an {{engine}} gesendet ({{model}}).",
+    "noProbabilities": "Das KI-Modell antwortet in Worten, ohne Wahrscheinlichkeiten.",
+    "probabilitiesHidden": "Wahrscheinlichkeiten werden erst gezeigt, wenn für diese Engine gemessene Schwellen vorliegen (Einstellungen → KI → Standort-Fragen).",
+    "notSetUp": "Für die Standort-Fragen ist noch keine Engine eingerichtet. Einstellungen → KI → Standort-Fragen.",
+    "imageUnusable": "Das Luftbild lässt keine Beurteilung zu (Wolken, Schnee, Schatten oder Unschärfe); alle Antworten sind „unklar“.",
+    "disclaimer": "Beobachtungen zum Gelände. Sie ändern weder Fahrzeugzahl noch Grenze noch Hagel-EAL; das Modell zählt jedes Fahrzeug auf dem Gelände als exponiert.",
+    "run": {
+      "button": "Standort-Fragen für alle prüfen",
+      "hint": "Fragt {{engine}} für jeden analysierten Standort ohne Antwort dieser Engine, höchste Hagel-EAL zuerst. Die Luftbilder werden dafür gesendet.",
+      "hintLocal": "Fragt das lokale Modell für jeden analysierten Standort ohne Antwort, höchste Hagel-EAL zuerst. Die Luftbilder bleiben auf diesem Computer.",
+      "nothing": "Alle analysierten Standorte haben schon Antworten dieser Engine",
+      "progress": "Standort-Fragen: {{done}} von {{total}} Standorten",
+      "stop": "Anhalten",
+      "failed": "Die Standort-Fragen konnten nicht beantwortet werden",
+      "done_one": "Standort-Fragen für {{count}} Standort beantwortet ({{failed}} fehlgeschlagen)",
+      "done_other": "Standort-Fragen für {{count}} Standorte beantwortet ({{failed}} fehlgeschlagen)",
+      "doneHint": "Im Dashboard lässt sich jetzt nach Hagelschutz filtern."
+    },
+    "settings": {
+      "title": "Standort-Fragen (Decision-Modelle)",
+      "description": "Welche Engine die Standort-Fragen am Luftbild beantwortet. Decision-Modelle bewerten jede Antwort mit einer Wahrscheinlichkeit und schreiben keinen Text; offene Modelle laufen lokal in Ollama. Ohne Engine bleiben die Fragen zum Ausfüllen von Hand.",
+      "engine": "Engine",
+      "answersLocal": "Aktuell antwortet {{engine}} ({{model}}). Das Luftbild bleibt auf diesem Computer.",
+      "answersRemote": "Aktuell antwortet {{engine}} ({{model}}). Das Luftbild wird dorthin gesendet.",
+      "noEngine": "Keine Engine eingerichtet: Die Standort-Fragen werden nur von Hand beantwortet.",
+      "model": "Modell",
+      "openaiHint": "Nutzt den OpenAI-Schlüssel aus den KI-Einstellungen. Verarbeitung in Europa lässt sich im OpenAI-Projekt einstellen.",
+      "googleHint": "Gemini Decision 1 über die Gemini API. Im kostenlosen Kontingent nutzt Google die Eingaben zur Verbesserung seiner Produkte.",
+      "serverUrl": "Server-Adresse",
+      "systemoneHint": "TypeSafe Jev (https://api.typesafe.ai) oder ein eigener Server im selben Format auf diesem Computer, z. B. SGLang mit Clef (http://localhost:30000) oder laya-serve (http://localhost:8000).",
+      "apiKey": "API-Schlüssel",
+      "keyStored": "Schlüssel gespeichert (Schlüsselbund)",
+      "keyMissing": "Kein Schlüssel gespeichert",
+      "removeKey": "Entfernen",
+      "keySaved": "Schlüssel gespeichert",
+      "keyRemoved": "Schlüssel entfernt",
+      "ollamaUrl": "Ollama-Adresse",
+      "ollamaUrlHint": "Nur auf diesem Computer. Leer: http://localhost:11434.",
+      "ollamaUnreachable": "Ollama ist nicht erreichbar. Ollama installieren und starten (ollama.com), dann diese Seite neu öffnen.",
+      "ollamaModel": "Modell in Ollama",
+      "ollamaModelHint": "Name eines installierten Decision-Modells, z. B. d1:2b.",
+      "otherInstalled": "Außerdem installiert: {{models}}",
+      "modelNote": {
+        "small": "Klein und schnell, rund {{size}} GB, liest Bilder. Lizenz: {{licence}}.",
+        "balanced": "Mittelgroß, rund {{size}} GB, liest Bilder. Lizenz: {{licence}}.",
+        "large": "Groß, rund {{size}} GB, liest Bilder; braucht viel Arbeitsspeicher. Lizenz: {{licence}}."
+      },
+      "chosen": "gewählt",
+      "use": "Verwenden",
+      "download": "Laden (~{{size}} GB)",
+      "installed": "{{model}} installiert und gewählt",
+      "llmHint": "Das KI-Modell aus den Einstellungen oben beantwortet die Fragen in Worten, ohne Wahrscheinlichkeiten. Es braucht ein Modell mit Bildeingabe.",
+      "openSourceHint": "Open Source: Mit Ollama lassen sich offene Decision-Modelle (Liquid d1, Cloudflare Clef) laden, die lokal mit Wahrscheinlichkeiten antworten. Dafür als Engine „Open-Source-Modell in Ollama“ wählen.",
+      "test": "Verbindung testen",
+      "testOk": "Verbunden ({{model}}): Testfrage mit {{p}} % „ja“ beantwortet.",
+      "testOkNoProbability": "Eingerichtet ({{model}}). Das KI-Modell antwortet ohne Wahrscheinlichkeiten.",
+      "testFailed": "Test fehlgeschlagen: {{error}}",
+      "calibrationTitle": "Abgleich mit Ihren Antworten",
+      "calibrationHint": "Vergleicht die Wahrscheinlichkeiten jeder Engine mit den Antworten von Underwriter und Händler im offenen Portfolio. Ab 20 Standorten mit je mindestens 5 Ja- und 5 Nein-Antworten werden Schwellen vorgeschlagen, bei denen „ja“ und „nein“ in mindestens 90 % der Fälle stimmen. Übernommene Schwellen gelten für die Anzeige; Wahrscheinlichkeiten werden erst dann gezeigt.",
+      "calibrationEmpty": "Noch keine Standorte, an denen eine Engine mit Wahrscheinlichkeit und eine Person dieselbe Frage beantwortet haben.",
+      "question": "Frage",
+      "labels": "Vergleiche",
+      "brier": "Brier-Wert",
+      "accuracy": "Treffer (Standard)",
+      "unclear": "Unklar (Standard)",
+      "suggested": "Vorschlag",
+      "labelCount": "{{n}} ({{yes}} ja)",
+      "thresholdPair": "ja ab {{yes}}, nein bis {{no}}",
+      "tooFewLabels": "zu wenige Vergleiche",
+      "adoptThresholds": "Schwellen übernehmen",
+      "resetThresholds": "Zurücksetzen",
+      "measuredInUse": "Gemessene Schwellen sind übernommen und gelten für die Anzeige.",
+      "thresholdsSaved": "Schwellen gespeichert"
+    }
   }
 }

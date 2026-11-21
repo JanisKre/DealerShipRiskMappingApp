@@ -15,6 +15,7 @@ import {
   type MemoFact,
 } from "@shared/evidence-memo";
 import {
+  answersFromSiteCheck,
   featuresSince,
   type BoundaryOpinion,
   type SiteCheck,
@@ -285,6 +286,7 @@ export function SiteCheckSection({
   );
   const [error, setError] = useState<string | null>(null);
   const appendNote = useAppendNote(d);
+  const recordSiteAnswers = useAppStore((s) => s.recordSiteAnswers);
 
   useEffect(() => {
     setResult(null);
@@ -298,14 +300,15 @@ export function SiteCheckSection({
     setBusy(history ? "history" : "check");
     setError(null);
     try {
-      setResult(
-        await window.api.checkSite({
-          lat: d.lat,
-          lon: d.lon,
-          boundary: d.boundary,
-          history,
-        }),
-      );
+      const checked = await window.api.checkSite({
+        lat: d.lat,
+        lon: d.lon,
+        boundary: d.boundary,
+        history,
+      });
+      setResult(checked);
+      // The findings also answer the site questions (checklist above).
+      await recordSiteAnswers(d.id, answersFromSiteCheck(checked.current));
     } catch (err) {
       setError(errorText(err));
     } finally {

@@ -21,6 +21,8 @@ import { AgentGatewayStatusSchema } from "./agent-gateway";
 import { AgentCommandResultSchema } from "./agent-control";
 import { McpServerToolsSchema } from "./mcp-client";
 import { BoundaryOpinionSchema, SiteCheckResultSchema } from "./site-check";
+import { DecisionEngineSchema, DecisionRunSchema } from "./site-questions";
+import { isLocalDecisionModel } from "./decision-engines";
 import { EvidenceMemoSchema } from "./evidence-memo";
 import {
   QuestionnaireAnswerSchema,
@@ -584,6 +586,22 @@ export const ipcRequest = {
     lon: z.number().min(-180).max(180),
     boundary: BoundaryResultSchema,
   }),
+  // Site questions on the aerial image (shared/site-questions.ts).
+  "decisions:answer": z.object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+    boundary: BoundaryResultSchema.optional(),
+    /** Another engine than the configured one (comparison). */
+    engine: DecisionEngineSchema.optional(),
+  }),
+  "decisions:test": z.object({ engine: DecisionEngineSchema.optional() }),
+  "decisions:engine": z.void(),
+  "decisions:localModels": z.void(),
+  "decisions:setKey": z.object({
+    kind: z.enum(["google", "systemone"]),
+    /** Empty removes the stored key. */
+    key: z.string().max(4_000),
+  }),
   "llm:evidenceMemo": z.object({
     dealership: AnalyzedDealershipSchema,
     parameters: RiskParametersSchema.optional(),
@@ -741,6 +759,26 @@ export const ipcResponse = {
   }),
   "llm:siteCheck": SiteCheckResultSchema,
   "llm:boundaryOpinion": BoundaryOpinionSchema,
+  "decisions:answer": DecisionRunSchema,
+  "decisions:test": z.object({
+    ok: z.boolean(),
+    engine: DecisionEngineSchema,
+    model: z.string(),
+    probability: z.number().min(0).max(1).nullable(),
+    error: z.string().optional(),
+  }),
+  "decisions:engine": z.object({
+    /** null: nothing is set up that could answer. */
+    engine: DecisionEngineSchema.nullable(),
+    model: z.string(),
+    /** False when the image would leave this computer. */
+    local: z.boolean(),
+  }),
+  "decisions:localModels": z.object({
+    reachable: z.boolean(),
+    installed: z.array(z.string()),
+  }),
+  "decisions:setKey": z.object({ ok: z.boolean() }),
   "llm:evidenceMemo": EvidenceMemoSchema,
   "llm:questionnaireAnswers": z.object({
     answers: z.array(QuestionnaireAnswerSchema),
@@ -817,7 +855,14 @@ export const ModelDownloadEnvelopeSchema = z.object({
 });
 export const OllamaPullEnvelopeSchema = z.object({
   streamId: StreamIdSchema,
-  model: z.string().regex(OLLAMA_HF_MODEL_PATTERN),
+  // A Hugging Face GGUF, or one of the listed open decision models.
+  model: z
+    .string()
+    .max(300)
+    .refine(
+      (m) => OLLAMA_HF_MODEL_PATTERN.test(m) || isLocalDecisionModel(m),
+      "Not a model that can be installed",
+    ),
 });
 
 /** A single chunk that the main process sends over the stream response channel. */

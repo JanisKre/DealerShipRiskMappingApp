@@ -74,12 +74,12 @@ The tool list and `server/discover` are marked as not cacheable (`ttlMs` 0):
 switching remote control on or off changes them and the server sends no
 notification.
 
-| Tool                | Returns                                                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `list_portfolios`   | Saved portfolios; saved comparison states are marked                                                                |
-| `portfolio_summary` | Totals, hail zone distribution, ten highest-EAL locations, limitations                                              |
-| `list_locations`    | Locations with filters (`minHailZone`, `reviewOnly`), sorting and paging                                            |
-| `get_location`      | EAL inputs, provenance, boundary quality, weakest assumptions, limitations; the location by id or by its exact name |
+| Tool                | Returns                                                                                                                                                        |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_portfolios`   | Saved portfolios; saved comparison states are marked                                                                                                           |
+| `portfolio_summary` | Totals, hail zone distribution, ten highest-EAL locations, limitations                                                                                         |
+| `list_locations`    | Locations with filters (`minHailZone`, `reviewOnly`), sorting and paging                                                                                       |
+| `get_location`      | EAL inputs, provenance, boundary quality, weakest assumptions, answered site questions with their source, limitations; the location by id or by its exact name |
 
 Connect Claude Code (the settings card copies this command with the token):
 

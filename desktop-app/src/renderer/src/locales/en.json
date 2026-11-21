@@ -1762,7 +1762,15 @@
       "allStatus": "Any analysis status",
       "analyzed": "Analysed ({{count}})",
       "pending": "Pending ({{count}})",
-      "review": "Check boundary ({{count}})"
+      "review": "Check boundary ({{count}})",
+      "protectionLabel": "Hail protection",
+      "allProtection": "Any hail protection",
+      "protection": {
+        "seen": "Hail protection seen ({{count}})",
+        "notSeen": "No hail protection ({{count}})",
+        "unclear": "Hail protection unclear ({{count}})",
+        "unanswered": "Hail protection not answered ({{count}})"
+      }
     },
     "locationsPartlyAnalyzed": "{{analyzed}} of {{total}} analysed · {{pending}} pending",
     "fallbackBoundaryReview": "Estimated boundary (circle) – review or edit for an accurate vehicle count",
@@ -2235,7 +2243,10 @@
       "estimatedStock": "vehicle count estimated or image untypical",
       "highZone": "high hail zone",
       "boundary": "lot boundary to check",
-      "oldImage": "aerial image several years old"
+      "oldImage": "aerial image several years old",
+      "modelSawProtection": "image model sees hail protection, not confirmed yet",
+      "boundaryAnswer": "the site questions say the boundary does not fit",
+      "construction": "the site questions report construction on the lot"
     },
     "answers": {
       "description": "Paste the dealership's reply: the AI assigns its passages to the questions. The pasted text is sent to the AI provider for this.",
@@ -2624,5 +2635,142 @@
     "invalid": "Enter a value between {{min}} and {{max}}.",
     "more": "All other parameters (hail EAL, PML, thresholds) are on the Parameters page and can be changed at any time.",
     "keepsParameters": "The locations go into an existing portfolio and are scored with its parameters."
+  },
+  "siteQuestions": {
+    "title": "Site questions",
+    "summary": "{{answered}} of {{total}} answered",
+    "description": "Fixed questions about the lot, answered by hand: by the underwriter or as the dealer states. An image model can answer the same questions on the aerial image. Shown is the underwriter's answer, else the dealer's, else the image model's newest.",
+    "answersBy": "Answers by",
+    "by": {
+      "underwriter": "Underwriter",
+      "dealer": "Dealer (as stated)"
+    },
+    "q": {
+      "hailNet": "Are hail nets stretched over parking areas?",
+      "canopy": "Are vehicles parked under carports or canopies?",
+      "parkingStructure": "Is there a parking deck or multi-storey car park on the lot?",
+      "openAirShare": "How many vehicles stand in the open?",
+      "boundaryFits": "Does the lot boundary fit the operating area?",
+      "construction": "Is there construction on the lot?",
+      "dealershipVisible": "Does the aerial image show a dealership or vehicle storage site?"
+    },
+    "short": {
+      "hailNet": "Hail nets",
+      "canopy": "Canopies",
+      "parkingStructure": "Parking deck",
+      "openAirShare": "In the open",
+      "boundaryFits": "Boundary fits",
+      "construction": "Construction",
+      "dealershipVisible": "Dealership visible"
+    },
+    "value": {
+      "yes": "yes",
+      "no": "no",
+      "unclear": "unclear",
+      "few": "few",
+      "aboutHalf": "about half",
+      "most": "most",
+      "unanswered": "not answered"
+    },
+    "noAnswer": "– no answer –",
+    "answerFor": "Answer to: {{question}}",
+    "modelValue": "Image model: {{value}}",
+    "unanswered": "Not answered yet",
+    "source": {
+      "underwriter": "Underwriter, {{date}}",
+      "dealer": "as the dealer states, {{date}}",
+      "model": "{{engine}} {{model}}, aerial image {{date}}"
+    },
+    "engine": {
+      "openai": "OpenAI Decisions",
+      "google": "Gemini Decisions",
+      "systemone": "SystemOne server",
+      "ollama": "Local model (Ollama)",
+      "llm": "AI model"
+    },
+    "choice": {
+      "auto": "Automatic (follows the AI provider)",
+      "openai": "OpenAI Decisions API",
+      "google": "Gemini Decisions API",
+      "systemone": "SystemOne / Jev (TypeSafe, Clef, Laya)",
+      "ollama": "Open-source model in Ollama (local)",
+      "llm": "AI model from the settings (no probabilities)"
+    },
+    "ask": "Check with {{engine}}",
+    "staysLocal": "The aerial image stays on this computer ({{model}}).",
+    "leavesComputer": "The aerial image is sent to {{engine}} ({{model}}).",
+    "noProbabilities": "The AI model answers in words, without probabilities.",
+    "probabilitiesHidden": "Probabilities are shown once measured thresholds exist for this engine (Settings → AI → Site questions).",
+    "notSetUp": "No engine is set up for the site questions yet. Settings → AI → Site questions.",
+    "imageUnusable": "The aerial image does not allow a judgement (clouds, snow, shadow or blur); every answer is \"unclear\".",
+    "disclaimer": "Observations about the lot. They change neither the vehicle count, the boundary nor the hail EAL; the model counts every vehicle on the lot as exposed.",
+    "run": {
+      "button": "Check site questions for all",
+      "hint": "Asks {{engine}} about every analysed location without an answer from this engine, highest hail EAL first. The aerial images are sent for this.",
+      "hintLocal": "Asks the local model about every analysed location without an answer, highest hail EAL first. The aerial images stay on this computer.",
+      "nothing": "Every analysed location already has answers from this engine",
+      "progress": "Site questions: {{done}} of {{total}} locations",
+      "stop": "Stop",
+      "failed": "The site questions could not be answered",
+      "done_one": "Site questions answered for {{count}} location ({{failed}} failed)",
+      "done_other": "Site questions answered for {{count}} locations ({{failed}} failed)",
+      "doneHint": "The dashboard can now be filtered by hail protection."
+    },
+    "settings": {
+      "title": "Site questions (decision models)",
+      "description": "Which engine answers the site questions on the aerial image. Decision models score every answer with a probability and write no text; open models run locally in Ollama. Without an engine the questions are answered by hand.",
+      "engine": "Engine",
+      "answersLocal": "{{engine}} answers now ({{model}}). The aerial image stays on this computer.",
+      "answersRemote": "{{engine}} answers now ({{model}}). The aerial image is sent there.",
+      "noEngine": "No engine set up: the site questions are answered by hand only.",
+      "model": "Model",
+      "openaiHint": "Uses the OpenAI key from the AI settings. Processing in Europe can be set in the OpenAI project.",
+      "googleHint": "Gemini Decision 1 through the Gemini API. On the free tier Google uses the input to improve its products.",
+      "serverUrl": "Server address",
+      "systemoneHint": "TypeSafe Jev (https://api.typesafe.ai) or your own server in the same format on this computer, e.g. SGLang with Clef (http://localhost:30000) or laya-serve (http://localhost:8000).",
+      "apiKey": "API key",
+      "keyStored": "Key stored (keychain)",
+      "keyMissing": "No key stored",
+      "removeKey": "Remove",
+      "keySaved": "Key saved",
+      "keyRemoved": "Key removed",
+      "ollamaUrl": "Ollama address",
+      "ollamaUrlHint": "This computer only. Empty: http://localhost:11434.",
+      "ollamaUnreachable": "Ollama is not reachable. Install and start Ollama (ollama.com), then open this page again.",
+      "ollamaModel": "Model in Ollama",
+      "ollamaModelHint": "Name of an installed decision model, e.g. d1:2b.",
+      "otherInstalled": "Also installed: {{models}}",
+      "modelNote": {
+        "small": "Small and fast, about {{size}} GB, reads images. Licence: {{licence}}.",
+        "balanced": "Medium, about {{size}} GB, reads images. Licence: {{licence}}.",
+        "large": "Large, about {{size}} GB, reads images; needs a lot of memory. Licence: {{licence}}."
+      },
+      "chosen": "chosen",
+      "use": "Use",
+      "download": "Download (~{{size}} GB)",
+      "installed": "{{model}} installed and chosen",
+      "llmHint": "The AI model from the settings above answers the questions in words, without probabilities. It needs a model with image input.",
+      "openSourceHint": "Open source: with Ollama, open decision models (Liquid d1, Cloudflare Clef) can be downloaded that answer locally with probabilities. Choose \"Open-source model in Ollama\" as the engine.",
+      "test": "Test connection",
+      "testOk": "Connected ({{model}}): test question answered {{p}} % \"yes\".",
+      "testOkNoProbability": "Set up ({{model}}). The AI model answers without probabilities.",
+      "testFailed": "Test failed: {{error}}",
+      "calibrationTitle": "Comparison with your answers",
+      "calibrationHint": "Compares each engine's probabilities with the underwriter's and the dealer's answers in the open portfolio. From 20 locations with at least 5 yes and 5 no answers, thresholds are suggested at which \"yes\" and \"no\" are right at least 90 % of the time. Adopted thresholds are used for display; only then are probabilities shown.",
+      "calibrationEmpty": "No locations yet where an engine with probabilities and a person answered the same question.",
+      "question": "Question",
+      "labels": "Comparisons",
+      "brier": "Brier score",
+      "accuracy": "Right (default)",
+      "unclear": "Unclear (default)",
+      "suggested": "Suggestion",
+      "labelCount": "{{n}} ({{yes}} yes)",
+      "thresholdPair": "yes from {{yes}}, no up to {{no}}",
+      "tooFewLabels": "too few comparisons",
+      "adoptThresholds": "Adopt thresholds",
+      "resetThresholds": "Reset",
+      "measuredInUse": "Measured thresholds are adopted and used for display.",
+      "thresholdsSaved": "Thresholds saved"
+    }
   }
 }

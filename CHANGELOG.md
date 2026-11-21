@@ -30,6 +30,26 @@ the project follows [Semantic Versioning](https://semver.org/).
   accumulations. Capacities are limits set by the underwriter; scores and
   EAL are unchanged. See `docs/risk-model.md`, "Capacity per accumulation
   and hail zone".
+- **Site questions.** A checklist per location in the detail dialog (tab
+  "Gelände"): hail nets, canopies, parking deck, share of vehicles in the
+  open, does the boundary fit, construction, is it a dealership at all.
+  Answered by the underwriter or as the dealer states; works without AI.
+  Optionally an engine answers the same questions on the aerial image: the
+  OpenAI or Gemini Decisions API, a SystemOne/Jev server (TypeSafe, or
+  self-hosted Clef or Laya), an open-weight decision model in a local
+  Ollama (Liquid d1, Cloudflare Clef; downloadable from the settings, the
+  image stays on this computer), or the configured AI model without
+  probabilities. Shown is the underwriter's answer, else the dealer's, else
+  the newest model answer. Probabilities are shown only after thresholds
+  were measured against your own answers ("Comparison with your answers" in
+  the settings); until then a wide default decides between yes, no and
+  unclear. New: a dashboard filter "Hail protection", a portfolio run from
+  the dashboard menu, the answers in the CSV and Excel export, dealer
+  questions that follow the answers, the answers in MCP `get_location`. The
+  existing aerial image check also fills the checklist. Count, boundary and
+  hail EAL are unchanged. The request formats follow the vendors' documents
+  and are tested against recorded shapes, not yet against the live
+  services. See `docs/site-questions.md`.
 - **The analysis as an MCP task.** The MCP server now also speaks protocol
   revision 2026-07-28 (no handshake: `server/discover`, the version with
   every request) next to the earlier ones. With "Allow operating the app"

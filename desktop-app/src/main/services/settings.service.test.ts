@@ -18,6 +18,7 @@ vi.mock("../db/database", () => ({ getDb: () => mocks.db }));
 
 import { getSettings } from "./settings.service";
 import {
+  getDecisionApiKey,
   getLlmApiKey,
   getNatCatApiKey,
   setLlmApiKey,
@@ -166,6 +167,68 @@ describe("settings persistence", () => {
     });
 
     expect(next.llm?.hasApiKey).toBe(false);
+  });
+
+  it("accepts decision servers over HTTPS or on this computer, and Ollama only here", () => {
+    mocks.statement.get.mockReturnValue({ value: JSON.stringify({}) });
+    expect(() =>
+      setSettings({
+        decisions: {
+          engine: "systemone",
+          systemoneBaseUrl: "http://example.com",
+        },
+      }),
+    ).toThrow(/insecure/);
+    expect(() =>
+      setSettings({
+        decisions: {
+          engine: "ollama",
+          ollamaBaseUrl: "https://ollama.example.com",
+        },
+      }),
+    ).toThrow(/this computer only/);
+    expect(mocks.statement.run).not.toHaveBeenCalled();
+    const saved = setSettings({
+      decisions: {
+        engine: "systemone",
+        systemoneBaseUrl: " http://localhost:30000/ ",
+        ollamaBaseUrl: "http://127.0.0.1:11434/v1",
+        // Computed flags are never stored as given.
+        hasGoogleKey: true,
+      },
+    });
+    expect(saved.decisions).toMatchObject({
+      systemoneBaseUrl: "http://localhost:30000",
+      ollamaBaseUrl: "http://127.0.0.1:11434",
+    });
+    const stored = JSON.parse(
+      String(mocks.statement.run.mock.calls.at(-1)?.[1]),
+    ) as { decisions: Record<string, unknown> };
+    expect(stored.decisions.hasGoogleKey).toBeUndefined();
+    mocks.statement.get.mockReset();
+  });
+
+  it("reads decision keys from the environment only for the vendor's own endpoint", () => {
+    mocks.statement.get.mockReturnValue(undefined);
+    vi.stubEnv("GEMINI_API_KEY", "g-env");
+    vi.stubEnv("TYPESAFE_AI_API_KEY", "ts-env");
+    expect(getDecisionApiKey("google")).toBe("g-env");
+    expect(getDecisionApiKey("systemone")).toBe("ts-env");
+    mocks.statement.get.mockImplementation((key: string) =>
+      key === "app.settings"
+        ? {
+            value: JSON.stringify({
+              decisions: {
+                engine: "systemone",
+                systemoneBaseUrl: "http://localhost:8000",
+              },
+            }),
+          }
+        : undefined,
+    );
+    // A self-hosted server never receives TypeSafe's key unasked.
+    expect(getDecisionApiKey("systemone")).toBeNull();
+    mocks.statement.get.mockReset();
   });
 
   it("encrypts and decrypts LLM keys only on explicit use", () => {

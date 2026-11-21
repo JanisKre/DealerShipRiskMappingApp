@@ -278,4 +278,43 @@ describe("limitations and provenance in exports (UW-11, UW-03)", () => {
       expect(pdf).toMatch(locale === "de" ? /In Hagelzone >= 4/ : /grêle >= 4/);
     }
   });
+
+  it("adds the site answers as shown in the app", () => {
+    const answered = {
+      ...session,
+      dealerships: [
+        {
+          ...site("A", 886, 2),
+          siteAnswers: [
+            {
+              question: "hailNet" as const,
+              value: "yes",
+              source: "underwriter" as const,
+              at: "2026-11-20T00:00:00Z",
+            },
+            {
+              question: "openAirShare" as const,
+              value: "few",
+              source: "model" as const,
+              at: "2026-11-21T00:00:00Z",
+              engine: "llm" as const,
+              model: "claude-fable-5-2",
+            },
+          ],
+        },
+        site("B", 100, 1),
+      ],
+    };
+    const [header, first, second] = toCsv(answered).split("\n");
+    expect(header).toContain(
+      "clusterId,hailProtection,siteHailNet,siteCanopy,siteParkingStructure,siteOpenAirShare,siteBoundaryFits,siteConstruction,siteDealershipVisible,siteAnswerSources",
+    );
+    expect(first.endsWith(",seen,yes,,,few,,,,underwriter model")).toBe(true);
+    expect(second.endsWith(",,,,,,,,,")).toBe(true);
+    const german = toCsv(answered, "de").slice(1).split("\n");
+    expect(german[0]).toContain("Hagelschutz;Hagelnetz;");
+    expect(german[1]).toContain(
+      ";erkennbar;ja;;;wenige;;;;Underwriter, Bildmodell",
+    );
+  });
 });

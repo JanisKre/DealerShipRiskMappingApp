@@ -1,3 +1,10 @@
+import {
+  protectionState,
+  resolveAll,
+  type AnswerSource,
+  type ProtectionState,
+  type ThresholdTable,
+} from "@shared/site-questions";
 import type {
   AnalyzedDealership,
   RiskParameters,
@@ -524,4 +531,176 @@ export function siteProvenance(d: AnalyzedDealership): SiteProvenance {
         : "none",
     fallbackUsed: (d.risk?.evidence ?? []).some((e) => e.fallbackUsed),
   };
+}
+
+// --- Site questions --------------------------------------------------------
+
+const SITE_COLUMN_KEYS = [
+  "hailProtection",
+  "siteHailNet",
+  "siteCanopy",
+  "siteParkingStructure",
+  "siteOpenAirShare",
+  "siteBoundaryFits",
+  "siteConstruction",
+  "siteDealershipVisible",
+  "siteAnswerSources",
+] as const;
+
+const SITE_LABELS: Record<
+  ExportLocale,
+  {
+    columns: string[];
+    values: Record<string, string>;
+    protection: Record<ProtectionState, string>;
+    sources: Record<AnswerSource, string>;
+  }
+> = {
+  de: {
+    columns: [
+      "Hagelschutz",
+      "Hagelnetz",
+      "Überdachung",
+      "Parkhaus/Parkdeck",
+      "Fahrzeuge im Freien",
+      "Grenze passt",
+      "Baustelle",
+      "Autohaus erkennbar",
+      "Quelle Standort-Fragen",
+    ],
+    values: {
+      yes: "ja",
+      no: "nein",
+      unclear: "unklar",
+      few: "wenige",
+      aboutHalf: "etwa die Hälfte",
+      most: "die meisten",
+      unanswered: "",
+    },
+    protection: {
+      seen: "erkennbar",
+      notSeen: "nicht erkennbar",
+      unclear: "unklar",
+      unanswered: "",
+    },
+    sources: {
+      underwriter: "Underwriter",
+      dealer: "Händler",
+      model: "Bildmodell",
+    },
+  },
+  en: {
+    columns: [
+      "Hail protection",
+      "Hail nets",
+      "Canopies",
+      "Parking deck",
+      "Vehicles in the open",
+      "Boundary fits",
+      "Construction",
+      "Dealership visible",
+      "Site answers by",
+    ],
+    values: {
+      yes: "yes",
+      no: "no",
+      unclear: "unclear",
+      few: "few",
+      aboutHalf: "about half",
+      most: "most",
+      unanswered: "",
+    },
+    protection: {
+      seen: "seen",
+      notSeen: "not seen",
+      unclear: "unclear",
+      unanswered: "",
+    },
+    sources: {
+      underwriter: "underwriter",
+      dealer: "dealer",
+      model: "image model",
+    },
+  },
+  fr: {
+    columns: [
+      "Protection grêle",
+      "Filets anti-grêle",
+      "Auvents",
+      "Parking à étages",
+      "Véhicules à découvert",
+      "Limite plausible",
+      "Chantier",
+      "Concession visible",
+      "Réponses de",
+    ],
+    values: {
+      yes: "oui",
+      no: "non",
+      unclear: "incertain",
+      few: "peu",
+      aboutHalf: "environ la moitié",
+      most: "la plupart",
+      unanswered: "",
+    },
+    protection: {
+      seen: "visible",
+      notSeen: "non visible",
+      unclear: "incertain",
+      unanswered: "",
+    },
+    sources: {
+      underwriter: "souscripteur",
+      dealer: "concessionnaire",
+      model: "modèle d'image",
+    },
+  },
+};
+
+/**
+ * Headings of the site-question columns. The English CSV keeps machine
+ * keys for scripts, as its other columns do.
+ */
+export function siteAnswerHeadings(
+  locale: ExportLocale,
+  machine: boolean,
+): string[] {
+  return machine && locale === "en"
+    ? [...SITE_COLUMN_KEYS]
+    : SITE_LABELS[locale].columns;
+}
+
+/**
+ * The answers shown in the app (underwriter before dealer before the image
+ * model), one cell per question, plus hail protection in one word and who
+ * gave the answers. Empty cells for questions nobody answered.
+ */
+export function siteAnswerCells(
+  d: AnalyzedDealership,
+  locale: ExportLocale,
+  machine: boolean,
+  thresholds?: ThresholdTable,
+): string[] {
+  const raw = machine && locale === "en";
+  const labels = SITE_LABELS[locale];
+  const resolved = resolveAll(d.siteAnswers, thresholds);
+  const protection = protectionState(d.siteAnswers, thresholds);
+  const sources = [
+    ...new Set(resolved.flatMap((r) => (r.answer ? [r.answer.source] : []))),
+  ];
+  return [
+    raw
+      ? protection === "unanswered"
+        ? ""
+        : protection
+      : labels.protection[protection],
+    ...resolved.map((r) =>
+      raw
+        ? r.value === "unanswered"
+          ? ""
+          : r.value
+        : (labels.values[r.value] ?? r.value),
+    ),
+    sources.map((s) => (raw ? s : labels.sources[s])).join(raw ? " " : ", "),
+  ];
 }

@@ -60,6 +60,7 @@ import { ImageryHistorySection } from "./ImageryHistorySection";
 import { HailHistorySection } from "./HailHistorySection";
 import { RadarHailSection } from "./RadarHailSection";
 import { QuestionnaireSection } from "./QuestionnaireSection";
+import { SiteQuestionsSection } from "./SiteQuestionsSection";
 import {
   ChallengeSection,
   EvidenceMemoSection,
@@ -641,6 +642,7 @@ function DetailBody({
                   <ImageryHistorySection d={d} onClose={onClose} />
                 </Disclosure>
               </div>
+              <SiteQuestionsSection d={d} />
               <SiteCheckSection d={d} />
             </div>
           </TabsContent>

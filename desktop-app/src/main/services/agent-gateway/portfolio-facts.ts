@@ -1,3 +1,4 @@
+import { resolveAll } from "@shared/site-questions";
 import { postcodeAndTown } from "@shared/address-parts";
 import type { AnalyzedDealership, Session } from "@shared/types";
 import { lastAnalyzedOn } from "@shared/change-report";
@@ -228,6 +229,15 @@ export interface LocationEvidence {
     reasons: string[];
   } | null;
   weakestAssumptions: Challenge[];
+  /** Answered site questions, as the app shows them (site-questions.ts). */
+  siteQuestions: Array<{
+    question: string;
+    answer: string;
+    source: string;
+    engine?: string;
+    model?: string;
+    imageDate?: string | null;
+  }>;
   limitations: string[];
 }
 
@@ -285,6 +295,25 @@ export function locationEvidence(
         }
       : null,
     weakestAssumptions: challengeAssumptions(d, session.parameters),
+    // Observations next to the result; they change neither count nor EAL.
+    siteQuestions: resolveAll(d.siteAnswers).flatMap((r) =>
+      r.answer
+        ? [
+            {
+              question: r.question,
+              answer: r.value,
+              source: r.answer.source,
+              ...(r.answer.source === "model"
+                ? {
+                    engine: r.answer.engine,
+                    model: r.answer.model,
+                    imageDate: r.answer.imageCapturedAt ?? null,
+                  }
+                : {}),
+            },
+          ]
+        : [],
+    ),
     limitations: [...(d.risk?.limitations ?? []), ...SCREENING_LIMITATIONS],
   };
 }

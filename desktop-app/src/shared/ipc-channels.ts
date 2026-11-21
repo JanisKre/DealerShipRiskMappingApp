@@ -186,6 +186,11 @@ export const IPC = {
   // Optional AI layer, second batch (docs/ai-features.md)
   llmSiteCheck: "llm:siteCheck", // vision: hail protection on the aerial image
   llmBoundaryOpinion: "llm:boundaryOpinion", // vision: second opinion on the lot outline
+  decisionsAnswer: "decisions:answer", // site questions on the aerial image
+  decisionsTest: "decisions:test", // one test question to the chosen engine
+  decisionsEngine: "decisions:engine", // which engine answers, and is it local
+  decisionsLocalModels: "decisions:localModels", // models in the local Ollama
+  decisionsSetKey: "decisions:setKey", // key of a decision endpoint (keychain)
   llmEvidenceMemo: "llm:evidenceMemo", // note whose figures are checked against the facts
   llmQuestionnaireAnswers: "llm:questionnaireAnswers", // dealership reply -> answers with quotes
 } as const;

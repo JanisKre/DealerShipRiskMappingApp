@@ -12,6 +12,7 @@ import {
   ArrowUp,
   GripVertical,
   History,
+  ScanSearch,
   LayoutGrid,
   Loader2,
   MessageSquare,
@@ -67,6 +68,7 @@ import { useReviewRun } from "./useReviewRun";
 import { DataCompletenessBanner } from "./DataCompletenessBanner";
 import { ealCoverage } from "@shared/estimates";
 import { useStockCount } from "./useStockCount";
+import { useSiteQuestionsRun } from "./useSiteQuestionsRun";
 import { A2uiSurfaceView } from "./a2ui/A2uiSurfaceView";
 import type { A2uiSurface } from "@shared/a2ui";
 import { dropComponent, shiftComponent } from "@shared/a2ui-layout";
@@ -806,6 +808,7 @@ function Actions({
   const [compareOpen, setCompareOpen] = useState(false);
   const snapshot = useSaveSnapshot();
   const stockCount = useStockCount();
+  const siteRun = useSiteQuestionsRun();
 
   /**
    * Exports always hold the whole portfolio. With a filter on the
@@ -908,6 +911,25 @@ function Actions({
           </span>
         </span>
       </DropdownMenuItem>
+      {siteRun.engine && (
+        <DropdownMenuItem disabled={siteRun.running} onSelect={siteRun.start}>
+          {siteRun.running ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <ScanSearch />
+          )}
+          <span className="flex flex-col">
+            {t("siteQuestions.run.button")}
+            <span className="text-xs text-muted-foreground">
+              {siteRun.local
+                ? t("siteQuestions.run.hintLocal")
+                : t("siteQuestions.run.hint", {
+                    engine: t(`siteQuestions.engine.${siteRun.engine}`),
+                  })}
+            </span>
+          </span>
+        </DropdownMenuItem>
+      )}
       <DropdownMenuItem
         disabled={snapshot.saving}
         onSelect={() => void snapshot.save()}

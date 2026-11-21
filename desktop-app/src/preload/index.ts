@@ -738,6 +738,36 @@ const api = {
       IPC.llmBoundaryOpinion,
       request satisfies IpcRequest["llm:boundaryOpinion"],
     ),
+  /** Site questions on the aerial image, answered by the chosen engine. */
+  answerSiteQuestions: (
+    request: IpcRequest["decisions:answer"],
+  ): Promise<IpcResponse["decisions:answer"]> =>
+    ipcRenderer.invoke(
+      IPC.decisionsAnswer,
+      request satisfies IpcRequest["decisions:answer"],
+    ),
+  /** One test question to an engine (settings). */
+  testDecisionEngine: (
+    engine?: IpcRequest["decisions:test"]["engine"],
+  ): Promise<IpcResponse["decisions:test"]> =>
+    ipcRenderer.invoke(IPC.decisionsTest, {
+      engine,
+    } satisfies IpcRequest["decisions:test"]),
+  /** Which engine answers the site questions, and whether it is local. */
+  decisionEngine: (): Promise<IpcResponse["decisions:engine"]> =>
+    ipcRenderer.invoke(IPC.decisionsEngine),
+  /** Models installed in the local Ollama. */
+  localDecisionModels: (): Promise<IpcResponse["decisions:localModels"]> =>
+    ipcRenderer.invoke(IPC.decisionsLocalModels),
+  /** Stores (or with "" removes) the key of a decision endpoint. */
+  setDecisionKey: (
+    kind: IpcRequest["decisions:setKey"]["kind"],
+    key: string,
+  ): Promise<IpcResponse["decisions:setKey"]> =>
+    ipcRenderer.invoke(IPC.decisionsSetKey, {
+      kind,
+      key,
+    } satisfies IpcRequest["decisions:setKey"]),
   /** Note whose figures were checked against the app's facts. */
   writeEvidenceMemo: (
     request: IpcRequest["llm:evidenceMemo"],

@@ -116,6 +116,9 @@ export function analysisActions(
           ),
           notes: latest.notes,
           notesUpdatedAt: latest.notesUpdatedAt,
+          // Site answers are the underwriter's and the dealer's: a new run
+          // keeps them (the IPC input does not carry them).
+          siteAnswers: latest.siteAnswers,
           // A link found by this run fills an empty slot only.
           website: latest.website ?? result.website,
           websiteSource: latest.website

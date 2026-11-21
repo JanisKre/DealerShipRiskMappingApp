@@ -970,6 +970,68 @@ describe("dealership notes", () => {
     expect(one.notes).toBe("During");
     expect(one.risk?.overallScore).toBe(10);
   });
+
+  it("stores site answers, replaces one per source and keeps them through a re-analysis", async () => {
+    useAppStore.setState({
+      dealerships: [{ ...firstInput } as AnalyzedDealership],
+    });
+    const store = useAppStore.getState();
+    await store.setSiteAnswer("one", "hailNet", "no", "dealer");
+    await store.setSiteAnswer("one", "hailNet", "yes", "underwriter");
+    await store.setSiteAnswer("one", "hailNet", "yes", "dealer");
+    await store.recordSiteAnswers("one", [
+      {
+        question: "canopy",
+        value: "no",
+        source: "model",
+        at: "2026-11-21T00:00:00Z",
+        engine: "ollama",
+        model: "d1:2b",
+        probabilities: { yes: 0.05, no: 0.95 },
+        probabilityKind: "decision",
+      },
+    ]);
+    let [one] = useAppStore.getState().dealerships;
+    expect(
+      one.siteAnswers?.map((a) => [a.question, a.source, a.value]),
+    ).toEqual([
+      ["hailNet", "dealer", "yes"],
+      ["hailNet", "underwriter", "yes"],
+      ["canopy", "model", "no"],
+    ]);
+    expect(api.saveSession).toHaveBeenCalledTimes(4);
+
+    // The IPC input carries no answers; the stored ones stay.
+    api.analyzeDealership.mockImplementationOnce(async (input) => {
+      return { ...input, risk: { overallScore: 10 } } as AnalyzedDealership;
+    });
+    await useAppStore.getState().reanalyzeDealership("one");
+    [one] = useAppStore.getState().dealerships;
+    expect(one.siteAnswers).toHaveLength(3);
+
+    await useAppStore
+      .getState()
+      .setSiteAnswer("one", "hailNet", null, "underwriter");
+    [one] = useAppStore.getState().dealerships;
+    expect(
+      one.siteAnswers?.some(
+        (a) => a.question === "hailNet" && a.source === "underwriter",
+      ),
+    ).toBe(false);
+  });
+
+  it("drops model answers for a location deleted meanwhile", async () => {
+    useAppStore.setState({ dealerships: [] });
+    await useAppStore.getState().recordSiteAnswers("gone", [
+      {
+        question: "canopy",
+        value: "no",
+        source: "model",
+        at: "2026-11-21T00:00:00Z",
+      },
+    ]);
+    expect(api.saveSession).not.toHaveBeenCalled();
+  });
 });
 
 describe("dealership website", () => {

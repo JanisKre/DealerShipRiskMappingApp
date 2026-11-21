@@ -47,6 +47,7 @@ import { DetectionModelCard } from "./DetectionModelCard";
 import { ImagerySourceCard } from "./ImagerySourceCard";
 import { LlmSettingsCard } from "./LlmSettingsCard";
 import { NatCatSettingsCard } from "./NatCatSettingsCard";
+import { SiteQuestionsSettingsCard } from "./SiteQuestionsSettingsCard";
 import { SettingRow } from "./SettingRow";
 
 /** The settings are split into three tabs instead of one long page. */
@@ -251,6 +252,7 @@ export function SettingsPage(): React.JSX.Element {
             onSettingsChange={setSettings}
             highlight={focusAi}
           />
+          <SiteQuestionsSettingsCard settings={settings} onUpdate={update} />
           <AiLogCard settings={settings} onUpdate={update} />
           <McpServersCard settings={settings} onUpdate={update} />
           <AgentGatewayCard settings={settings} onUpdate={update} />

@@ -1,4 +1,10 @@
 import type { AnalyzedDealership } from "./types";
+import {
+  PROTECTION_QUESTIONS,
+  resolveAnswer,
+  type ResolvedAnswer,
+  type SiteQuestionId,
+} from "./site-questions";
 import { IMAGERY_STALE_AFTER_YEARS, imageryAgeYears } from "./imagery-metadata";
 import {
   dealershipHailZone,
@@ -35,15 +41,36 @@ export interface Question {
   /** Interpolation values for the question text. */
   values?: Record<string, string | number>;
   /** Why the rule picked it, as a locale key under `questionnaire.why`. */
-  why: "always" | "estimatedStock" | "highZone" | "boundary" | "oldImage";
+  why:
+    | "always"
+    | "estimatedStock"
+    | "highZone"
+    | "boundary"
+    | "oldImage"
+    /** An image model saw hail protection that no person confirmed yet. */
+    | "modelSawProtection"
+    /** The site questions say the boundary does not fit. */
+    | "boundaryAnswer"
+    /** The site questions report construction on the lot. */
+    | "construction";
 }
 
 export function buildQuestionnaire(
   d: AnalyzedDealership,
   now: Date = new Date(),
 ): Question[] {
+  const site = (id: SiteQuestionId): ResolvedAnswer =>
+    resolveAnswer(d.siteAnswers, id);
+  // Protection the model saw is worth a question: the dealer can confirm it.
+  const unconfirmedProtection = PROTECTION_QUESTIONS.some((id) => {
+    const r = site(id);
+    return r.value === "yes" && r.answer?.source === "model";
+  });
   const questions: Question[] = [
-    { id: "hailProtection", why: "always" },
+    {
+      id: "hailProtection",
+      why: unconfirmedProtection ? "modelSawProtection" : "always",
+    },
     { id: "coveredSpaces", why: "always" },
     { id: "outdoorAtNight", why: "always" },
   ];
@@ -65,9 +92,17 @@ export function buildQuestionnaire(
   }
   if (d.boundary?.reviewRequired || d.boundary?.source === "synthetic")
     questions.push({ id: "lotExtent", why: "boundary" });
+  else if (site("boundaryFits").value === "no")
+    questions.push({ id: "lotExtent", why: "boundaryAnswer" });
 
   const capturedAt = d.detection?.imagery?.chosen.capturedAt;
-  if (
+  if (site("construction").value === "yes") {
+    questions.push({
+      id: "siteChanges",
+      why: "construction",
+      values: { year: (capturedAt ?? now.toISOString()).slice(0, 4) },
+    });
+  } else if (
     capturedAt &&
     imageryAgeYears(capturedAt, now) >= IMAGERY_STALE_AFTER_YEARS
   ) {

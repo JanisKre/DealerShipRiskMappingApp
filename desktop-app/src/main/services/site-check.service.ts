@@ -113,7 +113,7 @@ function modelName(): string {
   return getSettings().llm?.model ?? "";
 }
 
-function provenance(capture: AerialCapture): {
+export function provenance(capture: AerialCapture): {
   imageCapturedAt: string | null;
   imageLabel: string;
 } {

@@ -116,4 +116,24 @@ describe("Ollama pull", () => {
       error: undefined,
     });
   });
+
+  it("pulls a listed open decision model into the Ollama set for the site questions", async () => {
+    mocks.settings = {
+      language: "en",
+      decisions: { engine: "ollama", ollamaBaseUrl: "http://127.0.0.1:11500" },
+    };
+    fetchMock.mockResolvedValueOnce(
+      new Response('{"status":"success"}\n', { status: 200 }),
+    );
+    const chunks: unknown[] = [];
+    await pullOllamaModel(
+      "d1:2b",
+      (c) => chunks.push(c),
+      new AbortController().signal,
+    );
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      "http://127.0.0.1:11500/api/pull",
+    );
+    expect(chunks).toEqual([{ type: "done", model: "d1:2b" }]);
+  });
 });

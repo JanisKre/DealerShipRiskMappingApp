@@ -4,6 +4,11 @@ import {
   OLLAMA_HF_MODEL_PATTERN,
 } from "@shared/llm-config";
 import type { OllamaPullChunk } from "@shared/ipc-schema";
+import {
+  OLLAMA_DEFAULT_ORIGIN,
+  isLocalDecisionModel,
+  validateOllamaOrigin,
+} from "@shared/decision-engines";
 import { fetchWithResilience } from "./http.service";
 import { getSettings } from "./settings.service";
 
@@ -40,16 +45,39 @@ export function ollamaOrigin(): string {
   return new URL(baseUrl).origin;
 }
 
+/**
+ * Where a model goes: a Hugging Face GGUF to the Ollama of the local AI
+ * provider, a decision model from the list in shared/decision-engines.ts to
+ * the Ollama set for the site questions. Both on this computer only.
+ */
+export function pullOrigin(model: string): string {
+  if (isLocalDecisionModel(model)) {
+    const check = validateOllamaOrigin(
+      getSettings().decisions?.ollamaBaseUrl || OLLAMA_DEFAULT_ORIGIN,
+    );
+    if (!check.ok) {
+      throw new Error("Ollama URL must point to this computer (localhost)");
+    }
+    return check.url;
+  }
+  return ollamaOrigin();
+}
+
+/** Whether a model reference may be pulled at all. */
+export function isPullableModel(model: string): boolean {
+  return OLLAMA_HF_MODEL_PATTERN.test(model) || isLocalDecisionModel(model);
+}
+
 /** Pulls `model` and reports progress; resolves when Ollama reports success. */
 export async function pullOllamaModel(
   model: string,
   onChunk: (chunk: OllamaPullChunk) => void,
   signal: AbortSignal,
 ): Promise<void> {
-  if (!OLLAMA_HF_MODEL_PATTERN.test(model)) {
+  if (!isPullableModel(model)) {
     throw new Error("Invalid model reference");
   }
-  const origin = ollamaOrigin();
+  const origin = pullOrigin(model);
   let res: Response;
   try {
     res = await fetchWithResilience(

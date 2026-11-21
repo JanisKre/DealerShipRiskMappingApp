@@ -5,6 +5,11 @@ import type { LlmProvider, NatCatApiProvider, Settings } from "@shared/types";
 import { SettingsSchema } from "@shared/types";
 import { validateTileTemplate } from "@shared/tile-template";
 import { validateOverpassUrl } from "@shared/overpass-url";
+import {
+  SYSTEMONE_DEFAULT_BASE_URL,
+  validateDecisionEndpoint,
+  validateOllamaOrigin,
+} from "@shared/decision-engines";
 import { getDb } from "../db/database";
 
 /**
@@ -83,6 +88,38 @@ export function setSettings(partial: Partial<Settings>): Settings {
       partial = { ...partial, overpassUrl: check.url };
     }
   }
+  // Decision endpoints are fetched by the main process: a SystemOne server
+  // over HTTPS or on this computer, Ollama on this computer only. An empty
+  // value clears the address.
+  if (partial.decisions !== undefined) {
+    const decisions = { ...partial.decisions };
+    if (decisions.systemoneBaseUrl !== undefined) {
+      if (decisions.systemoneBaseUrl.trim() === "") {
+        delete decisions.systemoneBaseUrl;
+      } else {
+        const check = validateDecisionEndpoint(decisions.systemoneBaseUrl);
+        if (!check.ok)
+          throw new Error(`Invalid decision server (${check.problem})`);
+        decisions.systemoneBaseUrl = check.url;
+      }
+    }
+    if (decisions.ollamaBaseUrl !== undefined) {
+      if (decisions.ollamaBaseUrl.trim() === "") {
+        delete decisions.ollamaBaseUrl;
+      } else {
+        const check = validateOllamaOrigin(decisions.ollamaBaseUrl);
+        if (!check.ok)
+          throw new Error(
+            `Invalid Ollama address (${check.problem}; this computer only)`,
+          );
+        decisions.ollamaBaseUrl = check.url;
+      }
+    }
+    // Presence flags are computed, never stored.
+    delete decisions.hasGoogleKey;
+    delete decisions.hasSystemoneKey;
+    partial = { ...partial, decisions };
+  }
   // MCP servers are contacted by the main process: HTTPS, or HTTP on this
   // computer only; ids must be unique.
   if (partial.mcpServers !== undefined) {
@@ -120,6 +157,17 @@ function withKeyPresence(settings: Settings): Settings {
   }
   for (const server of settings.mcpServers ?? []) {
     server.hasToken = hasSecret(mcpServerTokenKey(server.id));
+  }
+  if (settings.decisions) {
+    settings.decisions.hasGoogleKey =
+      hasSecret(decisionKeyName("google")) ||
+      Boolean(
+        process.env.GEMINI_API_KEY?.trim() ||
+        process.env.GOOGLE_API_KEY?.trim(),
+      );
+    settings.decisions.hasSystemoneKey = hasSecret(
+      decisionKeyName("systemone"),
+    );
   }
   if (settings.natCat) {
     settings.natCat.catnetHasApiKey = hasNatCatApiKey("swissre-catnet");
@@ -196,6 +244,40 @@ export function setMcpServerToken(id: string, token: string): void {
 
 export function getMcpServerToken(id: string): string | null {
   return getSecret(mcpServerTokenKey(id));
+}
+
+// --- Decision endpoints ---------------------------------------------------
+
+export type DecisionKeyKind = "google" | "systemone";
+
+function decisionKeyName(kind: DecisionKeyKind): string {
+  return `decisions.apikey.${kind}`;
+}
+
+/** Stores the key of a decision endpoint; empty removes it. */
+export function setDecisionApiKey(kind: DecisionKeyKind, key: string): void {
+  if (key.trim()) setSecret(decisionKeyName(kind), key.trim());
+  else deleteSecret(decisionKeyName(kind));
+}
+
+/**
+ * The stored key, else the environment. The environment is read only for
+ * the vendor's own endpoint: a self-hosted SystemOne server at another
+ * address never receives TypeSafe's key unasked.
+ */
+export function getDecisionApiKey(kind: DecisionKeyKind): string | null {
+  const stored = getSecret(decisionKeyName(kind));
+  if (stored) return stored;
+  if (kind === "google") {
+    return (
+      process.env.GEMINI_API_KEY?.trim() ||
+      process.env.GOOGLE_API_KEY?.trim() ||
+      null
+    );
+  }
+  const base = getSettings().decisions?.systemoneBaseUrl;
+  if (base && base !== SYSTEMONE_DEFAULT_BASE_URL) return null;
+  return process.env.TYPESAFE_AI_API_KEY?.trim() || null;
 }
 
 // --- API-Keys via safeStorage --------------------------------------------

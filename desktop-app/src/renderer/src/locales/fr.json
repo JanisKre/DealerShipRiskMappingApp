@@ -1762,7 +1762,15 @@
       "allStatus": "Tout statut d’analyse",
       "analyzed": "Analysés ({{count}})",
       "pending": "En attente ({{count}})",
-      "review": "Limite à vérifier ({{count}})"
+      "review": "Limite à vérifier ({{count}})",
+      "protectionLabel": "Protection grêle",
+      "allProtection": "Toute protection grêle",
+      "protection": {
+        "seen": "Protection grêle visible ({{count}})",
+        "notSeen": "Pas de protection grêle ({{count}})",
+        "unclear": "Protection grêle incertaine ({{count}})",
+        "unanswered": "Protection grêle sans réponse ({{count}})"
+      }
     },
     "locationsPartlyAnalyzed": "{{analyzed}} sur {{total}} analysés · {{pending}} en attente",
     "fallbackBoundaryReview": "Limite estimée (cercle) – à vérifier ou modifier pour un comptage précis des véhicules",
@@ -2235,7 +2243,10 @@
       "estimatedStock": "nombre de véhicules estimé ou image atypique",
       "highZone": "zone de grêle élevée",
       "boundary": "limite de parcelle à vérifier",
-      "oldImage": "image aérienne de plusieurs années"
+      "oldImage": "image aérienne de plusieurs années",
+      "modelSawProtection": "le modèle d'image voit une protection grêle, pas encore confirmée",
+      "boundaryAnswer": "selon les questions sur le site, la limite ne correspond pas",
+      "construction": "selon les questions sur le site, chantier sur le terrain"
     },
     "answers": {
       "description": "Collez la réponse du concessionnaire : l'IA attribue les passages aux questions. Le texte collé est envoyé au fournisseur d'IA.",
@@ -2624,5 +2635,142 @@
     "invalid": "Saisis une valeur entre {{min}} et {{max}}.",
     "more": "Tous les autres paramètres (EAL grêle, PML, seuils) se trouvent sur la page « Paramètres » et restent modifiables.",
     "keepsParameters": "Les sites rejoignent un portefeuille existant et sont évalués avec ses paramètres."
+  },
+  "siteQuestions": {
+    "title": "Questions sur le site",
+    "summary": "{{answered}} sur {{total}} renseignées",
+    "description": "Questions fixes sur le terrain, à renseigner à la main : par le souscripteur ou selon le concessionnaire. Un modèle d'image peut répondre aux mêmes questions sur la photo aérienne. La réponse affichée est celle du souscripteur, sinon celle du concessionnaire, sinon la plus récente du modèle d'image.",
+    "answersBy": "Réponses de",
+    "by": {
+      "underwriter": "Souscripteur",
+      "dealer": "Concessionnaire (déclaré)"
+    },
+    "q": {
+      "hailNet": "Des filets anti-grêle couvrent-ils des places de stationnement ?",
+      "canopy": "Des véhicules sont-ils garés sous des abris ou auvents ?",
+      "parkingStructure": "Y a-t-il un parking à étages ou un parking couvert sur le terrain ?",
+      "openAirShare": "Combien de véhicules sont à découvert ?",
+      "boundaryFits": "La limite du terrain correspond-elle au site d'exploitation ?",
+      "construction": "Y a-t-il un chantier sur le terrain ?",
+      "dealershipVisible": "La photo aérienne montre-t-elle une concession ou un dépôt de véhicules ?"
+    },
+    "short": {
+      "hailNet": "Filets",
+      "canopy": "Auvents",
+      "parkingStructure": "Parking à étages",
+      "openAirShare": "À découvert",
+      "boundaryFits": "Limite plausible",
+      "construction": "Chantier",
+      "dealershipVisible": "Concession visible"
+    },
+    "value": {
+      "yes": "oui",
+      "no": "non",
+      "unclear": "incertain",
+      "few": "peu",
+      "aboutHalf": "environ la moitié",
+      "most": "la plupart",
+      "unanswered": "sans réponse"
+    },
+    "noAnswer": "– pas de réponse –",
+    "answerFor": "Réponse à : {{question}}",
+    "modelValue": "Modèle d'image : {{value}}",
+    "unanswered": "Pas encore de réponse",
+    "source": {
+      "underwriter": "Souscripteur, {{date}}",
+      "dealer": "selon le concessionnaire, {{date}}",
+      "model": "{{engine}} {{model}}, photo aérienne {{date}}"
+    },
+    "engine": {
+      "openai": "OpenAI Decisions",
+      "google": "Gemini Decisions",
+      "systemone": "Serveur SystemOne",
+      "ollama": "Modèle local (Ollama)",
+      "llm": "Modèle d'IA"
+    },
+    "choice": {
+      "auto": "Automatique (suit le fournisseur d'IA)",
+      "openai": "API OpenAI Decisions",
+      "google": "API Gemini Decisions",
+      "systemone": "SystemOne / Jev (TypeSafe, Clef, Laya)",
+      "ollama": "Modèle open source dans Ollama (local)",
+      "llm": "Modèle d'IA des paramètres (sans probabilités)"
+    },
+    "ask": "Vérifier avec {{engine}}",
+    "staysLocal": "La photo aérienne reste sur cet ordinateur ({{model}}).",
+    "leavesComputer": "La photo aérienne est envoyée à {{engine}} ({{model}}).",
+    "noProbabilities": "Le modèle d'IA répond en mots, sans probabilités.",
+    "probabilitiesHidden": "Les probabilités s'affichent une fois des seuils mesurés pour ce moteur (Paramètres → IA → Questions sur le site).",
+    "notSetUp": "Aucun moteur n'est configuré pour les questions sur le site. Paramètres → IA → Questions sur le site.",
+    "imageUnusable": "La photo aérienne ne permet pas de juger (nuages, neige, ombre ou flou) ; toutes les réponses sont « incertain ».",
+    "disclaimer": "Observations sur le terrain. Elles ne modifient ni le nombre de véhicules, ni la limite, ni l'EAL grêle ; le modèle compte chaque véhicule du terrain comme exposé.",
+    "run": {
+      "button": "Questions sur le site pour tous",
+      "hint": "Interroge {{engine}} pour chaque site analysé sans réponse de ce moteur, EAL grêle la plus élevée d'abord. Les photos aériennes sont envoyées.",
+      "hintLocal": "Interroge le modèle local pour chaque site analysé sans réponse, EAL grêle la plus élevée d'abord. Les photos aériennes restent sur cet ordinateur.",
+      "nothing": "Tous les sites analysés ont déjà des réponses de ce moteur",
+      "progress": "Questions sur le site : {{done}} sur {{total}} sites",
+      "stop": "Arrêter",
+      "failed": "Les questions sur le site n'ont pas pu être traitées",
+      "done_one": "Questions traitées pour {{count}} site ({{failed}} en échec)",
+      "done_other": "Questions traitées pour {{count}} sites ({{failed}} en échec)",
+      "doneHint": "Le tableau de bord peut maintenant être filtré par protection grêle."
+    },
+    "settings": {
+      "title": "Questions sur le site (modèles de décision)",
+      "description": "Quel moteur répond aux questions sur la photo aérienne. Les modèles de décision attribuent une probabilité à chaque réponse sans écrire de texte ; les modèles ouverts tournent localement dans Ollama. Sans moteur, les questions se renseignent à la main.",
+      "engine": "Moteur",
+      "answersLocal": "{{engine}} répond actuellement ({{model}}). La photo aérienne reste sur cet ordinateur.",
+      "answersRemote": "{{engine}} répond actuellement ({{model}}). La photo aérienne y est envoyée.",
+      "noEngine": "Aucun moteur configuré : les questions se renseignent uniquement à la main.",
+      "model": "Modèle",
+      "openaiHint": "Utilise la clé OpenAI des paramètres d'IA. Le traitement en Europe se règle dans le projet OpenAI.",
+      "googleHint": "Gemini Decision 1 via l'API Gemini. Avec le niveau gratuit, Google utilise les entrées pour améliorer ses produits.",
+      "serverUrl": "Adresse du serveur",
+      "systemoneHint": "TypeSafe Jev (https://api.typesafe.ai) ou votre propre serveur au même format sur cet ordinateur, p. ex. SGLang avec Clef (http://localhost:30000) ou laya-serve (http://localhost:8000).",
+      "apiKey": "Clé API",
+      "keyStored": "Clé enregistrée (trousseau)",
+      "keyMissing": "Aucune clé enregistrée",
+      "removeKey": "Supprimer",
+      "keySaved": "Clé enregistrée",
+      "keyRemoved": "Clé supprimée",
+      "ollamaUrl": "Adresse d'Ollama",
+      "ollamaUrlHint": "Cet ordinateur uniquement. Vide : http://localhost:11434.",
+      "ollamaUnreachable": "Ollama n'est pas joignable. Installez et lancez Ollama (ollama.com), puis rouvrez cette page.",
+      "ollamaModel": "Modèle dans Ollama",
+      "ollamaModelHint": "Nom d'un modèle de décision installé, p. ex. d1:2b.",
+      "otherInstalled": "Également installés : {{models}}",
+      "modelNote": {
+        "small": "Petit et rapide, environ {{size}} Go, lit les images. Licence : {{licence}}.",
+        "balanced": "Moyen, environ {{size}} Go, lit les images. Licence : {{licence}}.",
+        "large": "Grand, environ {{size}} Go, lit les images ; demande beaucoup de mémoire. Licence : {{licence}}."
+      },
+      "chosen": "choisi",
+      "use": "Utiliser",
+      "download": "Télécharger (~{{size}} Go)",
+      "installed": "{{model}} installé et choisi",
+      "llmHint": "Le modèle d'IA des paramètres ci-dessus répond en mots, sans probabilités. Il faut un modèle qui accepte les images.",
+      "openSourceHint": "Open source : avec Ollama, des modèles de décision ouverts (Liquid d1, Cloudflare Clef) se téléchargent et répondent localement avec des probabilités. Choisissez « Modèle open source dans Ollama » comme moteur.",
+      "test": "Tester la connexion",
+      "testOk": "Connecté ({{model}}) : question test répondue « oui » à {{p}} %.",
+      "testOkNoProbability": "Configuré ({{model}}). Le modèle d'IA répond sans probabilités.",
+      "testFailed": "Échec du test : {{error}}",
+      "calibrationTitle": "Comparaison avec vos réponses",
+      "calibrationHint": "Compare les probabilités de chaque moteur aux réponses du souscripteur et du concessionnaire dans le portefeuille ouvert. À partir de 20 sites avec au moins 5 « oui » et 5 « non », des seuils sont proposés pour lesquels « oui » et « non » sont justes dans au moins 90 % des cas. Les seuils adoptés servent à l'affichage ; ce n'est qu'alors que les probabilités s'affichent.",
+      "calibrationEmpty": "Pas encore de sites où un moteur avec probabilités et une personne ont répondu à la même question.",
+      "question": "Question",
+      "labels": "Comparaisons",
+      "brier": "Score de Brier",
+      "accuracy": "Justes (défaut)",
+      "unclear": "Incertain (défaut)",
+      "suggested": "Proposition",
+      "labelCount": "{{n}} ({{yes}} oui)",
+      "thresholdPair": "oui dès {{yes}}, non jusqu'à {{no}}",
+      "tooFewLabels": "trop peu de comparaisons",
+      "adoptThresholds": "Adopter les seuils",
+      "resetThresholds": "Réinitialiser",
+      "measuredInUse": "Des seuils mesurés sont adoptés et servent à l'affichage.",
+      "thresholdsSaved": "Seuils enregistrés"
+    }
   }
 }

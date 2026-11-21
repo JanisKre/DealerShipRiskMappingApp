@@ -3,6 +3,7 @@ import { isUserWebsiteSource, normalizeWebsiteUrl } from "@shared/website";
 import { type AppState, type StoreSet } from "./types";
 import { removedIds } from "./runtime";
 import { withoutKey, withChange } from "./helpers";
+import { clearAnswer, mergeAnswers } from "@shared/site-questions";
 
 /** Single locations: metadata, notes, website, vehicle counts, removal. */
 export function dealershipActions(
@@ -13,6 +14,8 @@ export function dealershipActions(
   | "upsertDealership"
   | "updateDealershipMeta"
   | "updateDealershipNotes"
+  | "setSiteAnswer"
+  | "recordSiteAnswers"
   | "updateDealershipWebsite"
   | "setInsuredForDealerships"
   | "updateManualVehicleCount"
@@ -51,6 +54,42 @@ export function dealershipActions(
         });
         return { dealerships: copy };
       }),
+
+    setSiteAnswer: async (id, question, value, source) => {
+      const current = get().dealerships.find((d) => d.id === id);
+      if (!current) return;
+      const siteAnswers =
+        value == null
+          ? clearAnswer(current.siteAnswers, question, source)
+          : mergeAnswers(current.siteAnswers, [
+              { question, value, source, at: new Date().toISOString() },
+            ]);
+      set((s) => ({
+        dealerships: s.dealerships.map((d) =>
+          d.id === id
+            ? {
+                ...d,
+                siteAnswers: siteAnswers.length ? siteAnswers : undefined,
+              }
+            : d,
+        ),
+      }));
+      await get().saveSession();
+    },
+
+    recordSiteAnswers: async (id, answers) => {
+      if (answers.length === 0) return;
+      // A location deleted while the model looked at it stays deleted.
+      if (!get().dealerships.some((d) => d.id === id)) return;
+      set((s) => ({
+        dealerships: s.dealerships.map((d) =>
+          d.id === id
+            ? { ...d, siteAnswers: mergeAnswers(d.siteAnswers, answers) }
+            : d,
+        ),
+      }));
+      await get().saveSession();
+    },
 
     updateDealershipNotes: async (id, notes) => {
       const current = get().dealerships.find((d) => d.id === id);
